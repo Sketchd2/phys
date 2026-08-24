@@ -1,0 +1,462 @@
+<title>The 10⁶⁰ Problem</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap">
+
+<style>
+:root{
+  --ink:#0E131C; --paper:#F4F6F9;
+  --bg:#F4F6F9; --bg-raised:#FFFFFF; --bg-sunken:#E9EDF3;
+  --fg:#131A25; --fg-dim:#4E5A6A; --fg-faint:#7C8899;
+  --rule:#DBE1EA; --rule-strong:#C2CBD8;
+  --sodium:#B4741A; --sodium-bright:#E0A23F; --sodium-wash:#FBF1DF;
+  --oiii:#2C7C8B; --oiii-wash:#E2F0F2;
+  --shadow:0 1px 2px rgba(14,19,28,.05),0 8px 24px -12px rgba(14,19,28,.14);
+  --measure:68ch;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0E131C; --bg-raised:#151C28; --bg-sunken:#0A0E15;
+    --fg:#E4E9F0; --fg-dim:#9AA5B4; --fg-faint:#6B7787;
+    --rule:#1D2634; --rule-strong:#2A3546;
+    --sodium:#E0A23F; --sodium-bright:#F0B95F; --sodium-wash:#241B0E;
+    --oiii:#63BECC; --oiii-wash:#0D2126;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 12px 32px -16px rgba(0,0,0,.7);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0E131C; --bg-raised:#151C28; --bg-sunken:#0A0E15;
+  --fg:#E4E9F0; --fg-dim:#9AA5B4; --fg-faint:#6B7787;
+  --rule:#1D2634; --rule-strong:#2A3546;
+  --sodium:#E0A23F; --sodium-bright:#F0B95F; --sodium-wash:#241B0E;
+  --oiii:#63BECC; --oiii-wash:#0D2126;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 12px 32px -16px rgba(0,0,0,.7);
+}
+
+*{box-sizing:border-box}
+body{
+  background:var(--bg); color:var(--fg);
+  font-family:"Source Serif 4",Georgia,"Times New Roman",serif;
+  font-size:17px; line-height:1.62;
+  -webkit-font-smoothing:antialiased;
+  padding:0 0 6rem;
+}
+.wrap{max-width:var(--measure); margin:0 auto; padding:0 1.5rem}
+.wide{max-width:1080px; margin:0 auto; padding:0 1.5rem}
+
+h1,h2,h3,.eyebrow,.num,th,.mono{font-family:Archivo,"Helvetica Neue",Arial,sans-serif}
+.mono,code,td.n,th.n,.rail text,.k{font-family:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace}
+
+h1{font-size:clamp(2.6rem,7vw,4.4rem); line-height:.98; font-weight:700;
+   letter-spacing:-.03em; text-wrap:balance; margin:0 0 1.2rem}
+h2{font-size:clamp(1.45rem,3vw,1.85rem); font-weight:600; letter-spacing:-.02em;
+   line-height:1.15; text-wrap:balance; margin:0 0 .5rem}
+h3{font-size:1.03rem; font-weight:600; letter-spacing:-.01em; margin:0 0 .35rem}
+p{margin:0 0 1.05rem}
+a{color:var(--oiii)}
+
+.eyebrow{
+  font-family:"IBM Plex Mono",monospace; font-size:.7rem; font-weight:500;
+  letter-spacing:.16em; text-transform:uppercase; color:var(--fg-faint);
+  display:block; margin:0 0 .55rem;
+}
+section{padding:3.2rem 0 0}
+section > .wrap > .eyebrow::before{content:"";}
+hr.sep{border:0; border-top:1px solid var(--rule); margin:3.4rem auto 0; max-width:var(--measure)}
+
+/* ---- masthead ---- */
+header{padding:4.5rem 0 0}
+.kicker{
+  font-family:"IBM Plex Mono",monospace; font-size:.72rem; letter-spacing:.2em;
+  text-transform:uppercase; color:var(--sodium); margin:0 0 1.4rem;
+  display:flex; gap:.7rem; align-items:center; flex-wrap:wrap;
+}
+.kicker::after{content:""; flex:1; height:1px; background:var(--rule); min-width:2rem}
+.standfirst{font-size:1.2rem; line-height:1.5; color:var(--fg-dim); margin:0 0 2rem}
+.standfirst strong{color:var(--fg); font-weight:600}
+
+/* ---- the gap figure ---- */
+.gap{
+  display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+  gap:1px; background:var(--rule); border:1px solid var(--rule);
+  border-radius:3px; overflow:hidden; margin:0 0 .9rem;
+}
+.gap div{background:var(--bg-raised); padding:1.1rem 1.15rem}
+.gap .lab{
+  font-family:"IBM Plex Mono",monospace; font-size:.68rem; letter-spacing:.12em;
+  text-transform:uppercase; color:var(--fg-faint); display:block; margin-bottom:.5rem;
+}
+.gap .val{
+  font-family:Archivo,sans-serif; font-size:1.55rem; font-weight:600;
+  letter-spacing:-.02em; font-variant-numeric:tabular-nums; line-height:1.1;
+}
+.gap .val sup{font-size:.62em; font-weight:500}
+.gap.hero div:last-child{background:var(--sodium-wash)}
+.gap.hero div:last-child .val{color:var(--sodium)}
+.caption{font-size:.86rem; color:var(--fg-faint); margin:0 0 2.2rem; line-height:1.5}
+
+/* ---- scale rail ---- */
+.rail{width:100%; height:auto; display:block; margin:.4rem 0 .6rem}
+.rail .tier-band{opacity:.85}
+.rail text{font-size:11px; fill:var(--fg-dim)}
+.rail .tick{stroke:var(--rule-strong); stroke-width:1}
+.rail .axis{stroke:var(--rule-strong); stroke-width:1}
+.rail .tname{fill:var(--fg); font-family:Archivo,sans-serif; font-size:12px; font-weight:600; letter-spacing:-.01em}
+.rail .marker{stroke:var(--sodium); stroke-width:1.5}
+.rail .mtext{fill:var(--sodium); font-size:11px; font-weight:500}
+.rail .axlabel{fill:var(--fg-faint); font-size:9.5px; letter-spacing:1.4px}
+.rail .verified{fill:var(--oiii); font-size:11px}
+.scroller{overflow-x:auto; -webkit-overflow-scrolling:touch}
+.scroller > *{min-width:640px}
+
+/* ---- tables ---- */
+table{border-collapse:collapse; width:100%; font-size:.87rem; margin:.3rem 0 .5rem}
+th{
+  font-size:.68rem; letter-spacing:.11em; text-transform:uppercase; font-weight:600;
+  color:var(--fg-faint); text-align:left; padding:0 .85rem .55rem 0;
+  border-bottom:1px solid var(--rule-strong); white-space:nowrap;
+}
+td{padding:.5rem .85rem .5rem 0; border-bottom:1px solid var(--rule); vertical-align:top}
+td.n,th.n{text-align:right; font-variant-numeric:tabular-nums; padding-right:0}
+tr:last-child td{border-bottom:0}
+.tname-cell{font-family:Archivo,sans-serif; font-weight:600; white-space:nowrap}
+.ok{color:var(--oiii); font-weight:500}
+
+/* ---- projection chain ---- */
+.chain{list-style:none; padding:0; margin:1rem 0 .6rem; position:relative}
+.chain::before{
+  content:""; position:absolute; left:7px; top:12px; bottom:12px;
+  width:1px; background:var(--rule-strong);
+}
+.chain li{position:relative; padding:0 0 1.05rem 2.1rem}
+.chain li::before{
+  content:""; position:absolute; left:3px; top:.52em; width:9px; height:9px;
+  border-radius:50%; background:var(--bg); border:1.5px solid var(--rule-strong);
+}
+.chain li.done::before{background:var(--oiii); border-color:var(--oiii)}
+.chain .step{font-family:Archivo,sans-serif; font-weight:600; font-size:.95rem}
+.chain .k{
+  display:inline-block; font-size:.78rem; color:var(--oiii);
+  background:var(--oiii-wash); padding:.08rem .45rem; border-radius:2px;
+  margin-left:.1rem; white-space:nowrap;
+}
+.chain .note{display:block; font-size:.87rem; color:var(--fg-dim); margin-top:.15rem}
+
+/* ---- callout ---- */
+.note-box{
+  border-left:2px solid var(--sodium); background:var(--sodium-wash);
+  padding:1rem 1.15rem; margin:1.4rem 0; border-radius:0 3px 3px 0;
+  font-size:.93rem; line-height:1.55;
+}
+.note-box p:last-child{margin-bottom:0}
+.note-box .lab{
+  font-family:"IBM Plex Mono",monospace; font-size:.66rem; letter-spacing:.13em;
+  text-transform:uppercase; color:var(--sodium); display:block; margin-bottom:.4rem;
+}
+
+/* ---- idea cards ---- */
+.ideas{display:grid; gap:1px; background:var(--rule); border:1px solid var(--rule);
+       border-radius:3px; overflow:hidden; margin:1.2rem 0 .4rem}
+@media(min-width:720px){.ideas{grid-template-columns:1fr 1fr}}
+.idea{background:var(--bg-raised); padding:1.25rem 1.3rem}
+.idea .tag{
+  font-family:"IBM Plex Mono",monospace; font-size:.65rem; letter-spacing:.13em;
+  text-transform:uppercase; color:var(--sodium); display:block; margin-bottom:.5rem;
+}
+.idea p{font-size:.91rem; line-height:1.55; color:var(--fg-dim); margin:0}
+.idea p + p{margin-top:.6rem}
+
+code{
+  font-size:.85em; background:var(--bg-sunken); padding:.1em .35em;
+  border-radius:2px; color:var(--fg);
+}
+pre{
+  background:var(--bg-sunken); border:1px solid var(--rule); border-radius:3px;
+  padding:1rem 1.1rem; overflow-x:auto; font-size:.8rem; line-height:1.6;
+  font-family:"IBM Plex Mono",monospace; margin:1.1rem 0;
+}
+pre code{background:none; padding:0; font-size:1em}
+
+ul.plain{padding-left:1.15rem; margin:0 0 1.05rem}
+ul.plain li{margin-bottom:.5rem}
+
+footer{margin-top:3.2rem; padding-top:1.4rem; border-top:1px solid var(--rule);
+       font-size:.82rem; color:var(--fg-faint)}
+footer .mono{font-size:.78rem}
+@media (prefers-reduced-motion:no-preference){
+  .gap div,.idea{transition:background .2s ease}
+}
+</style>
+
+<header class="wrap">
+  <p class="kicker">Multiscale simulation · design note</p>
+  <h1>The 10<sup>60</sup> problem</h1>
+  <p class="standfirst">A galaxy contains 1.2&nbsp;×&nbsp;10<sup>66</sup> baryons. A consumer GPU can step around 10<sup>6</sup> bodies per frame at 20&nbsp;updates&nbsp;per&nbsp;second. <strong>No optimisation closes that gap, and no hardware will.</strong> So the engine described here does not simulate a galaxy — it is built to be indistinguishable from one, and that is stated as a tested claim rather than a slogan.</p>
+</header>
+
+<div class="wrap">
+  <div class="gap hero">
+    <div><span class="lab">Baryons in the galaxy</span><span class="val">1.2 × 10<sup>66</sup></span></div>
+    <div><span class="lab">Bodies per 50 ms frame</span><span class="val">10<sup>5</sup> – 10<sup>7</sup></span></div>
+    <div><span class="lab">The gap</span><span class="val">~10<sup>60</sup></span></div>
+  </div>
+  <p class="caption">For scale: 10<sup>60</sup> is forty-five orders of magnitude beyond what Moore's law has left. One atom of memory per particle would require more atoms than exist in 10<sup>37</sup> galaxies. This is not an engineering problem with a clever solution — it is a category error to attempt directly.</p>
+
+  <p>The way out is to change the goal. Nobody needs a galaxy; they need something no observer inside it can distinguish from one. And <em>indistinguishable</em> is a finite requirement, because observers are finite — they have apertures, integration times, photon budgets, and at the bottom the uncertainty principle, which puts a hard ceiling on how much detail any region can be asked to have. "Simulate down to the subatomic level" turns out to be a bounded request.</p>
+
+  <p>So the specification becomes: <em>for any observation an observer can physically perform, return the answer a real galaxy would have returned, within that observation's own error bars, in bounded time.</em> That is achievable.</p>
+</div>
+
+<hr class="sep">
+
+<section>
+  <div class="wrap"><span class="eyebrow">Structure</span><h2>Seven regimes, twenty-three levels</h2>
+  <p>A tier is a physics regime, not a level of the tree. Many refinements happen inside one tier; the tier changes only when the characteristic size crosses a boundary where a different description becomes appropriate. Conflating the two is a tempting simplification that gives seven refinement levels between a galaxy and a nucleus, when the mass ratio alone demands more than twenty.</p></div>
+
+  <div class="wide scroller">
+    <svg class="rail" viewBox="0 0 960 232" role="img" aria-label="Logarithmic scale from 10^21 metres down to 10^-15 metres, divided into seven physics tiers">
+      <defs>
+        <linearGradient id="fade" x1="0" x2="1">
+          <stop offset="0" stop-color="var(--sodium)" stop-opacity=".16"/>
+          <stop offset="1" stop-color="var(--oiii)" stop-opacity=".16"/>
+        </linearGradient>
+      </defs>
+      <!-- bands: x from 40 to 920 maps log10(m) from +22 down to -16 -->
+      <g class="tier-band">
+        <rect x="40"  y="52" width="92.6" height="46" fill="url(#fade)"/>
+        <rect x="132.6" y="52" width="139" height="46" fill="url(#fade)" opacity=".72"/>
+        <rect x="271.6" y="52" width="185.3" height="46" fill="url(#fade)" opacity=".86"/>
+        <rect x="456.9" y="52" width="277.9" height="46" fill="url(#fade)" opacity=".62"/>
+        <rect x="734.8" y="52" width="34.7" height="46" fill="url(#fade)" opacity=".9"/>
+        <rect x="769.5" y="52" width="104.2" height="46" fill="url(#fade)" opacity=".7"/>
+        <rect x="873.7" y="52" width="46.3" height="46" fill="url(#fade)" opacity=".95"/>
+      </g>
+      <line class="axis" x1="40" y1="98" x2="920" y2="98"/>
+      <!-- decade ticks every 2 decades -->
+      <g class="tick">
+        <line x1="40" y1="98" x2="40" y2="105"/><line x1="86.3" y1="98" x2="86.3" y2="105"/>
+        <line x1="132.6" y1="98" x2="132.6" y2="105"/><line x1="178.9" y1="98" x2="178.9" y2="105"/>
+        <line x1="225.3" y1="98" x2="225.3" y2="105"/><line x1="271.6" y1="98" x2="271.6" y2="105"/>
+        <line x1="317.9" y1="98" x2="317.9" y2="105"/><line x1="364.2" y1="98" x2="364.2" y2="105"/>
+        <line x1="410.5" y1="98" x2="410.5" y2="105"/><line x1="456.9" y1="98" x2="456.9" y2="105"/>
+        <line x1="503.2" y1="98" x2="503.2" y2="105"/><line x1="549.5" y1="98" x2="549.5" y2="105"/>
+        <line x1="595.8" y1="98" x2="595.8" y2="105"/><line x1="642.1" y1="98" x2="642.1" y2="105"/>
+        <line x1="688.4" y1="98" x2="688.4" y2="105"/><line x1="734.8" y1="98" x2="734.8" y2="105"/>
+        <line x1="781.1" y1="98" x2="781.1" y2="105"/><line x1="827.4" y1="98" x2="827.4" y2="105"/>
+        <line x1="873.7" y1="98" x2="873.7" y2="105"/><line x1="920" y1="98" x2="920" y2="105"/>
+      </g>
+      <g text-anchor="middle">
+        <text x="40" y="120">10²²</text><text x="132.6" y="120">10¹⁸</text>
+        <text x="225.3" y="120">10¹⁴</text><text x="317.9" y="120">10¹⁰</text>
+        <text x="410.5" y="120">10⁶</text><text x="503.2" y="120">10²</text>
+        <text x="595.8" y="120">10⁻²</text><text x="688.4" y="120">10⁻⁶</text>
+        <text x="781.1" y="120">10⁻¹⁰</text><text x="873.7" y="120">10⁻¹⁴</text>
+      </g>
+      <text x="480" y="140" text-anchor="middle" class="axlabel">CHARACTERISTIC LENGTH / METRES</text>
+
+      <!-- tier names above -->
+      <g class="tname" text-anchor="middle">
+        <text x="86" y="44">Galactic</text>
+        <text x="202" y="44">Stellar</text>
+        <text x="364" y="44">Planetary</text>
+        <text x="596" y="44">Continuum</text>
+        <text x="752" y="30">Molecular</text>
+        <text x="822" y="44">Atomic</text>
+        <text x="897" y="30">Nuclear</text>
+      </g>
+      <g stroke="var(--rule-strong)" stroke-width="1">
+        <line x1="752" y1="34" x2="752" y2="52"/>
+        <line x1="897" y1="34" x2="897" y2="52"/>
+      </g>
+
+      <!-- descent markers -->
+      <g class="marker">
+        <line x1="71" y1="160" x2="71" y2="176"/>
+        <line x1="887" y1="160" x2="887" y2="176"/>
+        <line x1="71" y1="168" x2="887" y2="168" stroke-dasharray="3 4" stroke-width="1"/>
+      </g>
+      <g class="mtext">
+        <text x="71" y="192" text-anchor="start">15 kpc disc · 9.2 × 10⁸ M☉</text>
+        <text x="887" y="192" text-anchor="end">2.7 fm nucleus</text>
+        <text x="479" y="192" text-anchor="middle">23 refinement levels · 10³⁰ in length · 10⁶⁰ in mass</text>
+      </g>
+      <text x="479" y="212" text-anchor="middle" class="verified">worst conservation error along the whole descent: 4 × 10⁻¹⁶</text>
+    </svg>
+  </div>
+
+  <div class="wide scroller">
+    <table>
+      <thead><tr>
+        <th>Tier</th><th>Size range</th><th>Timestep</th><th>Light crossing</th><th>Representation</th><th>Solver</th>
+      </tr></thead>
+      <tbody>
+        <tr><td class="tname-cell">Galactic</td><td class="n">&gt; 10¹⁸ m</td><td class="n">100 kyr</td><td class="n">10.6 kyr</td><td>Collisionless super-particles, static halo</td><td>Barnes-Hut</td></tr>
+        <tr><td class="tname-cell">Stellar</td><td class="n">10¹² – 10¹⁸ m</td><td class="n">100 yr</td><td class="n">1.06 yr</td><td>Clouds, clusters, individual stars</td><td>Barnes-Hut + SPH</td></tr>
+        <tr><td class="tname-cell">Planetary</td><td class="n">10⁴ – 10¹² m</td><td class="n">100 s</td><td class="n">3.3 s</td><td>Stars, planets, orbits, interiors</td><td>+ post-Newtonian</td></tr>
+        <tr><td class="tname-cell">Continuum</td><td class="n">10⁻⁸ – 10⁴ m</td><td class="n">1 ms</td><td class="n">3.3 ns</td><td>Fluid parcels, grains, bulk matter</td><td>SPH</td></tr>
+        <tr><td class="tname-cell">Molecular</td><td class="n">3×10⁻¹⁰ – 10⁻⁸ m</td><td class="n">1 fs</td><td class="n">3.3 as</td><td>Molecules</td><td>Molecular dynamics</td></tr>
+        <tr><td class="tname-cell">Atomic</td><td class="n">10⁻¹⁴ – 3×10⁻¹⁰ m</td><td class="n">1 as</td><td class="n">0.3 zs</td><td>Atoms, electronic structure</td><td>MD + level ensembles</td></tr>
+        <tr><td class="tname-cell">Nuclear</td><td class="n">&lt; 10⁻¹⁴ m</td><td class="n">1 zs</td><td class="n">—</td><td>Occupation numbers, not trajectories</td><td>Statistical</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<hr class="sep">
+
+<section>
+  <div class="wrap">
+    <span class="eyebrow">Architecture</span><h2>Four ideas</h2>
+    <p>The engine is assembled from established techniques — adaptive mesh refinement, Barnes-Hut, sub-grid models, procedural generation, conservative discrete-event simulation. The gaps between them are consistent: the level-of-detail techniques are not conservative, the conservative techniques are not lazy, and none of them is driven by what an observer can actually see.</p>
+  </div>
+
+  <div class="wide">
+    <div class="ideas">
+      <div class="idea">
+        <span class="tag">Materialisation</span>
+        <h3>Detail is generated, then destroyed</h3>
+        <p>Fine structure is sampled on demand from a seeded distribution and thrown away when nobody is looking. The sampler is constrained so that coarsening the generated detail returns the original bulk state <em>exactly</em> — energy, momentum, angular momentum, charge, baryon and lepton number.</p>
+        <p>Measured worst case across 126 configurations spanning 60 orders of magnitude in mass: <span class="ok">5.8 × 10⁻¹⁶</span>. That is machine epsilon.</p>
+      </div>
+      <div class="idea">
+        <span class="tag">Causality</span>
+        <h3>Light speed is the scheduler's lookahead</h3>
+        <p>Conservative parallel discrete-event simulation needs a guarantee that no message will arrive before <code>now + L</code>. Obtaining one is the classical difficulty of the field. Here relativity supplies it free: a region whose nearest neighbour is at distance <em>d</em> has lookahead <em>d/c</em>, with no analysis and no annotation.</p>
+        <p>Two clouds a kiloparsec apart step independently for three thousand simulated years. Two nucleons 2 fm apart step in lockstep. Same rule.</p>
+      </div>
+      <div class="idea">
+        <span class="tag">Observation</span>
+        <h3>Measuring is committing</h3>
+        <p>An unobserved quantity has no value; a measured one is recorded permanently and never re-sampled. Measure a decay time twice and you get the same answer, because the first measurement made it a fact.</p>
+        <p>At the subatomic tier this stops being a trick and becomes the physics. The approximation runs the other way — classical trajectories are the approximation.</p>
+      </div>
+      <div class="idea">
+        <span class="tag">Budget</span>
+        <h3>Frames spend detail, not time</h3>
+        <p>Each frame gets 50 ms and solves a knapsack over the available work, ranked by observer salience, causal urgency and the estimated error of skipping it.</p>
+        <p>Frame rate is the invariant; fidelity is the free variable. Zoom too far and you get a slightly coarser world with a visible detail-debt readout, not a slideshow.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="sep">
+
+<section>
+  <div class="wrap">
+    <span class="eyebrow">The central mechanism</span>
+    <h2>How invention is made conservative</h2>
+    <p>Procedural generation and physical simulation are normally incompatible: generation invents, simulation conserves. Throw away a cloud's million parcels and regenerate them later, and the new set has different total energy and momentum — a difference that accumulates every time the camera moves.</p>
+    <p>The fix is to sample from the maximum-entropy distribution consistent with the coarse state, which makes it look right, then project exactly onto the constraint surface. The projection is ordered so each correction lives in the null space of the constraints already satisfied, and nothing is ever undone:</p>
+
+    <ol class="chain">
+      <li class="done"><span class="step">Centre the positions</span> <span class="k">Σ m r = 0</span><span class="note">Establishes the centre of mass the rest of the construction is measured against.</span></li>
+      <li class="done"><span class="step">Subtract the mean velocity</span> <span class="k">Σ m v = 0</span><span class="note">Leaves the positions untouched.</span></li>
+      <li class="done"><span class="step">Subtract the rigid rotation</span> <span class="k">Σ m r × v = 0</span><span class="note">Removing a rotation adds no net momentum, so the previous constraint survives.</span></li>
+      <li class="done"><span class="step">Scale the residual</span> <span class="k">both still 0</span><span class="note">Scaling is linear, so a field with zero momentum and zero angular momentum keeps both.</span></li>
+      <li class="done"><span class="step">Add the target rotation</span> <span class="k">L = L target</span><span class="note">A rigid rotation about the centre of mass carries no net momentum.</span></li>
+      <li class="done"><span class="step">Add the bulk drift</span> <span class="k">P = P target</span><span class="note">A uniform translation adds no angular momentum about the centre of mass.</span></li>
+    </ol>
+
+    <p>Because the residual field has zero angular momentum by construction, it is <em>energetically orthogonal</em> to the rotation added in step five — <code>Σ m δ·(ω×r) = ω·Σ m r×δ = 0</code> — which is what lets the energy scale be solved in closed form instead of iterated.</p>
+
+    <div class="note-box">
+      <span class="lab">Where the exactness actually comes from</span>
+      <p>Two refinements turn "very accurate" into "exact". <strong>Energy is closed algebraically, not by iteration:</strong> restriction computes internal energy as <code>E_kin + Σ U − K_bulk</code>, so <code>Σ U</code> is a free parameter that appears linearly and disturbs neither momentum nor angular momentum. Solving for it makes total energy exact for any configuration, including the awkward ones where the velocity projection converges poorly.</p>
+      <p><strong>Angular momentum the geometry cannot carry becomes intrinsic spin.</strong> Two point masses have no moment of inertia about their own axis; the inertia solve correctly reports this as singular. The angular momentum still has to go somewhere, and the honest place is the children's own spin — which is exactly what the parent's spin was, one level down.</p>
+    </div>
+  </div>
+</section>
+
+<hr class="sep">
+
+<section>
+  <div class="wrap">
+    <span class="eyebrow">Measurement</span><h2>Numbers that had to be checked</h2>
+    <p>Conservation is necessary but not sufficient. A cloud whose parcels conserve energy but follow the wrong velocity distribution is detectable by anyone with a spectrograph, so the generated detail is tested against the distributions it claims to be drawn from, and the solvers against the physics they claim to implement.</p>
+  </div>
+  <div class="wide scroller">
+    <table>
+      <thead><tr><th>Quantity</th><th class="n">Engine</th><th class="n">Reference</th><th>Why it is the right test</th></tr></thead>
+      <tbody>
+        <tr><td>Velocity kurtosis ⟨v⁴⟩/⟨v²⟩²</td><td class="n ok">1.667</td><td class="n">1.6667</td><td>Fails immediately for a uniform or top-hat distribution, both of which pass a "mean speed looks right" check</td></tr>
+        <tr><td>Kroupa IMF high-mass slope</td><td class="n ok">m<sup>−1.29</sup></td><td class="n">m<sup>−1.3</sup></td><td>Wrong stars make the wrong galaxy</td></tr>
+        <tr><td>Plummer profile r₅₀/r₂₅</td><td class="n ok">1.6049</td><td class="n">1.6086</td><td>Shape test, independent of the requested scale</td></tr>
+        <tr><td>pp-chain rate, solar centre</td><td class="n ok">9.6 × 10⁻⁴ W/kg</td><td class="n">~10⁻³</td><td>One number validating the whole nuclear path</td></tr>
+        <tr><td>CNO temperature sensitivity</td><td class="n ok">16.4</td><td class="n">16 – 20</td><td>Why massive stars are convective in the core</td></tr>
+        <tr><td>Lyman-α, hydrogen n=2→1</td><td class="n ok">121.50 nm</td><td class="n">121.57 nm</td><td>What a spectrograph in the simulation actually sees</td></tr>
+        <tr><td>Earth–Sun orbit, 50 revolutions</td><td class="n ok">dE/E = 3.1 × 10⁻⁸</td><td class="n">—</td><td>Retarded gravity must not unbind a bound orbit</td></tr>
+        <tr><td>Leapfrog convergence order</td><td class="n ok">4.0× per halving</td><td class="n">4 (2nd order)</td><td>Confirms the integrator, not just the forces</td></tr>
+        <tr><td>Locating a proton to 1 fm</td><td class="n ok">5.2 MeV deposited</td><td class="n">5 – 20 MeV</td><td>You cannot watch a nucleus without changing it</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="wrap">
+    <p style="margin-top:1.2rem">The orbit test earns its place. Retarding a source's position alone produces a tangential force that does net work on a bound orbit and unbinds it — Laplace's objection to finite-speed gravity. The physical field of a uniformly moving source points at its <em>instantaneous</em> position; the retardation is cancelled by the velocity-dependent part of the field, and what survives is the gravitomagnetic term. Fifty orbits is enough for the naive version to fail unmistakably.</p>
+  </div>
+</section>
+
+<hr class="sep">
+
+<section>
+  <div class="wrap">
+    <span class="eyebrow">Cost</span><h2>What a frame can buy</h2>
+    <p>At 20 updates per second a frame is 50 ms, of which physics gets 35. The tempting way to size that budget is bandwidth: 336 GB/s × 35 ms is 11.8 GB, which at 48 bytes per body over ten passes suggests 24 million bodies. <strong>That number is wrong</strong>, and it is worth saying why, because it is what an optimistic design document would quote.</p>
+    <p>Tree traversal is not a streaming workload. Each body walks a different path, warps diverge at every opening test, and the cells touched are effectively random in memory. The limit is latency and occupancy. Bandwidth bounds the <em>resident set</em>; it does not bound the <em>step rate</em>.</p>
+  </div>
+  <div class="wide scroller">
+    <table>
+      <thead><tr><th>Solver</th><th class="n">Interactions / body</th><th class="n">Bodies per frame, projected</th><th>Character</th></tr></thead>
+      <tbody>
+        <tr><td class="tname-cell">Gravity</td><td class="n">~1,000</td><td class="n">0.2 – 1 M</td><td>Long range, divergent traversal</td></tr>
+        <tr><td class="tname-cell">Hydrodynamics</td><td class="n">~50</td><td class="n">2 – 6 M</td><td>Short range, cell lists</td></tr>
+        <tr><td class="tname-cell">Molecular dynamics</td><td class="n">~100</td><td class="n">1 – 4 M</td><td>Short range, Verlet lists</td></tr>
+        <tr><td class="tname-cell">Statistical</td><td class="n">~1</td><td class="n">50 – 200 M</td><td>No interactions at all</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="wrap">
+    <p style="margin-top:1.2rem">The budget is not spent on depth. A complete galaxy-to-nucleus chain is 132,400 bodies in 20 MB — one or two percent of a frame. It is spent on <strong>breadth</strong>: how many regions can be resolved at once. One deep zoom is nearly free; ten thousand simultaneously resolved star systems is what costs.</p>
+    <p>The single most important line in the cost table is that retarded gravity — the term that makes the whole causal argument legitimate — costs 64% over the instantaneous version. That is the price of the engine's central premise, and it is affordable.</p>
+  </div>
+</section>
+
+<hr class="sep">
+
+<section>
+  <div class="wrap">
+    <span class="eyebrow">Findings</span><h2>Four bugs worth recording</h2>
+    <p>Each of these was found by a test or a benchmark rather than by reading the code, and each lived in something that looked entirely reasonable.</p>
+    <ul class="plain">
+      <li><strong>Mean molecular mass was wrong by exactly 1000×</strong> — a units slip routing through Avogadro's number and a gram-to-kilogram factor. It scaled every temperature, pressure, sound speed and Jeans length in the engine. It surfaced as a molecular dynamics test starting at 0.3 K instead of 300 K.</li>
+      <li><strong>The Langevin thermostat re-seeded its noise identically every step.</strong> Randomness here is a pure function of an address, which is the point — but an address that omits the step makes "deterministic" quietly mean "identical", and an identical force every step is a constant force. The system heated to 81,000 K against a 300 K target.</li>
+      <li><strong>Stellar burning rates were in cgs while the engine is SI.</strong> The standard formulae are quoted in erg g⁻¹ s⁻¹ and g cm⁻³; used raw they made the Sun a hundred thousand times too bright.</li>
+      <li><strong>The conservation metric divided by quantities that legitimately cancel.</strong> A hot cloud with little net rotation has particles each carrying angular momentum of order <code>m r v</code>, but the sum nearly cancels — the net can sit 20 orders of magnitude below any individual term, which double precision cannot represent and no finite arithmetic could. Measuring the error against that net reported 100% and meant nothing. Measured against the total angular momentum <em>content</em>, the same code is exact to one part in 10¹³.</li>
+    </ul>
+    <div class="note-box">
+      <span class="lab">The one that was not a bug</span>
+      <p>A prolongation with two children failed the angular momentum check completely — and correctly. Two point masses have no moment of inertia about the line joining them, so no arrangement of orbital motion can carry angular momentum about that axis. The solver was right to report the system singular; the fix was to give the leftover to intrinsic spin, where it physically belongs.</p>
+    </div>
+  </div>
+</section>
+
+<hr class="sep">
+
+<section>
+  <div class="wrap">
+    <span class="eyebrow">Limits</span><h2>What this does not claim</h2>
+    <ul class="plain">
+      <li><strong>The GPU path is designed, not written.</strong> Every measured number is single-core CPU; the cost model carries an explicit 60× assumption for the GPU, stated as an assumption and calibrated against reality at runtime.</li>
+      <li><strong>The CPU tree code is 3–10× off production quality.</strong> Single-body leaves rather than buckets, per-particle rather than grouped traversal — both standard optimisations, deliberately left out so the reference stays simple enough to serve as a bit-exact oracle.</li>
+      <li><strong>General relativity is post-Newtonian only</strong>, adequate to a few hundred Schwarzschild radii. Nuclear and electronic structure are rate- and table-based; chemistry is eight lumped species; turbulence is a prescribed field, not a solved cascade.</li>
+      <li><strong>The guarantee is about the conserved tuple, not about trajectories.</strong> Regenerated detail is a valid sample from the right distribution, not the specific configuration that would have evolved had the detail been tracked continuously. For unobserved matter that is exactly the right standard — it is the one statistical mechanics uses — but it is a weaker claim than "the same simulation, computed lazily", and should not be advertised as the stronger one.</li>
+    </ul>
+  </div>
+</section>
+
+<div class="wrap">
+  <footer>
+    <p class="mono">Rust · no dependencies · 46 tests covering conservation, determinism, causality, solver accuracy, statistics, budget and interaction.</p>
+    <p style="margin-top:.5rem">Worst conservation error across every scale transition in the demo: <span class="ok mono">4 × 10⁻¹⁶</span>. Worst causality violation between any two disjoint regions: <span class="ok mono">0</span>.</p>
+  </footer>
+</div>
