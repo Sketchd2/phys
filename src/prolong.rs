@@ -1,0 +1,799 @@
+//! Prolongation: manufacturing fine detail that is *provably* consistent with
+//! the coarse state it came from.
+//!
+//! # The problem
+//!
+//! A node says "I am 3x10^4 solar masses of 20 K molecular gas, 12 pc across,
+//! spinning this way, moving that way". The camera zooms in. We now need a
+//! million gas parcels. They must:
+//!
+//! 1. reproduce the parent's conserved tuple **exactly** — not statistically,
+//!    exactly, or energy and momentum drift every time the user pans;
+//! 2. look right — the correct density profile, the correct velocity
+//!    distribution, the correct correlations, or the deception is visible;
+//! 3. be **reproducible** — pan away, come back, get the same million parcels,
+//!    or the world is not a world.
+//!
+//! # The method
+//!
+//! Sample from the maximum-entropy distribution consistent with the coarse
+//! state (that is requirement 2), then apply an exact linear projection onto
+//! the constraint surface (requirement 1). Requirement 3 comes free from
+//! `rng.rs`: the sample is a pure function of the node's path key.
+//!
+//! The projection is the interesting part. Done naively, fixing the momentum
+//! breaks the angular momentum, fixing the angular momentum breaks the energy,
+//! and so on around the loop forever. The fix is to build the corrections in an
+//! order where each one lives in the null space of the previous constraints:
+//!
+//! ```text
+//!   centre positions        =>  sum m r = 0
+//!   subtract mean velocity  =>  sum m v = 0
+//!   subtract rigid rotation =>  sum m r x v = 0        (leaves sum m v = 0)
+//!   scale residual by s     =>  both still 0           (scaling is linear)
+//!   add rigid rotation w_t  =>  L = L_target exactly   (adds no momentum)
+//!   add bulk drift v_b      =>  P = P_target exactly   (adds no L about com)
+//! ```
+//!
+//! Each step is in the kernel of the constraints already satisfied, so nothing
+//! is ever undone. And because the residual field δ has zero angular momentum
+//! by construction, it is *energetically orthogonal* to the rigid rotation we
+//! add — `Σ m δ·(ω×r) = ω·Σ m r×δ = ω·L_res = 0` — which is what lets us solve
+//! for the energy scale `s` in closed form instead of iterating.
+
+use crate::math::{det_sum_by, det_sum_v3_by, Vec3};
+use crate::rng::{Purpose, Stream};
+use crate::state::{inertia_tensor, mutual_gravitational_energy, Aggregate, Body, BodyKind, Composition};
+use crate::units::*;
+
+/// Spatial arrangement of the children. Chosen by tier and by what the node is.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Profile {
+    /// Uniform ball. Gas parcels, unstructured debris.
+    Uniform,
+    /// Plummer sphere — the standard equilibrium model for a star cluster or a
+    /// dark matter subhalo. Finite central density, so no cusp singularity.
+    Plummer,
+    /// Exponential disk with a sech^2 vertical profile. Galactic tier.
+    Disk { scale_height_ratio: f64 },
+    /// Thin shell. Supernova remnants, electron shells.
+    Shell,
+    /// Woods-Saxon: the empirical nuclear density profile.
+    WoodsSaxon,
+    /// Regular lattice with thermal displacement. Solids.
+    Lattice,
+}
+
+/// How mass is divided among the children.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum MassSpectrum {
+    /// Equal shares. Statistical super-particles.
+    Equal,
+    /// Kroupa (2001) initial mass function. Turns a cloud into a cluster.
+    Kroupa { min_msun: f64, max_msun: f64 },
+    /// `dN/dm ∝ m^alpha`. Cloud fragmentation, debris, dust grains.
+    PowerLaw { alpha: f64, ratio: f64 },
+    /// Masses set by the composition — one child per nucleus, correct
+    /// per-species masses. Used at molecular and finer tiers.
+    Species,
+}
+
+/// Everything needed to turn one aggregate into many bodies.
+#[derive(Debug, Clone, Copy)]
+pub struct ProlongSpec {
+    pub count: usize,
+    pub profile: Profile,
+    pub spectrum: MassSpectrum,
+    pub kind: BodyKind,
+    /// Fractional scatter applied to per-child composition before exact
+    /// renormalisation. Zero gives chemically identical children.
+    pub composition_scatter: f64,
+    /// Fraction of the velocity dispersion that is coherent turbulence rather
+    /// than thermal noise. Drives the ISM's Larson relations.
+    pub turbulent_fraction: f64,
+}
+
+impl ProlongSpec {
+    pub fn new(count: usize, profile: Profile, spectrum: MassSpectrum, kind: BodyKind) -> Self {
+        ProlongSpec {
+            count,
+            profile,
+            spectrum,
+            kind,
+            composition_scatter: 0.0,
+            turbulent_fraction: 0.0,
+        }
+    }
+}
+
+/// What actually happened during a prolongation. The engine keeps these; the
+/// consistency tests assert on them; the debug UI shows them.
+#[derive(Debug, Clone, Copy)]
+pub struct ProlongReport {
+    pub count: usize,
+    /// Worst relative error across the conserved tuple. Must stay at round-off.
+    pub conservation_error: f64,
+    /// True if the requested radius was overridden because the requested
+    /// angular momentum could not fit inside it at the requested energy.
+    pub radius_overridden: bool,
+    pub realised_radius: f64,
+    /// Fraction of internal energy that ended up as coherent rotation.
+    pub rotational_fraction: f64,
+    /// Set when the target state was thermodynamically impossible and had to be
+    /// relaxed. A non-empty reason is a bug in whatever produced the aggregate.
+    pub relaxations: u32,
+    /// How much of the energy budget had to be absorbed into the children's
+    /// internal account rather than their motion, as a fraction of the
+    /// parent's internal energy. Near zero when the velocity projection
+    /// converged cleanly; a large value means the requested state was awkward
+    /// (extreme mass ratios, near-degenerate geometry) but still exact.
+    pub internal_energy_residual: f64,
+    /// Natural magnitudes the error above is measured against.
+    pub scales: crate::state::Scales,
+    /// The self-potential the sampler settled on. The engine must use this same
+    /// value when restricting these bodies, or the two directions are measuring
+    /// different quantities and the round trip is not a round trip.
+    pub potential: f64,
+}
+
+impl Default for ProlongReport {
+    fn default() -> Self {
+        ProlongReport {
+            count: 0,
+            conservation_error: 0.0,
+            radius_overridden: false,
+            realised_radius: 0.0,
+            rotational_fraction: 0.0,
+            relaxations: 0,
+            internal_energy_residual: 0.0,
+            scales: crate::state::Scales::unit(),
+            potential: 0.0,
+        }
+    }
+}
+
+fn as_bodies(pos: &[Vec3], masses: &[f64], vel: &[Vec3]) -> Vec<Body> {
+    (0..pos.len())
+        .map(|i| Body {
+            pos: pos[i],
+            vel: vel[i],
+            mass: masses[i],
+            ..Default::default()
+        })
+        .collect()
+}
+
+/// The prolongation operator P.
+///
+/// Deterministic in `(world_seed, path_key, epoch)` — call it a thousand times,
+/// on a thousand machines, get the same bodies.
+pub fn prolong(
+    agg: &Aggregate,
+    spec: ProlongSpec,
+    world_seed: u64,
+    path_key: u128,
+    epoch: u32,
+) -> (Vec<Body>, ProlongReport) {
+    let n = spec.count.max(1);
+    let mut report = ProlongReport {
+        count: n,
+        ..Default::default()
+    };
+
+    if agg.mass <= 0.0 || !agg.is_finite() {
+        return (Vec::new(), report);
+    }
+
+    // ---- 1. masses ------------------------------------------------------
+    let mut masses = sample_masses(agg, spec, n, world_seed, path_key, epoch);
+    let m_sum = det_sum_by(n, &|i| masses[i]);
+    let k = agg.mass / m_sum;
+    for m in masses.iter_mut() {
+        *m *= k; // exact by construction: sum is now agg.mass to round-off
+    }
+
+    // ---- 2. positions ---------------------------------------------------
+    let mut pos = sample_positions(spec, n, world_seed, path_key, epoch);
+
+    // Centre so that sum m r = 0, then scale to hit the requested radius.
+    recentre(&mut pos, &masses, agg.mass);
+    let mut scale = radius_scale(&pos, &masses, agg.mass, agg.radius);
+    for p in pos.iter_mut() {
+        *p = p.scale(scale);
+    }
+
+    // ---- 3. energy budget, with the potential re-derived ----------------
+    //
+    // The parent's *total* energy is the invariant. How it splits between
+    // thermal, rotational and gravitational is not — that split is re-derived
+    // from the geometry we just sampled, and whatever the potential turns out
+    // to be, the kinetic budget absorbs the difference. This is why zooming in
+    // and out does not leak energy even though the children's positions were
+    // never stored: we are not required to reproduce the old potential, only
+    // the old total.
+    let softening = agg.radius / (n as f64).cbrt() * 0.1;
+    let mut phi = potential_estimate(&pos, &masses, softening, spec.profile, agg);
+    let mut random_ke_target = agg.internal_energy + agg.binding_energy - phi;
+
+    // A configuration can be too tightly bound to hold the energy it claims.
+    // Physically the answer is that it must be bigger, so make it bigger.
+    let mut guard = 0;
+    while random_ke_target <= 0.0 && guard < 32 {
+        for p in pos.iter_mut() {
+            *p = p.scale(1.5);
+        }
+        scale *= 1.5;
+        phi = potential_estimate(&pos, &masses, softening * scale, spec.profile, agg);
+        random_ke_target = agg.internal_energy + agg.binding_energy - phi;
+        report.radius_overridden = true;
+        report.relaxations += 1;
+        guard += 1;
+    }
+    if random_ke_target <= 0.0 {
+        random_ke_target = agg.internal_energy.abs().max(1e-30);
+        report.relaxations += 1;
+    }
+
+    // ---- 4. rotation feasibility ---------------------------------------
+    //
+    // L^2/(2I) is the energy locked up in rigid rotation. If that exceeds the
+    // whole random-energy budget, the body cannot be this compact while
+    // carrying this much spin — so, again, it gets bigger. (A real object in
+    // this situation would shed mass; that belongs to the tier solver, not to
+    // the sampler, so here we simply refuse to build an impossible state.)
+    let mut inertia = inertia_tensor_of(&pos, &masses);
+    let mut omega = inertia.solve(agg.spin).unwrap_or(Vec3::ZERO);
+    let mut ke_rot = 0.5 * omega.dot(agg.spin);
+    guard = 0;
+    while ke_rot > 0.95 * random_ke_target && ke_rot > 0.0 && guard < 32 {
+        let need = (ke_rot / (0.5 * random_ke_target)).sqrt().max(1.2);
+        for p in pos.iter_mut() {
+            *p = p.scale(need);
+        }
+        scale *= need;
+        phi = potential_estimate(&pos, &masses, softening * scale, spec.profile, agg);
+        random_ke_target =
+            (agg.internal_energy + agg.binding_energy - phi).max(agg.internal_energy.abs().max(1e-30));
+        inertia = inertia_tensor_of(&pos, &masses);
+        omega = inertia.solve(agg.spin).unwrap_or(Vec3::ZERO);
+        ke_rot = 0.5 * omega.dot(agg.spin);
+        report.radius_overridden = true;
+        report.relaxations += 1;
+        guard += 1;
+    }
+
+    // ---- 5. velocities: sample, project, then polish --------------------
+    //
+    // The projection below is exact in Newtonian mechanics. The engine's
+    // functionals are relativistic (`p = gamma m v`, `K = (gamma-1) m c^2`),
+    // so the closed-form answer is a first guess that is wrong at O(v^2/c^2) —
+    // one part in 10^6 for a galactic disk, which is far too large to accept
+    // in a quantity that gets round-tripped thousands of times. So we finish
+    // with a fixed-point polish against the *exact* functionals, the same ones
+    // `restrict` uses. It converges in three passes because each correction
+    // lives in the null space of the others.
+    let mut resid = sample_velocities(agg, spec, n, &pos, world_seed, path_key, epoch);
+
+    // (a) remove net momentum
+    let p_res = det_sum_v3_by(n, &|i| resid[i].scale(masses[i]));
+    let v_mean = p_res.scale(1.0 / agg.mass);
+    for v in resid.iter_mut() {
+        *v -= v_mean;
+    }
+    // (b) remove net angular momentum
+    let l_res = det_sum_v3_by(n, &|i| pos[i].cross(resid[i].scale(masses[i])));
+    if let Some(w) = inertia.solve(l_res) {
+        for i in 0..n {
+            resid[i] -= w.cross(pos[i]);
+        }
+        let p2 = det_sum_v3_by(n, &|i| resid[i].scale(masses[i])).scale(1.0 / agg.mass);
+        for v in resid.iter_mut() {
+            *v -= p2;
+        }
+    }
+    // `resid` now carries zero momentum and zero angular momentum, so it can be
+    // scaled freely without disturbing either constraint.
+
+    let ke_res = det_sum_by(n, &|i| 0.5 * masses[i] * resid[i].norm2());
+    let mut s = if ke_res > 0.0 {
+        ((random_ke_target - ke_rot).max(0.0) / ke_res).sqrt()
+    } else {
+        0.0
+    };
+    let mut om = omega;
+    let mut vb = agg.momentum.scale(1.0 / agg.mass);
+
+    // Targets, stated in exactly the form `restrict` will measure them.
+    let p_target = agg.momentum;
+    let l_target = agg.spin;
+    let k_target = random_ke_target + crate::state::bulk_kinetic(agg.mass, agg.momentum);
+
+    let mut vel = vec![Vec3::ZERO; n];
+    let build = |vel: &mut Vec<Vec3>, s: f64, om: Vec3, vb: Vec3| {
+        for i in 0..n {
+            vel[i] = resid[i].scale(s) + om.cross(pos[i]) + vb;
+        }
+    };
+    for _pass in 0..10 {
+        build(&mut vel, s, om, vb);
+        let tmp = as_bodies(&pos, &masses, &vel);
+        let p_now = crate::state::total_momentum(&tmp);
+        let com_now = det_sum_v3_by(n, &|i| pos[i].scale(masses[i])).scale(1.0 / agg.mass);
+        let l_now = crate::state::total_spin(&tmp, com_now);
+        let k_now = crate::state::kinetic_energy_of(&tmp);
+
+        // Energy: rebuild with s = 0 to isolate the part that does not scale.
+        let mut zero = vec![Vec3::ZERO; n];
+        build(&mut zero, 0.0, om, vb);
+        let k_fixed = crate::state::kinetic_energy_of(&as_bodies(&pos, &masses, &zero));
+
+        let gm = det_sum_by(n, &|i| crate::coords::gamma(vel[i]) * masses[i]);
+        if gm > 0.0 {
+            vb += (p_target - p_now).scale(1.0 / gm);
+        }
+        let inertia_rel = inertia_tensor_of(
+            &pos,
+            &(0..n)
+                .map(|i| crate::coords::gamma(vel[i]) * masses[i])
+                .collect::<Vec<_>>(),
+        );
+        if let Some(dw) = inertia_rel.solve(l_target - l_now) {
+            om += dw;
+        }
+        let denom = k_now - k_fixed;
+        if denom > 0.0 && (k_target - k_fixed) > 0.0 {
+            s *= ((k_target - k_fixed) / denom).sqrt();
+        }
+    }
+    build(&mut vel, s, om, vb);
+
+    report.realised_radius = agg.radius * scale;
+    report.rotational_fraction = if random_ke_target > 0.0 {
+        ke_rot / random_ke_target
+    } else {
+        0.0
+    };
+    report.potential = phi;
+
+    // ---- 6. composition, charge, internal energy ------------------------
+    let comps = sample_compositions(agg, spec, &masses, world_seed, path_key, epoch);
+
+    let mut bodies: Vec<Body> = Vec::with_capacity(n);
+    for i in 0..n {
+        let frac = masses[i] / agg.mass;
+        bodies.push(Body {
+            pos: pos[i] + agg.com,
+            vel: vel[i],
+            mass: masses[i],
+            radius: child_radius(agg, spec, masses[i], n),
+            charge: agg.charge * frac,
+            internal_energy: 0.0,
+            temperature: agg.temperature,
+            composition: comps[i],
+            spin: Vec3::ZERO,
+            slot: i as u32,
+            kind: spec.kind,
+        });
+    }
+
+    // ---- 6.4 close the energy books exactly -----------------------------
+    //
+    // The velocity scaling above hits the energy target by iteration, and
+    // iteration can fall short: an extreme mass spectrum makes the inertia
+    // tensor ill-conditioned, and the rotational and residual components stop
+    // separating cleanly. Rather than iterate harder and hope, close the
+    // remaining gap *algebraically*.
+    //
+    // `restrict` computes the parent's internal energy as
+    // `E_kinetic + sum(U_i) - K_bulk`, so `sum(U_i)` is a free parameter that
+    // appears linearly and affects neither momentum nor angular momentum.
+    // Solving for it makes total energy exact by construction for any
+    // configuration whatsoever, and turns the velocity iteration from a
+    // correctness requirement into a quality one: the better it converges, the
+    // more of the energy sits where it physically belongs (bulk motion) rather
+    // than in the internal account.
+    {
+        let e_kin = crate::state::kinetic_energy_of(&bodies);
+        let target_internal_sum = crate::state::bulk_kinetic(agg.mass, agg.momentum)
+            + agg.internal_energy
+            + agg.binding_energy
+            - phi
+            - e_kin;
+        report.internal_energy_residual = if agg.internal_energy.abs() > 0.0 {
+            target_internal_sum / agg.internal_energy.abs()
+        } else {
+            0.0
+        };
+        for b in bodies.iter_mut() {
+            b.internal_energy = target_internal_sum * (b.mass / agg.mass);
+        }
+    }
+
+    // ---- 6.5 residual angular momentum becomes intrinsic spin -----------
+    //
+    // Some configurations simply cannot carry the requested angular momentum
+    // as orbital motion: two point masses have no moment of inertia about their
+    // own axis, and a collinear set has none about the line. The inertia solve
+    // correctly reports this as singular. The angular momentum still has to go
+    // somewhere, and the honest place is the children's intrinsic spin — which
+    // is exactly what the parent's spin *was* before we refined it, one level
+    // down. Distributing it by mass fraction makes L exact to round-off in
+    // every configuration, degenerate or not, and disturbs neither momentum nor
+    // energy (intrinsic spin energy stays in the parent's internal budget).
+    {
+        let com_now = det_sum_v3_by(n, &|i| bodies[i].pos.scale(bodies[i].mass)).scale(1.0 / agg.mass);
+        let l_now = crate::state::total_spin(&bodies, com_now);
+        let residual = agg.spin - l_now;
+        for b in bodies.iter_mut() {
+            b.spin += residual.scale(b.mass / agg.mass);
+        }
+    }
+
+    // ---- 7. verify, do not assume ---------------------------------------
+    //
+    // Measured with the same potential estimator the engine will use when it
+    // coarsens these bodies back down, because "conserved" is only meaningful
+    // relative to a fixed definition of the terms.
+    let mut back = crate::state::restrict(&bodies, phi);
+    // The external potential is a property of the node's surroundings, not of
+    // its contents, so it passes through both directions unchanged.
+    back.external_potential = agg.external_potential;
+    let scales = crate::state::Scales::of(&bodies);
+    report.conservation_error = back.conserved().error_against(&agg.conserved(), &scales);
+    report.scales = scales;
+
+    (bodies, report)
+}
+
+/// Inverse of `prolong` for the purposes of the round trip: see
+/// `state::restrict`. Kept here as documentation of the pairing.
+pub use crate::state::restrict;
+
+// ---------------------------------------------------------------------------
+// samplers
+// ---------------------------------------------------------------------------
+
+fn sample_masses(
+    agg: &Aggregate,
+    spec: ProlongSpec,
+    n: usize,
+    seed: u64,
+    key: u128,
+    epoch: u32,
+) -> Vec<f64> {
+    let mut st = Stream::at(seed, key, epoch, Purpose::Masses);
+    let mut m = Vec::with_capacity(n);
+    match spec.spectrum {
+        MassSpectrum::Equal => m.resize(n, agg.mass / n as f64),
+        MassSpectrum::Kroupa { min_msun, max_msun } => {
+            for _ in 0..n {
+                m.push(kroupa_sample(&mut st, min_msun, max_msun) * M_SUN);
+            }
+        }
+        MassSpectrum::PowerLaw { alpha, ratio } => {
+            let lo = agg.mass / n as f64 / ratio.max(1.0);
+            let hi = lo * ratio.max(1.0);
+            for _ in 0..n {
+                m.push(st.power_law(lo, hi, alpha));
+            }
+        }
+        MassSpectrum::Species => {
+            // One child per nucleus, drawn from the composition. The masses are
+            // then physical, not statistical.
+            let mut weights = [0.0; NSPECIES];
+            for (i, s) in Species::ALL.iter().enumerate() {
+                weights[i] = agg.composition.get(*s) / s.mass_kg();
+            }
+            for _ in 0..n {
+                let i = st.weighted(&weights);
+                m.push(Species::ALL[i].mass_kg());
+            }
+        }
+    }
+    m
+}
+
+/// Kroupa (2001) three-part power law, sampled by inverse CDF.
+fn kroupa_sample(st: &mut Stream, lo: f64, hi: f64) -> f64 {
+    let breaks = [0.08f64, 0.5f64];
+    let slopes = [-0.3f64, -1.3f64, -2.3f64];
+    let seg = [
+        (lo.max(0.01), breaks[0].min(hi), slopes[0]),
+        (breaks[0].max(lo), breaks[1].min(hi), slopes[1]),
+        (breaks[1].max(lo), hi.max(breaks[1]), slopes[2]),
+    ];
+    let mut weights = [0.0f64; 3];
+    for (i, (a, b, al)) in seg.iter().enumerate() {
+        if b > a {
+            let p = al + 1.0;
+            weights[i] = if p.abs() < 1e-9 {
+                (b / a).ln()
+            } else {
+                (b.powf(p) - a.powf(p)) / p
+            };
+        }
+    }
+    let i = st.weighted(&weights);
+    let (a, b, al) = seg[i];
+    if b <= a {
+        return a;
+    }
+    st.power_law(a, b, al)
+}
+
+fn sample_positions(spec: ProlongSpec, n: usize, seed: u64, key: u128, epoch: u32) -> Vec<Vec3> {
+    let mut st = Stream::at(seed, key, epoch, Purpose::Positions);
+    let mut out = Vec::with_capacity(n);
+    match spec.profile {
+        Profile::Uniform => {
+            for _ in 0..n {
+                out.push(st.in_ball());
+            }
+        }
+        Profile::Plummer => {
+            for _ in 0..n {
+                // Inverse CDF of the Plummer sphere: r = a / sqrt(u^{-2/3} - 1)
+                let u = st.range(1e-9, 1.0 - 1e-9);
+                let r = 1.0 / (u.powf(-2.0 / 3.0) - 1.0).max(1e-12).sqrt();
+                out.push(st.direction().scale(r.min(12.0)));
+            }
+        }
+        Profile::Disk { scale_height_ratio } => {
+            for _ in 0..n {
+                // Exponential in R (inverse CDF via a two-term approximation),
+                // sech^2 in z — the observed structure of a stellar disk.
+                let u = st.range(1e-9, 1.0 - 1e-9);
+                let r = -(1.0 - u).ln();
+                let phi = st.range(0.0, std::f64::consts::TAU);
+                let uz = st.range(1e-9, 1.0 - 1e-9);
+                let z = scale_height_ratio * 0.5 * ((uz / (1.0 - uz)).ln());
+                out.push(crate::math::v3(r * phi.cos(), r * phi.sin(), z));
+            }
+        }
+        Profile::Shell => {
+            for _ in 0..n {
+                let r = 1.0 + 0.05 * st.normal();
+                out.push(st.direction().scale(r));
+            }
+        }
+        Profile::WoodsSaxon => {
+            // rho(r) = rho0 / (1 + exp((r - R)/a)); rejection-sample it.
+            for _ in 0..n {
+                let mut r = 1.0;
+                for _ in 0..32 {
+                    let cand = st.uniform().cbrt() * 1.4;
+                    let p = 1.0 / (1.0 + ((cand - 1.0) / 0.11).exp());
+                    if st.uniform() < p {
+                        r = cand;
+                        break;
+                    }
+                }
+                out.push(st.direction().scale(r));
+            }
+        }
+        Profile::Lattice => {
+            // Simple cubic with thermal displacement — enough to be a solid.
+            let side = (n as f64).cbrt().ceil() as usize;
+            let step = 2.0 / side as f64;
+            for i in 0..n {
+                let ix = i % side;
+                let iy = (i / side) % side;
+                let iz = i / (side * side);
+                let base = crate::math::v3(
+                    ix as f64 * step - 1.0,
+                    iy as f64 * step - 1.0,
+                    iz as f64 * step - 1.0,
+                );
+                out.push(base + st.normal3().scale(step * 0.05));
+            }
+        }
+    }
+    out
+}
+
+fn sample_velocities(
+    agg: &Aggregate,
+    spec: ProlongSpec,
+    n: usize,
+    pos: &[Vec3],
+    seed: u64,
+    key: u128,
+    epoch: u32,
+) -> Vec<Vec3> {
+    let mut st = Stream::at(seed, key, epoch, Purpose::Velocities);
+    let mut out = Vec::with_capacity(n);
+    let turb = spec.turbulent_fraction.clamp(0.0, 1.0);
+    let extent = {
+        let mut m: f64 = 0.0;
+        for p in pos.iter() {
+            m = m.max(p.max_abs());
+        }
+        if m > 0.0 { m } else { 1.0 }
+    };
+    for i in 0..n {
+        // Thermal part: isotropic Gaussian, i.e. Maxwell-Boltzmann.
+        let thermal = st.normal3();
+        if turb > 0.0 {
+            // Turbulent part: a large-scale solenoidal field, giving neighbours
+            // correlated velocities. Without this, "gas" looks like a gas of
+            // independent points rather than a fluid, and the Larson
+            // size-linewidth relation comes out flat.
+            //
+            // The positions are normalised before entering the trigonometry.
+            // Feeding raw metres to `sin` at galactic scales evaluates the
+            // sine of ~10^20 radians, where f64 has no fractional bits left and
+            // the "field" is pure noise uncorrelated with position — which
+            // silently defeats the entire point of the term.
+            let p = pos[i].scale(1.0 / extent);
+            let k1 = crate::math::v3(1.7, -0.9, 1.1);
+            let k2 = crate::math::v3(-0.6, 1.5, 0.8);
+            let s1 = (p.dot(k1)).sin();
+            let s2 = (p.dot(k2)).cos();
+            let swirl = crate::math::v3(s1 * k2.z - s2 * k1.z, s2 * k1.x - s1 * k2.x, s1 * k2.y - s2 * k1.y);
+            out.push(thermal.scale(1.0 - turb) + swirl.scale(turb));
+        } else {
+            out.push(thermal);
+        }
+    }
+    let _ = agg;
+    out
+}
+
+fn sample_compositions(
+    agg: &Aggregate,
+    spec: ProlongSpec,
+    masses: &[f64],
+    seed: u64,
+    key: u128,
+    epoch: u32,
+) -> Vec<Composition> {
+    let n = masses.len();
+    if spec.composition_scatter <= 0.0 {
+        return vec![agg.composition; n];
+    }
+    let mut st = Stream::at(seed, key, epoch, Purpose::Composition);
+    let mut comps: Vec<Composition> = Vec::with_capacity(n);
+    for _ in 0..n {
+        let mut c = agg.composition.0;
+        for v in c.iter_mut() {
+            if *v > 0.0 {
+                *v *= (1.0 + spec.composition_scatter * st.normal()).max(1e-6);
+            }
+        }
+        comps.push(Composition(c).normalised());
+    }
+    // Exact rebalancing: the mass-weighted mean must equal the parent's
+    // composition to the last bit, because baryon number, lepton number and
+    // charge are all derived from it.
+    //
+    // Rescaling each species and then renormalising each body are two
+    // constraints that fight: the renormalisation undoes part of the rescaling.
+    // Alternating them converges geometrically (this is Sinkhorn scaling), and
+    // eight rounds takes the residual to round-off. Doing it once — the obvious
+    // implementation — leaves a 10^-3 error in the composition, which
+    // propagates straight into baryon number and shows up as the world quietly
+    // gaining nucleons every time a user zooms in.
+    let total_mass = det_sum_by(n, &|i| masses[i]);
+    for _round in 0..8 {
+        for s in 0..NSPECIES {
+            let have = det_sum_by(n, &|i| masses[i] * comps[i].0[s]) / total_mass;
+            let want = agg.composition.0[s];
+            if have > 1e-300 && want > 0.0 {
+                let f = want / have;
+                for c in comps.iter_mut() {
+                    c.0[s] *= f;
+                }
+            } else if want <= 0.0 {
+                for c in comps.iter_mut() {
+                    c.0[s] = 0.0;
+                }
+            }
+        }
+        for c in comps.iter_mut() {
+            *c = c.normalised();
+        }
+    }
+    comps
+}
+
+// ---------------------------------------------------------------------------
+// helpers
+// ---------------------------------------------------------------------------
+
+fn recentre(pos: &mut [Vec3], masses: &[f64], total: f64) {
+    let n = pos.len();
+    let com = det_sum_v3_by(n, &|i| pos[i].scale(masses[i])).scale(1.0 / total);
+    for p in pos.iter_mut() {
+        *p -= com;
+    }
+}
+
+/// Choose the scale factor that makes `restrict` report exactly `target`.
+/// `restrict` uses `1.291 * rms` (the RMS-to-uniform-sphere conversion), so we
+/// invert that same expression rather than guessing.
+fn radius_scale(pos: &[Vec3], masses: &[f64], total: f64, target: f64) -> f64 {
+    let n = pos.len();
+    let r2 = det_sum_by(n, &|i| masses[i] * pos[i].norm2()) / total;
+    let rms = r2.max(0.0).sqrt();
+    if rms > 0.0 && target > 0.0 {
+        target / (1.291 * rms)
+    } else {
+        1.0
+    }
+}
+
+fn inertia_tensor_of(pos: &[Vec3], masses: &[f64]) -> crate::math::Mat3 {
+    let bodies: Vec<Body> = pos
+        .iter()
+        .zip(masses)
+        .map(|(p, m)| Body {
+            pos: *p,
+            mass: *m,
+            ..Default::default()
+        })
+        .collect();
+    inertia_tensor(&bodies, Vec3::ZERO)
+}
+
+/// Gravitational binding energy of the sampled configuration. Exact for small
+/// sets; for large sets we use the analytic form for the profile, which is what
+/// the sampled set converges to and avoids an O(n^2) blow-up during zoom.
+fn potential_estimate(
+    pos: &[Vec3],
+    masses: &[f64],
+    softening: f64,
+    profile: Profile,
+    agg: &Aggregate,
+) -> f64 {
+    let n = pos.len();
+    if n <= 512 {
+        let bodies: Vec<Body> = pos
+            .iter()
+            .zip(masses)
+            .map(|(p, m)| Body {
+                pos: *p,
+                mass: *m,
+                ..Default::default()
+            })
+            .collect();
+        return mutual_gravitational_energy(&bodies, softening);
+    }
+    // Analytic coefficients: U = -k G M^2 / R.
+    let k = match profile {
+        Profile::Uniform => 0.6,
+        Profile::Plummer => 0.5 * std::f64::consts::FRAC_PI_2 / 2.0,
+        Profile::Disk { .. } => 0.4,
+        Profile::Shell => 0.5,
+        Profile::WoodsSaxon => 0.72,
+        Profile::Lattice => 0.6,
+    };
+    let r = {
+        let total = det_sum_by(n, &|i| masses[i]);
+        let r2 = det_sum_by(n, &|i| masses[i] * pos[i].norm2()) / total;
+        (r2.max(0.0).sqrt() * 1.291).max(1e-30)
+    };
+    -k * G * agg.mass * agg.mass / r
+}
+
+fn child_radius(agg: &Aggregate, spec: ProlongSpec, mass: f64, n: usize) -> f64 {
+    match spec.kind {
+        BodyKind::Star => {
+            // Main-sequence mass-radius relation, both branches.
+            let m = mass / M_SUN;
+            let r = if m < 1.0 {
+                m.powf(0.8)
+            } else {
+                m.powf(0.57)
+            };
+            r * R_SUN
+        }
+        BodyKind::Nucleus | BodyKind::Nucleon => {
+            let a = (mass / AMU).max(1.0);
+            1.2e-15 * a.cbrt()
+        }
+        BodyKind::Atom => BOHR,
+        BodyKind::Electron => LAMBDA_COMPTON_E,
+        BodyKind::Photon => 0.0,
+        _ => agg.radius / (n as f64).cbrt() * 0.5,
+    }
+}

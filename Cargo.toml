@@ -1,0 +1,23 @@
+[package]
+name = "phys"
+version = "0.1.0"
+edition = "2021"
+description = "Multiscale galaxy physics engine: lazy, causally-gated materialization from kiloparsecs to femtometres"
+license = "MIT"
+
+[lib]
+name = "phys"
+path = "src/lib.rs"
+
+[[bin]]
+name = "phys-demo"
+path = "src/bin/demo.rs"
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+panic = "abort"
+
+[profile.bench]
+inherits = "release"
