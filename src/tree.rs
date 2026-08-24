@@ -101,6 +101,12 @@ pub struct Node {
     /// would produce, so it must be stored rather than regenerated.
     pub pinned: bool,
     pub alive: bool,
+    /// Developmental state, when this node is a structure rather than a
+    /// statistical population. Its presence switches materialisation from
+    /// max-entropy sampling to program-driven generation, and makes the node's
+    /// geometry, entropy and stored free energy the morphology's business
+    /// rather than the sampler's.
+    pub morphology: Option<crate::morph::Morphology>,
     /// Number of solver steps this node has taken. Part of the address for any
     /// per-step randomness (see `rng::Stream::split`).
     pub steps_taken: u64,
@@ -143,6 +149,15 @@ pub struct TreeStats {
     /// Coarsenings where the fine detail turned out to say nothing new, so the
     /// coarse state was left exactly as it was.
     pub idempotent_coarsenings: u64,
+    /// Nodes carrying a developmental state.
+    pub structures: u64,
+    /// Growth and construction steps advanced on aggregates, without ever
+    /// materialising the structures they describe.
+    pub growth_steps: u64,
+    /// Energy that has crossed a node boundary inwards to drive growth, J.
+    /// The world's energy is not conserved against this — it is *balanced*
+    /// against it, which is what `tests/growth.rs` asserts.
+    pub external_energy_absorbed: f64,
     pub bodies_created: u64,
     pub bodies_discarded: u64,
     pub promotions: u64,
@@ -170,6 +185,7 @@ impl Tree {
             residency: Residency::Speculative,
             pinned: false,
             alive: true,
+            morphology: None,
             steps_taken: 0,
             last_report: ProlongReport::default(),
         };
@@ -247,11 +263,21 @@ impl Tree {
             return &self.nodes[i.get()].bodies;
         }
 
-        let (agg, spec, epoch) = {
+        let (agg, spec, epoch, morph) = {
             let n = &self.nodes[i.get()];
-            (n.agg, n.spec, n.epoch)
+            (n.agg, n.spec, n.epoch, n.morphology.clone())
         };
-        let (bodies, report) = prolong(&agg, spec, self.world_seed, key.0, epoch);
+        let (bodies, report) = match &morph {
+            Some(m) => crate::prolong::prolong_structured(
+                &agg,
+                m,
+                spec.count,
+                self.world_seed,
+                key.0,
+                epoch,
+            ),
+            None => prolong(&agg, spec, self.world_seed, key.0, epoch),
+        };
         self.stats.materialisations += 1;
         self.stats.bodies_created += bodies.len() as u64;
         self.stats.worst_conservation_error = self
@@ -323,6 +349,7 @@ impl Tree {
             residency: Residency::Speculative,
             pinned: false,
             alive: true,
+            morphology: None,
             steps_taken: 0,
             last_report: ProlongReport::default(),
         };
@@ -358,6 +385,8 @@ impl Tree {
         let bodies = std::mem::take(&mut self.nodes[i.get()].bodies);
         let mut agg = restrict(&bodies, potential);
         agg.external_potential = self.nodes[i.get()].agg.external_potential;
+        agg.chemical_energy = self.nodes[i.get()].agg.chemical_energy;
+        agg.entropy_exported = self.nodes[i.get()].agg.entropy_exported;
         let scales = crate::state::Scales::of(&bodies);
         let err = agg.conserved().error_against(&before, &scales);
 
@@ -403,8 +432,35 @@ impl Tree {
         n.agg.charge = agg.charge;
         n.agg.baryon_number = agg.baryon_number;
         n.agg.lepton_number = agg.lepton_number;
-        n.agg.entropy = n.agg.entropy.max(agg.entropy); // entropy never falls
+        // Entropy needs two corrections that the original one-liner got wrong
+        // as soon as anything in the world could become more ordered.
+        //
+        // First, coarse-graining itself may only *increase* entropy — you know
+        // less once the detail is gone — but the quantity that is monotonic is
+        // the total, local plus exported. A structure that grew since the last
+        // visit has legitimately lowered its local entropy, and clamping it back
+        // up would silently destroy the record of that and unbalance the books.
+        //
+        // Second, for a structured node `restrict` is not entitled to an
+        // opinion at all: it sees an unstructured heap of parts and reports the
+        // entropy of the same mass as a gas, which erases precisely the order
+        // that makes the thing a structure. `Body` carries no topology, so the
+        // information is not there to be recovered. The developmental state is
+        // the authority.
+        if n.morphology.is_none() {
+            let total_stored = n.agg.total_entropy();
+            let total_restricted = agg.entropy + n.agg.entropy_exported;
+            if total_restricted >= total_stored {
+                n.agg.entropy = agg.entropy;
+            }
+        }
         n.agg.luminosity = agg.luminosity;
+        // The morphology owns the structure's size, for the same reason it owns
+        // its entropy: `restrict` measures the parts, but what the parts add up
+        // to is the program's business.
+        if let Some(m) = &n.morphology {
+            n.agg.radius = m.extent().max(1e-30);
+        }
         n.children.clear();
         self.stats.coarsenings += 1;
         self.stats.worst_conservation_error = self.stats.worst_conservation_error.max(err);
@@ -467,6 +523,30 @@ impl Tree {
         if i != self.root {
             self.free.push(i.0);
         }
+    }
+
+    /// Give a node a developmental state, turning it from a statistical
+    /// population into a structure with a history.
+    ///
+    /// The aggregate's radius, chemical energy and entropy are taken over by
+    /// the morphology from this point on; the conserved tuple is untouched, so
+    /// nothing about the surrounding world changes.
+    pub fn plant(&mut self, i: NodeIdx, program: crate::morph::Program) -> &mut crate::morph::Morphology {
+        let key = self.nodes[i.get()].key;
+        let seed = self.world_seed;
+        let epoch = self.nodes[i.get()].epoch;
+        let mut m = crate::morph::Morphology::new(program, seed, key.0, epoch);
+        // Seed it with whatever mass the node already has, so that placing a
+        // structure neither creates nor destroys anything.
+        m.built = self.nodes[i.get()].agg.mass;
+        let n = &mut self.nodes[i.get()];
+        n.agg.radius = m.extent().max(n.agg.radius.min(1e-3)).max(1e-30);
+        n.agg.chemical_energy = m.stored_energy();
+        n.bodies.clear();
+        n.children.clear();
+        n.morphology = Some(m);
+        self.stats.structures += 1;
+        self.nodes[i.get()].morphology.as_mut().unwrap()
     }
 
     /// Mark a node — and its whole ancestry — as holding non-derivable detail.

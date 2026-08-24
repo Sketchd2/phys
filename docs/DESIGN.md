@@ -39,6 +39,7 @@ are combined and the guarantee that combination is made to satisfy.
 | Barnes-Hut / FMM | N-body | O(n log n) gravity | Still linear in *stored* particles; 10⁶⁶ of them |
 | Sub-grid models | Galaxy simulation | Unresolved physics as effective terms | One-way: you can never zoom in and see the real thing |
 | Procedural generation | Games | Infinite worlds from a seed | No conservation, no dynamics; regenerating a region loses whatever happened there |
+| L-systems, growth models | Graphics, biology | Plausible organic structure | Not conservative, not thermodynamic; growth is free |
 | Level of detail / impostors | Rendering | Cheap distant geometry | Visual only; the physics is not consistent with what you see |
 | Conservative PDES | Distributed simulation | Correct parallel event ordering | Needs a lookahead, which is hard to obtain and usually tiny |
 | Multiscale / QM-MM coupling | Chemistry | Different physics in different regions | Fixed, hand-placed regions; does not move with an observer |
@@ -123,7 +124,65 @@ fine detail there could reach an observer within the horizon. Everything else
 stays coarse no matter how interesting it is, because its influence has not
 arrived yet.
 
-### 3.3 Observation as commitment
+### 3.3 Developmental state for matter that is ordered
+
+Everything in §3.1 rests on the generated detail being *ergodic*: one
+max-entropy sample of a gas cloud is as good as another, because no observation
+can tell them apart. That interchangeability is what licenses throwing detail
+away.
+
+A tree is not like that. Its branch structure is low-entropy and historically
+contingent — not a typical sample from anything, but the specific record of
+which branch got shaded in year three — and the difference is *observable*,
+because someone who saw it yesterday will notice if handed a different one. The
+conserved tuple pins mass and momentum exactly and pins none of what matters.
+
+So for structured matter the generator changes, and only the generator:
+
+```text
+    structure = program(genome, age, events)
+```
+
+a pure function, addressed exactly as everything else in `rng.rs` is, so it
+regenerates bit-for-bit. Measured: 104 bytes of developmental state standing in
+for 6,000 rendered parts — **10,615× smaller** — and the compression grows with
+the structure, because the state does not.
+
+Three consequences make this fit rather than bolt on:
+
+**Growth runs on the aggregate.** A forest does not grow by integrating 10⁹
+trees; it grows by advancing one ODE on a forest node, at O(1) per node. That is
+cheap enough to run on the entire world every frame while the fine structure
+stays unbuilt — so the laziness the rest of the engine works for is simply free
+here. The demo grows a tree for 160 simulated years across 1,920 growth steps
+without materialising it once.
+
+**Growth is a transaction, not an exemption.** Building order out of disorder
+costs free energy and exports entropy, so every step returns a `Transaction`
+that is validated before it is applied: energy in equals energy stored plus heat
+released plus radiation, and local entropy plus exported entropy is
+non-negative. A program that tried to grow too efficiently is *refused*, not
+smoothed over.
+
+**The same projection applies.** A generated oak goes through the identical
+`close_books` routine a sampled gas cloud does — the momentum, angular-momentum
+and energy projection, the algebraic energy close, the intrinsic-spin residual.
+Adding morphology needed no second conservation story, only a second way of
+choosing where the parts go. Measured worst case across four programs, three
+masses and three budgets: 3.6 × 10⁻¹⁶.
+
+Two things the implementation had to get right that are easy to get wrong.
+`restrict` is not entitled to an opinion about a structure's entropy: it sees an
+unstructured heap of parts and reports the entropy of the same mass as a gas,
+erasing precisely the order that makes the thing a structure. `Body` carries no
+topology, so the information is not there to recover — the developmental state
+is the authority. And a node holding a structure is not made *only* of that
+structure; assuming so works until a limb is severed, at which point the
+structure's mass drops while the node's does not, and the missing mass is
+silently redistributed into the surviving branches — a tree that grows heavier
+every time you prune it.
+
+### 3.4 Observation as commitment
 
 An unobserved quantity has no value. A measured one is recorded in a ledger and
 returned identically forever after (`observe::Ledger::get_or_sample`). This is
@@ -143,7 +202,7 @@ The ledger is the only structure in the engine whose size grows with what users
 *do* rather than with the size of the universe. In the demo it holds one fact in
 60 bytes against 20 MB of regenerable detail.
 
-### 3.4 The frame budget as the invariant
+### 3.5 The frame budget as the invariant
 
 A conventional simulation decides what to compute and takes however long it
 takes. This one is given 50 ms and decides what fits. Every candidate piece of
@@ -275,6 +334,17 @@ engine depends on.
 - **Turbulence is a prescribed solenoidal field**, not a solved cascade. It
   produces the right correlations at one scale, not the right spectrum across
   scales.
+- **Structures have no topology.** `Body` carries no bonds, so materialising a
+  tree and running molecular dynamics on it would let the trunk fall apart.
+  Emitting constraints alongside bodies is the next substantial piece of work,
+  and until it exists a structure is geometry that happens to hold still.
+- **Structures cannot straddle nodes.** A building spanning several nodes, or
+  roots reaching into the soil node, would need cross-links, which the strictly
+  hierarchical tree deliberately forbids — that hierarchy is what makes the
+  precision and causal-gating arguments work. For now a structure must fit
+  inside one node.
+- **Nothing builds the buildings.** Planned construction advances at a supplied
+  labour rate; there are no agents with goals, plans or logistics behind it.
 - **The conservation guarantee is about the conserved tuple, not about
   trajectories.** Regenerated detail is a valid sample from the right
   distribution, not the specific configuration that would have evolved had the

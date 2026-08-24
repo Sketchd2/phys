@@ -178,6 +178,49 @@ phase-space volume contains at most `V p³/h³` distinguishable states
 *finite* demand per unit volume. An observer cannot request infinite detail,
 because there is no infinite detail to request.
 
+## 3.5 Growth and construction
+
+Structured matter is advanced by a developmental program rather than a force
+law, and every step is a transaction that must balance before it is applied
+(`morph::Transaction::validate`).
+
+| Check | Result |
+|---|---|
+| First law, per step: in + released = stored + warmed + radiated | exact to 10⁻⁹ relative |
+| Second law: local + exported entropy | never negative, asserted every step |
+| Node energy change vs net boundary flux, over a decade | mismatch 2.1 × 10⁻¹⁶ |
+| Mass, composition, baryon number under growth | unchanged exactly |
+| Structural conservation, 4 programs × 3 masses × 3 budgets | worst 3.6 × 10⁻¹⁶ |
+
+Two calibrations are worth recording because the obvious values are wrong by
+large factors.
+
+**Photosynthetic yield is an ecosystem number, not a leaf number.** The
+laboratory quantum efficiency is around 3%; a temperate forest actually fixes
+~1.2 kg of dry matter per m² per year under ~200 W/m² of mean insolation, which
+is 0.32% of incident energy. Using the leaf figure makes trees grow about a
+hundred times too fast — plausible for a few frames, absurd after a simulated
+decade.
+
+**The whole incident flux has to be on the books, not just the usable part.** A
+leaf absorbs the full solar flux and stores 0.3% of it; the rest leaves as heat
+and infrared. Booking only the fraction that gets used describes a perfectly
+efficient converter, and the second-law check correctly rejects it — a device
+that turns all its input into stored free energy while lowering its own entropy
+is not allowed. This was caught by the validator rather than by inspection.
+
+Carrying capacity is not a constant anyone typed in. Light capture scales with
+crown *area* and maintenance with *mass*, so the two balance at a finite size
+and the ceiling emerges from the allometry — which is the actual biological
+reason trees stop growing. Height follows McMahon's elastic-similarity result,
+`H ∝ V^(1/4)`, calibrated so a one-tonne tree stands about 15 m. The engine
+grows a tree from 2 kg to 8.5 t and 30 m over 160 simulated years, then
+saturates near 31 t and 40 m.
+
+Growth also responds to conditions without anything being arranged: a structure
+held below freezing loses mass to maintenance, and one in drought or shade grows
+slowly. That is what makes tree rings.
+
 ## 4. Generated detail is statistically correct
 
 Conservation is necessary but not sufficient: a cloud whose parcels conserve
@@ -208,8 +251,11 @@ right" check.
 - **Temperature is derived from random kinetic energy**, never averaged from
   children. Averaging temperatures across unequal masses is wrong in general and
   wrong by orders of magnitude across this dynamic range.
-- **Entropy may only increase** under coarse-graining. Asserted in
-  `Tree::coarsen`.
+- **Entropy may only increase** under coarse-graining — but the monotonic
+  quantity is the *total*, local plus exported, not the local part. A growing
+  structure legitimately lowers its local entropy, and the original one-line
+  `max` in `Tree::coarsen` would have clamped it back up and silently
+  unbalanced the books the moment anything in the world became more ordered.
 - **Cooling is a three-regime fit** — molecular/fine-structure below 10⁴ K, the
   Lyman-α peak to 10⁷ K, bremsstrahlung above — with metallicity scaling the
   line cooling. This is why the first generation of stars forms differently from

@@ -410,8 +410,30 @@ pub struct Aggregate {
     pub charge: f64,
     pub baryon_number: f64,
     pub lepton_number: f64,
-    /// Thermodynamic entropy, J/K. Coarse-graining may only increase it.
+    /// Thermodynamic entropy of the node's *contents*, J/K.
+    ///
+    /// This may legitimately fall: a growing organism or a building under
+    /// construction becomes more ordered. What may never fall is the total —
+    /// this plus everything dumped into the surroundings, tracked below.
     pub entropy: f64,
+    /// Cumulative entropy exported to the environment as waste heat, J/K.
+    ///
+    /// Without this account the second law cannot be checked at all, because
+    /// the interesting processes are precisely the ones that lower local
+    /// entropy while raising the total. Growth is not a violation; it is a
+    /// transaction, and this is the other side of it.
+    pub entropy_exported: f64,
+    /// Free energy stored in chemical bonds and ordered structure, J.
+    ///
+    /// Distinct from `internal_energy`, which is thermal. Biomass holds about
+    /// 17 MJ/kg here; a steel frame holds its embodied energy. Destroying the
+    /// structure releases it — which is what makes a forest fire an energy
+    /// source rather than a rendering effect.
+    ///
+    /// Like `external_potential`, this is not recoverable from the children
+    /// alone, so both directions of a scale transition carry it through
+    /// unchanged and the caller reinstates it.
+    pub chemical_energy: f64,
     /// Magnetic energy density integrated over the node, J. Drives the ISM.
     pub magnetic_energy: f64,
     /// Bolometric luminosity, W — what the node emits, for observation.
@@ -435,6 +457,8 @@ impl Default for Aggregate {
             baryon_number: 0.0,
             lepton_number: 0.0,
             entropy: 0.0,
+            entropy_exported: 0.0,
+            chemical_energy: 0.0,
             magnetic_energy: 0.0,
             luminosity: 0.0,
         }
@@ -597,6 +621,12 @@ impl Aggregate {
         n * K_B * (arg.ln() + 2.5)
     }
 
+    /// Local entropy plus everything exported. This is the quantity the second
+    /// law constrains, and the only one worth asserting monotonicity on.
+    pub fn total_entropy(&self) -> f64 {
+        self.entropy + self.entropy_exported
+    }
+
     /// Total energy, including rest mass. The `Conserved.energy` slot.
     ///
     /// ```text
@@ -610,9 +640,29 @@ impl Aggregate {
     /// at galactic-rotation speeds, which is enough to be visible as energy
     /// drift when a user pans across a disk.
     pub fn total_energy(&self) -> f64 {
-        self.mass * C2 + bulk_kinetic(self.mass, self.momentum) + self.internal_energy
+        self.mass * C2 + self.non_rest_energy()
+    }
+
+    /// Total energy *excluding* rest mass.
+    ///
+    /// Rest mass exceeds every other term by roughly 10^16 for ordinary matter,
+    /// so any process that moves energy around — growth, heating, radiation,
+    /// construction — is completely invisible in a difference of
+    /// `total_energy()` at double precision. A decade of a tree's growth is
+    /// 10^10 J against a rest mass of 10^19 J: differencing the totals leaves
+    /// about seven significant digits of the answer and none of them reliable.
+    ///
+    /// So anything auditing an energy *flow* must difference this instead. It
+    /// is the same lesson as measuring conservation against natural scales
+    /// rather than net values (see `Conserved::error_against`): when two terms
+    /// differ by more orders of magnitude than the arithmetic carries, the
+    /// small one has to be tracked on its own.
+    pub fn non_rest_energy(&self) -> f64 {
+        bulk_kinetic(self.mass, self.momentum)
+            + self.internal_energy
             + self.binding_energy
             + self.external_potential
+            + self.chemical_energy
     }
 
     /// Orbital angular momentum contributed by this node sitting at `offset`
@@ -793,8 +843,10 @@ pub fn restrict(bodies: &[Body], mutual_potential: f64) -> Aggregate {
         spin,
         internal_energy: internal,
         binding_energy: mutual_potential,
-        // Not knowable from the children alone; the caller reinstates it.
+        // Not knowable from the children alone; the caller reinstates these.
         external_potential: 0.0,
+        chemical_energy: 0.0,
+        entropy_exported: 0.0,
         radius,
         temperature: 2.725,
         composition,

@@ -208,7 +208,62 @@ fn main() {
     println!("\n  Deferred work is not lost work - it is detail the frame chose");
     println!("  not to buy. The frame rate is the invariant; fidelity is not.");
 
-    rule("9. Where the memory went");
+    rule("9. Structures: matter with a history");
+    println!("  A tree is not a sample from a distribution - it is the specific");
+    println!("  record of how it grew. So the generator changes, and the state");
+    println!("  it is generated from is a few dozen bytes.\n");
+
+    // Plant a tree on a node of its own and let it grow, unobserved.
+    let forest = w.tree.promote(root, 11, default_spec(Tier::Stellar));
+    {
+        let n = &mut w.tree.nodes[forest.get()];
+        n.agg = Aggregate::neutral(2.0, 0.4, 291.0, phys::morph::Program::Tree.substrate());
+        n.spec.count = 6000;
+    }
+    w.plant(forest, phys::morph::Program::Tree, phys::morph::Environment::default());
+
+    let entropy0 = w.tree.nodes[forest.get()].agg.entropy;
+    println!("  {:>6} {:>12} {:>10} {:>14} {:>14}", "year", "biomass", "height", "absorbed (J)", "total dS (J/K)");
+    let mut absorbed = 0.0;
+    let mut entropy = 0.0;
+    for year in 0..=160 {
+        if year > 0 {
+            for _ in 0..12 {
+                if let Some(t) = w.grow_node(forest, YEAR / 12.0) {
+                    absorbed += t.net_boundary_flux();
+                    entropy += t.total_entropy_change();
+                }
+            }
+        }
+        if year % 40 == 0 {
+            let m = w.tree.nodes[forest.get()].morphology.as_ref().unwrap();
+            println!(
+                "  {:>6} {:>12} {:>9.1} m {:>14.4e} {:>14.4e}",
+                year, fmt_mass(m.built), m.tree_height(), absorbed, entropy
+            );
+        }
+    }
+    println!("\n  It never materialised once - {} bodies exist for it.",
+        w.tree.nodes[forest.get()].bodies.len());
+
+    let bodies = w.tree.refine(forest).to_vec();
+    let m = w.tree.nodes[forest.get()].morphology.as_ref().unwrap();
+    println!("  Rendered on demand:      {} parts, {:.2} MB",
+        bodies.len(), bodies.len() as f64 * std::mem::size_of::<Body>() as f64 / 1e6);
+    println!("  Developmental state:     {} bytes  ({}x smaller)",
+        m.state_bytes(),
+        (bodies.len() * std::mem::size_of::<Body>()) / m.state_bytes().max(1));
+    println!("  Free energy stored:      {:.4e} J", w.tree.nodes[forest.get()].agg.chemical_energy);
+    let agg_now = w.tree.nodes[forest.get()].agg;
+    println!("  Local entropy:           {:+.4e} J/K   (it ordered itself)",
+        agg_now.entropy - entropy0);
+    println!("  Exported to surroundings:{:+.4e} J/K   (so the total rose)",
+        agg_now.entropy_exported);
+    println!("\n  Growth ran on the aggregate: {} steps, no fine structure touched.",
+        w.tree.stats.growth_steps);
+    println!("  Transactions refused for breaking the books: {}", w.rejected_transactions);
+
+    rule("10. Where the memory went");
     let procedural = w.tree.detail_bytes();
     let persisted: usize = w.tree.persisted.values().map(|v| v.len() * std::mem::size_of::<Body>()).sum();
     println!("  materialised, regenerable   {:>10.2} MB", (procedural - persisted) as f64 / 1e6);
@@ -217,7 +272,7 @@ fn main() {
     println!("  nodes                       {:>10}", w.tree.live_count());
     println!("\n  {}", w.summary());
 
-    rule("10. Invariants");
+    rule("11. Invariants");
     println!("  worst conservation error across every scale transition:  {:.3e}", w.tree.stats.worst_conservation_error);
     println!("  worst causality violation between any two nodes:        {:.3e} s", w.check_causality());
     println!("  materialisations {}, coarsenings {}, bodies created {}, discarded {}",

@@ -65,6 +65,14 @@ pub struct World {
     pub audit: Vec<AuthorEvent>,
     /// Whether cost estimates assume the GPU path.
     pub gpu: bool,
+    /// Construction rate available to planned programs, fraction of a design
+    /// per second. Zero means no crews are working.
+    pub labour_rate: f64,
+    /// Growth steps refused because their transaction did not balance.
+    pub rejected_transactions: u64,
+    /// Per-node environment overrides, keyed by path so they survive the node
+    /// being coarsened and rebuilt.
+    pub environments: HashMap<PathKey, crate::morph::Environment>,
     history_depth: usize,
 }
 
@@ -84,8 +92,23 @@ impl World {
             stats: EngineStats::default(),
             audit: Vec::new(),
             gpu: false,
+            labour_rate: 0.0,
+            rejected_transactions: 0,
+            environments: HashMap::new(),
             history_depth: 64,
         }
+    }
+
+    /// Place a structure and give it conditions to grow in.
+    pub fn plant(
+        &mut self,
+        idx: NodeIdx,
+        program: crate::morph::Program,
+        env: crate::morph::Environment,
+    ) {
+        let key = self.tree.nodes[idx.get()].key;
+        self.tree.plant(idx, program);
+        self.environments.insert(key, env);
     }
 
     pub fn add_observer(&mut self, o: Observer) -> usize {
@@ -258,6 +281,24 @@ impl World {
                 }
             }
 
+            // Growth advances whether or not anything is materialised — in
+            // fact especially when nothing is. This is the payoff of the
+            // aggregate representation: a forest of 10^9 trees held as 10^4
+            // nodes costs 10^4 ODE steps, so growth can run on the entire world
+            // every frame while the fine structure stays unbuilt.
+            if self.tree.nodes[idx.get()].morphology.is_some() {
+                tasks.push(Task {
+                    node: idx,
+                    kind: TaskKind::Grow,
+                    cost_us: cost::GROW_US,
+                    salience: salience.max(1.0),
+                    urgency: 1.0,
+                    error: 1.0,
+                    novelty: 0.0,
+                    bytes: 0,
+                });
+            }
+
             // Step whatever is materialised.
             if materialised {
                 let kind = solvers::for_tier(tier);
@@ -313,6 +354,10 @@ impl World {
                 TaskKind::Step => {
                     let dt = self.node_dt(task.node);
                     self.advance_node(task.node, dt);
+                }
+                TaskKind::Grow => {
+                    let dt = self.frame_dt();
+                    self.grow_node(task.node, dt);
                 }
                 TaskKind::Observe => {}
             }
@@ -420,6 +465,83 @@ impl World {
             before,
             after,
             non_mechanical_energy: released,
+        }
+    }
+
+    /// Advance one structure's developmental state.
+    ///
+    /// The environment is read off the node's own aggregate, so a structure in
+    /// a cold or crowded node grows slowly without anyone having to arrange it.
+    /// The transaction is validated before it is applied: a growth program
+    /// cannot mint free energy or order, it can only trade for them.
+    pub fn grow_node(&mut self, idx: NodeIdx, dt: f64) -> Option<crate::morph::Transaction> {
+        if idx.is_none() || !self.tree.nodes[idx.get()].alive || dt <= 0.0 {
+            return None;
+        }
+        let env = self.environment_at(idx);
+        let node = &mut self.tree.nodes[idx.get()];
+        let morph = node.morphology.as_mut()?;
+        let txn = morph.advance(dt, &env);
+        if txn.validate().is_err() {
+            // A program that cannot balance its books does not get to run. This
+            // is a bug in the program, not a condition to be smoothed over.
+            self.rejected_transactions += 1;
+            return None;
+        }
+        let extent = morph.extent().max(1e-30);
+        let stored = morph.stored_energy();
+
+        // Apply the transaction to the aggregate. Mass moves *within* the node
+        // — carbon from its air into its wood — so mass, composition and baryon
+        // number are all unchanged, and only the energy and entropy accounts
+        // move. What crosses the boundary is energy, and it is booked.
+        node.agg.chemical_energy = stored;
+        // Only the thermalised share stays. What was re-radiated has left the
+        // node, and adding it here would cook a forest in a season.
+        node.agg.internal_energy += txn.heat_released;
+        node.agg.entropy += txn.entropy_local;
+        node.agg.entropy_exported += txn.entropy_exported;
+        node.agg.radius = extent;
+        node.agg.luminosity = crate::state::stefan_boltzmann(extent, node.agg.temperature);
+
+        // The structure it would generate has changed, so any materialised copy
+        // is stale. Discarding it is correct and cheap — it is regenerable.
+        node.bodies.clear();
+        node.children.clear();
+
+        self.tree.stats.growth_steps += 1;
+        self.tree.stats.external_energy_absorbed += txn.net_boundary_flux();
+        Some(txn)
+    }
+
+    /// Read the growth environment off a node and its surroundings.
+    ///
+    /// A scenario can override this per node — placing a lit planetary surface
+    /// is authoring, not physics, and deriving insolation from the galaxy's
+    /// bulk luminosity gives a correct answer (about 10^-4 W/m^2) that is
+    /// correct precisely because a tree in interstellar space does not grow.
+    pub fn environment_at(&self, idx: NodeIdx) -> crate::morph::Environment {
+        let n = &self.tree.nodes[idx.get()];
+        if let Some(env) = self.environments.get(&n.key) {
+            return *env;
+        }
+        // Illumination from the parent's luminosity at this node's distance —
+        // so a structure in the shade of its own node's parent really is in the
+        // shade, without a separate lighting system.
+        let light = if !n.parent.is_none() {
+            let p = &self.tree.nodes[n.parent.get()];
+            let d = n.frame.offset.norm().max(p.agg.radius * 0.01).max(1e-6);
+            (p.agg.luminosity / (4.0 * std::f64::consts::PI * d * d)).min(1400.0)
+        } else {
+            crate::morph::Environment::default().light_flux
+        };
+        crate::morph::Environment {
+            light_flux: light,
+            temperature: n.agg.temperature,
+            water: 1.0,
+            crowding: 0.0,
+            reservoir_mass: n.agg.mass,
+            labour: self.labour_rate,
         }
     }
 

@@ -59,6 +59,10 @@ pub enum TaskKind {
     Coarsen,
     Promote,
     Observe,
+    /// Advance a structure's developmental state. Runs on the aggregate, never
+    /// on the structure, so it costs O(1) per node no matter how elaborate the
+    /// thing being grown is.
+    Grow,
 }
 
 impl Task {
@@ -189,8 +193,11 @@ impl FrameBudget {
         for t in tasks {
             let cost = self.adjust(t.cost_us);
             // Freeing work (coarsening) is always accepted: it costs little and
-            // buys back the resource the next frame will need.
-            let frees = t.bytes < 0;
+            // buys back the resource the next frame will need. Growth is too —
+            // deferring it would make simulated time run at different rates for
+            // different structures depending on what the camera happened to be
+            // pointing at, which is a far worse artefact than a late frame.
+            let frees = t.bytes < 0 || t.kind == TaskKind::Grow;
             if !frees && plan.planned_us + cost > budget {
                 plan.deferred += 1;
                 plan.unmet_value += t.value();
@@ -222,6 +229,8 @@ pub mod cost {
     pub const HYDRO_STEP_US: f64 = 3.2;
     pub const MD_STEP_US: f64 = 1.8;
     pub const STATISTICAL_STEP_US: f64 = 0.05;
+    /// Per node, per growth step. One ODE evaluation on an aggregate.
+    pub const GROW_US: f64 = 0.12;
     /// Per body produced.
     pub const MATERIALISE_US: f64 = 0.35;
     pub const COARSEN_US: f64 = 0.08;

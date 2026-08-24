@@ -48,6 +48,7 @@ pub mod coords;
 pub mod engine;
 pub mod ids;
 pub mod math;
+pub mod morph;
 pub mod observe;
 pub mod prolong;
 pub mod rng;
