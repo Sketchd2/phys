@@ -24,7 +24,7 @@ fn two_body(sep: f64, m1: f64, m2: f64) -> Vec<Body> {
 fn retarded_gravity_keeps_orbits_bound() {
     let sep = AU;
     let period = std::f64::consts::TAU * (sep.powi(3) / (G * (M_SUN + M_EARTH))).sqrt();
-    let params = gravity::GravityParams { theta: 0.0, softening: 0.0, retarded: true, post_newtonian: false };
+    let params = gravity::GravityParams { theta: 0.0, softening: 0.0, retarded: true, post_newtonian: false, quadrupole: false };
     let mut b = two_body(sep, M_SUN, M_EARTH);
     let e0 = gravity::total_energy(&b, params);
     let l0 = total_spin(&b, Vec3::ZERO);
@@ -50,7 +50,7 @@ fn retarded_gravity_keeps_orbits_bound() {
 fn integrator_is_second_order() {
     let sep = AU;
     let period = std::f64::consts::TAU * (sep.powi(3) / (G * (M_SUN + M_EARTH))).sqrt();
-    let params = gravity::GravityParams { theta: 0.0, softening: 0.0, retarded: false, post_newtonian: false };
+    let params = gravity::GravityParams { theta: 0.0, softening: 0.0, retarded: false, post_newtonian: false, quadrupole: false };
     let mut errs = Vec::new();
     for div in [100usize, 200, 400] {
         let mut b = two_body(sep, M_SUN, M_EARTH);

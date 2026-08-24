@@ -43,7 +43,7 @@
 
 use crate::math::{det_sum_by, det_sum_v3_by, Vec3};
 use crate::rng::{Purpose, Stream};
-use crate::state::{inertia_tensor, mutual_gravitational_energy, Aggregate, Body, BodyKind, Composition};
+use crate::state::{mutual_gravitational_energy, Aggregate, Body, BodyKind, Composition};
 use crate::units::*;
 
 /// Spatial arrangement of the children. Chosen by tier and by what the node is.
@@ -152,15 +152,20 @@ impl Default for ProlongReport {
     }
 }
 
-fn as_bodies(pos: &[Vec3], masses: &[f64], vel: &[Vec3]) -> Vec<Body> {
-    (0..pos.len())
-        .map(|i| Body {
-            pos: pos[i],
-            vel: vel[i],
-            mass: masses[i],
-            ..Default::default()
-        })
-        .collect()
+/// Inertia tensor straight from slices, with no intermediate allocation.
+fn inertia_of_slices(pos: &[Vec3], masses: &[f64]) -> crate::math::Mat3 {
+    let mut m = crate::math::Mat3::zero();
+    for (p, &mass) in pos.iter().zip(masses) {
+        let r2 = p.norm2();
+        let o = p.outer(*p);
+        for i in 0..3 {
+            for j in 0..3 {
+                let delta = if i == j { 1.0 } else { 0.0 };
+                m.0[i][j] += mass * (r2 * delta - o.0[i][j]);
+            }
+        }
+    }
+    m
 }
 
 /// The prolongation operator P.
@@ -314,29 +319,32 @@ pub fn prolong(
             vel[i] = resid[i].scale(s) + om.cross(pos[i]) + vb;
         }
     };
+    let com_now = det_sum_v3_by(n, &|i| pos[i].scale(masses[i])).scale(1.0 / agg.mass);
+    let mut gmass = vec![0.0f64; n];
     for _pass in 0..10 {
         build(&mut vel, s, om, vb);
-        let tmp = as_bodies(&pos, &masses, &vel);
-        let p_now = crate::state::total_momentum(&tmp);
-        let com_now = det_sum_v3_by(n, &|i| pos[i].scale(masses[i])).scale(1.0 / agg.mass);
-        let l_now = crate::state::total_spin(&tmp, com_now);
-        let k_now = crate::state::kinetic_energy_of(&tmp);
+        // The functionals are evaluated straight from the slices. Materialising
+        // a `Vec<Body>` per pass (three per pass, at 184 bytes each) dominated
+        // the cost of prolongation — it was more expensive than every physical
+        // computation in the sampler put together.
+        for i in 0..n {
+            gmass[i] = crate::coords::gamma(vel[i]) * masses[i];
+        }
+        let p_now = det_sum_v3_by(n, &|i| vel[i].scale(gmass[i]));
+        let l_now = det_sum_v3_by(n, &|i| (pos[i] - com_now).cross(vel[i].scale(gmass[i])));
+        let k_now = det_sum_by(n, &|i| (crate::coords::gamma(vel[i]) - 1.0) * masses[i] * crate::units::C2);
 
-        // Energy: rebuild with s = 0 to isolate the part that does not scale.
-        let mut zero = vec![Vec3::ZERO; n];
-        build(&mut zero, 0.0, om, vb);
-        let k_fixed = crate::state::kinetic_energy_of(&as_bodies(&pos, &masses, &zero));
+        // Energy: evaluate at s = 0 to isolate the part that does not scale.
+        let k_fixed = det_sum_by(n, &|i| {
+            let v = om.cross(pos[i]) + vb;
+            (crate::coords::gamma(v) - 1.0) * masses[i] * crate::units::C2
+        });
 
-        let gm = det_sum_by(n, &|i| crate::coords::gamma(vel[i]) * masses[i]);
+        let gm = det_sum_by(n, &|i| gmass[i]);
         if gm > 0.0 {
             vb += (p_target - p_now).scale(1.0 / gm);
         }
-        let inertia_rel = inertia_tensor_of(
-            &pos,
-            &(0..n)
-                .map(|i| crate::coords::gamma(vel[i]) * masses[i])
-                .collect::<Vec<_>>(),
-        );
+        let inertia_rel = inertia_of_slices(&pos, &gmass);
         if let Some(dw) = inertia_rel.solve(l_target - l_now) {
             om += dw;
         }
@@ -723,16 +731,7 @@ fn radius_scale(pos: &[Vec3], masses: &[f64], total: f64, target: f64) -> f64 {
 }
 
 fn inertia_tensor_of(pos: &[Vec3], masses: &[f64]) -> crate::math::Mat3 {
-    let bodies: Vec<Body> = pos
-        .iter()
-        .zip(masses)
-        .map(|(p, m)| Body {
-            pos: *p,
-            mass: *m,
-            ..Default::default()
-        })
-        .collect();
-    inertia_tensor(&bodies, Vec3::ZERO)
+    inertia_of_slices(pos, masses)
 }
 
 /// Gravitational binding energy of the sampled configuration. Exact for small

@@ -45,6 +45,11 @@ pub struct GravityParams {
     pub retarded: bool,
     /// Include the 1PN correction. Only worth its cost near compact objects.
     pub post_newtonian: bool,
+    /// Include the quadrupole term. Buys about a factor of two in force
+    /// accuracy at the same opening angle, for one extra cache line per
+    /// accepted internal cell. Worth it when an observer is close enough to
+    /// see the difference, not otherwise.
+    pub quadrupole: bool,
 }
 
 impl Default for GravityParams {
@@ -54,45 +59,44 @@ impl Default for GravityParams {
             softening: 0.0,
             retarded: true,
             post_newtonian: false,
+            quadrupole: false,
         }
     }
 }
 
-/// An octree cell holding a multipole expansion of its contents.
+/// An octree cell: only the fields the *traversal* reads.
+///
+/// Force evaluation touches one cell per interaction, in essentially random
+/// order, so the cell is a cache line and nothing more. Everything the
+/// traversal does not need every time — the geometric centre and half-width
+/// (build only), the mean velocity (retarded evaluation only), the quadrupole
+/// (internal cells only) — lives in parallel arrays. Keeping them inline was
+/// costing 152 bytes per interaction against 56 here, and the force loop is
+/// memory-bound, so that ratio is very nearly the speedup.
 #[derive(Debug, Clone, Copy)]
 struct Cell {
-    centre: Vec3,
-    half: f64,
     com: Vec3,
     mass: f64,
-    /// Mass-weighted mean velocity — needed for the retarded evaluation, and
-    /// the reason cells store more than the usual monopole.
-    vel: Vec3,
-    /// Trace-free quadrupole, flattened. Buys roughly a factor of two in
-    /// accuracy at the same opening angle, for 6 extra floats per cell.
-    quad: [f64; 6],
+    /// Squared full width, precomputed for the opening test.
+    size2: f64,
     first_child: i32,
     /// Number of *occupied* children allocated contiguously at `first_child`.
     ///
     /// Allocating all eight octants and skipping the empty ones during
     /// traversal sounds harmless and is not: with a centrally concentrated
     /// profile most octants are empty, so the traversal spends the majority of
-    /// its time pushing and popping cells that contain nothing. Compacting the
-    /// children here cut the force evaluation by 4x.
+    /// its time pushing and popping cells that contain nothing.
     nchild: u8,
     count: u32,
     body: i32,
 }
 
 impl Cell {
-    fn empty(centre: Vec3, half: f64) -> Cell {
+    fn empty(size2: f64) -> Cell {
         Cell {
-            centre,
-            half,
             com: Vec3::ZERO,
             mass: 0.0,
-            vel: Vec3::ZERO,
-            quad: [0.0; 6],
+            size2,
             first_child: -1,
             nchild: 0,
             count: 0,
@@ -112,6 +116,11 @@ pub struct Octree {
     /// Scratch for the counting-sort build.
     order: Vec<u32>,
     scratch: Vec<u32>,
+    /// Cold, parallel to `cells`: geometry (build only), mean velocity
+    /// (retarded evaluation only), quadrupole (internal cells only).
+    geom: Vec<(Vec3, f64)>,
+    vel: Vec<Vec3>,
+    quad: Vec<[f64; 6]>,
 }
 
 impl Octree {
@@ -125,9 +134,12 @@ impl Octree {
             stack: Vec::with_capacity(64),
             order: (0..n as u32).collect(),
             scratch: vec![0u32; n],
+            geom: Vec::with_capacity(n.max(1) * 2),
+            vel: Vec::with_capacity(n.max(1) * 2),
+            quad: Vec::with_capacity(n.max(1) * 2),
         };
         if bodies.is_empty() {
-            tree.cells.push(Cell::empty(Vec3::ZERO, 1.0));
+            tree.push_cell(Vec3::ZERO, 1.0);
             return tree;
         }
         let mut lo = bodies[0].pos;
@@ -138,10 +150,18 @@ impl Octree {
         }
         let centre = (lo + hi).scale(0.5);
         let half = ((hi - lo).max_abs() * 0.5).max(1e-30) * 1.0001;
-        tree.cells.push(Cell::empty(centre, half));
+        tree.push_cell(centre, half);
         tree.split(0, bodies, 0, n, 0);
         tree.summarise(0, bodies);
         tree
+    }
+
+    fn push_cell(&mut self, centre: Vec3, half: f64) {
+        let size = 2.0 * half;
+        self.cells.push(Cell::empty(size * size));
+        self.geom.push((centre, half));
+        self.vel.push(Vec3::ZERO);
+        self.quad.push([0.0; 6]);
     }
 
     /// Recursively partition `order[lo..hi]` by octant.
@@ -158,7 +178,7 @@ impl Octree {
             }
             return;
         }
-        let (centre, half) = (self.cells[cell].centre, self.cells[cell].half);
+        let (centre, half) = self.geom[cell];
 
         let mut counts = [0usize; 8];
         for k in lo..hi {
@@ -199,7 +219,7 @@ impl Octree {
                 centre.y + if o & 2 != 0 { qh } else { -qh },
                 centre.z + if o & 4 != 0 { qh } else { -qh },
             );
-            self.cells.push(Cell::empty(c, qh));
+            self.push_cell(c, qh);
             occupied[nchild] = o;
             nchild += 1;
         }
@@ -218,10 +238,10 @@ impl Octree {
             let b = self.cells[cell].body;
             if b >= 0 {
                 let body = &bodies[b as usize];
+                self.vel[cell] = body.vel;
                 let c = &mut self.cells[cell];
                 c.mass = body.mass;
                 c.com = body.pos;
-                c.vel = body.vel;
             }
             return;
         }
@@ -236,7 +256,7 @@ impl Octree {
             if c.mass > 0.0 {
                 mass += c.mass;
                 com += c.com.scale(c.mass);
-                mom += c.vel.scale(c.mass);
+                mom += self.vel[ci].scale(c.mass);
             }
         }
         if mass > 0.0 {
@@ -247,7 +267,8 @@ impl Octree {
         // monopoles and quadrupoles (the parallel-axis theorem).
         let mut quad = [0.0f64; 6];
         for o in 0..nchild {
-            let c = self.cells[first as usize + o];
+            let ci = first as usize + o;
+            let c = self.cells[ci];
             if c.mass <= 0.0 {
                 continue;
             }
@@ -264,14 +285,14 @@ impl Octree {
             let diag = [true, false, false, true, false, true];
             for (k, dd) in comps {
                 let delta = if diag[k] { r2 } else { 0.0 };
-                quad[k] += c.mass * (3.0 * dd - delta) + c.quad[k];
+                quad[k] += c.mass * (3.0 * dd - delta) + self.quad[ci][k];
             }
         }
+        self.vel[cell] = mom;
+        self.quad[cell] = quad;
         let c = &mut self.cells[cell];
         c.mass = mass;
         c.com = com;
-        c.vel = mom;
-        c.quad = quad;
     }
 
     /// Acceleration at `pos` (with velocity `vel`, needed for the retarded and
@@ -293,8 +314,7 @@ impl Octree {
             }
             let mut d = c.com - pos;
             let mut r2 = d.norm2();
-            let size2 = (2.0 * c.half) * (2.0 * c.half);
-            let opened = c.first_child >= 0 && size2 > theta2 * r2;
+            let opened = c.first_child >= 0 && c.size2 > theta2 * r2;
             if opened {
                 for o in 0..c.nchild as u32 {
                     stack.push(c.first_child as u32 + o);
@@ -305,7 +325,7 @@ impl Octree {
                 continue;
             }
             if self.params.retarded {
-                d = retarded_offset(d, c.vel - vel);
+                d = retarded_offset(d, self.vel[ci as usize] - vel);
                 r2 = d.norm2();
             }
             let r2s = r2 + eps2;
@@ -318,9 +338,9 @@ impl Octree {
 
             // Quadrupole correction, only where it matters (opened cells with
             // real structure). Skipped for single bodies, whose quadrupole is 0.
-            if c.first_child >= 0 {
+            if c.first_child >= 0 && self.params.quadrupole {
                 let inv_r5 = inv_r3 * inv_r * inv_r;
-                let q = c.quad;
+                let q = self.quad[ci as usize];
                 let qd = v3(
                     q[0] * d.x + q[1] * d.y + q[2] * d.z,
                     q[1] * d.x + q[3] * d.y + q[4] * d.z,
@@ -386,8 +406,7 @@ impl Octree {
             }
             let d = c.com - pos;
             let r2 = d.norm2();
-            let size2 = (2.0 * c.half) * (2.0 * c.half);
-            if c.first_child >= 0 && size2 > theta2 * r2 {
+            if c.first_child >= 0 && c.size2 > theta2 * r2 {
                 for o in 0..c.nchild as u32 {
                     stack.push(c.first_child as u32 + o);
                 }

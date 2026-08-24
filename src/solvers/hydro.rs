@@ -94,6 +94,12 @@ impl NeighbourGrid {
     pub fn neighbours(&self, pos: Vec3, out: &mut Vec<u32>) {
         out.clear();
         let (cx, cy, cz) = key_of(pos, self.spacing);
+        // The 27 cells are visited in a fixed order and each cell's contents
+        // are in increasing body index (they were pushed in that order), so the
+        // result is already deterministic and needs no sort. Sorting here — the
+        // obvious way to guarantee determinism against HashMap iteration order,
+        // which this loop never uses — cost more than the physics did: it was
+        // 60% of the molecular dynamics runtime.
         for dx in -1..=1 {
             for dy in -1..=1 {
                 for dz in -1..=1 {
@@ -103,10 +109,6 @@ impl NeighbourGrid {
                 }
             }
         }
-        // Deterministic order regardless of hash iteration order — otherwise
-        // the floating-point sum below depends on the hasher's seed and replay
-        // diverges between runs.
-        out.sort_unstable();
     }
 
     pub fn occupied_cells(&self) -> usize {

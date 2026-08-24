@@ -352,6 +352,9 @@ impl World {
                     softening: radius / (count as f64).cbrt() * 0.3,
                     retarded: true,
                     post_newtonian: tier == Tier::Planetary,
+                    // The quadrupole is worth its cache line only where an
+                    // observer could resolve the difference.
+                    quadrupole: tier >= Tier::Planetary,
                 };
                 solvers::gravity::step_leapfrog(bodies, dt, params)
             }
