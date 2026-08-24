@@ -325,6 +325,12 @@ footer .mono{font-size:.78rem}
         <p>Two clouds a kiloparsec apart step independently for three thousand simulated years. Two nucleons 2 fm apart step in lockstep. Same rule.</p>
       </div>
       <div class="idea">
+        <span class="tag">Structure</span>
+        <h3>Some matter has a history, not a temperature</h3>
+        <p>A tree is not a sample from a distribution — it is the specific record of which branch got shaded in year three, and an observer who saw it yesterday will notice a different one. Max-entropy sampling is exactly the wrong generator.</p>
+        <p>So for ordered matter the generator becomes a developmental program run to an age. Measured: <span class="ok">104 bytes</span> of state standing in for 6,000 rendered parts — 10,615× smaller, and the ratio grows with the structure because the state does not.</p>
+      </div>
+      <div class="idea">
         <span class="tag">Observation</span>
         <h3>Measuring is committing</h3>
         <p>An unobserved quantity has no value; a measured one is recorded permanently and never re-sampled. Measure a decay time twice and you get the same answer, because the first measurement made it a fact.</p>
@@ -400,6 +406,35 @@ footer .mono{font-size:.78rem}
 
 <section>
   <div class="wrap">
+    <span class="eyebrow">Growth</span><h2>Building order without breaking the books</h2>
+    <p>Growth runs on the <em>aggregate</em>, never on the structure. A forest does not grow by integrating 10⁹ trees; it grows by advancing one ordinary differential equation on a forest node, at constant cost per node. That is cheap enough to run on the entire world every frame while the fine structure stays unbuilt — so the laziness the rest of the engine works hard for is simply free here.</p>
+    <p>Building order out of disorder costs free energy and exports entropy, so every step returns a transaction that is checked before it is applied. A program that tried to grow too efficiently is <em>refused</em>, not smoothed over.</p>
+  </div>
+  <div class="wide scroller">
+    <table>
+      <thead><tr><th>Check</th><th class="n">Result</th><th>What it catches</th></tr></thead>
+      <tbody>
+        <tr><td>First law, per step</td><td class="n ok">exact to 10⁻⁹</td><td>In plus released equals stored, warmed and radiated</td></tr>
+        <tr><td>Second law, per step</td><td class="n ok">never negative</td><td>Local entropy may fall; local plus exported may not</td></tr>
+        <tr><td>Node energy vs boundary flux, over a decade</td><td class="n ok">2.1 × 10⁻¹⁶</td><td>Energy appearing from nowhere</td></tr>
+        <tr><td>Mass and baryon number under growth</td><td class="n ok">unchanged exactly</td><td>Carbon moves within the node, from air to wood</td></tr>
+        <tr><td>Structural conservation, 36 configurations</td><td class="n ok">3.6 × 10⁻¹⁶</td><td>Same projection a gas cloud goes through</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="wrap">
+    <div class="note-box">
+      <span class="lab">The calibration that the second law caught</span>
+      <p>A leaf absorbs the entire solar flux and stores about 0.3% of it; the rest leaves as heat and infrared. Booking only the fraction that gets <em>used</em> — the obvious simplification, and the one that was written first — describes a perfectly efficient converter, and the validator rejected it. A device that turns all of its input into stored free energy while lowering its own entropy is not allowed, and the check said so before any tree was ever drawn.</p>
+    </div>
+    <p>Carrying capacity is not a constant anyone typed in. Light capture scales with crown <em>area</em> and maintenance with <em>mass</em>, so the two balance at a finite size and the ceiling falls out of the allometry — which is the actual biological reason trees stop growing. The engine takes a tree from 2 kg to 8.5 tonnes and 30 m over 160 simulated years, then saturates near 31 tonnes and 40 m, having never once built it.</p>
+  </div>
+</section>
+
+<hr class="sep">
+
+<section>
+  <div class="wrap">
     <span class="eyebrow">Cost</span><h2>What a frame can buy</h2>
     <p>At 20 updates per second a frame is 50 ms, of which physics gets 35. The tempting way to size that budget is bandwidth: 336 GB/s × 35 ms is 11.8 GB, which at 48 bytes per body over ten passes suggests 24 million bodies. <strong>That number is wrong</strong>, and it is worth saying why, because it is what an optimistic design document would quote.</p>
     <p>Tree traversal is not a streaming workload. Each body walks a different path, warps diverge at every opening test, and the cells touched are effectively random in memory. The limit is latency and occupancy. Bandwidth bounds the <em>resident set</em>; it does not bound the <em>step rate</em>.</p>
@@ -449,6 +484,7 @@ footer .mono{font-size:.78rem}
       <li><strong>The GPU path is designed, not written.</strong> Every measured number is single-core CPU; the cost model carries an explicit 60× assumption for the GPU, stated as an assumption and calibrated against reality at runtime.</li>
       <li><strong>The CPU tree code is 3–10× off production quality.</strong> Single-body leaves rather than buckets, per-particle rather than grouped traversal — both standard optimisations, deliberately left out so the reference stays simple enough to serve as a bit-exact oracle.</li>
       <li><strong>General relativity is post-Newtonian only</strong>, adequate to a few hundred Schwarzschild radii. Nuclear and electronic structure are rate- and table-based; chemistry is eight lumped species; turbulence is a prescribed field, not a solved cascade.</li>
+      <li><strong>Structures have no topology and cannot straddle nodes.</strong> A body carries no bonds, so materialising a tree and running molecular dynamics on it would let the trunk fall apart — a structure is currently geometry that happens to hold still. And a building spanning several nodes would need cross-links the strictly hierarchical tree deliberately forbids, since that hierarchy is what makes the precision and causal-gating arguments work.</li>
       <li><strong>The guarantee is about the conserved tuple, not about trajectories.</strong> Regenerated detail is a valid sample from the right distribution, not the specific configuration that would have evolved had the detail been tracked continuously. For unobserved matter that is exactly the right standard — it is the one statistical mechanics uses — but it is a weaker claim than "the same simulation, computed lazily", and should not be advertised as the stronger one.</li>
     </ul>
   </div>
@@ -456,7 +492,7 @@ footer .mono{font-size:.78rem}
 
 <div class="wrap">
   <footer>
-    <p class="mono">Rust · no dependencies · 46 tests covering conservation, determinism, causality, solver accuracy, statistics, budget and interaction.</p>
+    <p class="mono">Rust · no dependencies · 59 tests covering conservation, determinism, causality, solver accuracy, statistics, budget, interaction and growth.</p>
     <p style="margin-top:.5rem">Worst conservation error across every scale transition in the demo: <span class="ok mono">4 × 10⁻¹⁶</span>. Worst causality violation between any two disjoint regions: <span class="ok mono">0</span>.</p>
   </footer>
 </div>
