@@ -51,9 +51,11 @@ pub mod math;
 pub mod morph;
 pub mod observe;
 pub mod prolong;
+pub mod render;
 pub mod rng;
 pub mod solvers;
 pub mod state;
+pub mod topology;
 pub mod tree;
 pub mod units;
 

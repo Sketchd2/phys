@@ -107,6 +107,9 @@ pub struct Node {
     /// geometry, entropy and stored free energy the morphology's business
     /// rather than the sampler's.
     pub morphology: Option<crate::morph::Morphology>,
+    /// Joints holding the materialised parts together. Present only while the
+    /// node is materialised, and regenerated with the geometry.
+    pub topology: Option<crate::topology::Topology>,
     /// Number of solver steps this node has taken. Part of the address for any
     /// per-step randomness (see `rng::Stream::split`).
     pub steps_taken: u64,
@@ -154,6 +157,8 @@ pub struct TreeStats {
     /// Growth and construction steps advanced on aggregates, without ever
     /// materialising the structures they describe.
     pub growth_steps: u64,
+    /// Structures loaded to failure.
+    pub damage_events: u64,
     /// Energy that has crossed a node boundary inwards to drive growth, J.
     /// The world's energy is not conserved against this — it is *balanced*
     /// against it, which is what `tests/growth.rs` asserts.
@@ -186,6 +191,7 @@ impl Tree {
             pinned: false,
             alive: true,
             morphology: None,
+            topology: None,
             steps_taken: 0,
             last_report: ProlongReport::default(),
         };
@@ -267,16 +273,22 @@ impl Tree {
             let n = &self.nodes[i.get()];
             (n.agg, n.spec, n.epoch, n.morphology.clone())
         };
-        let (bodies, report) = match &morph {
-            Some(m) => crate::prolong::prolong_structured(
-                &agg,
-                m,
-                spec.count,
-                self.world_seed,
-                key.0,
-                epoch,
-            ),
-            None => prolong(&agg, spec, self.world_seed, key.0, epoch),
+        let (bodies, topo, report) = match &morph {
+            Some(m) => {
+                let (b, t, r) = crate::prolong::prolong_structured(
+                    &agg,
+                    m,
+                    spec.count,
+                    self.world_seed,
+                    key.0,
+                    epoch,
+                );
+                (b, Some(t), r)
+            }
+            None => {
+                let (b, r) = prolong(&agg, spec, self.world_seed, key.0, epoch);
+                (b, None, r)
+            }
         };
         self.stats.materialisations += 1;
         self.stats.bodies_created += bodies.len() as u64;
@@ -287,6 +299,7 @@ impl Tree {
         let n = &mut self.nodes[i.get()];
         n.children = vec![NodeIdx::NONE; bodies.len()];
         n.bodies = bodies;
+        n.topology = topo;
         n.potential = report.potential;
         n.last_report = report;
         &self.nodes[i.get()].bodies
@@ -350,6 +363,7 @@ impl Tree {
             pinned: false,
             alive: true,
             morphology: None,
+            topology: None,
             steps_taken: 0,
             last_report: ProlongReport::default(),
         };
@@ -536,9 +550,11 @@ impl Tree {
         let seed = self.world_seed;
         let epoch = self.nodes[i.get()].epoch;
         let mut m = crate::morph::Morphology::new(program, seed, key.0, epoch);
-        // Seed it with whatever mass the node already has, so that placing a
-        // structure neither creates nor destroys anything.
-        m.built = self.nodes[i.get()].agg.mass;
+        // A seed, not a finished structure. The node's remaining mass is the
+        // feedstock the thing grows out of — soil, air, water — so planting
+        // neither creates nor destroys anything, and growth is bounded by what
+        // is actually there.
+        m.built = (self.nodes[i.get()].agg.mass * 1e-3).clamp(1e-6, 1.0);
         let n = &mut self.nodes[i.get()];
         n.agg.radius = m.extent().max(n.agg.radius.min(1e-3)).max(1e-30);
         n.agg.chemical_energy = m.stored_energy();

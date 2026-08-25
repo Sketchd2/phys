@@ -77,7 +77,6 @@ fn main() {
     }
 
     println!("\n## molecular dynamics (LJ, cell lists)");
-    let mol = Aggregate::neutral(4096.0 * 12.0 * AMU, 4e-9, 300.0, Composition::pure(Species::Carbon));
     for n in [1_000usize, 10_000, 100_000] {
         let side = 4e-9 * (n as f64 / 4096.0).cbrt();
         let mol = Aggregate::neutral(n as f64 * 12.0 * AMU, side, 300.0, Composition::pure(Species::Carbon));

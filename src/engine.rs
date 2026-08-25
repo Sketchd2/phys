@@ -29,6 +29,30 @@ use crate::tree::{Residency, Tree};
 use crate::units::*;
 use std::collections::HashMap;
 
+/// How many individual joint failures a structure remembers by name. Beyond
+/// this the damage is real but anonymous — it shows in the mass, not in the
+/// record of which twig went.
+pub const NOTABLE_BREAKS: usize = 48;
+
+/// What an insult did to a structure.
+#[derive(Debug, Default, Clone, Copy)]
+pub struct DamageOutcome {
+    /// Joints that failed.
+    pub broken_joints: usize,
+    /// Structural mass that fell off and is now litter in the same node.
+    pub detached_mass: f64,
+    /// Structural mass destroyed outright — burned or vaporised. The atoms stay
+    /// in the node as combustion products.
+    pub consumed_mass: f64,
+    /// Free energy liberated by that destruction, J.
+    pub energy_released: f64,
+    /// Energy the insult itself delivered, J.
+    pub energy_delivered: f64,
+    /// Highest joint utilisation reached, whether or not anything broke. Below
+    /// 1 the structure rode it out.
+    pub peak_utilisation: f64,
+}
+
 #[derive(Debug, Default, Clone, Copy)]
 pub struct EngineStats {
     pub frames: u64,
@@ -514,6 +538,118 @@ impl World {
         Some(txn)
     }
 
+    /// Load a structure and see what survives.
+    ///
+    /// The whole point of topology: nothing here says "lightning destroys a
+    /// tree" or "wet snow breaks branches". The insult produces forces,
+    /// temperatures and energy deposition, and then the ordinary stress
+    /// calculation decides what fails. A limb comes down because the moment at
+    /// its base exceeded what its cross-section could carry, which is also why
+    /// real limbs come down.
+    ///
+    /// Damage persists: broken joints become events in the developmental state,
+    /// so the structure regenerates broken for the rest of its life.
+    pub fn damage(&mut self, idx: NodeIdx, insult: crate::solvers::structure::Insult) -> DamageOutcome {
+        use crate::solvers::structure as st;
+        let mut out = DamageOutcome::default();
+        if idx.is_none() || !self.tree.nodes[idx.get()].alive {
+            return out;
+        }
+        if self.tree.nodes[idx.get()].morphology.is_none() {
+            return out;
+        }
+        self.tree.refine(idx);
+
+        let ambient = self.tree.nodes[idx.get()].agg.temperature;
+        let bodies = self.tree.nodes[idx.get()].bodies.clone();
+        let mut topo = match self.tree.nodes[idx.get()].topology.clone() {
+            Some(t) => t,
+            None => return out,
+        };
+        let structural_mass: f64 = self
+            .tree
+            .nodes[idx.get()]
+            .morphology
+            .as_ref()
+            .map(|m| m.built)
+            .unwrap_or(0.0);
+
+        let (extra, temps, insult_report) = st::apply_insult(&bodies, &mut topo, insult, ambient);
+        let loads = st::analyse(&bodies, &topo, st::G_EARTH, Some(&extra), &temps);
+        let failures = st::apply_failures(&bodies, &mut topo, &loads);
+
+        out.peak_utilisation = failures.peak_utilisation;
+        out.broken_joints = failures.broken_sites.len();
+        out.detached_mass = failures.detached_mass;
+        out.consumed_mass = insult_report.consumed_mass;
+        out.energy_delivered = insult_report.energy_delivered;
+
+        // Fold the damage into the developmental state, so it survives the
+        // structure being discarded and rebuilt.
+        // The event log records what is *observable*, not every twig. A crown
+        // fire breaks thousands of joints; a bounded log that kept the oldest
+        // of them would fill with the first few hundred twigs and drop the
+        // major limb that went later. So breaks are ranked by the mass they
+        // were carrying and only the significant ones are named — the rest are
+        // captured by the structure's mass loss, which is all an observer could
+        // detect anyway.
+        //
+        // This is the same resolution-scoped rule the measurement ledger uses:
+        // commit what someone could tell apart, regenerate the rest.
+        let mut ranked: Vec<(f64, u32)> = insult_report
+            .broken_sites
+            .iter()
+            .chain(failures.broken_sites.iter())
+            .map(|&site| {
+                let carried = topo
+                    .site
+                    .iter()
+                    .position(|&s| s == site)
+                    .and_then(|i| loads.get(i))
+                    .map(|l| l.carried)
+                    .unwrap_or(0.0);
+                (carried, site)
+            })
+            .collect();
+        ranked.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
+        let mut sites: Vec<u32> = ranked.into_iter().map(|(_, s)| s).collect();
+        sites.dedup();
+        sites.truncate(NOTABLE_BREAKS);
+
+        let node = &mut self.tree.nodes[idx.get()];
+        let temperature = node.agg.temperature;
+        if let Some(m) = node.morphology.as_mut() {
+            if !sites.is_empty() && structural_mass > 0.0 {
+                let fraction = (failures.detached_mass / structural_mass).clamp(0.0, 1.0);
+                let txn = m.sever_many(&sites, fraction);
+                out.detached_mass = txn.mass_detached;
+            }
+            if insult_report.consumed_mass > 0.0 {
+                let burn = m.consume(insult_report.consumed_mass, temperature);
+                if burn.validate().is_ok() {
+                    // Burning releases the free energy the wood was holding.
+                    // The atoms stay in the node as combustion products, so mass
+                    // and baryon number are untouched; only the energy moves.
+                    node.agg.chemical_energy -= burn.energy_released;
+                    node.agg.internal_energy += burn.heat_released;
+                    node.agg.entropy += burn.entropy_local;
+                    node.agg.entropy_exported += burn.entropy_exported;
+                    out.energy_released = burn.energy_released;
+                } else {
+                    self.rejected_transactions += 1;
+                }
+            }
+            node.agg.chemical_energy = m.stored_energy();
+            node.agg.radius = m.extent().max(1e-30);
+        }
+        // The structure it would generate has changed.
+        node.bodies.clear();
+        node.topology = None;
+        node.children.clear();
+        self.tree.stats.damage_events += 1;
+        out
+    }
+
     /// Read the growth environment off a node and its surroundings.
     ///
     /// A scenario can override this per node — placing a lit planetary surface
@@ -540,7 +676,14 @@ impl World {
             temperature: n.agg.temperature,
             water: 1.0,
             crowding: 0.0,
-            reservoir_mass: n.agg.mass,
+            // A structure can only be built out of matter that is actually
+            // available: the node's *unstructured* remainder, not its total.
+            // Using the total lets a node grow a structure many times its own
+            // mass, because the limit then applies per step rather than
+            // cumulatively — a one-kilogram node grew a three-tonne tree.
+            reservoir_mass: (n.agg.mass
+                - n.morphology.as_ref().map(|m| m.built).unwrap_or(0.0))
+            .max(0.0),
             labour: self.labour_rate,
         }
     }

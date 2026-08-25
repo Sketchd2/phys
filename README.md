@@ -46,13 +46,22 @@ state is ~100 bytes instead of a million vertices (measured: **10,615×**
 smaller for a 160-year-old tree). Growth runs on the *aggregate*, so a forest
 grows without any of its trees existing.
 
-**4. Observation as commitment.** An unobserved quantity has no value; a
+**4. Cohesion is generated too.** A structure's joints — where they are, what
+cross-section they have, what they are made of — come from the same program as
+its geometry, so holding a tree together costs no more to store than its shape
+does. Because every generated structure's load path is a *tree*, internal forces
+are exact in one O(n) pass with no stiffness matrix and no solve, which is what
+makes structural failure cheap enough to check on every structure every frame.
+Damage is then never scripted: an insult produces forces, temperatures or
+deposited energy, and the ordinary stress calculation decides what survives.
+
+**5. Observation as commitment.** An unobserved quantity has no value; a
 measured one is recorded permanently in a ledger and never re-sampled. At the
 subatomic tier this is not an approximation of quantum mechanics — it *is*
 quantum mechanics, which is why the trick survives all the way down instead of
 breaking at the bottom.
 
-**5. A frame budget that spends detail, not time.** Each frame gets 50 ms and
+**6. A frame budget that spends detail, not time.** Each frame gets 50 ms and
 solves a knapsack over the available work. Frame rate is the invariant;
 fidelity is the free variable. A user who zooms too far does not get a
 slideshow, they get a slightly coarser world and a visible detail-debt readout.
@@ -62,7 +71,8 @@ slideshow, they get a slightly coarser world and a visible detail-debt readout.
 ```sh
 cargo run --release --bin phys-demo     # guided tour, galaxy to nucleus
 cargo run --release --example bench     # measured cost of every hot path
-cargo test --release                    # 59 tests
+cargo run --release --example damage    # grow a tree, break it, render PNGs
+cargo test --release                    # 70 tests
 ```
 
 The demo descends 23 levels from a 9.2 × 10⁸ M☉ disc to a 2.7 fm nucleus,
@@ -92,6 +102,8 @@ src/
   state.rs     aggregates, bodies, the conserved tuple, restriction
   prolong.rs   constraint-projected materialisation
   morph.rs     developmental state: growth, construction, and its bookkeeping
+  topology.rs  joints, materials, and what holds a structure together
+  render.rs    headless renderer with a dependency-free PNG writer
   tree.rs      the scale tree; refine, promote, coarsen
   causal.rs    light cones, history rings, the conservative scheduler
   observe.rs   observers, instruments, the commitment ledger
@@ -99,7 +111,7 @@ src/
   engine.rs    the orchestrator and the interaction API
   solvers/     gravity, hydro, molecular dynamics, nuclear, quantum
 tests/         consistency, causality, solvers, statistics, budget,
-               interaction, growth
+               interaction, growth, topology
 ```
 
 ## Status

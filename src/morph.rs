@@ -442,14 +442,67 @@ impl Morphology {
         // genome as a permanent bias — a checkpoint, so replay stays finite for
         // a structure someone interacts with for a very long time.
         if self.events.len() > MAX_EVENTS {
-            self.checkpoint_age = self.age;
             let drop = self.events.len() - MAX_EVENTS / 2;
             let bias: f64 = self.events[..drop].iter().map(|e| e.magnitude).sum::<f64>()
                 / drop as f64;
             self.genome[7] = (self.genome[7] as f64 * (1.0 - 0.1 * bias)).clamp(0.0, 1.0) as f32;
-            self.events.drain(..drop);
+            self.compact_events();
         }
         txn
+    }
+
+    /// Sever several sites at once, losing `fraction` of the structural mass
+    /// between them.
+    ///
+    /// Separate from `record` because recording n breaks individually would
+    /// compound the mass loss n times — each call taking a fraction of what the
+    /// previous one left. A storm that breaks two hundred joints does not
+    /// remove two hundred successive fractions of the tree.
+    pub fn sever_many(&mut self, sites: &[u32], fraction: f64) -> Transaction {
+        let lost = (self.built * fraction.clamp(0.0, 1.0)).max(0.0);
+        self.built -= lost;
+        for &site in sites {
+            self.events.push(Event {
+                at: self.age,
+                kind: EventKind::Severed,
+                site,
+                magnitude: 0.0,
+            });
+        }
+        self.compact_events();
+        // The limb is on the ground, not gone: its free energy is still locked
+        // in the wood. Nothing is released until something decomposes or burns
+        // it, which is a separate process.
+        Transaction {
+            mass_incorporated: 0.0,
+            composition: self.program.substrate(),
+            ..Transaction::none()
+        }
+        .with_detached(lost)
+    }
+
+    /// Consume structural mass outright — burned, vaporised — releasing the
+    /// free energy that was holding it together.
+    pub fn consume(&mut self, mass: f64, temperature: f64) -> Transaction {
+        let lost = mass.clamp(0.0, self.built);
+        self.built -= lost;
+        Transaction::build(
+            0.0,
+            self.program.substrate(),
+            0.0,
+            0.0,
+            lost * self.program.energy_density(),
+            0.5,
+            temperature,
+        )
+    }
+
+    fn compact_events(&mut self) {
+        if self.events.len() > MAX_EVENTS {
+            self.checkpoint_age = self.age;
+            let drop = self.events.len() - MAX_EVENTS / 2;
+            self.events.drain(..drop);
+        }
     }
 
     /// Total mass severed from the structure by logged events.
@@ -506,6 +559,8 @@ impl Morphology {
             rad: f64,
             depth: usize,
             id: u32,
+            /// Segment id of the part this one grew out of.
+            parent: u32,
         }
         // Breadth-first, not depth-first. With a stack the budget is spent
         // rendering one branch down to its finest twigs while the rest of the
@@ -520,8 +575,12 @@ impl Morphology {
             rad: 0.055,
             depth: 0,
             id: 0,
+            parent: NO_SUPPORT,
         }]);
         let mut next_id = 1u32;
+        // Segment id to emitted index. Breadth-first guarantees a parent is
+        // emitted before its children, so every lookup here succeeds.
+        let mut emitted: std::collections::HashMap<u32, u32> = std::collections::HashMap::new();
 
         while let Some(s) = queue.pop_front() {
             if sk.len() >= budget {
@@ -536,11 +595,18 @@ impl Morphology {
                 continue;
             }
             let tip = s.base + s.dir.scale(s.len);
-            sk.push(
-                s.base + s.dir.scale(s.len * 0.5),
-                s.rad * s.rad * s.len,
-                s.rad,
-            );
+            let support = if s.parent == NO_SUPPORT {
+                NO_SUPPORT
+            } else {
+                match emitted.get(&s.parent) {
+                    Some(&idx) => idx,
+                    // The parent was pruned or fell outside the budget, so this
+                    // segment has nothing to hang from and is not emitted.
+                    None => continue,
+                }
+            };
+            emitted.insert(s.id, sk.len() as u32);
+            sk.push_segment(s.base, tip, s.rad * s.rad * s.len, s.rad, support, s.id);
             if s.depth >= max_depth {
                 continue;
             }
@@ -558,6 +624,7 @@ impl Morphology {
                     rad: child_rad,
                     depth: s.depth + 1,
                     id: next_id,
+                    parent: s.id,
                 });
                 next_id += 1;
             }
@@ -582,6 +649,7 @@ impl Morphology {
         let mut sk = Skeleton::with_capacity(budget);
         let built_floors = self.progress * floors as f64;
         let per_floor = (budget / floors.max(1)).max(4);
+        let mut prev_cols = NO_SUPPORT;
         for f in 0..floors {
             let complete = (built_floors - f as f64).clamp(0.0, 1.0);
             if complete <= 0.0 {
@@ -590,9 +658,14 @@ impl Morphology {
             let z = -1.0 + 2.0 * (f as f64 + 0.5) / floors as f64;
             // Columns at the corners, then the slab spanning between them.
             let cols = 4;
+            let first_col = sk.len() as u32;
             for c in 0..cols {
                 let a = std::f64::consts::TAU * c as f64 / cols as f64 + std::f64::consts::FRAC_PI_4;
-                sk.push(v3(side * a.cos(), side * a.sin(), z), 0.25, 0.04);
+                // Each column stands on the column below it. A framed building
+                // is not a tree, but its *gravity load path* is, and that is
+                // what the structural analysis needs.
+                let below = if f == 0 { NO_SUPPORT } else { prev_cols + c as u32 };
+                sk.push_supported(v3(side * a.cos(), side * a.sin(), z), 0.25, 0.04, below);
             }
             let slab = (per_floor.saturating_sub(cols)).max(1);
             let side_n = (slab as f64).sqrt().ceil().max(1.0) as usize;
@@ -602,8 +675,16 @@ impl Morphology {
                 let iy = (i / side_n) % side_n;
                 let x = side * (2.0 * ix as f64 / side_n as f64 - 1.0) * 0.9;
                 let y = side * (2.0 * iy as f64 / side_n as f64 - 1.0) * 0.9;
-                sk.push(v3(x, y, z + 0.4 / floors as f64), 1.0 / slab as f64, 0.02);
+                // Slab elements hang off the nearest column of this floor.
+                let col = first_col + (i % cols) as u32;
+                sk.push_supported(
+                    v3(x, y, z + 0.4 / floors as f64),
+                    1.0 / slab as f64,
+                    0.02,
+                    col,
+                );
             }
+            prev_cols = first_col;
             if sk.len() >= budget {
                 break;
             }
@@ -626,6 +707,7 @@ impl Morphology {
         let mut sk = Skeleton::with_capacity(budget);
         let per_course = (budget / courses.max(1)).max(2);
         let laid = self.progress * courses as f64;
+        let (mut prev_start, mut prev_count) = (0u32, 0usize);
         for c in 0..courses {
             let complete = (laid - c as f64).clamp(0.0, 1.0);
             if complete <= 0.0 {
@@ -636,15 +718,33 @@ impl Morphology {
             // Alternate courses are offset by half a block, as they must be for
             // the wall to stand up.
             let offset = if c % 2 == 0 { 0.0 } else { 0.5 };
+            let course_start = sk.len() as u32;
             for b in 0..blocks {
                 let x = len * ((b as f64 + offset) / per_course as f64 - 0.5) * 2.0;
-                sk.push(v3(x, 0.0, z), 1.0 / per_course as f64, 0.03);
+                let below = if c == 0 {
+                    NO_SUPPORT
+                } else {
+                    prev_start + (b.min(prev_count.saturating_sub(1))) as u32
+                };
+                sk.push_supported(v3(x, 0.0, z), 1.0 / per_course as f64, 0.03, below);
             }
+            prev_start = course_start;
+            prev_count = blocks;
         }
         if sk.is_empty() {
             sk.push(Vec3::ZERO, 1.0, 0.05);
         }
         sk
+    }
+
+    /// What the structure is physically made of, for the failure analysis.
+    pub fn material(&self) -> crate::topology::Material {
+        match self.program {
+            Program::Tree => crate::topology::Material::GreenWood,
+            Program::Coral => crate::topology::Material::Aragonite,
+            Program::Tower => crate::topology::Material::ReinforcedFrame,
+            Program::Wall => crate::topology::Material::Masonry,
+        }
     }
 
     /// The body kind the structure's parts should be tagged with.
@@ -676,14 +776,34 @@ const FLOOR_HEIGHT: f64 = 3.2;
 /// Fraction of construction energy that ends up embodied rather than wasted.
 const CONSTRUCTION_EFFICIENCY: f64 = 0.35;
 
-/// Raw geometry: positions in units of the structure's extent, relative masses,
-/// and part radii. `prolong` normalises all three.
+/// Raw geometry in units of the structure's extent, together with the
+/// connectivity that holds it together.
+///
+/// The connectivity was always implicit in the generators — a branching program
+/// knows perfectly well which segment grew out of which — and was simply being
+/// discarded. Keeping it costs three arrays and is what makes the difference
+/// between a cloud of parts that happens to be tree-shaped and a structure that
+/// can be loaded, stressed and broken.
 #[derive(Debug, Clone, Default)]
 pub struct Skeleton {
+    /// Midpoint of each part.
     pub pos: Vec<Vec3>,
     pub mass: Vec<f64>,
     pub radius: Vec<f64>,
+    /// Index of the part that supports this one; `NO_SUPPORT` for a part
+    /// anchored to the ground.
+    pub support: Vec<u32>,
+    /// Program-stable name for this part, so an event can refer to it and mean
+    /// the same thing after the structure is regenerated.
+    pub site: Vec<u32>,
+    /// Endpoints. The base is where the joint to the supporting part is, and
+    /// therefore where the bending stress is highest and where things break.
+    pub base: Vec<Vec3>,
+    pub tip: Vec<Vec3>,
 }
+
+/// A part anchored to the ground rather than to another part.
+pub const NO_SUPPORT: u32 = u32::MAX;
 
 impl Skeleton {
     pub fn with_capacity(n: usize) -> Skeleton {
@@ -691,23 +811,51 @@ impl Skeleton {
             pos: Vec::with_capacity(n),
             mass: Vec::with_capacity(n),
             radius: Vec::with_capacity(n),
+            support: Vec::with_capacity(n),
+            site: Vec::with_capacity(n),
+            base: Vec::with_capacity(n),
+            tip: Vec::with_capacity(n),
         }
     }
-    pub fn push(&mut self, p: Vec3, m: f64, r: f64) {
-        self.pos.push(p);
+
+    /// Add a part that is a segment between two points.
+    pub fn push_segment(&mut self, base: Vec3, tip: Vec3, m: f64, r: f64, support: u32, site: u32) {
+        self.pos.push((base + tip).scale(0.5));
         self.mass.push(m.max(1e-12));
         self.radius.push(r.max(1e-12));
+        self.support.push(support);
+        self.site.push(site);
+        self.base.push(base);
+        self.tip.push(tip);
     }
+
+    /// Add a part with no extent of its own — a block, a slab, a parcel.
+    pub fn push(&mut self, p: Vec3, m: f64, r: f64) {
+        let half = v3(0.0, 0.0, r);
+        let site = self.pos.len() as u32;
+        self.push_segment(p - half, p + half, m, r, NO_SUPPORT, site);
+    }
+
+    /// Add a part supported by another.
+    pub fn push_supported(&mut self, p: Vec3, m: f64, r: f64, support: u32) {
+        let half = v3(0.0, 0.0, r);
+        let site = self.pos.len() as u32;
+        self.push_segment(p - half, p + half, m, r, support, site);
+    }
+
     pub fn len(&self) -> usize {
         self.pos.len()
     }
     pub fn is_empty(&self) -> bool {
         self.pos.is_empty()
     }
-    pub fn scale_masses(&mut self, f: f64) {
-        for m in self.mass.iter_mut() {
-            *m *= f;
-        }
+    /// Length of each part along its own axis.
+    pub fn length(&self, i: usize) -> f64 {
+        (self.tip[i] - self.base[i]).norm()
+    }
+    /// Unit direction of each part.
+    pub fn direction(&self, i: usize) -> Vec3 {
+        (self.tip[i] - self.base[i]).unit()
     }
 }
 
@@ -771,6 +919,9 @@ impl Environment {
 pub struct Transaction {
     /// Mass moved from the surrounding reservoir into the structure, kg.
     pub mass_incorporated: f64,
+    /// Mass that left the structure but stayed in the node, kg. A fallen limb
+    /// is litter, not an absence.
+    pub mass_detached: f64,
     /// What that mass is made of.
     pub composition: Composition,
     /// Energy crossing the node boundary inwards, J.
@@ -805,6 +956,11 @@ impl Transaction {
         }
     }
 
+    fn with_detached(mut self, mass: f64) -> Transaction {
+        self.mass_detached = mass;
+        self
+    }
+
     #[allow(clippy::too_many_arguments)]
     fn build(
         mass: f64,
@@ -823,6 +979,7 @@ impl Transaction {
         let energy_radiated = waste - heat_released;
         Transaction {
             mass_incorporated: mass,
+            mass_detached: 0.0,
             composition,
             energy_absorbed,
             energy_stored,

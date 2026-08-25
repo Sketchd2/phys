@@ -128,6 +128,10 @@ pub struct ProlongReport {
     /// converged cleanly; a large value means the requested state was awkward
     /// (extreme mass ratios, near-degenerate geometry) but still exact.
     pub internal_energy_residual: f64,
+    /// Factor applied to member radii to make the enclosed volume agree with
+    /// the structural mass at the material's density. Far from 1 means the
+    /// program's nominal proportions disagree with its own density.
+    pub radius_correction: f64,
     /// How many of the emitted parts belong to the structure itself, as
     /// opposed to the unstructured matter surrounding it in the same node.
     pub structural_parts: usize,
@@ -148,6 +152,7 @@ impl Default for ProlongReport {
             realised_radius: 0.0,
             rotational_fraction: 0.0,
             relaxations: 0,
+            radius_correction: 1.0,
             structural_parts: 0,
             internal_energy_residual: 0.0,
             scales: crate::state::Scales::unit(),
@@ -551,12 +556,17 @@ fn sample_compositions(
 // helpers
 // ---------------------------------------------------------------------------
 
-fn recentre(pos: &mut [Vec3], masses: &[f64], total: f64) {
+/// Shift positions so the centre of mass is at the origin, returning the shift
+/// that was applied — callers with parallel geometry (joint locations, member
+/// endpoints) must apply the same one or their geometry silently detaches from
+/// the bodies it describes.
+fn recentre(pos: &mut [Vec3], masses: &[f64], total: f64) -> Vec3 {
     let n = pos.len();
     let com = det_sum_v3_by(n, &|i| pos[i].scale(masses[i])).scale(1.0 / total);
     for p in pos.iter_mut() {
         *p -= com;
     }
+    com
 }
 
 /// Choose the scale factor that makes `restrict` report exactly `target`.
@@ -639,6 +649,10 @@ fn child_radius(agg: &Aggregate, spec: ProlongSpec, mass: f64, n: usize) -> f64 
         _ => agg.radius / (n as f64).cbrt() * 0.5,
     }
 }
+
+/// Largest share of a materialisation budget that unstructured matter may take,
+/// however much of the mass it represents.
+pub const LITTER_BUDGET_SHARE: f64 = 0.15;
 
 /// Geometry handed to [`close_books`]: where the parts are, how heavy they are,
 /// and what they are made of. Produced either by the max-entropy samplers above
@@ -885,13 +899,13 @@ pub fn prolong_structured(
     world_seed: u64,
     path_key: u128,
     epoch: u32,
-) -> (Vec<Body>, ProlongReport) {
+) -> (Vec<Body>, crate::topology::Topology, ProlongReport) {
     let mut report = ProlongReport {
         count: budget,
         ..Default::default()
     };
     if agg.mass <= 0.0 || !agg.is_finite() {
-        return (Vec::new(), report);
+        return (Vec::new(), crate::topology::Topology::default(), report);
     }
 
     // ---- 1. geometry from the program -----------------------------------
@@ -907,12 +921,21 @@ pub fn prolong_structured(
     let residual = (agg.mass - structural).max(0.0);
     let residual_frac = residual / agg.mass;
 
-    let skel = morph.render(((budget as f64) * (1.0 - residual_frac)).round().max(1.0) as usize);
+    // Budget is allocated by *salience*, not by mass. Unstructured matter is
+    // interchangeable — any sample of it is as good as any other — so a handful
+    // of parcels represents it as well as thousands would. Structure is the
+    // opposite: its specific arrangement is the whole information content, and
+    // it is what an observer is looking at. Splitting the budget by mass gave a
+    // 60-tonne forest floor 94% of it and left a three-tonne tree with 500
+    // members.
+    let litter_share = residual_frac.min(LITTER_BUDGET_SHARE);
+    let skel = morph.render(((budget as f64) * (1.0 - litter_share)).round().max(1.0) as usize);
     let n_struct = skel.len();
     if n_struct == 0 {
-        return (Vec::new(), report);
+        return (Vec::new(), crate::topology::Topology::default(), report);
     }
 
+    let skel_geom = skel.clone();
     let mut masses = skel.mass;
     let m_sum = det_sum_by(n_struct, &|i| masses[i]);
     let k = if m_sum > 0.0 { structural / m_sum } else { 0.0 };
@@ -927,7 +950,7 @@ pub fn prolong_structured(
     // The unstructured remainder: litter, air, rubble. Sampled from the same
     // max-entropy machinery every other node uses.
     if residual > 0.0 && residual_frac > 1e-12 {
-        let n_res = ((budget as f64) * residual_frac).round().max(1.0) as usize;
+        let n_res = ((budget as f64) * litter_share).round().max(1.0) as usize;
         let mut st = Stream::at(world_seed, path_key, epoch, Purpose::Positions);
         let each = residual / n_res as f64;
         for _ in 0..n_res {
@@ -946,12 +969,37 @@ pub fn prolong_structured(
     // already set to `morph.extent()`, so this is a unit conversion rather than
     // a correction to the shape.
     let mut pos = pos_all;
-    recentre(&mut pos, &masses, agg.mass);
+    let com_shift = recentre(&mut pos, &masses, agg.mass);
     let scale = radius_scale(&pos, &masses, agg.mass, agg.radius);
     for p in pos.iter_mut() {
         *p = p.scale(scale);
     }
-    let radii: Vec<f64> = radii_all.iter().map(|r| r * scale).collect();
+
+    // Member radii are set by the *density*, not by the position scale.
+    //
+    // Scaling radii geometrically alongside positions looks harmless and is
+    // not: the resulting members enclose a volume with no relation to the mass
+    // they carry. It produced a 13 m tree with a half-metre trunk radius —
+    // three times the whole tree's volume in the trunk alone. Section modulus
+    // goes as r^3, so a factor of two in radius is a factor of eight in
+    // apparent strength, and every structural conclusion drawn from it would
+    // have been wrong.
+    let mut radii: Vec<f64> = radii_all.iter().map(|r| r * scale).collect();
+    {
+        let target_volume = structural / morph.program.density();
+        let mut current = 0.0;
+        for i in 0..n_struct.min(radii.len()) {
+            let len = (skel_geom.tip[i] - skel_geom.base[i]).norm() * scale;
+            current += std::f64::consts::PI * radii[i] * radii[i] * len;
+        }
+        if current > 0.0 && target_volume > 0.0 {
+            let f = (target_volume / current).sqrt();
+            for r in radii.iter_mut().take(n_struct) {
+                *r *= f;
+            }
+            report.radius_correction = f;
+        }
+    }
 
     // ---- 2. energy budget ------------------------------------------------
     let softening = agg.radius / (n as f64).cbrt() * 0.1;
@@ -974,6 +1022,7 @@ pub fn prolong_structured(
     let omega = inertia.solve(agg.spin).unwrap_or(Vec3::ZERO);
     let ke_rot = 0.5 * omega.dot(agg.spin);
 
+    let member_radii = radii.clone();
     let parts = Parts {
         pos,
         masses,
@@ -992,5 +1041,17 @@ pub fn prolong_structured(
         scale,
         &mut report,
     );
-    (bodies, report)
+
+    // The joints, in the same index space and the same units as the bodies.
+    // Regenerated from the program exactly as the geometry is, so cohesion
+    // costs no more to store than shape does.
+    let topo = crate::topology::Topology::from_skeleton(
+        &skel_geom,
+        morph.material(),
+        com_shift,
+        scale,
+        &member_radii,
+        bodies.len(),
+    );
+    (bodies, topo, report)
 }

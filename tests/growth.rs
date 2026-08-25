@@ -2,7 +2,6 @@
 //! have to balance for either to be legitimate.
 
 use phys::engine::{galaxy, World};
-use phys::ids::NodeIdx;
 use phys::math::v3;
 use phys::morph::*;
 use phys::prolong::*;
@@ -37,7 +36,7 @@ fn structures_conserve_like_everything_else() {
             agg.spin = v3(0.0, 0.0, mass * 1e-2);
 
             for budget in [16usize, 256, 4096] {
-                let (bodies, r) = prolong_structured(&agg, &m, budget, 7, 0x99, 0);
+                let (bodies, _topo, r) = prolong_structured(&agg, &m, budget, 7, 0x99, 0);
                 assert!(!bodies.is_empty(), "{:?} produced no geometry", program);
                 let mut back = restrict(&bodies, r.potential);
                 back.chemical_energy = agg.chemical_energy;
@@ -137,6 +136,7 @@ fn growth_obeys_both_laws() {
 fn impossible_transactions_are_refused() {
     let bad = Transaction {
         mass_incorporated: 1.0,
+        mass_detached: 0.0,
         composition: Composition::solar(),
         energy_absorbed: 100.0,
         energy_stored: 150.0,
@@ -150,6 +150,7 @@ fn impossible_transactions_are_refused() {
 
     let refrigerator = Transaction {
         mass_incorporated: 1.0,
+        mass_detached: 0.0,
         composition: Composition::solar(),
         energy_absorbed: 100.0,
         energy_stored: 100.0,
@@ -347,6 +348,7 @@ fn engine_grows_unobserved_structures() {
     }
     w.plant(node, Program::Tree, Environment::default());
     let start_mass = w.tree.nodes[node.get()].agg.mass;
+    let seeded = w.tree.nodes[node.get()].morphology.as_ref().unwrap().built;
     // Audited on the non-rest energy: rest mass is nine orders larger and would
     // swamp the entire growth budget in round-off.
     let e0 = w.tree.nodes[node.get()].agg.non_rest_energy();
@@ -371,7 +373,11 @@ fn engine_grows_unobserved_structures() {
     );
 
     assert_eq!(w.rejected_transactions, 0, "a transaction failed to balance");
-    assert!(n.morphology.as_ref().unwrap().built > start_mass, "no growth");
+    assert!(n.morphology.as_ref().unwrap().built > seeded, "no growth");
+    assert!(
+        n.morphology.as_ref().unwrap().built <= start_mass,
+        "the structure outgrew the matter available to build it"
+    );
     assert!(n.bodies.is_empty(), "growth materialised the structure");
 
     // The first law across the node boundary, exactly.

@@ -17,6 +17,7 @@ pub mod hydro;
 pub mod md;
 pub mod nuclear;
 pub mod quantum;
+pub mod structure;
 
 use crate::state::{Body, Conserved};
 use crate::units::Tier;

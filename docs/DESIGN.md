@@ -40,6 +40,7 @@ are combined and the guarantee that combination is made to satisfy.
 | Sub-grid models | Galaxy simulation | Unresolved physics as effective terms | One-way: you can never zoom in and see the real thing |
 | Procedural generation | Games | Infinite worlds from a seed | No conservation, no dynamics; regenerating a region loses whatever happened there |
 | L-systems, growth models | Graphics, biology | Plausible organic structure | Not conservative, not thermodynamic; growth is free |
+| Finite element analysis | Engineering | Exact internal forces | A sparse solve per structure per load case; far too slow to run on everything |
 | Level of detail / impostors | Rendering | Cheap distant geometry | Visual only; the physics is not consistent with what you see |
 | Conservative PDES | Distributed simulation | Correct parallel event ordering | Needs a lookahead, which is hard to obtain and usually tiny |
 | Multiscale / QM-MM coupling | Chemistry | Different physics in different regions | Fixed, hand-placed regions; does not move with an observer |
@@ -182,7 +183,58 @@ structure's mass drops while the node's does not, and the missing mass is
 silently redistributed into the surviving branches — a tree that grows heavier
 every time you prune it.
 
-### 3.4 Observation as commitment
+### 3.4 Cohesion, and why the load path being a tree matters
+
+A generated structure was, until topology existed, geometry that happened to
+hold still: nothing in a `Body` says this segment is attached to that one, so
+materialising a tree and handing the parts to the molecular dynamics solver
+would let the trunk fall apart.
+
+The joints come from the same program as the geometry — a branching generator
+knows perfectly well which segment grew out of which, and was simply discarding
+it — so cohesion is regenerated rather than stored, exactly like shape.
+
+The load path of every structure the engine generates is a **tree**: a branch
+hangs off a branch, a floor stands on the floor below, a course of bricks rests
+on the course beneath. That is worth a great deal. A real framed building is a
+redundant lattice whose true internal forces need a stiffness matrix and a
+sparse solve — thousands of unknowns, iterative, awkward to budget for at 20
+frames a second. On a tree it is exact in one pass: accumulate force and moment
+from the leaves inward, and every joint's load is known in O(n) with no solve at
+all. Since parts are emitted parents-first, a single reverse iteration over the
+array does it.
+
+The approximation is stated rather than hidden: for a redundant structure this
+is the gravity load path with no force sharing between alternative routes, which
+is *conservative* — it over-predicts the load on the nominal path and so fails
+early rather than late.
+
+What this buys is that damage stops being scripted. Nothing in the engine says
+"lightning destroys a tree" or "wet snow breaks branches". Snow settles on
+upward-facing area, wind adds drag to projected area, lightning deposits
+enthalpy along the conduction path, fire raises temperature and consumes
+material — and then the *same* stress calculation decides what survives. A limb
+comes down because the moment at its base exceeded what its cross-section could
+carry, which is also why real limbs come down.
+
+Three calibrations had to be right for that to be true rather than merely
+plausible, and each was wrong at first in a way only a physical check caught:
+
+* **Member radii follow from density, not from the position scale.** Scaling
+  radii geometrically alongside positions produced a 13 m tree with a half-metre
+  trunk radius — three times the whole tree's volume in the trunk alone. Section
+  modulus goes as `r^3`, so a factor of two in radius is a factor of eight in
+  apparent strength, and every structural conclusion drawn from it was wrong.
+* **Snow load is bounded by the crown's silhouette, not the sum of member
+  areas.** Branches shade one another and snow falling between them reaches the
+  ground; summing per-member areas over-counts by the crown's area index and
+  made 100 mm of snow destroy a tree that would not have noticed it.
+* **Interception capacity depends on wetness.** Dry powder barely adheres and
+  blows off; wet snow near freezing bonds to the bark, and that is the snow that
+  brings limbs down. There is no single value that is right for both — treating
+  all snow alike either makes powder lethal or makes wet snow harmless.
+
+### 3.5 Observation as commitment
 
 An unobserved quantity has no value. A measured one is recorded in a ledger and
 returned identically forever after (`observe::Ledger::get_or_sample`). This is
@@ -202,7 +254,7 @@ The ledger is the only structure in the engine whose size grows with what users
 *do* rather than with the size of the universe. In the demo it holds one fact in
 60 bytes against 20 MB of regenerable detail.
 
-### 3.5 The frame budget as the invariant
+### 3.6 The frame budget as the invariant
 
 A conventional simulation decides what to compute and takes however long it
 takes. This one is given 50 ms and decides what fits. Every candidate piece of
@@ -334,10 +386,11 @@ engine depends on.
 - **Turbulence is a prescribed solenoidal field**, not a solved cascade. It
   produces the right correlations at one scale, not the right spectrum across
   scales.
-- **Structures have no topology.** `Body` carries no bonds, so materialising a
-  tree and running molecular dynamics on it would let the trunk fall apart.
-  Emitting constraints alongside bodies is the next substantial piece of work,
-  and until it exists a structure is geometry that happens to hold still.
+- **Structural analysis is a load path, not a stiffness solve.** Redundant
+  structures get the conservative answer described in §3.4. Bonds also carry no
+  stiffness into the particle solvers yet: the topology decides what breaks, but
+  a materialised structure handed to molecular dynamics still has no constraints
+  holding it together.
 - **Structures cannot straddle nodes.** A building spanning several nodes, or
   roots reaching into the soil node, would need cross-links, which the strictly
   hierarchical tree deliberately forbids — that hierarchy is what makes the

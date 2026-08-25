@@ -221,6 +221,40 @@ Growth also responds to conditions without anything being arranged: a structure
 held below freezing loses mass to maintenance, and one in drought or shade grows
 slowly. That is what makes tree rings.
 
+## 3.6 Structural failure
+
+Joints carry a cross-section, a material and a remaining integrity. Loads
+accumulate from the leaves inward in one O(n) pass; peak fibre stress is the
+bending moment over the section modulus, `4M / (pi r^3)`, plus the axial term.
+
+| Load case | Result |
+|---|---|
+| A 13 m, 900 kg tree under its own weight | peak utilisation 0.285 — safety factor 3.5 |
+| Wind, 15 and 25 m/s | nothing breaks |
+| Wind, 40 m/s | limbs come down |
+| Wind, 60 m/s | crown destroyed |
+| 600 mm dry powder snow (100 kg/m³) | utilisation 0.39, nothing breaks |
+| 300 mm settled snow (200 kg/m³) | utilisation 0.89, nothing breaks |
+| 100 mm wet snow (400 kg/m³) | utilisation 1.90, limbs come down |
+| Lightning, 10⁷ / 10⁸ / 10⁹ J | 3 / 4 / 6 members destroyed along the channel |
+| Brief low ground fire | nothing consumed; trunk reaches 305 K |
+| Sustained crown fire | fine fuel consumed; trunk reaches 526 K, not 1100 K |
+
+Every row is a passing assertion in `tests/topology.rs`. A safety factor of 3.5
+against self-weight matches measured values for real trees, which is the check
+that makes the rest of the table meaningful — a model that could not stand up
+would fail everything else for the wrong reason.
+
+The wind and snow rows are the ones worth dwelling on. A tree that survives a
+25 m/s gale and loses limbs at 40 m/s is behaving as trees do, and the
+distinction between dry and wet snow is not a tuning knob but the actual reason
+snow damage happens: interception capacity scales steeply with how well the snow
+adheres. Lightning follows the support chain to ground and deposits energy in
+proportion to each member's resistance, so thin members — highest resistance per
+kilogram — are destroyed while the trunk survives. Fire heats members on a time
+constant set by their thermal mass, which is why a ground fire takes the
+understory and scorches but does not fell mature trees.
+
 ## 4. Generated detail is statistically correct
 
 Conservation is necessary but not sufficient: a cloud whose parcels conserve
