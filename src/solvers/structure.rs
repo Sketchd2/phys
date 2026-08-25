@@ -1063,3 +1063,212 @@ impl DynamicStructure {
             .collect()
     }
 }
+
+// ---------------------------------------------------------------------------
+// Design
+// ---------------------------------------------------------------------------
+
+/// What an optimisation pass achieved.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct DesignReport {
+    pub passes: u32,
+    /// Peak utilisation before and after.
+    pub peak_before: f64,
+    pub peak_after: f64,
+    /// Standard deviation of utilisation across loaded members, before and
+    /// after. This is the number the method is actually minimising: a design is
+    /// efficient when every member is working equally hard.
+    pub spread_before: f64,
+    pub spread_after: f64,
+    /// Structural volume before and after. These must be equal — the members
+    /// are re-proportioned, not fed.
+    pub volume_before: f64,
+    pub volume_after: f64,
+}
+
+impl DesignReport {
+    /// Fractional change in structural volume. Anything but zero means the
+    /// optimiser bought its improvement with material it invented.
+    pub fn volume_error(&self) -> f64 {
+        if self.volume_before > 0.0 {
+            (self.volume_after - self.volume_before).abs() / self.volume_before
+        } else {
+            0.0
+        }
+    }
+}
+
+/// Passes of fully-stressed sizing. Five is well past where the spread stops
+/// falling for the structures the engine generates.
+pub const DESIGN_PASSES: u32 = 5;
+
+/// How far a member may be re-proportioned from what the generator produced.
+///
+/// The generator's proportions are a prior, not noise: they encode what the
+/// program is *for*, and a member carrying nothing in every design case is
+/// still holding the geometry together. Without a floor, fully-stressed design
+/// happily reduces such a member to a thread, and the structure then fails at
+/// the first load its design cases did not include — which is every real load.
+pub const DESIGN_BOUNDS: (f64, f64) = (0.55, 2.6);
+
+/// Re-proportion a structure's members for the loads they actually carry.
+///
+/// # Why a generated structure needs this
+///
+/// The generator decides where members go and how they branch. It has no way to
+/// know what any of them will end up carrying, so the radii it produces are a
+/// shape — scaled as a group to match the structural mass, but not related to
+/// the loads member by member. The result is a structure where a few members
+/// are at the point of failure while most of the material sits in members doing
+/// nothing, and both problems have the same cause.
+///
+/// # Fully stressed design
+///
+/// Analyse; then give every member the section that would bring it to the same
+/// utilisation as every other; then rescale the whole set back to the volume it
+/// started with. Repeat. It converges in a handful of passes and it is the
+/// oldest structural optimisation there is, because it is what the answer looks
+/// like: at the optimum of a mass-constrained design, no member is idle.
+///
+/// Bending governs a slender member, and bending stress goes as `M/r^3`, so the
+/// radius correction is the cube root of the utilisation ratio. Each pass is
+/// damped and clamped, because a member that is briefly carrying nothing would
+/// otherwise be sized out of existence and never recover.
+///
+/// # Why this is not a cheat
+///
+/// The structural mass does not change. `volume_error` is reported so that
+/// "does not change" is something a test checks rather than something this
+/// comment claims. What improves is *where the material is*, which is the one
+/// thing a real tree spends its life adjusting — a trunk that lays down wood
+/// where the wind bends it is running this loop, slowly, with the same
+/// objective.
+pub fn optimise(
+    bodies: &mut [Body],
+    topo: &mut Topology,
+    cases: &[LoadField],
+    passes: u32,
+) -> DesignReport {
+    let n = bodies
+        .len()
+        .min(topo.support.len())
+        .min(cases.iter().map(|f| f.len()).min().unwrap_or(0));
+    let mut report = DesignReport::default();
+    if n == 0 || passes == 0 || cases.is_empty() {
+        return report;
+    }
+    let original: Vec<f64> = topo.bonds.iter().take(n).map(|b| b.radius).collect();
+
+    let volume = |t: &Topology| -> f64 {
+        (0..n)
+            .map(|i| {
+                let len = (t.tip[i] - t.base[i]).norm();
+                std::f64::consts::PI * t.bonds[i].radius * t.bonds[i].radius * len
+            })
+            .sum::<f64>()
+    };
+    report.volume_before = volume(topo);
+    if report.volume_before <= 0.0 {
+        return report;
+    }
+
+    // The envelope: for each member, the worst it does in any design case.
+    //
+    // Sizing against a single case produces a structure that is optimal for
+    // that case and brittle in every other. A tree proportioned only for a wind
+    // from the west is a tree that falls over in an easterly, and one
+    // proportioned only for wind has nothing left for the winter it spends
+    // under snow. Real design does this too and calls it load combinations.
+    let envelope = |bodies: &[Body], topo: &Topology| -> Vec<f64> {
+        let mut worst = vec![0.0f64; n];
+        for field in cases {
+            let loads = analyse(bodies, topo, field);
+            for i in 0..n {
+                let u = loads.get(i).map(|l| l.utilisation).unwrap_or(0.0);
+                if u.is_finite() {
+                    worst[i] = worst[i].max(u);
+                }
+            }
+        }
+        worst
+    };
+
+    let stats = |worst: &[f64]| -> (f64, f64) {
+        let live: Vec<f64> = worst.iter().copied().filter(|u| *u > 0.0).collect();
+        if live.is_empty() {
+            return (0.0, 0.0);
+        }
+        let peak = live.iter().cloned().fold(0.0f64, f64::max);
+        let mean = live.iter().sum::<f64>() / live.len() as f64;
+        let var = live.iter().map(|u| (u - mean) * (u - mean)).sum::<f64>() / live.len() as f64;
+        (peak, var.sqrt())
+    };
+
+    let mut worst = envelope(bodies, topo);
+    let (peak, spread) = stats(&worst);
+    report.peak_before = peak;
+    report.spread_before = spread;
+    report.peak_after = peak;
+    report.spread_after = spread;
+
+    for pass in 0..passes {
+        // The target every member is aimed at: the mean of what they are all
+        // doing now. Aiming at the peak would shrink everything; aiming at zero
+        // is not a target at all.
+        let live: Vec<f64> = worst.iter().copied().filter(|u| *u > 0.0).collect();
+        if live.is_empty() {
+            break;
+        }
+        let target = live.iter().sum::<f64>() / live.len() as f64;
+        if target <= 0.0 {
+            break;
+        }
+
+        for i in 0..n {
+            let r = topo.bonds[i].radius;
+            if r <= 0.0 {
+                continue;
+            }
+            let u = worst[i];
+            // A member carrying nothing measurable keeps most of its section
+            // rather than vanishing.
+            let ratio = if u > 1e-6 { u / target } else { 0.5 };
+            let step = ratio.cbrt().clamp(0.7, 1.5);
+            topo.bonds[i].radius =
+                (r * step).clamp(original[i] * DESIGN_BOUNDS.0, original[i] * DESIGN_BOUNDS.1);
+        }
+
+        // Back to the volume it started with. Radii enter volume squared, so
+        // the correction is a square root. The bounds are re-applied after,
+        // which is why the volume is checked at the end rather than assumed.
+        let after = volume(topo);
+        if after <= 0.0 {
+            break;
+        }
+        let renormalise = (report.volume_before / after).sqrt();
+        for i in 0..n {
+            topo.bonds[i].radius = (topo.bonds[i].radius * renormalise)
+                .clamp(original[i] * DESIGN_BOUNDS.0, original[i] * DESIGN_BOUNDS.1);
+            bodies[i].radius = topo.bonds[i].radius;
+        }
+
+        worst = envelope(bodies, topo);
+        let (peak, spread) = stats(&worst);
+        report.passes = pass + 1;
+        report.peak_after = peak;
+        report.spread_after = spread;
+    }
+
+    // A final pass at the volume alone, so the structure ends with exactly the
+    // material it started with even where the bounds bit.
+    let after = volume(topo);
+    if after > 0.0 {
+        let renormalise = (report.volume_before / after).sqrt();
+        for i in 0..n {
+            topo.bonds[i].radius *= renormalise;
+            bodies[i].radius = topo.bonds[i].radius;
+        }
+    }
+    report.volume_after = volume(topo);
+    report
+}

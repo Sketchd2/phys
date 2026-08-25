@@ -442,7 +442,7 @@ pub extern "C" fn shake(seconds: f32) {
 /// whatever the last analysis put there, so the colouring stays meaningful
 /// between analyses rather than flickering with every substep.
 fn write_deformed(s: &mut Session) {
-    let Some(ds) = s.world.shaken() else {
+    let Some(ds) = s.world.shaken(s.node) else {
         return;
     };
     let members = ds.deformed_members();
@@ -468,4 +468,392 @@ fn write_deformed(s: &mut Session) {
         s.geometry[base + 4] = t.y as f32;
         s.geometry[base + 5] = t.z as f32;
     }
+}
+
+// ---------------------------------------------------------------------------
+// A stand of trees
+// ---------------------------------------------------------------------------
+
+/// A field of independently grown trees under one wind.
+///
+/// The single-structure session above answers "what does this thing do". This
+/// answers a different question, and the one that actually shows whether the
+/// engine's claims hold: given twenty structures that were never designed,
+/// grown from twenty different seeds to twenty different sizes, does a *shared*
+/// gust produce twenty different responses — and are the differences the ones
+/// the physics would give?
+///
+/// Nothing here is per-tree tuning. Each tree gets a seed and a reservoir; its
+/// height, its taper, the period it sways at and the wind that takes its limbs
+/// all follow from that.
+pub struct Forest {
+    world: World,
+    trees: Vec<Stand>,
+    /// Interleaved member geometry: base xyz, tip xyz, radius, utilisation.
+    geometry: Vec<f32>,
+    readouts: [f32; 24],
+    /// Mean wind speed, m/s.
+    wind: f64,
+    /// Turbulence intensity as a fraction of the mean.
+    turbulence: f64,
+    wind_dir: Vec3,
+    /// Current gust, m/s, one per tree — a gust front is not everywhere at once.
+    gust: Vec<f64>,
+    elapsed: f64,
+    budget: usize,
+    dynamic: bool,
+    total_broken: u32,
+    shed: f64,
+}
+
+struct Stand {
+    node: NodeIdx,
+    /// Where the tree stands, metres.
+    at: Vec3,
+    /// Members currently drawn for it.
+    drawn: usize,
+    height: f32,
+    sway: f32,
+    utilisation: f32,
+}
+
+static mut FOREST: Option<Forest> = None;
+
+fn forest() -> &'static mut Forest {
+    unsafe {
+        let f = &raw mut FOREST;
+        (*f).as_mut().expect("create_forest() first")
+    }
+}
+
+/// Plant `count` trees, scattered over a square `extent` metres across.
+///
+/// Positions and reservoirs come from the world's own deterministic stream, so
+/// the same seed gives the same field — including which tree is the big one on
+/// the windward edge that goes first.
+#[unsafe(no_mangle)]
+pub extern "C" fn create_forest(seed: u32, count: u32, extent: f32, budget: u32) {
+    use crate::rng::{Purpose, Stream};
+
+    let world_seed = seed as u64 | 0x5EED_0000;
+    let mut world = World::new(galaxy(world_seed, 1e9), 20.0);
+    let root = world.tree.root;
+    world.tree.refine(root);
+
+    let count = count.clamp(1, 64) as usize;
+    let per_tree = (budget as usize / count).max(24);
+    let mut trees = Vec::with_capacity(count);
+    let mut stream = Stream::at(world_seed, 0, 0, Purpose::Structure);
+
+    for i in 0..count {
+        let node = world.tree.promote(root, i, default_spec(Tier::Stellar));
+        if node.is_none() {
+            continue;
+        }
+        // Poisson-ish scatter: a jittered grid, so trees do not pile up and do
+        // not look planted either.
+        let side = (count as f64).sqrt().ceil();
+        let cell = extent as f64 / side;
+        let (gx, gy) = ((i as f64 % side), (i as f64 / side).floor());
+        let jx = (stream.uniform() - 0.5) * cell * 0.8;
+        let jy = (stream.uniform() - 0.5) * cell * 0.8;
+        let at = v3(
+            (gx + 0.5) * cell - extent as f64 * 0.5 + jx,
+            (gy + 0.5) * cell - extent as f64 * 0.5 + jy,
+            0.0,
+        );
+        // A real stand is not uniform: a few big trees, many small ones.
+        let reservoir = 8000.0 * (0.35 + 1.9 * stream.uniform().powi(2));
+        {
+            let n = &mut world.tree.nodes[node.get()];
+            n.agg = Aggregate::neutral(reservoir, 6.0, 291.0, Program::Tree.substrate());
+            n.spec.count = per_tree;
+        }
+        world.plant(node, Program::Tree, Environment::default());
+        trees.push(Stand {
+            node,
+            at,
+            drawn: 0,
+            height: 0.0,
+            sway: 0.0,
+            utilisation: 0.0,
+        });
+    }
+
+    unsafe {
+        let f = &raw mut FOREST;
+        *f = Some(Forest {
+            world,
+            trees,
+            geometry: Vec::new(),
+            readouts: [0.0; 24],
+            wind: 0.0,
+            turbulence: 0.25,
+            wind_dir: v3(1.0, 0.0, 0.0),
+            gust: vec![0.0; count],
+            elapsed: 0.0,
+            budget: per_tree,
+            dynamic: true,
+            total_broken: 0,
+            shed: 0.0,
+        });
+    }
+    refresh_forest(forest());
+}
+
+/// Advance every tree's growth by `years`.
+#[unsafe(no_mangle)]
+pub extern "C" fn grow_forest(years: f32) {
+    let f = forest();
+    let dt = years as f64 * YEAR;
+    if dt <= 0.0 {
+        return;
+    }
+    let nodes: Vec<NodeIdx> = f.trees.iter().map(|t| t.node).collect();
+    for node in nodes {
+        f.world.grow_node(node, dt);
+    }
+    f.world.settle();
+    refresh_forest(f);
+}
+
+/// Set the wind: a mean speed, a turbulence intensity, and a direction.
+#[unsafe(no_mangle)]
+pub extern "C" fn set_forest_wind(speed: f32, turbulence: f32, angle: f32) {
+    let f = forest();
+    f.wind = speed.max(0.0) as f64;
+    f.turbulence = turbulence.clamp(0.0, 1.0) as f64;
+    f.wind_dir = v3(angle.cos() as f64, angle.sin() as f64, 0.0);
+}
+
+/// Turn the dynamics on or off.
+#[unsafe(no_mangle)]
+pub extern "C" fn set_forest_dynamic(on: u32) {
+    let f = forest();
+    f.dynamic = on != 0;
+    if !f.dynamic {
+        f.world.settle();
+        refresh_forest(f);
+    }
+}
+
+/// Advance the whole stand by `seconds` of real time under the current wind.
+#[unsafe(no_mangle)]
+pub extern "C" fn shake_forest(seconds: f32) {
+    use crate::rng::{Purpose, Stream};
+    let f = forest();
+    if seconds <= 0.0 {
+        return;
+    }
+    let dt = (seconds as f64).min(0.2);
+    f.elapsed += dt;
+
+    // Turbulence as an Ornstein-Uhlenbeck process per tree, correlated by a
+    // shared gust front travelling downwind. A single fluctuation applied to
+    // every tree at once would make the whole stand lean together, which is
+    // exactly what a real gust does not look like.
+    let tau = 3.5;
+    let decay = (-dt / tau).exp();
+    let front = self_gust_position(f);
+    for (i, tree) in f.trees.iter().enumerate() {
+        let mut stream = Stream::at(f.world.tree.world_seed, i as u128, 0, Purpose::ThermalNoise)
+            .split((f.elapsed * 1000.0) as u64);
+        let intensity = f.turbulence * f.wind;
+        let along = tree.at.dot(f.wind_dir);
+        // Trees the gust front has already passed are inside it.
+        let exposure = 0.55 + 0.45 * ((front - along) * 0.08).sin();
+        let target = intensity * exposure;
+        f.gust[i] = f.gust[i] * decay
+            + target * (1.0 - decay * decay).sqrt() * stream.normal();
+    }
+
+    if !f.dynamic || f.wind <= 0.0 {
+        if !f.dynamic {
+            return;
+        }
+    }
+
+    let mut worst_sway = 0.0f32;
+    let mut worst_util = 0.0f32;
+    let mut broken = 0usize;
+    for i in 0..f.trees.len() {
+        let node = f.trees[i].node;
+        let speed = (f.wind + f.gust[i]).max(0.0);
+        let mut mechanisms: Vec<Mechanism> = Vec::new();
+        if speed > 0.0 {
+            mechanisms.push(st::weather::wind(speed, f.wind_dir));
+        }
+        let out = f.world.shake(node, &mechanisms, dt);
+        broken += out.broken_joints;
+        f.shed += out.detached_mass as f32 as f64;
+        f.trees[i].sway = out.displacement as f32;
+        worst_sway = worst_sway.max(out.displacement as f32);
+        worst_util = worst_util.max(f.trees[i].utilisation);
+    }
+    f.total_broken += broken as u32;
+    if broken > 0 {
+        refresh_forest(f);
+    } else {
+        write_forest_geometry(f);
+    }
+    f.readouts[16] = (f.wind + f.gust.iter().sum::<f64>() / f.gust.len().max(1) as f64) as f32;
+    f.readouts[17] = worst_sway;
+    f.readouts[5] = worst_util;
+    f.readouts[6] = f.total_broken as f32;
+    f.readouts[7] = f.shed as f32;
+}
+
+/// Where the gust front has travelled to, in metres along the wind.
+fn self_gust_position(f: &Forest) -> f64 {
+    // A front moves downwind at roughly the mean speed.
+    f.elapsed * f.wind.max(1.0)
+}
+
+/// Rebuild the geometry and the per-tree readouts from scratch.
+fn refresh_forest(f: &mut Forest) {
+    f.geometry.clear();
+    let mut worst_util = 0.0f32;
+    let mut standing = 0.0f64;
+    for i in 0..f.trees.len() {
+        let node = f.trees[i].node;
+        let at = f.trees[i].at;
+        let bodies = f.world.tree.refine(node).to_vec();
+        let topo = match f.world.tree.nodes[node.get()].topology.clone() {
+            Some(t) => t,
+            None => {
+                f.trees[i].drawn = 0;
+                continue;
+            }
+        };
+        let ambient = f.world.tree.nodes[node.get()].agg.temperature;
+        let mut field = LoadField::new(bodies.len(), ambient);
+        let speed = (f.wind + f.gust.get(i).copied().unwrap_or(0.0)).max(0.0);
+        if speed > 0.0 {
+            field.apply(&st::weather::wind(speed, f.wind_dir), &bodies, &topo);
+        }
+        field.apply(&st::weather::gravity(), &bodies, &topo);
+        let loads = st::analyse(&bodies, &topo, &field);
+
+        let start = f.geometry.len();
+        let mut peak = 0.0f32;
+        for m in 0..bodies.len().min(topo.bonds.len()) {
+            if topo.bonds[m].radius <= 0.0 {
+                continue;
+            }
+            let u = loads.get(m).map(|l| l.utilisation).unwrap_or(0.0) as f32;
+            peak = peak.max(u);
+            let (b, t) = (topo.base[m] + at, topo.tip[m] + at);
+            f.geometry.extend_from_slice(&[
+                b.x as f32,
+                b.y as f32,
+                b.z as f32,
+                t.x as f32,
+                t.y as f32,
+                t.z as f32,
+                topo.bonds[m].radius as f32,
+                u,
+            ]);
+        }
+        f.trees[i].drawn = (f.geometry.len() - start) / 8;
+        f.trees[i].utilisation = peak;
+        worst_util = worst_util.max(peak);
+        let m = f.world.tree.nodes[node.get()].morphology.as_ref();
+        f.trees[i].height = m.map(|m| m.height()).unwrap_or(0.0) as f32;
+        standing += m.map(|m| m.built).unwrap_or(0.0);
+    }
+    f.readouts[0] = standing as f32;
+    f.readouts[1] = f
+        .trees
+        .iter()
+        .map(|t| t.height)
+        .fold(0.0f32, f32::max);
+    f.readouts[2] = f.trees
+        .first()
+        .and_then(|t| f.world.tree.nodes[t.node.get()].morphology.as_ref())
+        .map(|m| (m.age / YEAR) as f32)
+        .unwrap_or(0.0);
+    f.readouts[3] = (f.geometry.len() / 8) as f32;
+    f.readouts[5] = worst_util;
+    f.readouts[18] = f.trees.len() as f32;
+    f.readouts[19] = f.budget as f32;
+}
+
+/// Overwrite the geometry with where every tree actually is.
+fn write_forest_geometry(f: &mut Forest) {
+    let mut slot = 0usize;
+    for i in 0..f.trees.len() {
+        let node = f.trees[i].node;
+        let at = f.trees[i].at;
+        let drawn = f.trees[i].drawn;
+        let Some(ds) = f.world.shaken(node) else {
+            slot += drawn;
+            continue;
+        };
+        let members = ds.deformed_members();
+        let topo = match f.world.tree.nodes[node.get()].topology.as_ref() {
+            Some(t) => t,
+            None => {
+                slot += drawn;
+                continue;
+            }
+        };
+        let mut written = 0usize;
+        for m in 0..members.len().min(topo.bonds.len()) {
+            if topo.bonds[m].radius <= 0.0 {
+                continue;
+            }
+            let base = (slot + written) * 8;
+            written += 1;
+            if base + 5 >= f.geometry.len() {
+                break;
+            }
+            let (b, t) = members[m];
+            let (b, t) = (b + at, t + at);
+            f.geometry[base] = b.x as f32;
+            f.geometry[base + 1] = b.y as f32;
+            f.geometry[base + 2] = b.z as f32;
+            f.geometry[base + 3] = t.x as f32;
+            f.geometry[base + 4] = t.y as f32;
+            f.geometry[base + 5] = t.z as f32;
+        }
+        slot += drawn;
+    }
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn forest_geometry_ptr() -> *const f32 {
+    forest().geometry.as_ptr()
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn forest_geometry_len() -> u32 {
+    (forest().geometry.len() / 8) as u32
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn forest_readouts_ptr() -> *const f32 {
+    forest().readouts.as_ptr()
+}
+
+/// Per-tree state, for a table: height, sway, utilisation, members.
+#[unsafe(no_mangle)]
+pub extern "C" fn forest_tree_stat(index: u32, which: u32) -> f32 {
+    let f = forest();
+    let Some(t) = f.trees.get(index as usize) else {
+        return 0.0;
+    };
+    match which {
+        0 => t.height,
+        1 => t.sway,
+        2 => t.utilisation,
+        3 => t.drawn as f32,
+        4 => t.at.x as f32,
+        5 => t.at.y as f32,
+        _ => 0.0,
+    }
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn forest_count() -> u32 {
+    forest().trees.len() as u32
 }

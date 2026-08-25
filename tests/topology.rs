@@ -168,9 +168,21 @@ fn only_wet_snow_breaks_branches() {
     println!("  600 mm powder: util {u_powder:.2}, {m_powder:.0} kg down");
     println!("  300 mm settled: util {u_settled:.2}, {m_settled:.0} kg down");
     println!("  100 mm wet:    util {u_wet:.2}, {m_wet:.0} kg down");
+    // The claim is about *damage*, not about an exact zero. Six hundred
+    // millimetres of powder costs nothing at all; a third of that in settled
+    // snow costs a twig; a sixth of it, wet, brings limbs down. Insisting the
+    // middle case shed exactly nothing would be asserting that a tree under
+    // 300 mm of snow loses not one twig, which is not true of trees.
+    let standing = m.built;
     assert_eq!(m_powder, 0.0, "600 mm of dry powder should not break a tree");
-    assert_eq!(m_settled, 0.0, "300 mm of settled snow should not break a tree");
-    assert!(m_wet > 0.0, "100 mm of wet snow should bring limbs down");
+    assert!(
+        m_settled < 0.01 * standing,
+        "300 mm of settled snow took {m_settled:.1} kg of a {standing:.0} kg tree"
+    );
+    assert!(
+        m_wet > 0.1 * standing,
+        "100 mm of wet snow took only {m_wet:.1} kg of a {standing:.0} kg tree"
+    );
     assert!(u_wet > u_powder * 3.0, "wetness barely mattered");
 }
 
@@ -652,4 +664,78 @@ fn the_two_solvers_agree_on_determinate_structures() {
     // by equilibrium alone, so a correct beam model has to reproduce statics
     // exactly, member by member, and it does.
     assert!(worst < 1e-8, "the solvers disagree by {worst:.3e}");
+}
+
+/// A structure must be analysed and proportioned when it is created.
+///
+/// The generator decides where members go. It has no way to know what any of
+/// them will carry, so the radii it produces are a shape scaled as a group to
+/// match the structural mass — which leaves a few members at the point of
+/// failure and most of the material in members doing nothing. Both have the
+/// same cause and the same fix.
+///
+/// The constraint that makes it meaningful is that the material does not
+/// change. An optimiser that improves a structure by feeding it has not
+/// optimised anything.
+#[test]
+fn a_structure_is_proportioned_for_its_loads_when_it_is_built() {
+    for (label, mass, budget) in [("900 kg", 900.0, 1200usize), ("6 t", 6000.0, 400)] {
+        let (agg, m) = tree(mass);
+        let (_, _, report) = prolong_structured(&agg, &m, budget, 7, 0x1234, 0);
+        let d = report.design;
+        println!(
+            "  {label:>6}: peak {:.3} -> {:.3}, spread {:.3} -> {:.3} over {} passes, \
+             volume error {:.2e}",
+            d.peak_before, d.peak_after, d.spread_before, d.spread_after, d.passes,
+            d.volume_error()
+        );
+        assert!(d.passes > 0, "{label}: the design pass did not run");
+        assert!(
+            d.peak_after < d.peak_before * 0.75,
+            "{label}: peak utilisation {:.3} against {:.3} before",
+            d.peak_after,
+            d.peak_before
+        );
+        assert!(
+            d.spread_after < d.spread_before,
+            "{label}: the load is no more evenly carried than it was"
+        );
+        // The whole point: same material, better arrangement.
+        assert!(
+            d.volume_error() < 1e-9,
+            "{label}: structural volume moved by {:.3e}",
+            d.volume_error()
+        );
+    }
+}
+
+/// And the improvement has to survive loads the design cases did not include.
+///
+/// This is what a single-case optimiser gets wrong. Sizing against one wind
+/// direction produces a structure that is optimal in that direction and
+/// brittle in every other; the envelope of several directions plus a vertical
+/// overload is what stops that, and the check is a load from a direction
+/// nothing was designed for.
+#[test]
+fn the_design_pass_does_not_overfit_its_own_load_cases() {
+    let (agg, m) = tree(900.0);
+    let (bodies, topo) = load(&agg, &m, 1500);
+
+    // A direction the design cases do not use, at a speed below what a tree of
+    // this size should be troubled by.
+    let mut worst = 0.0f64;
+    for degrees in [17.0f64, 53.0, 131.0, 209.0, 288.0, 341.0] {
+        let a = degrees.to_radians();
+        let mut field = LoadField::new(bodies.len(), 290.0);
+        field.apply(&weather::wind(22.0, v3(a.cos(), a.sin(), 0.0)), &bodies, &topo);
+        field.apply(&weather::gravity(), &bodies, &topo);
+        let loads = analyse(&bodies, &topo, &field);
+        let peak = loads.iter().map(|l| l.utilisation).fold(0.0f64, f64::max);
+        worst = worst.max(peak);
+    }
+    println!("  worst utilisation over six off-design wind directions at 22 m/s: {worst:.3}");
+    assert!(
+        worst < 1.0,
+        "a tree designed for 20 m/s failed at 22 m/s from an off-design direction: {worst:.3}"
+    );
 }

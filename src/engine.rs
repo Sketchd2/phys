@@ -40,6 +40,11 @@ pub const NOTABLE_BREAKS: usize = 48;
 /// coarsely and the report says so through its own convergence flag.
 pub const MAX_SHAKE_STEPS: f64 = 240.0;
 
+/// How many structures may be integrated through time at once. Past this the
+/// least recently started is dropped: it is a stand in front of an observer,
+/// not a forest.
+pub const MAX_SHAKEN: usize = 64;
+
 /// Below this much standing mass a structure is rubble, not a structure, and
 /// there is nothing meaningful left to analyse.
 pub const COLLAPSE_MASS: f64 = 1e-6;
@@ -142,15 +147,15 @@ pub struct World {
     /// Per-node environment overrides, keyed by path so they survive the node
     /// being coarsened and rebuilt.
     pub environments: HashMap<PathKey, crate::morph::Environment>,
-    /// The one structure currently being integrated through time, and which
-    /// node it belongs to.
+    /// The structures currently being integrated through time.
     ///
-    /// Only one, deliberately. Dynamics is expensive and it is only worth
+    /// A bounded set, deliberately. Dynamics is expensive and it is only worth
     /// anything to somebody watching — a tree swaying in a forest nobody is
     /// looking at is indistinguishable from one standing still, and the engine
     /// already declines to materialise what nobody can see. This is the same
-    /// rule applied to motion rather than to detail.
-    shaking: Option<(NodeIdx, crate::solvers::structure::DynamicStructure)>,
+    /// rule applied to motion rather than to detail: the stand in front of the
+    /// observer moves, and the forest behind them does not.
+    shaking: Vec<(NodeIdx, crate::solvers::structure::DynamicStructure)>,
     history_depth: usize,
 }
 
@@ -173,7 +178,7 @@ impl World {
             labour_rate: 0.0,
             rejected_transactions: 0,
             environments: HashMap::new(),
-            shaking: None,
+            shaking: Vec::new(),
             history_depth: 64,
         }
     }
@@ -765,19 +770,30 @@ impl World {
             None => return out,
         };
 
-        // Rebuild whenever the observer has moved on or the structure itself
-        // has changed. Carrying a stale dynamic state across a regeneration
-        // would let a tree that has lost a limb keep swinging it.
-        let stale = match &self.shaking {
-            Some((n, ds)) => *n != idx || ds.tip_node.len() != bodies.len(),
-            None => true,
+        // Rebuild whenever the structure itself has changed. Carrying a stale
+        // dynamic state across a regeneration would let a tree that has lost a
+        // limb keep swinging it.
+        let existing = self
+            .shaking
+            .iter()
+            .position(|(n, ds)| *n == idx && ds.tip_node.len() == bodies.len());
+        let slot = match existing {
+            Some(k) => k,
+            None => {
+                self.shaking.retain(|(n, _)| *n != idx);
+                let Some(ds) = st::dynamic_structure(&bodies, &topo) else {
+                    return out;
+                };
+                if self.shaking.len() >= MAX_SHAKEN {
+                    // The oldest goes: whatever the observer stopped watching
+                    // first is what they are least likely to look back at.
+                    self.shaking.remove(0);
+                }
+                self.shaking.push((idx, ds));
+                self.shaking.len() - 1
+            }
         };
-        if stale {
-            self.shaking = st::dynamic_structure(&bodies, &topo).map(|ds| (idx, ds));
-        }
-        let Some((_, ds)) = self.shaking.as_mut() else {
-            return out;
-        };
+        let ds = &mut self.shaking[slot].1;
 
         let mut field = st::LoadField::new(bodies.len(), ambient);
         for m in mechanisms {
@@ -856,19 +872,19 @@ impl World {
         node.bodies.clear();
         node.topology = None;
         node.children.clear();
-        self.shaking = None;
+        self.shaking.retain(|(n, _)| *n != idx);
         self.tree.stats.damage_events += 1;
         out
     }
 
-    /// Stop integrating whatever was being shaken, releasing its state.
+    /// Stop integrating everything, releasing the dynamic state.
     pub fn settle(&mut self) {
-        self.shaking = None;
+        self.shaking.clear();
     }
 
-    /// The structure currently being integrated, if any.
-    pub fn shaken(&self) -> Option<&crate::solvers::structure::DynamicStructure> {
-        self.shaking.as_ref().map(|(_, ds)| ds)
+    /// The dynamic state of one node, if it is being integrated.
+    pub fn shaken(&self, idx: NodeIdx) -> Option<&crate::solvers::structure::DynamicStructure> {
+        self.shaking.iter().find(|(n, _)| *n == idx).map(|(_, ds)| ds)
     }
 
     /// Read the growth environment off a node and its surroundings.

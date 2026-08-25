@@ -132,6 +132,8 @@ pub struct ProlongReport {
     /// the structural mass at the material's density. Far from 1 means the
     /// program's nominal proportions disagree with its own density.
     pub radius_correction: f64,
+    /// What the on-creation design pass achieved.
+    pub design: crate::solvers::structure::DesignReport,
     /// How many of the emitted parts belong to the structure itself, as
     /// opposed to the unstructured matter surrounding it in the same node.
     pub structural_parts: usize,
@@ -153,6 +155,7 @@ impl Default for ProlongReport {
             rotational_fraction: 0.0,
             relaxations: 0,
             radius_correction: 1.0,
+            design: crate::solvers::structure::DesignReport::default(),
             structural_parts: 0,
             internal_energy_residual: 0.0,
             scales: crate::state::Scales::unit(),
@@ -1045,7 +1048,7 @@ pub fn prolong_structured(
     // The joints, in the same index space and the same units as the bodies.
     // Regenerated from the program exactly as the geometry is, so cohesion
     // costs no more to store than shape does.
-    let topo = crate::topology::Topology::from_skeleton(
+    let mut topo = crate::topology::Topology::from_skeleton(
         &skel_geom,
         morph.material(),
         com_shift,
@@ -1053,5 +1056,82 @@ pub fn prolong_structured(
         &member_radii,
         bodies.len(),
     );
+
+    // Analysed, then proportioned, on creation.
+    //
+    // The generator decides where members go. It has no way to know what any of
+    // them will carry, so the radii it produces are a shape scaled as a group
+    // to match the structural mass — which leaves a few members at the point of
+    // failure and most of the material in members doing nothing. One analysis
+    // and a few passes of fully-stressed sizing fixes both, at the mass the
+    // structure already had.
+    //
+    // This runs every time the structure is materialised, and it must: the
+    // radii are regenerated from the program like everything else, so the
+    // optimisation has to be part of the regeneration or it would be lost the
+    // first time anybody looked away.
+    let mut bodies = bodies;
+    let (cases, passes) = if topo.is_determinate() {
+        (design_cases(morph, &bodies, &topo, 3), crate::solvers::structure::DESIGN_PASSES)
+    } else {
+        // A redundant structure costs a conjugate-gradient solve per case per
+        // pass, and the frame budget has to survive the observer looking at a
+        // city. Two directions and two passes is what fits.
+        (design_cases(morph, &bodies, &topo, 2), 2)
+    };
+    report.design = crate::solvers::structure::optimise(&mut bodies, &mut topo, &cases, passes);
     (bodies, topo, report)
+}
+
+/// The loads a structure is proportioned against when it is created.
+///
+/// Its own weight; a vertical overload standing in for anything that settles on
+/// it — snow, fruit, a floor's contents; and the flow its program says it lives
+/// in, from several directions. Sizing against a single case produces a
+/// structure that is optimal for that case and brittle in every other, which is
+/// how a tree proportioned only for a westerly ends up falling over in an
+/// easterly.
+fn design_cases(
+    morph: &crate::morph::Morphology,
+    bodies: &[Body],
+    topo: &crate::topology::Topology,
+    directions: usize,
+) -> Vec<crate::solvers::structure::LoadField> {
+    use crate::solvers::structure as st;
+    let ambient = 290.0;
+    let mut cases = Vec::with_capacity(directions + 1);
+
+    // Vertical overload. Not a weather preset — a body-force field at two and a
+    // half gravities, which is what any load that settles on a structure looks
+    // like to the members carrying it: snow on a crown, a fruit crop, a floor's
+    // contents. Four gravities was tried and is worse: the vertical case then
+    // dominates the envelope and the structure is starved of what it needs to
+    // stand up in a wind.
+    let mut heavy = st::LoadField::new(bodies.len(), ambient);
+    heavy.apply(
+        &st::Mechanism::BodyAcceleration(st::G_EARTH.scale(2.5)),
+        bodies,
+        topo,
+    );
+    cases.push(heavy);
+
+    let (speed, density) = morph.program.design_flow();
+    for k in 0..directions.max(1) {
+        let angle = std::f64::consts::TAU * k as f64 / directions.max(1) as f64;
+        let mut field = st::LoadField::new(bodies.len(), ambient);
+        if speed > 0.0 {
+            field.apply(
+                &st::Mechanism::FlowDrag {
+                    velocity: crate::math::v3(speed * angle.cos(), speed * angle.sin(), 0.0),
+                    fluid_density: density,
+                    drag_coefficient: 1.2,
+                },
+                bodies,
+                topo,
+            );
+        }
+        field.apply(&st::weather::gravity(), bodies, topo);
+        cases.push(field);
+    }
+    cases
 }

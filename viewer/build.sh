@@ -20,4 +20,12 @@ tail = pathlib.Path("viewer/template.tail.html").read_text()
 out = pathlib.Path("viewer/index.html")
 out.write_text(head + tail.replace("__WASM_B64__", b64))
 print(f"viewer: {out.stat().st_size} bytes -> {out}")
+
+# The forest demo shares the engine: same .wasm, different entry points and a
+# different page around them.
+fhead = pathlib.Path("viewer/forest.head.html").read_text()
+ftail = pathlib.Path("viewer/forest.tail.html").read_text()
+fout = pathlib.Path("viewer/forest.html")
+fout.write_text(fhead + ftail.replace("__WASM_B64__", b64))
+print(f"forest: {fout.stat().st_size} bytes -> {fout}")
 PY

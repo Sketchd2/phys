@@ -110,6 +110,24 @@ impl Program {
         matches!(self, Program::Tower | Program::Wall)
     }
 
+    /// The load a structure is proportioned against when it is created.
+    ///
+    /// A design load, not a survival load. A tree grows against the wind it
+    /// meets most days and comes down in the storm it does not; an engineered
+    /// frame is proportioned against a code gust with margin on top. Returning
+    /// the *fluid* the structure lives in as well as the speed is what lets a
+    /// coral be designed against a current at a thousand times the density of
+    /// air without any of this having to know what a coral is.
+    pub fn design_flow(self) -> (f64, f64) {
+        match self {
+            // Metres per second, and the fluid's density in kg/m^3.
+            Program::Tree => (20.0, 1.225),
+            Program::Coral => (1.2, 1025.0),
+            Program::Tower => (42.0, 1.225),
+            Program::Wall => (34.0, 1.225),
+        }
+    }
+
     pub fn density(self) -> f64 {
         match self {
             Program::Tree => WOOD_DENSITY,

@@ -1,0 +1,365 @@
+<script>
+(function () {
+  "use strict";
+
+  // The Rust engine compiled to WebAssembly. The growth model, the structural
+  // solver and the Newmark dynamics running here are the same code the test
+  // suite checks — twenty trees are twenty calls into it, not twenty copies of
+  // a recording.
+  const B64 = "__WASM_B64__";
+
+  const view = document.getElementById("view");
+  const ctx = view.getContext("2d");
+  const $ = (id) => document.getElementById(id);
+
+  let wasm = null, mem = null, running = true, dpr = 1, gale = 0;
+  const cam = { az: 0.65, el: 0.14, dist: 1.0 };
+  const history = { wind: [], util: [] };
+  const MAX_HISTORY = 220;
+
+  function bytesFromBase64(b64) {
+    const bin = atob(b64);
+    const out = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+    return out;
+  }
+  const readouts = () => new Float32Array(mem().buffer, wasm.forest_readouts_ptr(), 24);
+  function geometry() {
+    const n = wasm.forest_geometry_len();
+    return { n, data: new Float32Array(mem().buffer, wasm.forest_geometry_ptr(), n * 8) };
+  }
+
+  const fmtMass = (kg) =>
+    kg >= 1000 ? (kg / 1000).toFixed(1) + " t" : kg >= 1 ? kg.toFixed(0) + " kg" : (kg * 1000).toFixed(0) + " g";
+
+  // ---- colour ----------------------------------------------------------
+  const css = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  let PAL = {};
+  function readPalette() {
+    PAL = {
+      member: hexToRgb(css("--member")), warn: hexToRgb(css("--warn")),
+      crit: hexToRgb(css("--crit")), skyA: css("--sky-a"), skyB: css("--sky-b"),
+      ground: hexToRgb(css("--rule")),
+    };
+  }
+  function hexToRgb(h) {
+    h = h.replace("#", "");
+    if (h.length === 3) h = h.split("").map((c) => c + c).join("");
+    return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
+  }
+  const lerp = (a, b, t) => a + (b - a) * t;
+  function stressColour(u, shade) {
+    // An unloaded member is the colour of its material; colour marks deviation
+    // from at-rest, not the resting state.
+    let c;
+    if (u < 0.6) { const t = u / 0.6; c = PAL.member.map((v, i) => lerp(v, PAL.warn[i], t)); }
+    else { const t = Math.min((u - 0.6) / 0.4, 1); c = PAL.warn.map((v, i) => lerp(v, PAL.crit[i], t)); }
+    return `rgb(${(c[0] * shade) | 0},${(c[1] * shade) | 0},${(c[2] * shade) | 0})`;
+  }
+
+  // ---- render ----------------------------------------------------------
+  function resize() {
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const r = view.getBoundingClientRect();
+    view.width = Math.max(1, Math.floor(r.width * dpr));
+    view.height = Math.max(1, Math.floor(r.height * dpr));
+  }
+
+  function draw() {
+    const w = view.width, h = view.height;
+    const grad = ctx.createLinearGradient(0, 0, 0, h);
+    grad.addColorStop(0, PAL.skyA); grad.addColorStop(1, PAL.skyB);
+    ctx.fillStyle = grad; ctx.fillRect(0, 0, w, h);
+    if (!wasm) return;
+
+    const { n, data } = geometry();
+    if (n === 0) return;
+
+    let top = 0, span = 0;
+    for (let i = 0; i < n; i++) {
+      const o = i * 8;
+      top = Math.max(top, data[o + 2], data[o + 5]);
+      span = Math.max(span, Math.abs(data[o]), Math.abs(data[o + 1]));
+    }
+    const centre = [0, 0, top * 0.45];
+    const extent = Math.max(span, top * 0.6, 2);
+
+    const ca = Math.cos(cam.az), sa = Math.sin(cam.az);
+    const ce = Math.cos(cam.el), se = Math.sin(cam.el);
+    const fwd = [-ca * ce, -sa * ce, -se];
+    const framing = 2.3;
+    const eye = [centre[0] - fwd[0] * extent * framing * cam.dist,
+                 centre[1] - fwd[1] * extent * framing * cam.dist,
+                 centre[2] - fwd[2] * extent * framing * cam.dist];
+    const right = [-sa, ca, 0];
+    const up = [right[1] * fwd[2] - right[2] * fwd[1],
+                right[2] * fwd[0] - right[0] * fwd[2],
+                right[0] * fwd[1] - right[1] * fwd[0]];
+    const halfH = Math.tan(0.5);
+    const aspect = w / h;
+
+    function project(x, y, z) {
+      const rx = x - eye[0], ry = y - eye[1], rz = z - eye[2];
+      const d = rx * fwd[0] + ry * fwd[1] + rz * fwd[2];
+      if (d <= 1e-6) return null;
+      const sx = (rx * right[0] + ry * right[1] + rz * right[2]) / (d * halfH * aspect);
+      const sy = (rx * up[0] + ry * up[1] + rz * up[2]) / (d * halfH);
+      return [(sx * 0.5 + 0.5) * w, (0.5 - sy * 0.5) * h, d, (h * 0.5) / (d * halfH)];
+    }
+
+    // Ground: a grid at z = 0, so the field reads as a field and the trees as
+    // standing on something rather than floating in a void.
+    ctx.strokeStyle = `rgba(${PAL.ground.join(",")},0.85)`;
+    ctx.lineWidth = dpr;
+    const step = Math.max(2, Math.round(extent / 6));
+    const lim = Math.ceil(extent * 1.2 / step) * step;
+    for (let g = -lim; g <= lim; g += step) {
+      for (const line of [[[-lim, g], [lim, g]], [[g, -lim], [g, lim]]]) {
+        const a = project(line[0][0], line[0][1], 0);
+        const b = project(line[1][0], line[1][1], 0);
+        if (!a || !b) continue;
+        ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke();
+      }
+    }
+
+    // Far members first so nearer ones overdraw them.
+    const order = new Array(n);
+    for (let i = 0; i < n; i++) {
+      const o = i * 8;
+      const mx = (data[o] + data[o + 3]) / 2 - eye[0];
+      const my = (data[o + 1] + data[o + 4]) / 2 - eye[1];
+      const mz = (data[o + 2] + data[o + 5]) / 2 - eye[2];
+      order[i] = [i, mx * fwd[0] + my * fwd[1] + mz * fwd[2]];
+    }
+    order.sort((a, b) => b[1] - a[1]);
+
+    ctx.lineCap = "round";
+    for (const [i] of order) {
+      const o = i * 8;
+      const a = project(data[o], data[o + 1], data[o + 2]);
+      const b = project(data[o + 3], data[o + 4], data[o + 5]);
+      if (!a || !b) continue;
+      const px = Math.max(data[o + 6] * a[3] * 2, 0.6 * dpr);
+      const shade = Math.max(0.4, 1 - (a[2] / (extent * 8)));
+      ctx.strokeStyle = stressColour(data[o + 7], shade);
+      ctx.lineWidth = px;
+      ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke();
+    }
+  }
+
+  // ---- traces ----------------------------------------------------------
+  function drawTrace(canvas, series, colour, forceMax) {
+    const r = canvas.getBoundingClientRect();
+    canvas.width = Math.max(1, r.width * dpr);
+    canvas.height = Math.max(1, r.height * dpr);
+    const c = canvas.getContext("2d");
+    const w = canvas.width, h = canvas.height;
+    c.clearRect(0, 0, w, h);
+    if (series.length < 2) return;
+    const max = forceMax !== undefined ? Math.max(forceMax, ...series) : Math.max(...series, 1e-9);
+    const span = Math.max(series.length - 1, 1);
+    const x = (i) => (i / span) * w;
+    const y = (v) => h - (v / max) * (h - 3 * dpr) - 1.5 * dpr;
+
+    if (forceMax !== undefined) {
+      c.strokeStyle = css("--crit"); c.globalAlpha = 0.45;
+      c.setLineDash([3 * dpr, 3 * dpr]); c.lineWidth = dpr;
+      c.beginPath(); c.moveTo(0, y(1)); c.lineTo(w, y(1)); c.stroke();
+      c.setLineDash([]); c.globalAlpha = 1;
+    }
+    c.beginPath(); c.moveTo(x(0), h);
+    for (let i = 0; i < series.length; i++) c.lineTo(x(i), y(series[i]));
+    c.lineTo(x(series.length - 1), h); c.closePath();
+    c.fillStyle = colour; c.globalAlpha = 0.14; c.fill(); c.globalAlpha = 1;
+    c.beginPath();
+    for (let i = 0; i < series.length; i++) {
+      const px = x(i), py = y(series[i]);
+      i === 0 ? c.moveTo(px, py) : c.lineTo(px, py);
+    }
+    c.strokeStyle = colour; c.lineWidth = 1.5 * dpr; c.stroke();
+    c.beginPath();
+    c.arc(x(series.length - 1), y(series[series.length - 1]), 2.2 * dpr, 0, 6.2832);
+    c.fillStyle = colour; c.fill();
+  }
+
+  // ---- the per-tree table ---------------------------------------------
+  let rows = [];
+  function buildStand() {
+    const holder = $("stand");
+    holder.textContent = "";
+    rows = [];
+    const count = wasm.forest_count();
+    for (let i = 0; i < count; i++) {
+      const row = document.createElement("div");
+      row.className = "row2";
+      const idx = document.createElement("span"); idx.className = "idx"; idx.textContent = i + 1;
+      const bar = document.createElement("span"); bar.className = "bar";
+      const fill = document.createElement("i"); bar.appendChild(fill);
+      const sway = document.createElement("span"); sway.className = "num val";
+      const util = document.createElement("span"); util.className = "num val";
+      row.append(idx, bar, sway, util);
+      holder.appendChild(row);
+      rows.push({ fill, sway, util });
+    }
+  }
+
+  function refreshStand() {
+    const count = rows.length;
+    let worstSway = 0;
+    for (let i = 0; i < count; i++) worstSway = Math.max(worstSway, wasm.forest_tree_stat(i, 1));
+    const scale = Math.max(worstSway, 0.05);
+    for (let i = 0; i < count; i++) {
+      const sway = wasm.forest_tree_stat(i, 1);
+      const util = wasm.forest_tree_stat(i, 2);
+      const r = rows[i];
+      r.fill.style.width = `${Math.min(100, (sway / scale) * 100).toFixed(1)}%`;
+      r.fill.style.background = util >= 1 ? css("--crit") : util > 0.7 ? css("--warn") : css("--accent");
+      r.sway.textContent = sway >= 0.01 ? sway.toFixed(2) + " m" : "—";
+      r.util.textContent = util > 0 ? util.toFixed(2) : "—";
+      r.util.className = "num val" + (util >= 1 ? " hot" : "");
+    }
+  }
+
+  // ---- readouts --------------------------------------------------------
+  function refreshUI() {
+    const r = readouts();
+    const mass = r[0], tallest = r[1], age = r[2], util = r[5], broken = r[6];
+    const windNow = r[16], sway = r[17], trees = r[18];
+
+    $("roTrees").textContent = trees.toFixed(0);
+    $("roMass").textContent = fmtMass(mass);
+    $("roHeight").textContent = tallest > 0 ? tallest.toFixed(1) + " m" : "—";
+    $("roAge").textContent = age > 0 ? age.toFixed(0) + " yr" : "—";
+    $("roUtil").textContent = util.toFixed(2);
+    $("roUtil").style.color = util >= 1 ? css("--crit") : util > 0.7 ? css("--warn") : "";
+    $("roBroken").textContent = broken.toFixed(0);
+    $("roGust").textContent = windNow.toFixed(1) + " m/s";
+    $("roSway").textContent = sway >= 0.01 ? (sway * 100).toFixed(0) + " cm" : "—";
+
+    $("subtitle").textContent =
+      age < 3 ? "growing" : broken > 0 ? `${broken.toFixed(0)} joints lost` : "standing";
+    const dot = $("dot");
+    dot.className = "dot " + (util >= 1 ? "crit" : util > 0.7 ? "warn" : running ? "" : "idle");
+    $("statusText").textContent =
+      util >= 1 ? "limbs failing" : util > 0.7 ? "heavily loaded" : running ? "running" : "paused";
+
+    history.wind.push(windNow); history.util.push(Math.min(util, 2));
+    if (history.wind.length > MAX_HISTORY) { history.wind.shift(); history.util.shift(); }
+    $("tWind").textContent = windNow.toFixed(1) + " m/s";
+    $("tUtil").textContent = util.toFixed(2);
+    drawTrace($("chartWind"), history.wind, css("--accent"));
+    drawTrace($("chartUtil"), history.util, css("--warn"), 1.2);
+    refreshStand();
+  }
+
+  // ---- loop ------------------------------------------------------------
+  let last = performance.now();
+  function frame(now) {
+    const dt = Math.min((now - last) / 1000, 0.1);
+    last = now;
+    if (wasm) {
+      if (running) {
+        const years = +$("rate").value;
+        if (years > 0) wasm.grow_forest(dt * years);
+        // A gale is a ramp, not a step: what breaks a tree is the gust on top
+        // of a wind it has already leaned into.
+        if (gale > 0) {
+          gale = Math.max(0, gale - dt);
+          const target = 45 * Math.min(1, (12 - gale) / 4);
+          const el = $("wind");
+          el.value = Math.max(+el.value, Math.round(target));
+          el.dispatchEvent(new Event("input"));
+        }
+        // Growth runs on years and motion on seconds; the dynamics gets real
+        // elapsed time whatever the growth rate is.
+        wasm.shake_forest(dt);
+      }
+      draw();
+      refreshUI();
+    }
+    requestAnimationFrame(frame);
+  }
+
+  // ---- controls --------------------------------------------------------
+  function plant() {
+    const budget = +$("detail").value;
+    wasm.create_forest(0x5EED, 20, 90, budget);
+    wasm.set_forest_dynamic(1);
+    pushWind();
+    history.wind.length = 0; history.util.length = 0;
+    gale = 0;
+    buildStand();
+  }
+
+  function pushWind() {
+    wasm.set_forest_wind(+$("wind").value, +$("gustiness").value / 100, (+$("dir").value) * Math.PI / 180);
+  }
+
+  function bindSlider(id, fmt, onChange) {
+    const el = $(id);
+    const label = $(id + "Val");
+    const update = () => { label.textContent = fmt(+el.value); onChange(+el.value); };
+    el.addEventListener("input", update);
+    update();
+  }
+
+  function start() {
+    readPalette();
+    resize();
+    window.addEventListener("resize", resize);
+    matchMedia("(prefers-color-scheme: dark)").addEventListener("change", readPalette);
+
+    // The stand has to exist before any control can push a value into it:
+    // binding a slider fires its callback once to sync the label.
+    plant();
+
+    bindSlider("wind", (v) => v.toFixed(0) + " m/s", pushWind);
+    bindSlider("gustiness", (v) => v.toFixed(0) + "%", pushWind);
+    bindSlider("dir", (v) => v.toFixed(0) + "°", pushWind);
+    bindSlider("rate", (v) => v.toFixed(1), () => {});
+    bindSlider("detail", (v) => v.toFixed(0), () => {});
+
+    $("play").addEventListener("click", () => {
+      running = !running;
+      $("play").textContent = running ? "Pause" : "Resume";
+    });
+    $("reset").addEventListener("click", plant);
+    $("detail").addEventListener("change", plant);
+    $("gale").addEventListener("click", () => { gale = 12; });
+
+    let dragging = false, lx = 0, ly = 0;
+    view.addEventListener("pointerdown", (e) => {
+      dragging = true; lx = e.clientX; ly = e.clientY; view.setPointerCapture(e.pointerId);
+    });
+    view.addEventListener("pointermove", (e) => {
+      if (!dragging) return;
+      cam.az -= (e.clientX - lx) * 0.006;
+      cam.el = Math.max(-0.25, Math.min(1.0, cam.el + (e.clientY - ly) * 0.004));
+      lx = e.clientX; ly = e.clientY;
+    });
+    view.addEventListener("pointerup", () => { dragging = false; });
+    view.addEventListener("wheel", (e) => {
+      e.preventDefault();
+      cam.dist = Math.max(0.2, Math.min(3, cam.dist * (1 + Math.sign(e.deltaY) * 0.11)));
+    }, { passive: false });
+
+    requestAnimationFrame(frame);
+  }
+
+  // Only an instantiation failure means the engine is unavailable. Wrapping
+  // start() in the same catch would report every bug here as "your browser
+  // cannot run WebAssembly", which is both false and unfixable by the reader.
+  WebAssembly.instantiate(bytesFromBase64(B64), {}).then(
+    (res) => {
+      wasm = res.instance.exports;
+      mem = () => wasm.memory;
+      start();
+    },
+    (err) => {
+      console.error("engine failed to instantiate:", err);
+      document.getElementById("fallback").style.display = "grid";
+      document.getElementById("statusText").textContent = "engine unavailable";
+    }
+  );
+})();
+</script>
