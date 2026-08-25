@@ -203,10 +203,10 @@ select:focus-visible{outline:2px solid var(--accent); outline-offset:1px}
       </div>
       <div class="readouts">
         <div class="ro"><span class="k">Wind now</span><span class="v val" id="roGust">—</span></div>
-        <div class="ro"><span class="k">Sway</span><span class="v val" id="roSway">—</span></div>
+        <div class="ro"><span class="k">Deflection</span><span class="v val" id="roSway">—</span></div>
       </div>
       <div class="trace" style="margin-top:9px">
-        <div class="trace-label"><span>Crown displacement</span><span id="tSway">—</span></div>
+        <div class="trace-label"><span>Largest deflection</span><span id="tSway">—</span></div>
         <canvas id="chartSway"></canvas>
       </div>
       <p class="note">Off, the structure is drawn where a load held forever would put it. On, it has mass: it leans into a gust, swings back out of one, and rings after a limb goes. The gust is an Ornstein&#8211;Uhlenbeck fluctuation about the mean, which is the standard model of boundary-layer turbulence and the reason the motion is not periodic.</p>

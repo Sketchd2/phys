@@ -98,6 +98,54 @@ fn main() {
         println!("  n={n:>9}  {us:>10.0} us   {:>7.3} us/body", us / n as f64);
     }
 
+    println!("\n## structural analysis and dynamics");
+    {
+        use phys::morph::{Morphology, Program};
+        use phys::prolong::prolong_structured;
+        use phys::solvers::structure as st;
+        use phys::math::v3;
+
+        for (label, planned) in [("tree (determinate)", false), ("tower (braced)", true)] {
+            let mass = if planned { 3.0e6 } else { 900.0 };
+            let mut m = if planned {
+                let mut m = Morphology::planned(Program::Tower, mass, 11, 0x77);
+                m.progress = 1.0;
+                m
+            } else {
+                let mut m = Morphology::new(Program::Tree, 0xACE, 0x1234, 0);
+                m.age = 40.0 * YEAR;
+                m
+            };
+            m.built = mass;
+            let prog = if planned { Program::Tower } else { Program::Tree };
+            let agg = Aggregate::neutral(mass, m.extent(), 291.0, prog.substrate());
+            for n in [500usize, 2000, 8000] {
+                let (b, topo, _) = prolong_structured(&agg, &m, n, 7, 0x1234, 0);
+                let mut field = st::LoadField::new(b.len(), 291.0);
+                field.apply(&st::weather::wind(25.0, v3(1.0, 0.0, 0.0)), &b, &topo);
+                field.apply(&st::weather::gravity(), &b, &topo);
+                let members = b.len();
+
+                let us = time(3, || {
+                    std::hint::black_box(st::analyse_with(&b, &topo, &field));
+                });
+                print!("  {label:<20} n={members:>6}  static {us:>9.0} us");
+
+                match st::dynamic_structure(&b, &topo) {
+                    Some(mut ds) => {
+                        ds.advance(&field, 0.01);
+                        let du = time(5, || {
+                            ds.advance(&field, 0.01);
+                        });
+                        println!("   dynamic {du:>9.0} us/substep   {:.0} substeps in a 50 ms frame",
+                            50_000.0 / du.max(1e-9));
+                    }
+                    None => println!("   dynamic     n/a"),
+                }
+            }
+        }
+    }
+
     println!("\n## memory");
     println!("  Body           {:>4} bytes", std::mem::size_of::<Body>());
     println!("  Aggregate      {:>4} bytes", std::mem::size_of::<Aggregate>());

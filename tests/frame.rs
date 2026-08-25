@@ -373,3 +373,164 @@ fn redundant_truss_matches_the_analytic_split() {
         "the apex does not balance: {carried:.2} N against {p_load:.2} N"
     );
 }
+
+
+/// The tree factorisation must be an exact solve when the load path is a tree.
+///
+/// This is the same structural fact the O(n) static pass rests on, applied to a
+/// different question: a tree has a perfect elimination ordering, so eliminating
+/// leaves first produces no fill-in and the factorisation *is* the inverse.
+/// Preconditioned conjugate gradient then finishes in a single iteration, at
+/// any timestep and any size.
+///
+/// Without it, a slender chain of `n` beam elements has a condition number
+/// growing like `n^4`: a 2000-member tree took 3645 Jacobi iterations and 700 ms
+/// for one dynamic substep, which at twenty updates a second is not a solver.
+#[test]
+fn the_tree_factorisation_is_exact_on_a_tree() {
+    let mat = steel();
+    for n in [16usize, 128, 1024] {
+        let mut f = Frame::new(mat);
+        // A chain that wanders, so the answer is not one-dimensional.
+        let mut prev = f.add_node(v3(0.0, 0.0, 0.0), true);
+        for i in 1..=n {
+            let t = i as f64 * 0.3;
+            let node = f.add_node(v3(t, 0.4 * (t * 0.7).sin(), 0.2 * (t * 0.3).cos()), false);
+            f.add_beam(prev, node, 0.05);
+            prev = node;
+        }
+        let mut load = vec![Dof::default(); f.nodes.len()];
+        for (i, l) in load.iter_mut().enumerate() {
+            l.t = v3(0.0, 30.0 * (i as f64 * 0.11).sin(), -120.0);
+        }
+        let stiff = vec![mat.stiffness; f.elements.len()];
+        let (u, iters, converged) = f.solve_elastic_opt(&load, &stiff, true);
+        assert!(converged, "n={n} did not converge");
+        // The iteration count does not grow with the structure, which is the
+        // whole claim. One iteration applies the factorisation; the odd extra
+        // one is conjugate gradient establishing that the residual really is at
+        // round-off, on a chain whose condition number by then exceeds 10^12.
+        // Jacobi on the same problem needed 3645 and rising.
+        assert!(iters <= 3, "n={n} took {iters} iterations");
+
+        // And the answer really does solve the system.
+        let mut ku = vec![Dof::default(); f.nodes.len()];
+        f.apply_operator(&u, &stiff, &mut ku);
+        let (mut residual, mut scale) = (0.0f64, 0.0f64);
+        for i in 0..f.nodes.len() {
+            if f.fixed[i] {
+                continue;
+            }
+            residual += load[i].sub(ku[i]).dot(load[i].sub(ku[i]));
+            scale += load[i].dot(load[i]);
+        }
+        let relative = (residual / scale).sqrt();
+        // What is achievable is bounded by the problem, not the method: a chain
+        // of `n` beam elements has a condition number growing like `n^4`, so
+        // round-off alone leaves a relative residual near `n^4 * eps`. At
+        // n=1024 that is about 10^-4, and a solver claiming better than that
+        // would be reporting its own arithmetic error as accuracy.
+        let reachable = (n as f64).powi(4) * 4.0 * f64::EPSILON;
+        println!(
+            "  n={n:>5}: {iters} iteration(s), relative residual {relative:.3e} \
+             (round-off allows {reachable:.1e})"
+        );
+        assert!(
+            relative < reachable.max(1e-10),
+            "n={n} left a residual of {relative:.3e}, round-off allows {reachable:.1e}"
+        );
+    }
+}
+
+/// And it must still help when the structure is not quite a tree.
+///
+/// The braces are the only members outside the spanning forest, so dropping
+/// their coupling leaves a factorisation that is no longer exact. How good it
+/// still is depends on how redundant the structure is — which is also why the
+/// solver declines the factorisation above a threshold on that redundancy and
+/// keeps the diagonal instead: applying the factor costs about an order of
+/// magnitude more than a diagonal division, so on a moment frame, where every
+/// bay between two floors is a closed loop, it removes a factor of two from the
+/// iteration count and loses on the exchange. Both sides of that decision are
+/// checked here.
+///
+/// The forest keeps the *stiffest* members, chosen by axial stiffness. What is
+/// left out is what the preconditioner cannot see, and leaving out a slender
+/// brace costs far less than leaving out a column.
+#[test]
+fn the_tree_factorisation_still_helps_a_braced_chain() {
+    let mat = steel();
+    let n = 200usize;
+    let mut f = Frame::new(mat);
+    let mut chain = vec![f.add_node(v3(0.0, 0.0, 0.0), true)];
+    for i in 1..=n {
+        let t = i as f64 * 0.3;
+        chain.push(f.add_node(v3(t, 0.5 * (t * 0.4).sin(), 0.0), false));
+        f.add_beam(chain[i - 1], chain[i], 0.05);
+    }
+    // A stay every twentieth joint, skipping five along: enough redundancy that
+    // the factorisation is no longer exact, few enough that it still pays.
+    for i in (10..n - 5).step_by(20) {
+        f.add_tie(chain[i], chain[i + 5], 0.01);
+    }
+    let redundancy = f.redundancy();
+    assert!(redundancy > 0, "nothing here is redundant");
+    assert!(
+        redundancy * 4 <= f.nodes.len(),
+        "this chain should take the factorisation"
+    );
+
+    let mut load = vec![Dof::default(); f.nodes.len()];
+    for (i, l) in load.iter_mut().enumerate() {
+        l.t = v3(0.0, 30.0 * (i as f64 * 0.11).sin(), -120.0);
+    }
+    let stiff = vec![mat.stiffness; f.elements.len()];
+    let (_, tree, ok_tree) = f.solve_elastic_opt(&load, &stiff, true);
+    let (_, plain, ok_plain) = f.solve_elastic_opt(&load, &stiff, false);
+    println!(
+        "  braced chain: {} joints, {} members, redundancy {redundancy} — {tree} iterations \
+         factorised, {} without",
+        f.nodes.len(),
+        f.elements.len(),
+        if ok_plain { plain.to_string() } else { format!("{plain}, did not converge") }
+    );
+    assert!(ok_tree, "the braced chain did not converge");
+    assert!(
+        !ok_plain || tree * 10 < plain,
+        "the factorisation saved little: {tree} against {plain}"
+    );
+
+    // The other side of the decision: a moment frame is redundant in every bay,
+    // and the solver keeps the diagonal for it.
+    let mut frame = Frame::new(mat);
+    let mut below = [u32::MAX; 4];
+    for floor in 0..20 {
+        let z = floor as f64 * 3.2;
+        let mut here = [0u32; 4];
+        for c in 0..4 {
+            let a = std::f64::consts::FRAC_PI_2 * c as f64;
+            here[c] = frame.add_node(v3(6.0 * a.cos(), 6.0 * a.sin(), z + 3.2), false);
+        }
+        for c in 0..4 {
+            let a = std::f64::consts::FRAC_PI_2 * c as f64;
+            let base = if floor == 0 {
+                frame.add_node(v3(6.0 * a.cos(), 6.0 * a.sin(), z), true)
+            } else {
+                below[c]
+            };
+            frame.add_beam(base, here[c], 0.15);
+            frame.add_beam(here[c], here[(c + 1) % 4], 0.10);
+        }
+        below = here;
+    }
+    println!(
+        "  moment frame: {} joints, {} members, redundancy {} — factorisation declined",
+        frame.nodes.len(),
+        frame.elements.len(),
+        frame.redundancy()
+    );
+    assert!(
+        frame.redundancy() * 4 > frame.nodes.len(),
+        "a moment frame should be too redundant for the factorisation"
+    );
+}

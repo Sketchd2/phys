@@ -638,24 +638,53 @@ fn frame_analyse(
             continue;
         }
         let f = solution.forces[e];
+        let (axis, length) = member_axis(topo, i);
+
+        // Recover the axial force at the *base* section from the element's.
+        //
+        // A member's own load acts along its length, and lumping half of it to
+        // each end is what makes the end moments right. It does not make the
+        // axial force right: the base section carries all of that load and the
+        // tip section carries none, so the element's single constant value is
+        // the average, half of what the critical section actually sees. This
+        // adds the missing half back. Without it a hanging twig reports two
+        // thirds of its true axial stress, and the two solvers disagree by up
+        // to 10% on exactly the members statics gets exactly right.
+        let own = external.get(i).copied().unwrap_or(Vec3::ZERO).dot(axis) * 0.5;
+        let axial = f.axial + own;
+
+        let area = topo.bonds[i].area().max(1e-30);
+        let section = topo.bonds[i].section_modulus().max(1e-30);
+        let stress = f.moment / section + axial.abs() / area;
+
         let t = loads.temperature.get(i).copied().unwrap_or(loads.ambient);
         let integrity = topo.bonds[i].integrity;
-        let tensile = f.axial > 0.0;
+        let tensile = axial > 0.0;
         let ratio = if tensile { topo.material.tensile_ratio } else { 1.0 };
         let strength = topo.material.rupture * topo.material.strength_at(t) * integrity * ratio;
         let by_stress = if strength > 0.0 {
-            f.stress / strength
-        } else if f.stress > 0.0 {
+            stress / strength
+        } else if stress > 0.0 {
             f64::INFINITY
         } else {
             0.0
         };
-        let (axis, _) = member_axis(topo, i);
+
+        // Buckling likewise judges the section under the most compression.
+        let buckling = if axial < 0.0 && length > 0.0 && topo.bonds[i].radius > 0.0 {
+            let inertia = std::f64::consts::PI * topo.bonds[i].radius.powi(4) / 4.0;
+            let critical = std::f64::consts::PI.powi(2) * topo.material.stiffness * inertia
+                / (0.85 * length).powi(2);
+            if critical > 0.0 { -axial / critical } else { f64::INFINITY }
+        } else {
+            0.0
+        };
+
         out.push(JointLoad {
-            stress: f.stress,
-            buckling: f.buckling,
-            utilisation: by_stress.max(f.buckling),
-            force: axis.scale(f.axial),
+            stress,
+            buckling,
+            utilisation: by_stress.max(buckling),
+            force: axis.scale(axial),
             moment: axis.scale(f.torsion),
             carried: bodies[i].mass,
         });

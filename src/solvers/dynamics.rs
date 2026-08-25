@@ -409,6 +409,39 @@ impl Dynamics {
     }
 }
 
+impl Dynamics {
+    /// The structure's own fundamental period, in seconds.
+    ///
+    /// Prefers the shape the structure is actually in, since that is by
+    /// definition close to whatever mode it is moving in. A structure at rest
+    /// has no shape to offer, and a Rayleigh quotient on a zero vector is
+    /// zero — which a caller reads as "no period" and turns into a timestep
+    /// covering the whole frame in one step. So the fallback is the static
+    /// deflection under a uniform body load, which is the classical trial
+    /// vector for a fundamental mode and costs one solve.
+    pub fn natural_period(&self) -> f64 {
+        let measured = self.dominant_period(&self.displacement);
+        if measured > 0.0 {
+            return measured;
+        }
+        let n = self.frame.nodes.len();
+        let mut f = self.frame.clone();
+        f.mass_scale = 0.0;
+        f.stiff_scale = 1.0;
+        let load: Vec<Dof> = (0..n)
+            .map(|i| {
+                let m = f.lumped.get(i).copied().unwrap_or_default();
+                Dof { t: Vec3 { x: 0.0, y: 0.0, z: -m.t.z }, r: Vec3::ZERO }
+            })
+            .collect();
+        let (shape, _, converged) = f.solve_elastic_opt(&load, &self.stiffness, true);
+        if !converged {
+            return 0.0;
+        }
+        self.dominant_period(&shape)
+    }
+}
+
 /// An orthonormal basis with `e1` along `axis`. Duplicated from `frame` rather
 /// than exported from it: it is three lines, and the alternative is a public
 /// name that says nothing about frames.

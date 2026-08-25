@@ -436,12 +436,27 @@ fn indeterminate_truss_matches_the_analytic_solution() {
     let middle = axial(0);
     let outer = (axial(1) + axial(2)) / 2.0;
 
-    // Half of each member's own load reacts at its own base; the rest meets at
-    // the apex and is what the three bars have to divide between them.
-    let p_joint = p_load / 2.0;
+    // Two effects, and the solver has to get both.
+    //
+    // A member's load acts along its length, so half of it reacts straight into
+    // that member's own base and only the other half reaches the joint. The
+    // apex therefore shares `P/2`, and *that* is what the analytic split
+    // applies to.
+    //
+    // What each bar's base section carries is that share plus the whole of its
+    // own load's axial component — the base holds up everything above it, the
+    // tip holds up nothing, and the reported force is for the section that
+    // decides whether the bar fails.
     let cos_t = t.cos();
-    let expect_mid = p_joint / (1.0 + 2.0 * cos_t.powi(3));
-    let expect_outer = expect_mid * cos_t * cos_t;
+    let p_joint = p_load / 2.0;
+    let shared_mid = p_joint / (1.0 + 2.0 * cos_t.powi(3));
+    let shared_outer = shared_mid * cos_t * cos_t;
+    let own = |i: usize| {
+        let axis = (topo.tip[i] - topo.base[i]).unit();
+        (field.force[i].dot(axis) * 0.5).abs()
+    };
+    let expect_mid = shared_mid + own(0);
+    let expect_outer = shared_outer + (own(1) + own(2)) / 2.0;
 
     println!(
         "  middle bar {middle:.1} N (analytic {expect_mid:.1}), each outer {outer:.1} N \
@@ -455,8 +470,9 @@ fn indeterminate_truss_matches_the_analytic_solution() {
         (outer - expect_outer).abs() / expect_outer < 0.005,
         "outer bars carry {outer:.1} N, analytic says {expect_outer:.1} N"
     );
-    // Vertical equilibrium at the joint, independently of the analytic form.
-    let carried = middle + 2.0 * outer * cos_t;
+    // Vertical equilibrium at the joint, independently of the analytic form:
+    // strip each bar's own half back off and what is left must balance `P/2`.
+    let carried = (middle - own(0)) + 2.0 * (outer - (own(1) + own(2)) / 2.0) * cos_t;
     assert!(
         (carried - p_joint).abs() / p_joint < 0.02,
         "the truss does not balance: {carried:.1} N against {p_joint:.1} N"
@@ -597,7 +613,12 @@ fn the_two_solvers_agree_on_determinate_structures() {
     let (agg, m) = tree(900.0);
     let (bodies, topo) = load(&agg, &m, 1500);
     let mut field = LoadField::new(bodies.len(), 290.0);
-    field.apply(&weather::wind(30.0, v3(0.7, 0.7, 0.0)), &bodies, &topo);
+    // A load the structure is comfortable under. The two paths are only
+    // *required* to agree while everything stays elastic: the redundant solver
+    // also redistributes load off members past yield, which statics cannot do
+    // and which is the whole reason ductility is worth modelling. At 30 m/s
+    // twenty-two members yield and the paths differ by 2%, correctly.
+    field.apply(&weather::wind(12.0, v3(0.7, 0.7, 0.0)), &bodies, &topo);
     field.apply(&weather::gravity(), &bodies, &topo);
 
     let (exact, indeterminate, _) = analyse_with(&bodies, &topo, &field);
@@ -614,6 +635,12 @@ fn the_two_solvers_agree_on_determinate_structures() {
     }
     assert!(!redundant.is_determinate());
     let (solved, _, iters) = analyse_with(&bodies, &redundant, &field);
+    // Zero iterations means the frame solve failed and the answer fell back to
+    // statics, which would make this test agree with itself. It did, for a
+    // while: the conjugate gradient could not converge on a 1500-member tree
+    // with Jacobi preconditioning, so the redundant path was never exercised
+    // and the test passed by never running the code it was checking.
+    assert!(iters > 0, "the redundant solver fell back instead of solving");
 
     let mut worst = 0.0f64;
     for (a, b) in exact.iter().zip(&solved) {
@@ -621,5 +648,8 @@ fn the_two_solvers_agree_on_determinate_structures() {
         worst = worst.max((a.stress - b.stress).abs() / scale);
     }
     println!("  worst disagreement between the two paths: {worst:.3e} ({iters} CG iterations)");
-    assert!(worst < 1e-6, "the solvers disagree by {worst:.3e}");
+    // Not "close enough": a determinate structure's internal forces are fixed
+    // by equilibrium alone, so a correct beam model has to reproduce statics
+    // exactly, member by member, and it does.
+    assert!(worst < 1e-8, "the solvers disagree by {worst:.3e}");
 }

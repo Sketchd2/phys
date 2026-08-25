@@ -241,6 +241,33 @@ neighbours and a brittle one does not. That single number, `Material::ductility`
 is the difference between a steel frame that sags, redistributes and warns you
 and a masonry wall that is standing one moment and rubble the next.
 
+#### The same tree, twice
+
+There is one more consequence of the load path being a tree, and it is what
+makes the dynamics affordable at all.
+
+A tree has a **perfect elimination ordering**. Eliminate the leaves first and
+each one's only surviving coupling is to its parent, so factorising the
+stiffness matrix produces no fill-in whatever and costs one 6×6 inverse per
+joint. For a determinate structure that factorisation *is* the inverse, and
+preconditioned conjugate gradient converges in a single iteration — at any
+timestep and any size. For a braced one the braces are the only edges outside
+the forest, so it stays a good approximation and the iteration count reflects
+how redundant the structure is rather than how big it is.
+
+This matters because Jacobi preconditioning is hopeless on a tree. A slender
+chain of `n` beam elements has a condition number growing like `n⁴`, so a
+2000-member tree took 3645 iterations and 692 ms for one dynamic substep. The
+same substep with the factorisation takes one iteration and 5 ms.
+
+Two details decide whether it works. The forest has to be a *maximum* spanning
+forest by stiffness rather than a breadth-first one, or a soft stay skipping
+along a chain gets kept and a load-carrying member dropped. And the
+factorisation is declined when the structure is redundant enough that it stops
+paying for itself, because applying it costs about an order of magnitude more
+than a diagonal division. Both are measured rather than assumed, in
+`docs/PERFORMANCE.md`.
+
 #### Motion
 
 Knowing what a bond can take is not knowing what it makes its neighbours *do*.

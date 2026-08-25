@@ -56,6 +56,47 @@ engine's central premise, and it is affordable.
 | 10,000 | 33.9 ms | 3.4 µs | 60.9 ms | 6.1 µs |
 | 50,000 – 100,000 | 285 ms | 5.7 µs | 1.34 s | 13.4 µs |
 
+### Structures: analysis and dynamics
+
+| Structure | Members | Static analysis | One dynamic substep | Substeps per 50 ms frame |
+|---|---:|---:|---:|---:|
+| Tree, determinate | 500 | 14 µs | 1.1 ms | 45 |
+| Tree, determinate | 2,000 | 52 µs | 5.0 ms | 10 |
+| Tree, determinate | 8,000 | 342 µs | 24 ms | 2 |
+| Tower, braced | 256 | 12 ms | 2.4 ms | 21 |
+
+The determinate static column is the O(n) reverse pass and costs essentially
+nothing. The braced tower's 12 ms is a conjugate-gradient solve, and it is the
+single most expensive structural operation in the engine.
+
+The dynamic column exists at all because of the tree preconditioner. A slender
+chain of `n` beam elements has a condition number growing like `n⁴`, so Jacobi
+preconditioning needed **3,645 iterations and 692 ms** for one substep of a
+2,000-member tree. The load path is a tree, so the stiffness matrix has a
+perfect elimination ordering with no fill-in; factorising it exactly costs one
+6×6 inverse per joint and conjugate gradient then finishes in **one** iteration.
+
+| 2,000-member tree, one substep | Iterations | Time |
+|---|---:|---:|
+| Jacobi | 3,645 | 692 ms |
+| Tree factorisation | 1 | 5.0 ms |
+
+Two things had to be right for that. The forest must be a *maximum* spanning
+forest by stiffness, not a breadth-first one: a stay skipping five joints along
+a chain is a shortcut, so breadth-first discovery reaches the far joint through
+the stay and drops a chain element instead — severing the load path to keep a
+member a hundred times softer, which on a 200-element chain with ten stays took
+the iteration count from 1 to 1,124. Prim's algorithm takes the stiffest
+available edge at every step and cannot make that mistake; the same case then
+runs in 31.
+
+And the factorisation is declined above a threshold on the structure's degree of
+static indeterminacy. Applying it costs about an order of magnitude more than a
+diagonal division, so it has to remove about that much from the iteration count.
+On a moment frame, where every bay between two floors is a closed loop, it
+removes a factor of two and loses on the exchange — measured as a tower's static
+analysis going from 12 ms to 23 ms before the threshold was added.
+
 ### Memory
 
 | Structure | Bytes |

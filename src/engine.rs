@@ -789,7 +789,7 @@ impl World {
         // a two-second period is resolved by a twentieth of a second; a steel
         // frame's is a hundred times shorter, and integrating it at the frame
         // rate would report a structure that does not move.
-        let period = ds.dynamics.dominant_period(&ds.dynamics.displacement);
+        let period = ds.dynamics.natural_period();
         let target = if period > 0.0 { period / 20.0 } else { seconds };
         let steps = (seconds / target).ceil().max(1.0).min(MAX_SHAKE_STEPS) as usize;
         let h = seconds / steps as f64;

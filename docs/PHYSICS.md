@@ -332,7 +332,21 @@ failed. No amount of care in a static solver recovers that number.
 The tower row is the consistency check: hold a load steady long enough and the
 dynamics must settle to exactly what the static analysis predicted. Running the
 dynamic step on the static operator is what makes that a theorem rather than a
-coincidence. A safety factor of 3.5
+coincidence.
+
+The same consistency is checked the other way in `tests/topology.rs`: on a
+1500-member determinate tree the frame solver and the O(n) statics pass agree to
+**7 × 10⁻¹¹**, member by member. A determinate structure's internal forces are
+fixed by equilibrium alone, so that is not "close enough" — it is the only
+answer a correct beam model can give.
+
+That test found two real things. It had been passing because the redundant
+solver could not converge and was silently falling back to the statics it was
+being compared against. And once it did converge, the two disagreed by up to
+10% on the least-loaded members: lumping a member's own load half to each end
+makes the *end moments* right but halves the axial force, because the base
+section carries all of that load and the tip carries none. Adding the missing
+half back is what closes the gap. A safety factor of 3.5
 against self-weight matches measured values for real trees, which is the check
 that makes the rest of the table meaningful — a model that could not stand up
 would fail everything else for the wrong reason.

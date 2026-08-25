@@ -493,9 +493,47 @@ impl Frame {
             })
             .collect();
 
+        // Preconditioner. The tree factorisation is exact for a structure
+        // whose load path is a tree, so conjugate gradient finishes in one
+        // iteration; a braced one keeps only the braces outside the factor and
+        // converges in a handful. Jacobi remains the fallback, and remains what
+        // `precondition = false` turns off, so the comparison the tests make
+        // stays a comparison of preconditioners rather than of code paths.
+        // Applying the factorisation costs roughly an order of magnitude more
+        // than a diagonal division, so it has to remove about that much from
+        // the iteration count to be worth it. What predicts that is the
+        // structure's degree of static indeterminacy: on a tree the factor is
+        // exact and removes everything, and on a frame carrying nearly a brace
+        // per joint it removes a factor of two and loses on the exchange.
+        // Above this ratio the diagonal is the better preconditioner, which is
+        // why it stays.
+        let factor = if precondition && self.redundancy() * FACTOR_REDUNDANCY_LIMIT <= n {
+            Some(self.factor(stiff))
+        } else {
+            None
+        };
         let mut u = vec![Dof::default(); n];
         let mut r = b.clone();
-        let mut z: Vec<Dof> = r.iter().zip(&inv).map(|(a, m)| a.mul(*m)).collect();
+        let mut z = vec![Dof::default(); n];
+        let precondition_into = |r: &[Dof], z: &mut [Dof]| match &factor {
+            Some(f) if !f.is_empty() => {
+                f.solve(r, z);
+                // The factor knows nothing about degrees of freedom that carry
+                // no stiffness at all; the diagonal mask does, and applying it
+                // after keeps them out of the search directions.
+                for i in 0..n {
+                    if inv[i] == Dof::default() {
+                        z[i] = Dof::default();
+                    }
+                }
+            }
+            _ => {
+                for i in 0..n {
+                    z[i] = r[i].mul(inv[i]);
+                }
+            }
+        };
+        precondition_into(&r, &mut z);
         let mut p = z.clone();
         let mut rz: f64 = r.iter().zip(&z).map(|(a, b)| a.dot(*b)).sum();
         let r0: f64 = r.iter().map(|a| a.dot(*a)).sum();
@@ -531,9 +569,7 @@ impl Frame {
                 converged = true;
                 break;
             }
-            for i in 0..n {
-                z[i] = r[i].mul(inv[i]);
-            }
+            precondition_into(&r, &mut z);
             let rz_new: f64 = r.iter().zip(&z).map(|(a, b)| a.dot(*b)).sum();
             let beta = rz_new / rz;
             if !beta.is_finite() {
@@ -633,3 +669,431 @@ fn effective_length_factor(truss: bool) -> f64 {
 }
 
 const PLASTIC_PASSES: u32 = 6;
+
+// ---------------------------------------------------------------------------
+// The tree preconditioner
+// ---------------------------------------------------------------------------
+
+/// A six-by-six block: one joint's coupling to another.
+#[derive(Debug, Clone, Copy)]
+pub struct Mat6([[f64; 6]; 6]);
+
+impl Mat6 {
+    pub const ZERO: Mat6 = Mat6([[0.0; 6]; 6]);
+
+    #[inline]
+    fn sub_assign(&mut self, o: &Mat6) {
+        for i in 0..6 {
+            for j in 0..6 {
+                self.0[i][j] -= o.0[i][j];
+            }
+        }
+    }
+
+    #[inline]
+    fn add_assign(&mut self, o: &Mat6) {
+        for i in 0..6 {
+            for j in 0..6 {
+                self.0[i][j] += o.0[i][j];
+            }
+        }
+    }
+
+    fn mul(&self, o: &Mat6) -> Mat6 {
+        let mut out = Mat6::ZERO;
+        for i in 0..6 {
+            for k in 0..6 {
+                let a = self.0[i][k];
+                if a == 0.0 {
+                    continue;
+                }
+                for j in 0..6 {
+                    out.0[i][j] += a * o.0[k][j];
+                }
+            }
+        }
+        out
+    }
+
+    fn apply(&self, v: Dof) -> Dof {
+        let x = [v.t.x, v.t.y, v.t.z, v.r.x, v.r.y, v.r.z];
+        let mut y = [0.0f64; 6];
+        for i in 0..6 {
+            let mut s = 0.0;
+            for j in 0..6 {
+                s += self.0[i][j] * x[j];
+            }
+            y[i] = s;
+        }
+        Dof { t: v3(y[0], y[1], y[2]), r: v3(y[3], y[4], y[5]) }
+    }
+
+    /// Gauss-Jordan inverse with partial pivoting.
+    ///
+    /// A degree of freedom with no stiffness and no mass behind it — a node
+    /// orphaned by a break — gives a singular block. Its row and column come
+    /// back zero rather than infinite, which says "this direction is not
+    /// determined" and is the same treatment the diagonal masking gives it.
+    fn inverse(&self) -> Mat6 {
+        let mut a = self.0;
+        let mut inv = [[0.0f64; 6]; 6];
+        for i in 0..6 {
+            inv[i][i] = 1.0;
+        }
+        // Scale for deciding what counts as a zero pivot, from the block itself.
+        let mut scale = 0.0f64;
+        for row in &a {
+            for v in row {
+                scale = scale.max(v.abs());
+            }
+        }
+        let tiny = scale * 1e-14;
+        for col in 0..6 {
+            let mut pivot = col;
+            for r in col + 1..6 {
+                if a[r][col].abs() > a[pivot][col].abs() {
+                    pivot = r;
+                }
+            }
+            if a[pivot][col].abs() <= tiny {
+                // Undetermined direction: zero the row so it contributes
+                // nothing rather than an unbounded correction.
+                for j in 0..6 {
+                    inv[col][j] = 0.0;
+                }
+                continue;
+            }
+            a.swap(col, pivot);
+            inv.swap(col, pivot);
+            let d = a[col][col];
+            for j in 0..6 {
+                a[col][j] /= d;
+                inv[col][j] /= d;
+            }
+            for r in 0..6 {
+                if r == col {
+                    continue;
+                }
+                let f = a[r][col];
+                if f == 0.0 {
+                    continue;
+                }
+                for j in 0..6 {
+                    a[r][j] -= f * a[col][j];
+                    inv[r][j] -= f * inv[col][j];
+                }
+            }
+        }
+        Mat6(inv)
+    }
+}
+
+/// An exact block factorisation of the structure's spanning forest.
+///
+/// # Why this exists
+///
+/// The load path of every structure the engine generates is a *tree*, and that
+/// is what makes the static analysis an O(n) reverse pass with no solve at all.
+/// The same fact does something for the dynamic solve that is easy to miss: a
+/// tree has a **perfect elimination ordering**. Eliminate the leaves first and
+/// each one's only surviving coupling is to its parent, so the factorisation
+/// produces no fill-in whatever and costs one six-by-six inverse per joint.
+///
+/// For a determinate structure that makes this an *exact* solve, and
+/// preconditioned conjugate gradient converges in a single iteration. For a
+/// braced one the ties are the only edges outside the forest, so it remains a
+/// very good approximation and the iteration count collapses.
+///
+/// This is not an optimisation bolted on afterwards. It is the same structural
+/// fact the O(n) static pass rests on, applied to a different question.
+///
+/// # Why it was needed
+///
+/// Jacobi preconditioning is fine for a squat braced frame and hopeless for a
+/// tree: a slender chain of `n` beam elements has a condition number growing
+/// like `n^4`, so a 2000-member tree took 3645 iterations and 700 ms for one
+/// substep. At twenty updates a second that is not a solver, it is a
+/// screensaver.
+#[derive(Debug, Clone, Default)]
+pub struct TreeFactor {
+    /// Joints in elimination order: every child before its parent.
+    order: Vec<u32>,
+    /// Parent of each joint in the spanning forest, or `u32::MAX` for a root.
+    parent: Vec<u32>,
+    /// The coupling block to that parent.
+    to_parent: Vec<Mat6>,
+    /// Inverse of the eliminated diagonal block.
+    inverse: Vec<Mat6>,
+    /// Joints outside the system: held down, or reached by nothing.
+    excluded: Vec<bool>,
+}
+
+impl TreeFactor {
+    pub fn is_empty(&self) -> bool {
+        self.order.is_empty()
+    }
+
+    /// Solve the factorised system for `r`, in place of a Jacobi division.
+    ///
+    /// `A = L D L^T` with `L_{p,c} = A_pc D_c^-1` for each child `c` of `p` —
+    /// the only off-diagonal entries a tree has. Forward-substitute towards the
+    /// roots, apply the inverse diagonal, back-substitute towards the leaves.
+    pub fn solve(&self, r: &[Dof], out: &mut [Dof]) {
+        for i in 0..self.parent.len() {
+            out[i] = if self.excluded[i] { Dof::default() } else { r[i] };
+        }
+        // Forward: children first, each pushing its eliminated load onto its
+        // parent.
+        for &node in &self.order {
+            let i = node as usize;
+            let p = self.parent[i];
+            if p == u32::MAX {
+                continue;
+            }
+            let lifted = self.to_parent[i].transposed().apply(self.inverse[i].apply(out[i]));
+            out[p as usize] = out[p as usize].sub(lifted);
+        }
+        // Back: parents first, each correcting its children.
+        for &node in self.order.iter().rev() {
+            let i = node as usize;
+            let p = self.parent[i];
+            let mut y = out[i];
+            if p != u32::MAX {
+                y = y.sub(self.to_parent[i].apply(out[p as usize]));
+            }
+            out[i] = self.inverse[i].apply(y);
+        }
+    }
+}
+
+impl Frame {
+    /// Factorise the structure's spanning forest.
+    ///
+    /// Members outside the forest — the braces, which are exactly what makes a
+    /// structure redundant — contribute their diagonal stiffness but not their
+    /// coupling. Dropping them is what keeps the factorisation fill-free; it
+    /// costs nothing in correctness because this is only ever a preconditioner.
+    pub fn factor(&self, stiff: &[f64]) -> TreeFactor {
+        let n = self.nodes.len();
+        if n == 0 {
+            return TreeFactor::default();
+        }
+        let mut diag = vec![Mat6::ZERO; n];
+        // Adjacency, with the element index so blocks can be recovered.
+        let mut adjacent: Vec<Vec<(u32, usize)>> = vec![Vec::new(); n];
+        let mut blocks: Vec<(Mat6, Mat6, Mat6, Mat6)> = Vec::with_capacity(self.elements.len());
+        for (i, e) in self.elements.iter().enumerate() {
+            let k = stiff.get(i).copied().unwrap_or(0.0) * self.stiff_scale;
+            let (aa, ab, ba, bb) = self.element_blocks(e, k);
+            let (a, b) = (e.a as usize, e.b as usize);
+            diag[a].add_assign(&aa);
+            diag[b].add_assign(&bb);
+            adjacent[a].push((e.b, i));
+            adjacent[b].push((e.a, i));
+            blocks.push((aa, ab, ba, bb));
+        }
+        if self.mass_scale != 0.0 {
+            for (i, d) in diag.iter_mut().enumerate() {
+                let m = self.lumped.get(i).copied().unwrap_or_default();
+                let v = [m.t.x, m.t.y, m.t.z, m.r.x, m.r.y, m.r.z];
+                for k in 0..6 {
+                    d.0[k][k] += v[k] * self.mass_scale;
+                }
+            }
+        }
+
+        // The *maximum* spanning forest, by axial stiffness. Which members are
+        // left out is the whole question: what is dropped is what the
+        // preconditioner cannot see, and leaving out a column costs far more
+        // than leaving out a slender stay.
+        //
+        // A breadth-first forest is not good enough, and fails in a way that
+        // looks harmless. A stay skipping five joints along a chain is a
+        // shortcut, so breadth-first discovery reaches the far joint through
+        // the stay and drops a *chain* element instead — severing the load path
+        // in the factorisation to keep a member a hundred times softer. On a
+        // 200-element chain with ten stays that took the iteration count from
+        // one to eleven hundred. Prim's algorithm takes the stiffest edge
+        // available at every step and cannot make that mistake.
+        let weight: Vec<f64> = self
+            .elements
+            .iter()
+            .enumerate()
+            .map(|(i, e)| {
+                let l = self.length(e).max(1e-30);
+                stiff.get(i).copied().unwrap_or(0.0) * e.area() / l
+            })
+            .collect();
+
+        let mut parent = vec![u32::MAX; n];
+        let mut to_parent = vec![Mat6::ZERO; n];
+        let mut seen: Vec<bool> = (0..n).map(|i| self.fixed[i]).collect();
+        let mut order: Vec<u32> = Vec::with_capacity(n);
+        // Ordered by weight; `Reverse` is unnecessary because the heap is a
+        // max-heap and the stiffest edge is the one to take.
+        let mut frontier: std::collections::BinaryHeap<(OrderedWeight, u32, u32, u32)> =
+            std::collections::BinaryHeap::new();
+        for root in 0..n {
+            if seen[root] {
+                continue;
+            }
+            seen[root] = true;
+            order.push(root as u32);
+            frontier.clear();
+            let mut push = |frontier: &mut std::collections::BinaryHeap<_>, node: u32| {
+                for &(other, element) in &adjacent[node as usize] {
+                    frontier.push((OrderedWeight(weight[element]), other, node, element as u32));
+                }
+            };
+            push(&mut frontier, root as u32);
+            while let Some((_, other, from, element)) = frontier.pop() {
+                let j = other as usize;
+                if seen[j] {
+                    continue;
+                }
+                seen[j] = true;
+                parent[j] = from;
+                let (_aa, ab, ba, _bb) = blocks[element as usize];
+                // The block on row `j`, column `from`.
+                to_parent[j] = if self.elements[element as usize].a as usize == j { ab } else { ba };
+                order.push(other);
+                push(&mut frontier, other);
+            }
+        }
+        // Children before parents. Prim discovers every joint after its parent,
+        // so reversing the discovery order is exactly that.
+        order.reverse();
+
+        let mut inverse = vec![Mat6::ZERO; n];
+        for &node in &order {
+            let i = node as usize;
+            inverse[i] = diag[i].inverse();
+            let p = parent[i];
+            if p != u32::MAX {
+                let t = to_parent[i];
+                let update = t.transposed().mul(&inverse[i].mul(&t));
+                let mut d = diag[p as usize];
+                d.sub_assign(&update);
+                diag[p as usize] = d;
+            }
+        }
+
+        let excluded: Vec<bool> = (0..n).map(|i| self.fixed[i]).collect();
+        TreeFactor { order, parent, to_parent, inverse, excluded }
+    }
+
+    /// Members outside the spanning forest: the structure's degree of static
+    /// indeterminacy, and what the factorisation cannot see.
+    ///
+    /// Members reaching a foundation do not count. A held-down joint has no
+    /// unknowns, so it is eliminated from the system entirely and its members
+    /// contribute stiffness to the free end and nothing else — there is no
+    /// coupling for the factorisation to drop.
+    pub fn redundancy(&self) -> usize {
+        let n = self.nodes.len();
+        let mut adjacent: Vec<Vec<u32>> = vec![Vec::new(); n];
+        for e in &self.elements {
+            adjacent[e.a as usize].push(e.b);
+            adjacent[e.b as usize].push(e.a);
+        }
+        let mut seen: Vec<bool> = (0..n).map(|i| self.fixed[i]).collect();
+        let mut in_forest = 0usize;
+        let mut queue: std::collections::VecDeque<u32> = std::collections::VecDeque::new();
+        for root in 0..n {
+            if seen[root] {
+                continue;
+            }
+            seen[root] = true;
+            queue.push_back(root as u32);
+            while let Some(node) = queue.pop_front() {
+                for &other in &adjacent[node as usize] {
+                    if seen[other as usize] {
+                        continue;
+                    }
+                    seen[other as usize] = true;
+                    in_forest += 1;
+                    queue.push_back(other);
+                }
+            }
+        }
+        let free_members = self
+            .elements
+            .iter()
+            .filter(|e| !self.fixed[e.a as usize] && !self.fixed[e.b as usize])
+            .count();
+        free_members.saturating_sub(in_forest)
+    }
+
+    /// The four six-by-six blocks of one element's stiffness, by applying it to
+    /// each unit degree of freedom in turn. Twelve applications of a routine
+    /// that already exists, rather than a second derivation of the same algebra
+    /// that could drift away from it.
+    fn element_blocks(&self, e: &Element, stiff: f64) -> (Mat6, Mat6, Mat6, Mat6) {
+        let (mut aa, mut ab, mut ba, mut bb) =
+            (Mat6::ZERO, Mat6::ZERO, Mat6::ZERO, Mat6::ZERO);
+        let unit = |k: usize| {
+            let mut d = Dof::default();
+            match k {
+                0 => d.t.x = 1.0,
+                1 => d.t.y = 1.0,
+                2 => d.t.z = 1.0,
+                3 => d.r.x = 1.0,
+                4 => d.r.y = 1.0,
+                _ => d.r.z = 1.0,
+            }
+            d
+        };
+        let put = |m: &mut Mat6, col: usize, d: Dof| {
+            let v = [d.t.x, d.t.y, d.t.z, d.r.x, d.r.y, d.r.z];
+            for row in 0..6 {
+                m.0[row][col] = v[row];
+            }
+        };
+        for k in 0..6 {
+            let (f1, f2) = self.element_apply(e, unit(k), Dof::default(), stiff);
+            put(&mut aa, k, f1);
+            put(&mut ba, k, f2);
+            let (g1, g2) = self.element_apply(e, Dof::default(), unit(k), stiff);
+            put(&mut ab, k, g1);
+            put(&mut bb, k, g2);
+        }
+        (aa, ab, ba, bb)
+    }
+}
+
+impl Mat6 {
+    fn transposed(&self) -> Mat6 {
+        let mut out = Mat6::ZERO;
+        for i in 0..6 {
+            for j in 0..6 {
+                out.0[i][j] = self.0[j][i];
+            }
+        }
+        out
+    }
+}
+
+
+/// How redundant a structure may be before the tree factorisation stops paying
+/// for itself, as a divisor of the joint count. Measured: a frame with a brace
+/// per joint runs faster on the diagonal.
+const FACTOR_REDUNDANCY_LIMIT: usize = 4;
+
+
+/// A total order on stiffness, for the spanning-forest heap. Stiffnesses are
+/// finite and non-negative by construction, so `total_cmp` is a total order
+/// here without any of the caveats it usually carries.
+#[derive(Debug, Clone, Copy, PartialEq)]
+struct OrderedWeight(f64);
+
+impl Eq for OrderedWeight {}
+impl Ord for OrderedWeight {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.0.total_cmp(&other.0)
+    }
+}
+impl PartialOrd for OrderedWeight {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
