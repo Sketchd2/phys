@@ -12,6 +12,7 @@
 //! cannot state its energy budget cannot be part of the ladder, because the
 //! scale-transition guarantee in `prolong.rs` would have nothing to stand on.
 
+pub mod dynamics;
 pub mod frame;
 pub mod gravity;
 pub mod hydro;

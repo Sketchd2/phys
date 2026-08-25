@@ -88,6 +88,25 @@ pub struct Frame {
     /// Nodes held against translation *and* rotation — a foundation, not a pin.
     pub fixed: Vec<bool>,
     pub material: Material,
+
+    /// Lumped mass and rotational inertia per node. Empty for a static
+    /// analysis, where inertia is by definition irrelevant.
+    ///
+    /// This is what turns the operator from `K` into `s_m M + s_k K`, and it is
+    /// the whole of what [`crate::solvers::dynamics`] needs from this module:
+    /// an implicit dynamic step is a static solve against a shifted operator,
+    /// so the conjugate gradient, the preconditioner, the plastic
+    /// redistribution and the failure criteria are all *the same code*. A
+    /// structure cannot then move according to one stiffness and break
+    /// according to another.
+    pub lumped: Vec<Dof>,
+    /// Coefficient on `lumped` in the operator. Zero — the default — leaves a
+    /// purely static problem however much mass is attached.
+    pub mass_scale: f64,
+    /// Coefficient on the stiffness in the operator. One for a static solve;
+    /// backward Euler with stiffness-proportional damping uses `1 + beta/h`.
+    /// It scales the operator only, never the reported member forces.
+    pub stiff_scale: f64,
 }
 
 /// Internal forces in one member, in its own local frame.
@@ -129,28 +148,28 @@ pub struct Dof {
 
 impl Dof {
     #[inline]
-    fn add(self, o: Dof) -> Dof {
+    pub fn add(self, o: Dof) -> Dof {
         Dof { t: self.t + o.t, r: self.r + o.r }
     }
     #[inline]
-    fn sub(self, o: Dof) -> Dof {
+    pub fn sub(self, o: Dof) -> Dof {
         Dof { t: self.t - o.t, r: self.r - o.r }
     }
     #[inline]
-    fn scale(self, s: f64) -> Dof {
+    pub fn scale(self, s: f64) -> Dof {
         Dof { t: self.t.scale(s), r: self.r.scale(s) }
     }
     #[inline]
-    fn dot(self, o: Dof) -> f64 {
+    pub fn dot(self, o: Dof) -> f64 {
         self.t.dot(o.t) + self.r.dot(o.r)
     }
     #[inline]
-    fn is_finite(self) -> bool {
+    pub fn is_finite(self) -> bool {
         self.t.is_finite() && self.r.is_finite()
     }
     /// Componentwise product, for applying a diagonal preconditioner.
     #[inline]
-    fn mul(self, o: Dof) -> Dof {
+    pub fn mul(self, o: Dof) -> Dof {
         Dof {
             t: v3(self.t.x * o.t.x, self.t.y * o.t.y, self.t.z * o.t.z),
             r: v3(self.r.x * o.r.x, self.r.y * o.r.y, self.r.z * o.r.z),
@@ -171,7 +190,15 @@ fn basis(axis: Vec3) -> (Vec3, Vec3, Vec3) {
 
 impl Frame {
     pub fn new(material: Material) -> Frame {
-        Frame { nodes: Vec::new(), elements: Vec::new(), fixed: Vec::new(), material }
+        Frame {
+            nodes: Vec::new(),
+            elements: Vec::new(),
+            fixed: Vec::new(),
+            material,
+            lumped: Vec::new(),
+            mass_scale: 0.0,
+            stiff_scale: 1.0,
+        }
     }
 
     pub fn add_node(&mut self, p: Vec3, fixed: bool) -> u32 {
@@ -259,15 +286,31 @@ impl Frame {
         )
     }
 
+    /// The operator `s_m M + s_k K` applied to a displacement state.
+    ///
+    /// Public because a dynamic solver needs the residual `f - K x` as well as
+    /// the solve itself, and re-deriving the element loop to get it would be
+    /// the exact duplication this module exists to avoid. Pass
+    /// `mass_scale = 0`, `stiff_scale = 1` for the plain stiffness product.
+    pub fn apply_operator(&self, u: &[Dof], stiff: &[f64], out: &mut [Dof]) {
+        self.apply(u, stiff, out)
+    }
+
     fn apply(&self, u: &[Dof], stiff: &[f64], out: &mut [Dof]) {
         for o in out.iter_mut() {
             *o = Dof::default();
         }
         for (i, e) in self.elements.iter().enumerate() {
             let (a, b) = (e.a as usize, e.b as usize);
-            let (f1, f2) = self.element_apply(e, u[a], u[b], stiff[i]);
+            let (f1, f2) = self.element_apply(e, u[a], u[b], stiff[i] * self.stiff_scale);
             out[a] = out[a].add(f1);
             out[b] = out[b].add(f2);
+        }
+        if self.mass_scale != 0.0 {
+            for (i, o) in out.iter_mut().enumerate() {
+                let m = self.lumped.get(i).copied().unwrap_or_default();
+                *o = o.add(m.mul(u[i]).scale(self.mass_scale));
+            }
         }
         for (i, o) in out.iter_mut().enumerate() {
             if self.fixed[i] {
@@ -291,9 +334,10 @@ impl Frame {
                 continue;
             }
             let (e1, e2, e3) = basis(self.nodes[e.b as usize] - self.nodes[e.a as usize]);
-            let ea = stiff[i] * e.area() / l;
-            let ei = stiff[i] * e.inertia();
-            let gj = stiff[i] / (2.0 * (1.0 + POISSON)) * e.polar() / l;
+            let k = stiff[i] * self.stiff_scale;
+            let ea = k * e.area() / l;
+            let ei = k * e.inertia();
+            let gj = k / (2.0 * (1.0 + POISSON)) * e.polar() / l;
             let sq = |v: Vec3| v3(v.x * v.x, v.y * v.y, v.z * v.z);
             let trans = sq(e1).scale(ea)
                 + if e.truss { Vec3::ZERO } else { (sq(e2) + sq(e3)).scale(12.0 * ei / l.powi(3)) };
@@ -305,6 +349,12 @@ impl Frame {
             for n in [e.a as usize, e.b as usize] {
                 d[n].t += trans;
                 d[n].r += rot;
+            }
+        }
+        if self.mass_scale != 0.0 {
+            for (i, di) in d.iter_mut().enumerate() {
+                let m = self.lumped.get(i).copied().unwrap_or_default();
+                *di = di.add(m.scale(self.mass_scale));
             }
         }
         d

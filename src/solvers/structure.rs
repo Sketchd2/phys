@@ -517,31 +517,42 @@ fn accumulate(
 /// tip, so the node count is the member count plus one anchor per ground
 /// connection. Distributed member loads are lumped half to each end, which is
 /// the standard consistent treatment for a uniformly loaded element.
-fn frame_analyse(
-    bodies: &[Body],
-    topo: &Topology,
-    external: &[Vec3],
-    loads: &LoadField,
-    n: usize,
-) -> Option<(Vec<JointLoad>, u32)> {
-    use crate::solvers::frame::{Dof, Frame};
+/// The frame a topology describes: joints, members, and what holds it down.
+///
+/// Shared by the static analysis and by [`crate::solvers::dynamics`], which is
+/// the point — a structure that is analysed and a structure that is animated
+/// must be the same structure, down to which joints are welded together and
+/// which members are pin-jointed.
+pub struct BuiltFrame {
+    pub frame: crate::solvers::frame::Frame,
+    /// Node at each member's far end, or `u32::MAX` if the member has none.
+    pub tip_node: Vec<u32>,
+    /// Node at each member's supported end.
+    pub base_node: Vec<u32>,
+    /// Element index of each member, or `usize::MAX` if it has none.
+    pub element_of: Vec<usize>,
+}
+
+/// Build the frame for a topology.
+///
+/// Joints are the members' shared endpoints: a member's base *is* its parent's
+/// tip. Members that meet at a point without a support relation between them —
+/// three bars to a common apex, a strut closing a triangle — weld into one
+/// joint too, because giving each its own coincident node would leave the joint
+/// free to come apart. Free and fixed nodes weld separately: an anchor that
+/// happens to sit where a free joint is must not drag that joint into the
+/// ground.
+pub fn build_frame(topo: &Topology, n: usize) -> BuiltFrame {
+    use crate::solvers::frame::Frame;
 
     let mut frame = Frame::new(topo.material);
-    // Node at the far end of each member, plus a fixed node under each anchor.
     let mut tip_node = vec![u32::MAX; n];
     let mut base_node = vec![u32::MAX; n];
     let mut element_of = vec![usize::MAX; n];
-
-    // Members that meet at a point share a node. The support relation already
-    // says so for parent/child, but independent members can converge too --
-    // three bars to a common apex, a strut closing a triangle -- and giving
-    // each its own coincident node would leave the joint free to come apart.
-    // Free and fixed nodes are welded separately: an anchor that happens to sit
-    // where a free joint is must not drag that joint into the ground.
     let mut weld = Weld::new(topo, n);
 
     for i in 0..n {
-        if topo.bonds[i].radius <= 0.0 {
+        if topo.bonds[i].radius <= 0.0 || topo.bonds[i].integrity <= 0.0 {
             continue;
         }
         tip_node[i] = weld.node(&mut frame, topo.tip[i], false);
@@ -558,33 +569,43 @@ fn frame_analyse(
         };
     }
     for i in 0..n {
-        if tip_node[i] == u32::MAX {
-            continue;
-        }
-        if base_node[i] == tip_node[i] {
+        if tip_node[i] == u32::MAX || base_node[i] == tip_node[i] {
             continue;
         }
         element_of[i] = frame.add_beam(base_node[i], tip_node[i], topo.bonds[i].radius);
+        frame.elements[element_of[i]].integrity = topo.bonds[i].integrity;
     }
     for t in &topo.ties {
         let (a, b) = (t.a as usize, t.b as usize);
         if a >= n || b >= n || t.integrity <= 0.0 {
             continue;
         }
-        if tip_node[a] == u32::MAX || tip_node[b] == u32::MAX {
-            continue;
-        }
-        if tip_node[a] == tip_node[b] {
-            // The tie's ends welded into one joint; it has nothing to hold.
+        if tip_node[a] == u32::MAX || tip_node[b] == u32::MAX || tip_node[a] == tip_node[b] {
+            // Either end missing, or the tie's ends welded into one joint and
+            // it has nothing left to hold.
             continue;
         }
         let radius = (t.area / std::f64::consts::PI).max(0.0).sqrt();
-        frame.add_tie(tip_node[a], tip_node[b], radius);
+        let e = frame.add_tie(tip_node[a], tip_node[b], radius);
+        frame.elements[e].integrity = t.integrity;
     }
+
+    BuiltFrame { frame, tip_node, base_node, element_of }
+}
+
+fn frame_analyse(
+    bodies: &[Body],
+    topo: &Topology,
+    external: &[Vec3],
+    loads: &LoadField,
+    n: usize,
+) -> Option<(Vec<JointLoad>, u32)> {
+    use crate::solvers::frame::Dof;
+
+    let BuiltFrame { frame, tip_node, base_node, element_of } = build_frame(topo, n);
     if frame.elements.is_empty() {
         return None;
     }
-
     let mut load = vec![Dof::default(); frame.nodes.len()];
     for i in 0..n {
         if tip_node[i] == u32::MAX {
@@ -874,5 +895,142 @@ impl Weld {
         let id = frame.add_node(p, fixed);
         self.cells.entry((cx, cy, cz, f)).or_default().push(id);
         id
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Dynamics
+// ---------------------------------------------------------------------------
+
+/// A structure with mass, ready to be integrated through time.
+///
+/// [`analyse`] answers "does this stand up under that load". This answers "what
+/// does it *do* when that load arrives", which is a different question with a
+/// different answer: a gust that a quasi-static check passes at 60% utilisation
+/// can break the same member outright, because a load that arrives suddenly
+/// deflects a structure about twice as far as the same load standing still.
+pub struct DynamicStructure {
+    pub dynamics: crate::solvers::dynamics::Dynamics,
+    /// Node at each member's far end.
+    pub tip_node: Vec<u32>,
+    /// Node at each member's supported end.
+    pub base_node: Vec<u32>,
+    /// Element index of each member.
+    pub element_of: Vec<usize>,
+}
+
+/// Give a topology mass and inertia.
+///
+/// The structural mass comes from the members' own geometry and the material's
+/// density, which is what sets the rotational inertia at a joint. Anything a
+/// part weighs *beyond* that — foliage, cladding, accreted snow, a floor's
+/// contents — is added as point mass at the member's ends: it is carried, and
+/// it changes what the structure does, but it does not stiffen anything.
+pub fn dynamic_structure(bodies: &[Body], topo: &Topology) -> Option<DynamicStructure> {
+    use crate::solvers::dynamics::Dynamics;
+
+    let n = bodies.len().min(topo.support.len());
+    let BuiltFrame { frame, tip_node, base_node, element_of } = build_frame(topo, n);
+    if frame.elements.is_empty() {
+        return None;
+    }
+    let density = frame.material.density;
+    let mut dynamics = Dynamics::new(frame);
+    for i in 0..n {
+        let (tip, base) = (tip_node[i], base_node[i]);
+        if tip == u32::MAX || base == u32::MAX {
+            continue;
+        }
+        let (axis, len) = member_axis(topo, i);
+        let _ = axis;
+        let structural = density * topo.bonds[i].area() * len;
+        let carried = (bodies[i].mass - structural).max(0.0);
+        if carried > 0.0 {
+            dynamics.add_point_mass(tip, carried * 0.5);
+            dynamics.add_point_mass(base, carried * 0.5);
+        }
+    }
+    Some(DynamicStructure { dynamics, tip_node, base_node, element_of })
+}
+
+impl DynamicStructure {
+    /// Turn a load field into nodal forces.
+    ///
+    /// A member's load acts along its length, so half of it goes to each end —
+    /// the same consistent lumping the static path uses, for the same reason:
+    /// so that a structure held at a steady load settles to exactly the
+    /// deflection [`analyse`] predicts for it.
+    pub fn nodal_loads(&self, field: &LoadField) -> Vec<crate::solvers::frame::Dof> {
+        use crate::solvers::frame::Dof;
+        let mut load = vec![Dof::default(); self.dynamics.frame.nodes.len()];
+        for i in 0..self.tip_node.len().min(field.len()) {
+            let (tip, base) = (self.tip_node[i], self.base_node[i]);
+            if tip == u32::MAX || base == u32::MAX {
+                continue;
+            }
+            let half = field.force[i].scale(0.5);
+            load[base as usize].t += half;
+            load[tip as usize].t += half;
+        }
+        load
+    }
+
+    /// Advance by `h` seconds under a load field.
+    pub fn advance(
+        &mut self,
+        field: &LoadField,
+        h: f64,
+    ) -> crate::solvers::dynamics::StepReport {
+        let load = self.nodal_loads(field);
+        self.dynamics.step(&load, h)
+    }
+
+    /// Move the bodies onto the deformed structure.
+    ///
+    /// Parts sit at their members' midpoints, so a part's position and velocity
+    /// are the mean of its member's two ends. Writing back rather than
+    /// integrating the bodies directly is deliberate: the frame's degrees of
+    /// freedom are the joints, and a part is a view of the two joints it lies
+    /// between, not an independent thing that could disagree with them.
+    pub fn write_back(&self, bodies: &mut [Body], h: f64) {
+        let deformed = self.dynamics.deformed();
+        let vel = &self.dynamics.velocity;
+        let _ = h;
+        for i in 0..bodies.len().min(self.tip_node.len()) {
+            let (tip, base) = (self.tip_node[i], self.base_node[i]);
+            if tip == u32::MAX || base == u32::MAX {
+                continue;
+            }
+            bodies[i].pos = (deformed[tip as usize] + deformed[base as usize]).scale(0.5);
+            bodies[i].vel = (vel[tip as usize].t + vel[base as usize].t).scale(0.5);
+        }
+    }
+
+    /// Members that have failed, in member-index space.
+    pub fn failed_members(&self, broken: &[usize]) -> Vec<u32> {
+        let mut out = Vec::new();
+        for (member, &e) in self.element_of.iter().enumerate() {
+            if e != usize::MAX && broken.contains(&e) {
+                out.push(member as u32);
+            }
+        }
+        out
+    }
+
+    /// Deformed geometry of every member, as `(base, tip)` pairs — what a
+    /// renderer needs and nothing more.
+    pub fn deformed_members(&self) -> Vec<(Vec3, Vec3)> {
+        let d = self.dynamics.deformed();
+        self.tip_node
+            .iter()
+            .zip(&self.base_node)
+            .map(|(&t, &b)| {
+                if t == u32::MAX || b == u32::MAX {
+                    (Vec3::ZERO, Vec3::ZERO)
+                } else {
+                    (d[b as usize], d[t as usize])
+                }
+            })
+            .collect()
     }
 }
