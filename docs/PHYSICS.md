@@ -164,6 +164,45 @@ independent, so fixing any two fixes the third.
 | Energy over 50 000 steps | drift 3.5 × 10⁻¹³ |
 | H–O–H bend released 30° off rest | settles to 104.50° |
 
+#### Bonds that form
+
+The hard part of reactive chemistry is not deciding when a bond exists. It is
+that adding a term to the potential ordinarily *changes* the potential, and a
+simulation that gains energy every time two atoms meet is worthless however
+plausible its chemistry.
+
+Every bond is multiplied by a smooth switch — one at short range, zero beyond,
+half a cosine between. Bonds are created and destroyed only where that switch is
+zero, so **the moment of creation and the moment of destruction are both
+energetically invisible**. Conservation across a topology change is not patched
+up afterwards; there is nothing to patch.
+
+| Test | Result |
+|---|---|
+| Potential moved by any formation or breaking | 0.000 J |
+| Total drift over a run that forms a bond | 3.6 × 10⁻⁶ of a well depth |
+| Well converted to motion on approach | 4.22 eV of a 4.75 eV well |
+| Valence saturation (O with four H nearby) | O takes 2, each H takes 1 |
+| Three loose atoms with a heat sink | O–H at 0.958 Å, H–O–H at 104.5° |
+
+What the bond releases is real: an exothermic reaction warms the gas, and the
+conserved tuple shows exactly where the heat came from. A two-atom collision
+then comes *apart* again, which is not a failure — two atoms approaching from
+infinity have positive total energy and nothing in a two-body collision can take
+any of it away. Real recombination needs a third body, which is why the water
+test has one.
+
+Three things had to be right and none was at first. The switch enters the force
+as well as the energy, and its term is *added*: where the switch is closing it
+lifts a negative potential towards zero, which is extra restoring force, and
+with the sign wrong a molecule with three quarters of its dissociation energy
+escaped. Dispersion has to be faded out over the same range rather than switched
+off, because the same wall that would tear a molecule apart also stops two atoms
+ever reaching the distance at which they could bond. And the handover has to
+happen where neither term is doing anything: at 2.4 bond lengths it is deep
+inside the van der Waals wall and leaves a 0.026 eV barrier that is nobody's
+chemistry.
+
 Bonded pairs are excluded from the nonbonded sum, 1-2 and 1-3, as any force
 field does. This is not a small double-count: two hydrogens sit 0.74 Å apart
 with a Lennard-Jones σ of 2.57 Å, so the repulsive term between them is enormous
@@ -307,7 +346,50 @@ flexible. The cantilever row, by contrast, proves nothing — the spring model w
 stress check alone would also read only 0.0197 at the Euler critical load, a
 factor of 51 of false margin, which is why buckling is a separate criterion.
 
-### 3.7 Structural dynamics
+### 3.7 Design, and coming apart
+
+A generated structure is analysed and proportioned the moment it is
+materialised. The generator decides where members go; it cannot know what any of
+them will carry, so its radii are a shape scaled as a group to match the
+structural mass. Fully-stressed design fixes that: analyse, give every member
+the section that brings it to the utilisation every other member is at, rescale
+the set back to the volume it started with, repeat.
+
+| Structure | Peak utilisation | Spread | Structural volume |
+|---|---|---|---|
+| Tree, 900 kg | 0.628 → 0.343 | 0.103 → 0.057 | error 1.0 × 10⁻¹⁵ |
+| Tree, 6 t | 0.797 → 0.368 | 0.131 → 0.068 | error 1.4 × 10⁻¹⁴ |
+| Tower, 3000 t, braced | 0.080 → 0.014 | 0.013 → 0.005 | error 2.1 × 10⁻¹⁵ |
+
+The material does not change; where it is does. Members are sized against an
+*envelope* — a vertical overload standing in for anything that settles on a
+structure, plus the program's design flow from three directions — because sizing
+against one case gives a structure that is optimal for that case and brittle in
+every other. A wind from six directions none of the cases used reaches 0.417
+utilisation on a tree designed for 20 m/s.
+
+Breaking apart is then a re-analysis. A break is a member ceasing to be
+*supported*, and everything hanging off it comes away as its own object with its
+own roots — which matters because the static analysis walks the support forest
+towards its roots, and a branch still carrying its old support index is still,
+as far as any analysis knows, being held up by the trunk it fell off. The piece
+falls, tests its members as capsules against what is below, and hands over the
+reaction through the ordinary mechanism vocabulary. On a 4 t tree in a 38 m/s
+gale: 35 joints break into 24 pieces, 704 kg falls from up to 13 m, 178 members
+are struck, and four fail under impact at a peak utilisation of 2.26.
+
+Five things had to be right there, and the failures were all silent. A
+fragment's roots are *free*, not fixed — the distinction is not in the topology,
+which has no opinion about the planet — and built wrong every piece hangs in the
+air exactly where it broke. The ground is not at zero, because a structure is
+recentred on its own centre of mass. An impulse is not a force. The whole piece
+is behind the contact, not the joint that touched, so using the local lumped
+mass under-reads the force by the number of joints in the piece. And impulses
+have to accumulate into one analysis per structure per step, because each
+analysis regenerates the structure and renumbers the members the next impulse
+was aimed at.
+
+### 3.8 Structural dynamics
 
 Newmark-beta on the same operator, with lumped mass and rotational inertia from
 the members' own geometry. `tests/dynamics.rs`:
