@@ -225,6 +225,7 @@
     const r = readouts();
     const mass = r[0], tallest = r[1], age = r[2], util = r[5], broken = r[6];
     const windNow = r[16], sway = r[17], trees = r[18];
+    const falling = r[20], byImpact = r[22];
 
     $("roTrees").textContent = trees.toFixed(0);
     $("roMass").textContent = fmtMass(mass);
@@ -233,6 +234,10 @@
     $("roUtil").textContent = util.toFixed(2);
     $("roUtil").style.color = util >= 1 ? css("--crit") : util > 0.7 ? css("--warn") : "";
     $("roBroken").textContent = broken.toFixed(0);
+    $("roFalling").textContent = falling > 0 ? falling.toFixed(0) + " pieces" : "—";
+    $("roFalling").style.color = falling > 0 ? css("--warn") : "";
+    $("roImpact").textContent = byImpact > 0 ? byImpact.toFixed(0) : "—";
+    $("roImpact").style.color = byImpact > 0 ? css("--crit") : "";
     $("roGust").textContent = windNow.toFixed(1) + " m/s";
     $("roSway").textContent = sway >= 0.01 ? (sway * 100).toFixed(0) + " cm" : "—";
 

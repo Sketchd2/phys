@@ -63,7 +63,23 @@ constructors over them. Damage is never scripted: a mechanism produces forces,
 temperature or deposited energy, and the ordinary stress calculation decides
 what survives.
 
-**5. Bonds decide what moves, not only what breaks.** The same stiffness that
+**5. A structure is analysed and proportioned when it is built.** The generator
+decides where members go; it cannot know what any of them will carry. So every
+materialisation runs a fully-stressed design pass — analyse, size each member
+for the load it actually takes, rescale back to the volume it started with,
+repeat. Peak utilisation halves at a structural volume that moves by 10⁻¹⁵.
+Members are sized against an *envelope* of load cases, because a tree
+proportioned only for a westerly falls over in an easterly.
+
+**6. Breaking apart is a re-analysis, not a deletion.** A break is a member
+ceasing to be *supported*, and everything hanging off it comes away as its own
+object — re-rooted, because the static analysis walks the support forest towards
+its roots and a branch still carrying its old support index is still, as far as
+any analysis knows, being held up by the trunk it fell off. The piece then falls,
+and what it lands on gets the impulse through the same mechanism vocabulary
+everything else uses, so one limb can take another down with it.
+
+**7. Bonds decide what moves, not only what breaks.** The same stiffness that
 sets a member's load is given mass and integrated through time by Newmark-beta
 on the *same operator*, so a structure cannot move according to one stiffness
 and break according to another. That buys a number no static analysis can
@@ -73,15 +89,19 @@ stress twofold. The solver measures 1.985 against a theory of exactly 2, and
 reproduces a cantilever's fundamental period to 0.13% of beam theory. At the
 particle tier the same gap is closed by Morse bonds, whose dissociation is
 emergent rather than a threshold: H₂'s vibrational fundamental comes out at
-4403 /cm against an observed 4401.
+4403 /cm against an observed 4401. Bonds *form* as well as break, and because
+they are created and destroyed only where their smooth cutoff is zero, the
+moment of creation is energetically invisible — measured at 0.000 J of potential
+moved. Given a third body to carry off the heat of formation, three loose atoms
+assemble themselves into water at 104.5°.
 
-**6. Observation as commitment.** An unobserved quantity has no value; a
+**8. Observation as commitment.** An unobserved quantity has no value; a
 measured one is recorded permanently in a ledger and never re-sampled. At the
 subatomic tier this is not an approximation of quantum mechanics — it *is*
 quantum mechanics, which is why the trick survives all the way down instead of
 breaking at the bottom.
 
-**7. A frame budget that spends detail, not time.** Each frame gets 50 ms and
+**9. A frame budget that spends detail, not time.** Each frame gets 50 ms and
 solves a knapsack over the available work. Frame rate is the invariant;
 fidelity is the free variable. A user who zooms too far does not get a
 slideshow, they get a slightly coarser world and a visible detail-debt readout.
@@ -89,13 +109,14 @@ slideshow, they get a slightly coarser world and a visible detail-debt readout.
 ## Run it
 
 ```sh
-sh viewer/build.sh                      # build the real-time viewer, then open
-open viewer/index.html                  #   it — no server, no install
+sh viewer/build.sh                      # build both viewers, then open either
+open viewer/index.html                  #   one structure under load
+open viewer/forest.html                 #   twenty trees under one gust
 
 cargo run --release --bin phys-demo     # guided tour, galaxy to nucleus
 cargo run --release --example bench     # measured cost of every hot path
 cargo run --release --example damage    # grow a structure, break it, write PNGs
-cargo test --release                    # 96 tests
+cargo test --release                    # 109 tests
 ```
 
 ## The viewer
@@ -105,6 +126,10 @@ not a port, and not playback of exported frames. The growth model, the
 conservation projection and the structural solver running in the browser are
 the same code the test suite checks. It steps in about 6.5 ms, so there is
 ample headroom at 60 frames a second.
+
+There are two pages. `viewer/index.html` is one structure under load;
+`viewer/forest.html` is twenty trees grown from twenty seeds under one gusting
+wind, which is the demonstration that nothing here is per-structure tuning.
 
 Grow a structure over decades, then load it while it stands: wind and snow are
 continuous conditions, lightning and fire are events. Turn on real-time
@@ -157,7 +182,8 @@ viewer/        the real-time viewer and its build script
   solvers/     gravity, hydro, molecular dynamics (with covalent bonds),
                nuclear, quantum, frame analysis, structural dynamics
 tests/         consistency, causality, solvers, statistics, budget,
-               interaction, growth, topology, frame, dynamics, bonded
+               interaction, growth, topology, frame, dynamics, bonded,
+               fragments
 ```
 
 ## Status

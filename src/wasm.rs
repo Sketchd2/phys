@@ -504,6 +504,8 @@ pub struct Forest {
     dynamic: bool,
     total_broken: u32,
     shed: f64,
+    /// Floats of standing geometry, before any debris is appended.
+    standing_floats: usize,
 }
 
 struct Stand {
@@ -596,6 +598,7 @@ pub extern "C" fn create_forest(seed: u32, count: u32, extent: f32, budget: u32)
             dynamic: true,
             total_broken: 0,
             shed: 0.0,
+            standing_floats: 0,
         });
     }
     refresh_forest(forest());
@@ -690,12 +693,22 @@ pub extern "C" fn shake_forest(seconds: f32) {
         worst_sway = worst_sway.max(out.displacement as f32);
         worst_util = worst_util.max(f.trees[i].utilisation);
     }
-    f.total_broken += broken as u32;
-    if broken > 0 {
+    // Whatever came away is falling now, and what it lands on has to answer
+    // for it. This is where a stand becomes more than twenty independent
+    // trees: a limb off one of them arrives on the branches below at a speed
+    // the ordinary stress calculation has an opinion about.
+    let fall = f.world.drop_fragments(dt);
+    f.total_broken += (broken + fall.secondary_breaks) as u32;
+    f.shed += fall.secondary_mass;
+    f.readouts[20] = fall.still_falling as f32;
+    f.readouts[21] = fall.struck_members as f32;
+    f.readouts[22] += fall.secondary_breaks as f32;
+    if broken > 0 || fall.secondary_breaks > 0 {
         refresh_forest(f);
     } else {
         write_forest_geometry(f);
     }
+    write_debris(f);
     f.readouts[16] = (f.wind + f.gust.iter().sum::<f64>() / f.gust.len().max(1) as f64) as f32;
     f.readouts[17] = worst_sway;
     f.readouts[5] = worst_util;
@@ -761,6 +774,7 @@ fn refresh_forest(f: &mut Forest) {
         f.trees[i].height = m.map(|m| m.height()).unwrap_or(0.0) as f32;
         standing += m.map(|m| m.built).unwrap_or(0.0);
     }
+    f.standing_floats = f.geometry.len();
     f.readouts[0] = standing as f32;
     f.readouts[1] = f
         .trees
@@ -776,6 +790,37 @@ fn refresh_forest(f: &mut Forest) {
     f.readouts[5] = worst_util;
     f.readouts[18] = f.trees.len() as f32;
     f.readouts[19] = f.budget as f32;
+}
+
+/// Append the falling debris to the geometry buffer.
+///
+/// Debris is drawn at full utilisation, which is not a stress reading — it has
+/// none, it is not carrying anything — but it is the honest colour for it: the
+/// thing an observer needs to see is that this wood is no longer part of a
+/// structure.
+fn write_debris(f: &mut Forest) {
+    f.geometry.truncate(f.standing_floats);
+    for (node, frag) in f.world.falling() {
+        let Some(at) = f.trees.iter().find(|t| t.node == *node).map(|t| t.at) else {
+            continue;
+        };
+        for (a, b) in frag.dynamics.deformed_members() {
+            if a == b {
+                continue;
+            }
+            let (a, b) = (a + at, b + at);
+            f.geometry.extend_from_slice(&[
+                a.x as f32,
+                a.y as f32,
+                a.z as f32,
+                b.x as f32,
+                b.y as f32,
+                b.z as f32,
+                0.03,
+                1.0,
+            ]);
+        }
+    }
 }
 
 /// Overwrite the geometry with where every tree actually is.

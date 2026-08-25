@@ -509,10 +509,22 @@ engine depends on.
   bent double. `StepReport::displacement_ratio` reports the worst chord rotation
   every step, so the regime is measured rather than assumed; a corotational
   element formulation would remove the limit and has not been written.
-- **Molecular bonds are a fixed list.** Bonds are Morse and dissociate
-  emergently, but nothing forms new ones: the solver can take a molecule apart
-  and cannot put a different one together. Real reaction chemistry needs a
-  bond-order potential, which is a different and much larger undertaking.
+- **Chemistry is valence-limited, not bond-order.** Bonds form and break, and
+  what stops a hydrogen acquiring five neighbours is a valence count rather than
+  a many-body bond order that weakens with over-coordination. A Tersoff or
+  Brenner potential is the better answer where the energetics of intermediate
+  coordination matter; the question asked here is only whether a molecule holds
+  together and can react.
+- **Falling debris is bounded and one-way.** At most twenty-four pieces fall at
+  once and each is written off after twelve seconds, because a crown fire breaks
+  thousands of joints and simulating every twig's descent would spend the whole
+  budget on litter. Debris collides with the structure it fell from and with the
+  ground, not with other debris.
+- **The design pass optimises against an envelope, and an envelope is a
+  choice.** A vertical overload at 2.5 g and the program's design flow from a
+  few directions is not every load a structure will meet. What it buys is that
+  the structure is not *brittle* off-design, which is checked; what it cannot
+  buy is optimality against a load nobody listed.
 - **Structures cannot straddle nodes.** A building spanning several nodes, or
   roots reaching into the soil node, would need cross-links, which the strictly
   hierarchical tree deliberately forbids — that hierarchy is what makes the

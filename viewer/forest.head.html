@@ -223,8 +223,11 @@ select:focus-visible{outline:2px solid var(--accent); outline-offset:1px}
       <div class="readouts">
         <div class="ro"><span class="k">Worst utilisation</span><span class="v val" id="roUtil">—</span></div>
         <div class="ro"><span class="k">Joints failed</span><span class="v val" id="roBroken">—</span></div>
+        <div class="ro"><span class="k">Debris in the air</span><span class="v val" id="roFalling">—</span></div>
+        <div class="ro"><span class="k">Broken by impact</span><span class="v val" id="roImpact">—</span></div>
       </div>
       <div class="ramp"><span>at rest</span><span class="bar"></span><span>failure</span></div>
+      <p class="note" style="margin-top:9px">A limb that comes off is re-rooted as its own object and falls. What it lands on gets the impulse, and the same stress calculation decides whether that breaks too &mdash; so one limb can take another down with it.</p>
     </div>
 
     <div class="group">
