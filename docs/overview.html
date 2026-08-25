@@ -306,7 +306,7 @@ footer .mono{font-size:.78rem}
 
 <section>
   <div class="wrap">
-    <span class="eyebrow">Architecture</span><h2>Six ideas</h2>
+    <span class="eyebrow">Architecture</span><h2>Eight ideas</h2>
     <p>The engine is assembled from established techniques — adaptive mesh refinement, Barnes-Hut, sub-grid models, procedural generation, conservative discrete-event simulation. The gaps between them are consistent: the level-of-detail techniques are not conservative, the conservative techniques are not lazy, and none of them is driven by what an observer can actually see.</p>
   </div>
 
@@ -335,6 +335,18 @@ footer .mono{font-size:.78rem}
         <h3>A bond decides what breaks and what moves</h3>
         <p>Joints come from the same program as the geometry, so holding a tree together costs no more to store than its shape. Where the load path is a tree, internal forces are exact in one O(n) pass; add a brace and a real beam solver takes over.</p>
         <p>The same stiffness, given mass, is integrated through time — so a structure cannot move according to one stiffness and break according to another. A gust that a static check passes at 60% breaks the member outright.</p>
+      </div>
+      <div class="idea">
+        <span class="tag">Design</span>
+        <h3>A structure is proportioned when it is built</h3>
+        <p>The generator decides where members go. It cannot know what any of them will carry, so its radii are a shape — which leaves a few members at the point of failure and most of the material in members doing nothing.</p>
+        <p>Every materialisation runs fully-stressed sizing against an envelope of load cases. Peak utilisation halves; structural volume moves by <span class="ok">10⁻¹⁵</span>. The material does not change; where it is does.</p>
+      </div>
+      <div class="idea">
+        <span class="tag">Failure</span>
+        <h3>Coming apart is a re-analysis</h3>
+        <p>A break is a member ceasing to be <em>supported</em>, and everything hanging off it leaves as its own object with its own roots. That is not bookkeeping: the analysis walks the support forest towards its roots, and a branch keeping its old index is still being held up by the trunk it fell off.</p>
+        <p>The piece then falls, and what it lands on takes the impulse through the same vocabulary everything else uses — so one limb takes another down with it.</p>
       </div>
       <div class="idea">
         <span class="tag">Observation</span>
@@ -471,7 +483,14 @@ footer .mono{font-size:.78rem}
 
     <p>The consistency check runs both ways. Hold a load steady and the dynamics settles to the static answer to within 0.000%. And on a 1500-member determinate tree the frame solver and the O(n) statics pass agree, member by member, to <span class="ok mono">7 × 10⁻¹¹</span> — which is the only agreement available, since a determinate structure's internal forces are fixed by equilibrium alone.</p>
 
+    <div class="note-box">
+      <span class="lab">What a fall is worth</span>
+      <p>On a four-tonne tree in a 38 m/s gale: 35 joints break into 24 pieces, 704 kg of debris falls from up to 13 metres, 178 members are struck on the way down, and four of them fail under impact at a utilisation of 2.26. None of that is scripted. Every step of it is the same stress calculation that decides whether the tree stands up at all.</p>
+      <p>Five things had to be right and every failure was silent. A fragment's roots are <em>free</em>, not fixed — the distinction is not in the topology, which has no opinion about the planet — and built wrong, every piece hangs in the air exactly where it broke. The ground is not at zero, because a structure is recentred on its own centre of mass. An impulse is not a force. The whole piece is behind the contact, not the joint that touched. And impulses have to accumulate into one analysis per step, because each analysis regenerates the structure and renumbers the members the next impulse was aimed at.</p>
+    </div>
+
     <p>The particle tier had the same gap and it is closed the same way. Lennard-Jones plus screened Coulomb describes a gas well and a molecule not at all — nothing in it distinguishes two hydrogens that are bonded from two that are merely near each other. Bonds are now Morse, which has the right curvature at the bottom of the well and flattens out at the dissociation energy, so a molecule given more than that energy comes apart because the potential ran out rather than because a threshold fired. H₂'s vibrational fundamental comes out at <span class="ok mono">4403 /cm</span> against an observed 4401.</p>
+    <p>Bonds <em>form</em>, too, and that is harder than it sounds: adding a term to the potential ordinarily changes the potential, and a simulation that gains energy every time two atoms meet is worthless however plausible its chemistry. Because every bond is multiplied by a smooth switch and bonds are created and destroyed only where that switch is zero, the moment of creation is energetically invisible — <span class="ok mono">0.000 J</span> of potential moved by any formation or breaking. Given a third body to carry off the heat, three loose atoms assemble themselves into water: O–H at 0.958 Å against an equilibrium of 0.958, and H–O–H at 104.5°.</p>
   </div>
 </section>
 
@@ -535,7 +554,8 @@ footer .mono{font-size:.78rem}
       <li><strong>The CPU tree code is 3–10× off production quality.</strong> Single-body leaves rather than buckets, per-particle rather than grouped traversal — both standard optimisations, deliberately left out so the reference stays simple enough to serve as a bit-exact oracle.</li>
       <li><strong>General relativity is post-Newtonian only</strong>, adequate to a few hundred Schwarzschild radii. Nuclear and electronic structure are rate- and table-based; chemistry is eight lumped species; turbulence is a prescribed field, not a solved cascade.</li>
       <li><strong>Structural dynamics is small-displacement and linear.</strong> The restoring force is exact for members whose chord rotates by well under a tenth of a radian — a building in a storm, a trunk in a gale — and not for a sapling bent double. The solver reports the worst chord rotation every step, so the regime is measured rather than assumed; a corotational formulation would remove the limit and has not been written.</li>
-      <li><strong>Molecular bonds are a fixed list.</strong> Bonds dissociate emergently, but nothing forms new ones: the solver can take a molecule apart and cannot put a different one together. Reaction chemistry needs a bond-order potential, which is a different and much larger undertaking.</li>
+      <li><strong>Chemistry is valence-limited, not bond-order.</strong> What stops a hydrogen acquiring five neighbours is a valence count rather than a many-body bond order that weakens with over-coordination. A Tersoff or Brenner potential is the better answer where the energetics of intermediate coordination matter; the question asked here is only whether a molecule holds together and can react.</li>
+      <li><strong>Falling debris is bounded and one-way.</strong> At most twenty-four pieces fall at once and each is written off after twelve seconds, because a crown fire breaks thousands of joints and simulating every twig's descent would spend the whole budget on litter. Debris collides with the structure it fell from and with the ground, not with other debris.</li>
       <li><strong>Structures cannot straddle nodes.</strong> A building spanning several nodes, or roots reaching into the soil beneath, would need cross-links the strictly hierarchical tree deliberately forbids — and that hierarchy is what makes the precision and causal-gating arguments work. For now a structure must fit inside one node.</li>
       <li><strong>The guarantee is about the conserved tuple, not about trajectories.</strong> Regenerated detail is a valid sample from the right distribution, not the specific configuration that would have evolved had the detail been tracked continuously. For unobserved matter that is exactly the right standard — it is the one statistical mechanics uses — but it is a weaker claim than "the same simulation, computed lazily", and should not be advertised as the stronger one.</li>
     </ul>
@@ -544,7 +564,7 @@ footer .mono{font-size:.78rem}
 
 <div class="wrap">
   <footer>
-    <p class="mono">Rust · no dependencies · 98 tests covering conservation, determinism, causality, solver accuracy, statistics, budget, interaction, growth, topology, frame analysis, structural dynamics and covalent bonds.</p>
+    <p class="mono">Rust · no dependencies · 109 tests covering conservation, determinism, causality, solver accuracy, statistics, budget, interaction, growth, topology, frame analysis, structural dynamics, reactive chemistry and fragmentation.</p>
     <p style="margin-top:.5rem">Worst conservation error across every scale transition in the demo: <span class="ok mono">4 × 10⁻¹⁶</span>. Worst causality violation between any two disjoint regions: <span class="ok mono">0</span>.</p>
   </footer>
 </div>
