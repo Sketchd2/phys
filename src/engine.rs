@@ -49,6 +49,61 @@ pub const MAX_SHAKEN: usize = 64;
 /// there is nothing meaningful left to analyse.
 pub const COLLAPSE_MASS: f64 = 1e-6;
 
+/// What one step of falling debris did.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct FallReport {
+    /// Contacts detected this step.
+    pub contacts: usize,
+    /// Members of standing structures that took an impulse.
+    pub struck_members: usize,
+    /// Joints those impulses broke.
+    pub secondary_breaks: usize,
+    /// Mass those breaks brought down, kg.
+    pub secondary_mass: f64,
+    /// Members that failed inside a piece while it was falling.
+    pub broken_while_falling: usize,
+    /// Pieces that came to rest this step.
+    pub settled: usize,
+    /// Pieces still in the air.
+    pub still_falling: usize,
+    /// Highest utilisation any struck structure reached, so an impact that did
+    /// nothing can be told from one that never arrived.
+    pub peak_utilisation: f64,
+    /// Largest single impulse delivered, N s.
+    pub largest_impulse: f64,
+}
+
+/// Where the ground is, in a structure's own frame.
+///
+/// Not zero. A generated structure is recentred on its own centre of mass, so
+/// its foundations sit at whatever negative height that put them; assuming zero
+/// makes debris fall through the floor or land in mid-air depending on the
+/// structure. What anchors a structure is what it is standing on.
+fn ground_of(topo: &crate::topology::Topology) -> f64 {
+    let mut lowest = f64::INFINITY;
+    for i in 0..topo.support.len() {
+        if topo.support[i] == crate::morph::NO_SUPPORT && topo.bonds[i].radius > 0.0 {
+            lowest = lowest.min(topo.base[i].z.min(topo.tip[i].z));
+        }
+    }
+    if lowest.is_finite() {
+        lowest
+    } else {
+        topo.base.iter().map(|p| p.z).fold(f64::INFINITY, f64::min)
+    }
+}
+
+/// How long a piece may fall before it is written off as litter. A limb that
+/// has been in the air for this long has either landed somewhere the collision
+/// search cannot see or is falling forever, and neither is worth a frame.
+pub const MAX_FALL_SECONDS: f64 = 12.0;
+
+/// How many pieces may be falling at once. A crown fire breaks thousands of
+/// joints; simulating every twig's descent would spend the whole budget on
+/// debris nobody is looking at, and the mass is already accounted for whether
+/// its fall is drawn or not.
+pub const MAX_FALLING: usize = 24;
+
 /// What a run of dynamics did.
 #[derive(Debug, Clone, Default)]
 pub struct ShakeOutcome {
@@ -58,6 +113,8 @@ pub struct ShakeOutcome {
     pub iterations: u32,
     /// Joints that failed while the structure was moving.
     pub broken_joints: usize,
+    /// Pieces that came away as their own falling objects.
+    pub detached_pieces: usize,
     /// Structural mass that fell off.
     pub detached_mass: f64,
     /// Kinetic energy the structure is carrying, J.
@@ -101,6 +158,8 @@ pub struct DamageOutcome {
     pub solver_iterations: u32,
     /// The structure no longer exists.
     pub collapsed: bool,
+    /// Pieces that came away as their own falling objects.
+    pub detached_pieces: usize,
 }
 
 #[derive(Debug, Default, Clone, Copy)]
@@ -156,6 +215,9 @@ pub struct World {
     /// rule applied to motion rather than to detail: the stand in front of the
     /// observer moves, and the forest behind them does not.
     shaking: Vec<(NodeIdx, crate::solvers::structure::DynamicStructure)>,
+    /// Pieces that have come away and are still falling, with the node they
+    /// fell from.
+    falling: Vec<(NodeIdx, crate::solvers::structure::Fragment)>,
     history_depth: usize,
 }
 
@@ -179,6 +241,7 @@ impl World {
             rejected_transactions: 0,
             environments: HashMap::new(),
             shaking: Vec::new(),
+            falling: Vec::new(),
             history_depth: 64,
         }
     }
@@ -702,6 +765,20 @@ impl World {
         sites.dedup();
         sites.truncate(NOTABLE_BREAKS);
 
+        // Everything that lost its support is now its own falling object.
+        if !failures.broken_members.is_empty() {
+            let cut = st::detach(&topo, &failures.broken_members);
+            for piece in &cut.pieces {
+                if self.falling.len() >= MAX_FALLING {
+                    break;
+                }
+                if let Some(frag) = st::Fragment::new(&bodies, &topo, piece) {
+                    out.detached_pieces += 1;
+                    self.falling.push((idx, frag));
+                }
+            }
+        }
+
         let node = &mut self.tree.nodes[idx.get()];
         let temperature = node.agg.temperature;
         if let Some(m) = node.morphology.as_mut() {
@@ -841,6 +918,22 @@ impl World {
         // discarded and rebuilt.
         let members = ds.failed_members(&broken);
         out.broken_joints = members.len();
+
+        // What came away is its own object now, with its own roots, and it is
+        // falling. Re-rooting is not cosmetic: the static analysis walks the
+        // support forest towards its roots, and a branch still carrying its old
+        // support index would be analysed as though the trunk were holding it
+        // up — which is exactly what stopped being true.
+        let cut = st::detach(&topo, &members);
+        for piece in &cut.pieces {
+            if self.falling.len() >= MAX_FALLING {
+                break;
+            }
+            if let Some(frag) = st::Fragment::new(&bodies, &topo, piece) {
+                out.detached_pieces += 1;
+                self.falling.push((idx, frag));
+            }
+        }
         let mut ranked: Vec<(f64, u32)> = members
             .iter()
             .filter_map(|&m| {
@@ -877,9 +970,118 @@ impl World {
         out
     }
 
+    /// Pieces currently falling from a node.
+    pub fn falling(&self) -> &[(NodeIdx, crate::solvers::structure::Fragment)] {
+        &self.falling
+    }
+
+    /// Advance every falling piece, and hand what they hit to the structures
+    /// they hit it with.
+    ///
+    /// This is what makes a break more than a bookkeeping entry. A limb that
+    /// comes away is re-rooted into its own object — its old support index
+    /// stopped being true the moment it broke — and then it falls, and what it
+    /// lands on gets the impulse. The impulse goes in through the ordinary
+    /// mechanism vocabulary, so what happens next is the same stress
+    /// calculation that decides everything else, and a limb heavy enough to
+    /// break what it lands on produces another falling limb.
+    pub fn drop_fragments(&mut self, dt: f64) -> FallReport {
+        use crate::solvers::frame::Dof;
+        use crate::solvers::structure as st;
+        let mut report = FallReport::default();
+        if self.falling.is_empty() || dt <= 0.0 {
+            return report;
+        }
+
+        // What the debris is falling onto has to exist. `damage` clears a
+        // node's detail when it breaks something, so without this the
+        // collision test runs against nothing and every piece falls through
+        // the tree it came off.
+        let nodes: Vec<NodeIdx> = {
+            let mut v: Vec<NodeIdx> = self.falling.iter().map(|(n, _)| *n).collect();
+            v.sort_unstable_by_key(|n| n.get());
+            v.dedup();
+            v
+        };
+        let mut struck: HashMap<usize, (Vec<crate::state::Body>, crate::topology::Topology)> =
+            HashMap::new();
+        for node in nodes {
+            let bodies = self.tree.refine(node).to_vec();
+            if let Some(topo) = self.tree.nodes[node.get()].topology.clone() {
+                struck.insert(node.get(), (bodies, topo));
+            }
+        }
+
+        let mut strikes: Vec<(NodeIdx, u32, crate::math::Vec3)> = Vec::new();
+        for (node, frag) in self.falling.iter_mut() {
+            frag.age += dt;
+            let n = frag.dynamics.dynamics.frame.nodes.len();
+            let mut load = vec![Dof::default(); n];
+            for i in 0..n {
+                let m = frag.dynamics.dynamics.frame.lumped[i].t.z;
+                load[i].t = st::G_EARTH.scale(m);
+            }
+            let rep = frag.dynamics.dynamics.step(&load, dt);
+            report.broken_while_falling += rep.broken.len();
+
+            let contacts = match struck.get(&node.get()) {
+                Some((bodies, topo)) => frag.contacts(bodies, topo, ground_of(topo)),
+                None => frag.contacts(&[], &crate::topology::Topology::default(), 0.0),
+            };
+            report.contacts += contacts.len();
+            // Wood on wood: it does not bounce.
+            for (member, impulse) in frag.resolve(&contacts, 0.15) {
+                strikes.push((*node, member, impulse));
+            }
+        }
+
+        // One analysis per node per step, not one per contact. Every impulse
+        // that arrived in the same step arrived together, and asking the
+        // structure to answer for them one at a time is both wrong — each
+        // answer regenerates the structure and renumbers the members the next
+        // impulse was aimed at — and unaffordable, at ninety contacts a step.
+        //
+        // An impulse is also not a force. The mechanism takes a force, and what
+        // a struck member feels is the impulse spread over the step it arrived
+        // in: at fifty steps a second that is fifty times what handing the
+        // impulse over unconverted would suggest, and it is the difference
+        // between a limb that breaks what it lands on and one that settles into
+        // it without a sound.
+        let mut by_node: HashMap<usize, (NodeIdx, Vec<st::Mechanism>)> = HashMap::new();
+        for (node, member, impulse) in strikes {
+            let entry = by_node.entry(node.get()).or_insert_with(|| (node, Vec::new()));
+            entry.1.push(st::Mechanism::PointImpulse {
+                at: member,
+                impulse: impulse.scale(1.0 / dt),
+            });
+            report.largest_impulse = report.largest_impulse.max(impulse.norm());
+            report.struck_members += 1;
+        }
+        let mut ordered: Vec<(usize, (NodeIdx, Vec<st::Mechanism>))> = by_node.into_iter().collect();
+        ordered.sort_by_key(|(k, _)| *k);
+        for (_, (node, mechanisms)) in ordered {
+            let out = self.damage(node, &mechanisms);
+            report.peak_utilisation = report.peak_utilisation.max(out.peak_utilisation);
+            report.secondary_breaks += out.broken_joints;
+            report.secondary_mass += out.detached_mass;
+        }
+
+        // Pieces that have landed and stopped stop being simulated: a branch
+        // lying on the ground is litter, and the node already accounts for its
+        // mass. Keeping it would spend a frame budget on something that has
+        // finished happening.
+        let before = self.falling.len();
+        self.falling
+            .retain(|(_, f)| !f.at_rest() && f.age < MAX_FALL_SECONDS);
+        report.settled = before - self.falling.len();
+        report.still_falling = self.falling.len();
+        report
+    }
+
     /// Stop integrating everything, releasing the dynamic state.
     pub fn settle(&mut self) {
         self.shaking.clear();
+        self.falling.clear();
     }
 
     /// The dynamic state of one node, if it is being integrated.

@@ -360,6 +360,10 @@ pub struct JointLoad {
 #[derive(Debug, Clone, Default)]
 pub struct FailureReport {
     pub broken_sites: Vec<u32>,
+    /// Member indices that lost their support, as opposed to the program-stable
+    /// site names in `broken_sites`. Indices are what [`detach`] needs; sites
+    /// are what the event log needs, and they are not the same thing.
+    pub broken_members: Vec<u32>,
     pub detached: Vec<u32>,
     pub detached_mass: f64,
     pub peak_utilisation: f64,
@@ -543,6 +547,22 @@ pub struct BuiltFrame {
 /// happens to sit where a free joint is must not drag that joint into the
 /// ground.
 pub fn build_frame(topo: &Topology, n: usize) -> BuiltFrame {
+    build_frame_with(topo, n, true)
+}
+
+/// As [`build_frame`], with a choice about what an unsupported member means.
+///
+/// For a structure that is standing, a member with no support is bolted to the
+/// ground. For a piece that has come away, the very same member is *free* — it
+/// is the break, and there is nothing on the other side of it any more. The
+/// distinction is not visible anywhere in the topology, which describes what is
+/// connected to what and has no opinion about the planet; it belongs to whoever
+/// knows whether this object is standing or falling.
+///
+/// Getting it wrong is silent and total: a fragment built with anchored roots
+/// hangs in the air exactly where it broke, and every test of falling debris
+/// reports that nothing ever reached the ground.
+pub fn build_frame_with(topo: &Topology, n: usize, anchored: bool) -> BuiltFrame {
     use crate::solvers::frame::Frame;
 
     let mut frame = Frame::new(topo.material);
@@ -565,7 +585,7 @@ pub fn build_frame(topo: &Topology, n: usize) -> BuiltFrame {
         base_node[i] = if p != NO_SUPPORT && (p as usize) < n && tip_node[p as usize] != u32::MAX {
             tip_node[p as usize]
         } else {
-            weld.node(&mut frame, topo.base[i], true)
+            weld.node(&mut frame, topo.base[i], anchored)
         };
     }
     for i in 0..n {
@@ -712,6 +732,7 @@ pub fn apply_failures(
                     if topo.support[i] != NO_SUPPORT {
                         topo.support[i] = NO_SUPPORT;
                         report.broken_sites.push(topo.site[i]);
+                        report.broken_members.push(i as u32);
                     }
                     if topo.material.combustible {
                         report.consumed_mass += bodies[i].mass;
@@ -734,6 +755,7 @@ pub fn apply_failures(
                     b.integrity = 0.0;
                     topo.support[i] = NO_SUPPORT;
                     report.broken_sites.push(topo.site[i]);
+                    report.broken_members.push(i as u32);
                 }
             }
         }
@@ -956,10 +978,21 @@ pub struct DynamicStructure {
 /// contents — is added as point mass at the member's ends: it is carried, and
 /// it changes what the structure does, but it does not stiffen anything.
 pub fn dynamic_structure(bodies: &[Body], topo: &Topology) -> Option<DynamicStructure> {
+    dynamic_structure_with(bodies, topo, true)
+}
+
+/// As [`dynamic_structure`], with a choice about whether unsupported members
+/// are anchored to the ground or free. See [`build_frame_with`].
+pub fn dynamic_structure_with(
+    bodies: &[Body],
+    topo: &Topology,
+    anchored: bool,
+) -> Option<DynamicStructure> {
     use crate::solvers::dynamics::Dynamics;
 
     let n = bodies.len().min(topo.support.len());
-    let BuiltFrame { frame, tip_node, base_node, element_of } = build_frame(topo, n);
+    let BuiltFrame { frame, tip_node, base_node, element_of } =
+        build_frame_with(topo, n, anchored);
     if frame.elements.is_empty() {
         return None;
     }
@@ -1272,3 +1305,423 @@ pub fn optimise(
     report.volume_after = volume(topo);
     report
 }
+
+// ---------------------------------------------------------------------------
+// Fragmentation
+// ---------------------------------------------------------------------------
+
+/// A structure separated into what still stands and what does not.
+#[derive(Debug, Clone, Default)]
+pub struct Detachment {
+    /// Members that are still held, in their original indices.
+    pub standing: Vec<u32>,
+    /// One list of original member indices per detached piece. A piece is a
+    /// connected component of the support forest once the broken members have
+    /// been cut from their parents.
+    pub pieces: Vec<Vec<u32>>,
+}
+
+/// Cut a structure at the members that failed, and find what comes away.
+///
+/// A break is not a member disappearing; it is a member ceasing to be
+/// *supported*. Everything hanging off it comes with it, and what comes away is
+/// no longer part of the structure it fell from — it is its own object, with its
+/// own roots, its own centre of mass and its own reason to be analysed.
+///
+/// That last part is the whole point. The static analysis walks the support
+/// forest from the leaves inward and needs roots to walk towards. A branch
+/// still carrying its old support index would be analysed as though the trunk
+/// were holding it up, which is exactly what stopped being true. So the piece is
+/// re-rooted: the broken member becomes an anchor of the new object, and the
+/// forest is recomputed from there.
+pub fn detach(topo: &Topology, broken: &[u32]) -> Detachment {
+    let n = topo.support.len();
+    let mut out = Detachment::default();
+    if n == 0 || broken.is_empty() {
+        out.standing = (0..n as u32).collect();
+        return out;
+    }
+    let cut: std::collections::HashSet<u32> = broken.iter().copied().collect();
+
+    // Children, so the forest can be walked outwards from a break.
+    let mut children: Vec<Vec<u32>> = vec![Vec::new(); n];
+    for i in 0..n {
+        let p = topo.support[i];
+        if p != NO_SUPPORT && (p as usize) < n && p as usize != i {
+            children[p as usize].push(i as u32);
+        }
+    }
+
+    let mut fallen = vec![false; n];
+    let mut piece_of = vec![usize::MAX; n];
+    for &root in broken {
+        let r = root as usize;
+        if r >= n || fallen[r] {
+            continue;
+        }
+        let piece = out.pieces.len();
+        let mut stack = vec![root];
+        let mut members = Vec::new();
+        while let Some(m) = stack.pop() {
+            let mi = m as usize;
+            if fallen[mi] {
+                continue;
+            }
+            fallen[mi] = true;
+            piece_of[mi] = piece;
+            members.push(m);
+            for &c in &children[mi] {
+                // A child that broke on its own account starts its own piece —
+                // unless it is inside this one already, in which case it simply
+                // becomes a free joint within it.
+                if !fallen[c as usize] {
+                    stack.push(c);
+                }
+            }
+        }
+        members.sort_unstable();
+        out.pieces.push(members);
+    }
+    let _ = cut;
+    out.standing = (0..n as u32).filter(|&i| !fallen[i as usize]).collect();
+    out
+}
+
+/// One piece that has come away and is now falling.
+///
+/// It is an ordinary structure in every respect except that nothing holds it
+/// down: the same topology, the same solver, the same failure criteria. What
+/// makes it a fragment is only that its roots are free, so the dynamics has no
+/// fixed nodes to react against and the whole thing accelerates.
+pub struct Fragment {
+    pub bodies: Vec<Body>,
+    pub topo: Topology,
+    pub dynamics: DynamicStructure,
+    /// Seconds since it came away.
+    pub age: f64,
+    /// Whether any part of it is resting on the ground.
+    pub grounded: bool,
+    /// Original member indices in the structure it fell from, for reporting.
+    pub came_from: Vec<u32>,
+}
+
+/// Build a standalone structure out of a set of members.
+///
+/// Indices are remapped into the new object's own space, and any support that
+/// pointed outside the set becomes [`NO_SUPPORT`] — those are the new roots.
+/// Ties with an end outside the set go, because there is nothing at the other
+/// end of them any more.
+pub fn extract(
+    bodies: &[Body],
+    topo: &Topology,
+    members: &[u32],
+) -> Option<(Vec<Body>, Topology)> {
+    let n = topo.support.len();
+    if members.is_empty() {
+        return None;
+    }
+    let mut remap = vec![u32::MAX; n];
+    for (new, &old) in members.iter().enumerate() {
+        if (old as usize) < n {
+            remap[old as usize] = new as u32;
+        }
+    }
+    let mut out_bodies = Vec::with_capacity(members.len());
+    let mut piece = Topology {
+        material: topo.material,
+        ..Topology::default()
+    };
+    for &old in members {
+        let o = old as usize;
+        if o >= n {
+            return None;
+        }
+        out_bodies.push(bodies.get(o).copied().unwrap_or_default());
+        let parent = topo.support[o];
+        let mapped = if parent == NO_SUPPORT || (parent as usize) >= n {
+            NO_SUPPORT
+        } else {
+            remap[parent as usize]
+        };
+        piece.support.push(if mapped == u32::MAX { NO_SUPPORT } else { mapped });
+        piece.site.push(topo.site.get(o).copied().unwrap_or(old));
+        piece.base.push(topo.base[o]);
+        piece.tip.push(topo.tip[o]);
+        let mut bond = topo.bonds[o];
+        bond.child = remap[o];
+        bond.parent = *piece.support.last().unwrap();
+        piece.bonds.push(bond);
+    }
+    for t in &topo.ties {
+        let (a, b) = (t.a as usize, t.b as usize);
+        if a >= n || b >= n {
+            continue;
+        }
+        if remap[a] == u32::MAX || remap[b] == u32::MAX {
+            continue;
+        }
+        piece.ties.push(crate::topology::Tie {
+            a: remap[a],
+            b: remap[b],
+            area: t.area,
+            integrity: t.integrity,
+        });
+    }
+    Some((out_bodies, piece))
+}
+
+impl Fragment {
+    /// Make a falling piece out of a set of members, with the velocity they
+    /// already had.
+    pub fn new(bodies: &[Body], topo: &Topology, members: &[u32]) -> Option<Fragment> {
+        let (mut piece_bodies, piece_topo) = extract(bodies, topo, members)?;
+        // Free roots: nothing holds this up any more, which is why it is here.
+        let dynamics = dynamic_structure_with(&piece_bodies, &piece_topo, false)?;
+        for b in piece_bodies.iter_mut() {
+            b.vel = Vec3::ZERO;
+        }
+        Some(Fragment {
+            bodies: piece_bodies,
+            topo: piece_topo,
+            dynamics,
+            age: 0.0,
+            grounded: false,
+            came_from: members.to_vec(),
+        })
+    }
+
+    pub fn mass(&self) -> f64 {
+        self.bodies.iter().map(|b| b.mass).sum()
+    }
+
+    /// Whether it has stopped moving enough to be litter rather than debris.
+    ///
+    /// Both conditions matter. A piece still in the air is not finished however
+    /// slowly it is drifting, and one on the ground still sliding is not
+    /// finished either.
+    pub fn at_rest(&self) -> bool {
+        let m = self.mass().max(1e-9);
+        // Half a metre a second, whatever the piece weighs. An absolute energy
+        // would call a twig settled and a trunk still falling at the same speed.
+        self.grounded && self.dynamics.dynamics.kinetic_energy() < 0.5 * m * REST_SPEED * REST_SPEED
+    }
+
+    /// Lowest point of the piece.
+    ///
+    /// Skipping the members that have no node. `deformed_members` returns a
+    /// pair of zeroes for those, and a minimum taken over them reports every
+    /// piece as sitting at the origin however high it actually is.
+    pub fn lowest(&self) -> f64 {
+        self.dynamics
+            .deformed_members()
+            .iter()
+            .filter(|(a, b)| a != b)
+            .map(|(a, b)| a.z.min(b.z))
+            .fold(f64::INFINITY, f64::min)
+    }
+}
+
+/// A fragment touching something on its way down.
+#[derive(Debug, Clone, Copy)]
+pub struct Contact {
+    /// Member of the falling piece.
+    pub falling: u32,
+    /// Member of the structure it hit, or `NO_SUPPORT` for the ground.
+    pub struck: u32,
+    /// Where, in world coordinates.
+    pub at: Vec3,
+    /// Unit normal, pointing from the struck member towards the falling one.
+    pub normal: Vec3,
+    /// Closing speed along the normal, m/s. Positive means they are still
+    /// approaching.
+    pub closing: f64,
+}
+
+/// Closest approach between two segments, as parameters along each.
+fn segment_closest(a0: Vec3, a1: Vec3, b0: Vec3, b1: Vec3) -> (f64, f64) {
+    let u = a1 - a0;
+    let v = b1 - b0;
+    let w = a0 - b0;
+    let (a, b, c) = (u.dot(u), u.dot(v), v.dot(v));
+    let (d, e) = (u.dot(w), v.dot(w));
+    let denom = a * c - b * b;
+    // Parallel segments: pick the projection of one endpoint and be done. The
+    // pair is degenerate for contact purposes either way.
+    if denom.abs() < 1e-18 {
+        let t = if c > 0.0 { (e / c).clamp(0.0, 1.0) } else { 0.0 };
+        return (0.0, t);
+    }
+    let s = ((b * e - c * d) / denom).clamp(0.0, 1.0);
+    let t = ((a * e - b * d) / denom).clamp(0.0, 1.0);
+    (s, t)
+}
+
+impl Fragment {
+    /// Everything this piece is touching: members of the structure below it,
+    /// and the ground.
+    ///
+    /// Members are capsules — a segment with a radius — so contact is the
+    /// closest approach between two segments against the sum of their radii.
+    /// The search is bounded by a grid over the struck structure, because a
+    /// falling limb near a thousand-member crown must not cost a thousand
+    /// tests per step.
+    pub fn contacts(
+        &self,
+        struck_bodies: &[Body],
+        struck: &Topology,
+        ground: f64,
+    ) -> Vec<Contact> {
+        let mine = self.dynamics.deformed_members();
+        let vel = &self.dynamics.dynamics.velocity;
+        let mut out = Vec::new();
+        let n = struck.support.len().min(struck_bodies.len());
+        // A piece that has just torn free is still occupying the space it
+        // occupied a moment ago, touching the parent it broke from and the
+        // siblings beside it. Testing those as collisions catches the limb
+        // before it has moved at all and pins it where it broke. It has to be
+        // allowed to clear its own footprint first — which is what tearing
+        // free is, and takes a limb about a tenth of a second.
+        let tearing_free = self.age < TEAR_AWAY;
+
+        for (i, &(a0, a1)) in mine.iter().enumerate() {
+            if a0 == a1 {
+                continue;
+            }
+            let ra = self.topo.bonds[i].radius;
+            let node = self.dynamics.tip_node[i];
+            let v = if node == u32::MAX {
+                Vec3::ZERO
+            } else {
+                vel[node as usize].t
+            };
+
+            // The ground first: it is what most of a fallen limb ends up on.
+            let low = a0.z.min(a1.z);
+            if low - ra <= ground {
+                if v.z < 0.0 {
+                    let at = if a0.z < a1.z { a0 } else { a1 };
+                    out.push(Contact {
+                        falling: i as u32,
+                        struck: NO_SUPPORT,
+                        at,
+                        normal: Vec3 { x: 0.0, y: 0.0, z: 1.0 },
+                        closing: -v.z,
+                    });
+                }
+                continue;
+            }
+
+            if tearing_free {
+                continue;
+            }
+            for j in 0..n {
+                let rb = struck.bonds[j].radius;
+                if rb <= 0.0 || struck.bonds[j].integrity <= 0.0 {
+                    continue;
+                }
+                let (b0, b1) = (struck.base[j], struck.tip[j]);
+                // Cheap rejection on the segment midpoints before the real test.
+                let reach = ra + rb + (a1 - a0).norm() * 0.5 + (b1 - b0).norm() * 0.5;
+                if ((a0 + a1).scale(0.5) - (b0 + b1).scale(0.5)).norm2() > reach * reach {
+                    continue;
+                }
+                let (s, t) = segment_closest(a0, a1, b0, b1);
+                let pa = a0 + (a1 - a0).scale(s);
+                let pb = b0 + (b1 - b0).scale(t);
+                let d = pa - pb;
+                let dist = d.norm();
+                if dist >= ra + rb || dist <= 0.0 {
+                    continue;
+                }
+                let normal = d.scale(1.0 / dist);
+                let closing = -v.dot(normal);
+                if closing <= 0.0 {
+                    continue;
+                }
+                out.push(Contact {
+                    falling: i as u32,
+                    struck: j as u32,
+                    at: pb,
+                    normal,
+                    closing,
+                });
+            }
+        }
+        out
+    }
+
+    /// Resolve a set of contacts: stop the piece, and hand the reaction to what
+    /// it hit.
+    ///
+    /// Returns the impulses to deliver into the struck structure, as
+    /// `(member, impulse)`. The piece keeps a fraction of its approach speed —
+    /// wood on wood does not bounce — and the kinetic energy that disappears in
+    /// the collision is what the struck member has to absorb, which is why the
+    /// impulse is delivered through the ordinary mechanism vocabulary rather
+    /// than applied to the geometry directly. What happens next is the same
+    /// stress calculation that decides everything else.
+    pub fn resolve(&mut self, contacts: &[Contact], restitution: f64) -> Vec<(u32, Vec3)> {
+        let mut delivered: Vec<(u32, Vec3)> = Vec::new();
+        if contacts.is_empty() {
+            return delivered;
+        }
+        let hit_ground = contacts.iter().any(|c| c.struck == NO_SUPPORT);
+
+        // The whole piece is behind the contact, not just the joint that
+        // touched. A limb is stiff over its own length, so what a branch
+        // underneath it has to stop is the limb's momentum and not the few
+        // kilograms nearest the point of contact. Using the local lumped mass
+        // instead under-reads the force by the number of joints in the piece —
+        // fifty times, for a limb of any size — and a hundred and fifty
+        // kilograms of falling wood then settles onto a twig without marking
+        // it.
+        let mass = self.mass().max(1e-9);
+        let share = 1.0 / contacts.len() as f64;
+        let bounce = 1.0 + restitution.clamp(0.0, 1.0);
+        let mut change = Vec3::ZERO;
+        for c in contacts {
+            let j = mass * c.closing * bounce * share;
+            let impulse = c.normal.scale(j);
+            change += impulse.scale(1.0 / mass);
+            if c.struck != NO_SUPPORT {
+                delivered.push((c.struck, impulse.scale(-1.0)));
+            } else {
+                self.grounded = true;
+            }
+        }
+        // Applied as a rigid-body velocity change, because that is what it is:
+        // pushing one joint and letting the piece fold around it is a different
+        // event, and not the one that happened.
+        for v in self.dynamics.dynamics.velocity.iter_mut() {
+            v.t += change;
+        }
+
+        // A branch hitting the forest floor thuds; it does not ring. The
+        // impulse alone acts on one joint and leaves the rest of the piece
+        // swinging about it, which is what an elastic body with free roots
+        // does and is not what a limb in leaf litter does. Damping the whole
+        // piece is the ground absorbing it.
+        if hit_ground {
+            for v in self.dynamics.dynamics.velocity.iter_mut() {
+                v.t = v.t.scale(GROUND_FRICTION);
+                v.r = v.r.scale(GROUND_FRICTION);
+            }
+            for a in self.dynamics.dynamics.acceleration.iter_mut() {
+                *a = crate::solvers::frame::Dof::default();
+            }
+        }
+        delivered
+    }
+}
+
+
+/// How much motion survives hitting the ground. Litter does not bounce, and it
+/// does not slide.
+pub const GROUND_FRICTION: f64 = 0.25;
+
+/// Speed below which a grounded piece is litter rather than debris, m/s.
+pub const REST_SPEED: f64 = 0.5;
+
+
+/// How long a piece is left alone after it comes away, seconds.
+pub const TEAR_AWAY: f64 = 0.12;
