@@ -372,39 +372,33 @@ fn renderer_draws_the_structure() {
 // The general solver
 // ---------------------------------------------------------------------------
 
-/// A statically indeterminate truss, against the analytic answer.
+/// A redundant structure must actually be routed to the frame solver, and the
+/// answer it comes back with must be the analytic one.
 ///
-/// Three bars from a common node to three anchors: one vertical, two at 45
-/// degrees. A downward load `P` at the node. Statics alone cannot solve this —
-/// there are three unknowns and two equations — so the split depends on the
-/// bars' relative stiffness, and for equal areas the classical result is
+/// The closed-form truss itself is validated in `tests/frame.rs`; what is under
+/// test here is the layer above — that `analyse` recognises the redundancy,
+/// hands the structure to `solvers::frame`, and maps the result back into
+/// member indices without losing anything.
 ///
-/// ```text
-///     F_middle = P / (1 + 2 cos^3 t)      F_outer = F_middle cos^2 t
-/// ```
-///
-/// which at 45 degrees is 0.5858 P and 0.2929 P. If the solver reproduces that
-/// it is doing real structural mechanics and not redistributing load by a rule
-/// of thumb.
+/// Three bars from a common apex to three anchors, one vertical and two at 45
+/// degrees, loaded downwards. Note what the load *is*: a `LoadField` force on a
+/// member is carried along that member's length, so half of it reacts straight
+/// into that member's own anchor and never reaches the joint. Only the other
+/// half is shared, and that is the load the analytic split applies to.
 #[test]
 fn indeterminate_truss_matches_the_analytic_solution() {
-    use phys::math::Vec3;
     let apex = v3(0.0, 0.0, 0.0);
     let h = 1.0;
     let t: f64 = std::f64::consts::FRAC_PI_4;
-    // Anchors: directly below, and two at 45 degrees either side.
     let anchors = [
         v3(0.0, 0.0, -h),
         v3(-h * t.tan(), 0.0, -h),
         v3(h * t.tan(), 0.0, -h),
     ];
 
-    // The apex is the loaded part; each bar is a member anchored at the ground
-    // and tied to the apex. Bar 0 is the apex's nominal support; the other two
-    // are redundant ties, which is exactly the situation the solver must handle.
-    // Three bars, each anchored at the ground and reaching the apex, tied to
-    // one another there. Each bar is a spring from its own fixed base to the
-    // shared node, which is exactly the pin-jointed truss.
+    // Each bar is anchored at the ground and reaches the apex. They are three
+    // separate members with no support relation between them; the solver has to
+    // notice that their tips coincide and weld them into one joint.
     let radius = 0.01;
     let area = std::f64::consts::PI * radius * radius;
     let members = vec![
@@ -412,49 +406,42 @@ fn indeterminate_truss_matches_the_analytic_solution() {
         Member::anchored(anchors[1], apex, radius),
         Member::anchored(anchors[2], apex, radius),
     ];
-    // Stiff ties holding the three bar-ends together at the apex.
-    // Stiff relative to the bars, but not so stiff that the system becomes
-    // impossible to condition.
     let joint = area * 2000.0;
     let ties = vec![(0u32, 1u32, joint), (0u32, 2u32, joint), (1u32, 2u32, joint)];
     let topo = Topology::from_parts(&members, &ties, Material::STEEL);
     assert!(!topo.is_determinate(), "the truss should be indeterminate");
 
     let p_load = 1000.0;
-    // Bodies sit at their members' midpoints, as the generators place them, and
-    // the ties hold those midpoints together. Tying at coincident apex points
-    // instead needs ties of near-zero length, whose stiffness is then 10^17
-    // times the bars' — a condition number no conjugate gradient will survive,
-    // and the solver silently returned zero tie forces rather than diverging.
-    let mid = |i: usize| (members[i].base + members[i].tip).scale(0.5);
     let bodies = vec![
-        Body { pos: mid(0), mass: 0.0, radius, ..Default::default() },
-        Body { pos: mid(1), mass: 0.0, radius, ..Default::default() },
-        Body { pos: mid(2), mass: 0.0, radius, ..Default::default() },
+        Body { pos: members[0].tip, mass: 0.0, radius, ..Default::default() },
+        Body { pos: members[1].tip, mass: 0.0, radius, ..Default::default() },
+        Body { pos: members[2].tip, mass: 0.0, radius, ..Default::default() },
     ];
     let third = p_load / 3.0;
-    let external = vec![
+    let mut field = LoadField::new(3, 290.0);
+    field.force = vec![
         v3(0.0, 0.0, -third),
         v3(0.0, 0.0, -third),
         v3(0.0, 0.0, -third),
     ];
-    let (_tie_forces, iters) = solve_tie_forces(&bodies, &topo, &external);
 
-    let mut field = LoadField::new(3, 290.0);
-    field.force = external.clone();
-    let loads = analyse(&bodies, &topo, &field);
+    let (loads, redundant, iters) = analyse_with(&bodies, &topo, &field);
+    assert!(redundant, "the solver treated a braced truss as determinate");
+    assert!(iters > 0 && iters < 200, "{iters} CG iterations");
+
     let axial = |i: usize| {
         let axis = (topo.tip[i] - topo.base[i]).unit();
         loads[i].force.dot(axis).abs()
     };
     let middle = axial(0);
     let outer = (axial(1) + axial(2)) / 2.0;
-    let carried_by_ties = outer * 2.0 * t.cos();
 
+    // Half of each member's own load reacts at its own base; the rest meets at
+    // the apex and is what the three bars have to divide between them.
+    let p_joint = p_load / 2.0;
     let cos_t = t.cos();
-    let expect_mid = p_load / (1.0 + 2.0 * cos_t.powi(3));
+    let expect_mid = p_joint / (1.0 + 2.0 * cos_t.powi(3));
     let expect_outer = expect_mid * cos_t * cos_t;
-    let expect_outer_vertical = (p_load - expect_mid) / 2.0;
 
     println!(
         "  middle bar {middle:.1} N (analytic {expect_mid:.1}), each outer {outer:.1} N \
@@ -468,13 +455,12 @@ fn indeterminate_truss_matches_the_analytic_solution() {
         (outer - expect_outer).abs() / expect_outer < 0.005,
         "outer bars carry {outer:.1} N, analytic says {expect_outer:.1} N"
     );
-    let _ = expect_outer_vertical;
-    // Force balance, independently of the analytic form.
+    // Vertical equilibrium at the joint, independently of the analytic form.
+    let carried = middle + 2.0 * outer * cos_t;
     assert!(
-        (middle + carried_by_ties - p_load).abs() / p_load < 0.02,
-        "the truss does not balance: {middle:.1} + {carried_by_ties:.1} != {p_load:.1}"
+        (carried - p_joint).abs() / p_joint < 0.02,
+        "the truss does not balance: {carried:.1} N against {p_joint:.1} N"
     );
-    assert!(iters > 0 && iters < 200, "{iters} CG iterations");
 }
 
 /// Bracing must actually relieve the primary load path, and the solver must

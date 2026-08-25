@@ -8,9 +8,10 @@ license = "MIT"
 [lib]
 name = "phys"
 path = "src/lib.rs"
-# `cdylib` so the engine can be built for wasm32 and driven from a browser;
-# `lib` so it stays an ordinary Rust dependency everywhere else.
-crate-type = ["lib", "cdylib"]
+# Only `lib` here. The WebAssembly build asks for a cdylib on the command line
+# (`cargo rustc --crate-type cdylib`), because declaring both in the manifest
+# makes every *native* build emit an output-filename collision warning for an
+# artefact nothing native ever uses.
 
 [[bin]]
 name = "phys-demo"

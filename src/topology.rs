@@ -71,6 +71,13 @@ pub struct Material {
     /// Whether the material is consumed rather than merely weakened when it
     /// passes `thermal_gone`.
     pub combustible: bool,
+    /// Yield strength as a fraction of `rupture`, or zero for a brittle
+    /// material that fractures instead of yielding.
+    ///
+    /// This single number is the difference between a steel frame that sags,
+    /// redistributes and warns you, and a masonry wall that is standing one
+    /// moment and rubble the next.
+    pub ductility: f64,
 }
 
 impl Default for Material {
@@ -94,6 +101,7 @@ impl Material {
         specific_heat: 1700.0,
         resistivity: 1.0e4,
         combustible: true,
+        ductility: 0.55,
     };
 
     /// Seasoned timber: stiffer, drier, more flammable.
@@ -121,6 +129,7 @@ impl Material {
         specific_heat: 850.0,
         resistivity: 1.0e6,
         combustible: false,
+        ductility: 0.0,
     };
 
     /// Reinforced concrete and steel.
@@ -136,6 +145,7 @@ impl Material {
         specific_heat: 900.0,
         resistivity: 1.0e-6,
         combustible: false,
+        ductility: 0.85,
     };
 
     /// Mortared brick or stone: strong in compression, nearly useless in
@@ -152,6 +162,8 @@ impl Material {
         specific_heat: 840.0,
         resistivity: 1.0e9,
         combustible: false,
+        // Brittle: masonry does not yield, it cracks.
+        ductility: 0.0,
     };
 
     /// Structural steel.
@@ -167,6 +179,7 @@ impl Material {
         specific_heat: 490.0,
         resistivity: 1.4e-7,
         combustible: false,
+        ductility: 0.92,
     };
 
     /// Ice — which is a structural material wherever it is cold enough.
@@ -182,6 +195,7 @@ impl Material {
         specific_heat: 2100.0,
         resistivity: 1.0e5,
         combustible: false,
+        ductility: 0.0,
     };
 
     /// Fraction of nominal strength remaining at a given temperature.

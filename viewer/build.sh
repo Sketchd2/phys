@@ -5,7 +5,7 @@
 # the web fonts. Open it directly — no server, no toolchain, no install.
 set -e
 cd "$(dirname "$0")/.."
-cargo build --release --lib --target wasm32-unknown-unknown
+cargo rustc --release --lib --target wasm32-unknown-unknown --crate-type cdylib
 WASM=target/wasm32-unknown-unknown/release/phys.wasm
 echo "engine: $(wc -c < "$WASM") bytes"
 # Substitution is done in python rather than sed: a 290 kB base64 string is far

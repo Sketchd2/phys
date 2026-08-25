@@ -20,11 +20,17 @@
 //! Add a single brace and that stops being true. The structure becomes
 //! statically indeterminate: how load divides between the routes depends on
 //! their relative stiffness, and no amount of force balance will tell you. So
-//! [`Topology::is_determinate`] decides, and the redundant case solves the
-//! spring network for displacements by matrix-free conjugate gradient, converts
-//! the tie forces into relieving loads, and *then* runs the same exact
-//! accumulation. The fast path is not an approximation of the general one; it
-//! is the general one with an empty tie list.
+//! [`Topology::is_determinate`] decides, and the redundant case goes to
+//! [`crate::solvers::frame`] — real 3D beam elements with rotational degrees of
+//! freedom, solved matrix-free by preconditioned conjugate gradient, with Euler
+//! buckling and plastic redistribution on top.
+//!
+//! The redundant path was a network of axial and transverse springs before. It
+//! is not enough: a spring pair carries no moment between its ends, so a
+//! member's rotation is invisible to its neighbours, and a fixed-fixed beam
+//! comes out sixty-four times too flexible. Anything braced, portalised or
+//! continuous is exactly the case where that error matters, which is the same
+//! case that needs the redundant solver in the first place.
 
 use crate::math::Vec3;
 use crate::morph::NO_SUPPORT;
@@ -339,6 +345,9 @@ fn structure_base(topo: &Topology) -> f64 {
 pub struct JointLoad {
     /// Peak fibre stress at the joint, Pa.
     pub stress: f64,
+    /// Compressive load as a fraction of the Euler critical load. At or above 1
+    /// the member buckles, however far its stress is from rupture.
+    pub buckling: f64,
     /// Stress over the strength the joint still has. At or above 1 it fails.
     pub utilisation: f64,
     pub force: Vec3,
@@ -382,23 +391,22 @@ pub fn analyse_with(
     let mut external = loads.force.clone();
     external.truncate(n);
 
-    let mut indeterminate = false;
-    let mut iterations = 0;
-    if !topo.is_determinate() {
-        indeterminate = true;
-        let (tie_forces, iters) = solve_tie_forces(bodies, topo, &external);
-        iterations = iters;
-        for (t, f) in topo.ties.iter().zip(&tie_forces) {
-            if (t.a as usize) < n {
-                external[t.a as usize] += *f;
-            }
-            if (t.b as usize) < n {
-                external[t.b as usize] -= *f;
-            }
-        }
+    if topo.is_determinate() {
+        // Statically determinate: statics alone fixes the internal forces, and
+        // one reverse pass over the array computes them exactly.
+        return (accumulate(bodies, topo, &external, loads, n), false, 0);
     }
 
-    (accumulate(bodies, topo, &external, loads, n), indeterminate, iterations)
+    // Redundant: how the load divides depends on relative stiffness, so it
+    // needs a solve. Real beam elements with rotational degrees of freedom —
+    // see `solvers::frame` for why a spring network is not good enough.
+    match frame_analyse(bodies, topo, &external, loads, n) {
+        Some((joints, iters)) => (joints, true, iters),
+        // A solve that did not converge is not a result. Falling back to the
+        // determinate answer ignores the alternative load paths, which is
+        // conservative — it over-predicts the load on the primary one.
+        None => (accumulate(bodies, topo, &external, loads, n), true, 0),
+    }
 }
 
 /// The exact O(n) pass over a support forest.
@@ -454,6 +462,26 @@ fn accumulate(
         let sigma_axial = if area > 0.0 { axial.abs() / area } else { 0.0 };
         let stress = sigma_bend + sigma_axial;
 
+        // Buckling is a stability failure, not a strength one: a slender member
+        // in compression goes at a load a stress check never notices. The
+        // determinate path has the axial force in hand, so it costs one
+        // comparison to include.
+        let member_length = (topo.tip.get(i).copied().unwrap_or(Vec3::ZERO)
+            - topo.base.get(i).copied().unwrap_or(Vec3::ZERO))
+        .norm();
+        let buckling = if axial < 0.0 && member_length > 0.0 && radius > 0.0 {
+            let inertia = std::f64::consts::PI * radius.powi(4) / 4.0;
+            let critical = std::f64::consts::PI.powi(2) * topo.material.stiffness * inertia
+                / (0.85 * member_length).powi(2);
+            if critical > 0.0 {
+                -axial / critical
+            } else {
+                f64::INFINITY
+            }
+        } else {
+            0.0
+        };
+
         let t = loads.temperature.get(i).copied().unwrap_or(loads.ambient);
         let integrity = bond.map(|b| b.integrity).unwrap_or(1.0);
         // Tension is the weak direction for brittle materials, and it is what
@@ -461,16 +489,19 @@ fn accumulate(
         let tensile = axial > 0.0;
         let ratio = if tensile { topo.material.tensile_ratio } else { 1.0 };
         let strength = topo.material.rupture * topo.material.strength_at(t) * integrity * ratio;
-        let utilisation = if strength > 0.0 {
+        let by_stress = if strength > 0.0 {
             stress / strength
         } else if stress > 0.0 {
             f64::INFINITY
         } else {
             0.0
         };
+        // Two independent failure modes; whichever arrives first governs.
+        let utilisation = by_stress.max(buckling);
 
         out.push(JointLoad {
             stress,
+            buckling,
             utilisation,
             force: force[i],
             moment,
@@ -480,200 +511,135 @@ fn accumulate(
     out
 }
 
-/// Solve a statically indeterminate structure for the force each tie carries.
+/// Analyse a redundant structure with real beam elements.
 ///
-/// Matrix-free conjugate gradient on the axial spring network. Every
-/// connection — support bonds and ties alike — contributes `k = EA/L` along its
-/// own axis; anchored parts are held fixed. The result is the stiffness-weighted
-/// load distribution that statics alone cannot supply.
-///
-/// Matrix-free because assembling a sparse `3n x 3n` matrix for a structure that
-/// may be rebuilt every frame costs more than the solve does.
-pub fn solve_tie_forces(bodies: &[Body], topo: &Topology, external: &[Vec3]) -> (Vec<Vec3>, u32) {
-    let n = bodies.len().min(topo.support.len());
-    if topo.ties.is_empty() || n == 0 {
-        return (Vec::new(), 0);
-    }
-    let e = topo.material.stiffness;
+/// Joints are the members' shared endpoints: a member's base *is* its parent's
+/// tip, so the node count is the member count plus one anchor per ground
+/// connection. Distributed member loads are lumped half to each end, which is
+/// the standard consistent treatment for a uniformly loaded element.
+fn frame_analyse(
+    bodies: &[Body],
+    topo: &Topology,
+    external: &[Vec3],
+    loads: &LoadField,
+    n: usize,
+) -> Option<(Vec<JointLoad>, u32)> {
+    use crate::solvers::frame::{Dof, Frame};
 
-    // Each connection is an anisotropic spring: stiff along its own axis
-    // (`EA/L`) and much softer across it (`3EI/L^3`, the cantilever stiffness).
-    // The ratio is `3r^2/4L^2`, which for a slender member is four orders of
-    // magnitude — so slender structures behave as pin-jointed trusses without
-    // that having to be assumed, and stubby ones do not.
-    //
-    // The transverse term is not a detail. Without it the system is singular in
-    // every direction no member happens to point along, and conjugate gradient
-    // wanders off into the null space.
-    let stiffness = |area: f64, radius: f64, len: f64| -> (f64, f64) {
-        let inertia = std::f64::consts::PI * radius.powi(4) / 4.0;
-        let axial = e * area / len.max(1e-9);
-        let transverse = 3.0 * e * inertia / len.max(1e-9).powi(3);
-        (axial, transverse)
-    };
+    let mut frame = Frame::new(topo.material);
+    // Node at the far end of each member, plus a fixed node under each anchor.
+    let mut tip_node = vec![u32::MAX; n];
+    let mut base_node = vec![u32::MAX; n];
+    let mut element_of = vec![usize::MAX; n];
 
-    // (a, b, axial k, transverse k, axis). `b == usize::MAX` means "ground".
-    let mut springs: Vec<(usize, usize, f64, f64, Vec3)> = Vec::new();
-    const GROUND: usize = usize::MAX;
+    // Members that meet at a point share a node. The support relation already
+    // says so for parent/child, but independent members can converge too --
+    // three bars to a common apex, a strut closing a triangle -- and giving
+    // each its own coincident node would leave the joint free to come apart.
+    // Free and fixed nodes are welded separately: an anchor that happens to sit
+    // where a free joint is must not drag that joint into the ground.
+    let mut weld = Weld::new(topo, n);
 
     for i in 0..n {
         if topo.bonds[i].radius <= 0.0 {
             continue;
         }
-        let (axis, len) = member_axis(topo, i);
-        if len <= 0.0 {
+        tip_node[i] = weld.node(&mut frame, topo.tip[i], false);
+    }
+    for i in 0..n {
+        if tip_node[i] == u32::MAX {
             continue;
         }
-        let (ka, kt) = stiffness(topo.bonds[i].area(), topo.bonds[i].radius, len);
         let p = topo.support[i];
-        if p == NO_SUPPORT {
-            // Anchored: the member's base is a fixed point in the ground, and
-            // the member itself is the spring between that point and the part.
-            // Treating an anchored part as simply immovable is what made the
-            // truss unable to deflect at all, and therefore carry nothing in
-            // its redundant members.
-            springs.push((i, GROUND, ka, kt, axis));
-        } else if (p as usize) < n {
-            springs.push((i, p as usize, ka, kt, axis));
+        base_node[i] = if p != NO_SUPPORT && (p as usize) < n && tip_node[p as usize] != u32::MAX {
+            tip_node[p as usize]
+        } else {
+            weld.node(&mut frame, topo.base[i], true)
+        };
+    }
+    for i in 0..n {
+        if tip_node[i] == u32::MAX {
+            continue;
         }
+        if base_node[i] == tip_node[i] {
+            continue;
+        }
+        element_of[i] = frame.add_beam(base_node[i], tip_node[i], topo.bonds[i].radius);
     }
     for t in &topo.ties {
         let (a, b) = (t.a as usize, t.b as usize);
         if a >= n || b >= n || t.integrity <= 0.0 {
             continue;
         }
-        let d = bodies[b].pos - bodies[a].pos;
-        let len = d.norm();
-        if len <= 0.0 {
+        if tip_node[a] == u32::MAX || tip_node[b] == u32::MAX {
+            continue;
+        }
+        if tip_node[a] == tip_node[b] {
+            // The tie's ends welded into one joint; it has nothing to hold.
             continue;
         }
         let radius = (t.area / std::f64::consts::PI).max(0.0).sqrt();
-        let (ka, kt) = stiffness(t.area, radius, len);
-        springs.push((a, b, ka, kt, d.scale(1.0 / len)));
+        frame.add_tie(tip_node[a], tip_node[b], radius);
+    }
+    if frame.elements.is_empty() {
+        return None;
     }
 
-    // A part touched by no spring has an empty row in the stiffness matrix but
-    // a non-zero load — an inconsistent system that conjugate gradient can
-    // never satisfy, so it runs to its iteration cap and the whole solve is
-    // discarded. Loose litter in the same node as a structure is exactly such a
-    // part, so this is the common case, not a corner one.
-    let mut participates = vec![false; n];
-    for &(a, b, _, _, _) in &springs {
-        participates[a] = true;
-        if b != GROUND {
-            participates[b] = true;
+    let mut load = vec![Dof::default(); frame.nodes.len()];
+    for i in 0..n {
+        if tip_node[i] == u32::MAX {
+            continue;
         }
+        let half = external.get(i).copied().unwrap_or(Vec3::ZERO).scale(0.5);
+        load[base_node[i] as usize].t += half;
+        load[tip_node[i] as usize].t += half;
     }
 
-    let apply = |u: &[Vec3], out: &mut Vec<Vec3>| {
-        for v in out.iter_mut() {
-            *v = Vec3::ZERO;
-        }
-        for &(a, b, ka, kt, axis) in &springs {
-            let rel = if b == GROUND { u[a] } else { u[a] - u[b] };
-            let along = axis.scale(rel.dot(axis));
-            let across = rel - along;
-            let f = along.scale(ka) + across.scale(kt);
-            out[a] += f;
-            if b != GROUND {
-                out[b] -= f;
-            }
-        }
-        for i in 0..n {
-            if !participates[i] {
-                out[i] = Vec3::ZERO;
-            }
-        }
-    };
-
-    let b_vec: Vec<Vec3> = (0..n)
-        .map(|i| {
-            if participates[i] {
-                external.get(i).copied().unwrap_or(Vec3::ZERO)
-            } else {
-                Vec3::ZERO
-            }
-        })
-        .collect();
-
-    let mut u = vec![Vec3::ZERO; n];
-    let mut r = b_vec.clone();
-    let mut p = r.clone();
-    let mut rs = dot(&r, &r);
-    let tol2 = rs * 1e-16;
-    let mut ap = vec![Vec3::ZERO; n];
-    let mut iters = 0u32;
-    let mut converged = rs <= 0.0;
-    if rs > 0.0 {
-        let max_iter = (n * 3).clamp(64, 4000);
-        for _ in 0..max_iter {
-            iters += 1;
-            apply(&p, &mut ap);
-            let denom = dot(&p, &ap);
-            if !(denom.abs() > 1e-300) {
-                break;
-            }
-            let alpha = rs / denom;
-            if !alpha.is_finite() {
-                break;
-            }
-            for i in 0..n {
-                u[i] += p[i].scale(alpha);
-                r[i] -= ap[i].scale(alpha);
-            }
-            let rs_new = dot(&r, &r);
-            if !rs_new.is_finite() {
-                // The system was too ill-conditioned to solve; fall back to the
-                // determinate answer rather than returning nonsense.
-                return (vec![Vec3::ZERO; topo.ties.len()], iters);
-            }
-            if rs_new <= tol2 {
-                converged = true;
-                break;
-            }
-            let beta = rs_new / rs;
-            for i in 0..n {
-                p[i] = r[i] + p[i].scale(beta);
-            }
-            rs = rs_new;
-        }
-    }
-    // An unconverged solve is not a solution. Using one anyway produced tie
-    // forces off by ten orders of magnitude, which the accumulation then turned
-    // into stresses of 10^14 and demolished the structure on the first frame.
-    // Falling back to the determinate answer — ties carry nothing — is
-    // conservative, stable, and honest about what was and was not computed.
-    if !converged || !u.iter().all(|v| v.is_finite()) {
-        return (vec![Vec3::ZERO; topo.ties.len()], iters);
+    let solution = frame.solve(&load);
+    if !solution.converged {
+        return None;
     }
 
-    let forces = topo
-        .ties
-        .iter()
-        .map(|t| {
-            let (a, b) = (t.a as usize, t.b as usize);
-            if a >= n || b >= n || t.integrity <= 0.0 {
-                return Vec3::ZERO;
-            }
-            let d = bodies[b].pos - bodies[a].pos;
-            let len = d.norm();
-            if len <= 0.0 {
-                return Vec3::ZERO;
-            }
-            let axis = d.scale(1.0 / len);
-            let radius = (t.area / std::f64::consts::PI).max(0.0).sqrt();
-            let (ka, kt) = stiffness(t.area, radius, len);
-            let rel = u[b] - u[a];
-            let along = axis.scale(rel.dot(axis));
-            let across = rel - along;
-            along.scale(ka) + across.scale(kt)
-        })
-        .collect();
-    (forces, iters)
-}
-
-fn dot(a: &[Vec3], b: &[Vec3]) -> f64 {
-    a.iter().zip(b).map(|(x, y)| x.dot(*y)).sum()
+    // Back to member index space, and re-derive the temperature-dependent
+    // strength here so the two paths apply the same failure criteria.
+    let mut out = Vec::with_capacity(n);
+    for i in 0..n {
+        let e = element_of.get(i).copied().unwrap_or(usize::MAX);
+        if e == usize::MAX || e >= solution.forces.len() {
+            out.push(JointLoad {
+                stress: 0.0,
+                buckling: 0.0,
+                utilisation: 0.0,
+                force: Vec3::ZERO,
+                moment: Vec3::ZERO,
+                carried: bodies[i].mass,
+            });
+            continue;
+        }
+        let f = solution.forces[e];
+        let t = loads.temperature.get(i).copied().unwrap_or(loads.ambient);
+        let integrity = topo.bonds[i].integrity;
+        let tensile = f.axial > 0.0;
+        let ratio = if tensile { topo.material.tensile_ratio } else { 1.0 };
+        let strength = topo.material.rupture * topo.material.strength_at(t) * integrity * ratio;
+        let by_stress = if strength > 0.0 {
+            f.stress / strength
+        } else if f.stress > 0.0 {
+            f64::INFINITY
+        } else {
+            0.0
+        };
+        let (axis, _) = member_axis(topo, i);
+        out.push(JointLoad {
+            stress: f.stress,
+            buckling: f.buckling,
+            utilisation: by_stress.max(f.buckling),
+            force: axis.scale(f.axial),
+            moment: axis.scale(f.torsion),
+            carried: bodies[i].mass,
+        });
+    }
+    Some((out, solution.iterations))
 }
 
 /// Break every joint over its limit, then find what is no longer held.
@@ -849,5 +815,64 @@ pub mod weather {
     /// Gravity.
     pub fn gravity() -> Mechanism {
         Mechanism::BodyAcceleration(G_EARTH)
+    }
+}
+
+/// Welds coincident points into shared frame nodes.
+///
+/// Independent members that meet in space are one joint, not two points that
+/// happen to be at the same coordinates. Without this a truss whose bars all
+/// reach a common apex would be three disconnected bars, and a solver asked to
+/// hold them together with a zero-length tie has to invert a stiffness that is
+/// infinite by construction.
+///
+/// Positions are quantised onto a grid a millionth of the structure's own size,
+/// and a candidate is matched against that cell and its 26 neighbours, so points
+/// that agree to within round-off weld whether or not their bits agree.
+struct Weld {
+    cells: std::collections::HashMap<(i64, i64, i64, bool), Vec<u32>>,
+    eps: f64,
+}
+
+impl Weld {
+    fn new(topo: &Topology, n: usize) -> Weld {
+        // Scale from the structure's own extent, so the tolerance means the
+        // same thing for a bacterium and for a bridge.
+        let mut extent: f64 = 0.0;
+        for i in 0..n {
+            extent = extent.max(topo.tip[i].norm()).max(topo.base[i].norm());
+        }
+        let eps = if extent > 0.0 { extent * 1.0e-6 } else { 1.0e-9 };
+        Weld { cells: std::collections::HashMap::new(), eps }
+    }
+
+    #[inline]
+    fn cell(&self, p: Vec3, fixed: bool) -> (i64, i64, i64, bool) {
+        (
+            (p.x / self.eps).round() as i64,
+            (p.y / self.eps).round() as i64,
+            (p.z / self.eps).round() as i64,
+            fixed,
+        )
+    }
+
+    fn node(&mut self, frame: &mut crate::solvers::frame::Frame, p: Vec3, fixed: bool) -> u32 {
+        let (cx, cy, cz, f) = self.cell(p, fixed);
+        for dx in -1..=1 {
+            for dy in -1..=1 {
+                for dz in -1..=1 {
+                    if let Some(bucket) = self.cells.get(&(cx + dx, cy + dy, cz + dz, f)) {
+                        for &id in bucket {
+                            if (frame.nodes[id as usize] - p).norm() <= self.eps {
+                                return id;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        let id = frame.add_node(p, fixed);
+        self.cells.entry((cx, cy, cz, f)).or_default().push(id);
+        id
     }
 }
