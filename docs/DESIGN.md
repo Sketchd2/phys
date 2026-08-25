@@ -204,10 +204,67 @@ from the leaves inward, and every joint's load is known in O(n) with no solve at
 all. Since parts are emitted parents-first, a single reverse iteration over the
 array does it.
 
-The approximation is stated rather than hidden: for a redundant structure this
-is the gravity load path with no force sharing between alternative routes, which
-is *conservative* — it over-predicts the load on the nominal path and so fails
-early rather than late.
+A redundant structure gets a real solve instead, and the fast path is not an
+approximation of it — it is the same code with an empty tie list.
+
+#### Beam elements, and why springs were not enough
+
+The redundant path was a network of anisotropic springs: stiff along each
+member's axis, soft across it, with the transverse stiffness set to `3EI/L³`.
+That is the tip stiffness of a cantilever, so the obvious validation — a
+cantilever's `PL³/3EI` deflection — passes and proves nothing.
+
+It is wrong for everything else, because a spring pair carries no *moment*
+between its ends. A member's rotation is invisible to its neighbours, so the
+model cannot tell a fixed end from a pinned one. The discriminating case is a
+beam built in at both ends, whose midspan deflection is `PL³/192EI` — sixty-four
+times stiffer than the cantilever, entirely because the fixed ends resist
+rotation. A translation-only model gets that wrong by that factor, and braced,
+portalised and continuous structures are exactly the ones that need the
+redundant solver in the first place.
+
+`solvers::frame` is a standard three-dimensional Euler-Bernoulli formulation:
+six degrees of freedom per node, twelve per element, matrix-free and
+Jacobi-preconditioned. Preconditioning is not a nicety here — translational
+stiffnesses of order `EA/L` and rotational ones of order `EI/L` differ by
+`L²/r²`, four orders of magnitude for a slender member — and the claim is
+measurable rather than asserted: the same problem takes 242 iterations
+preconditioned and does not converge at all without.
+
+Two failure modes ride on top of the elastic solve. **Euler buckling**, because
+a slender member in compression fails far below its material strength and no
+stress check will ever notice — it is a stability failure, not a strength one,
+and omitting it means a hundred-metre column reporting 57% utilised while it
+folds up. And **elastic-perfectly-plastic redistribution** by secant stiffness,
+because a ductile material sheds load off an overstressed member onto its
+neighbours and a brittle one does not. That single number, `Material::ductility`,
+is the difference between a steel frame that sags, redistributes and warns you
+and a masonry wall that is standing one moment and rubble the next.
+
+#### Motion
+
+Knowing what a bond can take is not knowing what it makes its neighbours *do*.
+Until `solvers::dynamics`, a tree in a gale either stood exactly still or
+snapped, with nothing in between.
+
+The dynamic step runs on the *same operator*. `Frame` grew a lumped mass vector
+and two scalar coefficients, turning its operator from `K` into `s_m M + s_k K`;
+Newmark-beta with Rayleigh damping is then a static solve against that shifted
+operator, so the conjugate gradient, the preconditioner, the element forces and
+the failure criteria are all shared. A structure cannot move according to one
+stiffness and break according to another, because there is only one.
+
+Not backward Euler, which is the `γ = 1, β = 1` corner of the same family: it is
+unconditionally stable but removes 93% of a structure's energy in four cycles
+for reasons that have nothing to do with the material. A tree under it deflects
+into the wind and stops dead. Trapezoidal Newmark conserves energy exactly for a
+linear system, so what damping there is, is the damping that was asked for.
+
+The payoff is a number a quasi-static analysis cannot produce. A load that
+arrives suddenly deflects a structure about *twice* as far as the same load
+standing still — the dynamic load factor for a step load is exactly 2, and the
+solver measures 1.985. A gust that a static check passes at 60% utilisation
+breaks the same member outright.
 
 What this buys is that damage stops being scripted. Nothing in the engine says
 "lightning destroys a tree" or "wet snow breaks branches". Snow settles on
@@ -419,15 +476,16 @@ engine depends on.
 - **Turbulence is a prescribed solenoidal field**, not a solved cascade. It
   produces the right correlations at one scale, not the right spectrum across
   scales.
-- **The redundant solver is axial-plus-transverse springs, not a full beam
-  element.** Each connection is stiff along its axis and soft across it, which
-  makes slender structures behave as pin-jointed trusses without that being
-  assumed — but it is not a six-degree-of-freedom beam formulation, and it has
-  no plasticity, buckling or dynamic response. An unconverged solve falls back
-  to the determinate answer rather than returning noise.
-- **Bonds carry no stiffness into the particle solvers.** The topology decides
-  what breaks, but a materialised structure handed to molecular dynamics still
-  has no constraints holding it together.
+- **Structural dynamics is small-displacement and linear.** The restoring force
+  is exact for members whose chord rotates by well under a tenth of a radian,
+  which covers a building in a storm and a trunk in a gale but not a sapling
+  bent double. `StepReport::displacement_ratio` reports the worst chord rotation
+  every step, so the regime is measured rather than assumed; a corotational
+  element formulation would remove the limit and has not been written.
+- **Molecular bonds are a fixed list.** Bonds are Morse and dissociate
+  emergently, but nothing forms new ones: the solver can take a molecule apart
+  and cannot put a different one together. Real reaction chemistry needs a
+  bond-order potential, which is a different and much larger undertaking.
 - **Structures cannot straddle nodes.** A building spanning several nodes, or
   roots reaching into the soil node, would need cross-links, which the strictly
   hierarchical tree deliberately forbids — that hierarchy is what makes the

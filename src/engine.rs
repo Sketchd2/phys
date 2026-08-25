@@ -34,9 +34,44 @@ use std::collections::HashMap;
 /// record of which twig went.
 pub const NOTABLE_BREAKS: usize = 48;
 
+/// Substeps a single `shake` call may take. A structure whose period is far
+/// shorter than the frame it is asked to cover would otherwise spend the whole
+/// frame budget resolving motion nobody can see; past this it is integrated
+/// coarsely and the report says so through its own convergence flag.
+pub const MAX_SHAKE_STEPS: f64 = 240.0;
+
 /// Below this much standing mass a structure is rubble, not a structure, and
 /// there is nothing meaningful left to analyse.
 pub const COLLAPSE_MASS: f64 = 1e-6;
+
+/// What a run of dynamics did.
+#[derive(Debug, Clone, Default)]
+pub struct ShakeOutcome {
+    /// Substeps taken.
+    pub steps: u32,
+    /// Conjugate-gradient iterations across all of them.
+    pub iterations: u32,
+    /// Joints that failed while the structure was moving.
+    pub broken_joints: usize,
+    /// Structural mass that fell off.
+    pub detached_mass: f64,
+    /// Kinetic energy the structure is carrying, J.
+    pub kinetic: f64,
+    /// Elastic energy stored in it, J.
+    pub strain: f64,
+    /// Strain energy released by members that failed, J.
+    pub released: f64,
+    /// Energy removed by damping, J.
+    pub dissipated: f64,
+    /// Largest nodal displacement, m.
+    pub displacement: f64,
+    /// Largest chord rotation of any member, radians. Above about 0.1 the
+    /// small-displacement assumption is spent and the restoring force is being
+    /// overestimated.
+    pub displacement_ratio: f64,
+    /// A step failed to converge and the run stopped early.
+    pub diverged: bool,
+}
 
 /// What an insult did to a structure.
 #[derive(Debug, Default, Clone, Copy)]
@@ -107,6 +142,15 @@ pub struct World {
     /// Per-node environment overrides, keyed by path so they survive the node
     /// being coarsened and rebuilt.
     pub environments: HashMap<PathKey, crate::morph::Environment>,
+    /// The one structure currently being integrated through time, and which
+    /// node it belongs to.
+    ///
+    /// Only one, deliberately. Dynamics is expensive and it is only worth
+    /// anything to somebody watching — a tree swaying in a forest nobody is
+    /// looking at is indistinguishable from one standing still, and the engine
+    /// already declines to materialise what nobody can see. This is the same
+    /// rule applied to motion rather than to detail.
+    shaking: Option<(NodeIdx, crate::solvers::structure::DynamicStructure)>,
     history_depth: usize,
 }
 
@@ -129,6 +173,7 @@ impl World {
             labour_rate: 0.0,
             rejected_transactions: 0,
             environments: HashMap::new(),
+            shaking: None,
             history_depth: 64,
         }
     }
@@ -684,6 +729,146 @@ impl World {
         node.children.clear();
         self.tree.stats.damage_events += 1;
         out
+    }
+
+    /// Integrate a structure through real time under a set of mechanisms.
+    ///
+    /// [`World::damage`] asks whether a structure stands up under a load.
+    /// This asks what it *does* while that load is on it, which is a different
+    /// question with a different answer: a gust a quasi-static check passes at
+    /// 60% utilisation can break the same member outright, because a load
+    /// arriving suddenly deflects a structure about twice as far as the same
+    /// load standing still.
+    ///
+    /// The structure's dynamic state persists between calls — it has to, since
+    /// what it does next depends on how it is already moving — and is
+    /// discarded the moment the observer looks at something else.
+    pub fn shake(
+        &mut self,
+        idx: NodeIdx,
+        mechanisms: &[crate::solvers::structure::Mechanism],
+        seconds: f64,
+    ) -> ShakeOutcome {
+        use crate::solvers::structure as st;
+        let mut out = ShakeOutcome::default();
+        if idx.is_none() || seconds <= 0.0 || !self.tree.nodes[idx.get()].alive {
+            return out;
+        }
+        if self.tree.nodes[idx.get()].morphology.is_none() {
+            return out;
+        }
+        self.tree.refine(idx);
+        let ambient = self.tree.nodes[idx.get()].agg.temperature;
+        let bodies = self.tree.nodes[idx.get()].bodies.clone();
+        let topo = match self.tree.nodes[idx.get()].topology.clone() {
+            Some(t) => t,
+            None => return out,
+        };
+
+        // Rebuild whenever the observer has moved on or the structure itself
+        // has changed. Carrying a stale dynamic state across a regeneration
+        // would let a tree that has lost a limb keep swinging it.
+        let stale = match &self.shaking {
+            Some((n, ds)) => *n != idx || ds.tip_node.len() != bodies.len(),
+            None => true,
+        };
+        if stale {
+            self.shaking = st::dynamic_structure(&bodies, &topo).map(|ds| (idx, ds));
+        }
+        let Some((_, ds)) = self.shaking.as_mut() else {
+            return out;
+        };
+
+        let mut field = st::LoadField::new(bodies.len(), ambient);
+        for m in mechanisms {
+            field.apply(m, &bodies, &topo);
+        }
+        field.apply(&st::weather::gravity(), &bodies, &topo);
+
+        // Substep to whatever the structure's own period demands. A sway with
+        // a two-second period is resolved by a twentieth of a second; a steel
+        // frame's is a hundred times shorter, and integrating it at the frame
+        // rate would report a structure that does not move.
+        let period = ds.dynamics.dominant_period(&ds.dynamics.displacement);
+        let target = if period > 0.0 { period / 20.0 } else { seconds };
+        let steps = (seconds / target).ceil().max(1.0).min(MAX_SHAKE_STEPS) as usize;
+        let h = seconds / steps as f64;
+        let mut broken: Vec<usize> = Vec::new();
+        for _ in 0..steps {
+            let rep = ds.advance(&field, h);
+            out.iterations += rep.iterations;
+            out.released += rep.released;
+            out.dissipated += rep.dissipated;
+            broken.extend(rep.broken);
+            if !rep.converged {
+                out.diverged = true;
+                break;
+            }
+        }
+        out.steps = steps as u32;
+        out.kinetic = ds.dynamics.kinetic_energy();
+        out.strain = ds.dynamics.strain_energy();
+        out.displacement = ds
+            .dynamics
+            .displacement
+            .iter()
+            .map(|d| d.t.norm())
+            .fold(0.0f64, f64::max);
+        out.displacement_ratio = ds.dynamics.displacement_ratio();
+
+        if broken.is_empty() {
+            return out;
+        }
+
+        // Fold the failures into the developmental state, exactly as the static
+        // path does, so a limb lost in a gust survives the structure being
+        // discarded and rebuilt.
+        let members = ds.failed_members(&broken);
+        out.broken_joints = members.len();
+        let mut ranked: Vec<(f64, u32)> = members
+            .iter()
+            .filter_map(|&m| {
+                let i = m as usize;
+                topo.site.get(i).map(|&site| (bodies[i].mass, site))
+            })
+            .collect();
+        ranked.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
+        let mut sites: Vec<u32> = ranked.iter().map(|&(_, s)| s).collect();
+        sites.dedup();
+        sites.truncate(NOTABLE_BREAKS);
+        let detached: f64 = ranked.iter().map(|&(m, _)| m).sum();
+
+        let structural_mass = self.tree.nodes[idx.get()]
+            .morphology
+            .as_ref()
+            .map(|m| m.built)
+            .unwrap_or(0.0);
+        let node = &mut self.tree.nodes[idx.get()];
+        if let Some(m) = node.morphology.as_mut() {
+            if !sites.is_empty() && structural_mass > 0.0 {
+                let fraction = (detached / structural_mass).clamp(0.0, 1.0);
+                let txn = m.sever_many(&sites, fraction);
+                out.detached_mass = txn.mass_detached;
+            }
+            node.agg.chemical_energy = m.stored_energy();
+            node.agg.radius = m.extent().max(1e-30);
+        }
+        node.bodies.clear();
+        node.topology = None;
+        node.children.clear();
+        self.shaking = None;
+        self.tree.stats.damage_events += 1;
+        out
+    }
+
+    /// Stop integrating whatever was being shaken, releasing its state.
+    pub fn settle(&mut self) {
+        self.shaking = None;
+    }
+
+    /// The structure currently being integrated, if any.
+    pub fn shaken(&self) -> Option<&crate::solvers::structure::DynamicStructure> {
+        self.shaking.as_ref().map(|(_, ds)| ds)
     }
 
     /// Read the growth environment off a node and its surroundings.

@@ -14,7 +14,7 @@
 
   let wasm = null, mem = null, running = true, dpr = 1;
   const cam = { az: 0.75, el: 0.16, dist: 1.0, target: 0 };
-  const history = { mass: [], util: [] };
+  const history = { mass: [], util: [], sway: [] };
   const MAX_HISTORY = 220;
 
   function bytesFromBase64(b64) {
@@ -25,7 +25,7 @@
   }
 
   function readouts() {
-    return new Float32Array(mem().buffer, wasm.readouts_ptr(), 16);
+    return new Float32Array(mem().buffer, wasm.readouts_ptr(), 24);
   }
   function geometry() {
     const n = wasm.geometry_len();
@@ -221,12 +221,27 @@
       : util >= 1 ? "members failing" : util > 0.7 ? "heavily loaded" : running ? "running" : "paused";
     if (collapsed) $("roUtil").textContent = "—";
 
+    const dynamic = +$("dynamic").value > 0;
+    const gust = r[16], sway = r[17], ratio = r[19];
+    $("roGust").textContent = dynamic ? gust.toFixed(1) + " m/s" : "—";
+    $("roSway").textContent = dynamic ? (sway * 100).toFixed(1) + " cm" : "—";
+    // Past about a tenth of a radian of chord rotation the small-displacement
+    // assumption the solver rests on is spent, and saying so is better than
+    // drawing it anyway.
+    $("roSway").style.color = ratio > 0.1 ? css("--warn") : "";
+    $("roSway").title = dynamic ? `worst member rotation ${(ratio).toFixed(3)} rad` : "";
+
     history.mass.push(mass); history.util.push(Math.min(util, 2));
-    if (history.mass.length > MAX_HISTORY) { history.mass.shift(); history.util.shift(); }
+    history.sway.push(dynamic ? sway : 0);
+    if (history.mass.length > MAX_HISTORY) {
+      history.mass.shift(); history.util.shift(); history.sway.shift();
+    }
     $("tMass").textContent = fmtMass(mass);
     $("tUtil").textContent = util.toFixed(2);
+    $("tSway").textContent = dynamic ? (sway * 100).toFixed(1) + " cm" : "off";
     drawTrace($("chartMass"), history.mass, css("--accent"));
     drawTrace($("chartUtil"), history.util, css("--warn"), 1.2);
+    drawTrace($("chartSway"), history.sway, css("--accent"));
   }
 
   // ---- loop ------------------------------------------------------------
@@ -237,6 +252,10 @@
     if (wasm) {
       if (running) wasm.step(dt * (+$("rate").value));
       else wasm.step(0);
+      // Growth runs on years and motion runs on seconds; coupling them would
+      // mean a tree that sways faster because you fast-forwarded its life.
+      // The dynamics gets real elapsed time whatever the growth rate is.
+      if (running) wasm.shake(dt);
       draw();
       refreshUI();
     }
@@ -261,7 +280,8 @@
     wasm.set_wind(0, 0);
     wasm.set_snow(0, +$("wet").value);
     wasm.set_fire(0, 0);
-    history.mass.length = 0; history.util.length = 0;
+    history.mass.length = 0; history.util.length = 0; history.sway.length = 0;
+    wasm.set_dynamic(+$("dynamic").value);
     wasm.step(0);
   }
 
@@ -289,6 +309,7 @@
     bindSlider("wet", (v) => v.toFixed(0) + " kg/m³", (v) => wasm.set_snow(+$("snow").value / 1000, v));
     bindSlider("rate", (v) => v.toFixed(1), () => {});
     bindSlider("detail", (v) => v.toFixed(0), (v) => wasm.set_budget(v));
+    bindSlider("dynamic", (v) => (v > 0 ? "on" : "off"), (v) => wasm.set_dynamic(v));
 
     $("play").addEventListener("click", () => {
       running = !running;

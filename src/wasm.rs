@@ -31,7 +31,7 @@ pub struct Session {
     /// Interleaved member geometry: base xyz, tip xyz, radius, stress ratio.
     geometry: Vec<f32>,
     /// Scalar readouts, see `readout_*` indices below.
-    readouts: [f32; 16],
+    readouts: [f32; 24],
     /// Standing conditions, re-applied every step.
     wind: f64,
     wind_dir: Vec3,
@@ -41,6 +41,12 @@ pub struct Session {
     fire_height: f64,
     budget: usize,
     dirty: bool,
+    /// Whether the structure is being integrated through real time.
+    dynamic: bool,
+    /// Wall-clock seconds of dynamics elapsed, for the gust model.
+    shake_time: f64,
+    /// Current turbulent fluctuation about the mean wind, m/s.
+    gust: f64,
     /// Joints broken since the world was created. The per-call count is useless
     /// to watch: a standing load breaks what it can on the first frame and
     /// nothing after, so the live number reads zero while the structure is
@@ -99,7 +105,7 @@ pub extern "C" fn create(seed: u32, program: u32, reservoir_kg: f32, budget: u32
             world,
             node,
             geometry: Vec::new(),
-            readouts: [0.0; 16],
+            readouts: [0.0; 24],
             wind: 0.0,
             wind_dir: v3(1.0, 0.0, 0.0),
             snow_depth: 0.0,
@@ -108,6 +114,9 @@ pub extern "C" fn create(seed: u32, program: u32, reservoir_kg: f32, budget: u32
             fire_height: 0.0,
             budget: budget as usize,
             dirty: true,
+            dynamic: false,
+            shake_time: 0.0,
+            gust: 0.0,
             total_broken: 0,
         });
     }
@@ -335,4 +344,128 @@ pub extern "C" fn coarsen() -> u32 {
 #[unsafe(no_mangle)]
 pub extern "C" fn detail_bytes() -> u32 {
     session().world.tree.detail_bytes() as u32
+}
+
+
+// ---------------------------------------------------------------------------
+// Real time
+// ---------------------------------------------------------------------------
+
+/// Turn dynamics on or off.
+///
+/// With it off the viewer shows the structure where a quasi-static analysis
+/// puts it, which is where it would sit under a load held forever. With it on
+/// the structure has mass, and what is drawn is where it actually is at this
+/// instant — leaning into a gust, swinging back out of one, ringing after a
+/// limb goes.
+#[unsafe(no_mangle)]
+pub extern "C" fn set_dynamic(on: u32) {
+    let s = session();
+    s.dynamic = on != 0;
+    if !s.dynamic {
+        s.world.settle();
+        s.dirty = true;
+        refresh(s);
+    }
+}
+
+/// Advance the structure by `seconds` of real time.
+///
+/// Separate from [`step`], which advances *growth* by years. The two run on
+/// wildly different clocks and it would be a mistake to couple them: a tree
+/// sways with a period of seconds and grows over decades, and a viewer wants
+/// to watch one while fast-forwarding the other.
+#[unsafe(no_mangle)]
+pub extern "C" fn shake(seconds: f32) {
+    let s = session();
+    if !s.dynamic || seconds <= 0.0 {
+        return;
+    }
+    let dt = (seconds as f64).min(0.25);
+    s.shake_time += dt;
+
+    // Turbulence as an Ornstein-Uhlenbeck process: the standard first-order
+    // model of a gust, and three lines. The fluctuation decays towards zero
+    // with a time constant of a few seconds and is kicked by noise whose size
+    // is set by the mean speed, which is what gives the low-frequency energy a
+    // real boundary layer has and a sine wave does not.
+    if s.wind > 0.0 {
+        let tau = 4.0;
+        let intensity = 0.18 * s.wind;
+        let mut stream = crate::rng::Stream::at(
+            s.world.tree.world_seed,
+            0,
+            0,
+            crate::rng::Purpose::ThermalNoise,
+        )
+        .split((s.shake_time * 1000.0) as u64);
+        let decay = (-dt / tau).exp();
+        s.gust = s.gust * decay
+            + intensity * (1.0 - decay * decay).sqrt() * stream.normal();
+    } else {
+        s.gust = 0.0;
+    }
+
+    let mut mechanisms: Vec<Mechanism> = Vec::new();
+    let speed = (s.wind + s.gust).max(0.0);
+    if speed > 0.0 {
+        mechanisms.push(st::weather::wind(speed, s.wind_dir));
+    }
+    if s.snow_depth > 0.0 {
+        let crown = s.world.tree.nodes[s.node.get()]
+            .morphology
+            .as_ref()
+            .map(|m| m.capture_area())
+            .unwrap_or(0.0);
+        mechanisms.push(st::weather::snow(s.snow_depth, s.snow_density, crown));
+    }
+
+    let out = s.world.shake(s.node, &mechanisms, dt);
+    s.total_broken += out.broken_joints as u32;
+    s.readouts[12] = out.iterations as f32;
+    s.readouts[16] = speed as f32;
+    s.readouts[17] = out.displacement as f32;
+    s.readouts[18] = (out.kinetic + out.strain) as f32;
+    s.readouts[19] = out.displacement_ratio as f32;
+    s.readouts[6] = s.total_broken as f32;
+    if out.broken_joints > 0 {
+        s.dirty = true;
+        refresh(s);
+        return;
+    }
+    write_deformed(s);
+}
+
+/// Overwrite the geometry buffer with where the structure actually is.
+///
+/// Only the endpoints move; the utilisation in the eighth slot is left at
+/// whatever the last analysis put there, so the colouring stays meaningful
+/// between analyses rather than flickering with every substep.
+fn write_deformed(s: &mut Session) {
+    let Some(ds) = s.world.shaken() else {
+        return;
+    };
+    let members = ds.deformed_members();
+    let topo = match s.world.tree.nodes[s.node.get()].topology.as_ref() {
+        Some(t) => t,
+        None => return,
+    };
+    let mut slot = 0usize;
+    for i in 0..members.len().min(topo.bonds.len()) {
+        if topo.bonds[i].radius <= 0.0 {
+            continue;
+        }
+        let base = slot * 8;
+        slot += 1;
+        if base + 5 >= s.geometry.len() {
+            break;
+        }
+        let (b, t) = members[i];
+        s.geometry[base] = b.x as f32;
+        s.geometry[base + 1] = b.y as f32;
+        s.geometry[base + 2] = b.z as f32;
+        s.geometry[base + 3] = t.x as f32;
+        s.geometry[base + 4] = t.y as f32;
+        s.geometry[base + 5] = t.z as f32;
+    }
 }

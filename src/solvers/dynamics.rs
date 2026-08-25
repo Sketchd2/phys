@@ -108,9 +108,8 @@ pub struct StepReport {
     /// the pieces, and booking it as damping would hide a fracture inside a
     /// friction term.
     pub released: f64,
-    /// Largest nodal displacement as a fraction of the shortest member it is
-    /// attached to. Above about 0.1 the linear restoring force is no longer
-    /// trustworthy.
+    /// Largest chord rotation of any member, in radians. Above about 0.1 the
+    /// linear restoring force is no longer trustworthy.
     pub displacement_ratio: f64,
 }
 
@@ -351,24 +350,33 @@ impl Dynamics {
             .collect()
     }
 
-    /// Largest nodal displacement measured against the shortest member reaching
-    /// that node. Beyond roughly 0.1 the small-displacement assumption is
-    /// spent and the restoring force is being overestimated.
+    /// Largest chord rotation of any member, in radians.
+    ///
+    /// This is the quantity the small-displacement assumption is about, and it
+    /// is not the same as how far anything has moved. A twig at the end of a
+    /// swaying branch travels metres while rotating by almost nothing: it is
+    /// carried, not bent. What makes a linear beam model wrong is a member
+    /// turning far enough that its stiffness no longer acts along the direction
+    /// the reference geometry says it does — so the measure is the transverse
+    /// part of the *relative* displacement across each member, over its length.
+    ///
+    /// Beyond about 0.1 rad the restoring force is being overestimated by a
+    /// few percent, and beyond 0.3 the answer is qualitatively wrong.
     pub fn displacement_ratio(&self) -> f64 {
-        let mut scale = vec![f64::INFINITY; self.frame.nodes.len()];
+        let mut worst: f64 = 0.0;
         for e in &self.frame.elements {
-            let l = (self.frame.nodes[e.b as usize] - self.frame.nodes[e.a as usize]).norm();
+            let (a, b) = (e.a as usize, e.b as usize);
+            let axis = self.frame.nodes[b] - self.frame.nodes[a];
+            let l = axis.norm();
             if l <= 0.0 {
                 continue;
             }
-            for node in [e.a as usize, e.b as usize] {
-                scale[node] = scale[node].min(l);
-            }
+            let along = axis.scale(1.0 / l);
+            let rel = self.displacement[b].t - self.displacement[a].t;
+            let across = rel - along.scale(rel.dot(along));
+            worst = worst.max(across.norm() / l);
         }
-        (0..self.frame.nodes.len())
-            .filter(|&i| scale[i].is_finite() && scale[i] > 0.0)
-            .map(|i| self.displacement[i].t.norm() / scale[i])
-            .fold(0.0f64, f64::max)
+        worst
     }
 
     /// Free vibration period of the dominant mode, estimated by Rayleigh

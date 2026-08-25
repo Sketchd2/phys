@@ -132,6 +132,47 @@ stream from the node address alone, so every step drew the *same* numbers. A
 heated to 81,000 K. The fix threads the step index into the address
 (`rng::Stream::split`); the test would catch a regression.
 
+#### Covalent bonds
+
+Lennard-Jones plus screened Coulomb describes a gas well and a *molecule* not at
+all: nothing in it distinguishes two hydrogens that are bonded from two that
+happen to be near each other. A water molecule handed to this tier came apart
+the moment anything warmed it, because the bond holding it was a van der Waals
+well two hundred times too shallow.
+
+Bonds are Morse, `V(r) = D_e [1 − e^{−a(r−r₀)}]²` with `a = sqrt(k / 2D_e)`.
+A harmonic bond has the right stiffness near equilibrium and is infinitely
+strong — it can be stretched across the box and still pull back — so
+dissociation has to be bolted on as a threshold nobody can defend. Morse has the
+same curvature at the bottom of the well and flattens out at `D_e`, so a
+molecule given more than its dissociation energy comes apart because the
+potential ran out, not because a branch fired. Angles are harmonic, since a
+molecule loses its shape by breaking a bond rather than by opening an angle to
+infinity.
+
+The constants are spectroscopic, and that is what makes them a test rather than
+a fit: bond length, dissociation energy and vibrational frequency are not
+independent, so fixing any two fixes the third.
+
+| Test | Result |
+|---|---|
+| H₂ vibrational fundamental | 4403 /cm against an observed 4401 |
+| Period against `2π√(μ/k)` | within 0.06% |
+| 75% of the well depth | turns around within 2% of the Morse turning point |
+| 130% of the well depth | dissociates |
+| Net bonded force and torque | 0.000 of both |
+| Energy over 50 000 steps | drift 3.5 × 10⁻¹³ |
+| H–O–H bend released 30° off rest | settles to 104.50° |
+
+Bonded pairs are excluded from the nonbonded sum, 1-2 and 1-3, as any force
+field does. This is not a small double-count: two hydrogens sit 0.74 Å apart
+with a Lennard-Jones σ of 2.57 Å, so the repulsive term between them is enormous
+and entirely spurious. It tore every molecule apart within a few hundred
+femtoseconds, and it is what these tests found first. The second thing they
+found was a sign error in the angle force — the bend was anti-restoring. The
+force-balance test could not see it, since an anti-restoring force balances just
+as well as a restoring one; the shape test could.
+
 ### Nuclear
 
 Rate-based, from measured cross sections and decay constants. No attempt to
@@ -240,7 +281,58 @@ bending moment over the section modulus, `4M / (pi r^3)`, plus the axial term.
 | Brief low ground fire | nothing consumed; trunk reaches 305 K |
 | Sustained crown fire | fine fuel consumed; trunk reaches 526 K, not 1100 K |
 
-Every row is a passing assertion in `tests/topology.rs`. A safety factor of 3.5
+Every row is a passing assertion in `tests/topology.rs`.
+
+Redundant structures do not use that O(n) pass. They go to a three-dimensional
+Euler-Bernoulli frame solver — six degrees of freedom per node, matrix-free,
+Jacobi-preconditioned — with Euler buckling and elastic-perfectly-plastic
+redistribution on top. Every case in `tests/frame.rs` has a closed-form answer:
+
+| Case | Solver | Closed form |
+|---|---|---|
+| Axial extension | `PL/EA` | exact to six figures |
+| Cantilever tip | 0.108650 m | `PL³/3EI` = 0.108650 |
+| Simply supported midspan | 4.420971 × 10⁻² m | `PL³/48EI` = 4.420971 × 10⁻² |
+| **Fixed-fixed midspan** | 1.105243 × 10⁻² m | `PL³/192EI` = 1.105243 × 10⁻² |
+| Redundant three-bar truss | 585.79 / 292.89 N | `P/(1+2cos³θ)` = 585.79 / 292.89 |
+| Buckling at ½, 0.95, 1.2, 3× `P_cr` | utilisation 0.500, 0.950, 1.200, 3.000 | |
+| Ductile vs brittle load spread | 1.00× vs 2.40× | |
+| Preconditioned vs not | 242 iterations vs no convergence | |
+
+The fixed-fixed row is the one that matters. The previous solver was a spring
+network, which carries no moment between a member's ends and so cannot tell a
+fixed end from a pinned one; it would report that beam sixty-four times too
+flexible. The cantilever row, by contrast, proves nothing — the spring model was
+*built* from the cantilever's tip stiffness and passes it by construction. A
+stress check alone would also read only 0.0197 at the Euler critical load, a
+factor of 51 of false margin, which is why buckling is a separate criterion.
+
+### 3.7 Structural dynamics
+
+Newmark-beta on the same operator, with lumped mass and rotational inertia from
+the members' own geometry. `tests/dynamics.rs`:
+
+| Case | Solver | Closed form |
+|---|---|---|
+| Cantilever period, integrated | 0.472675 s | `2π/((1.8751/L)²√(EI/ρA))` = 0.472050 |
+| Same, by Rayleigh quotient | 0.466388 s | within 1.2% |
+| Dynamic load factor, step load | 1.985 | exactly 2 |
+| Rigid-body translation | 5.2 × 10⁻¹⁶ J of strain | 0 |
+| Undamped energy, four cycles | 99.3% retained | 100% |
+| Damping ledger | closes to 1 part in 10⁶ | |
+| Tower under held wind | settles to the static answer to 0.000% | |
+| Tree, 18 m/s gust released | swings to +1.47 m, back to −1.24 m, four crossings | |
+
+The dynamic load factor is the row worth dwelling on. A load that arrives
+suddenly deflects a structure twice as far as the same load standing still, so a
+quasi-static analysis of a gust under-reads the stress in it by a factor of two
+— the difference between a member at 60% utilisation and one that has already
+failed. No amount of care in a static solver recovers that number.
+
+The tower row is the consistency check: hold a load steady long enough and the
+dynamics must settle to exactly what the static analysis predicted. Running the
+dynamic step on the static operator is what makes that a theorem rather than a
+coincidence. A safety factor of 3.5
 against self-weight matches measured values for real trees, which is the check
 that makes the rest of the table meaningful — a model that could not stand up
 would fail everything else for the wrong reason.

@@ -19,7 +19,7 @@ So this engine does not simulate a galaxy. It is **indistinguishable from one**
 to any observer inside it, at any resolution they can actually achieve — and it
 makes that a precise, tested claim rather than a slogan.
 
-## The four ideas
+## The ideas
 
 **1. Lazy materialisation with exact conservation.** Detail is generated on
 demand from a seeded distribution and destroyed when nobody is looking. The
@@ -51,22 +51,37 @@ cross-section they have, what they are made of — come from the same program as
 its geometry, so holding a tree together costs no more to store than its shape
 does. When a structure's load path is a *tree*, internal forces are exact in one O(n)
 pass with no stiffness matrix and no solve. Add one brace and that stops being
-true, so a redundant structure gets a matrix-free conjugate-gradient solve on
-the spring network — validated against the analytic three-bar truss, which it
-reproduces to four significant figures in three iterations. The loads are
+true, so a redundant structure goes to a three-dimensional Euler-Bernoulli frame
+solver — six degrees of freedom per node, matrix-free, Jacobi-preconditioned,
+with Euler buckling and plastic redistribution on top. Every case is checked
+against beam theory: `PL/EA`, `PL³/3EI`, `PL³/48EI`, the discriminating
+fixed-fixed `PL³/192EI`, and the classical redundant three-bar truss
+`P/(1+2cos³θ)`, all to six figures. The loads are
 *mechanisms* (body force, fluid drag, surface accretion, conducted energy,
 thermal field, impulse), not named weather; snow, wind, lightning and fire are
 constructors over them. Damage is never scripted: a mechanism produces forces,
 temperature or deposited energy, and the ordinary stress calculation decides
 what survives.
 
-**5. Observation as commitment.** An unobserved quantity has no value; a
+**5. Bonds decide what moves, not only what breaks.** The same stiffness that
+sets a member's load is given mass and integrated through time by Newmark-beta
+on the *same operator*, so a structure cannot move according to one stiffness
+and break according to another. That buys a number no static analysis can
+produce: a load arriving suddenly deflects a structure about twice as far as the
+same load standing still, so a quasi-static check of a gust under-reads its
+stress twofold. The solver measures 1.985 against a theory of exactly 2, and
+reproduces a cantilever's fundamental period to 0.13% of beam theory. At the
+particle tier the same gap is closed by Morse bonds, whose dissociation is
+emergent rather than a threshold: H₂'s vibrational fundamental comes out at
+4403 /cm against an observed 4401.
+
+**6. Observation as commitment.** An unobserved quantity has no value; a
 measured one is recorded permanently in a ledger and never re-sampled. At the
 subatomic tier this is not an approximation of quantum mechanics — it *is*
 quantum mechanics, which is why the trick survives all the way down instead of
 breaking at the bottom.
 
-**6. A frame budget that spends detail, not time.** Each frame gets 50 ms and
+**7. A frame budget that spends detail, not time.** Each frame gets 50 ms and
 solves a knapsack over the available work. Frame rate is the invariant;
 fidelity is the free variable. A user who zooms too far does not get a
 slideshow, they get a slightly coarser world and a visible detail-debt readout.
@@ -80,7 +95,7 @@ open viewer/index.html                  #   it — no server, no install
 cargo run --release --bin phys-demo     # guided tour, galaxy to nucleus
 cargo run --release --example bench     # measured cost of every hot path
 cargo run --release --example damage    # grow a structure, break it, write PNGs
-cargo test --release                    # 75 tests
+cargo test --release                    # 96 tests
 ```
 
 ## The viewer
@@ -92,7 +107,11 @@ the same code the test suite checks. It steps in about 6.5 ms, so there is
 ample headroom at 60 frames a second.
 
 Grow a structure over decades, then load it while it stands: wind and snow are
-continuous conditions, lightning and fire are events. Members are coloured by
+continuous conditions, lightning and fire are events. Turn on real-time
+dynamics and the structure stops being drawn where a load held forever would put
+it — it has mass, and leans into a gust, swings back out of one, and rings after
+a limb goes. The gust is an Ornstein-Uhlenbeck fluctuation about the mean wind,
+which is why the motion never repeats. Members are coloured by
 how hard they are working, from the material's own colour at rest through to
 failure, and the traces show mass and utilisation over time — so a limb coming
 down is visible as a step in both. "Discard detail & regenerate" throws the
@@ -135,9 +154,10 @@ viewer/        the real-time viewer and its build script
   observe.rs   observers, instruments, the commitment ledger
   budget.rs    the frame knapsack
   engine.rs    the orchestrator and the interaction API
-  solvers/     gravity, hydro, molecular dynamics, nuclear, quantum
+  solvers/     gravity, hydro, molecular dynamics (with covalent bonds),
+               nuclear, quantum, frame analysis, structural dynamics
 tests/         consistency, causality, solvers, statistics, budget,
-               interaction, growth, topology
+               interaction, growth, topology, frame, dynamics, bonded
 ```
 
 ## Status
