@@ -164,7 +164,7 @@ pub fn step(
     }
 }
 
-/// Pairs excluded from the nonbonded sum.
+/// How much van der Waals interaction survives between each pair.
 ///
 /// Two atoms held at a covalent bond length are far inside each other's
 /// Lennard-Jones radius — a hydrogen pair sits at 0.74 angstroms with a sigma
@@ -173,13 +173,21 @@ pub fn step(
 /// Waals term in as well double-counts it and then some, and a molecule
 /// assembled with both blows itself apart in a few hundred femtoseconds.
 ///
-/// Every force field excludes bonded neighbours for this reason. Both the
-/// directly bonded pairs and the pairs across an angle are excluded, which is
-/// the standard 1-2 and 1-3 treatment.
+/// Every force field removes bonded neighbours for this reason. A *reactive*
+/// force field cannot do it with a switch that flips, because the same wall
+/// that would tear a molecule apart also stops two atoms ever reaching the
+/// distance at which they could bond: they meet hundreds of electron volts of
+/// repulsion and bounce, and no chemistry ever happens. So a bonded pair's
+/// dispersion is faded out over the same range the bond is faded in — zero
+/// where the bond is doing the work, one where it is not. Pairs across an angle
+/// are removed outright, as usual, since nothing brings them together or apart
+/// except the bonds either side of them.
 #[derive(Debug, Clone, Default)]
 pub struct Exclusions {
-    /// Sorted neighbour list per atom.
-    by_atom: Vec<Vec<u32>>,
+    /// Per atom, sorted by partner: `(partner, shield_inner, shield_outer)`.
+    /// A pair removed outright carries an infinite range, which weighs zero
+    /// everywhere.
+    by_atom: Vec<Vec<(u32, f64, f64)>>,
 }
 
 impl Exclusions {
@@ -187,11 +195,32 @@ impl Exclusions {
         Exclusions::default()
     }
 
+    /// Weight on the nonbonded interaction between `i` and `j` at separation
+    /// `r`: one for an ordinary pair, zero for one the bonds already describe.
     #[inline]
-    pub fn excluded(&self, i: usize, j: u32) -> bool {
-        match self.by_atom.get(i) {
-            Some(list) => list.binary_search(&j).is_ok(),
-            None => false,
+    pub fn weight(&self, i: usize, j: u32, r: f64) -> f64 {
+        self.weight_slope(i, j, r).0
+    }
+
+    /// The weight and its derivative with respect to separation.
+    ///
+    /// The derivative is not optional. A distance-dependent weight makes the
+    /// pair potential `w(r) V(r)`, so the force is `w f - w' V`, and dropping
+    /// the second term leaves a force that is not the gradient of anything —
+    /// which shows up as steady, unexplained heating exactly where atoms are
+    /// meeting each other.
+    #[inline]
+    pub fn weight_slope(&self, i: usize, j: u32, r: f64) -> (f64, f64) {
+        let Some(list) = self.by_atom.get(i) else {
+            return (1.0, 0.0);
+        };
+        match list.binary_search_by_key(&j, |e| e.0) {
+            Ok(k) => {
+                let (_, inner, outer) = list[k];
+                let (s, ds) = switch(r, inner, outer);
+                (1.0 - s, -ds)
+            }
+            Err(_) => (1.0, 0.0),
         }
     }
 
@@ -201,26 +230,28 @@ impl Exclusions {
 }
 
 impl Bonded {
-    /// The 1-2 and 1-3 pairs this bond set implies.
+    /// The 1-2 and 1-3 pairs this bond set implies, with their shielding.
     pub fn exclusions(&self, n: usize) -> Exclusions {
-        let mut by_atom = vec![Vec::new(); n];
-        let mut add = |a: u32, b: u32| {
+        let mut by_atom: Vec<Vec<(u32, f64, f64)>> = vec![Vec::new(); n];
+        let mut add = |a: u32, b: u32, inner: f64, outer: f64| {
             if (a as usize) < n && (b as usize) < n && a != b {
-                by_atom[a as usize].push(b);
-                by_atom[b as usize].push(a);
+                by_atom[a as usize].push((b, inner, outer));
+                by_atom[b as usize].push((a, inner, outer));
             }
         };
         for b in &self.bonds {
-            add(b.a, b.b);
+            add(b.a, b.b, b.shield_inner, b.shield_outer);
         }
         for a in &self.angles {
-            add(a.a, a.b);
-            add(a.b, a.c);
-            add(a.a, a.c);
+            // The far pair of an angle is held by the two bonds either side and
+            // never approaches on its own, so it comes out entirely.
+            add(a.a, a.c, f64::INFINITY, f64::INFINITY);
         }
         for list in by_atom.iter_mut() {
-            list.sort_unstable();
-            list.dedup();
+            // Sort by partner, and where a pair appears twice keep the harder
+            // exclusion — an angle's outright removal beats a bond's fade.
+            list.sort_by(|x, y| x.0.cmp(&y.0).then(y.2.total_cmp(&x.2)));
+            list.dedup_by_key(|e| e.0);
         }
         Exclusions { by_atom }
     }
@@ -247,7 +278,7 @@ pub fn forces_excluding(bodies: &[Body], params: MdParams, skip: &Exclusions) ->
         let mut a = Vec3::ZERO;
         for &jj in nb.iter() {
             let j = jj as usize;
-            if j == i || skip.excluded(i, jj) {
+            if j == i {
                 continue;
             }
             let bj = bodies[j];
@@ -256,11 +287,16 @@ pub fn forces_excluding(bodies: &[Body], params: MdParams, skip: &Exclusions) ->
             if r <= 0.0 || r > params.cutoff {
                 continue;
             }
+            let (w, dw) = skip.weight_slope(i, jj, r);
+            if w <= 0.0 && dw == 0.0 {
+                continue;
+            }
             let (sj, ej) = lj_params(dominant(&bj));
             // Lorentz-Berthelot mixing.
             let sigma = 0.5 * (si + sj);
             let epsilon = (ei * ej).sqrt();
             let mut f = lj_force(r, sigma, epsilon);
+            let mut v = lj_potential(r, sigma, epsilon);
             if bi.charge != 0.0 && bj.charge != 0.0 {
                 // Screened Coulomb, shifted so the force goes smoothly to zero
                 // at the cutoff — an unshifted cutoff puts an impulse into
@@ -271,9 +307,11 @@ pub fn forces_excluding(bodies: &[Body], params: MdParams, skip: &Exclusions) ->
                     / (params.cutoff * params.cutoff)
                     * (-params.cutoff / params.debye).exp();
                 f += fc - fc_cut;
+                v += K_COULOMB * bi.charge * bj.charge / r * scr;
             }
             if bi.mass > 0.0 {
-                a += d.scale(f / (r * bi.mass));
+                // -d(w V)/dr = w f - w' V.
+                a += d.scale((w * f - dw * v) / (r * bi.mass));
             }
         }
         acc[i] = a;
@@ -298,7 +336,7 @@ pub fn potential_energy_excluding(bodies: &[Body], params: MdParams, skip: &Excl
         let (si, ei) = lj_params(dominant(&bi));
         for &jj in nb.iter() {
             let j = jj as usize;
-            if j <= i || skip.excluded(i, jj) {
+            if j <= i {
                 continue;
             }
             let bj = bodies[j];
@@ -306,10 +344,14 @@ pub fn potential_energy_excluding(bodies: &[Body], params: MdParams, skip: &Excl
             if r <= 0.0 || r > params.cutoff {
                 continue;
             }
+            let w = skip.weight(i, jj, r);
+            if w <= 0.0 {
+                continue;
+            }
             let (sj, ej) = lj_params(dominant(&bj));
-            total += lj_potential(r, 0.5 * (si + sj), (ei * ej).sqrt());
+            total += w * lj_potential(r, 0.5 * (si + sj), (ei * ej).sqrt());
             if bi.charge != 0.0 && bj.charge != 0.0 {
-                total += K_COULOMB * bi.charge * bj.charge / r * (-r / params.debye).exp();
+                total += w * K_COULOMB * bi.charge * bj.charge / r * (-r / params.debye).exp();
             }
         }
     }
@@ -357,10 +399,10 @@ pub fn temperature_of(bodies: &[Body]) -> f64 {
 }
 
 // ---------------------------------------------------------------------------
-// Bonded interactions
+// Reactive chemistry
 // ---------------------------------------------------------------------------
 
-/// Covalent bonds and the angles between them.
+/// Covalent bonds that form, hold and break during the simulation.
 ///
 /// # Why the particle tier needed this
 ///
@@ -371,34 +413,49 @@ pub fn temperature_of(bodies: &[Body]) -> f64 {
 /// the moment anything warmed it: the bond that held it was a van der Waals
 /// well two hundred times too shallow.
 ///
-/// This is the particle-tier half of the same gap the structural tier had. A
-/// bond decided what broke and never what moved.
-///
 /// # Morse, not harmonic
 ///
 /// ```text
-///     V(r) = D_e [1 - e^{-a(r - r0)}]^2,     a = sqrt(k / 2 D_e)
+///     V(r) = f(r) D_e { [1 - e^{-a(r - r0)}]^2 - 1 },     a = sqrt(k / 2 D_e)
 /// ```
 ///
 /// A harmonic bond has the right stiffness near equilibrium and is infinitely
 /// strong: it can be stretched across the simulation box and will still pull
 /// back. Dissociation then has to be bolted on as a rule — break at some
 /// extension, or above some energy — and the rule is a number nobody can
-/// defend.
+/// defend. The Morse potential has the same curvature at the bottom of the
+/// well, so it reproduces the vibrational frequency exactly, and it rises to
+/// zero at infinity from a depth of exactly `D_e`. A molecule given more than
+/// its dissociation energy comes apart because the potential ran out, not
+/// because a threshold fired.
 ///
-/// The Morse potential has the same curvature at the bottom of the well, so it
-/// reproduces the vibrational frequency exactly, and it flattens out at `D_e`.
-/// A molecule given more than its dissociation energy comes apart because the
-/// potential runs out, not because a threshold fired. That is the same
-/// principle as the rest of the engine: the failure is in the physics, not in a
-/// branch above it.
+/// # How a bond can appear without energy appearing with it
+///
+/// The hard part of reactive chemistry is not deciding when a bond exists. It
+/// is that adding a term to the potential ordinarily *changes the potential*,
+/// and a simulation that gains energy every time two atoms meet is worthless
+/// however plausible its chemistry.
+///
+/// The factor `f(r)` above is what makes this safe. It is one out to `inner`,
+/// zero beyond `outer`, and a smooth half-cosine between — so a bond at the
+/// edge of its range contributes exactly zero energy and exactly zero force.
+/// Bonds are created only inside that range and destroyed only outside it,
+/// which means **the moment of creation and the moment of destruction are both
+/// energetically invisible**. Conservation across a topology change is not
+/// patched up afterwards; there is nothing to patch. The same switch multiplies
+/// the angle terms, so a bend fades out with the bond that defined it.
+///
+/// What the bond then releases is real: forming an O–H bond drops the potential
+/// by 4.8 eV and that energy arrives as kinetic energy of the pair. An
+/// exothermic reaction warms the gas, and the engine's own conserved tuple
+/// shows exactly where the heat came from.
 #[derive(Debug, Clone, Default)]
 pub struct Bonded {
     pub bonds: Vec<Bond>,
     pub angles: Vec<Angle>,
 }
 
-/// A Morse bond between two particles.
+/// A Morse bond between two particles, switched off smoothly at range.
 #[derive(Debug, Clone, Copy)]
 pub struct Bond {
     pub a: u32,
@@ -409,13 +466,86 @@ pub struct Bond {
     pub well: f64,
     /// Range parameter, 1/m. `sqrt(k / 2 D_e)` for a force constant `k`.
     pub alpha: f64,
+    /// Separation below which the bond acts at full strength, m.
+    pub inner: f64,
+    /// Separation beyond which it contributes nothing at all, m.
+    pub outer: f64,
+    /// Below this the pair's van der Waals interaction is fully shielded, m.
+    pub shield_inner: f64,
+    /// Above this it acts at full strength, m. This is also the range at which
+    /// the pair is considered a bond at all.
+    pub shield_outer: f64,
+}
+
+/// Where a bond's two switches sit: `(inner, outer, shield_outer)`.
+///
+/// Both ranges are derived from where the potentials are actually negligible
+/// rather than from a round multiple of the bond length, because the two scales
+/// are unrelated and the gap between them is where reactive chemistry either
+/// works or does not.
+///
+/// * The Morse switch begins where the potential is within 2% of zero — at
+///   `r0 + ln(100)/alpha` — so what the switch reshapes is a tail worth a
+///   fiftieth of the well and not the well itself.
+/// * It ends, and the dispersion shield begins, past the Lennard-Jones minimum.
+///   The repulsive wall of a pair at covalent distance is hundreds of electron
+///   volts; the two atoms would bounce off it long before they reached anything
+///   the bond could hold them at, and no chemistry would ever happen. Handing
+///   over at the minimum means neither term is doing anything much at the
+///   crossover, so the handover leaves no barrier of its own.
+///
+/// An earlier version handed over at 2.4 bond lengths, which for hydrogen is
+/// deep inside the van der Waals wall. It left a 0.026 eV activation barrier
+/// that was nobody's chemistry — the atoms could not reach each other, and the
+/// only sign of it was that a test which expected a bond never got one.
+fn ranges(r0: f64, alpha: f64, sigma: f64) -> (f64, f64, f64) {
+    let negligible = if alpha > 0.0 { r0 + 100f64.ln() / alpha } else { 2.4 * r0 };
+    let minimum = 2f64.powf(1.0 / 6.0) * sigma;
+    let outer = (1.1 * negligible).max(1.25 * minimum);
+    let inner = negligible.min(0.85 * outer).max(1.6 * r0);
+    (inner, outer, 1.35 * outer)
+}
+
+/// The switch, and its derivative.
+///
+/// A raised cosine: one below `inner`, zero above `outer`, with zero slope at
+/// both ends so the *force* is continuous as well as the energy. A linear ramp
+/// would be continuous in energy and leave a step in the force, which shows up
+/// as a slow and entirely artificial heating.
+#[inline]
+fn switch(r: f64, inner: f64, outer: f64) -> (f64, f64) {
+    if r <= inner {
+        (1.0, 0.0)
+    } else if r >= outer {
+        (0.0, 0.0)
+    } else {
+        let span = outer - inner;
+        let x = std::f64::consts::PI * (r - inner) / span;
+        (0.5 * (1.0 + x.cos()), -0.5 * std::f64::consts::PI / span * x.sin())
+    }
 }
 
 impl Bond {
     /// A bond with a given harmonic force constant `k` (N/m) and well depth.
-    pub fn new(a: u32, b: u32, r0: f64, well: f64, k: f64) -> Bond {
+    ///
+    /// The switch runs from 1.6 to 2.4 times the equilibrium length: far enough
+    /// out that the well depth and the vibrational frequency are untouched —
+    /// `f = 1` well past where the potential has any curvature left — and short
+    /// enough that the candidate search stays local.
+    pub fn new(a: u32, b: u32, r0: f64, well: f64, k: f64, sigma: f64) -> Bond {
         let alpha = if well > 0.0 { (k / (2.0 * well)).sqrt() } else { 0.0 };
-        Bond { a, b, r0, well, alpha }
+        let (inner, outer, shield_outer) = ranges(r0, alpha, sigma);
+        Bond { a, b, r0, well, alpha, inner, outer, shield_inner: outer, shield_outer }
+    }
+
+    /// How much of the pair's van der Waals interaction survives at `r`.
+    ///
+    /// Zero where the bond is doing the work, one where it is not, and a smooth
+    /// ramp between — so the two descriptions hand over continuously instead of
+    /// double-counting inside the bond and leaving a cliff outside it.
+    #[inline]
+    pub fn dispersion_weight(&self, r: f64) -> f64 {
+        1.0 - switch(r, self.shield_inner, self.shield_outer).0
     }
 
     /// Harmonic force constant at the bottom of the well, N/m.
@@ -424,18 +554,40 @@ impl Bond {
         2.0 * self.well * self.alpha * self.alpha
     }
 
-    /// Potential energy at separation `r`, measured from the well bottom.
+    /// Morse potential referenced to the dissociation limit: `-D_e` at rest,
+    /// zero at infinity. Unswitched; [`Bond::energy`] applies the switch.
+    #[inline]
+    pub fn morse(&self, r: f64) -> f64 {
+        let x = 1.0 - (-self.alpha * (r - self.r0)).exp();
+        self.well * (x * x - 1.0)
+    }
+
+    /// Potential energy at separation `r`, switched off at range.
     #[inline]
     pub fn energy(&self, r: f64) -> f64 {
-        let x = 1.0 - (-self.alpha * (r - self.r0)).exp();
-        self.well * x * x
+        let (s, _) = switch(r, self.inner, self.outer);
+        if s == 0.0 {
+            0.0
+        } else {
+            s * self.morse(r)
+        }
     }
 
     /// Attractive force magnitude at `r`. Positive pulls the pair together.
     #[inline]
     pub fn tension(&self, r: f64) -> f64 {
+        let (s, ds) = switch(r, self.inner, self.outer);
+        if s == 0.0 && ds == 0.0 {
+            return 0.0;
+        }
         let e = (-self.alpha * (r - self.r0)).exp();
-        2.0 * self.alpha * self.well * (1.0 - e) * e
+        let dmorse = 2.0 * self.alpha * self.well * (1.0 - e) * e;
+        // Tension is dV/dr, and V = s(r) morse(r), so the product rule gives
+        // both terms. The switch term is not a correction to be subtracted:
+        // where the switch is closing, it is *lifting* a negative potential
+        // towards zero, which is extra restoring force, and getting its sign
+        // wrong makes the bond weakest exactly where it is being asked to hold.
+        s * dmorse + ds * self.morse(r)
     }
 
     /// Separation at which the restoring force peaks, `r0 + ln2/alpha`. Past
@@ -455,7 +607,8 @@ impl Bond {
 ///
 /// Angles are harmonic rather than Morse because they do not dissociate: a
 /// molecule loses its shape by breaking a bond, not by opening an angle to
-/// infinity.
+/// infinity. They carry the two bonds' switch ranges so that when either bond
+/// leaves range, the bend leaves with it, continuously.
 #[derive(Debug, Clone, Copy)]
 pub struct Angle {
     pub a: u32,
@@ -465,6 +618,12 @@ pub struct Angle {
     pub rest: f64,
     /// Bending constant, J/rad^2.
     pub stiffness: f64,
+    /// Switch range of the `b-a` bond.
+    pub inner_a: f64,
+    pub outer_a: f64,
+    /// Switch range of the `b-c` bond.
+    pub inner_c: f64,
+    pub outer_c: f64,
 }
 
 /// Spectroscopic constants for a covalent bond: `(r0 [m], D_e [J], k [N/m])`.
@@ -495,6 +654,68 @@ pub fn covalent(a: Species, b: Species) -> (f64, f64, f64) {
     (r0_ang * 1.0e-10, de_ev * EV, k)
 }
 
+/// How many covalent bonds a species will hold.
+///
+/// This is what stops a hydrogen atom acquiring five neighbours. The
+/// alternative — a many-body bond order that weakens every bond as an atom
+/// becomes over-coordinated — is what a Tersoff or Brenner potential does, and
+/// it is the right answer for a solver that has to get the energetics of
+/// intermediate coordination right. The question being asked here is only
+/// whether a molecule holds together and can react, and a valence count answers
+/// it with a rule nobody has to calibrate.
+pub fn valence(s: Species) -> usize {
+    match s {
+        Species::Hydrogen => 1,
+        Species::Helium => 0,
+        Species::Carbon => 4,
+        Species::Nitrogen => 3,
+        Species::Oxygen => 2,
+        Species::Silicon => 4,
+        Species::Iron => 6,
+        Species::Other => 2,
+    }
+}
+
+/// Rest angle at an atom holding `bonds` bonds, radians.
+///
+/// Electron-pair repulsion, with the two cases where a lone pair closes the
+/// angle down from the ideal. That is the difference between water at 104.5
+/// degrees and a linear triatomic, and it is visible in every property water
+/// has.
+pub fn bond_angle(s: Species, bonds: usize) -> f64 {
+    let degrees: f64 = match (s, bonds) {
+        (Species::Oxygen, 2) => 104.5,
+        (Species::Nitrogen, 3) => 107.0,
+        (_, 0 | 1 | 2) => 180.0,
+        (_, 3) => 120.0,
+        _ => 109.4712206,
+    };
+    degrees.to_radians()
+}
+
+/// Bending force constant at an atom, J/rad^2. Measured values; water's bend at
+/// 0.70 aJ/rad^2 is the one most people would recognise.
+pub fn bend_constant(s: Species) -> f64 {
+    match s {
+        Species::Oxygen => 4.37 * EV,
+        Species::Nitrogen => 4.00 * EV,
+        Species::Carbon => 3.90 * EV,
+        Species::Silicon => 2.20 * EV,
+        _ => 3.00 * EV,
+    }
+}
+
+/// What one pass of chemistry did.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct Reaction {
+    pub formed: usize,
+    pub broken: usize,
+    /// Potential energy the pass itself changed, J. It must be zero — bonds are
+    /// only ever created and destroyed where their switch is — and it is
+    /// reported so that "must be" is something a test can check.
+    pub energy_change: f64,
+}
+
 impl Bonded {
     pub fn is_empty(&self) -> bool {
         self.bonds.is_empty() && self.angles.is_empty()
@@ -502,28 +723,210 @@ impl Bonded {
 
     /// Bond two particles using the constants for their dominant species.
     pub fn bond(&mut self, bodies: &[Body], a: u32, b: u32) {
-        let (r0, well, k) = covalent(dominant(&bodies[a as usize]), dominant(&bodies[b as usize]));
-        self.bonds.push(Bond::new(a, b, r0, well, k));
+        let (sa, sb) = (dominant(&bodies[a as usize]), dominant(&bodies[b as usize]));
+        let (r0, well, k) = covalent(sa, sb);
+        let sigma = 0.5 * (lj_params(sa).0 + lj_params(sb).0);
+        self.bonds.push(Bond::new(a, b, r0, well, k, sigma));
+    }
+
+    /// The range at which a pair of species starts counting as bonded.
+    pub fn capture_radius(a: Species, b: Species) -> f64 {
+        let (r0, well, k) = covalent(a, b);
+        let alpha = if well > 0.0 { (k / (2.0 * well)).sqrt() } else { 0.0 };
+        let sigma = 0.5 * (lj_params(a).0 + lj_params(b).0);
+        ranges(r0, alpha, sigma).2
     }
 
     /// Constrain the angle at `b` to whatever it currently is.
     ///
     /// Taking the rest angle from the configuration rather than a table is the
-    /// honest default: the geometry the generator produced is the geometry it
-    /// meant, and inventing a tetrahedral angle for it would silently deform
-    /// every molecule at the first step.
+    /// honest default for a bend imposed by hand: the geometry the caller
+    /// produced is the geometry it meant, and inventing a tetrahedral angle for
+    /// it would silently deform the molecule on the first step. Angles built by
+    /// [`Bonded::react`] use the species' own rest angle instead, because there
+    /// the geometry is an accident of how the atoms happened to meet.
     pub fn bend(&mut self, bodies: &[Body], a: u32, b: u32, c: u32, stiffness: f64) {
         let u = bodies[a as usize].pos - bodies[b as usize].pos;
         let v = bodies[c as usize].pos - bodies[b as usize].pos;
         let rest = angle_between(u, v);
-        self.angles.push(Angle { a, b, c, rest, stiffness });
+        let (ia, oa) = self.range_of(a, b);
+        let (ic, oc) = self.range_of(b, c);
+        self.angles.push(Angle {
+            a,
+            b,
+            c,
+            rest,
+            stiffness,
+            inner_a: ia,
+            outer_a: oa,
+            inner_c: ic,
+            outer_c: oc,
+        });
+    }
+
+    fn range_of(&self, a: u32, b: u32) -> (f64, f64) {
+        for bond in &self.bonds {
+            if (bond.a == a && bond.b == b) || (bond.a == b && bond.b == a) {
+                return (bond.inner, bond.outer);
+            }
+        }
+        // No such bond: a switch that never switches, so a hand-placed bend
+        // behaves exactly as it did before ranges existed.
+        (f64::INFINITY, f64::INFINITY)
+    }
+
+    /// Number of bonds currently held by each atom.
+    pub fn coordination(&self, n: usize) -> Vec<usize> {
+        let mut z = vec![0usize; n];
+        for b in &self.bonds {
+            if (b.a as usize) < n && (b.b as usize) < n {
+                z[b.a as usize] += 1;
+                z[b.b as usize] += 1;
+            }
+        }
+        z
+    }
+
+    /// Let the chemistry change.
+    ///
+    /// Bonds past their outer range are removed, and new ones form between
+    /// atoms that have come within range and still have valence free. Both
+    /// happen where the switch is zero, so neither changes the energy — which
+    /// is reported rather than assumed, and asserted in `tests/bonded.rs`.
+    ///
+    /// The closest pairs bond first, so the outcome does not depend on the
+    /// order atoms happen to sit in the array. Ties break on index, so it
+    /// replays exactly.
+    pub fn react(&mut self, bodies: &[Body]) -> Reaction {
+        let n = bodies.len();
+        let before = self.energy(bodies);
+        let mut report = Reaction::default();
+
+        // Anything past its range is holding nothing.
+        let kept: Vec<Bond> = self
+            .bonds
+            .iter()
+            .copied()
+            .filter(|b| {
+                let (i, j) = (b.a as usize, b.b as usize);
+                i < n && j < n && (bodies[j].pos - bodies[i].pos).norm() < b.shield_outer
+            })
+            .collect();
+        report.broken = self.bonds.len() - kept.len();
+        self.bonds = kept;
+
+        // Candidate pairs, from the same cell lists the nonbonded sum uses.
+        let mut reach: f64 = 0.0;
+        for b in bodies.iter() {
+            let si = dominant(b);
+            for s in Species::ALL {
+                reach = reach.max(Bonded::capture_radius(si, s));
+            }
+        }
+        if reach <= 0.0 || n == 0 {
+            report.energy_change = self.energy(bodies) - before;
+            return report;
+        }
+        let grid = NeighbourGrid::build(bodies, reach);
+        let mut nb = Vec::with_capacity(64);
+        let mut z = self.coordination(n);
+        let mut bonded: std::collections::HashSet<(u32, u32)> = self
+            .bonds
+            .iter()
+            .map(|b| (b.a.min(b.b), b.a.max(b.b)))
+            .collect();
+
+        let mut candidates: Vec<(f64, u32, u32)> = Vec::new();
+        for i in 0..n {
+            if valence(dominant(&bodies[i])) == 0 {
+                continue;
+            }
+            grid.neighbours(bodies[i].pos, &mut nb);
+            for &jj in nb.iter() {
+                let j = jj as usize;
+                if j <= i {
+                    continue;
+                }
+                if bonded.contains(&(i as u32, jj)) {
+                    continue;
+                }
+                let capture =
+                    Bonded::capture_radius(dominant(&bodies[i]), dominant(&bodies[j]));
+                let r = (bodies[j].pos - bodies[i].pos).norm();
+                if r < capture {
+                    candidates.push((r, i as u32, jj));
+                }
+            }
+        }
+        candidates.sort_by(|a, b| a.0.total_cmp(&b.0).then(a.1.cmp(&b.1)).then(a.2.cmp(&b.2)));
+
+        for (_, i, j) in candidates {
+            let (a, b) = (i as usize, j as usize);
+            if z[a] >= valence(dominant(&bodies[a])) || z[b] >= valence(dominant(&bodies[b])) {
+                continue;
+            }
+            self.bond(bodies, i, j);
+            bonded.insert((i, j));
+            z[a] += 1;
+            z[b] += 1;
+            report.formed += 1;
+        }
+
+        if report.formed > 0 || report.broken > 0 {
+            self.rebuild_angles(bodies);
+        }
+        report.energy_change = self.energy(bodies) - before;
+        report
+    }
+
+    /// Rebuild every bend from the current bond list.
+    ///
+    /// Rest angles come from the species and its coordination rather than from
+    /// the geometry: two hydrogens that have just found an oxygen are wherever
+    /// they happened to arrive, and the molecule's job is to pull them to 104.5
+    /// degrees, not to memorise the accident.
+    pub fn rebuild_angles(&mut self, bodies: &[Body]) {
+        let n = bodies.len();
+        let mut neighbours: Vec<Vec<(u32, f64, f64)>> = vec![Vec::new(); n];
+        for b in &self.bonds {
+            let (i, j) = (b.a as usize, b.b as usize);
+            if i >= n || j >= n {
+                continue;
+            }
+            neighbours[i].push((b.b, b.inner, b.outer));
+            neighbours[j].push((b.a, b.inner, b.outer));
+        }
+        self.angles.clear();
+        for centre in 0..n {
+            let list = &neighbours[centre];
+            if list.len() < 2 {
+                continue;
+            }
+            let species = dominant(&bodies[centre]);
+            let rest = bond_angle(species, list.len());
+            let stiffness = bend_constant(species);
+            for x in 0..list.len() {
+                for y in x + 1..list.len() {
+                    self.angles.push(Angle {
+                        a: list[x].0,
+                        b: centre as u32,
+                        c: list[y].0,
+                        rest,
+                        stiffness,
+                        inner_a: list[x].1,
+                        outer_a: list[x].2,
+                        inner_c: list[y].1,
+                        outer_c: list[y].2,
+                    });
+                }
+            }
+        }
     }
 
     /// Accelerations from the bonded terms alone.
     pub fn accelerations(&self, bodies: &[Body]) -> Vec<Vec3> {
         let mut acc = vec![Vec3::ZERO; bodies.len()];
-        for f in self.forces(bodies).iter().enumerate() {
-            let (i, force) = f;
+        for (i, force) in self.forces(bodies).iter().enumerate() {
             if bodies[i].mass > 0.0 {
                 acc[i] = force.scale(1.0 / bodies[i].mass);
             }
@@ -545,8 +948,8 @@ impl Bonded {
             if r <= 0.0 {
                 continue;
             }
-            // Equal and opposite along the line of centres, so the bonded
-            // terms cannot move the centre of mass or add angular momentum.
+            // Equal and opposite along the line of centres, so the bonded terms
+            // cannot move the centre of mass or add angular momentum.
             let pull = d.scale(b.tension(r) / r);
             f[i] += pull;
             f[j] -= pull;
@@ -562,32 +965,51 @@ impl Bonded {
             if lu <= 0.0 || lv <= 0.0 {
                 continue;
             }
+            let (su, dsu) = switch(lu, a.inner_a, a.outer_a);
+            let (sv, dsv) = switch(lv, a.inner_c, a.outer_c);
+            let s = su * sv;
+            if s == 0.0 && dsu == 0.0 && dsv == 0.0 {
+                continue;
+            }
             let (uh, vh) = (u.scale(1.0 / lu), v.scale(1.0 / lv));
             let cos = uh.dot(vh).clamp(-1.0, 1.0);
             let sin = (1.0 - cos * cos).sqrt();
-            // At exactly straight or exactly folded the bend direction is
-            // undefined. It is also a stationary point of the potential, so
-            // there is no force to miss by skipping it.
-            if sin < 1.0e-7 {
+            let delta = cos.acos() - a.rest;
+            let bend = 0.5 * a.stiffness * delta * delta;
+
+            // Radial part: the switch fading the bend in and out. It acts along
+            // each bond, so it stays internal like everything else here.
+            let radial_i = uh.scale(-dsu * sv * bend);
+            let radial_k = vh.scale(-dsv * su * bend);
+            f[i] += radial_i;
+            f[k] += radial_k;
+            f[j] -= radial_i + radial_k;
+
+            // Angular part. At exactly straight or exactly folded the bend
+            // direction is undefined; it is also a stationary point of the
+            // potential, so there is no force to miss by skipping it.
+            if sin < 1.0e-7 || s == 0.0 {
                 continue;
             }
-            let theta = cos.acos();
-            // F = -dV/dtheta * grad(theta), with V = k(theta - rest)^2 / 2.
-            let dv = a.stiffness * (theta - a.rest);
+            // F = -dV/dtheta grad(theta), with V = s k (theta - rest)^2 / 2.
+            let dv = s * a.stiffness * delta;
             let grad_i = (vh - uh.scale(cos)).scale(-1.0 / (lu * sin));
             let grad_k = (uh - vh.scale(cos)).scale(-1.0 / (lv * sin));
             let fi = grad_i.scale(-dv);
             let fk = grad_k.scale(-dv);
             f[i] += fi;
             f[k] += fk;
-            // The centre takes the reaction, which is what keeps the bend an
-            // internal force.
+            // The centre takes the reaction, which keeps the bend internal.
             f[j] -= fi + fk;
         }
         f
     }
 
     /// Potential energy stored in the bonded terms, J.
+    ///
+    /// Referenced to infinite separation, so a bound molecule has *negative*
+    /// bonded energy and forming a bond releases exactly its well depth into
+    /// the particles' motion.
     pub fn energy(&self, bodies: &[Body]) -> f64 {
         let n = bodies.len();
         let mut total = 0.0;
@@ -603,9 +1025,15 @@ impl Bonded {
             if i >= n || j >= n || k >= n {
                 continue;
             }
-            let theta = angle_between(bodies[i].pos - bodies[j].pos, bodies[k].pos - bodies[j].pos);
-            let d = theta - a.rest;
-            total += 0.5 * a.stiffness * d * d;
+            let u = bodies[i].pos - bodies[j].pos;
+            let v = bodies[k].pos - bodies[j].pos;
+            let (su, _) = switch(u.norm(), a.inner_a, a.outer_a);
+            let (sv, _) = switch(v.norm(), a.inner_c, a.outer_c);
+            if su * sv == 0.0 {
+                continue;
+            }
+            let d = angle_between(u, v) - a.rest;
+            total += su * sv * 0.5 * a.stiffness * d * d;
         }
         total
     }
@@ -649,6 +1077,37 @@ impl Bonded {
         }
         shortest
     }
+
+    /// Shortest period the chemistry *could* produce, whether or not any bond
+    /// exists yet. A reactive run has to be integrated at a timestep the bonds
+    /// it is about to form will survive, not the one its current bonds need.
+    pub fn reachable_period(bodies: &[Body]) -> f64 {
+        let mut shortest = f64::INFINITY;
+        let mut seen: Vec<Species> = Vec::new();
+        for b in bodies.iter() {
+            let s = dominant(b);
+            if !seen.contains(&s) {
+                seen.push(s);
+            }
+        }
+        for b in bodies.iter() {
+            if b.mass <= 0.0 {
+                continue;
+            }
+            for other in bodies.iter() {
+                if other.mass <= 0.0 {
+                    continue;
+                }
+                let (_, well, k) = covalent(dominant(b), dominant(other));
+                if k <= 0.0 || well <= 0.0 {
+                    continue;
+                }
+                let reduced = b.mass * other.mass / (b.mass + other.mass);
+                shortest = shortest.min(std::f64::consts::TAU * (reduced / k).sqrt());
+            }
+        }
+        shortest
+    }
 }
 
 fn angle_between(u: Vec3, v: Vec3) -> f64 {
@@ -657,6 +1116,17 @@ fn angle_between(u: Vec3, v: Vec3) -> f64 {
         return 0.0;
     }
     (u.dot(v) / (lu * lv)).clamp(-1.0, 1.0).acos()
+}
+
+/// Stable timestep for a *reactive* system, bounded by the stiffest bond the
+/// atoms present could form rather than by the ones they already have.
+pub fn stable_dt_reactive(bodies: &[Body]) -> f64 {
+    let period = Bonded::reachable_period(bodies);
+    if period.is_finite() && period > 0.0 {
+        stable_dt(bodies).min(period / 50.0)
+    } else {
+        stable_dt(bodies)
+    }
 }
 
 /// As [`step`], with covalent bonds.
@@ -680,9 +1150,7 @@ pub fn step_bonded(
         return step(bodies, dt, params, world_seed, path_key, epoch, tick);
     }
     let skip = bonded.exclusions(bodies.len());
-    let potential = |b: &[Body]| {
-        bonded.energy(b) + potential_energy_excluding(b, params, &skip)
-    };
+    let potential = |b: &[Body]| bonded.energy(b) + potential_energy_excluding(b, params, &skip);
     let before = crate::solvers::measure(bodies, potential(bodies));
     let n = bodies.len();
     if n == 0 || dt == 0.0 {
@@ -708,6 +1176,34 @@ pub fn step_bonded(
         after,
         non_mechanical_energy: 0.0,
     }
+}
+
+/// A step of *reactive* molecular dynamics: integrate, then let the chemistry
+/// change.
+///
+/// The reaction pass runs after the integration so that the forces acting over
+/// the step are the ones the report's conserved tuple was measured against.
+/// Because bonds are created and destroyed only where their switch is zero, the
+/// pass cannot change the potential energy, which is what makes it safe to run
+/// inside the step at all.
+pub fn step_reactive(
+    bodies: &mut [Body],
+    bonded: &mut Bonded,
+    dt: f64,
+    params: MdParams,
+    world_seed: u64,
+    path_key: u128,
+    epoch: u32,
+    tick: u64,
+) -> (SolveReport, Reaction) {
+    let report = if bonded.is_empty() {
+        bonded.react(bodies);
+        step_bonded(bodies, bonded, dt, params, world_seed, path_key, epoch, tick)
+    } else {
+        step_bonded(bodies, bonded, dt, params, world_seed, path_key, epoch, tick)
+    };
+    let reaction = bonded.react(bodies);
+    (report, reaction)
 }
 
 fn total_accelerations(
