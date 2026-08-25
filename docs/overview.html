@@ -306,7 +306,7 @@ footer .mono{font-size:.78rem}
 
 <section>
   <div class="wrap">
-    <span class="eyebrow">Architecture</span><h2>Four ideas</h2>
+    <span class="eyebrow">Architecture</span><h2>Six ideas</h2>
     <p>The engine is assembled from established techniques — adaptive mesh refinement, Barnes-Hut, sub-grid models, procedural generation, conservative discrete-event simulation. The gaps between them are consistent: the level-of-detail techniques are not conservative, the conservative techniques are not lazy, and none of them is driven by what an observer can actually see.</p>
   </div>
 
@@ -329,6 +329,12 @@ footer .mono{font-size:.78rem}
         <h3>Some matter has a history, not a temperature</h3>
         <p>A tree is not a sample from a distribution — it is the specific record of which branch got shaded in year three, and an observer who saw it yesterday will notice a different one. Max-entropy sampling is exactly the wrong generator.</p>
         <p>So for ordered matter the generator becomes a developmental program run to an age. Measured: <span class="ok">104 bytes</span> of state standing in for 6,000 rendered parts — 10,615× smaller, and the ratio grows with the structure because the state does not.</p>
+      </div>
+      <div class="idea">
+        <span class="tag">Cohesion</span>
+        <h3>A bond decides what breaks and what moves</h3>
+        <p>Joints come from the same program as the geometry, so holding a tree together costs no more to store than its shape. Where the load path is a tree, internal forces are exact in one O(n) pass; add a brace and a real beam solver takes over.</p>
+        <p>The same stiffness, given mass, is integrated through time — so a structure cannot move according to one stiffness and break according to another. A gust that a static check passes at 60% breaks the member outright.</p>
       </div>
       <div class="idea">
         <span class="tag">Observation</span>
@@ -435,6 +441,44 @@ footer .mono{font-size:.78rem}
 
 <section>
   <div class="wrap">
+    <span class="eyebrow">Structure</span><h2>What holds a thing up, and what it then does</h2>
+    <p>Damage is never scripted. Nothing in the engine says <em>lightning destroys a tree</em> or <em>wet snow breaks branches</em>. The vocabulary is <em>mechanisms</em> — a body-force field, drag in a moving fluid, mass accreting on upward-facing surfaces, energy conducted along a path, a thermal field, an impulse — and snow, wind, lightning and fire are constructors over them. A limb comes down because the moment at its base exceeded what its cross-section could carry, which is also why real limbs come down.</p>
+    <p>The load path of a generated structure is a tree, and that single fact is worth more than it first appears. It makes the internal forces exact in one reverse pass with no stiffness matrix at all. Add a brace and it stops being true, so redundant structures go to a three-dimensional Euler-Bernoulli frame solver — six degrees of freedom per joint, matrix-free, with buckling and plastic redistribution on top. Every case has a closed-form answer to check against.</p>
+  </div>
+
+  <div class="wide scroller">
+    <table>
+      <thead><tr><th>Case</th><th class="n">Solver</th><th class="n">Closed form</th><th>What it discriminates</th></tr></thead>
+      <tbody>
+        <tr><td class="tname-cell">Cantilever tip</td><td class="n">0.108650 m</td><td class="n">PL³/3EI</td><td>Nothing — a spring model passes it by construction</td></tr>
+        <tr><td class="tname-cell">Fixed-fixed midspan</td><td class="n ok">1.105243 × 10⁻²</td><td class="n">PL³/192EI</td><td>Everything: 64× stiffer, purely from joints resisting rotation</td></tr>
+        <tr><td class="tname-cell">Redundant three-bar truss</td><td class="n ok">585.79 / 292.89 N</td><td class="n">P/(1+2cos³θ)</td><td>That load is divided by stiffness, not by a rule of thumb</td></tr>
+        <tr><td class="tname-cell">Euler buckling at P<sub>cr</sub></td><td class="n ok">1.000</td><td class="n">π²EI/(KL)²</td><td>A stress check reads 0.0197 here — 51× of false margin</td></tr>
+        <tr><td class="tname-cell">Cantilever period</td><td class="n ok">0.472675 s</td><td class="n">0.472050 s</td><td>The structure moves at its own rate, not the load's</td></tr>
+        <tr><td class="tname-cell">Step load, dynamic factor</td><td class="n ok">1.985</td><td class="n">exactly 2</td><td>A quasi-static gust check under-reads its stress twofold</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="wrap">
+    <p style="margin-top:1.2rem">The fixed-fixed row is why the first solver had to be thrown away. It was a network of springs, stiff along each member and soft across it, and a spring pair carries no <em>moment</em> between its ends — so it cannot tell a fixed joint from a pinned one and reports that beam sixty-four times too flexible. The cantilever row, which it passed, proves nothing: the spring model was built from the cantilever's tip stiffness.</p>
+
+    <div class="note-box">
+      <span class="lab">The same tree, used twice</span>
+      <p>A tree has a perfect elimination ordering. Eliminate the leaves first and each one's only surviving coupling is to its parent, so factorising the stiffness matrix produces no fill-in at all and costs one 6×6 inverse per joint — an <em>exact</em> solve, in one conjugate-gradient iteration, at any timestep and any size.</p>
+      <p>This is the same structural fact the O(n) static pass rests on, asked a different question. It is also what made dynamics affordable: a slender chain of <em>n</em> beam elements has a condition number growing like <em>n</em>⁴, and Jacobi preconditioning needed <span class="ok">3,645 iterations and 692 ms</span> for one substep of a 2,000-member tree. The same substep now takes <span class="ok">one iteration and 5 ms</span>.</p>
+    </div>
+
+    <p>The consistency check runs both ways. Hold a load steady and the dynamics settles to the static answer to within 0.000%. And on a 1500-member determinate tree the frame solver and the O(n) statics pass agree, member by member, to <span class="ok mono">7 × 10⁻¹¹</span> — which is the only agreement available, since a determinate structure's internal forces are fixed by equilibrium alone.</p>
+
+    <p>The particle tier had the same gap and it is closed the same way. Lennard-Jones plus screened Coulomb describes a gas well and a molecule not at all — nothing in it distinguishes two hydrogens that are bonded from two that are merely near each other. Bonds are now Morse, which has the right curvature at the bottom of the well and flattens out at the dissociation energy, so a molecule given more than that energy comes apart because the potential ran out rather than because a threshold fired. H₂'s vibrational fundamental comes out at <span class="ok mono">4403 /cm</span> against an observed 4401.</p>
+  </div>
+</section>
+
+<hr class="sep">
+
+<section>
+  <div class="wrap">
     <span class="eyebrow">Cost</span><h2>What a frame can buy</h2>
     <p>At 20 updates per second a frame is 50 ms, of which physics gets 35. The tempting way to size that budget is bandwidth: 336 GB/s × 35 ms is 11.8 GB, which at 48 bytes per body over ten passes suggests 24 million bodies. <strong>That number is wrong</strong>, and it is worth saying why, because it is what an optimistic design document would quote.</p>
     <p>Tree traversal is not a streaming workload. Each body walks a different path, warps diverge at every opening test, and the cells touched are effectively random in memory. The limit is latency and occupancy. Bandwidth bounds the <em>resident set</em>; it does not bound the <em>step rate</em>.</p>
@@ -460,14 +504,20 @@ footer .mono{font-size:.78rem}
 
 <section>
   <div class="wrap">
-    <span class="eyebrow">Findings</span><h2>Four bugs worth recording</h2>
+    <span class="eyebrow">Findings</span><h2>Six bugs worth recording</h2>
     <p>Each of these was found by a test or a benchmark rather than by reading the code, and each lived in something that looked entirely reasonable.</p>
     <ul class="plain">
       <li><strong>Mean molecular mass was wrong by exactly 1000×</strong> — a units slip routing through Avogadro's number and a gram-to-kilogram factor. It scaled every temperature, pressure, sound speed and Jeans length in the engine. It surfaced as a molecular dynamics test starting at 0.3 K instead of 300 K.</li>
       <li><strong>The Langevin thermostat re-seeded its noise identically every step.</strong> Randomness here is a pure function of an address, which is the point — but an address that omits the step makes "deterministic" quietly mean "identical", and an identical force every step is a constant force. The system heated to 81,000 K against a 300 K target.</li>
       <li><strong>Stellar burning rates were in cgs while the engine is SI.</strong> The standard formulae are quoted in erg g⁻¹ s⁻¹ and g cm⁻³; used raw they made the Sun a hundred thousand times too bright.</li>
+      <li><strong>A test was green because the code it checked had failed.</strong> Two solvers were asserted to agree on determinate structures, and they did — to 10⁻⁶ — because the redundant one could not converge and was silently falling back to the statics it was being compared against. Once it converged, they disagreed by up to 10%: lumping a member's own load half to each end makes the end moments right but halves the axial force, since the base section carries all of that load and the tip carries none. Both the fallback and the halving were invisible while the test passed.</li>
+      <li><strong>A spanning tree chosen for convenience severed the load path.</strong> The preconditioner factorises the structure's spanning forest, and a breadth-first forest looks like an obvious way to find one. But a stay skipping five joints along a chain is a <em>shortcut</em>, so breadth-first discovery reaches the far joint through the stay and drops a chain element instead — keeping a member a hundred times softer than the one it discarded. Iterations went from 1 to 1,124 and back to 31 once the forest was chosen by stiffness.</li>
       <li><strong>The conservation metric divided by quantities that legitimately cancel.</strong> A hot cloud with little net rotation has particles each carrying angular momentum of order <code>m r v</code>, but the sum nearly cancels — the net can sit 20 orders of magnitude below any individual term, which double precision cannot represent and no finite arithmetic could. Measuring the error against that net reported 100% and meant nothing. Measured against the total angular momentum <em>content</em>, the same code is exact to one part in 10¹³.</li>
     </ul>
+    <div class="note-box">
+      <span class="lab">The test that could not see it</span>
+      <p>The bonded forces are checked for exact balance — net force and net torque, both zero to the last bit — which is the right test for the failure everyone expects, a molecule flying across the box under its own bending. It is blind to a sign error, because an anti-restoring force balances exactly as well as a restoring one. The angle term had one, and what found it was releasing a water molecule 30° off its rest angle and watching where it settled: 8.6° instead of 104.5°.</p>
+    </div>
     <div class="note-box">
       <span class="lab">The one that was not a bug</span>
       <p>A prolongation with two children failed the angular momentum check completely — and correctly. Two point masses have no moment of inertia about the line joining them, so no arrangement of orbital motion can carry angular momentum about that axis. The solver was right to report the system singular; the fix was to give the leftover to intrinsic spin, where it physically belongs.</p>
@@ -484,7 +534,9 @@ footer .mono{font-size:.78rem}
       <li><strong>The GPU path is designed, not written.</strong> Every measured number is single-core CPU; the cost model carries an explicit 60× assumption for the GPU, stated as an assumption and calibrated against reality at runtime.</li>
       <li><strong>The CPU tree code is 3–10× off production quality.</strong> Single-body leaves rather than buckets, per-particle rather than grouped traversal — both standard optimisations, deliberately left out so the reference stays simple enough to serve as a bit-exact oracle.</li>
       <li><strong>General relativity is post-Newtonian only</strong>, adequate to a few hundred Schwarzschild radii. Nuclear and electronic structure are rate- and table-based; chemistry is eight lumped species; turbulence is a prescribed field, not a solved cascade.</li>
-      <li><strong>Structures have no topology and cannot straddle nodes.</strong> A body carries no bonds, so materialising a tree and running molecular dynamics on it would let the trunk fall apart — a structure is currently geometry that happens to hold still. And a building spanning several nodes would need cross-links the strictly hierarchical tree deliberately forbids, since that hierarchy is what makes the precision and causal-gating arguments work.</li>
+      <li><strong>Structural dynamics is small-displacement and linear.</strong> The restoring force is exact for members whose chord rotates by well under a tenth of a radian — a building in a storm, a trunk in a gale — and not for a sapling bent double. The solver reports the worst chord rotation every step, so the regime is measured rather than assumed; a corotational formulation would remove the limit and has not been written.</li>
+      <li><strong>Molecular bonds are a fixed list.</strong> Bonds dissociate emergently, but nothing forms new ones: the solver can take a molecule apart and cannot put a different one together. Reaction chemistry needs a bond-order potential, which is a different and much larger undertaking.</li>
+      <li><strong>Structures cannot straddle nodes.</strong> A building spanning several nodes, or roots reaching into the soil beneath, would need cross-links the strictly hierarchical tree deliberately forbids — and that hierarchy is what makes the precision and causal-gating arguments work. For now a structure must fit inside one node.</li>
       <li><strong>The guarantee is about the conserved tuple, not about trajectories.</strong> Regenerated detail is a valid sample from the right distribution, not the specific configuration that would have evolved had the detail been tracked continuously. For unobserved matter that is exactly the right standard — it is the one statistical mechanics uses — but it is a weaker claim than "the same simulation, computed lazily", and should not be advertised as the stronger one.</li>
     </ul>
   </div>
@@ -492,7 +544,7 @@ footer .mono{font-size:.78rem}
 
 <div class="wrap">
   <footer>
-    <p class="mono">Rust · no dependencies · 59 tests covering conservation, determinism, causality, solver accuracy, statistics, budget, interaction and growth.</p>
+    <p class="mono">Rust · no dependencies · 98 tests covering conservation, determinism, causality, solver accuracy, statistics, budget, interaction, growth, topology, frame analysis, structural dynamics and covalent bonds.</p>
     <p style="margin-top:.5rem">Worst conservation error across every scale transition in the demo: <span class="ok mono">4 × 10⁻¹⁶</span>. Worst causality violation between any two disjoint regions: <span class="ok mono">0</span>.</p>
   </footer>
 </div>
