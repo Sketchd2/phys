@@ -52,6 +52,7 @@ pub mod morph;
 pub mod observe;
 pub mod prolong;
 pub mod render;
+pub mod scenario;
 pub mod rng;
 pub mod solvers;
 pub mod state;

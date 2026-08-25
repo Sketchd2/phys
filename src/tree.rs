@@ -331,6 +331,26 @@ impl Tree {
         // small enough that a different physics applies does the tier change.
         let tier = Tier::containing(body.radius).max(parent_tier);
 
+        // The policy has to match the tier, and the caller cannot know the tier
+        // until the radius is in hand. A caller extrapolating from the parent —
+        // "my child will be one tier finer than me" — is guessing, and when the
+        // guess is wrong the node materialises under a policy meant for a
+        // different scale: eight thousand molecules packed into a node the size
+        // of an atom, at three thousandths of their own interaction radius,
+        // where the potential is 10^44 m/s^2 of acceleration and the solver has
+        // no answer but to explode.
+        //
+        // So a spec meant for a *coarser* scale than the child turned out to be
+        // is replaced by the tier's own policy, with the caller's count read as
+        // a budget. A spec meant for a finer one is kept: asking to split an
+        // atom into nucleons is a deliberate step down and not a mistake, and
+        // overriding it would leave the ladder unable to reach its own bottom.
+        let spec = if crate::prolong::tier_of(spec.kind) >= tier {
+            spec
+        } else {
+            crate::prolong::budgeted_spec(tier, spec.count)
+        };
+
         let mut agg = Aggregate::neutral(body.mass, body.radius.max(1e-30), body.temperature, body.composition);
         agg.charge = body.charge;
         agg.spin = body.spin;

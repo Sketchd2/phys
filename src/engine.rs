@@ -515,7 +515,35 @@ impl World {
     /// causality permits.
     pub fn node_dt(&self, idx: NodeIdx) -> f64 {
         let n = &self.tree.nodes[idx.get()];
-        let natural = n.tier.dt().min(n.agg.dynamical_time() / 50.0);
+        // Every characteristic time the node has, not just the gravitational
+        // one. A node's parcels have to be stepped faster than a sound wave
+        // crosses the gap between them, or the pressure force acts across a
+        // distance the information could not have travelled — which is not a
+        // small error, it is a solver that heats its own contents. It showed up
+        // as a continuum node three metres across whose gas reached two thirds
+        // of light speed while the conservation check reported no drift at all,
+        // because every individual step was conserving the energy the previous
+        // one had invented.
+        let parts = if n.bodies.is_empty() { n.spec.count } else { n.bodies.len() };
+        let flow = n.bodies.iter().map(|b| b.vel.norm()).fold(0.0f64, f64::max);
+        let mut natural = n
+            .tier
+            .dt()
+            .min(n.agg.dynamical_time() / 50.0)
+            .min(0.25 * n.agg.signal_crossing(parts, flow));
+        // Where a force field decides the timestep, ask the force field. The
+        // engine already has a function whose entire job is "what step does
+        // this system need"; the scheduler was not calling it.
+        if matches!(
+            solvers::for_tier(n.tier),
+            SolverKind::MolecularDynamics
+        ) && !n.bodies.is_empty()
+        {
+            // The cheap bound here; `advance_node` substeps to the
+            // configuration-aware one, which costs a force evaluation and must
+            // not be paid on every scheduling decision.
+            natural = natural.min(solvers::md::stable_dt(&n.bodies) * 8.0);
+        }
         let clock = self
             .clocks
             .get(&n.key)
@@ -559,7 +587,28 @@ impl World {
             }
             SolverKind::MolecularDynamics => {
                 let params = solvers::md::MdParams::default();
-                solvers::md::step(bodies, dt, params, seed, key.0, epoch, tick)
+                // Substep to whatever the force field needs. The scheduler's
+                // timestep answers to causality and to the tier; the Lennard-
+                // Jones potential answers to neither, and a molecular system
+                // handed a step longer than its own vibrational period does not
+                // integrate inaccurately, it detonates.
+                let stable = solvers::md::configuration_dt(bodies, params).max(1e-24);
+                let substeps = ((dt / stable).ceil() as u32).clamp(1, 64);
+                let h = dt / substeps as f64;
+                let mut total = solvers::SolveReport::default();
+                for k in 0..substeps {
+                    let r = solvers::md::step(bodies, h, params, seed, key.0, epoch, tick + k as u64);
+                    if k == 0 {
+                        total = r;
+                    } else {
+                        total.after = r.after;
+                        total.steps += r.steps;
+                        total.interactions += r.interactions;
+                        total.non_mechanical_energy += r.non_mechanical_energy;
+                    }
+                }
+                total.dt_used = dt;
+                total
             }
             SolverKind::Statistical => self.advance_statistical(idx, dt),
         };
@@ -1592,83 +1641,11 @@ pub fn galaxy(world_seed: u64, stars: f64) -> Tree {
     Tree::new(world_seed, agg, Tier::Galactic, spec)
 }
 
-/// The default refinement policy: how each tier splits into the next.
+/// The default refinement policy, and the budgeted form of it.
 ///
-/// This is the engine's "what is the universe made of" table. Each entry says
-/// how many children a node of that tier has, how they are arranged, and how
-/// mass is divided among them. Changing a line here changes the character of
-/// the world at that scale and nothing else — the conservation machinery,
-/// scheduler and observation path are all indifferent to it.
-pub fn default_spec(tier: Tier) -> ProlongSpec {
-    use crate::prolong::{MassSpectrum, Profile};
-    use crate::state::BodyKind;
-    match tier {
-        // A galaxy resolves into star-forming complexes and dark matter.
-        Tier::Galactic => ProlongSpec {
-            count: 20_000,
-            profile: Profile::Disk { scale_height_ratio: 0.12 },
-            spectrum: MassSpectrum::Equal,
-            kind: BodyKind::Super,
-            composition_scatter: 0.15,
-            turbulent_fraction: 0.3,
-        },
-        // A complex resolves into individual stars, drawn from the IMF — which
-        // is where "a statistical stand-in" becomes "a particular star".
-        Tier::Stellar => ProlongSpec {
-            count: 4_000,
-            profile: Profile::Plummer,
-            spectrum: MassSpectrum::Kroupa { min_msun: 0.08, max_msun: 60.0 },
-            kind: BodyKind::Star,
-            composition_scatter: 0.05,
-            turbulent_fraction: 0.45,
-        },
-        // A star resolves into its structural shells; a planet into its layers.
-        Tier::Planetary => ProlongSpec {
-            count: 2_000,
-            profile: Profile::Plummer,
-            spectrum: MassSpectrum::PowerLaw { alpha: -1.5, ratio: 30.0 },
-            kind: BodyKind::GasParcel,
-            composition_scatter: 0.02,
-            turbulent_fraction: 0.6,
-        },
-        // Bulk matter resolves into fluid parcels or grains.
-        Tier::Continuum => ProlongSpec {
-            count: 4_000,
-            profile: Profile::Uniform,
-            spectrum: MassSpectrum::Equal,
-            kind: BodyKind::Grain,
-            composition_scatter: 0.01,
-            turbulent_fraction: 0.2,
-        },
-        // A parcel resolves into molecules.
-        Tier::Molecular => ProlongSpec {
-            count: 8_000,
-            profile: Profile::Uniform,
-            spectrum: MassSpectrum::Species,
-            kind: BodyKind::Molecule,
-            composition_scatter: 0.0,
-            turbulent_fraction: 0.0,
-        },
-        // A molecule resolves into atoms.
-        Tier::Atomic => ProlongSpec {
-            count: 64,
-            profile: Profile::Lattice,
-            spectrum: MassSpectrum::Species,
-            kind: BodyKind::Atom,
-            composition_scatter: 0.0,
-            turbulent_fraction: 0.0,
-        },
-        // An atom resolves into a nucleus of nucleons. Below this the engine
-        // stops producing trajectories and switches to the statistical
-        // description in `solvers::quantum` — not because it runs out of
-        // compute, but because there is nothing else there to describe.
-        Tier::Nuclear => ProlongSpec {
-            count: 56,
-            profile: Profile::WoodsSaxon,
-            spectrum: MassSpectrum::Equal,
-            kind: BodyKind::Nucleon,
-            composition_scatter: 0.0,
-            turbulent_fraction: 0.0,
-        },
-    }
-}
+/// Both live in [`crate::prolong`] because [`crate::tree::Tree::promote`] needs
+/// them: a child's tier follows from its *size*, so a caller that guesses the
+/// tier from the parent can be wrong, and the node then materialises under a
+/// policy meant for a different scale. The tier has to be able to reach for its
+/// own policy, and the tier is decided below this module.
+pub use crate::prolong::{budgeted_spec, default_spec};

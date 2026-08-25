@@ -340,6 +340,30 @@ impl Composition {
     }
 
     /// Nucleons per kilogram.
+    /// Mean mass of one atom of this mixture, kg.
+    ///
+    /// Not the same as the mean molecular mass, which is per free particle and
+    /// depends on how ionised the gas is. This is per *atom*, which is what
+    /// bounds how many atoms a given mass can be split into.
+    pub fn mean_atomic_mass(&self) -> f64 {
+        let mut mass = 0.0;
+        let mut number = 0.0;
+        for s in Species::ALL {
+            let f = self.get(s);
+            if f <= 0.0 {
+                continue;
+            }
+            let a = s.a();
+            mass += f;
+            number += f / a;
+        }
+        if number > 0.0 {
+            mass / number * AMU
+        } else {
+            AMU
+        }
+    }
+
     pub fn nucleons_per_kg(&self) -> f64 {
         let mut n = 0.0;
         for s in Species::ALL {
@@ -577,6 +601,33 @@ impl Aggregate {
             return f64::INFINITY;
         }
         1.0 / (G * rho).sqrt()
+    }
+
+    /// Time for a sound wave to cross one resolution element, in seconds.
+    ///
+    /// The other limit on a timestep, and the one that has nothing to do with
+    /// gravity. A hot, diffuse node has a long dynamical time and a short sound
+    /// crossing time, and a solver stepped on the first while ignoring the
+    /// second is unstable in exactly the way that looks like physics: parcels
+    /// gain energy every step and the node heats up.
+    pub fn sound_crossing(&self, parts: usize) -> f64 {
+        self.signal_crossing(parts, 0.0)
+    }
+
+    /// As [`Aggregate::sound_crossing`], for a flow that is already moving.
+    ///
+    /// Information crosses a resolution element at the greater of the sound
+    /// speed and the flow speed, and a supersonic flow is the case where the
+    /// difference matters. Using the sound speed alone is what lets a node
+    /// whose gas is already moving faster than its own sound speed keep taking
+    /// steps that the gas has long since outrun.
+    pub fn signal_crossing(&self, parts: usize, flow: f64) -> f64 {
+        let signal = self.sound_speed().max(flow.abs());
+        if !(signal > 0.0) || !signal.is_finite() {
+            return f64::INFINITY;
+        }
+        let h = self.radius / (parts.max(1) as f64).cbrt();
+        h / signal
     }
 
     /// Jeans length: below this, pressure wins and the node will not fragment;

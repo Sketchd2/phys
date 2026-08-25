@@ -503,6 +503,14 @@ engine depends on.
 - **Turbulence is a prescribed solenoidal field**, not a solved cascade. It
   produces the right correlations at one scale, not the right spectrum across
   scales.
+- **The refinement table is a choice, not a derivation.** How many children a
+  node has and how they are arranged comes from a table in `prolong.rs`, and the
+  table is only *consistent* — a node's radius, its contents' count and their
+  interaction radii have to agree, and where they do not the materialised
+  configuration is unphysical. Two cases where they did not have been fixed
+  (eight thousand molecules in an atom-sized node, sixty-four atoms in a
+  molecule-sized one); there is no proof there are no others, only tests that
+  step every scenario and check nothing heats up.
 - **Structural dynamics is small-displacement and linear.** The restoring force
   is exact for members whose chord rotates by well under a tenth of a radian,
   which covers a building in a storm and a trunk in a gale but not a sapling

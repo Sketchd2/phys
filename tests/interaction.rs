@@ -146,14 +146,23 @@ fn touched_detail_is_persisted() {
     );
     w.tree.refine(target);
     let key = w.tree.nodes[target.get()].key;
+    // A body with no promoted child. Coarsening pulls an evolved child's state
+    // back into its body first — which is correct, and would overwrite the
+    // marker with something newer, testing the wrong thing.
+    let slot = {
+        let n = &w.tree.nodes[target.get()];
+        (0..n.bodies.len())
+            .find(|&k| n.child_of(k).is_none())
+            .expect("every body has been promoted")
+    };
     // Alter the detail, as an interaction would.
-    w.tree.nodes[target.get()].bodies[0].vel += v3(1e5, 0.0, 0.0);
-    let marker = w.tree.nodes[target.get()].bodies[0].vel;
+    w.tree.nodes[target.get()].bodies[slot].vel += v3(1e5, 0.0, 0.0);
+    let marker = w.tree.nodes[target.get()].bodies[slot].vel;
     w.tree.pin(target);
     w.tree.coarsen(target);
     assert!(w.tree.persisted.contains_key(&key), "pinned detail was thrown away");
     let back = w.tree.refine(target).to_vec();
-    assert_eq!(back[0].vel, marker, "persisted detail came back changed");
+    assert_eq!(back[slot].vel, marker, "persisted detail came back changed");
 }
 
 /// Authoring is allowed but audited: the engine reports exactly what the user

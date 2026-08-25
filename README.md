@@ -109,14 +109,15 @@ slideshow, they get a slightly coarser world and a visible detail-debt readout.
 ## Run it
 
 ```sh
-sh viewer/build.sh                      # build both viewers, then open either
+sh viewer/build.sh                      # build all three viewers, then open any
+open viewer/explore.html                #   galaxy to nucleus, any scenario
 open viewer/index.html                  #   one structure under load
 open viewer/forest.html                 #   twenty trees under one gust
 
 cargo run --release --bin phys-demo     # guided tour, galaxy to nucleus
 cargo run --release --example bench     # measured cost of every hot path
 cargo run --release --example damage    # grow a structure, break it, write PNGs
-cargo test --release                    # 109 tests
+cargo test --release                    # 119 tests
 ```
 
 ## The viewer
@@ -127,9 +128,18 @@ conservation projection and the structural solver running in the browser are
 the same code the test suite checks. It steps in about 6.5 ms, so there is
 ample headroom at 60 frames a second.
 
-There are two pages. `viewer/index.html` is one structure under load;
-`viewer/forest.html` is twenty trees grown from twenty seeds under one gusting
-wind, which is the demonstration that nothing here is per-structure tuning.
+There are three pages. `viewer/explore.html` loads any of eight scenarios from
+a spiral galaxy to an iron nucleus and lets you descend through them;
+`viewer/index.html` is one structure under load; `viewer/forest.html` is twenty
+trees grown from twenty seeds under one gusting wind, which is the
+demonstration that nothing here is per-structure tuning.
+
+The explorer is the one that makes the architecture visible. There is no
+per-scale renderer and no per-scale camera: positions arrive in units of the
+node's own radius, so the numbers the page sees are of order one whether the
+node is fifteen kiloparsecs across or four femtometres. The solver, the
+timestep and the refinement policy all follow from the tier. Descending from a
+galaxy to a nucleus and loading a nucleus directly land in the same place.
 
 Grow a structure over decades, then load it while it stands: wind and snow are
 continuous conditions, lightning and fire are events. Turn on real-time
@@ -170,6 +180,7 @@ src/
   state.rs     aggregates, bodies, the conserved tuple, restriction
   prolong.rs   constraint-projected materialisation
   morph.rs     developmental state: growth, construction, and its bookkeeping
+  scenario.rs  starting points: eight worlds, galaxy to nucleus
   topology.rs  joints, materials as data, and what holds a structure together
   render.rs    headless renderer with a dependency-free PNG writer
   wasm.rs      C ABI over the engine, so a browser can drive the real thing
@@ -183,7 +194,7 @@ viewer/        the real-time viewer and its build script
                nuclear, quantum, frame analysis, structural dynamics
 tests/         consistency, causality, solvers, statistics, budget,
                interaction, growth, topology, frame, dynamics, bonded,
-               fragments
+               fragments, scenarios
 ```
 
 ## Status

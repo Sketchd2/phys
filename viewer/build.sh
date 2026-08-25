@@ -28,4 +28,10 @@ ftail = pathlib.Path("viewer/forest.tail.html").read_text()
 fout = pathlib.Path("viewer/forest.html")
 fout.write_text(fhead + ftail.replace("__WASM_B64__", b64))
 print(f"forest: {fout.stat().st_size} bytes -> {fout}")
+
+ehead = pathlib.Path("viewer/explore.head.html").read_text()
+etail = pathlib.Path("viewer/explore.tail.html").read_text()
+eout = pathlib.Path("viewer/explore.html")
+eout.write_text(ehead + etail.replace("__WASM_B64__", b64))
+print(f"explore: {eout.stat().st_size} bytes -> {eout}")
 PY

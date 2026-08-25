@@ -902,3 +902,380 @@ pub extern "C" fn forest_tree_stat(index: u32, which: u32) -> f32 {
 pub extern "C" fn forest_count() -> u32 {
     forest().trees.len() as u32
 }
+
+// ---------------------------------------------------------------------------
+// The explorer: any scenario, any scale
+// ---------------------------------------------------------------------------
+
+/// A world being looked at, at whatever scale the observer has descended to.
+///
+/// # Why one viewer works at every scale
+///
+/// Because nothing here knows what scale it is at. Positions are emitted in
+/// units of the node's own radius, so the numbers a renderer sees are of order
+/// one whether the node is fifteen kiloparsecs across or four femtometres. That
+/// is not a convenience for the viewer: it is the engine's own argument about
+/// precision, which is that there is no global coordinate system and a body's
+/// position only ever means something relative to the node holding it.
+///
+/// The solver, the timestep and the refinement policy are all chosen from the
+/// tier, which the tree already knows. So descending is one call, and the frame
+/// after it is drawn by exactly the same code as the frame before.
+pub struct Explorer {
+    world: World,
+    /// Root first, current node last. Ascending is a pop.
+    path: Vec<NodeIdx>,
+    /// Interleaved: x, y, z (in units of the node radius), radius, mass,
+    /// temperature, speed, kind.
+    points: Vec<f32>,
+    readouts: [f32; 32],
+    scenario: usize,
+    /// The seed the scenario was built from, so the viewer can offer another
+    /// world without the caller having to remember what it asked for.
+    seed: u32,
+    budget: usize,
+    /// Simulated seconds elapsed at the current node.
+    elapsed: f64,
+    dirty: bool,
+}
+
+/// Floats per body in the point buffer.
+const POINT_STRIDE: usize = 8;
+
+static mut EXPLORER: Option<Explorer> = None;
+
+fn explorer() -> &'static mut Explorer {
+    unsafe {
+        let e = &raw mut EXPLORER;
+        (*e).as_mut().expect("scene_create() first")
+    }
+}
+
+/// How many scenarios are on the shelf.
+#[unsafe(no_mangle)]
+pub extern "C" fn scene_count() -> u32 {
+    crate::scenario::ALL.len() as u32
+}
+
+/// Load one. Everything below it is generated on demand from here.
+#[unsafe(no_mangle)]
+pub extern "C" fn scene_create(index: u32, seed: u32, budget: u32) {
+    let s = crate::scenario::by_index(index as usize);
+    let mut world = World::new(s.build(seed as u64 | 0x5EED_0000), 20.0);
+    let root = world.tree.root;
+    if s.tier < Tier::Atomic {
+        world.tree.nodes[root.get()].spec.count = (budget as usize).clamp(64, 40_000);
+    }
+    unsafe {
+        let e = &raw mut EXPLORER;
+        *e = Some(Explorer {
+            world,
+            path: vec![root],
+            points: Vec::new(),
+            readouts: [0.0; 32],
+            scenario: index as usize,
+            seed,
+            budget: budget as usize,
+            elapsed: 0.0,
+            dirty: true,
+        });
+    }
+    refresh_scene(explorer());
+}
+
+/// Descend into one of the bodies on show.
+///
+/// Promoting is what makes a body into a node: the statistical stand-in becomes
+/// a thing with its own contents, generated from its own address. Nothing about
+/// the body was stored — the child is built from the aggregate the body
+/// represents, at the refinement policy its new tier calls for.
+#[unsafe(no_mangle)]
+pub extern "C" fn scene_descend(index: u32) -> u32 {
+    let e = explorer();
+    let Some(&here) = e.path.last() else {
+        return 0;
+    };
+    let tier = e.world.tree.nodes[here.get()].tier;
+    if tier == Tier::Nuclear {
+        return 0;
+    }
+    e.world.tree.refine(here);
+    if index as usize >= e.world.tree.nodes[here.get()].bodies.len() {
+        return 0;
+    }
+    let spec = crate::engine::budgeted_spec(tier.finer(), e.budget);
+    let child = e.world.tree.promote(here, index as usize, spec);
+    if child.is_none() {
+        return 0;
+    }
+    e.world.tree.nodes[child.get()].residency = crate::tree::Residency::Observed;
+    e.path.push(child);
+    e.elapsed = 0.0;
+    e.dirty = true;
+    refresh_scene(e);
+    1
+}
+
+/// Descend into whichever body is largest, which is usually the one worth
+/// looking at and is always a defined choice.
+#[unsafe(no_mangle)]
+pub extern "C" fn scene_descend_largest() -> u32 {
+    let e = explorer();
+    let Some(&here) = e.path.last() else {
+        return 0;
+    };
+    e.world.tree.refine(here);
+    let best = {
+        let n = &e.world.tree.nodes[here.get()];
+        let mut bi = 0usize;
+        let mut bm = f64::NEG_INFINITY;
+        for (i, b) in n.bodies.iter().enumerate() {
+            if b.mass > bm {
+                bm = b.mass;
+                bi = i;
+            }
+        }
+        bi
+    };
+    scene_descend(best as u32)
+}
+
+/// Back out to the node above.
+#[unsafe(no_mangle)]
+pub extern "C" fn scene_ascend() -> u32 {
+    let e = explorer();
+    if e.path.len() <= 1 {
+        return 0;
+    }
+    let leaving = e.path.pop().unwrap();
+    // Coarsening on the way out is the point of the whole architecture: the
+    // detail is thrown away, and going back in regenerates it.
+    e.world.tree.coarsen(leaving);
+    e.elapsed = 0.0;
+    e.dirty = true;
+    refresh_scene(e);
+    1
+}
+
+/// Advance the node being watched by `seconds` of *its own* time.
+///
+/// Each tier runs at its own rate — a galaxy steps in megayears and a nucleus in
+/// zeptoseconds — so the argument is a number of the node's own timesteps
+/// rather than a wall-clock interval, which would be meaningless across
+/// forty-five orders of magnitude.
+#[unsafe(no_mangle)]
+pub extern "C" fn scene_step(steps: f32) {
+    let e = explorer();
+    let Some(&here) = e.path.last() else {
+        return;
+    };
+    if steps <= 0.0 {
+        return;
+    }
+    let dt = e.world.node_dt(here);
+    if !(dt > 0.0) || !dt.is_finite() {
+        return;
+    }
+    // Whole steps, one at a time. Handing the solver eight times its own
+    // timestep is not the same as eight steps: every stability limit in the
+    // engine is a limit on *dt*, and the SPH solver answers a 8 ms step at the
+    // continuum tier by heating its parcels to two thirds of light speed.
+    let whole = (steps as f64).clamp(0.0, 8.0);
+    let count = whole.floor() as u32;
+    let mut drift = 0.0f64;
+    let mut momentum = 0.0f64;
+    for _ in 0..count.max(1) {
+        let report = e.world.advance_node(here, dt);
+        drift = drift.max(report.drift());
+        momentum = momentum.max(report.momentum_drift());
+        e.elapsed += dt;
+    }
+    e.readouts[20] = drift as f32;
+    e.readouts[21] = momentum as f32;
+    e.dirty = true;
+    refresh_scene(e);
+}
+
+/// Throw away the detail and rebuild it, which is the claim worth watching.
+#[unsafe(no_mangle)]
+pub extern "C" fn scene_regenerate() -> u32 {
+    let e = explorer();
+    let Some(&here) = e.path.last() else {
+        return 0;
+    };
+    let before = e.world.tree.nodes[here.get()].bodies.len() as u32;
+    e.world.tree.coarsen(here);
+    e.dirty = true;
+    refresh_scene(e);
+    before
+}
+
+/// Rebuild the same scenario from a different seed — another galaxy of the
+/// same kind, another cloud, another nucleus.
+#[unsafe(no_mangle)]
+pub extern "C" fn scene_reseed(step: u32) {
+    let e = explorer();
+    let (scenario, budget) = (e.scenario as u32, e.budget as u32);
+    let seed = e.seed.wrapping_add(step.max(1));
+    scene_create(scenario, seed, budget);
+}
+
+/// Set how many bodies a node materialises into.
+#[unsafe(no_mangle)]
+pub extern "C" fn scene_set_budget(budget: u32) {
+    let e = explorer();
+    e.budget = (budget as usize).clamp(64, 40_000);
+    let Some(&here) = e.path.last() else {
+        return;
+    };
+    e.world.tree.nodes[here.get()].spec.count = e.budget;
+    e.world.tree.coarsen(here);
+    e.dirty = true;
+    refresh_scene(e);
+}
+
+fn refresh_scene(e: &mut Explorer) {
+    if !e.dirty {
+        return;
+    }
+    e.dirty = false;
+    let Some(&here) = e.path.last() else {
+        return;
+    };
+    let bodies = e.world.tree.refine(here).to_vec();
+    let node_radius = e.world.tree.nodes[here.get()].agg.radius.max(1e-300);
+    let inv = 1.0 / node_radius;
+
+    e.points.clear();
+    let mut fastest = 0.0f64;
+    let mut hottest = 0.0f64;
+    let mut heaviest = 0.0f64;
+    for b in &bodies {
+        let speed = b.vel.norm();
+        fastest = fastest.max(speed);
+        hottest = hottest.max(b.temperature);
+        heaviest = heaviest.max(b.mass);
+        e.points.extend_from_slice(&[
+            (b.pos.x * inv) as f32,
+            (b.pos.y * inv) as f32,
+            (b.pos.z * inv) as f32,
+            (b.radius * inv) as f32,
+            b.mass as f32,
+            b.temperature as f32,
+            speed as f32,
+            b.kind as u32 as f32,
+        ]);
+    }
+
+    let n = &e.world.tree.nodes[here.get()];
+    e.readouts[0] = n.agg.mass as f32;
+    e.readouts[1] = node_radius as f32;
+    e.readouts[2] = n.agg.temperature as f32;
+    e.readouts[3] = bodies.len() as f32;
+    e.readouts[4] = n.tier as u32 as f32;
+    e.readouts[5] = e.path.len() as f32 - 1.0;
+    e.readouts[6] = heaviest as f32;
+    e.readouts[7] = fastest as f32;
+    e.readouts[8] = hottest as f32;
+    e.readouts[9] = e.world.node_dt(here) as f32;
+    e.readouts[10] = e.elapsed as f32;
+    e.readouts[11] = e.world.tree.detail_bytes() as f32;
+    e.readouts[12] = n.agg.internal_energy as f32;
+    e.readouts[13] = n.agg.binding_energy as f32;
+    e.readouts[14] = n.agg.luminosity as f32;
+    e.readouts[15] = e.scenario as f32;
+    e.readouts[16] = e.budget as f32;
+    e.readouts[17] = crate::solvers::for_tier(n.tier) as u32 as f32;
+    e.readouts[18] = n.agg.charge as f32;
+    e.readouts[19] = e.world.tree.nodes.iter().filter(|n| n.alive && n.is_materialised()).count() as f32;
+}
+
+/// One quantity about the current node, in full precision.
+///
+/// A galaxy weighs 10^39 kg and a nucleon 10^-27, which single precision cannot
+/// hold at both ends: the readout array is `f32` for the bulk of the numbers a
+/// renderer needs, and a galaxy's mass overflows it to infinity and prints as
+/// zero. Anything spanning the whole ladder comes back through here instead.
+#[unsafe(no_mangle)]
+pub extern "C" fn scene_value(which: u32) -> f64 {
+    let e = explorer();
+    let Some(&here) = e.path.last() else {
+        return 0.0;
+    };
+    let n = &e.world.tree.nodes[here.get()];
+    match which {
+        0 => n.agg.mass,
+        1 => n.agg.radius,
+        2 => n.agg.temperature,
+        3 => e.world.node_dt(here),
+        4 => e.elapsed,
+        5 => n.agg.internal_energy,
+        6 => n.agg.binding_energy,
+        7 => n.agg.luminosity,
+        8 => e.points
+            .chunks_exact(POINT_STRIDE)
+            .map(|p| p[6] as f64)
+            .fold(0.0f64, f64::max),
+        9 => e.world.tree.detail_bytes() as f64,
+        _ => 0.0,
+    }
+}
+
+/// Radius in metres of the node `up` levels above the current one, in full
+/// precision. See [`scene_value`].
+#[unsafe(no_mangle)]
+pub extern "C" fn scene_trail_metres(up: u32) -> f64 {
+    let e = explorer();
+    let len = e.path.len();
+    if (up as usize) >= len {
+        return 0.0;
+    }
+    let idx = e.path[len - 1 - up as usize];
+    e.world.tree.nodes[idx.get()].agg.radius
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn scene_points_ptr() -> *const f32 {
+    explorer().points.as_ptr()
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn scene_points_len() -> u32 {
+    (explorer().points.len() / POINT_STRIDE) as u32
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn scene_readouts_ptr() -> *const f32 {
+    explorer().readouts.as_ptr()
+}
+
+/// Depth of the current node below the scenario's root.
+#[unsafe(no_mangle)]
+pub extern "C" fn scene_depth() -> u32 {
+    explorer().path.len() as u32 - 1
+}
+
+/// Tier of the node `up` levels above the current one, as an index. Returns
+/// 255 past the top, which is how the viewer knows where the trail ends.
+#[unsafe(no_mangle)]
+pub extern "C" fn scene_trail_tier(up: u32) -> u32 {
+    let e = explorer();
+    let len = e.path.len();
+    if (up as usize) >= len {
+        return 255;
+    }
+    let idx = e.path[len - 1 - up as usize];
+    e.world.tree.nodes[idx.get()].tier as u32
+}
+
+/// Radius in metres of the node `up` levels above the current one.
+#[unsafe(no_mangle)]
+pub extern "C" fn scene_trail_scale(up: u32) -> f32 {
+    let e = explorer();
+    let len = e.path.len();
+    if (up as usize) >= len {
+        return 0.0;
+    }
+    let idx = e.path[len - 1 - up as usize];
+    e.world.tree.nodes[idx.get()].agg.radius as f32
+}

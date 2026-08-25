@@ -373,6 +373,56 @@ pub fn stable_dt(bodies: &[Body]) -> f64 {
     dt
 }
 
+/// As [`stable_dt`], but bounded by the configuration the particles are
+/// actually in rather than by the well they would sit in at equilibrium.
+///
+/// The vibrational period at the bottom of the Lennard-Jones well is the right
+/// bound for a system that is *near* the bottom of it. A system that is not —
+/// atoms packed closer than their own radii, which is what refining a solid
+/// too far produces — sits on a wall where the force is five orders of
+/// magnitude larger, and the equilibrium period is meaningless there.
+///
+/// The acceleration criterion is the standard answer: no particle may be
+/// allowed to move more than a small fraction of its neighbour spacing in one
+/// step, so `dt <= sqrt(2 eta d / a)` for the acceleration each one is actually
+/// under. Without it, a compressed configuration does not integrate
+/// inaccurately, it detonates — 10^25 m/s within two hundred steps, with the
+/// conservation check reporting a drift of exactly 1.0 and nobody watching it.
+pub fn configuration_dt(bodies: &[Body], params: MdParams) -> f64 {
+    let base = stable_dt(bodies);
+    if bodies.len() < 2 {
+        return base;
+    }
+    let acc = forces(bodies, params);
+    let mut spacing = f64::INFINITY;
+    let grid = NeighbourGrid::build(bodies, params.cutoff);
+    let mut nb = Vec::with_capacity(64);
+    for i in 0..bodies.len() {
+        grid.neighbours(bodies[i].pos, &mut nb);
+        for &jj in nb.iter() {
+            let j = jj as usize;
+            if j == i {
+                continue;
+            }
+            let r = (bodies[j].pos - bodies[i].pos).norm();
+            if r > 0.0 {
+                spacing = spacing.min(r);
+            }
+        }
+    }
+    if !spacing.is_finite() || spacing <= 0.0 {
+        return base;
+    }
+    let mut limit = base;
+    for a in &acc {
+        let mag = a.norm();
+        if mag > 0.0 {
+            limit = limit.min((2.0 * 0.02 * spacing / mag).sqrt());
+        }
+    }
+    limit.max(1e-24)
+}
+
 /// Stable timestep for a bonded system.
 ///
 /// A covalent bond is two orders of magnitude stiffer than the van der Waals

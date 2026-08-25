@@ -191,7 +191,18 @@ pub fn prolong(
     path_key: u128,
     epoch: u32,
 ) -> (Vec<Body>, ProlongReport) {
-    let n = spec.count.max(1);
+    // You cannot materialise more atoms than there are atoms.
+    //
+    // Above the molecular tier a body is a statistical stand-in and the count
+    // is purely a resolution choice: a hundred super-particles or ten thousand
+    // both describe the same cloud. At the atomic and nuclear tiers that stops
+    // being true, because the things being made are countable and the count is
+    // a physical fact about the mass. Splitting a carbon atom into sixty-four
+    // "atoms" of a fifth of a proton each, or an iron nucleus into more
+    // nucleons than it has, produces particles whose spacing is far below their
+    // own interaction radii — and a Lennard-Jones potential handed that
+    // configuration answers with several hundred electron volts per pair.
+    let n = particle_limit(agg, spec).max(1);
     let mut report = ProlongReport {
         count: n,
         ..Default::default()
@@ -1134,4 +1145,150 @@ fn design_cases(
         cases.push(field);
     }
     cases
+}
+
+
+/// How many bodies a materialisation may actually produce.
+///
+/// The requested count, bounded by physics wherever the bodies are countable
+/// things rather than statistical stand-ins. See the note in [`prolong`].
+fn particle_limit(agg: &Aggregate, spec: ProlongSpec) -> usize {
+    let requested = spec.count.max(1);
+    let cap = match spec.kind {
+        BodyKind::Atom | BodyKind::Molecule => {
+            let each = agg.composition.mean_atomic_mass();
+            if each > 0.0 { agg.mass / each } else { f64::INFINITY }
+        }
+        // The baryon number *is* the nucleon count. There is no arguing with it.
+        BodyKind::Nucleon => agg.baryon_number,
+        BodyKind::Electron => agg.lepton_number,
+        _ => f64::INFINITY,
+    };
+    if cap.is_finite() && cap >= 1.0 {
+        // Rounded, not truncated: an iron nucleus carries 55.845 atomic mass
+        // units and has fifty-six nucleons, and flooring gives it fifty-five.
+        requested.min(cap.round() as usize)
+    } else if cap.is_finite() {
+        1
+    } else {
+        requested
+    }
+}
+
+/// The default refinement policy, with the resolution tiers scaled to a budget.
+///
+/// This is the engine's "what is the universe made of" table. Each entry says
+/// how many children a node of that tier has, how they are arranged, and how
+/// mass is divided among them. Changing a line here changes the character of
+/// the world at that scale and nothing else — the conservation machinery,
+/// scheduler and observation path are all indifferent to it.
+pub fn budgeted_spec(tier: Tier, requested: usize) -> ProlongSpec {
+    let mut spec = default_spec(tier);
+    // Below the molecular tier the count is a number of *particles*, not a
+    // resolution. A carbon atom has six electrons and an iron nucleus
+    // fifty-six nucleons whatever the frame budget says, and a viewer that
+    // offers to render five thousand of them is offering nonsense.
+    if tier < Tier::Atomic {
+        spec.count = requested.clamp(64, 40_000);
+    }
+    spec
+}
+
+/// The default refinement policy: how each tier splits into the next.
+pub fn default_spec(tier: Tier) -> ProlongSpec {
+            match tier {
+        // A galaxy resolves into star-forming complexes and dark matter.
+        Tier::Galactic => ProlongSpec {
+            count: 20_000,
+            profile: Profile::Disk { scale_height_ratio: 0.12 },
+            spectrum: MassSpectrum::Equal,
+            kind: BodyKind::Super,
+            composition_scatter: 0.15,
+            turbulent_fraction: 0.3,
+        },
+        // A complex resolves into individual stars, drawn from the IMF — which
+        // is where "a statistical stand-in" becomes "a particular star".
+        Tier::Stellar => ProlongSpec {
+            count: 4_000,
+            profile: Profile::Plummer,
+            spectrum: MassSpectrum::Kroupa { min_msun: 0.08, max_msun: 60.0 },
+            kind: BodyKind::Star,
+            composition_scatter: 0.05,
+            turbulent_fraction: 0.45,
+        },
+        // A star resolves into its structural shells; a planet into its layers.
+        Tier::Planetary => ProlongSpec {
+            count: 2_000,
+            profile: Profile::Plummer,
+            spectrum: MassSpectrum::PowerLaw { alpha: -1.5, ratio: 30.0 },
+            kind: BodyKind::GasParcel,
+            composition_scatter: 0.02,
+            turbulent_fraction: 0.6,
+        },
+        // Bulk matter resolves into fluid parcels or grains.
+        Tier::Continuum => ProlongSpec {
+            count: 4_000,
+            profile: Profile::Uniform,
+            spectrum: MassSpectrum::Equal,
+            kind: BodyKind::Grain,
+            composition_scatter: 0.01,
+            turbulent_fraction: 0.2,
+        },
+        // A parcel resolves into molecules.
+        Tier::Molecular => ProlongSpec {
+            count: 8_000,
+            profile: Profile::Uniform,
+            spectrum: MassSpectrum::Species,
+            kind: BodyKind::Molecule,
+            composition_scatter: 0.0,
+            turbulent_fraction: 0.0,
+        },
+        // A molecule resolves into atoms. Eight of them, not sixty-four: the
+        // node's radius came from the molecule it represents, and packing
+        // sixty-four atoms into a molecule-sized sphere puts every pair well
+        // inside its own Lennard-Jones radius, where the potential is hundreds
+        // of electron volts and the configuration is not a molecule at all.
+        Tier::Atomic => ProlongSpec {
+            count: 8,
+            profile: Profile::Lattice,
+            spectrum: MassSpectrum::Species,
+            kind: BodyKind::Atom,
+            composition_scatter: 0.0,
+            turbulent_fraction: 0.0,
+        },
+        // An atom resolves into a nucleus of nucleons. Below this the engine
+        // stops producing trajectories and switches to the statistical
+        // description in `solvers::quantum` — not because it runs out of
+        // compute, but because there is nothing else there to describe.
+        Tier::Nuclear => ProlongSpec {
+            count: 56,
+            profile: Profile::WoodsSaxon,
+            spectrum: MassSpectrum::Equal,
+            kind: BodyKind::Nucleon,
+            composition_scatter: 0.0,
+            turbulent_fraction: 0.0,
+        },
+    }
+}
+
+
+/// The tier a body of this kind belongs to.
+///
+/// The inverse of the refinement table: given something that has been made,
+/// which scale is it a thing at. Used to tell a caller's *intent* apart from a
+/// caller's *mistake* when the spec it supplied does not match the tier a
+/// child's radius put it in — asking to split an atom into nucleons is a
+/// deliberate step finer, and asking to split an atom into molecules is not.
+pub fn tier_of(kind: BodyKind) -> Tier {
+    match kind {
+        BodyKind::Super => Tier::Galactic,
+        BodyKind::Star | BodyKind::CompactObject => Tier::Stellar,
+        BodyKind::Planet | BodyKind::GasParcel => Tier::Planetary,
+        BodyKind::Grain => Tier::Continuum,
+        BodyKind::Molecule => Tier::Molecular,
+        BodyKind::Atom => Tier::Atomic,
+        BodyKind::Nucleus | BodyKind::Nucleon | BodyKind::Electron | BodyKind::Photon => {
+            Tier::Nuclear
+        }
+    }
 }

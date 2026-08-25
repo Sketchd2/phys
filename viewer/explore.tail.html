@@ -1,0 +1,436 @@
+<script>
+(function () {
+  "use strict";
+
+  // The Rust engine compiled to WebAssembly. There is no per-scale renderer
+  // here and no per-scale solver selection: positions arrive in units of the
+  // node's own radius, so the numbers this code sees are of order one whether
+  // the node is fifteen kiloparsecs across or four femtometres.
+  const B64 = "__WASM_B64__";
+
+  const view = document.getElementById("view");
+  const ctx = view.getContext("2d");
+  const $ = (id) => document.getElementById(id);
+
+  let wasm = null, mem = null, running = true, dpr = 1, channel = 0;
+  const cam = { az: 0.6, el: 0.32, dist: 1.0 };
+  let picked = -1;
+
+  const TIERS = ["galactic", "stellar", "planetary", "continuum", "molecular", "atomic", "nuclear"];
+  const SOLVERS = ["Barnes–Hut", "gravity + SPH", "SPH", "molecular dynamics", "statistical"];
+  const KINDS = ["super-particle", "star", "compact object", "planet", "gas parcel", "grain",
+                 "molecule", "atom", "nucleus", "nucleon", "electron", "photon"];
+  const SCENARIOS = [
+    ["Spiral galaxy", "10⁹ stars in a rotating disc, held together by a halo that is not made of the thing being refined."],
+    ["Molecular cloud", "10⁵ solar masses of cold gas at 20 K, turbulent, on the edge of collapsing into stars."],
+    ["The Sun", "One solar mass at hydrostatic equilibrium. Refine it and the pp chain lights up in the core."],
+    ["Rocky planet", "An Earth: iron core, silicate mantle, and a virial budget that knows the difference."],
+    ["Granite block", "A cubic metre of rock at room temperature — bulk matter, where thermodynamics is the whole physics."],
+    ["Water vapour", "A cube of steam at 400 K. Molecular dynamics with covalent bonds that form and break."],
+    ["Carbon atom", "One atom, and the twelve nucleons inside it. Below here the engine stops producing trajectories, because there is nothing else there to describe."],
+    ["Iron nucleus", "Fifty-six nucleons at nuclear density, moving at a fifth of light speed because the exclusion principle says so."],
+  ];
+  // Channel: [label, index into the point record, unit formatter, log scale?]
+  const CHANNELS = [
+    ["Speed", 6, (v) => fmtSI(v, "m/s"), false],
+    ["Mass", 4, (v) => fmtSI(v, "kg"), true],
+    ["Temperature", 5, (v) => fmtSI(v, "K"), true],
+    ["Kind", 7, (v) => KINDS[Math.round(v)] || "—", false],
+  ];
+
+  function bytesFromBase64(b64) {
+    const bin = atob(b64);
+    const out = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+    return out;
+  }
+  const readouts = () => new Float32Array(mem().buffer, wasm.scene_readouts_ptr(), 32);
+  function points() {
+    const n = wasm.scene_points_len();
+    return { n, data: new Float32Array(mem().buffer, wasm.scene_points_ptr(), n * 8) };
+  }
+
+  // ---- formatting ------------------------------------------------------
+  // One formatter for forty-five orders of magnitude, because there is one
+  // renderer for forty-five orders of magnitude.
+  const PREFIX = [
+    [1e24, "Y"], [1e21, "Z"], [1e18, "E"], [1e15, "P"], [1e12, "T"], [1e9, "G"],
+    [1e6, "M"], [1e3, "k"], [1, ""], [1e-3, "m"], [1e-6, "µ"], [1e-9, "n"],
+    [1e-12, "p"], [1e-15, "f"], [1e-18, "a"], [1e-21, "z"], [1e-24, "y"],
+  ];
+  function fmtSI(v, unit) {
+    if (!isFinite(v) || v === 0) return "0 " + unit;
+    const a = Math.abs(v);
+    // Past yotta there is no prefix, and a galaxy weighs a billion of them.
+    if (a >= 1e27 || a < 1e-27) return v.toExponential(2) + " " + unit;
+    for (const [scale, p] of PREFIX) {
+      if (a >= scale) {
+        const x = v / scale;
+        return (Math.abs(x) >= 100 ? x.toFixed(0) : Math.abs(x) >= 10 ? x.toFixed(1) : x.toFixed(2)) + " " + p + unit;
+      }
+    }
+    return v.toExponential(2) + " " + unit;
+  }
+  // Astronomical distances want astronomical units, not exametres.
+  function fmtLength(m) {
+    if (m > 3.0857e18) return (m / 3.0857e19).toPrecision(3) + " kpc";
+    if (m > 3.0857e15) return (m / 3.0857e16).toPrecision(3) + " pc";
+    if (m > 1e10) return (m / 1.495979e11).toPrecision(3) + " AU";
+    return fmtSI(m, "m");
+  }
+  function fmtTime(s) {
+    if (s >= 3.156e13) return (s / 3.156e13).toPrecision(3) + " Myr";
+    if (s >= 3.156e7) return (s / 3.156e7).toPrecision(3) + " yr";
+    if (s >= 86400) return (s / 86400).toPrecision(3) + " d";
+    if (s >= 1) return s.toPrecision(3) + " s";
+    return fmtSI(s, "s");
+  }
+  const fmtBytes = (b) =>
+    b >= 1e6 ? (b / 1e6).toFixed(1) + " MB" : b >= 1e3 ? (b / 1e3).toFixed(1) + " kB" : b.toFixed(0) + " B";
+
+  // ---- colour ----------------------------------------------------------
+  const css = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  let PAL = {};
+  function readPalette() {
+    PAL = {
+      cold: hexToRgb(css("--accent")), warm: hexToRgb(css("--warn")),
+      hot: hexToRgb(css("--crit")), quiet: hexToRgb(css("--member")),
+      skyA: css("--sky-a"), skyB: css("--sky-b"), rule: hexToRgb(css("--rule")),
+    };
+    // Density has to accumulate towards the *far* end of the value range, and
+    // which end that is depends on the ground the page is painted on. Adding
+    // light on a light background reaches white after three overlaps and the
+    // galaxy becomes a white blob; multiplying on a dark one reaches black.
+    const g = hexToRgb(PAL.skyA);
+    PAL.lightGround = (0.2126 * g[0] + 0.7152 * g[1] + 0.0722 * g[2]) / 255 > 0.5;
+  }
+  function hexToRgb(h) {
+    h = h.replace("#", "");
+    if (h.length === 3) h = h.split("").map((c) => c + c).join("");
+    return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
+  }
+  const lerp = (a, b, t) => a + (b - a) * t;
+  // A three-stop ramp: quiet, through the accent, to the alarm colour. Not a
+  // rainbow — the eye reads ordering out of lightness, and a rainbow has none.
+  function ramp(t) {
+    t = Math.max(0, Math.min(1, t));
+    // Cool to hot, with no muted stop at the bottom: most bodies sit near the
+    // low end of any range, and a low end that is grey means most of the field
+    // is grey — which is the one thing a colour channel must not be.
+    if (t < 0.55) return PAL.cold.map((v, i) => lerp(v, PAL.warm[i], t / 0.55));
+    return PAL.warm.map((v, i) => lerp(v, PAL.hot[i], (t - 0.55) / 0.45));
+  }
+
+  // ---- render ----------------------------------------------------------
+  function resize() {
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const r = view.getBoundingClientRect();
+    view.width = Math.max(1, Math.floor(r.width * dpr));
+    view.height = Math.max(1, Math.floor(r.height * dpr));
+  }
+
+  let lastProjection = null;
+  function draw() {
+    const w = view.width, h = view.height;
+    const grad = ctx.createRadialGradient(w * 0.5, h * 0.44, 0, w * 0.5, h * 0.44, Math.max(w, h) * 0.75);
+    grad.addColorStop(0, PAL.skyB); grad.addColorStop(1, PAL.skyA);
+    ctx.fillStyle = grad; ctx.fillRect(0, 0, w, h);
+    if (!wasm) return;
+
+    const { n, data } = points();
+    if (n === 0) return;
+
+    const ca = Math.cos(cam.az), sa = Math.sin(cam.az);
+    const ce = Math.cos(cam.el), se = Math.sin(cam.el);
+    const fwd = [-ca * ce, -sa * ce, -se];
+    // Positions are already in units of the node radius, so nothing here needs
+    // to know what scale it is at. What the frame does need is how far the
+    // bodies actually reach, which is not one node radius: a node's radius is
+    // its mass-weighted extent, so the outermost bodies sit well beyond it, and
+    // how far beyond depends on the profile they were sampled from. And a
+    // nucleon is a quarter of a nucleus wide while a super-particle is a speck
+    // in a galaxy, so the frame has to hold the bodies as well as their centres.
+    //
+    // Taken as a high percentile rather than a maximum, so one body flung out
+    // of a close encounter does not pull the camera back off everything else.
+    const reachOf = new Float64Array(n);
+    for (let i = 0; i < n; i++) {
+      const o = i * 8;
+      reachOf[i] = Math.hypot(data[o], data[o + 1], data[o + 2]) + data[o + 3];
+    }
+    const sorted = Float64Array.prototype.slice.call(reachOf).sort();
+    const extent = Math.max(sorted[Math.floor(n * 0.97)] || 1, 1e-6);
+    const reach = 2.6 * extent * cam.dist;
+    const eye = [-fwd[0] * reach, -fwd[1] * reach, -fwd[2] * reach];
+    const right = [-sa, ca, 0];
+    const up = [right[1] * fwd[2] - right[2] * fwd[1],
+                right[2] * fwd[0] - right[0] * fwd[2],
+                right[0] * fwd[1] - right[1] * fwd[0]];
+    const halfH = Math.tan(0.5);
+    const aspect = w / h;
+
+    function project(x, y, z) {
+      const rx = x - eye[0], ry = y - eye[1], rz = z - eye[2];
+      const d = rx * fwd[0] + ry * fwd[1] + rz * fwd[2];
+      if (d <= 1e-6) return null;
+      const sx = (rx * right[0] + ry * right[1] + rz * right[2]) / (d * halfH * aspect);
+      const sy = (rx * up[0] + ry * up[1] + rz * up[2]) / (d * halfH);
+      return [(sx * 0.5 + 0.5) * w, (0.5 - sy * 0.5) * h, d, (h * 0.5) / (d * halfH)];
+    }
+
+    // Channel range, so the colouring means something on this node rather than
+    // on some absolute scale nothing here shares.
+    const [, field, , logScale] = CHANNELS[channel];
+    let lo = Infinity, hi = -Infinity;
+    for (let i = 0; i < n; i++) {
+      const v = data[i * 8 + field];
+      if (!isFinite(v)) continue;
+      if (v < lo) lo = v;
+      if (v > hi) hi = v;
+    }
+    if (!isFinite(lo)) { lo = 0; hi = 1; }
+    const useLog = logScale && lo > 0 && hi / lo > 50;
+    const l0 = useLog ? Math.log(lo) : lo;
+    const l1 = useLog ? Math.log(hi) : hi;
+    const span = (l1 - l0) || 1;
+    $("rampLo").textContent = CHANNELS[channel][2](lo);
+    $("rampHi").textContent = CHANNELS[channel][2](hi);
+
+    const order = new Array(n);
+    for (let i = 0; i < n; i++) {
+      const o = i * 8;
+      const mx = data[o] - eye[0], my = data[o + 1] - eye[1], mz = data[o + 2] - eye[2];
+      order[i] = [i, mx * fwd[0] + my * fwd[1] + mz * fwd[2]];
+    }
+    order.sort((a, b) => b[1] - a[1]);
+
+    const screen = new Float32Array(n * 3);
+    // Two ways of drawing the same buffer, and which one is right is a question
+    // about how many bodies there are rather than about what scale they are at.
+    // A few dozen nucleons are *objects*, drawn at the size they actually are.
+    // Six thousand super-particles are a *density field*, and drawing each at
+    // its nominal radius produces a white blob with no structure in it — a
+    // galaxy's stand-ins overlap by construction, which is what makes them
+    // stand-ins.
+    const dense = n > 400;
+    ctx.globalCompositeOperation = dense ? (PAL.lightGround ? "multiply" : "lighter") : "source-over";
+    const alpha = dense ? (PAL.lightGround ? 0.30 : 0.55) : 0.55;
+    for (const [i] of order) {
+      const o = i * 8;
+      const p = project(data[o], data[o + 1], data[o + 2]);
+      if (!p) continue;
+      screen[i * 3] = p[0]; screen[i * 3 + 1] = p[1]; screen[i * 3 + 2] = 1;
+      const v = data[o + field];
+      const t = ((useLog ? (v > 0 ? Math.log(v) : l0) : v) - l0) / span;
+      const c = ramp(t);
+      const px = dense
+        ? Math.max(1.1 * dpr, Math.min(data[o + 3] * p[3], 3.0 * dpr))
+        : Math.max(1.6 * dpr, Math.min(data[o + 3] * p[3], h * 0.3));
+      const fade = Math.max(0.3, Math.min(1, 1.8 / p[2]));
+      ctx.fillStyle = `rgba(${c[0] | 0},${c[1] | 0},${c[2] | 0},${(alpha * fade).toFixed(3)})`;
+      ctx.beginPath();
+      ctx.arc(p[0], p[1], px, 0, 6.2832);
+      ctx.fill();
+    }
+    ctx.globalCompositeOperation = "source-over";
+
+    if (picked >= 0 && picked < n && screen[picked * 3 + 2]) {
+      ctx.strokeStyle = css("--accent");
+      ctx.lineWidth = 1.5 * dpr;
+      ctx.beginPath();
+      ctx.arc(screen[picked * 3], screen[picked * 3 + 1], 9 * dpr, 0, 6.2832);
+      ctx.stroke();
+    }
+    lastProjection = { screen, n };
+  }
+
+  // ---- the trail -------------------------------------------------------
+  function refreshTrail() {
+    const holder = $("trail");
+    holder.textContent = "";
+    const depth = wasm.scene_depth();
+    for (let up = depth; up >= 0; up--) {
+      const tier = wasm.scene_trail_tier(up);
+      if (tier === 255) continue;
+      const scale = wasm.scene_trail_metres(up);
+      const b = document.createElement("button");
+      if (up === 0) b.className = "here";
+      const pip = document.createElement("span"); pip.className = "pip";
+      const name = document.createElement("span"); name.textContent = TIERS[tier] || "?";
+      const len = document.createElement("span"); len.className = "len"; len.textContent = fmtLength(scale);
+      b.append(pip, name, len);
+      b.addEventListener("click", () => { for (let k = 0; k < up; k++) wasm.scene_ascend(); });
+      holder.appendChild(b);
+    }
+    // Where this node sits on the whole ladder, in decades of metres.
+    const decades = Math.log10(Math.max(wasm.scene_value(1), 1e-16));
+    $("rulerPip").style.left = `calc(${(((decades + 15) / 36) * 100).toFixed(1)}% - 1.5px)`;
+  }
+
+  // ---- readouts --------------------------------------------------------
+  function refreshUI() {
+    const r = readouts();
+    const tier = Math.round(r[4]);
+    // Anything that spans the whole ladder comes back in double precision: a
+    // galaxy weighs 10^39 kg, which overflows a float to infinity.
+    const mass = wasm.scene_value(0), radius = wasm.scene_value(1);
+    const fastest = wasm.scene_value(8);
+    $("roMass").textContent = fmtSI(mass, "kg");
+    $("roRadius").textContent = fmtLength(radius);
+    $("roTemp").textContent = fmtSI(wasm.scene_value(2), "K");
+    $("roBodies").textContent = r[3].toFixed(0);
+    $("roSolver").textContent = SOLVERS[Math.round(r[17])] || "—";
+    $("roDt").textContent = fmtTime(wasm.scene_value(3));
+    $("roFast").textContent =
+      fmtSI(fastest, "m/s") + (fastest > 3e6 ? ` · ${(fastest / 2.998e8).toFixed(3)} c` : "");
+    $("roDrift").textContent = r[20] > 0 ? r[20].toExponential(1) : "0";
+    $("roDrift").style.color = r[20] > 1e-6 ? css("--warn") : "";
+    $("roElapsed").textContent = fmtTime(wasm.scene_value(4));
+    $("roBytes").textContent = fmtBytes(wasm.scene_value(9));
+
+    const s = SCENARIOS[Math.round(r[15])] || ["—", ""];
+    $("title").textContent = s[0];
+    $("blurb").textContent = s[1];
+    $("subtitle").textContent = `${TIERS[tier]} · ${fmtLength(radius)}`;
+    $("down").disabled = tier >= 6;
+    $("up").disabled = wasm.scene_depth() === 0;
+
+    const dot = $("dot");
+    dot.className = "dot " + (running ? "" : "idle");
+    $("statusText").textContent = running ? `${TIERS[tier]} · running` : "paused";
+    refreshTrail();
+  }
+
+  // ---- loop ------------------------------------------------------------
+  let carry = 0;
+  let last = performance.now();
+  function frame(now) {
+    const dt = Math.min((now - last) / 1000, 0.1);
+    last = now;
+    if (wasm) {
+      if (running) {
+        carry += dt * (+$("rate").value);
+        if (carry >= 0.05) { wasm.scene_step(carry); carry = 0; }
+      }
+      draw();
+      refreshUI();
+    }
+    requestAnimationFrame(frame);
+  }
+
+  // ---- controls --------------------------------------------------------
+  function load(index) {
+    picked = -1;
+    cam.dist = 1.0;
+    wasm.scene_create(index, 1, +$("detail").value);
+  }
+
+  function buildChannels() {
+    const holder = $("channels");
+    holder.textContent = "";
+    CHANNELS.forEach(([label], i) => {
+      const b = document.createElement("button");
+      b.textContent = label;
+      if (i === channel) b.className = "on";
+      b.addEventListener("click", () => {
+        channel = i;
+        [...holder.children].forEach((c, k) => { c.className = k === i ? "on" : ""; });
+      });
+      holder.appendChild(b);
+    });
+  }
+
+  function bindSlider(id, fmt, onChange) {
+    const el = $(id);
+    const label = $(id + "Val");
+    const update = () => { label.textContent = fmt(+el.value); onChange(+el.value); };
+    el.addEventListener("input", update);
+    update();
+  }
+
+  function start() {
+    readPalette();
+    resize();
+    window.addEventListener("resize", resize);
+    matchMedia("(prefers-color-scheme: dark)").addEventListener("change", readPalette);
+
+    const sel = $("scenario");
+    SCENARIOS.forEach(([name], i) => {
+      const o = document.createElement("option");
+      o.value = i; o.textContent = name;
+      sel.appendChild(o);
+    });
+    buildChannels();
+
+    // The world has to exist before any control can push a value into it.
+    load(0);
+    bindSlider("rate", (v) => v.toFixed(1), () => {});
+    bindSlider("detail", (v) => v.toFixed(0), () => {});
+
+    sel.addEventListener("change", () => load(+sel.value));
+    $("detail").addEventListener("change", (e) => wasm.scene_set_budget(+e.target.value));
+    $("reseed").addEventListener("click", () => { picked = -1; wasm.scene_reseed(1); });
+    $("play").addEventListener("click", () => {
+      running = !running;
+      $("play").textContent = running ? "Pause" : "Resume";
+    });
+    $("up").addEventListener("click", () => { picked = -1; wasm.scene_ascend(); });
+    $("down").addEventListener("click", () => { picked = -1; wasm.scene_descend_largest(); });
+    $("regen").addEventListener("click", () => {
+      const dropped = wasm.scene_regenerate();
+      $("statusText").textContent = `regenerated ${dropped} bodies`;
+    });
+
+    // Orbit, zoom, and pick.
+    let dragging = false, moved = 0, lx = 0, ly = 0;
+    view.addEventListener("pointerdown", (e) => {
+      dragging = true; moved = 0; lx = e.clientX; ly = e.clientY; view.setPointerCapture(e.pointerId);
+    });
+    view.addEventListener("pointermove", (e) => {
+      if (!dragging) return;
+      moved += Math.abs(e.clientX - lx) + Math.abs(e.clientY - ly);
+      cam.az -= (e.clientX - lx) * 0.006;
+      cam.el = Math.max(-1.4, Math.min(1.4, cam.el + (e.clientY - ly) * 0.004));
+      lx = e.clientX; ly = e.clientY;
+    });
+    view.addEventListener("pointerup", (e) => {
+      dragging = false;
+      if (moved > 6 || !lastProjection) return;
+      // A click picks the nearest body on screen; a second click on the same
+      // body goes inside it.
+      const r = view.getBoundingClientRect();
+      const px = (e.clientX - r.left) * dpr, py = (e.clientY - r.top) * dpr;
+      const { screen, n } = lastProjection;
+      let best = -1, bestD = 26 * dpr;
+      for (let i = 0; i < n; i++) {
+        if (!screen[i * 3 + 2]) continue;
+        const d = Math.hypot(screen[i * 3] - px, screen[i * 3 + 1] - py);
+        if (d < bestD) { bestD = d; best = i; }
+      }
+      if (best < 0) { picked = -1; return; }
+      if (best === picked) { wasm.scene_descend(best); picked = -1; }
+      else picked = best;
+    });
+    view.addEventListener("wheel", (e) => {
+      e.preventDefault();
+      cam.dist = Math.max(0.12, Math.min(4, cam.dist * (1 + Math.sign(e.deltaY) * 0.11)));
+    }, { passive: false });
+
+    requestAnimationFrame(frame);
+  }
+
+  // Only an instantiation failure means the engine is unavailable.
+  WebAssembly.instantiate(bytesFromBase64(B64), {}).then(
+    (res) => {
+      wasm = res.instance.exports;
+      mem = () => wasm.memory;
+      start();
+    },
+    (err) => {
+      console.error("engine failed to instantiate:", err);
+      document.getElementById("fallback").style.display = "grid";
+      document.getElementById("statusText").textContent = "engine unavailable";
+    }
+  );
+})();
+</script>
