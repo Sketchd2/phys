@@ -940,7 +940,7 @@ impl Frame {
             seen[root] = true;
             order.push(root as u32);
             frontier.clear();
-            let mut push = |frontier: &mut std::collections::BinaryHeap<_>, node: u32| {
+            let push = |frontier: &mut std::collections::BinaryHeap<_>, node: u32| {
                 for &(other, element) in &adjacent[node as usize] {
                     frontier.push((OrderedWeight(weight[element]), other, node, element as u32));
                 }
