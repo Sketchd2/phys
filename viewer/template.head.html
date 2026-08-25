@@ -1,0 +1,258 @@
+<title>Load Bench</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --ground:#EEF1F5; --panel:#FFFFFF; --sunken:#E3E8EF;
+  --rule:#D2DAE4; --rule-soft:#E4E9F0;
+  --ink:#111823; --dim:#5A6878; --faint:#8794A5;
+  --accent:#0E7C9B; --accent-soft:#D6EEF6;
+  --safe:#1E8C5E; --warn:#B5761A; --crit:#C33F30; --member:#6B5540;
+  --sky-a:#DCE6F0; --sky-b:#F2F5F8;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#0C1017; --panel:#141A24; --sunken:#090D13;
+    --rule:#222C3A; --rule-soft:#1A222E;
+    --ink:#DCE3EC; --dim:#8A97A8; --faint:#5F6C7C;
+    --accent:#5FC9E8; --accent-soft:#0E2733;
+    --safe:#4FB783; --warn:#E0A93F; --crit:#E05A4A; --member:#9A7C5C;
+    --sky-a:#0E141D; --sky-b:#161E2A;
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0C1017; --panel:#141A24; --sunken:#090D13;
+  --rule:#222C3A; --rule-soft:#1A222E;
+  --ink:#DCE3EC; --dim:#8A97A8; --faint:#5F6C7C;
+  --accent:#5FC9E8; --accent-soft:#0E2733;
+  --safe:#4FB783; --warn:#E0A93F; --crit:#E05A4A; --member:#9A7C5C;
+  --sky-a:#0E141D; --sky-b:#161E2A;
+}
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--ground); color:var(--ink);
+  font-family:Archivo,"Helvetica Neue",Arial,sans-serif;
+  font-size:14px; -webkit-font-smoothing:antialiased;
+  height:100vh; overflow:hidden;
+}
+.mono,.val,input[type=range],.trace-label{font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace}
+.val{font-variant-numeric:tabular-nums}
+
+.app{display:grid; grid-template-columns:1fr 300px; height:100vh}
+@media (max-width:820px){
+  body{overflow:auto; height:auto}
+  .app{grid-template-columns:1fr; height:auto}
+  .stage{height:56vh}
+}
+
+/* ---- stage ---- */
+.stage{position:relative; background:linear-gradient(180deg,var(--sky-a),var(--sky-b)); overflow:hidden}
+#view{display:block; width:100%; height:100%; cursor:grab}
+#view:active{cursor:grabbing}
+.overlay{
+  position:absolute; left:16px; top:14px; pointer-events:none;
+  display:flex; flex-direction:column; gap:2px;
+}
+.overlay .name{font-weight:700; font-size:15px; letter-spacing:-.01em}
+.overlay .sub{font-size:11px; color:var(--dim); letter-spacing:.04em; text-transform:uppercase}
+.hint{
+  position:absolute; right:14px; bottom:12px; font-size:11px; color:var(--faint);
+  pointer-events:none; letter-spacing:.03em;
+}
+.status{
+  position:absolute; left:16px; bottom:12px; display:flex; gap:6px; align-items:center;
+  font-size:11px; letter-spacing:.05em; text-transform:uppercase; color:var(--dim);
+}
+.dot{width:7px; height:7px; border-radius:50%; background:var(--safe)}
+.dot.warn{background:var(--warn)} .dot.crit{background:var(--crit)}
+.dot.idle{background:var(--faint)}
+
+/* ---- rail ---- */
+.rail{
+  background:var(--panel); border-left:1px solid var(--rule);
+  display:flex; flex-direction:column; overflow-y:auto;
+}
+@media (max-width:820px){ .rail{border-left:0; border-top:1px solid var(--rule)} }
+.group{padding:14px 16px; border-bottom:1px solid var(--rule-soft)}
+.group > h2{
+  margin:0 0 10px; font-size:10px; font-weight:600; letter-spacing:.14em;
+  text-transform:uppercase; color:var(--faint);
+}
+.readouts{display:grid; grid-template-columns:1fr 1fr; gap:9px 12px}
+.ro{display:flex; flex-direction:column; gap:1px; min-width:0}
+.ro .k{font-size:10px; color:var(--faint); letter-spacing:.05em; text-transform:uppercase; white-space:nowrap}
+.ro .v{font-size:15px; font-weight:500; letter-spacing:-.01em}
+.ro .v small{font-size:10px; color:var(--dim); font-weight:400; margin-left:2px}
+
+.ctl{display:flex; flex-direction:column; gap:5px; margin-bottom:12px}
+.ctl:last-child{margin-bottom:0}
+.ctl .row{display:flex; justify-content:space-between; align-items:baseline; gap:8px}
+.ctl label{font-size:11px; color:var(--dim); letter-spacing:.03em}
+.ctl .amount{font-size:12px; color:var(--ink)}
+input[type=range]{
+  -webkit-appearance:none; appearance:none; width:100%; height:3px; border-radius:2px;
+  background:var(--sunken); outline:none; margin:4px 0;
+}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none; width:13px; height:13px; border-radius:50%;
+  background:var(--accent); cursor:pointer; border:2px solid var(--panel);
+  box-shadow:0 0 0 1px var(--accent);
+}
+input[type=range]::-moz-range-thumb{
+  width:13px; height:13px; border-radius:50%; background:var(--accent);
+  cursor:pointer; border:2px solid var(--panel); box-shadow:0 0 0 1px var(--accent);
+}
+input[type=range]:focus-visible{box-shadow:0 0 0 2px var(--accent-soft)}
+
+.buttons{display:grid; grid-template-columns:1fr 1fr; gap:7px}
+button{
+  font-family:Archivo,sans-serif; font-size:12px; font-weight:600; letter-spacing:.02em;
+  padding:8px 10px; border-radius:3px; border:1px solid var(--rule);
+  background:var(--panel); color:var(--ink); cursor:pointer;
+  transition:border-color .12s, background .12s;
+}
+button:hover{border-color:var(--accent); background:var(--accent-soft)}
+button:focus-visible{outline:2px solid var(--accent); outline-offset:1px}
+button.wide{grid-column:1 / -1}
+button.primary{background:var(--accent); border-color:var(--accent); color:var(--panel)}
+button.primary:hover{filter:brightness(1.08)}
+button.danger:hover{border-color:var(--crit); background:transparent; color:var(--crit)}
+select{
+  font-family:Archivo,sans-serif; font-size:12px; padding:7px 8px; width:100%;
+  border-radius:3px; border:1px solid var(--rule); background:var(--panel); color:var(--ink);
+}
+select:focus-visible{outline:2px solid var(--accent); outline-offset:1px}
+
+/* ---- traces ---- */
+.traces{display:flex; flex-direction:column; gap:10px}
+.trace{display:flex; flex-direction:column; gap:3px}
+.trace-label{
+  display:flex; justify-content:space-between; font-size:10px; color:var(--faint);
+  letter-spacing:.05em; text-transform:uppercase;
+}
+.trace canvas{width:100%; height:38px; display:block; background:var(--sunken); border-radius:2px}
+
+.ramp{display:flex; align-items:center; gap:7px; font-size:10px; color:var(--faint);
+      letter-spacing:.05em; text-transform:uppercase; margin-top:2px}
+.ramp .bar{
+  flex:1; height:5px; border-radius:3px;
+  background:linear-gradient(90deg,var(--member),var(--warn),var(--crit));
+}
+.note{font-size:11px; color:var(--dim); line-height:1.45; margin:0}
+.note strong{color:var(--ink); font-weight:600}
+
+#fallback{
+  display:none; position:absolute; inset:0; place-items:center; padding:32px; text-align:center;
+}
+#fallback div{max-width:38ch}
+#fallback h3{margin:0 0 8px; font-size:15px}
+#fallback p{margin:0; font-size:12px; color:var(--dim); line-height:1.5}
+</style>
+
+<div class="app">
+  <div class="stage">
+    <canvas id="view"></canvas>
+    <div class="overlay">
+      <span class="name" id="title">Green wood · tree</span>
+      <span class="sub" id="subtitle">growing</span>
+    </div>
+    <div class="status"><span class="dot idle" id="dot"></span><span id="statusText">initialising</span></div>
+    <div class="hint">drag to orbit · scroll to zoom</div>
+    <div id="fallback">
+      <div>
+        <h3>This browser will not run the engine</h3>
+        <p>The viewer compiles the physics engine to WebAssembly and runs it live. This page's sandbox is blocking WebAssembly compilation, so there is nothing to show. Opening <span class="mono">viewer.html</span> from the repository directly will work.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="rail">
+    <div class="group">
+      <h2>Structure</h2>
+      <div class="readouts">
+        <div class="ro"><span class="k">Standing mass</span><span class="v val" id="roMass">—</span></div>
+        <div class="ro"><span class="k">Height</span><span class="v val" id="roHeight">—</span></div>
+        <div class="ro"><span class="k">Age</span><span class="v val" id="roAge">—</span></div>
+        <div class="ro"><span class="k">Members drawn</span><span class="v val" id="roMembers">—</span></div>
+      </div>
+    </div>
+
+    <div class="group">
+      <h2>Loading</h2>
+      <div class="ctl">
+        <div class="row"><label for="wind">Wind</label><span class="amount val" id="windVal">0 m/s</span></div>
+        <input type="range" id="wind" min="0" max="70" step="1" value="0">
+      </div>
+      <div class="ctl">
+        <div class="row"><label for="snow">Snow depth</label><span class="amount val" id="snowVal">0 mm</span></div>
+        <input type="range" id="snow" min="0" max="600" step="10" value="0">
+      </div>
+      <div class="ctl">
+        <div class="row"><label for="wet">Snow density</label><span class="amount val" id="wetVal">300 kg/m³</span></div>
+        <input type="range" id="wet" min="80" max="500" step="10" value="300">
+      </div>
+      <p class="note">Dry powder sheds; wet snow adheres. The density is what decides whether anything breaks.</p>
+    </div>
+
+    <div class="group">
+      <h2>Events</h2>
+      <div class="buttons">
+        <button id="strike">Lightning</button>
+        <button id="ignite" class="danger">Ignite</button>
+        <button id="coarsenBtn" class="wide">Discard detail &amp; regenerate</button>
+      </div>
+      <p class="note" style="margin-top:9px">Discarding proves the point: the structure is regenerated from <strong id="stateBytes">—</strong> of developmental state, not from stored geometry.</p>
+    </div>
+
+    <div class="group">
+      <h2>Load path</h2>
+      <div class="readouts">
+        <div class="ro"><span class="k">Peak utilisation</span><span class="v val" id="roUtil">—</span></div>
+        <div class="ro"><span class="k">Joints failed</span><span class="v val" id="roBroken">—</span></div>
+        <div class="ro"><span class="k">Mass shed</span><span class="v val" id="roShed">—</span></div>
+        <div class="ro"><span class="k">Solver</span><span class="v" id="roSolver">exact</span></div>
+      </div>
+      <div class="ramp"><span>at rest</span><span class="bar"></span><span>failure</span></div>
+    </div>
+
+    <div class="group">
+      <h2>History</h2>
+      <div class="traces">
+        <div class="trace">
+          <div class="trace-label"><span>Standing mass</span><span id="tMass">—</span></div>
+          <canvas id="chartMass"></canvas>
+        </div>
+        <div class="trace">
+          <div class="trace-label"><span>Peak utilisation</span><span id="tUtil">—</span></div>
+          <canvas id="chartUtil"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <div class="group">
+      <h2>Run</h2>
+      <div class="ctl">
+        <div class="row"><label for="rate">Simulated years per second</label><span class="amount val" id="rateVal">3.0</span></div>
+        <input type="range" id="rate" min="0" max="20" step="0.5" value="3">
+      </div>
+      <div class="ctl">
+        <div class="row"><label for="detail">Detail budget</label><span class="amount val" id="detailVal">4000</span></div>
+        <input type="range" id="detail" min="200" max="12000" step="200" value="4000">
+      </div>
+      <div class="ctl">
+        <label for="program">Structure</label>
+        <select id="program">
+          <option value="0">Tree — branching, light-limited</option>
+          <option value="1">Coral — branching, mineral-limited</option>
+          <option value="2">Tower — planned, braced frame</option>
+          <option value="3">Wall — planned, masonry courses</option>
+        </select>
+      </div>
+      <div class="buttons">
+        <button id="play" class="primary">Pause</button>
+        <button id="reset">Reset</button>
+      </div>
+    </div>
+  </div>
+</div>

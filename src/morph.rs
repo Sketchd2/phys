@@ -275,6 +275,18 @@ impl Morphology {
         }
     }
 
+    /// Overall height of the structure, whatever kind it is.
+    ///
+    /// `tree_height` applies quarter-power allometry, which is meaningful for
+    /// something that grew under its own self-loading and meaningless for a
+    /// wall.
+    pub fn height(&self) -> f64 {
+        match self.program {
+            Program::Tree => self.tree_height(),
+            _ => self.extent() * 2.0,
+        }
+    }
+
     /// Tree height from biomass, by elastic self-similarity.
     ///
     /// McMahon's buckling criterion gives trunk radius ∝ height^1.5, so volume
@@ -644,53 +656,66 @@ impl Morphology {
     /// Planned construction is the easier case: the target is known in advance,
     /// so materialising a half-built tower is the finished design masked by the
     /// completion fraction, with the topmost floor partial.
+    ///
+    /// The members are real segments — columns spanning a storey, beams
+    /// spanning between columns. An earlier version emitted each element as a
+    /// point with a nominal radius, which was adequate while the parts were
+    /// only drawn and became nonsense the moment they had to carry load: a
+    /// zero-length member has no bending stiffness, and the density correction
+    /// inflated its radius until the tower rendered as a smear of vertical
+    /// streaks.
     fn render_tower(&self, budget: usize) -> Skeleton {
         let (floors, side) = self.tower_design();
         let mut sk = Skeleton::with_capacity(budget);
         let built_floors = self.progress * floors as f64;
-        let per_floor = (budget / floors.max(1)).max(4);
-        let mut prev_cols = NO_SUPPORT;
+        let storey = 2.0 / floors as f64;
+        const COLS: usize = 4;
+        let corner = |c: usize, z: f64| {
+            let a = std::f64::consts::TAU * c as f64 / COLS as f64 + std::f64::consts::FRAC_PI_4;
+            v3(side * a.cos(), side * a.sin(), z)
+        };
+
+        let mut below = [NO_SUPPORT; COLS];
+        let mut site = 0u32;
         for f in 0..floors {
             let complete = (built_floors - f as f64).clamp(0.0, 1.0);
-            if complete <= 0.0 {
+            if complete <= 0.0 || sk.len() + 2 * COLS > budget {
                 break;
             }
-            let z = -1.0 + 2.0 * (f as f64 + 0.5) / floors as f64;
-            // Columns at the corners, then the slab spanning between them.
-            let cols = 4;
-            let first_col = sk.len() as u32;
-            for c in 0..cols {
-                let a = std::f64::consts::TAU * c as f64 / cols as f64 + std::f64::consts::FRAC_PI_4;
-                // Each column stands on the column below it. A framed building
-                // is not a tree, but its *gravity load path* is, and that is
-                // what the structural analysis needs.
-                let below = if f == 0 { NO_SUPPORT } else { prev_cols + c as u32 };
-                sk.push_supported(v3(side * a.cos(), side * a.sin(), z), 0.25, 0.04, below);
+            let z0 = -1.0 + storey * f as f64;
+            let z1 = z0 + storey * complete;
+
+            // Columns: one storey each, standing on the column below.
+            let mut here = [NO_SUPPORT; COLS];
+            for c in 0..COLS {
+                here[c] = sk.len() as u32;
+                sk.push_segment(corner(c, z0), corner(c, z1), 1.0, 0.030, below[c], site);
+                site += 1;
             }
-            let slab = (per_floor.saturating_sub(cols)).max(1);
-            let side_n = (slab as f64).sqrt().ceil().max(1.0) as usize;
-            let placed = (slab as f64 * complete).round() as usize;
-            for i in 0..placed {
-                let ix = i % side_n;
-                let iy = (i / side_n) % side_n;
-                let x = side * (2.0 * ix as f64 / side_n as f64 - 1.0) * 0.9;
-                let y = side * (2.0 * iy as f64 / side_n as f64 - 1.0) * 0.9;
-                // Slab elements hang off the nearest column of this floor.
-                let col = first_col + (i % cols) as u32;
-                sk.push_supported(
-                    v3(x, y, z + 0.4 / floors as f64),
-                    1.0 / slab as f64,
-                    0.02,
-                    col,
-                );
+            // Beams: the floor plate, spanning between column heads.
+            if complete >= 0.999 {
+                for c in 0..COLS {
+                    let n = (c + 1) % COLS;
+                    sk.push_segment(corner(c, z1), corner(n, z1), 0.7, 0.020, here[c], site);
+                    site += 1;
+                }
+                // Cross-bracing between adjacent columns, and diagonally to the
+                // storey below. This is what makes a frame a frame rather than
+                // a stack of posts — and it makes the structure statically
+                // indeterminate, so the redundant solver has a generated case
+                // to work on and not only a test rig.
+                for c in 0..COLS {
+                    let n = (c + 1) % COLS;
+                    sk.tie(here[c], here[n], 0.33);
+                    if below[c] != NO_SUPPORT {
+                        sk.tie(here[c], below[n], 0.25);
+                    }
+                }
             }
-            prev_cols = first_col;
-            if sk.len() >= budget {
-                break;
-            }
+            below = here;
         }
         if sk.is_empty() {
-            sk.push(Vec3::ZERO, 1.0, 0.05);
+            sk.push_segment(v3(0.0, 0.0, -1.0), v3(0.0, 0.0, -0.9), 1.0, 0.03, NO_SUPPORT, 0);
         }
         sk
     }
@@ -702,37 +727,55 @@ impl Morphology {
         (len, h, courses)
     }
 
+    /// A wall, laid course by course.
+    ///
+    /// Each block is a horizontal member resting on the course beneath, offset
+    /// by half a block on alternate courses — which is what stops a wall being
+    /// a set of independent vertical columns of brick, and is why the load path
+    /// is a tree that runs diagonally down to the footing.
     fn render_wall(&self, budget: usize) -> Skeleton {
         let (len, h, courses) = self.wall_design();
         let mut sk = Skeleton::with_capacity(budget);
-        let per_course = (budget / courses.max(1)).max(2);
+        let per_course = (budget / courses.max(1)).clamp(2, 64);
         let laid = self.progress * courses as f64;
-        let (mut prev_start, mut prev_count) = (0u32, 0usize);
+        let block = 2.0 * len / per_course as f64;
+        let mut prev_start = 0u32;
+        let mut prev_count = 0usize;
+        let mut site = 0u32;
         for c in 0..courses {
             let complete = (laid - c as f64).clamp(0.0, 1.0);
-            if complete <= 0.0 {
+            if complete <= 0.0 || sk.len() >= budget {
                 break;
             }
             let z = -h + 2.0 * h * (c as f64 + 0.5) / courses as f64;
-            let blocks = (per_course as f64 * complete).round() as usize;
-            // Alternate courses are offset by half a block, as they must be for
-            // the wall to stand up.
+            let blocks = ((per_course as f64 * complete).round() as usize).max(1);
             let offset = if c % 2 == 0 { 0.0 } else { 0.5 };
-            let course_start = sk.len() as u32;
+            let start = sk.len() as u32;
             for b in 0..blocks {
-                let x = len * ((b as f64 + offset) / per_course as f64 - 0.5) * 2.0;
-                let below = if c == 0 {
+                let x0 = -len + block * (b as f64 + offset);
+                let support = if c == 0 || prev_count == 0 {
                     NO_SUPPORT
                 } else {
-                    prev_start + (b.min(prev_count.saturating_sub(1))) as u32
+                    prev_start + (b.min(prev_count - 1)) as u32
                 };
-                sk.push_supported(v3(x, 0.0, z), 1.0 / per_course as f64, 0.03, below);
+                sk.push_segment(
+                    v3(x0, 0.0, z),
+                    v3(x0 + block, 0.0, z),
+                    1.0,
+                    block * 0.35,
+                    support,
+                    site,
+                );
+                site += 1;
+                if sk.len() >= budget {
+                    break;
+                }
             }
-            prev_start = course_start;
-            prev_count = blocks;
+            prev_start = start;
+            prev_count = sk.len() as usize - start as usize;
         }
         if sk.is_empty() {
-            sk.push(Vec3::ZERO, 1.0, 0.05);
+            sk.push_segment(v3(-0.1, 0.0, -1.0), v3(0.1, 0.0, -1.0), 1.0, 0.05, NO_SUPPORT, 0);
         }
         sk
     }
@@ -740,10 +783,10 @@ impl Morphology {
     /// What the structure is physically made of, for the failure analysis.
     pub fn material(&self) -> crate::topology::Material {
         match self.program {
-            Program::Tree => crate::topology::Material::GreenWood,
-            Program::Coral => crate::topology::Material::Aragonite,
-            Program::Tower => crate::topology::Material::ReinforcedFrame,
-            Program::Wall => crate::topology::Material::Masonry,
+            Program::Tree => crate::topology::Material::GREEN_WOOD,
+            Program::Coral => crate::topology::Material::ARAGONITE,
+            Program::Tower => crate::topology::Material::REINFORCED_FRAME,
+            Program::Wall => crate::topology::Material::MASONRY,
         }
     }
 
@@ -800,6 +843,16 @@ pub struct Skeleton {
     /// therefore where the bending stress is highest and where things break.
     pub base: Vec<Vec3>,
     pub tip: Vec<Vec3>,
+    /// Redundant connections `(a, b, fraction)` beyond the support forest —
+    /// bracing, ties, anything giving load a second route to ground.
+    ///
+    /// The third value is the tie's cross-section as a *fraction* of the
+    /// smaller member it joins, not an absolute area. Absolute areas are
+    /// meaningless in a skeleton that gets scaled to whatever mass the
+    /// structure has grown to, and a brace whose stiffness is out of proportion
+    /// to its members makes the linear system impossible to condition — the
+    /// solve then runs to its iteration cap and returns noise.
+    pub ties: Vec<(u32, u32, f64)>,
 }
 
 /// A part anchored to the ground rather than to another part.
@@ -815,7 +868,14 @@ impl Skeleton {
             site: Vec::with_capacity(n),
             base: Vec::with_capacity(n),
             tip: Vec::with_capacity(n),
+            ties: Vec::new(),
         }
+    }
+
+    /// Add a redundant connection between two existing parts, sized as a
+    /// fraction of the smaller member's cross-section.
+    pub fn tie(&mut self, a: u32, b: u32, fraction: f64) {
+        self.ties.push((a, b, fraction.clamp(0.0, 4.0)));
     }
 
     /// Add a part that is a segment between two points.

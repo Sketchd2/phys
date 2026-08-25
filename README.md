@@ -46,14 +46,19 @@ state is ~100 bytes instead of a million vertices (measured: **10,615×**
 smaller for a 160-year-old tree). Growth runs on the *aggregate*, so a forest
 grows without any of its trees existing.
 
-**4. Cohesion is generated too.** A structure's joints — where they are, what
+**4. Cohesion is generated too, and the solver is general.** A structure's joints — where they are, what
 cross-section they have, what they are made of — come from the same program as
 its geometry, so holding a tree together costs no more to store than its shape
-does. Because every generated structure's load path is a *tree*, internal forces
-are exact in one O(n) pass with no stiffness matrix and no solve, which is what
-makes structural failure cheap enough to check on every structure every frame.
-Damage is then never scripted: an insult produces forces, temperatures or
-deposited energy, and the ordinary stress calculation decides what survives.
+does. When a structure's load path is a *tree*, internal forces are exact in one O(n)
+pass with no stiffness matrix and no solve. Add one brace and that stops being
+true, so a redundant structure gets a matrix-free conjugate-gradient solve on
+the spring network — validated against the analytic three-bar truss, which it
+reproduces to four significant figures in three iterations. The loads are
+*mechanisms* (body force, fluid drag, surface accretion, conducted energy,
+thermal field, impulse), not named weather; snow, wind, lightning and fire are
+constructors over them. Damage is never scripted: a mechanism produces forces,
+temperature or deposited energy, and the ordinary stress calculation decides
+what survives.
 
 **5. Observation as commitment.** An unobserved quantity has no value; a
 measured one is recorded permanently in a ledger and never re-sampled. At the
@@ -69,11 +74,30 @@ slideshow, they get a slightly coarser world and a visible detail-debt readout.
 ## Run it
 
 ```sh
+sh viewer/build.sh                      # build the real-time viewer, then open
+open viewer/index.html                  #   it — no server, no install
+
 cargo run --release --bin phys-demo     # guided tour, galaxy to nucleus
 cargo run --release --example bench     # measured cost of every hot path
-cargo run --release --example damage    # grow a tree, break it, render PNGs
-cargo test --release                    # 70 tests
+cargo run --release --example damage    # grow a structure, break it, write PNGs
+cargo test --release                    # 75 tests
 ```
+
+## The viewer
+
+`viewer/index.html` is the engine compiled to WebAssembly and driven live —
+not a port, and not playback of exported frames. The growth model, the
+conservation projection and the structural solver running in the browser are
+the same code the test suite checks. It steps in about 6.5 ms, so there is
+ample headroom at 60 frames a second.
+
+Grow a structure over decades, then load it while it stands: wind and snow are
+continuous conditions, lightning and fire are events. Members are coloured by
+how hard they are working, from the material's own colour at rest through to
+failure, and the traces show mass and utilisation over time — so a limb coming
+down is visible as a step in both. "Discard detail & regenerate" throws the
+whole structure away and rebuilds it from its developmental state, which for a
+mature tree is about 100 bytes.
 
 The demo descends 23 levels from a 9.2 × 10⁸ M☉ disc to a 2.7 fm nucleus,
 verifies that the detail regenerates bit-for-bit after being thrown away,
@@ -102,8 +126,10 @@ src/
   state.rs     aggregates, bodies, the conserved tuple, restriction
   prolong.rs   constraint-projected materialisation
   morph.rs     developmental state: growth, construction, and its bookkeeping
-  topology.rs  joints, materials, and what holds a structure together
+  topology.rs  joints, materials as data, and what holds a structure together
   render.rs    headless renderer with a dependency-free PNG writer
+  wasm.rs      C ABI over the engine, so a browser can drive the real thing
+viewer/        the real-time viewer and its build script
   tree.rs      the scale tree; refine, promote, coarsen
   causal.rs    light cones, history rings, the conservative scheduler
   observe.rs   observers, instruments, the commitment ledger

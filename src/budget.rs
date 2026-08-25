@@ -106,7 +106,11 @@ pub struct FrameBudget {
     /// input and slack.
     pub sim_fraction: f64,
     /// Hard cap on materialised detail, bytes.
-    pub memory_cap: usize,
+    ///
+    /// `u64` rather than `usize` because the cap describes a *device* budget,
+    /// not the host's address space: a 32-bit target (wasm32) cannot even name
+    /// four gigabytes, and the constant overflowed at compile time there.
+    pub memory_cap: u64,
     /// Multiplicative correction learned from measured frames.
     calibration: f64,
     /// Exponential moving average of the achieved frame time.

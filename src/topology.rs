@@ -37,93 +37,171 @@
 use crate::math::Vec3;
 use crate::morph::{Skeleton, NO_SUPPORT};
 
-/// What a joint is made of. Strength here is the modulus of rupture: the
-/// bending stress at which the section fails.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub enum Material {
-    #[default]
-    /// Living wood, wet. Strong in bending, and the reason a branch bends a
-    /// long way before it goes.
-    GreenWood,
-    /// Coral skeleton. Stiff and brittle.
-    Aragonite,
-    /// Reinforced concrete and steel.
-    ReinforcedFrame,
-    /// Mortared brick or stone: strong in compression, nearly useless in
-    /// tension, which is why walls fall over rather than snapping.
-    Masonry,
+/// Material properties, as data.
+///
+/// A closed enum of four materials was enough to get a tree to break
+/// convincingly and is exactly the wrong shape for a solver: adding a material
+/// meant editing six `match` arms inside the physics. These are numbers, and
+/// they belong in a struct that anyone can construct.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Material {
+    pub name: &'static str,
+    /// Bulk density, kg/m^3.
+    pub density: f64,
+    /// Modulus of rupture — the bending stress at which a section fails, Pa.
+    pub rupture: f64,
+    /// Tensile strength as a fraction of `rupture`. Masonry's asymmetry is why
+    /// walls topple rather than snap.
+    pub tensile_ratio: f64,
+    /// Young's modulus, Pa. Sets deflection and how redundant structures share
+    /// load between alternative paths.
+    pub stiffness: f64,
+    /// Temperature at which strength begins to fall, K.
+    pub thermal_onset: f64,
+    /// Temperature at which no strength remains, K.
+    pub thermal_gone: f64,
+    /// Enthalpy needed to destroy a kilogram outright — boiling the water in it
+    /// and pyrolysing the rest, J/kg.
+    pub destruction_enthalpy: f64,
+    /// Specific heat, J/kg/K.
+    pub specific_heat: f64,
+    /// Electrical resistivity, ohm-metres. Sets how a conducted discharge
+    /// distributes its energy between members.
+    pub resistivity: f64,
+    /// Whether the material is consumed rather than merely weakened when it
+    /// passes `thermal_gone`.
+    pub combustible: bool,
+}
+
+impl Default for Material {
+    fn default() -> Self {
+        Material::GREEN_WOOD
+    }
 }
 
 impl Material {
-    /// Modulus of rupture at room temperature, pascals.
-    pub fn strength(self) -> f64 {
-        match self {
-            Material::GreenWood => 45.0e6,
-            Material::Aragonite => 12.0e6,
-            Material::ReinforcedFrame => 180.0e6,
-            Material::Masonry => 2.0e6,
-        }
-    }
+    /// Living wood, wet. Strong in bending, which is why a branch bends a long
+    /// way before it goes.
+    pub const GREEN_WOOD: Material = Material {
+        name: "green wood",
+        density: 600.0,
+        rupture: 45.0e6,
+        tensile_ratio: 1.0,
+        stiffness: 10.0e9,
+        thermal_onset: 373.0,
+        thermal_gone: 575.0,
+        destruction_enthalpy: 1.4e6,
+        specific_heat: 1700.0,
+        resistivity: 1.0e4,
+        combustible: true,
+    };
 
-    /// Ratio of tensile to compressive strength. Masonry's asymmetry is the
-    /// whole reason its failure mode differs from wood's.
-    pub fn tensile_ratio(self) -> f64 {
-        match self {
-            Material::GreenWood => 1.0,
-            Material::Aragonite => 0.4,
-            Material::ReinforcedFrame => 0.9,
-            Material::Masonry => 0.05,
-        }
-    }
+    /// Seasoned timber: stiffer, drier, more flammable.
+    pub const DRY_TIMBER: Material = Material {
+        name: "dry timber",
+        density: 480.0,
+        rupture: 70.0e6,
+        stiffness: 12.0e9,
+        thermal_onset: 500.0,
+        destruction_enthalpy: 0.6e6,
+        resistivity: 1.0e8,
+        ..Material::GREEN_WOOD
+    };
 
-    /// Young's modulus, pascals. Used for deflection, not for failure.
-    pub fn stiffness(self) -> f64 {
-        match self {
-            Material::GreenWood => 10.0e9,
-            Material::Aragonite => 60.0e9,
-            Material::ReinforcedFrame => 30.0e9,
-            Material::Masonry => 15.0e9,
-        }
-    }
+    /// Coral skeleton. Stiff and brittle.
+    pub const ARAGONITE: Material = Material {
+        name: "aragonite",
+        density: 2700.0,
+        rupture: 12.0e6,
+        tensile_ratio: 0.4,
+        stiffness: 60.0e9,
+        thermal_onset: 600.0,
+        thermal_gone: 1100.0,
+        destruction_enthalpy: 1.8e6,
+        specific_heat: 850.0,
+        resistivity: 1.0e6,
+        combustible: false,
+    };
 
-    /// Temperature at which the material starts losing strength, and the
-    /// temperature at which it has none left.
-    pub fn thermal_limits(self) -> (f64, f64) {
-        match self {
-            // Wood holds its strength until water is driven off, then pyrolyses.
-            Material::GreenWood => (373.0, 575.0),
-            // Calcium carbonate calcines.
-            Material::Aragonite => (600.0, 1100.0),
-            // Steel loses half its yield by 800 K; concrete spalls.
-            Material::ReinforcedFrame => (600.0, 1000.0),
-            Material::Masonry => (900.0, 1500.0),
-        }
-    }
+    /// Reinforced concrete and steel.
+    pub const REINFORCED_FRAME: Material = Material {
+        name: "reinforced frame",
+        density: 250.0,
+        rupture: 180.0e6,
+        tensile_ratio: 0.9,
+        stiffness: 30.0e9,
+        thermal_onset: 600.0,
+        thermal_gone: 1000.0,
+        destruction_enthalpy: 1.2e6,
+        specific_heat: 900.0,
+        resistivity: 1.0e-6,
+        combustible: false,
+    };
+
+    /// Mortared brick or stone: strong in compression, nearly useless in
+    /// tension.
+    pub const MASONRY: Material = Material {
+        name: "masonry",
+        density: 1900.0,
+        rupture: 2.0e6,
+        tensile_ratio: 0.05,
+        stiffness: 15.0e9,
+        thermal_onset: 900.0,
+        thermal_gone: 1500.0,
+        destruction_enthalpy: 1.0e6,
+        specific_heat: 840.0,
+        resistivity: 1.0e9,
+        combustible: false,
+    };
+
+    /// Structural steel.
+    pub const STEEL: Material = Material {
+        name: "steel",
+        density: 7850.0,
+        rupture: 400.0e6,
+        tensile_ratio: 1.0,
+        stiffness: 200.0e9,
+        thermal_onset: 600.0,
+        thermal_gone: 1700.0,
+        destruction_enthalpy: 1.5e6,
+        specific_heat: 490.0,
+        resistivity: 1.4e-7,
+        combustible: false,
+    };
+
+    /// Ice — which is a structural material wherever it is cold enough.
+    pub const ICE: Material = Material {
+        name: "ice",
+        density: 917.0,
+        rupture: 1.7e6,
+        tensile_ratio: 0.6,
+        stiffness: 9.0e9,
+        thermal_onset: 250.0,
+        thermal_gone: 273.15,
+        destruction_enthalpy: 0.334e6,
+        specific_heat: 2100.0,
+        resistivity: 1.0e5,
+        combustible: false,
+    };
 
     /// Fraction of nominal strength remaining at a given temperature.
-    pub fn strength_at(self, temperature: f64) -> f64 {
-        let (onset, gone) = self.thermal_limits();
-        if temperature <= onset {
+    pub fn strength_at(&self, temperature: f64) -> f64 {
+        if temperature <= self.thermal_onset {
             1.0
-        } else if temperature >= gone {
+        } else if temperature >= self.thermal_gone {
             0.0
         } else {
-            1.0 - (temperature - onset) / (gone - onset)
+            1.0 - (temperature - self.thermal_onset) / (self.thermal_gone - self.thermal_onset)
         }
     }
 
-    /// Enthalpy needed to destroy a kilogram of this material outright —
-    /// vaporising the water in it and pyrolysing what is left. This is what a
-    /// lightning channel has to supply to blow a tree apart.
-    pub fn destruction_enthalpy(self) -> f64 {
-        match self {
-            // Mostly the latent heat of the sap: ~40% water at 2.26 MJ/kg,
-            // plus heating and pyrolysis.
-            Material::GreenWood => 1.4e6,
-            Material::Aragonite => 1.8e6,
-            Material::ReinforcedFrame => 1.2e6,
-            Material::Masonry => 1.0e6,
-        }
+    /// Backwards-compatible accessors, so callers reading a strength do not
+    /// have to know whether it is a field or a computed property.
+    pub fn strength(&self) -> f64 {
+        self.rupture
+    }
+    pub fn thermal_limits(&self) -> (f64, f64) {
+        (self.thermal_onset, self.thermal_gone)
     }
 }
 
@@ -169,6 +247,40 @@ pub struct Topology {
     pub base: Vec<Vec3>,
     pub tip: Vec<Vec3>,
     pub material: Material,
+    /// Connections *beyond* the support forest: bracing, ties, redundant load
+    /// paths. Their presence is what decides whether the structure is
+    /// statically determinate, and therefore which solver applies.
+    pub ties: Vec<Tie>,
+}
+
+/// One member of an explicitly-described structure.
+#[derive(Debug, Clone, Copy)]
+pub struct Member {
+    pub base: Vec3,
+    pub tip: Vec3,
+    pub radius: f64,
+    /// Index of the member that supports this one, or [`NO_SUPPORT`] for a
+    /// ground anchor.
+    pub support: u32,
+}
+
+impl Member {
+    pub fn new(base: Vec3, tip: Vec3, radius: f64, support: u32) -> Member {
+        Member { base, tip, radius, support }
+    }
+    pub fn anchored(base: Vec3, tip: Vec3, radius: f64) -> Member {
+        Member { base, tip, radius, support: NO_SUPPORT }
+    }
+}
+
+/// A redundant connection between two parts.
+#[derive(Debug, Clone, Copy)]
+pub struct Tie {
+    pub a: u32,
+    pub b: u32,
+    /// Cross-sectional area of the tie, m^2.
+    pub area: f64,
+    pub integrity: f64,
 }
 
 impl Topology {
@@ -233,7 +345,81 @@ impl Topology {
             base,
             tip,
             material,
+            ties: skel
+                .ties
+                .iter()
+                .map(|&(a, b, fraction)| {
+                    // Sized from the members actually being joined, using the
+                    // density-corrected radii, so a tie is always in proportion
+                    // to its neighbours however the structure has been scaled.
+                    let ra = radii.get(a as usize).copied().unwrap_or(0.0);
+                    let rb = radii.get(b as usize).copied().unwrap_or(0.0);
+                    let r = ra.min(rb);
+                    Tie {
+                        a,
+                        b,
+                        area: fraction * std::f64::consts::PI * r * r,
+                        integrity: 1.0,
+                    }
+                })
+                .collect(),
         }
+    }
+
+    /// Build a topology directly from an explicit list of members and ties.
+    ///
+    /// The generated structures in `morph.rs` are one source of geometry, not
+    /// the only one. Anything that can describe itself as members with a
+    /// support relation — a truss, a bridge, a scaffold, a machine, a skeleton
+    /// imported from elsewhere — gets the same analysis.
+    pub fn from_parts(
+        members: &[Member],
+        ties: &[(u32, u32, f64)],
+        material: Material,
+    ) -> Topology {
+        let n = members.len();
+        let mut bonds = Vec::with_capacity(n);
+        let (mut support, mut site, mut base, mut tip) = (
+            Vec::with_capacity(n),
+            Vec::with_capacity(n),
+            Vec::with_capacity(n),
+            Vec::with_capacity(n),
+        );
+        for (i, m) in members.iter().enumerate() {
+            bonds.push(Bond {
+                child: i as u32,
+                parent: m.support,
+                at: m.base,
+                radius: m.radius,
+                integrity: 1.0,
+            });
+            support.push(m.support);
+            site.push(i as u32);
+            base.push(m.base);
+            tip.push(m.tip);
+        }
+        Topology {
+            bonds,
+            support,
+            site,
+            base,
+            tip,
+            material,
+            ties: ties
+                .iter()
+                .map(|&(a, b, area)| Tie { a, b, area, integrity: 1.0 })
+                .collect(),
+        }
+    }
+
+    /// Is the load path a forest — every part supported by at most one other,
+    /// with no alternative routes?
+    ///
+    /// This is the question that decides which solver runs. A forest is exactly
+    /// solvable in one pass; anything else is statically indeterminate and the
+    /// internal forces depend on relative stiffness, which needs a solve.
+    pub fn is_determinate(&self) -> bool {
+        self.ties.iter().all(|t| t.integrity <= 0.0)
     }
 
     pub fn is_empty(&self) -> bool {

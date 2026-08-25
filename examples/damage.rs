@@ -94,10 +94,7 @@ fn main() {
     for _ in 0..(90 * 12) {
         w2.grow_node(n2, YEAR / 12.0);
     }
-    let snow = w2.damage(
-        n2,
-        Insult::Snow { depth: 0.35, density: 480.0, crown_area: crown },
-    );
+    let snow = w2.damage(n2, &[weather::snow(0.35, 480.0, crown)]);
     shoot(&mut w2, n2, "render_snow.png", Style::daylight(), "after 350 mm wet snow", Some(cam));
     println!(
         "      {} joints failed, {:.0} kg down, peak utilisation {:.2}",
@@ -116,10 +113,7 @@ fn main() {
         .as_ref()
         .map(|t| t.bonds.iter().filter(|b| b.radius > 0.0).count())
         .unwrap_or(1);
-    let strike = w3.damage(
-        n3,
-        Insult::Lightning { joules: 2.0e9, entry: (structural / 3) as u32 },
-    );
+    let strike = w3.damage(n3, &[weather::lightning(2.0e9, (structural / 3) as u32)]);
     shoot(&mut w3, n3, "render_lightning.png", Style::default(), "after a 2 GJ strike", Some(cam));
     println!(
         "      {} joints destroyed on the channel, {:.0} kg down, {:.2e} J delivered",
@@ -131,10 +125,7 @@ fn main() {
     for _ in 0..(90 * 12) {
         w4.grow_node(n4, YEAR / 12.0);
     }
-    let fire = w4.damage(
-        n4,
-        Insult::Fire { temperature: 1050.0, duration: 420.0, height: 30.0 },
-    );
+    let fire = w4.damage(n4, &[weather::fire(1050.0, 30.0, 420.0)]);
     shoot(&mut w4, n4, "render_fire.png", Style::burned(), "after a crown fire", Some(cam));
     println!(
         "      {:.0} kg consumed, {:.3e} J of stored energy released as heat",

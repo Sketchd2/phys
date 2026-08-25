@@ -34,6 +34,10 @@ use std::collections::HashMap;
 /// record of which twig went.
 pub const NOTABLE_BREAKS: usize = 48;
 
+/// Below this much standing mass a structure is rubble, not a structure, and
+/// there is nothing meaningful left to analyse.
+pub const COLLAPSE_MASS: f64 = 1e-6;
+
 /// What an insult did to a structure.
 #[derive(Debug, Default, Clone, Copy)]
 pub struct DamageOutcome {
@@ -51,6 +55,12 @@ pub struct DamageOutcome {
     /// Highest joint utilisation reached, whether or not anything broke. Below
     /// 1 the structure rode it out.
     pub peak_utilisation: f64,
+    /// Whether the structure was statically indeterminate and needed a solve.
+    pub indeterminate: bool,
+    /// Conjugate-gradient iterations used; zero on the exact path.
+    pub solver_iterations: u32,
+    /// The structure no longer exists.
+    pub collapsed: bool,
 }
 
 #[derive(Debug, Default, Clone, Copy)]
@@ -549,7 +559,11 @@ impl World {
     ///
     /// Damage persists: broken joints become events in the developmental state,
     /// so the structure regenerates broken for the rest of its life.
-    pub fn damage(&mut self, idx: NodeIdx, insult: crate::solvers::structure::Insult) -> DamageOutcome {
+    pub fn damage(
+        &mut self,
+        idx: NodeIdx,
+        mechanisms: &[crate::solvers::structure::Mechanism],
+    ) -> DamageOutcome {
         use crate::solvers::structure as st;
         let mut out = DamageOutcome::default();
         if idx.is_none() || !self.tree.nodes[idx.get()].alive {
@@ -573,16 +587,38 @@ impl World {
             .as_ref()
             .map(|m| m.built)
             .unwrap_or(0.0);
+        // Nothing left to load. Without this the density correction divides by
+        // a vanishing volume, member radii go to zero, and the stresses come
+        // back as 10^16 — a collapsed structure reported as an infinitely
+        // overloaded one.
+        if structural_mass <= COLLAPSE_MASS {
+            out.collapsed = true;
+            return out;
+        }
 
-        let (extra, temps, insult_report) = st::apply_insult(&bodies, &mut topo, insult, ambient);
-        let loads = st::analyse(&bodies, &topo, st::G_EARTH, Some(&extra), &temps);
-        let failures = st::apply_failures(&bodies, &mut topo, &loads);
+        // Gravity is always present; the caller supplies whatever else is
+        // happening. Mechanisms compose, so a structure can be burning, iced
+        // and in a gale at once and the solver never learns those words.
+        let mut field = st::LoadField::new(bodies.len(), ambient);
+        for m in mechanisms {
+            field.apply(m, &bodies, &topo);
+        }
+        // Gravity last, and once. It acts on the accreted mass as well as the
+        // structure's own, so it has to follow anything that adds mass — and
+        // applying it on both sides of that would weigh the structure twice.
+        field.apply(&st::weather::gravity(), &bodies, &topo);
+
+        let (loads, indeterminate, iters) = st::analyse_with(&bodies, &topo, &field);
+        let failures = st::apply_failures(&bodies, &mut topo, &loads, &field);
 
         out.peak_utilisation = failures.peak_utilisation;
         out.broken_joints = failures.broken_sites.len();
         out.detached_mass = failures.detached_mass;
-        out.consumed_mass = insult_report.consumed_mass;
-        out.energy_delivered = insult_report.energy_delivered;
+        out.consumed_mass = failures.consumed_mass;
+        out.energy_delivered = failures.energy_delivered;
+        out.indeterminate = indeterminate;
+        out.solver_iterations = iters;
+        let insult_report = &failures;
 
         // Fold the damage into the developmental state, so it survives the
         // structure being discarded and rebuilt.

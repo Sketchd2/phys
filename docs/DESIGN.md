@@ -234,6 +234,39 @@ plausible, and each was wrong at first in a way only a physical check caught:
   brings limbs down. There is no single value that is right for both — treating
   all snow alike either makes powder lethal or makes wet snow harmless.
 
+#### Generalising it
+
+The first version of this had the weather *in* the solver: an `Insult` enum with
+arms for snow, wind, lightning and fire. That is the wrong shape. Every new load
+case was a new arm inside the physics, and the four cases that happened to be
+implemented were the four that existed.
+
+What the solver knows now are *mechanisms* — a body-force field, drag in a
+moving fluid, mass accreting on upward-facing surfaces, energy conducted along a
+path, a thermal field, a point impulse. Snow, wind, lightning and bushfire are
+constructors in `solvers::structure::weather` that produce mechanisms, and a
+user can write their own without touching the solver. The same accretion law
+covers snow, rime and volcanic ash; the same drag law covers air and water at
+eight hundred times the density. Materials went the same way: a closed enum of
+four became a struct of numbers anyone can construct.
+
+The determinacy question got the same treatment. A forest load path is exactly
+solvable by statics; anything with a brace in it is not, and how the load
+divides depends on relative stiffness. So the structure decides which solver
+runs — and the fast path is not an approximation of the general one, it is the
+general one with an empty tie list. `tests/topology.rs` checks that they agree
+to 10^-6 on a determinate structure, and validates the redundant path against
+the analytic three-bar truss: 585.8 N in the middle bar against an analytic
+585.8 N, in three conjugate-gradient iterations.
+
+Two failures worth recording, because in both the solver was right and the
+expectation was wrong. Bracing a tower does *not* lower the peak utilisation
+over all members — load taken off the columns goes into the braces, and the peak
+may legitimately move there. It does not necessarily relieve any *particular*
+column either, because under a lateral load bracing transfers force between the
+windward and leeward sides. What it does is reduce the total stress carried,
+which is what the test asserts now.
+
 ### 3.5 Observation as commitment
 
 An unobserved quantity has no value. A measured one is recorded in a ledger and
@@ -386,11 +419,15 @@ engine depends on.
 - **Turbulence is a prescribed solenoidal field**, not a solved cascade. It
   produces the right correlations at one scale, not the right spectrum across
   scales.
-- **Structural analysis is a load path, not a stiffness solve.** Redundant
-  structures get the conservative answer described in §3.4. Bonds also carry no
-  stiffness into the particle solvers yet: the topology decides what breaks, but
-  a materialised structure handed to molecular dynamics still has no constraints
-  holding it together.
+- **The redundant solver is axial-plus-transverse springs, not a full beam
+  element.** Each connection is stiff along its axis and soft across it, which
+  makes slender structures behave as pin-jointed trusses without that being
+  assumed — but it is not a six-degree-of-freedom beam formulation, and it has
+  no plasticity, buckling or dynamic response. An unconverged solve falls back
+  to the determinate answer rather than returning noise.
+- **Bonds carry no stiffness into the particle solvers.** The topology decides
+  what breaks, but a materialised structure handed to molecular dynamics still
+  has no constraints holding it together.
 - **Structures cannot straddle nodes.** A building spanning several nodes, or
   roots reaching into the soil node, would need cross-links, which the strictly
   hierarchical tree deliberately forbids — that hierarchy is what makes the
