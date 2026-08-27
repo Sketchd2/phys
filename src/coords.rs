@@ -21,7 +21,7 @@
 //! rule: things that are far apart cannot interact sharply, so they do not need
 //! to be located sharply relative to one another.
 
-use crate::math::{v3, Vec3};
+use crate::math::{v3, Quat, Vec3};
 use crate::units::C;
 
 /// A vector together with a bound on its accumulated round-off.
@@ -247,6 +247,16 @@ pub fn aberrate(n_rest: Vec3, v_obs: Vec3) -> Vec3 {
 pub struct Frame {
     pub offset: Vec3,
     pub velocity: Vec3,
+    /// Which way the node is pointing.
+    ///
+    /// A node has always had angular momentum; it had nowhere to record what
+    /// that momentum had *done*. Without an orientation there is no way to draw
+    /// a rotating planet, and no way to ask where a point on its surface is
+    /// between one solve and the next — so rotation had to be either integrated
+    /// at the rate you wanted to watch it, or not seen at all.
+    pub orientation: Quat,
+    /// Angular velocity, rad/s, in the node's own frame.
+    pub spin_rate: Vec3,
     /// Proper time elapsed in this frame since the simulation epoch.
     pub proper_time: f64,
 }
@@ -256,6 +266,8 @@ impl Frame {
         Frame {
             offset,
             velocity: Vec3::ZERO,
+            orientation: Quat::IDENTITY,
+            spin_rate: Vec3::ZERO,
             proper_time: 0.0,
         }
     }
@@ -265,13 +277,36 @@ impl Frame {
         Frame {
             offset: parent.offset + self.offset,
             velocity: velocity_add(parent.velocity, self.velocity),
+            orientation: self.orientation.then(parent.orientation).unit(),
+            spin_rate: parent.spin_rate + parent.orientation.rotate(self.spin_rate),
             proper_time: self.proper_time,
         }
     }
 
+    /// Carry the frame forward in closed form.
+    ///
+    /// This is what makes a slow update cadence affordable. Position under
+    /// constant velocity and orientation under constant angular velocity are
+    /// both exact solutions, so between two solves a node can be asked where it
+    /// is at *any* instant and answer without approximation. The solver's job
+    /// is to work out when the velocity and the spin rate change; carrying them
+    /// forward is free.
+    ///
+    /// Which is the difference between a planet that turns and a planet that
+    /// jumps: Earth rotates ten degrees in one signal-crossing time and Jupiter
+    /// nearly twice around, so integrating orientation at the cadence the
+    /// *dynamics* need would alias the rotation entirely.
     pub fn advance(&mut self, dt: f64) {
         self.proper_time += proper_time_step(dt, self.velocity);
         self.offset += self.velocity.scale(dt);
+        if self.spin_rate != Vec3::ZERO {
+            self.orientation = Quat::from_rate(self.spin_rate, dt).then(self.orientation).unit();
+        }
+    }
+
+    /// Where a point fixed in this node's body appears, in the parent's frame.
+    pub fn body_to_parent(&self, local: Vec3) -> Vec3 {
+        self.offset + self.orientation.rotate(local)
     }
 }
 

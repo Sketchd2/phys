@@ -603,6 +603,92 @@ impl Aggregate {
         1.0 / (G * rho).sqrt()
     }
 
+    /// Moment of inertia about any axis through the centre, kg m^2.
+    ///
+    /// A uniform sphere, `2/5 M R^2`. Centrally condensed bodies are stiffer
+    /// than this — the Earth's is 0.33 rather than 0.4 — but the aggregate does
+    /// not carry a density profile, and inventing one to get a 20% correction
+    /// on a quantity used for scheduling would be false precision.
+    pub fn moment_of_inertia(&self) -> f64 {
+        0.4 * self.mass * self.radius * self.radius
+    }
+
+    /// Angular velocity implied by the stored angular momentum, rad/s.
+    pub fn angular_velocity(&self) -> Vec3 {
+        let i = self.moment_of_inertia();
+        if i > 0.0 {
+            self.spin.scale(1.0 / i)
+        } else {
+            Vec3::ZERO
+        }
+    }
+
+    /// Speed of coherent internal motion, m/s.
+    ///
+    /// The internal energy of a node covers two different things. Most of it is
+    /// thermal: molecules going nowhere in particular, at a temperature the
+    /// node already records. The rest is *stirring* — convection, a shock still
+    /// crossing, gas that has been hit and has not settled — and only that part
+    /// moves the node's contents from one place to another.
+    ///
+    /// The difference decides how often the node is worth re-solving, so it has
+    /// to be drawn somewhere. `thermal_energy` is what the stored temperature
+    /// accounts for; anything above it is motion the temperature does not
+    /// explain, and is taken to be coherent.
+    pub fn stirring_speed(&self) -> f64 {
+        if self.mass <= 0.0 {
+            return 0.0;
+        }
+        let excess = self.internal_energy - self.thermal_energy();
+        if !(excess > 0.0) {
+            return 0.0;
+        }
+        (2.0 * excess / (3.0 * self.mass)).sqrt().min(C * 0.999)
+    }
+
+    /// Speed at which this node's state is actually changing, m/s.
+    ///
+    /// Three things change it: the node moves, the node turns, and the node's
+    /// contents rearrange. Rotation is the term that was missing and it is not
+    /// a small correction — Jupiter's equator runs at 12.3 km/s against about
+    /// 1 km/s of internal signal, so a cadence blind to it would sample the
+    /// planet once every two revolutions and alias it completely.
+    ///
+    /// What is deliberately *not* here is the sound speed. It is tempting,
+    /// because it is the fastest speed anything inside the node is travelling
+    /// at, and it is the wrong quantity: a body in thermal equilibrium is not
+    /// changing, however fast its molecules are going. Scheduling on the sound
+    /// speed asks the engine to re-solve a granite block every 174 microseconds
+    /// and a bacterium every 5 nanoseconds, and to produce the same answer
+    /// every time. The sound speed still bounds the *timestep* once a node is
+    /// being solved — that is [`Aggregate::signal_crossing`], and it is a
+    /// stability limit, not a cadence.
+    pub fn characteristic_speed(&self) -> f64 {
+        let bulk = if self.mass > 0.0 {
+            self.momentum.norm() / self.mass
+        } else {
+            0.0
+        };
+        let surface = self.angular_velocity().norm() * self.radius;
+        bulk.max(surface).max(self.stirring_speed())
+    }
+
+    /// How long before this node's state has changed by `resolution` metres.
+    ///
+    /// The engine's update cadence. `resolution` is how finely the node is
+    /// currently being represented — the size of its materialised children, or
+    /// of whatever is looking at it — because that is what decides how far
+    /// something may move before the difference is real. A planet treated as a
+    /// point may be left alone for half an hour; the same planet resolved into
+    /// parcels, or watched at a kilometre, may not.
+    pub fn characteristic_time(&self, resolution: f64) -> f64 {
+        let v = self.characteristic_speed();
+        if !(v > 0.0) || !v.is_finite() {
+            return f64::INFINITY;
+        }
+        resolution.max(0.0) / v
+    }
+
     /// Time for a sound wave to cross one resolution element, in seconds.
     ///
     /// The other limit on a timestep, and the one that has nothing to do with

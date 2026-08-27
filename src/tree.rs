@@ -371,6 +371,11 @@ impl Tree {
             frame: Frame {
                 offset: body.pos,
                 velocity: body.vel,
+                // A body's spin becomes the node's rotation. Orientation starts
+                // at identity: the child's body frame *is* how it was sampled,
+                // and everything after is what the rotation did to it.
+                orientation: crate::math::Quat::IDENTITY,
+                spin_rate: agg.angular_velocity(),
                 proper_time: self.nodes[i.get()].frame.proper_time,
             },
             bodies: Vec::new(),

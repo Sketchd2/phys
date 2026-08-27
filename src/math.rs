@@ -301,3 +301,89 @@ pub fn det_sum_v3_by<F: Fn(usize) -> Vec3>(n: usize, f: &F) -> Vec3 {
     }
     go(0, n, f)
 }
+
+/// A rotation, as a unit quaternion.
+///
+/// # Why a quaternion and not an angle-axis vector
+///
+/// Because rotation between updates has to be *exact*, not approximate. A node
+/// that is only re-solved every few minutes still has to be drawn, and asked
+/// where its surface is, at every instant in between — and rigid rotation is a
+/// closed-form solution, so there is no reason for the answer to drift.
+/// Composing angle-axis vectors is only correct to first order in the angle;
+/// composing quaternions is correct for any angle, which is what lets a planet
+/// be integrated on its own slow cadence and still turn smoothly.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Quat {
+    pub w: f64,
+    pub v: Vec3,
+}
+
+impl Default for Quat {
+    fn default() -> Quat {
+        Quat::IDENTITY
+    }
+}
+
+impl Quat {
+    pub const IDENTITY: Quat = Quat { w: 1.0, v: Vec3::ZERO };
+
+    /// A rotation of `angle` radians about `axis`.
+    pub fn from_axis_angle(axis: Vec3, angle: f64) -> Quat {
+        let n = axis.norm();
+        if n <= 0.0 || !angle.is_finite() {
+            return Quat::IDENTITY;
+        }
+        let half = angle * 0.5;
+        Quat { w: half.cos(), v: axis.scale(half.sin() / n) }
+    }
+
+    /// The rotation an angular velocity produces in `dt` seconds. Exact for
+    /// constant `omega`, which is what a rigid body has between torques.
+    pub fn from_rate(omega: Vec3, dt: f64) -> Quat {
+        Quat::from_axis_angle(omega, omega.norm() * dt)
+    }
+
+    pub fn conjugate(self) -> Quat {
+        Quat { w: self.w, v: -self.v }
+    }
+
+    pub fn norm(self) -> f64 {
+        (self.w * self.w + self.v.dot(self.v)).sqrt()
+    }
+
+    /// Renormalise. Repeated composition drifts off the unit sphere by a part
+    /// in 10^16 per step, which over a long-lived node is worth spending a
+    /// square root on.
+    pub fn unit(self) -> Quat {
+        let n = self.norm();
+        if n <= 0.0 {
+            return Quat::IDENTITY;
+        }
+        Quat { w: self.w / n, v: self.v.scale(1.0 / n) }
+    }
+
+    /// Compose: `self` applied after `other`.
+    pub fn then(self, other: Quat) -> Quat {
+        Quat {
+            w: self.w * other.w - self.v.dot(other.v),
+            v: other.v.scale(self.w) + self.v.scale(other.w) + self.v.cross(other.v),
+        }
+    }
+
+    /// Rotate a vector.
+    pub fn rotate(self, p: Vec3) -> Vec3 {
+        // p + 2 v x (v x p + w p), the standard form: no matrix, no trig.
+        let t = self.v.cross(p).scale(2.0);
+        p + t.scale(self.w) + self.v.cross(t)
+    }
+
+    /// Angle of this rotation, radians.
+    pub fn angle(self) -> f64 {
+        2.0 * self.v.norm().atan2(self.w.abs())
+    }
+
+    pub fn is_finite(self) -> bool {
+        self.w.is_finite() && self.v.is_finite()
+    }
+}
