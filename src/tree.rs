@@ -94,8 +94,33 @@ pub struct Node {
     /// Detail regenerated at the same epoch is identical; a new epoch means the
     /// old detail is gone for good.
     pub epoch: u32,
-    /// Local coordinate time reached by this node's integrator.
+    /// World instant this node's state is valid at.
+    ///
+    /// Every live node is brought to the world instant every frame, whether or
+    /// not it was solved: position and orientation under constant velocity and
+    /// spin are closed-form, so carrying a node forward costs one add and is
+    /// exact. That is what makes a shared "now" affordable across thirty-eight
+    /// orders of magnitude — the expensive thing is not knowing where a node
+    /// is, it is working out what it is doing.
     pub time: f64,
+    /// World instant at which something last *happened* here: the node was
+    /// resolved, hit, measured, or otherwise put into a state the sampler did
+    /// not produce.
+    ///
+    /// Detail is kept for a mixing time after this and then released, because
+    /// past a mixing time the stored sample is no longer *that* state, only *a*
+    /// state of the same bulk — which the sampler can draw for free.
+    pub last_disturbed: f64,
+    /// World instant at which this node's dynamics were last re-derived, as
+    /// opposed to merely carried forward.
+    ///
+    /// `time - last_solved`, divided by the node's characteristic time, is its
+    /// lateness, and lateness is what the scheduler ranks on.
+    pub last_solved: f64,
+    /// World instant this node's morphology was last advanced to. Separate
+    /// from `last_solved` because growth runs on the aggregate and costs O(1),
+    /// so it keeps up on nodes whose dynamics cannot.
+    pub last_grown: f64,
     pub residency: Residency,
     /// Set when the node's detail has been altered away from what `prolong`
     /// would produce, so it must be stored rather than regenerated.
@@ -180,13 +205,24 @@ impl Tree {
             depth: 0,
             tier,
             agg: root_agg,
-            frame: Frame::default(),
+            // A node that carries angular momentum is turning, and the frame is
+            // where that is recorded. Leaving it at the default meant the one
+            // node in every world that nobody promotes — the root — was the one
+            // node that never rotated.
+            frame: Frame {
+                spin_rate: root_agg.angular_velocity(),
+                orientation: crate::math::Quat::IDENTITY,
+                ..Frame::default()
+            },
             bodies: Vec::new(),
             potential: root_agg.binding_energy,
             children: Vec::new(),
             spec,
             epoch: 0,
             time: 0.0,
+            last_disturbed: 0.0,
+            last_solved: 0.0,
+            last_grown: 0.0,
             residency: Residency::Speculative,
             pinned: false,
             alive: true,
@@ -384,6 +420,9 @@ impl Tree {
             spec,
             epoch: 0,
             time: self.nodes[i.get()].time,
+            last_disturbed: self.nodes[i.get()].time,
+            last_solved: self.nodes[i.get()].time,
+            last_grown: self.nodes[i.get()].time,
             residency: Residency::Speculative,
             pinned: false,
             alive: true,

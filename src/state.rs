@@ -585,12 +585,32 @@ impl Aggregate {
         gas + rad
     }
 
+    /// Speed at which a disturbance crosses this node's contents, m/s.
+    ///
+    /// The gas formula, capped by what the internal energy can actually
+    /// support. The cap is not a safety clamp — it is the correction for an
+    /// assumption the formula makes and does not state: that the internal
+    /// energy is heat, held in molecules at `temperature`, colliding often
+    /// enough to carry a pressure wave.
+    ///
+    /// Where that is false the formula answers with the sound speed of a gas
+    /// that is not there. A galaxy's internal energy is the motion of its
+    /// stars, and `n k T` over that many notional hydrogen atoms came back with
+    /// 0.577c — which then set the galaxy's timestep, demanded three thousand
+    /// sub-steps a frame, and priced every stellar solve out of the budget.
+    ///
+    /// [`Aggregate::velocity_dispersion`] is the same quantity computed from
+    /// the energy that is present rather than from a temperature. For a real
+    /// gas the two agree within 30% — `c_s = 1.29 sigma` exactly, for an ideal
+    /// monatomic one — so the cap costs nothing where the formula is valid and
+    /// rescues it where it is not.
     pub fn sound_speed(&self) -> f64 {
         let rho = self.density();
         if rho <= 0.0 {
             return 0.0;
         }
-        (1.6667 * self.pressure() / rho).sqrt().min(C * 0.577)
+        let gas = (1.6667 * self.pressure() / rho).sqrt();
+        gas.min(1.3 * self.velocity_dispersion()).min(C * 0.577)
     }
 
     /// Free-fall / dynamical time, `1/sqrt(G rho)`. Sets the natural timestep
@@ -727,12 +747,19 @@ impl Aggregate {
         cs * (std::f64::consts::PI / (G * rho)).sqrt()
     }
 
-    /// Velocity dispersion implied by the internal energy.
+    /// Root-mean-square speed of this node's constituents relative to its own
+    /// frame, m/s.
+    ///
+    /// Taken from the greater of the booked internal energy and the thermal
+    /// energy the stored temperature implies. The floor matters: a node may be
+    /// handed an internal energy of zero and a temperature of 300 K, and it is
+    /// still 300 K — its molecules are moving whether or not anybody wrote the
+    /// energy down.
     pub fn velocity_dispersion(&self) -> f64 {
         if self.mass <= 0.0 {
             return 0.0;
         }
-        let ke = self.internal_energy.max(0.0);
+        let ke = self.internal_energy.max(self.thermal_energy()).max(0.0);
         (2.0 * ke / (3.0 * self.mass)).sqrt().min(C * 0.999)
     }
 

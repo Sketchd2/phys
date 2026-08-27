@@ -10,29 +10,37 @@
 //! estimated *value*, and each frame the scheduler solves a knapsack against
 //! the wall clock.
 //!
-//! The consequence is that the frame rate never degrades. What degrades is
-//! detail, and it degrades in the order that matters least to the observer,
-//! because value is dominated by observer salience. A user who zooms too far
-//! does not get a slideshow; they get a slightly coarser world with a
-//! visible "detail debt" indicator, which is a far better failure mode.
+//! The consequence is that the frame rate never degrades. What degrades first
+//! is the *rate of simulated time*, and then detail, in the order that leaves
+//! the world least stale — the most overdue work first. A user who zooms too
+//! far does not get a slideshow; they get a world running in slow motion with
+//! a visible "detail debt" indicator, which is a far better failure mode.
 //!
 //! # Value
 //!
 //! ```text
-//!   value = salience * urgency * error * (1 + novelty)
+//!   value = lateness * urgency * error
 //! ```
 //!
-//! * **salience** — solid angle the work subtends for some observer, times
-//!   that observer's priority. Work nobody can see has salience ~0.
+//! * **lateness** — how long since the node was last solved, measured in its
+//!   own characteristic times. One means the node has just come due; ten means
+//!   it is nine cadences stale. This is the term that decides nearly every
+//!   frame, and it is self-correcting: a node passed over grows more overdue
+//!   and outranks its neighbours next frame, so nothing can be starved.
 //! * **urgency** — how close the work is to the causal horizon. Something whose
 //!   influence arrives next frame outranks something whose influence arrives in
 //!   an hour, even if the latter is closer.
 //! * **error** — the estimated inaccuracy of *not* doing the work. A node in
 //!   free fall with a resolved Jeans length is cheap to skip; one about to
 //!   fragment is not.
-//! * **novelty** — a small bonus for work not done recently, which stops the
-//!   scheduler from starving a region forever just because it is slightly less
-//!   valuable than its neighbour every single frame.
+//!
+//! Value used to be led by observer salience — how much of the screen the work
+//! subtended. That put the camera in charge of the physics, which is the wrong
+//! way round: a tree falls whether or not anyone is pointing at it, and a
+//! reactor that only runs while it is on screen is not a simulation. What the
+//! camera legitimately controls is *resolution*, and resolution feeds back into
+//! lateness on its own, because a node represented more finely has a shorter
+//! characteristic time and therefore comes due more often.
 
 use crate::ids::NodeIdx;
 
@@ -43,10 +51,11 @@ pub struct Task {
     pub kind: TaskKind,
     /// Estimated cost in microseconds, from the calibrated model.
     pub cost_us: f64,
-    pub salience: f64,
+    /// How many of this node's own characteristic times have passed since it
+    /// was last solved. Below one it is not yet due.
+    pub lateness: f64,
     pub urgency: f64,
     pub error: f64,
-    pub novelty: f64,
     /// Bytes of working set this task will add. Checked against the VRAM cap
     /// separately from time — on a 6 GB card memory runs out before time does.
     pub bytes: i64,
@@ -68,7 +77,7 @@ pub enum TaskKind {
 impl Task {
     #[inline]
     pub fn value(&self) -> f64 {
-        self.salience * self.urgency * self.error * (1.0 + self.novelty)
+        self.lateness * self.urgency * self.error
     }
 
     /// Value per microsecond — the quantity a greedy knapsack sorts on.
@@ -86,10 +95,17 @@ pub struct Plan {
     pub deferred: usize,
     pub planned_us: f64,
     pub planned_bytes: i64,
+    /// Microseconds the deferred work would have cost. With `planned_us` this
+    /// is the frame's total *demand*, which is what the engine needs in order
+    /// to decide how much simulated time it can afford next frame.
+    pub deferred_us: f64,
     /// Total value the frame had to leave on the table. This is the engine's
     /// honest "how far behind am I" number, and it is what the UI shows as
     /// detail debt.
     pub unmet_value: f64,
+    /// Set when the frame accepted work it could not afford, because the
+    /// cheapest indivisible piece of work cost more than the whole budget.
+    pub overrun: bool,
 }
 
 /// A frame budget with a self-calibrating cost model.
@@ -193,6 +209,9 @@ impl FrameBudget {
         let mut plan = Plan::default();
         let mut bytes = current_bytes as i64;
         let cap = self.memory_cap as i64;
+        // Highest density first, so this is the one to fall back on if nothing
+        // fits at all.
+        let first_choice = tasks.first().copied();
 
         for t in tasks {
             let cost = self.adjust(t.cost_us);
@@ -204,11 +223,13 @@ impl FrameBudget {
             let frees = t.bytes < 0 || t.kind == TaskKind::Grow;
             if !frees && plan.planned_us + cost > budget {
                 plan.deferred += 1;
+                plan.deferred_us += cost;
                 plan.unmet_value += t.value();
                 continue;
             }
             if !frees && bytes + t.bytes > cap {
                 plan.deferred += 1;
+                plan.deferred_us += cost;
                 plan.unmet_value += t.value();
                 continue;
             }
@@ -216,6 +237,24 @@ impl FrameBudget {
             bytes += t.bytes;
             plan.planned_bytes += t.bytes;
             plan.accepted.push(t);
+        }
+        // A frame that accepts nothing is worse than a frame that runs late.
+        //
+        // Work is indivisible at this level — a solver pass over a node is one
+        // pass or none — so a world whose cheapest node costs more than a whole
+        // frame would defer every task, every frame, forever, and stand
+        // perfectly still at a perfect twenty updates a second. Take the best
+        // one and overrun, and say so.
+        if plan.accepted.is_empty() {
+            if let Some(best) = first_choice {
+                plan.planned_us += self.adjust(best.cost_us);
+                plan.planned_bytes += best.bytes;
+                plan.deferred = plan.deferred.saturating_sub(1);
+                plan.deferred_us = (plan.deferred_us - self.adjust(best.cost_us)).max(0.0);
+                plan.unmet_value = (plan.unmet_value - best.value()).max(0.0);
+                plan.overrun = true;
+                plan.accepted.push(best);
+            }
         }
         plan
     }

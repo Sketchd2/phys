@@ -32,6 +32,32 @@ use std::collections::HashMap;
 /// How many individual joint failures a structure remembers by name. Beyond
 /// this the damage is real but anonymous — it shows in the mass, not in the
 /// record of which twig went.
+/// Most sub-steps one node may take to reach the world instant in a frame.
+///
+/// Not a stability limit — the stability limit is [`World::node_dt`]. This is
+/// the point at which following the trajectory stops being the cheaper way to
+/// answer the question, and the node is crossed by its ensemble instead. Set
+/// high enough that anything watchable is integrated properly, and low enough
+/// that a nucleus resolved inside a galaxy cannot stall the frame.
+pub const MAX_SUBSTEPS: u32 = 256;
+
+/// Refinement error above which a node resolves itself, with or without an
+/// audience.
+///
+/// `refinement_error` is about 0.05 for a node the aggregate describes
+/// perfectly and climbs past one when the bulk state has started lying: an
+/// unresolved Jeans length, or a dynamical time shorter than the frame. Set
+/// just above the quiet value, so "something is happening here" is what
+/// triggers detail and idleness is what does not.
+pub const REFINE_THRESHOLD: f64 = 1.0;
+
+/// Slowest the world may run relative to the pace it was asked for.
+///
+/// A millionfold slowdown has said everything slowing down can say. Past it
+/// the honest answer is not a slower clock but a staler world, and that is
+/// what `stats.worst_lateness` is for.
+pub const MIN_TIME_THROTTLE: f64 = 1e-6;
+
 pub const NOTABLE_BREAKS: usize = 48;
 
 /// Substeps a single `shake` call may take. A structure whose period is far
@@ -174,6 +200,20 @@ pub struct EngineStats {
     pub last_frame_us: f64,
     pub materialised_bodies: usize,
     pub live_nodes: usize,
+    /// Worst lateness anywhere in the world, in units of that node's own
+    /// characteristic time. Under one, every node was re-solved before it had
+    /// changed appreciably. This is the engine's honest "is the world keeping
+    /// up" number, and unlike a frame time it is scale-free.
+    pub worst_lateness: f64,
+    /// Nodes that were due this frame and did not fit in the budget.
+    pub overdue: usize,
+    /// Nodes carried across the frame by their ensemble rather than their
+    /// trajectory, because the span was too long to integrate.
+    pub thermalised: u64,
+    /// Nodes carried forward in closed form without being re-solved. The
+    /// overwhelming majority, every frame, and the reason one instant is
+    /// affordable across thirty-eight orders of magnitude.
+    pub coasted: usize,
 }
 
 /// The world.
@@ -184,10 +224,39 @@ pub struct World {
     pub observers: Vec<Observer>,
     pub budget: FrameBudget,
     pub gate: CausalGate,
-    /// Coordinate time at the root, seconds since the scenario epoch.
+    /// The world instant, seconds since the scenario epoch.
+    ///
+    /// There is one, and everything in the world is at it. What differs
+    /// between a galaxy arm and a nucleus is not what time it is for them, it
+    /// is how often each is re-solved and how it was carried here — the arm in
+    /// one closed-form step, the nucleus through ten thousand.
     pub time: f64,
-    /// Simulated seconds per wall-clock second. The user's time control.
+    /// Simulated seconds the world advances per frame at a time rate of one.
+    ///
+    /// Set from what is being watched rather than from any solver's stability
+    /// limit. One frame covers about one characteristic time of the node the
+    /// view is paced to, so a galaxy advances millennia per frame and a carbon
+    /// atom femtoseconds, and both are watchable. See [`World::pace_to`].
+    pub pace: f64,
+    /// Multiplier on `pace`. The user's time control.
     pub time_rate: f64,
+    /// Fraction of the asked-for pace the engine is actually sustaining.
+    ///
+    /// One when everything due fits in the frame. Less when it does not — and
+    /// the response to not fitting is to advance *less simulated time*, not to
+    /// do less physics. That is the difference between a world that slows down
+    /// under load and a world that stops: at the pace of a galaxy nothing's
+    /// trajectory can be integrated at all, and an engine without this number
+    /// answers by deferring every solve and standing still.
+    pub time_throttle: f64,
+    /// The node the pace is taken from, re-read at the start of every frame.
+    ///
+    /// Held as a node rather than a number because a node's cadence changes
+    /// under it: materialising a galaxy into twenty thousand stars shortens its
+    /// characteristic time by two orders of magnitude, and a pace fixed when it
+    /// was still a single aggregate would then be asking for a span its own
+    /// stars could not be integrated across.
+    pub paced_to: NodeIdx,
     /// Retained history, only for nodes something might observe from a
     /// distance. Keeping it keyed by path rather than in the node itself means
     /// a node can be coarsened and rebuilt without losing its past.
@@ -223,7 +292,7 @@ pub struct World {
 
 impl World {
     pub fn new(tree: Tree, ups: f64) -> World {
-        World {
+        let mut w = World {
             tree,
             mailbox: Mailbox::new(),
             ledger: Ledger::new(),
@@ -231,7 +300,10 @@ impl World {
             budget: FrameBudget::ups(ups),
             gate: CausalGate::new(1e3 * YEAR),
             time: 0.0,
+            pace: 1.0,
             time_rate: 1.0,
+            time_throttle: 1.0,
+            paced_to: NodeIdx::NONE,
             histories: HashMap::new(),
             clocks: HashMap::new(),
             stats: EngineStats::default(),
@@ -243,7 +315,12 @@ impl World {
             shaking: Vec::new(),
             falling: Vec::new(),
             history_depth: 64,
-        }
+        };
+        // Start paced to the root, so a world is watchable the moment it is
+        // built without anybody having to know what timescale it lives on.
+        let root = w.tree.root;
+        w.pace_to(root);
+        w
     }
 
     /// Place a structure and give it conditions to grow in.
@@ -267,25 +344,48 @@ impl World {
     // the frame
     // -----------------------------------------------------------------
 
-    /// Advance the world by one frame's worth of simulated time.
+    /// Advance the world by one frame.
     ///
     /// `wall_us` is what the caller is prepared to spend. The engine will spend
     /// up to that and no more; if the work does not fit, detail is dropped and
     /// `stats.detail_debt` records how much value went unserved.
+    ///
+    /// The frame has three passes, and the order is the design:
+    ///
+    /// 1. **Survey and solve.** Every node's *lateness* — how long since it was
+    ///    last re-solved, in units of its own characteristic time — is computed
+    ///    against the new instant. Nodes at or past one are due, and the budget
+    ///    takes the most overdue that fit. Nothing is skipped for being off
+    ///    screen; a node passed over grows more overdue and wins next frame.
+    /// 2. **Coast.** Every node that was not solved is carried to the same
+    ///    instant in closed form. Position under constant velocity and
+    ///    orientation under constant spin are exact solutions, so this costs
+    ///    one add per node and introduces no error at all.
+    /// 3. **Commit.** The world instant moves, and every live node is at it.
+    ///
+    /// The pass that used to be here — decide what the observer can see, and
+    /// only simulate that — is gone. It was the wrong organising principle: a
+    /// tree falls whether or not anyone is pointing at it. What the observer
+    /// still controls is *resolution*, which feeds back into the cadence on its
+    /// own, because a node represented more finely comes due more often.
     pub fn step_frame(&mut self, wall_us: f64) -> Plan {
         let t0 = std::time::Instant::now();
         self.budget.target_us = wall_us;
+        self.refresh_pace();
 
-        let tasks = self.survey();
+        let horizon = self.time + self.frame_dt();
+        let tasks = self.survey(horizon);
         let bytes = self.tree.detail_bytes();
         let plan = self.budget.plan(tasks, bytes);
-        self.execute(&plan);
+        let achieved = self.execute(&plan, horizon);
+        let coasted = self.coast_to(horizon);
 
-        let dt = self.frame_dt();
-        self.deliver_influences(self.time + dt);
-        self.time += dt;
+        self.deliver_influences(horizon);
+        self.time = horizon;
         self.record_histories();
 
+        self.retime(achieved);
+        let (worst_lateness, overdue) = self.lateness_report();
         let actual = t0.elapsed().as_secs_f64() * 1e6;
         self.budget.observe_frame(plan.planned_us, actual);
         self.stats.frames += 1;
@@ -296,37 +396,271 @@ impl World {
         self.stats.last_frame_us = actual;
         self.stats.materialised_bodies = self.tree.materialised_bodies();
         self.stats.live_nodes = self.tree.live_count();
+        self.stats.worst_lateness = worst_lateness;
+        self.stats.overdue = overdue;
+        self.stats.coasted = coasted;
         plan
     }
 
-    /// How much simulated time one frame covers.
+    /// How much world time one frame covers.
     ///
-    /// Not a free choice: the timestep is fixed by accuracy (`docs/PHYSICS.md`
-    /// shows the dt^2 convergence), so what the frame budget really controls is
-    /// how many steps are affordable, and therefore how fast simulated time
-    /// advances. Zooming into a nucleus does not slow the frame rate — it slows
-    /// *time*, which is both physically evocative and the honest thing to do.
+    /// This used to be the smallest timestep any node in the world wanted, and
+    /// that one line is why the engine could not run every scale at once: it
+    /// made a resolved nucleus set the pace for the galaxy containing it. It is
+    /// now a *rate* — how fast the user has asked simulated time to run —
+    /// because a node no longer has to be stepped at the world's cadence. It
+    /// only has to arrive at the world's instant, and most nodes get there in
+    /// closed form.
+    ///
+    /// The one hard cap left is causality: no node may be advanced past the
+    /// arrival of an influence, or the influence would land in its past.
     pub fn frame_dt(&self) -> f64 {
-        let mut dt = f64::INFINITY;
-        for node in self.tree.nodes.iter().filter(|n| n.alive) {
-            let natural = node.tier.dt();
-            let dyn_t = node.agg.dynamical_time();
-            let by_physics = natural.min(dyn_t / 50.0);
-            dt = dt.min(by_physics);
+        let mut dt = self.pace * self.time_rate * self.time_throttle;
+        if !(dt > 0.0) || !dt.is_finite() {
+            dt = 1e-30;
         }
-        if !dt.is_finite() {
-            dt = 1.0;
-        }
-        // The causal ceiling: no node may be advanced past the next influence
-        // arrival, or the influence would land in its past.
         if let Some(next) = self.mailbox.next_arrival() {
             dt = dt.min((next - self.time).max(0.0).max(1e-30));
         }
-        dt * self.time_rate
+        dt
+    }
+
+    /// Adjust how much simulated time the next frame may cover.
+    ///
+    /// The frame rate is the invariant, so when the work does not fit something
+    /// has to give, and there are two different things that can: how much
+    /// simulated time passes, and how much of the world is resolved. This
+    /// controls the first, and it has to be careful not to answer a question
+    /// that belongs to the second.
+    ///
+    /// The signal is *shortfall on work that actually ran*: a node the frame
+    /// accepted, and integrated, and which still did not reach the instant. That
+    /// says the span was too long, and shortening it fixes it. Work that was
+    /// deferred entirely says something else — that more of the world is
+    /// resolved than can be simulated — and slowing time does not help, it just
+    /// stops the clock while the debt stays exactly where it was. That is the
+    /// coarsener's problem, and it shows up as detail debt and lateness.
+    ///
+    /// Bounded below, because a world that has slowed by a factor of a million
+    /// has said everything it can say by slowing further, and "frozen" is a
+    /// worse answer than "slow, with some of it stale".
+    fn retime(&mut self, achieved: f64) {
+        if achieved < 0.95 {
+            self.time_throttle =
+                (self.time_throttle * achieved.clamp(0.05, 1.0)).max(MIN_TIME_THROTTLE);
+        } else if self.time_throttle < 1.0 {
+            // Recover slowly. Being late is visible and being early is not.
+            self.time_throttle = (self.time_throttle * 1.5).min(1.0);
+        }
+    }
+
+    /// Run the world at the pace of a particular node: one frame covers about
+    /// one of its characteristic times.
+    ///
+    /// This is what makes the same engine watchable at both ends of the ladder.
+    /// Paced to a galaxy, a frame is a few thousand years and the spiral turns;
+    /// paced to a carbon atom, a frame is a femtosecond and the bonds vibrate.
+    /// Neither choice changes the physics — only how much of it happens between
+    /// two pictures.
+    pub fn pace_to(&mut self, idx: NodeIdx) {
+        if idx.is_none() || !self.tree.nodes[idx.get()].alive {
+            return;
+        }
+        self.paced_to = idx;
+        self.refresh_pace();
+    }
+
+    /// Re-read the pace from the node it is taken from.
+    ///
+    /// Called at the top of every frame, because the subject's cadence moves:
+    /// the moment a galaxy is materialised into its stars, the span a frame may
+    /// cover has to come down with it or the stars cannot be integrated across
+    /// one. This is the feedback that makes "zooming in slows time" an
+    /// arithmetic consequence rather than a policy.
+    pub fn refresh_pace(&mut self) {
+        let idx = self.paced_to;
+        if idx.is_none() || !self.tree.nodes[idx.get()].alive {
+            return;
+        }
+        let tau = self.node_cadence(idx);
+        if tau.is_finite() && tau > 0.0 {
+            self.pace = tau;
+        }
+    }
+
+    /// The length scale a node is currently represented at, metres.
+    ///
+    /// Not the node's radius — the size of the smallest thing it is currently
+    /// showing. A planet held as a single aggregate is represented at its own
+    /// radius; the same planet split into four thousand parcels is represented
+    /// at four hundred kilometres, and has to be re-solved sixteen times as
+    /// often for the difference to mean anything.
+    pub fn node_resolution(&self, idx: NodeIdx) -> f64 {
+        let n = &self.tree.nodes[idx.get()];
+        let parts = n.bodies.len();
+        if parts > 1 {
+            n.agg.radius / (parts as f64).cbrt()
+        } else {
+            n.agg.radius
+        }
+    }
+
+    /// How long this node may be left alone before its state is visibly stale.
+    ///
+    /// For a node held as bulk state this is [`Aggregate::characteristic_time`]
+    /// — how long before the thing moves, turns, or rearranges by its own size.
+    /// For a materialised node it is the bodies that are represented, so it is
+    /// the bodies that set the cadence: the time for the fastest of them to
+    /// cross one resolution element. Thermal motion counts in that case and not
+    /// in the first, and the difference is not a fudge — at bulk resolution
+    /// thermal motion is a temperature, and at parcel resolution it is
+    /// something you can watch happen.
+    pub fn node_cadence(&self, idx: NodeIdx) -> f64 {
+        let n = &self.tree.nodes[idx.get()];
+        if n.is_materialised() {
+            let h = self.node_resolution(idx);
+            // The bodies' own speeds, and nothing else. Seeding this with the
+            // aggregate's sound speed looked harmless and was not: a galaxy's
+            // "sound speed" is a gas-pressure formula applied to a collisionless
+            // stellar system, and it saturated at 0.577c, so a materialised
+            // galaxy claimed to need re-solving four orders of magnitude more
+            // often than its own stars could justify. Prolongation samples
+            // thermal motion into the bodies already, so where a sound speed is
+            // meaningful it is in here anyway.
+            let v = n.bodies.iter().map(|b| b.vel.norm()).fold(0.0f64, f64::max);
+            return if v > 0.0 { h / v } else { f64::INFINITY };
+        }
+        n.agg.characteristic_time(n.agg.radius)
+    }
+
+    /// How many of its own characteristic times a node has gone unsolved.
+    ///
+    /// One means it has just come due. Ten means the world has moved on nine
+    /// cadences without asking it what it is doing, which is what "stale" means
+    /// in a way that is the same number for a nucleus and a galaxy.
+    pub fn lateness(&self, idx: NodeIdx, horizon: f64) -> f64 {
+        let cadence = self.node_cadence(idx);
+        if !(cadence > 0.0) {
+            return 1e9;
+        }
+        if !cadence.is_finite() {
+            return 0.0;
+        }
+        ((horizon - self.tree.nodes[idx.get()].last_solved) / cadence).clamp(0.0, 1e9)
+    }
+
+    /// How many sub-steps this node needs to cross one frame.
+    ///
+    /// Capped at [`MAX_SUBSTEPS`], beyond which following the trajectory is not
+    /// merely expensive but the wrong answer, and the node is crossed by its
+    /// ensemble instead.
+    pub fn substeps(&self, idx: NodeIdx) -> u32 {
+        let h = self.node_dt(idx);
+        if !(h > 0.0) || !h.is_finite() {
+            return 1;
+        }
+        let span = self.frame_dt();
+        ((span / h).ceil().clamp(1.0, MAX_SUBSTEPS as f64)) as u32
+    }
+
+    /// May this node be resolved at the pace the world is currently running?
+    ///
+    /// Resolving something the frame cannot integrate is not detail, it is a
+    /// picture redrawn from scratch every frame — the node would thermalise
+    /// immediately and lose whatever the resolution was for. Watching molecules
+    /// vibrate requires slowing time down, and this is where the engine says so
+    /// rather than pretending otherwise.
+    pub fn can_resolve(&self, idx: NodeIdx) -> bool {
+        let h = self.node_dt(idx);
+        h.is_finite() && h > 0.0 && self.frame_dt() <= h * MAX_SUBSTEPS as f64
+    }
+
+    /// How long before this node's detail stops being *this* state and becomes
+    /// merely *a* state of the same bulk.
+    ///
+    /// The persistence rule, and the replacement for "discard it when nobody is
+    /// looking". Detail is kept because something happened in it, and released
+    /// once the node has had time to forget — at which point remembering it
+    /// buys nothing and regenerating it costs nothing, because a fresh
+    /// maximum-entropy draw and the stored sample are the same distribution.
+    ///
+    /// Three cases, and the differences between them are physical:
+    ///
+    /// * **Structured matter never forgets.** A tree that lost a branch has
+    ///   lost it; no amount of waiting rearranges wood into a state the sampler
+    ///   could have drawn. Anything carrying a morphology or a topology, and
+    ///   anything somebody has touched, mixes in infinite time.
+    /// * **Ordered motion does not mix.** A rotating disc keeps its stars in
+    ///   their lanes however fast they are going, so the mixing speed is the
+    ///   random part of the internal motion with the rotation taken out.
+    /// * **Everything else mixes on a crossing time** — the time for a
+    ///   constituent moving at that random speed to cross one resolution
+    ///   element. A gas parcel forgets in milliseconds; a galaxy never.
+    pub fn mixing_time(&self, idx: NodeIdx) -> f64 {
+        let n = &self.tree.nodes[idx.get()];
+        if n.pinned || n.morphology.is_some() || n.topology.is_some() {
+            return f64::INFINITY;
+        }
+        // Anything the world has built structure on top of is remembered too.
+        // A node's promoted children are not a sample of it — they are specific
+        // objects with their own histories, and coarsening the parent releases
+        // the whole subtree beneath it. One galaxy arm quietly forgetting would
+        // take the star, the planet and the nucleus somebody was looking at
+        // with it.
+        if n.children.iter().any(|c| !c.is_none()) {
+            return f64::INFINITY;
+        }
+        let dispersion = n.agg.velocity_dispersion();
+        let ordered = n.agg.angular_velocity().norm() * n.agg.radius;
+        let random2 = dispersion * dispersion - ordered * ordered;
+        if !(random2 > 0.0) {
+            return f64::INFINITY;
+        }
+        let h = self.node_resolution(idx);
+        let v = random2.sqrt();
+        if v > 0.0 {
+            h / v
+        } else {
+            f64::INFINITY
+        }
+    }
+
+    /// Record that something happened here, so the node's detail is kept for a
+    /// mixing time rather than released at the next opportunity.
+    pub fn disturb(&mut self, idx: NodeIdx) {
+        if idx.is_none() {
+            return;
+        }
+        let t = self.time;
+        let mut cur = idx;
+        // Upwards as well: a changed child means the parent's sample no longer
+        // describes what is inside it either.
+        while !cur.is_none() {
+            let n = &mut self.tree.nodes[cur.get()];
+            n.last_disturbed = t;
+            cur = n.parent;
+        }
+    }
+
+    fn lateness_report(&self) -> (f64, usize) {
+        let mut worst = 0.0f64;
+        let mut overdue = 0;
+        for i in 0..self.tree.nodes.len() {
+            let idx = NodeIdx(i as u32);
+            if !self.tree.nodes[i].alive {
+                continue;
+            }
+            let l = self.lateness(idx, self.time);
+            if l >= 1.0 {
+                overdue += 1;
+            }
+            worst = worst.max(l);
+        }
+        (worst, overdue)
     }
 
     /// Build the frame's candidate work list.
-    fn survey(&mut self) -> Vec<Task> {
+    fn survey(&mut self, horizon: f64) -> Vec<Task> {
         let mut tasks = Vec::new();
         let live: Vec<NodeIdx> = (0..self.tree.nodes.len())
             .map(|i| NodeIdx(i as u32))
@@ -334,13 +668,15 @@ impl World {
             .collect();
 
         for idx in live {
-            let (tier, materialised, count, _key, radius) = {
+            let (tier, materialised, count, radius) = {
                 let n = &self.tree.nodes[idx.get()];
-                (n.tier, n.is_materialised(), n.bodies.len(), n.key, n.agg.radius)
+                (n.tier, n.is_materialised(), n.bodies.len(), n.agg.radius)
             };
 
-            // How much does anyone care about this node?
-            let mut salience = 0.0f64;
+            // What the observers want is *resolution*, not whether the physics
+            // runs. This loop decides how finely the node is drawn; the cadence
+            // below then follows from that on its own.
+            let mut acuity = 0.0f64;
             let mut urgency = 0.0f64;
             let mut wanted_tier = tier;
             for obs in &self.observers {
@@ -349,20 +685,20 @@ impl World {
                     .separation(obs.anchor, obs.offset, idx, Vec3::ZERO);
                 let d = sep.value.norm().max(1e-30);
                 if !self.gate.reaches(d) {
-                    // Outside the light cone: whatever happens here cannot
-                    // reach the observer within the horizon, so it does not
-                    // need resolving no matter how interesting it is.
+                    // Outside the light cone: nothing that happens here can
+                    // reach the observer within the horizon, so there is no
+                    // resolution to be gained by drawing it finer.
                     continue;
                 }
                 let theta = crate::coords::angular_size(radius, d);
                 let s = (theta / obs.angular_resolution).min(1e6) * obs.priority;
-                if s > salience {
-                    salience = s;
+                if s > acuity {
+                    acuity = s;
                     wanted_tier = obs.required_tier(d);
                 }
                 urgency = urgency.max(self.gate.urgency(d));
             }
-            let residency = if salience > 1.0 {
+            let residency = if acuity > 1.0 {
                 Residency::Observed
             } else if urgency > 0.0 {
                 Residency::Causal
@@ -377,55 +713,54 @@ impl World {
             }
 
             let error = self.refinement_error(idx);
+            let lateness = self.lateness(idx, horizon);
 
-            // Materialise when an observer needs finer structure than the bulk
-            // state can express.
-            if !materialised && wanted_tier > tier && salience > 0.5 {
+            // Materialise when the bulk state cannot express what the node is
+            // doing — and when the world's pace leaves room to actually
+            // integrate it.
+            //
+            // Two independent reasons, and the second is the one that was
+            // missing. `acuity` is somebody wanting to see it; `error` is the
+            // node's own state saying the aggregate is no longer an adequate
+            // description of it — an unresolved Jeans length, a dynamical time
+            // shorter than the frame. A cloud collapsing in the dark refines
+            // because it is collapsing, not because anyone turned to look.
+            let wants_detail = (acuity > 0.5 && wanted_tier > tier) || error > REFINE_THRESHOLD;
+            if !materialised && wants_detail && self.can_resolve(idx) {
                 let n_children = self.tree.nodes[idx.get()].spec.count;
                 tasks.push(Task {
                     node: idx,
                     kind: TaskKind::Materialise,
                     cost_us: cost::materialise_us(n_children),
-                    salience,
+                    lateness: acuity,
                     urgency: urgency.max(0.01),
                     error,
-                    novelty: 1.0,
                     bytes: (n_children * std::mem::size_of::<Body>()) as i64,
                 });
             }
 
-            // Coarsen when nobody needs the detail. Negative bytes: this task
+            // Release detail the node has forgotten. Negative bytes: this task
             // gives resources back, so the planner always accepts it.
-            if materialised && salience < 0.25 && !self.tree.nodes[idx.get()].pinned {
+            //
+            // The old rule was "coarsen when nobody is looking", and it is the
+            // single line that made this an observer-driven engine: an
+            // unobserved world discarded all its detail on the first frame and
+            // then did no physics at all, because there was nothing left to
+            // step. Detail now goes when the node has had a mixing time to
+            // forget what put it there — see [`World::mixing_time`] — and not
+            // before, whoever is or is not watching.
+            let forgotten =
+                self.time - self.tree.nodes[idx.get()].last_disturbed > self.mixing_time(idx);
+            if materialised && forgotten && acuity < 0.25 && !self.tree.nodes[idx.get()].pinned {
                 tasks.push(Task {
                     node: idx,
                     kind: TaskKind::Coarsen,
                     cost_us: cost::COARSEN_US * count as f64,
-                    salience: 1.0,
+                    lateness: 1.0,
                     urgency: 1.0,
                     error: 1.0,
-                    novelty: 0.0,
                     bytes: -((count * std::mem::size_of::<Body>()) as i64),
                 });
-            }
-
-            // Record the causal lookahead this node is entitled to, from its
-            // nearest sibling. Nodes with no siblings are causally isolated
-            // within their parent and may run as fast as their physics allows.
-            {
-                let parent = self.tree.nodes[idx.get()].parent;
-                if !parent.is_none() {
-                    for (child, gap) in self.tree.sibling_separations(parent) {
-                        let key = self.tree.nodes[child.get()].key;
-                        let tier = self.tree.nodes[child.get()].tier;
-                        let t = self.tree.nodes[child.get()].time;
-                        let c = self
-                            .clocks
-                            .entry(key)
-                            .or_insert_with(|| Clock::new(t, tier.dt()));
-                        c.nearest_neighbour = gap;
-                    }
-                }
             }
 
             // Growth advances whether or not anything is materialised — in
@@ -438,25 +773,30 @@ impl World {
                     node: idx,
                     kind: TaskKind::Grow,
                     cost_us: cost::GROW_US,
-                    salience: salience.max(1.0),
+                    lateness: 1.0,
                     urgency: 1.0,
                     error: 1.0,
-                    novelty: 0.0,
                     bytes: 0,
                 });
             }
 
-            // Step whatever is materialised.
-            if materialised {
+            // Re-solve what is materialised, once it has come due.
+            if materialised && lateness >= 1.0 {
                 let kind = solvers::for_tier(tier);
                 tasks.push(Task {
                     node: idx,
                     kind: TaskKind::Step,
+                    // One solver pass. How many passes the node gets is
+                    // decided at execution time, out of whatever the frame has
+                    // left — see `World::execute`. Quoting the whole crossing
+                    // here was worse than quoting one pass: it priced every
+                    // node out of every frame, and a planner that accepts
+                    // nothing leaves a world that is perfectly on time and
+                    // completely still.
                     cost_us: cost::step_us(kind, count, self.gpu),
-                    salience: salience.max(0.05),
+                    lateness,
                     urgency: urgency.max(0.05),
                     error,
-                    novelty: 0.1,
                     bytes: 0,
                 });
             }
@@ -485,45 +825,223 @@ impl World {
         e
     }
 
-    fn execute(&mut self, plan: &Plan) {
+    /// Run the plan, and report the worst fraction of the frame any solved node
+    /// actually got across. One means everything that ran arrived.
+    fn execute(&mut self, plan: &Plan, horizon: f64) -> f64 {
+        // How many sub-steps each solved node may take.
+        //
+        // The plan decided *which* nodes run; this decides *how far* each one
+        // gets, out of what the frame has left after the one pass each of them
+        // was costed at. Shared equally rather than by lateness, because it has
+        // to be computed without a clock: a scheduler that depended on how fast
+        // the machine happened to be running that frame would not replay.
+        let per_pass: f64 = plan
+            .accepted
+            .iter()
+            .filter(|t| t.kind == TaskKind::Step)
+            .map(|t| self.budget.adjust(t.cost_us))
+            .sum();
+        let allowance = if per_pass > 0.0 {
+            ((self.budget.sim_budget_us() / per_pass).floor()).clamp(1.0, MAX_SUBSTEPS as f64) as u32
+        } else {
+            1
+        };
+        let mut achieved = 1.0f64;
         for task in &plan.accepted {
             if !self.tree.nodes[task.node.get()].alive {
                 continue;
             }
+            let started_at = self.tree.nodes[task.node.get()].time;
             match task.kind {
                 TaskKind::Materialise => {
                     self.tree.refine(task.node);
+                    self.disturb(task.node);
                 }
                 TaskKind::Coarsen => {
                     self.tree.coarsen(task.node);
                 }
                 TaskKind::Promote => {}
                 TaskKind::Step => {
-                    let dt = self.node_dt(task.node);
-                    self.advance_node(task.node, dt);
+                    self.advance_to(task.node, horizon, allowance);
+                    let asked = horizon - started_at;
+                    if asked > 0.0 {
+                        let got = self.tree.nodes[task.node.get()].time - started_at;
+                        achieved = achieved.min((got / asked).clamp(0.0, 1.0));
+                    }
                 }
                 TaskKind::Grow => {
-                    let dt = self.frame_dt();
-                    self.grow_node(task.node, dt);
+                    let n = &self.tree.nodes[task.node.get()];
+                    let dt = horizon - n.last_grown;
+                    if dt > 0.0 {
+                        self.grow_node(task.node, dt);
+                        self.tree.nodes[task.node.get()].last_grown = horizon;
+                    }
                 }
                 TaskKind::Observe => {}
             }
         }
+        achieved
     }
 
-    /// The step a node may take: the smaller of what its physics wants and what
-    /// causality permits.
+    /// Bring a node toward the world instant by integrating it.
+    ///
+    /// Sub-steps at whatever its physics needs, which is a completely separate
+    /// question from how often it is *scheduled*: a node may be visited once a
+    /// frame and take four hundred steps to get across, or be visited once in a
+    /// thousand frames and take one.
+    ///
+    /// Two ways it can fall short, and they mean different things:
+    ///
+    /// * **The span is unreachable in principle** — a resolved nucleus asked to
+    ///   cover a millisecond would need 10^19 steps. Following the trajectory
+    ///   is then not merely expensive, it is the wrong answer, and the node is
+    ///   crossed by its ensemble instead. See [`World::thermalise`].
+    /// * **The frame ran out of allowance.** The node integrates as far as it
+    ///   can and stops, and `last_solved` records where it got to, so its
+    ///   lateness says exactly how far behind it is. `coast_to` then carries
+    ///   its frame the rest of the way in closed form: the node moves, its
+    ///   insides do not, and nobody is told a story about either.
+    pub fn advance_to(&mut self, idx: NodeIdx, horizon: f64, allowance: u32) {
+        if idx.is_none() || !self.tree.nodes[idx.get()].alive {
+            return;
+        }
+        let span = horizon - self.tree.nodes[idx.get()].time;
+        if !(span > 0.0) {
+            return;
+        }
+        let h0 = self.node_dt(idx);
+        if h0 > 0.0 && h0.is_finite() && span / h0 > MAX_SUBSTEPS as f64 && self.forgettable(idx) {
+            self.thermalise(idx, horizon);
+            return;
+        }
+        let mut steps = 0u32;
+        while self.tree.nodes[idx.get()].time < horizon && steps < allowance {
+            let remaining = horizon - self.tree.nodes[idx.get()].time;
+            let h = self.node_dt(idx).min(remaining);
+            if !(h > 0.0) {
+                break;
+            }
+            self.advance_node(idx, h);
+            steps += 1;
+        }
+        let n = &mut self.tree.nodes[idx.get()];
+        let slack = horizon.abs() * 1e-12;
+        if n.time + slack >= horizon {
+            n.time = horizon;
+        }
+        n.last_solved = n.time;
+    }
+
+    /// May this node's detail be thrown away and drawn again?
+    ///
+    /// No, if somebody has touched it — a tree you broke is not a
+    /// representative sample of anything. No, if something finer has been built
+    /// on it, because releasing it would take the whole subtree with it.
+    pub fn forgettable(&self, idx: NodeIdx) -> bool {
+        let n = &self.tree.nodes[idx.get()];
+        !n.pinned && !n.children.iter().any(|c| !c.is_none())
+    }
+
+    /// Cross a span too long to integrate, by ensemble instead of trajectory.
+    ///
+    /// This is the step that makes one shared instant affordable across
+    /// thirty-eight orders of magnitude. A resolved nucleus asked to cross
+    /// fifty milliseconds would need 10^21 steps; it also does not need them,
+    /// because over that span it has sampled its accessible states 10^21 times
+    /// and where it ends up is a draw from its equilibrium ensemble, not the
+    /// endpoint of a trajectory. So the detail is restricted back to the bulk
+    /// state, the bulk state is carried across in closed form, and the detail
+    /// is drawn again at the far end.
+    ///
+    /// Both halves are things the engine already guarantees: restriction is
+    /// conservative to within `IDEMPOTENT_TOLERANCE` and prolongation is a
+    /// maximum-entropy sample of the same conserved tuple, which is exactly
+    /// what "a fresh draw from the ensemble" means.
+    ///
+    /// The node is left coarse rather than immediately re-drawn. Re-drawing it
+    /// here would hide the cost from the frame budget and, worse, would do it
+    /// again next frame and every frame after: if the world is running at a
+    /// pace this node cannot be integrated at, the honest thing is to stop
+    /// pretending to resolve it. The survey will materialise it again when
+    /// something wants it *and* the pace allows it — see the gate in
+    /// [`World::can_resolve`].
+    ///
+    /// Detail that has been *touched*, or that something finer has been built
+    /// on, is exempt. A tree somebody broke is not a representative sample of
+    /// anything, and re-drawing it would silently mend it; releasing a node
+    /// with promoted children would take the whole subtree under it. Those
+    /// nodes fall behind honestly instead — and their lateness says so.
+    fn thermalise(&mut self, idx: NodeIdx, horizon: f64) {
+        if !self.forgettable(idx) {
+            return;
+        }
+        let was_materialised = self.tree.nodes[idx.get()].is_materialised();
+        if was_materialised {
+            self.tree.coarsen(idx);
+        }
+        let n = &mut self.tree.nodes[idx.get()];
+        let dt = horizon - n.time;
+        if dt > 0.0 {
+            n.frame.advance(dt);
+        }
+        n.time = horizon;
+        n.last_solved = horizon;
+        n.epoch = n.epoch.wrapping_add(1);
+        self.stats.thermalised += 1;
+    }
+
+    /// Carry every node that was not solved to the world instant.
+    ///
+    /// Free, and exact. A node's offset under constant velocity and its
+    /// orientation under constant spin are both closed-form solutions, so there
+    /// is no approximation here at all — only the assumption that nothing
+    /// changed the velocity or the spin, which is precisely what "it was not
+    /// due to be re-solved" asserts.
+    ///
+    /// Returns how many nodes were carried rather than solved. It is nearly all
+    /// of them, nearly every frame, and that is the point.
+    fn coast_to(&mut self, horizon: f64) -> usize {
+        let mut coasted = 0;
+        for i in 0..self.tree.nodes.len() {
+            let n = &mut self.tree.nodes[i];
+            if !n.alive {
+                continue;
+            }
+            let dt = horizon - n.time;
+            if !(dt > 0.0) {
+                continue;
+            }
+            n.frame.advance(dt);
+            n.time = horizon;
+            coasted += 1;
+            let key = n.key;
+            let velocity = n.frame.velocity;
+            if let Some(c) = self.clocks.get_mut(&key) {
+                c.time = horizon;
+                c.proper_time += crate::coords::proper_time_step(dt, velocity);
+            }
+        }
+        coasted
+    }
+
+    /// The sub-step a node's own physics needs, in seconds.
+    ///
+    /// A stability limit and nothing else. It used to double as the node's
+    /// scheduling interval, which conflated two questions that have different
+    /// answers by many orders of magnitude: how *finely* a node must be
+    /// integrated when it is integrated, and how *often* it is worth
+    /// integrating at all. The second is now [`World::node_cadence`].
+    ///
+    /// Every characteristic time the node has, not just the gravitational one.
+    /// A node's parcels have to be stepped faster than a sound wave crosses the
+    /// gap between them, or the pressure force acts across a distance the
+    /// information could not have travelled — which is not a small error, it is
+    /// a solver that heats its own contents. It showed up as a continuum node
+    /// three metres across whose gas reached two thirds of light speed while
+    /// the conservation check reported no drift at all, because every
+    /// individual step was conserving the energy the previous one had invented.
     pub fn node_dt(&self, idx: NodeIdx) -> f64 {
         let n = &self.tree.nodes[idx.get()];
-        // Every characteristic time the node has, not just the gravitational
-        // one. A node's parcels have to be stepped faster than a sound wave
-        // crosses the gap between them, or the pressure force acts across a
-        // distance the information could not have travelled — which is not a
-        // small error, it is a solver that heats its own contents. It showed up
-        // as a continuum node three metres across whose gas reached two thirds
-        // of light speed while the conservation check reported no drift at all,
-        // because every individual step was conserving the energy the previous
-        // one had invented.
         let parts = if n.bodies.is_empty() { n.spec.count } else { n.bodies.len() };
         let flow = n.bodies.iter().map(|b| b.vel.norm()).fold(0.0f64, f64::max);
         let mut natural = n
@@ -544,13 +1062,7 @@ impl World {
             // not be paid on every scheduling decision.
             natural = natural.min(solvers::md::stable_dt(&n.bodies) * 8.0);
         }
-        let clock = self
-            .clocks
-            .get(&n.key)
-            .copied()
-            .unwrap_or_else(|| Clock::new(n.time, natural));
-        let next = self.mailbox.next_arrival().unwrap_or(f64::INFINITY);
-        clock.safe_step(1e-30, next).min(natural) * self.time_rate
+        natural
     }
 
     /// Run the tier's solver over a node's materialised bodies.
@@ -734,6 +1246,7 @@ impl World {
         if self.tree.nodes[idx.get()].morphology.is_none() {
             return out;
         }
+        self.disturb(idx);
         self.tree.refine(idx);
 
         let ambient = self.tree.nodes[idx.get()].agg.temperature;
@@ -888,6 +1401,7 @@ impl World {
         if self.tree.nodes[idx.get()].morphology.is_none() {
             return out;
         }
+        self.disturb(idx);
         self.tree.refine(idx);
         let ambient = self.tree.nodes[idx.get()].agg.temperature;
         let bodies = self.tree.nodes[idx.get()].bodies.clone();
@@ -1202,6 +1716,7 @@ impl World {
         // The node's procedural detail no longer represents its bulk state.
         let idx = inf.target;
         self.tree.pin(idx);
+        self.disturb(idx);
         if !self.tree.nodes[idx.get()].bodies.is_empty() {
             // Distribute the impulse over the existing bodies rather than
             // discarding them — throwing away detail a user is looking at, in
@@ -1305,6 +1820,7 @@ impl World {
                 n.agg.baryon_number = n.agg.mass * n.agg.composition.nucleons_per_kg();
                 self.tree.pin(target);
                 self.tree.bump_epoch(target);
+                self.disturb(target);
             }
             Interaction::Measure {
                 target,
@@ -1313,7 +1829,10 @@ impl World {
             } => {
                 self.measure(target, instrument, quantity);
             }
-            Interaction::Pin { target } => self.tree.pin(target),
+            Interaction::Pin { target } => {
+                self.tree.pin(target);
+                self.disturb(target);
+            }
             Interaction::Author {
                 target,
                 property,
@@ -1402,6 +1921,7 @@ impl World {
                 let n = &mut self.tree.nodes[target.get()];
                 n.agg.add_heat(disturbance);
                 self.tree.pin(target);
+                self.disturb(target);
             }
         }
         Some(reading)
@@ -1434,6 +1954,7 @@ impl World {
         });
         self.tree.pin(target);
         self.tree.bump_epoch(target);
+        self.disturb(target);
     }
 
     /// Everything the given observer can currently see, nearest first.

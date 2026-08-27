@@ -12,10 +12,9 @@ fn task(node: u32, cost: f64, value: f64, bytes: i64) -> Task {
         node: NodeIdx(node),
         kind: TaskKind::Step,
         cost_us: cost,
-        salience: value,
+        lateness: value,
         urgency: 1.0,
         error: 1.0,
-        novelty: 0.0,
         bytes,
     }
 }
