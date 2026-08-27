@@ -184,21 +184,28 @@ fn main() {
         priority: 50.0,
         ..Default::default()
     });
-    println!("  Fixed 50 ms budget. What varies is detail, never frame rate.\n");
-    println!("  {:>5} {:>10} {:>9} {:>9} {:>8} {:>12} {:>10}", "frame", "wall (ms)", "accepted", "deferred", "bodies", "sim step", "debt");
+    println!("  Fixed 50 ms budget. What varies is how much simulated time");
+    println!("  passes and how much of the world is resolved, never frame rate.\n");
+    println!("  {:>5} {:>9} {:>8} {:>8} {:>7} {:>7} {:>11} {:>7}",
+        "frame", "wall (ms)", "solved", "coasted", "defer", "bodies", "sim step", "late");
     for f in 0..8 {
         let plan = w.step_frame(50_000.0);
         println!(
-            "  {:>5} {:>10.2} {:>9} {:>9} {:>8} {:>12} {:>10.2e}",
+            "  {:>5} {:>9.2} {:>8} {:>8} {:>7} {:>7} {:>11} {:>7.0e}",
             f,
             w.stats.last_frame_us / 1e3,
             plan.accepted.len(),
+            w.stats.coasted,
             plan.deferred,
             w.stats.materialised_bodies,
             fmt_time(w.frame_dt()),
-            plan.unmet_value
+            w.stats.worst_lateness
         );
     }
+    println!("\n  Coasted nodes were carried to the same instant in closed form:");
+    println!("  exact, one add each, and nearly the whole world nearly every frame.");
+    println!("  Lateness is how many of its own characteristic times the stalest");
+    println!("  node has gone unsolved - one number for a nucleus and a galaxy.");
     println!("\n  cost-model calibration after 8 frames: {:.3}x (learned from measurement)",
         w.budget.calibration());
     println!("  measured frame time (EMA):            {:.1} ms", w.budget.measured_us / 1e3);

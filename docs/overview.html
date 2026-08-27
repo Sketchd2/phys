@@ -306,16 +306,22 @@ footer .mono{font-size:.78rem}
 
 <section>
   <div class="wrap">
-    <span class="eyebrow">Architecture</span><h2>Eight ideas</h2>
-    <p>The engine is assembled from established techniques — adaptive mesh refinement, Barnes-Hut, sub-grid models, procedural generation, conservative discrete-event simulation. The gaps between them are consistent: the level-of-detail techniques are not conservative, the conservative techniques are not lazy, and none of them is driven by what an observer can actually see.</p>
+    <span class="eyebrow">Architecture</span><h2>Nine ideas</h2>
+    <p>The engine is assembled from established techniques — adaptive mesh refinement, Barnes-Hut, sub-grid models, procedural generation, conservative discrete-event simulation. The gaps between them are consistent: the level-of-detail techniques are not conservative, the conservative techniques are not lazy, and none of them can hold thirty-eight orders of magnitude of timescale on a single shared clock.</p>
   </div>
 
   <div class="wide">
     <div class="ideas">
       <div class="idea">
+        <span class="tag">Simultaneity</span>
+        <h3>One instant, every scale</h3>
+        <p>The whole world is at the same moment, and every scale advances every frame. What differs between a galaxy arm and a nucleus is how each got here: a node is either <em>solved</em> — integrated at whatever its physics needs — or <em>coasted</em>, carried to the instant in closed form, because position under constant velocity and orientation under constant spin are exact solutions and cost one add.</p>
+        <p>Which nodes are solved is decided by <em>lateness</em>: time since the node was last re-derived, in units of its own τ = ℓ/v. One expression gives an isolated Earth a radian of turn per update, a swimming bacterium half a second, and a nucleus <span class="ok">10⁻²³ s</span>.</p>
+      </div>
+      <div class="idea">
         <span class="tag">Materialisation</span>
-        <h3>Detail is generated, then destroyed</h3>
-        <p>Fine structure is sampled on demand from a seeded distribution and thrown away when nobody is looking. The sampler is constrained so that coarsening the generated detail returns the original bulk state <em>exactly</em> — energy, momentum, angular momentum, charge, baryon and lepton number.</p>
+        <h3>Detail is generated, then forgotten</h3>
+        <p>Fine structure is sampled on demand from a seeded distribution, kept where something is happening, and released once the node has had a mixing time to forget it. The sampler is constrained so that coarsening the generated detail returns the original bulk state <em>exactly</em> — energy, momentum, angular momentum, charge, baryon and lepton number.</p>
         <p>Measured worst case across 126 configurations spanning 60 orders of magnitude in mass: <span class="ok">5.8 × 10⁻¹⁶</span>. That is machine epsilon.</p>
       </div>
       <div class="idea">
@@ -351,14 +357,14 @@ footer .mono{font-size:.78rem}
       <div class="idea">
         <span class="tag">Observation</span>
         <h3>Measuring is committing</h3>
-        <p>An unobserved quantity has no value; a measured one is recorded permanently and never re-sampled. Measure a decay time twice and you get the same answer, because the first measurement made it a fact.</p>
+        <p>An unmeasured quantity has no value; a measured one is recorded permanently and never re-sampled. Measure a decay time twice and you get the same answer, because the first measurement made it a fact. Looking commits detail; not looking does not stop it happening.</p>
         <p>At the subatomic tier this stops being a trick and becomes the physics. The approximation runs the other way — classical trajectories are the approximation.</p>
       </div>
       <div class="idea">
         <span class="tag">Budget</span>
-        <h3>Frames spend detail, not time</h3>
-        <p>Each frame gets 50 ms and solves a knapsack over the available work, ranked by observer salience, causal urgency and the estimated error of skipping it.</p>
-        <p>Frame rate is the invariant; fidelity is the free variable. Zoom too far and you get a slightly coarser world with a visible detail-debt readout, not a slideshow.</p>
+        <h3>Frames spend time and detail, never frame rate</h3>
+        <p>Each frame gets 50 ms and solves a knapsack over the available work, ranked by lateness, causal urgency and the estimated error of skipping it. A node passed over grows more overdue and wins the next frame, so nothing can be starved.</p>
+        <p>Frame rate is the invariant. What gives way is first how much simulated time passes, then how much of the world is resolved — so zooming into a nucleus slows <em>time</em>, and the detail-debt readout says how much is still owed.</p>
       </div>
     </div>
   </div>

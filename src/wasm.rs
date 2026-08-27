@@ -1010,6 +1010,9 @@ pub extern "C" fn scene_descend(index: u32) -> u32 {
     }
     e.world.tree.nodes[child.get()].residency = crate::tree::Residency::Observed;
     e.path.push(child);
+    // Watching something finer is what slows time down, and this is where it
+    // is said: the pace follows the subject.
+    e.world.pace_to(child);
     e.elapsed = 0.0;
     e.dirty = true;
     refresh_scene(e);
@@ -1051,47 +1054,48 @@ pub extern "C" fn scene_ascend() -> u32 {
     // Coarsening on the way out is the point of the whole architecture: the
     // detail is thrown away, and going back in regenerates it.
     e.world.tree.coarsen(leaving);
+    if let Some(&back) = e.path.last() {
+        e.world.pace_to(back);
+    }
     e.elapsed = 0.0;
     e.dirty = true;
     refresh_scene(e);
     1
 }
 
-/// Advance the node being watched by `seconds` of *its own* time.
+/// Advance the **whole world** by one frame, paced to the node being watched.
 ///
-/// Each tier runs at its own rate — a galaxy steps in megayears and a nucleus in
-/// zeptoseconds — so the argument is a number of the node's own timesteps
-/// rather than a wall-clock interval, which would be meaningless across
-/// forty-five orders of magnitude.
+/// It used to advance only the node on screen, one solver step at a time, which
+/// is a fair description of what the engine used to be and no description at
+/// all of what it is now. Every scale advances here: the galaxy this nucleus is
+/// inside turns by exactly what its spin rate says, at the same instant, and
+/// costs one add to do it.
+///
+/// `rate` is the user's time dial, multiplying a pace taken from the node being
+/// watched — one frame is about one of its characteristic times, so a galaxy
+/// advances millennia per frame and a carbon atom femtoseconds and both are
+/// watchable. What the engine cannot keep up with comes back through the
+/// lateness readout rather than through a longer frame.
 #[unsafe(no_mangle)]
-pub extern "C" fn scene_step(steps: f32) {
+pub extern "C" fn scene_step(rate: f32) {
     let e = explorer();
     let Some(&here) = e.path.last() else {
         return;
     };
-    if steps <= 0.0 {
+    if !(rate > 0.0) {
         return;
     }
-    let dt = e.world.node_dt(here);
-    if !(dt > 0.0) || !dt.is_finite() {
-        return;
-    }
-    // Whole steps, one at a time. Handing the solver eight times its own
-    // timestep is not the same as eight steps: every stability limit in the
-    // engine is a limit on *dt*, and the SPH solver answers a 8 ms step at the
-    // continuum tier by heating its parcels to two thirds of light speed.
-    let whole = (steps as f64).clamp(0.0, 8.0);
-    let count = whole.floor() as u32;
-    let mut drift = 0.0f64;
-    let mut momentum = 0.0f64;
-    for _ in 0..count.max(1) {
-        let report = e.world.advance_node(here, dt);
-        drift = drift.max(report.drift());
-        momentum = momentum.max(report.momentum_drift());
-        e.elapsed += dt;
-    }
-    e.readouts[20] = drift as f32;
-    e.readouts[21] = momentum as f32;
+    e.world.pace_to(here);
+    e.world.time_rate = (rate as f64).clamp(1e-6, 1e6);
+    let before = e.world.time;
+    e.world.step_frame(50_000.0);
+    e.elapsed += e.world.time - before;
+    e.readouts[20] = e.world.stats.worst_lateness as f32;
+    e.readouts[21] = e.world.time_throttle as f32;
+    e.readouts[22] = e.world.stats.coasted as f32;
+    e.readouts[23] = e.world.stats.thermalised as f32;
+    e.readouts[24] = e.world.stats.detail_debt as f32;
+    e.readouts[25] = e.world.stats.live_nodes as f32;
     e.dirty = true;
     refresh_scene(e);
 }
@@ -1209,6 +1213,10 @@ pub extern "C" fn scene_value(which: u32) -> f64 {
         2 => n.agg.temperature,
         3 => e.world.node_dt(here),
         4 => e.elapsed,
+        10 => e.world.node_cadence(here),
+        11 => e.world.frame_dt(),
+        12 => e.world.time,
+        13 => e.world.mixing_time(here),
         5 => n.agg.internal_energy,
         6 => n.agg.binding_energy,
         7 => n.agg.luminosity,

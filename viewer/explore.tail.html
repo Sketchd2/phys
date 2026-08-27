@@ -283,10 +283,24 @@
     $("roDt").textContent = fmtTime(wasm.scene_value(3));
     $("roFast").textContent =
       fmtSI(fastest, "m/s") + (fastest > 3e6 ? ` · ${(fastest / 2.998e8).toFixed(3)} c` : "");
-    $("roDrift").textContent = r[20] > 0 ? r[20].toExponential(1) : "0";
-    $("roDrift").style.color = r[20] > 1e-6 ? css("--warn") : "";
+    $("roCadence").textContent = fmtTime(wasm.scene_value(10));
+    $("roMixing").textContent = (() => {
+      const m = wasm.scene_value(13);
+      return isFinite(m) ? fmtTime(m) : "never";
+    })();
     $("roElapsed").textContent = fmtTime(wasm.scene_value(4));
     $("roBytes").textContent = fmtBytes(wasm.scene_value(9));
+
+    // The whole world, not just this node.
+    $("roWorld").textContent = fmtTime(wasm.scene_value(12));
+    $("roFrame").textContent = fmtTime(wasm.scene_value(11));
+    $("roNodes").textContent = r[25].toFixed(0);
+    $("roCoasted").textContent = r[22].toFixed(0);
+    $("roLate").textContent = r[20] < 1 ? "keeping up" : `${r[20].toPrecision(3)}\u00d7`;
+    $("roLate").style.color = r[20] > 1 ? css("--warn") : "";
+    $("roThrottle").textContent =
+      r[21] >= 0.999 ? "full speed" : `${(r[21] * 100).toPrecision(3)}%`;
+    $("roThrottle").style.color = r[21] < 0.999 ? css("--warn") : "";
 
     const s = SCENARIOS[Math.round(r[15])] || ["—", ""];
     $("title").textContent = s[0];
@@ -302,15 +316,17 @@
   }
 
   // ---- loop ------------------------------------------------------------
-  let carry = 0;
   let last = performance.now();
   function frame(now) {
     const dt = Math.min((now - last) / 1000, 0.1);
     last = now;
     if (wasm) {
       if (running) {
-        carry += dt * (+$("rate").value);
-        if (carry >= 0.05) { wasm.scene_step(carry); carry = 0; }
+        // One engine frame per drawn frame. The slider is the time dial, not a
+        // step count: how much simulated time a frame covers is the engine's
+        // decision, taken from what is being watched, and it is the thing that
+        // gives way when the work does not fit.
+        wasm.scene_step(+$("rate").value * Math.max(dt * 60, 0.25));
       }
       draw();
       refreshUI();

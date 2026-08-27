@@ -214,7 +214,7 @@ select:focus-visible{outline:2px solid var(--accent); outline-offset:1px}
         <button id="up">&uarr; Out</button>
         <button id="down">&darr; Into the largest</button>
       </div>
-      <p class="blurb">Nothing below the current node exists until you go there, and it stops existing when you leave. Going back in rebuilds it from the same address.</p>
+      <p class="blurb">Nothing below the current node exists until you go there. What you leave behind is kept for as long as it takes that node to forget — structured matter never does — and past that it is released and rebuilt from the same address, because by then a stored sample and a fresh one are the same distribution.</p>
     </div>
 
     <div class="group">
@@ -226,8 +226,22 @@ select:focus-visible{outline:2px solid var(--accent); outline-offset:1px}
         <div class="ro"><span class="k">Bodies</span><span class="v val" id="roBodies">—</span></div>
         <div class="ro"><span class="k">Solver</span><span class="v" id="roSolver">—</span></div>
         <div class="ro"><span class="k">Timestep</span><span class="v val" id="roDt">—</span></div>
+        <div class="ro"><span class="k">Re-solved every</span><span class="v val" id="roCadence">—</span></div>
+        <div class="ro"><span class="k">Forgets after</span><span class="v val" id="roMixing">—</span></div>
         <div class="ro"><span class="k">Fastest body</span><span class="v val" id="roFast">—</span></div>
-        <div class="ro"><span class="k">Energy drift</span><span class="v val" id="roDrift">—</span></div>
+      </div>
+    </div>
+
+    <div class="group">
+      <h2>The whole world</h2>
+      <p class="blurb">Every node in the world is at the same instant as this one, and every frame brings all of them to the next. Almost all of them get there in closed form, for one add each — which is what makes a shared "now" affordable from here to the galaxy above.</p>
+      <div class="readouts">
+        <div class="ro"><span class="k">World time</span><span class="v val" id="roWorld">—</span></div>
+        <div class="ro"><span class="k">Frame covers</span><span class="v val" id="roFrame">—</span></div>
+        <div class="ro"><span class="k">Live nodes</span><span class="v val" id="roNodes">—</span></div>
+        <div class="ro"><span class="k">Coasted</span><span class="v val" id="roCoasted">—</span></div>
+        <div class="ro"><span class="k">Worst lateness</span><span class="v val" id="roLate">—</span></div>
+        <div class="ro"><span class="k">Clock running at</span><span class="v val" id="roThrottle">—</span></div>
       </div>
     </div>
 
@@ -240,7 +254,7 @@ select:focus-visible{outline:2px solid var(--accent); outline-offset:1px}
     <div class="group">
       <h2>Run</h2>
       <div class="ctl">
-        <div class="row"><label for="rate">Timesteps per second</label><span class="amount val" id="rateVal">3.0</span></div>
+        <div class="row"><label for="rate">Time rate</label><span class="amount val" id="rateVal">3.0</span></div>
         <input type="range" id="rate" min="0" max="8" step="0.5" value="3">
       </div>
       <div class="ctl">

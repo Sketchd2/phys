@@ -353,7 +353,7 @@ which is what the test asserts now.
 
 ### 3.5 Observation as commitment
 
-An unobserved quantity has no value. A measured one is recorded in a ledger and
+An unmeasured quantity has no value. A measured one is recorded in a ledger and
 returned identically forever after (`observe::Ledger::get_or_sample`). This is
 what makes the deception undetectable *over time* rather than merely at one
 instant: measure a decay time twice and you get the same answer, because the
@@ -371,26 +371,110 @@ The ledger is the only structure in the engine whose size grows with what users
 *do* rather than with the size of the universe. In the demo it holds one fact in
 60 bytes against 20 MB of regenerable detail.
 
-### 3.6 The frame budget as the invariant
+### 3.6 One instant, and what it costs to stay on it
+
+The world has a single instant and everything in it is at that instant. This is
+not obviously affordable — a nucleus needs 10⁻²³ s steps and a galaxy arm is
+happy with a million years — and the naive reading of "simulate every scale at
+once" is that the fast thing sets the pace for everything. That is exactly what
+an earlier version of this engine did, by taking a global minimum over every
+live node's stability limit, and it meant that resolving anything small stopped
+everything large.
+
+The way out is that **being at an instant and being solved at it are different
+things**. A node's offset under constant velocity and its orientation under
+constant angular velocity are closed-form solutions, so between two solves a
+node can be asked where it is at any moment and answer without approximation.
+Carrying a node forward therefore costs one add and introduces no error at all.
+The expensive question is not where a node *is*, it is what it is *doing* — and
+that only needs re-deriving when it has changed.
+
+So each frame:
+
+1. every node's **lateness** is computed against the new instant — how long
+   since it was last re-derived, divided by its own characteristic time;
+2. the budget takes the most overdue work that fits;
+3. everything else is **coasted** to the same instant in closed form.
+
+Step 3 is nearly every node, nearly every frame.
+
+**The characteristic time.** τ = ℓ / v, where ℓ is the resolution the node is
+currently drawn at and v the fastest thing it is doing: moving through its
+parent, turning, or rearranging inside itself. One expression, and it spans the
+ladder without a table of special cases — an isolated Earth at one radian of
+turn per update, the same Earth in orbit at 3.6 minutes, a swimming bacterium
+at half a second, a nucleus at 10⁻²³ s.
+
+Two things are deliberately in or out of v, and both were found by getting them
+wrong:
+
+- **Rotation is in.** Jupiter's equator runs at 12.3 km/s against about 1 km/s
+  of internal signal speed, so a cadence chosen from the signal speed alone
+  samples the planet once every 1.45 revolutions and aliases it completely.
+- **The equilibrium sound speed is out.** It is the fastest speed anything
+  inside a node is travelling at, and it is the wrong quantity: a body in
+  thermal equilibrium is not changing, however fast its molecules are going.
+  Scheduling on it asks the engine to re-solve a bacterium every five
+  nanoseconds and produce the same answer every time. The internal term is the
+  *stirring* speed — the internal energy the stored temperature does not
+  account for. The sound speed keeps its real job, bounding the timestep of a
+  node that is already being solved.
+
+**When a span cannot be integrated.** A resolved nucleus asked to cross a
+millisecond would need 10¹⁹ steps. It also does not need them: over that span it
+has sampled its accessible states 10¹⁹ times, and where it ends up is a draw
+from its equilibrium ensemble, not the endpoint of a trajectory. So past a
+sub-step ceiling the node is *thermalised* — restricted to its bulk state,
+carried across in closed form, and drawn again at the far end. Both halves are
+things the engine already guarantees: restriction is conservative to within
+`IDEMPOTENT_TOLERANCE`, and prolongation is a maximum-entropy sample of the same
+conserved tuple, which is exactly what a fresh draw from the ensemble means.
+Detail somebody has touched, and detail something finer has been built on, is
+exempt and falls behind honestly instead.
+
+### 3.7 The frame budget as the invariant
 
 A conventional simulation decides what to compute and takes however long it
 takes. This one is given 50 ms and decides what fits. Every candidate piece of
 work carries an estimated cost and an estimated value:
 
 ```
-value = salience × urgency × error × (1 + novelty)
+value = lateness × urgency × error
 ```
 
-where salience is the solid angle the work subtends for some observer, urgency
-is how close it is to the causal horizon, and error is the estimated
-inaccuracy of *not* doing it (an unresolved Jeans length, a dynamical time
-shorter than the frame step). A greedy knapsack by value density fills the
-frame; the rest is reported as detail debt.
+where lateness is how many of its own characteristic times the node has gone
+unsolved, urgency is how close the work is to the causal horizon, and error is
+the estimated inaccuracy of *not* doing it (an unresolved Jeans length, a
+dynamical time shorter than the frame step). A greedy knapsack by value density
+fills the frame; the rest is reported as detail debt.
+
+Value used to be led by observer salience — the solid angle the work subtended
+— with a small novelty bonus to stop a region starving. That put the camera in
+charge of the physics, which is the wrong way round: a tree falls whether or not
+anyone is pointing at it. Lateness needs no anti-starvation term of its own,
+because a node passed over grows more overdue every frame until it outranks
+whatever kept beating it. What the camera legitimately controls is *resolution*,
+and resolution feeds back into lateness on its own: a node drawn more finely has
+a shorter τ and comes due more often.
 
 Greedy rather than exact on purpose: the 0/1 knapsack is NP-hard, greedy is
 within a factor of two, and that is far inside the error of the cost estimates
 themselves. Spending frame time to plan the frame better than the estimates
 justify would be self-defeating.
+
+Two rules keep the invariant from degenerating into a world that is perfectly on
+time and completely still:
+
+- **A plan never accepts nothing.** Work is indivisible at this level — a solver
+  pass over a node is one pass or none — so a world whose cheapest node costs
+  more than a whole frame would defer every task forever. The best one is taken
+  and the overrun is recorded.
+- **When the work does not fit, simulated time gives way.** The signal is
+  shortfall on work that actually ran: a node the frame accepted, integrated,
+  and which still did not reach the instant. That says the span was too long,
+  and shortening it fixes it. Work deferred outright says something else —
+  more of the world is resolved than can be simulated — and slowing the clock
+  does not help that, it just stops it while the debt stays where it was.
 
 The cost model calibrates itself from measured frames, asymmetrically — fast to
 back off, slow to push — because being late is visible to the user and being
@@ -406,7 +490,7 @@ finer representations:
 - **materialised bodies**, produced by `prolong` — cheap to make, cheap to
   destroy, regenerable bit-for-bit;
 - **promoted children**, full nodes standing in for individual bodies, created
-  only for the few bodies someone is actually looking at.
+  only for the few bodies something is actually happening to.
 
 Materialising takes you from "a molecular cloud" to "a million gas parcels";
 promoting takes you from "one of those parcels" to "a protostar with its own
@@ -481,9 +565,9 @@ engine depends on.
 | **Measure** | An interaction, because measurement disturbs. Locating a proton to 1 fm deposits 5.2 MeV, and the engine applies it. |
 | **Impulse / Deposit / Extract** | Momentum and energy, delivered after `d/c`. Pins the target. |
 | **Inject** | Adds matter with a composition; rebalances baryon and lepton number. |
-| **Pin** | Forces detail to persist even when nobody is looking. |
+| **Pin** | Marks detail as non-regenerable, so it is stored rather than re-drawn. |
 | **Author** | Sets a bulk property directly. The one path that can break conservation — so it records exactly how much it broke it by, in an audit log. |
-| **Time control** | `time_rate` scales simulated seconds per wall second. Because the timestep is fixed by accuracy, zooming into a nucleus does not slow the frame rate — it slows *time*. |
+| **Time control** | `time_rate` scales simulated seconds per wall second, on top of a pace taken from whatever is being watched (`pace_to`). Zooming into a nucleus does not slow the frame rate — it slows *time*, and that is now arithmetic rather than policy, because materialising a node shortens its characteristic time and the pace is re-read every frame. |
 
 ## 6. Honest limitations
 
@@ -538,6 +622,26 @@ engine depends on.
   hierarchical tree deliberately forbids — that hierarchy is what makes the
   precision and causal-gating arguments work. For now a structure must fit
   inside one node.
+- **The mixing time is a discriminator, not a derivation.** Detail is released
+  once a node has had time to forget what put it there, and "time to forget" is
+  taken as the crossing time of the *random* part of the internal motion, with
+  ordered rotation removed and with structured matter — anything carrying a
+  morphology, a topology, promoted children or a user's fingerprints — exempted
+  outright. That gets the cases that matter right (a gas parcel forgets in
+  milliseconds, a rotating disc never, a broken tree never) and it is not a
+  first-principles relaxation time. A collisionless stellar system's real
+  relaxation time is a two-body calculation this does not do.
+- **The sub-step ceiling is a number.** 256 sub-steps is where following a
+  trajectory stops being the cheaper way to answer the question and the node is
+  crossed by its ensemble instead. Nothing derives 256; it is set high enough
+  that anything watchable is integrated properly and low enough that a nucleus
+  resolved inside a galaxy cannot stall a frame.
+- **Sub-step allowance is shared equally, not by need.** Once the plan has
+  chosen which nodes run, each gets the same number of passes, because the
+  alternative — spending until a wall clock runs out — would make the schedule
+  depend on how fast the machine happened to be that frame, and replay would
+  diverge. A node that needs more passes than its share falls behind and says so
+  through its lateness.
 - **Nothing builds the buildings.** Planned construction advances at a supplied
   labour rate; there are no agents with goals, plans or logistics behind it.
 - **The conservation guarantee is about the conserved tuple, not about
