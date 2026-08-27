@@ -280,3 +280,61 @@ fn touched_detail_is_not_regenerated() {
     assert_eq!(n.bodies.len(), bodies);
     assert!(n.time < w.time + 1.0, "it claimed to have arrived");
 }
+
+/// What gets drawn is where things are *now*, not where the last solve left
+/// them.
+///
+/// A node the frame could not bring all the way to the instant is behind by its
+/// lateness. Drawing it there makes the world stutter at exactly the rate the
+/// scheduler skips things — the one artefact the whole closed-form design
+/// exists to avoid. Interpolating over the lag is the same exact solution
+/// applied one level down, and it is a good one for as long as the node is not
+/// badly overdue.
+#[test]
+fn rendering_interpolates_to_the_instant() {
+    let mut w = World::new(galaxy(0x11FE, 1e9), 20.0);
+    let root = w.tree.root;
+    w.tree.refine(root);
+
+    // A node brought all the way to the instant has nothing to interpolate.
+    w.advance_to(root, w.time + w.node_dt(root), phys::engine::MAX_SUBSTEPS);
+    w.time = w.tree.nodes[root.get()].time;
+    assert_eq!(w.render_lag(root), 0.0, "a solved node should have no lag");
+
+    // Now let the world move on without solving it. The lag is exactly the
+    // gap, and interpolating over it must land where integrating would.
+    let before: Vec<_> = w.tree.nodes[root.get()]
+        .bodies
+        .iter()
+        .map(|b| (b.pos, b.vel))
+        .collect();
+    let dt = w.node_dt(root);
+    w.time += dt;
+    let lag = w.render_lag(root);
+    assert!(
+        (lag - dt).abs() <= dt * 1e-12,
+        "lag {lag:.6e} should be the gap {dt:.6e}"
+    );
+
+    // Integrate for real and compare against the drawn positions.
+    w.advance_to(root, w.time, phys::engine::MAX_SUBSTEPS);
+    let mut worst: f64 = 0.0;
+    let mut travelled: f64 = 0.0;
+    for (i, b) in w.tree.nodes[root.get()].bodies.iter().enumerate() {
+        let (p0, v0) = before[i];
+        let drawn = p0 + v0.scale(lag);
+        worst = worst.max((drawn - b.pos).norm());
+        travelled = travelled.max((b.pos - p0).norm());
+    }
+    println!(
+        "  over one timestep the drawn position is within {:.3e} m of the \
+         integrated one, on {:.3e} m travelled — {:.2e} relative",
+        worst,
+        travelled,
+        worst / travelled.max(1e-300)
+    );
+    assert!(
+        worst < travelled * 1e-3,
+        "interpolation was {worst:.3e} m off on {travelled:.3e} m travelled"
+    );
+}

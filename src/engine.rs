@@ -932,6 +932,26 @@ impl World {
         n.last_solved = n.time;
     }
 
+    /// How far a node's contents must be carried forward to be *drawn* at the
+    /// world instant.
+    ///
+    /// A node the frame did not solve all the way has bodies that are behind
+    /// where the node itself is. Drawing them there shows a world that stutters
+    /// at exactly the rate the scheduler skips things, which is the one
+    /// artefact the whole closed-form design exists to avoid. Carrying each
+    /// body at its own velocity is the same exact solution applied one level
+    /// down, and it costs one multiply-add per body at draw time.
+    ///
+    /// It is interpolation, not simulation: the forces are not re-evaluated, so
+    /// this is right for as long as the node is not badly overdue, and its
+    /// lateness is the number that says whether it is.
+    pub fn render_lag(&self, idx: NodeIdx) -> f64 {
+        if idx.is_none() || !self.tree.nodes[idx.get()].alive {
+            return 0.0;
+        }
+        (self.time - self.tree.nodes[idx.get()].last_solved).max(0.0)
+    }
+
     /// May this node's detail be thrown away and drawn again?
     ///
     /// No, if somebody has touched it — a tree you broke is not a

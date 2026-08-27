@@ -164,7 +164,7 @@ open viewer/forest.html                 #   twenty trees under one gust
 cargo run --release --bin phys-demo     # guided tour, galaxy to nucleus
 cargo run --release --example bench     # measured cost of every hot path
 cargo run --release --example damage    # grow a structure, break it, write PNGs
-cargo test --release                    # 127 tests
+cargo test --release                    # 128 tests
 ```
 
 ## The viewer

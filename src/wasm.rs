@@ -1150,6 +1150,12 @@ fn refresh_scene(e: &mut Explorer) {
     let node_radius = e.world.tree.nodes[here.get()].agg.radius.max(1e-300);
     let inv = 1.0 / node_radius;
 
+    // Where the bodies are *now*, not where the last solve left them. A node
+    // the frame could not bring all the way to the instant is behind by its
+    // lateness, and drawing it there makes the world stutter at exactly the
+    // rate the scheduler skips things.
+    let lag = e.world.render_lag(here);
+
     e.points.clear();
     let mut fastest = 0.0f64;
     let mut hottest = 0.0f64;
@@ -1159,10 +1165,11 @@ fn refresh_scene(e: &mut Explorer) {
         fastest = fastest.max(speed);
         hottest = hottest.max(b.temperature);
         heaviest = heaviest.max(b.mass);
+        let pos = b.pos + b.vel.scale(lag);
         e.points.extend_from_slice(&[
-            (b.pos.x * inv) as f32,
-            (b.pos.y * inv) as f32,
-            (b.pos.z * inv) as f32,
+            (pos.x * inv) as f32,
+            (pos.y * inv) as f32,
+            (pos.z * inv) as f32,
             (b.radius * inv) as f32,
             b.mass as f32,
             b.temperature as f32,
