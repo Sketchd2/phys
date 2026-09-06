@@ -3,3 +3,7 @@
 Cargo.lock
 *.ppm
 *.png
+
+# Worlds written by the persistence demo.
+world.phys
+*.world

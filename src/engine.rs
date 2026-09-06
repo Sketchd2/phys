@@ -323,6 +323,47 @@ impl World {
         w
     }
 
+    /// Everything durable about this world, ready to hand to a store.
+    ///
+    /// Cheap in the sense that matters: it moves no fine detail that could be
+    /// regenerated, because `persist` declines to write it.
+    pub fn view(&self) -> crate::persist::WorldView<'_> {
+        crate::persist::WorldView {
+            tree: &self.tree,
+            ledger: &self.ledger,
+            time: self.time,
+            pace: self.pace,
+            time_rate: self.time_rate,
+            time_throttle: self.time_throttle,
+            paced_to: self.paced_to,
+            labour_rate: self.labour_rate,
+            rejected_transactions: self.rejected_transactions,
+            environments: &self.environments,
+            audit: &self.audit,
+        }
+    }
+
+    /// Rebuild a world from a snapshot.
+    ///
+    /// `ups` comes from the caller rather than from the file: the frame budget
+    /// describes the machine the world is being run on, not the world. A save
+    /// made on a workstation opens on a laptop at the laptop's budget.
+    pub fn from_snapshot(s: crate::persist::Snapshot, ups: f64) -> World {
+        let mut w = World::new(s.tree, ups);
+        w.ledger = s.ledger;
+        w.time = s.time;
+        w.pace = s.pace;
+        w.time_rate = s.time_rate;
+        w.time_throttle = s.time_throttle;
+        w.paced_to = s.paced_to;
+        w.labour_rate = s.labour_rate;
+        w.rejected_transactions = s.rejected_transactions;
+        w.environments = s.environments;
+        w.audit = s.audit;
+        w.stats.sim_time = s.time;
+        w
+    }
+
     /// Place a structure and give it conditions to grow in.
     pub fn plant(
         &mut self,

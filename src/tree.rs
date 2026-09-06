@@ -241,6 +241,27 @@ impl Tree {
         }
     }
 
+    /// Rebuild a tree from saved parts.
+    ///
+    /// The free list is *derived* rather than stored: a slot is free exactly
+    /// when its node is not alive, so persisting it would be storing a fact the
+    /// nodes already contain and risking the two disagreeing after a migration.
+    pub fn restore(
+        nodes: Vec<Node>,
+        root: NodeIdx,
+        world_seed: u64,
+        persisted: HashMap<PathKey, Vec<Body>>,
+        stats: TreeStats,
+    ) -> Tree {
+        let free = nodes
+            .iter()
+            .enumerate()
+            .filter(|(_, n)| !n.alive)
+            .map(|(i, _)| i as u32)
+            .collect();
+        Tree { nodes, free, root, world_seed, persisted, stats }
+    }
+
     pub fn get(&self, i: NodeIdx) -> &Node {
         &self.nodes[i.get()]
     }

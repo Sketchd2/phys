@@ -205,6 +205,30 @@ impl Ledger {
         fact
     }
 
+    /// Every committed fact, for persistence.
+    ///
+    /// Order is not stable across runs — this is a hash map — so a caller that
+    /// needs a deterministic byte stream must sort. `persist` does.
+    pub fn entries(&self) -> impl Iterator<Item = (PathKey, Quantity, Fact)> + '_ {
+        self.facts.iter().map(|(&(k, q), &f)| (k, q, f))
+    }
+
+    /// Rebuild a ledger from saved facts. The counters come back with it: a
+    /// reloaded world that restarted its sequence numbering would hand out an
+    /// already-used sequence to the next commit.
+    pub fn restore(
+        facts: Vec<(PathKey, Quantity, Fact)>,
+        sequence: u64,
+        queries: u64,
+        commits: u64,
+    ) -> Ledger {
+        let mut map = HashMap::with_capacity(facts.len());
+        for (k, q, f) in facts {
+            map.insert((k, q), f);
+        }
+        Ledger { facts: map, sequence, queries, commits }
+    }
+
     pub fn peek(&self, key: PathKey, quantity: Quantity) -> Option<Fact> {
         self.facts.get(&(key, quantity)).copied()
     }

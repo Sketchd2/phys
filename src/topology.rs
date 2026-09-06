@@ -87,6 +87,36 @@ impl Default for Material {
 }
 
 impl Material {
+    /// Every named preset, in a stable order.
+    ///
+    /// Exists so a material's *label* can survive a save. The thirteen numbers
+    /// round-trip exactly whatever happens; the name is a `&'static str` and
+    /// cannot be rebuilt from bytes, so a loaded material recovers its name by
+    /// matching against this list and falls back to "custom" when it was not
+    /// one of these. That is a real limitation and it is confined to the label:
+    /// nothing in the physics reads `name`. It goes away when materials become
+    /// data (Track C2), at which point the name is data too.
+    pub const PRESETS: &'static [Material] = &[
+        Material::GREEN_WOOD,
+        Material::DRY_TIMBER,
+        Material::ARAGONITE,
+        Material::REINFORCED_FRAME,
+        Material::MASONRY,
+        Material::STEEL,
+        Material::ICE,
+    ];
+
+    /// The static label matching `name`, or "custom" for a material that was
+    /// built rather than chosen.
+    pub fn static_name(name: &str) -> &'static str {
+        for m in Material::PRESETS {
+            if m.name == name {
+                return m.name;
+            }
+        }
+        "custom"
+    }
+
     /// Living wood, wet. Strong in bending, which is why a branch bends a long
     /// way before it goes.
     pub const GREEN_WOOD: Material = Material {

@@ -50,6 +50,7 @@ pub mod ids;
 pub mod math;
 pub mod morph;
 pub mod observe;
+pub mod persist;
 pub mod prolong;
 pub mod render;
 pub mod scenario;
@@ -59,6 +60,7 @@ pub mod state;
 pub mod topology;
 pub mod tree;
 pub mod units;
+pub mod wire;
 pub mod wasm;
 
 pub use engine::World;
