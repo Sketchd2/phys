@@ -440,3 +440,112 @@ fn a_command_off_the_wire_is_applied_like_any_other() {
     assert_eq!(w.tree.nodes[d.get()].bubble, 42.0);
     println!("  {} bytes of command set a {}x bubble", bytes.len(), 42.0);
 }
+
+// ---------------------------------------------------------------------------
+// the loop closes
+// ---------------------------------------------------------------------------
+
+/// The whole seam, both directions, with only bytes crossing it.
+///
+/// An actor sends a command as bytes; the world applies it, steps, and hands
+/// back a scene as bytes; the actor reads the consequence out of the scene. At
+/// no point does either side hold the other's types. This is the shape an AI
+/// driving an actor actually needs — act, then look, and learn from the
+/// difference — and it is the reason the two halves were built to the same wire
+/// format.
+#[test]
+fn an_actor_can_act_and_then_see_what_changed() {
+    let (mut w, d) = a_world();
+    let mut roster = Roster::new();
+    let a = embodied(&w, d);
+    let max_force = a.max_force;
+    roster.admit(&mut w, a);
+
+    let mut client = phys::view::Client::new();
+    let req = phys::view::ViewRequest::of(d);
+
+    // Look first. Everything the actor knows, it got from here.
+    let before = phys::view::decode(&phys::view::encode(&client.frame(&w, &req)))
+        .expect("the first scene decoded");
+    let mass_before = before.node().mass;
+    let momentum_before = w.tree.nodes[d.get()].agg.momentum;
+
+    // Act. Bytes in.
+    let cmd = encode(&Command::Act {
+        actor: ActorId(1),
+        act: Act::Push { target: d, force: v3(0.0, 0.0, max_force), seconds: 1.0 },
+    });
+    let out = roster.apply(&mut w, &decode(&cmd).expect("the command decoded"));
+    assert_eq!(out, Outcome::Accepted);
+
+    // The push is posted to the mailbox and arrives at the speed of light, so
+    // it is not felt until the world has run. That delay is the point: an
+    // actor's act is an influence crossing space, not an assignment.
+    let mut steps = 0;
+    while w.tree.nodes[d.get()].agg.momentum == momentum_before && steps < 200 {
+        w.step_frame(20_000.0);
+        steps += 1;
+    }
+    let delivered = w.tree.nodes[d.get()].agg.momentum - momentum_before;
+    println!(
+        "  {} bytes of command; the impulse arrived after {steps} frame(s), \
+         changing momentum by {:.3e} kg m/s",
+        cmd.len(),
+        delivered.norm()
+    );
+    assert!(
+        delivered.norm() > 0.0,
+        "the push never arrived — an act that cannot be felt is not an act"
+    );
+    assert!(
+        delivered.norm() <= max_force * 1.0 * (1.0 + 1e-9),
+        "more momentum arrived than the actor could possibly have delivered"
+    );
+
+    // Look again. Bytes out.
+    let after = phys::view::decode(&phys::view::encode(&client.frame(&w, &req)))
+        .expect("the second scene decoded");
+    println!(
+        "  scene: instant {:.3e} -> {:.3e} s, mass {:.3e} -> {:.3e} kg",
+        before.instant,
+        after.instant,
+        mass_before,
+        after.node().mass
+    );
+    assert!(after.instant > before.instant, "the world moved and the scene says so");
+}
+
+/// An actor learns its limits the same way it learns everything else: by trying
+/// something and being told what happened.
+#[test]
+fn an_actor_discovers_its_own_limits_by_being_told() {
+    let (mut w, d) = a_world();
+    let mut roster = Roster::new();
+    let a = embodied(&w, d);
+    let truth = a.max_force;
+    roster.admit(&mut w, a);
+
+    // Binary search on the clamp fraction, which is all an actor is ever told.
+    // Nothing here reads `max_force`; it is only used to check the answer.
+    let (mut lo, mut hi) = (0.0f64, 1e9f64);
+    for _ in 0..80 {
+        let mid = 0.5 * (lo + hi);
+        let out = roster.apply(
+            &mut w,
+            &Command::Act {
+                actor: ActorId(1),
+                act: Act::Push { target: d, force: v3(mid, 0.0, 0.0), seconds: 0.5 },
+            },
+        );
+        match out {
+            Outcome::Accepted => lo = mid,
+            Outcome::Clamped { .. } => hi = mid,
+            other => panic!("unexpected {other:?}"),
+        }
+    }
+    println!("  actor inferred its limit as {lo:.6} N; it is really {truth} N");
+    assert!(
+        (lo - truth).abs() / truth < 1e-6,
+        "an actor should be able to find its own limit from the answers alone"
+    );
+}

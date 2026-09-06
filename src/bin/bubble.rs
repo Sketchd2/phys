@@ -89,12 +89,8 @@ fn main() {
         w.plant(i, Program::Tree, Environment::default());
     }
     // Watching a tree grow means a clock measured in days, not the
-    // milliseconds a resolved continuum node's dynamics ask for. Driving the
-    // pace by hand is the obscure incantation `docs/BACKLOG.md` has an entry
-    // about — `paced_to = NONE` is what makes an assignment to `pace` stick —
-    // and this is exactly the caller that entry predicted.
-    w.paced_to = NodeIdx::NONE;
-    w.pace = 86_400.0;
+    // milliseconds a resolved continuum node's dynamics ask for.
+    w.pace_fixed(86_400.0);
     w.time_rate = 1.0;
 
     rule("Two trees");

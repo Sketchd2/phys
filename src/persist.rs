@@ -738,6 +738,7 @@ pub struct Snapshot {
     pub time_rate: f64,
     pub time_throttle: f64,
     pub paced_to: NodeIdx,
+    pub pace_mode: crate::engine::PaceMode,
     pub labour_rate: f64,
     pub rejected_transactions: u64,
     pub environments: HashMap<PathKey, Environment>,
@@ -763,6 +764,7 @@ pub struct WorldView<'a> {
     pub time_rate: f64,
     pub time_throttle: f64,
     pub paced_to: NodeIdx,
+    pub pace_mode: crate::engine::PaceMode,
     pub labour_rate: f64,
     pub rejected_transactions: u64,
     pub environments: &'a HashMap<PathKey, Environment>,
@@ -780,6 +782,7 @@ impl Snapshot {
             time_rate: self.time_rate,
             time_throttle: self.time_throttle,
             paced_to: self.paced_to,
+            pace_mode: self.pace_mode,
             labour_rate: self.labour_rate,
             rejected_transactions: self.rejected_transactions,
             environments: &self.environments,
@@ -834,6 +837,7 @@ pub fn encode(s: WorldView<'_>) -> Vec<u8> {
     w.f64(s.time_rate);
     w.f64(s.time_throttle);
     w.u32(s.paced_to.0);
+    w.bool(s.pace_mode == crate::engine::PaceMode::Fixed);
     w.f64(s.labour_rate);
     w.u64(s.rejected_transactions);
 
@@ -937,6 +941,11 @@ pub fn decode(bytes: &[u8]) -> Result<Snapshot> {
     let time_rate = r.f64()?;
     let time_throttle = r.f64()?;
     let paced_to = NodeIdx(r.u32()?);
+    let pace_mode = if r.bool()? {
+        crate::engine::PaceMode::Fixed
+    } else {
+        crate::engine::PaceMode::Follow
+    };
     let labour_rate = r.f64()?;
     let rejected_transactions = r.u64()?;
 
@@ -986,6 +995,7 @@ pub fn decode(bytes: &[u8]) -> Result<Snapshot> {
         time_rate,
         time_throttle,
         paced_to,
+        pace_mode,
         labour_rate,
         rejected_transactions,
         environments,

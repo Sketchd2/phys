@@ -328,3 +328,57 @@ fn the_pace_bound_is_the_time_the_interior_takes_to_rearrange() {
         "the pace should be one resolution element at the internal random speed"
     );
 }
+
+/// Driving the clock by hand used to work by accident.
+///
+/// `refresh_pace` runs at the top of every frame, so an assignment to `pace`
+/// was discarded on the next one unless the caller knew to blank `paced_to`
+/// first — an incantation that read as a bug wherever it appeared, and that
+/// depended on an early return nothing stopped a refactor from removing.
+#[test]
+fn a_fixed_pace_stays_fixed() {
+    use phys::engine::{default_spec, galaxy, PaceMode, World};
+
+    let mut w = World::new(galaxy(0x5CE7E, 1e9), 20.0);
+    w.tree.nodes[0].spec.count = 512;
+    let root = w.tree.root;
+    let here = *w.drill(root, Tier::Continuum, &default_spec).last().unwrap();
+
+    w.pace_to(here);
+    assert_eq!(w.pace_mode, PaceMode::Follow);
+    let followed = w.pace;
+
+    w.pace_fixed(86_400.0);
+    assert_eq!(w.pace_mode, PaceMode::Fixed);
+    for _ in 0..5 {
+        w.step_frame(20_000.0);
+    }
+    println!("  following gave {followed:.3e} s; fixed held {:.3e} s across 5 frames", w.pace);
+    assert_eq!(w.pace, 86_400.0, "a fixed pace must survive refresh_pace");
+
+    // And going back to following takes effect at once.
+    w.pace_to(here);
+    assert_eq!(w.pace_mode, PaceMode::Follow);
+    assert!((w.pace - followed).abs() / followed < 1e-9);
+
+    // A nonsense span is refused rather than freezing the clock.
+    w.pace_fixed(-1.0);
+    assert_eq!(w.pace_mode, PaceMode::Follow, "a bad span must not switch modes");
+}
+
+/// A fixed pace is part of the world, not of the process that set it.
+#[test]
+fn a_fixed_pace_survives_a_save() {
+    use phys::engine::{galaxy, PaceMode, World};
+    use phys::persist::{MemoryStore, WorldStore};
+
+    let mut w = World::new(galaxy(0x5CE7E, 1e9), 20.0);
+    w.pace_fixed(1234.5);
+
+    let mut store = MemoryStore::default();
+    store.save(w.view()).expect("save");
+    let back = World::from_snapshot(store.load().expect("load"), 20.0);
+
+    assert_eq!(back.pace_mode, PaceMode::Fixed);
+    assert_eq!(back.pace, 1234.5);
+}

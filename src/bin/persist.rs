@@ -11,7 +11,6 @@
 //! ```
 
 use phys::engine::{default_spec, World};
-use phys::ids::NodeIdx;
 use phys::math::v3;
 use phys::morph::{Environment, Program};
 use phys::persist::{FileStore, WorldStore};
@@ -86,10 +85,10 @@ fn first_run(store: &mut FileStore, path: &std::path::Path) {
     // growth runs on bulk state, so this costs one ODE step per frame however
     // elaborate the thing being grown is.
     //
-    // `paced_to` is cleared because the pace normally follows whatever is being
-    // watched, and here we are driving it by hand.
-    w.paced_to = NodeIdx::NONE;
-    w.pace = 90.0 * 24.0 * 3600.0;
+    // The clock is driven by hand here rather than following whatever is being
+    // watched, because the span that makes growth visible is a season, not
+    // whatever the node's own dynamics ask for.
+    w.pace_fixed(90.0 * 24.0 * 3600.0);
     w.time_rate = 1.0;
     for _ in 0..80 {
         w.step_frame(50_000.0);

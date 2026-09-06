@@ -228,6 +228,25 @@ pub struct EngineStats {
     pub bubbled: usize,
 }
 
+/// Where the world clock's span per frame comes from.
+///
+/// `refresh_pace` runs at the top of every frame, which is what makes "zooming
+/// in slows time" an arithmetic consequence rather than a policy — and which
+/// also meant an assignment to `pace` was silently discarded on the next frame
+/// unless the caller knew to blank `paced_to` first. That incantation worked by
+/// accident of an early return, read as a bug wherever it appeared, and nothing
+/// stopped a refactor removing the return it depended on. This is the choice
+/// made explicit.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum PaceMode {
+    /// Follow `paced_to`'s own timescale. The default, and the reason
+    /// resolution and time rate stay coupled.
+    #[default]
+    Follow,
+    /// A fixed span per frame, set by the caller and left alone.
+    Fixed,
+}
+
 /// The world.
 pub struct World {
     pub tree: Tree,
@@ -275,6 +294,8 @@ pub struct World {
     pub histories: HashMap<PathKey, History>,
     pub clocks: HashMap<PathKey, Clock>,
     pub stats: EngineStats,
+    /// Whether the clock follows a node or is driven by hand.
+    pub pace_mode: PaceMode,
     /// Actions that deliberately broke conservation, with what they cost.
     pub audit: Vec<AuthorEvent>,
     /// Whether cost estimates assume the GPU path.
@@ -319,6 +340,7 @@ impl World {
             histories: HashMap::new(),
             clocks: HashMap::new(),
             stats: EngineStats::default(),
+            pace_mode: PaceMode::Follow,
             audit: Vec::new(),
             gpu: false,
             labour_rate: 0.0,
@@ -348,6 +370,7 @@ impl World {
             time_rate: self.time_rate,
             time_throttle: self.time_throttle,
             paced_to: self.paced_to,
+            pace_mode: self.pace_mode,
             labour_rate: self.labour_rate,
             rejected_transactions: self.rejected_transactions,
             environments: &self.environments,
@@ -369,6 +392,7 @@ impl World {
         w.time_rate = s.time_rate;
         w.time_throttle = s.time_throttle;
         w.paced_to = s.paced_to;
+        w.pace_mode = s.pace_mode;
         w.labour_rate = s.labour_rate;
         w.rejected_transactions = s.rejected_transactions;
         w.environments = s.environments;
@@ -522,16 +546,32 @@ impl World {
         if idx.is_none() || !self.tree.nodes[idx.get()].alive {
             return;
         }
+        self.pace_mode = PaceMode::Follow;
         self.paced_to = idx;
         self.refresh_pace();
     }
 
+    /// Drive the clock by hand: `span` seconds of world time per frame,
+    /// regardless of what anything is doing.
+    ///
+    /// For growth demos, scripted scenarios, replay and tests — anything that
+    /// needs the clock to be an input rather than a consequence. It is the
+    /// honest counterpart to [`World::pace_to`], and the two are mutually
+    /// exclusive by construction rather than by convention.
+    pub fn pace_fixed(&mut self, span: f64) {
+        if !(span > 0.0) || !span.is_finite() {
+            return;
+        }
+        self.pace_mode = PaceMode::Fixed;
+        self.pace = span;
+    }
+
     /// Re-read the pace from the node it is taken from.
     ///
-    /// Note that this runs every frame, so assigning to `pace` directly does not
-    /// stick unless `paced_to` is `NodeIdx::NONE`. That is a wart — see
-    /// "Pace control has no honest manual mode" in `docs/BACKLOG.md` — and the
-    /// early return below is load-bearing for the callers that rely on it.
+    /// Does nothing in [`PaceMode::Fixed`], which is how an assignment to
+    /// `pace` sticks. It used to be that `paced_to = NodeIdx::NONE` was the
+    /// incantation for the same thing, which worked by accident of an early
+    /// return and read as a bug at every call site.
     ///
     /// Called at the top of every frame, because the subject's cadence moves:
     /// the moment a galaxy is materialised into its stars, the span a frame may
@@ -539,6 +579,9 @@ impl World {
     /// one. This is the feedback that makes "zooming in slows time" an
     /// arithmetic consequence rather than a policy.
     pub fn refresh_pace(&mut self) {
+        if self.pace_mode == PaceMode::Fixed {
+            return;
+        }
         let idx = self.paced_to;
         if idx.is_none() || !self.tree.nodes[idx.get()].alive {
             return;

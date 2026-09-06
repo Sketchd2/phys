@@ -47,8 +47,20 @@ use postgres::{Client, NoTls};
 
 type Result<T> = std::result::Result<T, WireError>;
 
+/// `postgres::Error`'s own `Display` is famously terse — a failed insert
+/// renders as the four words "db error", and the column it actually objected to
+/// is in the source chain underneath. Walking it turns an unreadable failure
+/// into an actionable one, which mattered the first time a schema change met an
+/// existing database.
 fn db(e: postgres::Error) -> WireError {
-    WireError::Io(e.to_string())
+    let mut msg = e.to_string();
+    let mut src: Option<&(dyn std::error::Error + 'static)> = std::error::Error::source(&e);
+    while let Some(inner) = src {
+        msg.push_str(": ");
+        msg.push_str(&inner.to_string());
+        src = inner.source();
+    }
+    WireError::Io(msg)
 }
 
 /// A `u128` key as sixteen big-endian bytes, so it sorts in the database the
@@ -66,7 +78,23 @@ fn key_from(b: &[u8]) -> Result<PathKey> {
     Ok(PathKey(u128::from_be_bytes(a)))
 }
 
+/// Bumped whenever the table layout changes in a way an existing database
+/// would not satisfy.
+///
+/// The tables are created with `IF NOT EXISTS`, which is right for a fresh
+/// database and silently wrong for one built against an older layout: the new
+/// column is never added, and every insert afterwards fails with an error that
+/// names a column rather than the real problem. So the layout carries its own
+/// version, checked on connect, and a mismatch is refused the way the file
+/// reader refuses an old format — by saying so, rather than by misbehaving.
+pub const SCHEMA_VERSION: i32 = 2;
+
 pub const SCHEMA: &str = r#"
+CREATE TABLE IF NOT EXISTS schema_version (
+    id      int PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+    version int NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS world (
     id             int PRIMARY KEY DEFAULT 1 CHECK (id = 1),
     format         int              NOT NULL,
@@ -77,6 +105,7 @@ CREATE TABLE IF NOT EXISTS world (
     time_rate      double precision NOT NULL,
     time_throttle  double precision NOT NULL,
     paced_to       bigint           NOT NULL,
+    pace_fixed     boolean          NOT NULL,
     labour_rate    double precision NOT NULL,
     rejected       bigint           NOT NULL,
     tree_stats     bytea            NOT NULL
@@ -164,10 +193,73 @@ impl PostgresStore {
     ///
     /// `url` is an ordinary libpq connection string, e.g.
     /// `host=127.0.0.1 port=5432 user=phys dbname=phys`.
+    /// Connect, creating the tables if they are absent and refusing a database
+    /// built against a layout this build cannot write.
     pub fn connect(url: &str) -> Result<PostgresStore> {
         let mut client = Client::connect(url, NoTls).map_err(db)?;
+        // Is there anything here already? Ask before running the schema, since
+        // `CREATE TABLE IF NOT EXISTS` would make an old database look new.
+        let existing: Option<i32> = client
+            .query_opt(
+                "SELECT version FROM schema_version WHERE id = 1",
+                &[],
+            )
+            .ok()
+            .flatten()
+            .map(|r| r.get(0));
+        let has_tables: bool = client
+            .query_one(
+                "SELECT to_regclass('public.world') IS NOT NULL",
+                &[],
+            )
+            .map_err(db)?
+            .get(0);
+
+        match existing {
+            Some(v) if v != SCHEMA_VERSION => {
+                return Err(WireError::UnsupportedVersion {
+                    found: v as u16,
+                    supported: SCHEMA_VERSION as u16,
+                });
+            }
+            // Tables from before the version stamp existed, or from a build
+            // that wrote a different layout. Either way this build cannot use
+            // them, and saying so beats a failed insert naming one column.
+            None if has_tables => {
+                return Err(WireError::UnsupportedVersion {
+                    found: 0,
+                    supported: SCHEMA_VERSION as u16,
+                });
+            }
+            _ => {}
+        }
+
         client.batch_execute(SCHEMA).map_err(db)?;
+        client
+            .execute(
+                "INSERT INTO schema_version (id, version) VALUES (1, $1)
+                 ON CONFLICT (id) DO UPDATE SET version = EXCLUDED.version",
+                &[&SCHEMA_VERSION],
+            )
+            .map_err(db)?;
         Ok(PostgresStore { client })
+    }
+
+    /// Drop every table and build them again at the current layout.
+    ///
+    /// The way out of the refusal above, and destructive by design: there is no
+    /// migration path from an unknown layout, and pretending otherwise would be
+    /// worse than saying what this does.
+    pub fn reset(url: &str) -> Result<PostgresStore> {
+        let mut client = Client::connect(url, NoTls).map_err(db)?;
+        client
+            .batch_execute(
+                "DROP TABLE IF EXISTS node, pinned, fact, environment, audit, world,
+                 ledger_counters, in_flight, mailbox_counters, schema_version CASCADE;",
+            )
+            .map_err(db)?;
+        drop(client);
+        PostgresStore::connect(url)
     }
 
     /// Throw the world away. Used by tests and by "start again".
@@ -196,13 +288,14 @@ impl PostgresStore {
         self.client
             .execute(
                 "INSERT INTO world (id, format, world_seed, root, instant, pace, time_rate,
-                                    time_throttle, paced_to, labour_rate, rejected, tree_stats)
-                 VALUES (1, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+                                    time_throttle, paced_to, pace_fixed, labour_rate, rejected, tree_stats)
+                 VALUES (1, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
                  ON CONFLICT (id) DO UPDATE SET
                     format = EXCLUDED.format, world_seed = EXCLUDED.world_seed,
                     root = EXCLUDED.root, instant = EXCLUDED.instant, pace = EXCLUDED.pace,
                     time_rate = EXCLUDED.time_rate, time_throttle = EXCLUDED.time_throttle,
-                    paced_to = EXCLUDED.paced_to, labour_rate = EXCLUDED.labour_rate,
+                    paced_to = EXCLUDED.paced_to, pace_fixed = EXCLUDED.pace_fixed,
+                    labour_rate = EXCLUDED.labour_rate,
                     rejected = EXCLUDED.rejected, tree_stats = EXCLUDED.tree_stats",
                 &[
                     &(crate::wire::FORMAT_VERSION as i32),
@@ -213,6 +306,7 @@ impl PostgresStore {
                     &v.time_rate,
                     &v.time_throttle,
                     &(v.paced_to.0 as i64),
+                    &(v.pace_mode == crate::engine::PaceMode::Fixed),
                     &v.labour_rate,
                     &(v.rejected_transactions as i64),
                     &stats.finish(),
@@ -563,6 +657,11 @@ fn load_impl(store: &mut PostgresStore) -> Result<Snapshot> {
         time_rate: world.get("time_rate"),
         time_throttle: world.get("time_throttle"),
         paced_to: NodeIdx(world.get::<_, i64>("paced_to") as u32),
+            pace_mode: if world.get::<_, bool>("pace_fixed") {
+                crate::engine::PaceMode::Fixed
+            } else {
+                crate::engine::PaceMode::Follow
+            },
         labour_rate: world.get("labour_rate"),
         rejected_transactions: world.get::<_, i64>("rejected") as u64,
         environments,

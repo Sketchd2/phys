@@ -12,6 +12,13 @@
 //! should still get a green suite, and the property these tests check — that a
 //! store is swappable — is only meaningful when there is something to swap to.
 //!
+//! But *only* an absent `PHYS_PG` skips. A `PHYS_PG` that is set and does not
+//! work is a failure, loudly. These tests once reported six passes while
+//! running nothing at all: a schema change met an existing database, `connect`
+//! correctly refused it, and the harness could not tell "no database" from
+//! "database I cannot use" — so it skipped, and the suite went green over a
+//! store that could not save a single row. A test that cannot run must say so.
+//!
 //! # One database, one test at a time
 //!
 //! Every test here starts by truncating, because a store that carries the last
@@ -37,7 +44,9 @@ static LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 type Session = (PostgresStore, std::sync::MutexGuard<'static, ()>);
 
 fn store() -> Option<Session> {
-    let url = std::env::var("PHYS_PG").ok()?;
+    let Ok(url) = std::env::var("PHYS_PG") else {
+        return None;
+    };
     // A test that panics poisons the lock. The next test still wants the
     // database, and a poisoned mutex here means "the last test failed", not
     // "the data is unsafe" — it is about to truncate anyway.
@@ -47,10 +56,12 @@ fn store() -> Option<Session> {
             s.clear().expect("truncate");
             Some((s, guard))
         }
-        Err(e) => {
-            eprintln!("PHYS_PG is set but unusable ({e}); skipping");
-            None
-        }
+        Err(e) => panic!(
+            "PHYS_PG is set but unusable: {e}\n\
+             This is a failure, not a skip — unset PHYS_PG to skip these tests.\n\
+             If the schema is out of date, `PostgresStore::reset(url)` drops and \
+             rebuilds it (destructively)."
+        ),
     }
 }
 

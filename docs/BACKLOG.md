@@ -10,46 +10,21 @@ a trigger.
 
 ---
 
-## Pace control has no honest "manual" mode
+## ~~Pace control has no honest "manual" mode~~ — done
 
-**Noticed:** building `phys-persist` (Phase 1).
-**Where:** `engine.rs` — `World::refresh_pace`, `World::pace`, `World::paced_to`.
+**Noticed:** building `phys-persist` (Phase 1). **Closed:** building
+`phys-bubble`, which was the third caller the trigger predicted.
 
-`refresh_pace()` runs at the top of every frame and recomputes `pace` from
-`paced_to`, which is correct and is what makes "zooming in slows time" fall out
-as arithmetic rather than policy. But it means an assignment to `world.pace` is
-silently discarded on the next frame, and the only way to drive the pace by hand
-is:
+`refresh_pace` runs at the top of every frame, so an assignment to `world.pace`
+was silently discarded on the next one, and the only way to drive the clock by
+hand was to set `paced_to = NodeIdx::NONE` first — which worked by accident of
+an early return, read as a bug at every call site, and depended on a return
+nothing stopped a refactor from removing.
 
-```rust
-w.paced_to = NodeIdx::NONE;   // obscure: "nothing is being watched"
-w.pace = 90.0 * 24.0 * 3600.0;
-```
-
-That works because `refresh_pace` returns early on a none index, but it reads as
-a bug rather than an intent, and nothing stops a later refactor from removing
-the early return and quietly breaking every caller doing this.
-
-**The fix** is a small enum making the choice explicit:
-
-```rust
-pub enum PaceMode {
-    /// Follow a node's characteristic time. The default, and the reason
-    /// resolution and time rate stay coupled.
-    Follow(NodeIdx),
-    /// A fixed span per frame, set by the caller. Growth demos, tests,
-    /// deterministic replay, anything scripted.
-    Fixed,
-}
-```
-
-**Trigger:** do it before anything else needs to script the clock — the headless
-worker (Phase 2) and replay both will. Doing it after there are several callers
-setting `paced_to = NONE` means finding all of them.
-
-**Cost:** small. One enum, one branch in `refresh_pace`, and updating the two
-current callers. Deliberately not done inside a persistence commit, because
-changing scheduler semantics there would have muddled what that change was for.
+`PaceMode::{Follow, Fixed}` makes the choice explicit, `World::pace_fixed`
+is the honest counterpart to `World::pace_to`, and the two are mutually
+exclusive by construction. It persists, because a fixed pace is a property of
+the world rather than of the process that set it.
 
 ---
 
