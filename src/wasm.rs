@@ -936,6 +936,9 @@ pub struct Explorer {
     budget: usize,
     /// Simulated seconds elapsed at the current node.
     elapsed: f64,
+    /// The last scene handed over. Everything the client reports comes from
+    /// here rather than from the world, so the two cannot drift apart.
+    scene: crate::view::Scene,
     dirty: bool,
 }
 
@@ -977,9 +980,11 @@ pub extern "C" fn scene_create(index: u32, seed: u32, budget: u32) {
             seed,
             budget: budget as usize,
             elapsed: 0.0,
+            scene: crate::view::Scene::default(),
             dirty: true,
         });
     }
+    ensure_resolved(explorer());
     refresh_scene(explorer());
 }
 
@@ -1015,6 +1020,7 @@ pub extern "C" fn scene_descend(index: u32) -> u32 {
     e.world.pace_to(child);
     e.elapsed = 0.0;
     e.dirty = true;
+    ensure_resolved(e);
     refresh_scene(e);
     1
 }
@@ -1059,6 +1065,7 @@ pub extern "C" fn scene_ascend() -> u32 {
     }
     e.elapsed = 0.0;
     e.dirty = true;
+    ensure_resolved(e);
     refresh_scene(e);
     1
 }
@@ -1090,13 +1097,11 @@ pub extern "C" fn scene_step(rate: f32) {
     let before = e.world.time;
     e.world.step_frame(50_000.0);
     e.elapsed += e.world.time - before;
-    e.readouts[20] = e.world.stats.worst_lateness as f32;
-    e.readouts[21] = e.world.time_throttle as f32;
-    e.readouts[22] = e.world.stats.coasted as f32;
-    e.readouts[23] = e.world.stats.thermalised as f32;
-    e.readouts[24] = e.world.stats.detail_debt as f32;
-    e.readouts[25] = e.world.stats.live_nodes as f32;
+    // The world readouts are not written here. They come back in the scene, so
+    // there is exactly one path from the authoritative state to the client and
+    // no chance of the two disagreeing.
     e.dirty = true;
+    ensure_resolved(e);
     refresh_scene(e);
 }
 
@@ -1138,6 +1143,31 @@ pub extern "C" fn scene_set_budget(budget: u32) {
     refresh_scene(e);
 }
 
+/// Make sure the node being watched actually has detail.
+///
+/// This is a *command*, and it lives on the solve side. Under the seam in
+/// `view.rs` a client cannot materialise anything by looking at it: resolving a
+/// node is a decision the authoritative world makes, and "I am watching this
+/// one" is how the explorer asks for it. `refresh_scene` used to do this
+/// silently, which is precisely the coupling Phase 2 removes.
+fn ensure_resolved(e: &mut Explorer) {
+    if let Some(&here) = e.path.last() {
+        if !e.world.tree.nodes[here.get()].alive {
+            return;
+        }
+        if !e.world.tree.nodes[here.get()].is_materialised() {
+            e.world.tree.refine(here);
+        }
+    }
+}
+
+/// Flatten a [`Scene`] into the flat arrays the JavaScript side reads.
+///
+/// Everything below this line is a *client*. It holds a scene and nothing else
+/// — no `World`, no `Tree`, no solver — and could as easily be reading bytes
+/// off a socket as calling `render` in the same process. That is the whole
+/// point of the phase: the code here cannot advance physics even by accident,
+/// because it has nothing to advance.
 fn refresh_scene(e: &mut Explorer) {
     if !e.dirty {
         return;
@@ -1146,59 +1176,63 @@ fn refresh_scene(e: &mut Explorer) {
     let Some(&here) = e.path.last() else {
         return;
     };
-    let bodies = e.world.tree.refine(here).to_vec();
-    let node_radius = e.world.tree.nodes[here.get()].agg.radius.max(1e-300);
-    let inv = 1.0 / node_radius;
 
-    // Where the bodies are *now*, not where the last solve left them. A node
-    // the frame could not bring all the way to the instant is behind by its
-    // lateness, and drawing it there makes the world stutter at exactly the
-    // rate the scheduler skips things.
-    let lag = e.world.render_lag(here);
+    let scene = e.world.render(&crate::view::ViewRequest {
+        node: here,
+        max_bodies: 0,
+        trail: 16,
+    });
+    e.scene = scene;
 
     e.points.clear();
-    let mut fastest = 0.0f64;
-    let mut hottest = 0.0f64;
-    let mut heaviest = 0.0f64;
-    for b in &bodies {
-        let speed = b.vel.norm();
-        fastest = fastest.max(speed);
+    e.points.reserve(e.scene.bodies.len() * POINT_STRIDE);
+    let mut fastest = 0.0f32;
+    let mut hottest = 0.0f32;
+    let mut heaviest = 0.0f32;
+    for b in &e.scene.bodies {
+        fastest = fastest.max(b.speed);
         hottest = hottest.max(b.temperature);
         heaviest = heaviest.max(b.mass);
-        let pos = b.pos + b.vel.scale(lag);
         e.points.extend_from_slice(&[
-            (pos.x * inv) as f32,
-            (pos.y * inv) as f32,
-            (pos.z * inv) as f32,
-            (b.radius * inv) as f32,
-            b.mass as f32,
-            b.temperature as f32,
-            speed as f32,
-            b.kind as u32 as f32,
+            b.pos[0],
+            b.pos[1],
+            b.pos[2],
+            b.radius,
+            b.mass,
+            b.temperature,
+            b.speed,
+            b.kind as f32,
         ]);
     }
 
-    let n = &e.world.tree.nodes[here.get()];
-    e.readouts[0] = n.agg.mass as f32;
-    e.readouts[1] = node_radius as f32;
-    e.readouts[2] = n.agg.temperature as f32;
-    e.readouts[3] = bodies.len() as f32;
-    e.readouts[4] = n.tier as u32 as f32;
+    let n = &e.scene.node;
+    let d = &e.scene.world;
+    e.readouts[0] = n.mass as f32;
+    e.readouts[1] = n.radius as f32;
+    e.readouts[2] = n.temperature as f32;
+    e.readouts[3] = e.scene.bodies.len() as f32;
+    e.readouts[4] = n.tier as f32;
     e.readouts[5] = e.path.len() as f32 - 1.0;
-    e.readouts[6] = heaviest as f32;
-    e.readouts[7] = fastest as f32;
-    e.readouts[8] = hottest as f32;
-    e.readouts[9] = e.world.node_dt(here) as f32;
+    e.readouts[6] = heaviest;
+    e.readouts[7] = fastest;
+    e.readouts[8] = hottest;
+    e.readouts[9] = n.timestep as f32;
     e.readouts[10] = e.elapsed as f32;
-    e.readouts[11] = e.world.tree.detail_bytes() as f32;
-    e.readouts[12] = n.agg.internal_energy as f32;
-    e.readouts[13] = n.agg.binding_energy as f32;
-    e.readouts[14] = n.agg.luminosity as f32;
+    e.readouts[11] = d.detail_bytes as f32;
+    e.readouts[12] = n.internal_energy as f32;
+    e.readouts[13] = n.binding_energy as f32;
+    e.readouts[14] = n.luminosity as f32;
     e.readouts[15] = e.scenario as f32;
     e.readouts[16] = e.budget as f32;
-    e.readouts[17] = crate::solvers::for_tier(n.tier) as u32 as f32;
-    e.readouts[18] = n.agg.charge as f32;
-    e.readouts[19] = e.world.tree.nodes.iter().filter(|n| n.alive && n.is_materialised()).count() as f32;
+    e.readouts[17] = n.solver as f32;
+    e.readouts[18] = n.charge as f32;
+    e.readouts[19] = d.materialised_bodies as f32;
+    e.readouts[20] = d.worst_lateness as f32;
+    e.readouts[21] = d.time_throttle as f32;
+    e.readouts[22] = d.coasted as f32;
+    e.readouts[23] = d.thermalised as f32;
+    e.readouts[24] = d.detail_debt as f32;
+    e.readouts[25] = d.live_nodes as f32;
 }
 
 /// One quantity about the current node, in full precision.
@@ -1210,28 +1244,26 @@ fn refresh_scene(e: &mut Explorer) {
 #[unsafe(no_mangle)]
 pub extern "C" fn scene_value(which: u32) -> f64 {
     let e = explorer();
-    let Some(&here) = e.path.last() else {
-        return 0.0;
-    };
-    let n = &e.world.tree.nodes[here.get()];
+    // Read from the scene, not from the world. If a number is not in the scene
+    // then a real client could not have it either, and the readout would be
+    // quietly lying about what the boundary carries.
+    let n = &e.scene.node;
+    let d = &e.scene.world;
     match which {
-        0 => n.agg.mass,
-        1 => n.agg.radius,
-        2 => n.agg.temperature,
-        3 => e.world.node_dt(here),
+        0 => n.mass,
+        1 => n.radius,
+        2 => n.temperature,
+        3 => n.timestep,
         4 => e.elapsed,
-        10 => e.world.node_cadence(here),
-        11 => e.world.frame_dt(),
-        12 => e.world.time,
-        13 => e.world.mixing_time(here),
-        5 => n.agg.internal_energy,
-        6 => n.agg.binding_energy,
-        7 => n.agg.luminosity,
-        8 => e.points
-            .chunks_exact(POINT_STRIDE)
-            .map(|p| p[6] as f64)
-            .fold(0.0f64, f64::max),
-        9 => e.world.tree.detail_bytes() as f64,
+        5 => n.internal_energy,
+        6 => n.binding_energy,
+        7 => n.luminosity,
+        8 => e.scene.channel_range(|b| b.speed).1 as f64,
+        9 => d.detail_bytes as f64,
+        10 => n.cadence,
+        11 => d.frame_span,
+        12 => d.time,
+        13 => n.mixing_time,
         _ => 0.0,
     }
 }
@@ -1245,8 +1277,10 @@ pub extern "C" fn scene_trail_metres(up: u32) -> f64 {
     if (up as usize) >= len {
         return 0.0;
     }
-    let idx = e.path[len - 1 - up as usize];
-    e.world.tree.nodes[idx.get()].agg.radius
+    if up == 0 {
+        return e.scene.node.radius;
+    }
+    e.scene.trail.get(up as usize - 1).map(|t| t.radius).unwrap_or(0.0)
 }
 
 #[unsafe(no_mangle)]
@@ -1279,8 +1313,11 @@ pub extern "C" fn scene_trail_tier(up: u32) -> u32 {
     if (up as usize) >= len {
         return 255;
     }
-    let idx = e.path[len - 1 - up as usize];
-    e.world.tree.nodes[idx.get()].tier as u32
+    if up == 0 {
+        return e.scene.node.tier as u32;
+    }
+    // The trail travels in the scene, nearest ancestor first.
+    e.scene.trail.get(up as usize - 1).map(|t| t.tier as u32).unwrap_or(255)
 }
 
 /// Radius in metres of the node `up` levels above the current one.

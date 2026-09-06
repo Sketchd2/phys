@@ -60,6 +60,7 @@ pub mod state;
 pub mod topology;
 pub mod tree;
 pub mod units;
+pub mod view;
 pub mod wire;
 pub mod wasm;
 

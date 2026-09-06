@@ -21,6 +21,10 @@ path = "src/bin/demo.rs"
 name = "phys-persist"
 path = "src/bin/persist.rs"
 
+[[bin]]
+name = "phys-headless"
+path = "src/bin/headless.rs"
+
 [profile.release]
 opt-level = 3
 lto = "thin"

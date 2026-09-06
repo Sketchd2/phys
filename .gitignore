@@ -7,3 +7,4 @@ Cargo.lock
 # Worlds written by the persistence demo.
 world.phys
 *.world
+scenes.phys
