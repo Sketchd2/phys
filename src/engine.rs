@@ -513,6 +513,11 @@ impl World {
 
     /// Re-read the pace from the node it is taken from.
     ///
+    /// Note that this runs every frame, so assigning to `pace` directly does not
+    /// stick unless `paced_to` is `NodeIdx::NONE`. That is a wart — see
+    /// "Pace control has no honest manual mode" in `docs/BACKLOG.md` — and the
+    /// early return below is load-bearing for the callers that rely on it.
+    ///
     /// Called at the top of every frame, because the subject's cadence moves:
     /// the moment a galaxy is materialised into its stars, the span a frame may
     /// cover has to come down with it or the stars cannot be integrated across
