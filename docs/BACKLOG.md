@@ -110,35 +110,33 @@ the pace.
 
 ---
 
-## Crowd lateness is tier-dependent, and unexplained
+## ~~Crowd lateness is tier-dependent, and unexplained~~ — explained
 
-**Noticed:** the same measurements.
-**Where:** `engine.rs` — `refresh_pace`, `lateness`, the planner in `budget.rs`.
+**Closed:** measured. It is not tier-dependent and there is nothing to fix; it
+is the single-clock constraint, restated.
 
-With the pace target materialised, 128 promoted neighbours behave completely
-differently depending on where on the ladder they sit:
+Lateness came out at 6.8 for a crowd of promoted planetary nodes and 1.000 for
+the same crowd at continuum tier, which looked like a fortyfold difference
+between tiers. It is neither fortyfold nor about tiers:
 
 ```text
-    continuum neighbours (the play space):  136 live nodes, worst lateness 0.028
-    planetary neighbours:                   131 live nodes, worst lateness 1.175
-    planetary, pace target unmaterialised:  131 live nodes, worst lateness 6.8
+    planetary:  pace 1.163e3 s, worst node's cadence 1.709e2 s  ->  ratio 6.8
+    continuum:  pace 1.008e-2 s, worst node's cadence 1.008e-2 s ->  ratio 1.0
 ```
 
-Lateness under one means every node was re-solved before it had changed, so the
-play space — animal, human and vehicle scale — holds a crowd of 136 comfortably
-today. `phys-headless serve` reports a worst lateness around 300, but it
-promotes 200 planetary nodes out of a galaxy, which is not a scene anyone will
-play in.
+Lateness is `pace / cadence of the fastest live node`, exactly. The pace is
+taken from the node being *watched*; its promoted children have their own
+cadences, and at planetary tier those happened to be 6.8x shorter while at
+continuum they happened to match. Change which node is watched and the number
+moves with it.
 
-So this is **not** currently a blocker, and an earlier draft of this entry
-claiming a city needs a new scheduling rule was wrong — it generalised from the
-galaxy-scale demo without measuring the play scale. What is not understood is
-why the planetary tier is forty times worse than the continuum tier at the same
-node count.
-
-**Trigger:** a play-scale scene that measures over one. Worth understanding
-before anyone concludes the scheduler needs changing, because the numbers above
-say the load is not what is hurting it.
+**What it does say** is that the world clock is set by what someone is looking
+at, and anything live with a shorter cadence falls behind by exactly that
+ratio. `refresh_pace` could instead bound the pace by the fastest *live* node's
+cadence, which would guarantee lateness at or under one everywhere at the cost
+of a clock that runs slower than the viewer asked for. That is a policy
+decision, not a bug fix, and it wants deciding rather than defaulting — a time
+bubble is the escape hatch either way.
 
 ---
 
