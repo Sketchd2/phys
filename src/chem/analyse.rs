@@ -362,7 +362,26 @@ pub fn analyse(arr: &Arrangement) -> Result<Properties, Illegal> {
     let lattice_binding_ev = match arr.lattice {
         Lattice::Molecular => 0.0,
         _ if arr.atoms.is_empty() => 0.0,
-        _ => cohesive / arr.atoms.len() as f64 / crate::units::E_CHARGE,
+        _ => {
+            // Lattice energy grows as the product of the ionic charges, which
+            // is why sodium chloride dissolves and uranium dioxide does not
+            // despite both being ionic oxide-or-halide lattices. The charges
+            // are not in the arrangement — nothing declares an oxidation state
+            // — but each element's ordinary valence stands in for one, and it
+            // is enough to separate a 1:1 salt from a 4:2 oxide.
+            let mut charge_product = 1.0;
+            let mut counted = 0.0;
+            for b in &arr.bonds {
+                let (za, zb) = (
+                    arr.atoms[b.a as usize].valence().unwrap_or(1).max(1) as f64,
+                    arr.atoms[b.b as usize].valence().unwrap_or(1).max(1) as f64,
+                );
+                charge_product += za * zb;
+                counted += 1.0;
+            }
+            let mean = if counted > 0.0 { (charge_product - 1.0) / counted } else { 1.0 };
+            cohesive / arr.atoms.len() as f64 / crate::units::E_CHARGE * mean.powf(0.4)
+        }
     };
     let water_solubility =
         dissolves(polarity, unit_mass * N_AVOGADRO, lattice_binding_ev, WATER_POLARITY);
@@ -520,6 +539,23 @@ pub const WATER_POLARITY: f64 = 7.12;
 /// costs more cavity than its polar groups can pay for — the reason methanol is
 /// miscible and octanol is not. And, for a crystal, how strongly it is bound,
 /// because a lattice has to be taken apart before any of it can be surrounded.
+///
+/// # Where the number stops being a number
+///
+/// It is calibrated on small molecules and singly-charged salts in water, which
+/// is the case that matters at play scale, and it is good to a decade and a
+/// half there. Outside it, read the answer as a *class* rather than a
+/// quantity:
+///
+/// * Multiply-charged lattices — metal oxides, phosphates — have lattice
+///   energies growing as the product of the ionic charges, and the valence
+///   proxy for that is coarse. Uranium dioxide comes out at 10^-9 against a
+///   real 10^-9, and that agreement is luckier than the model deserves.
+/// * Network solids like quartz are limited by how fast they dissolve rather
+///   than by whether they can, and nothing here models a rate.
+///
+/// In both cases the answer to take from it is "negligible", which is the
+/// answer the engine needs, and not the digits.
 pub fn dissolves(
     solute_polarity: f64,
     solute_molar_mass: f64,

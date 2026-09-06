@@ -430,7 +430,8 @@ fn an_impossible_arrangement_is_refused_not_approximated() {
     assert!(matches!(analyse(&Arrangement::molecule(vec![], vec![])), Err(Illegal::Empty)));
 
     // An element the table has no data for, rather than a guess.
-    let exotic = Arrangement::atom(Element(94), 0);
+    // Past the end of the table — 94 is plutonium and perfectly ordinary.
+    let exotic = Arrangement::atom(Element(120), 0);
     assert!(matches!(analyse(&exotic), Err(Illegal::UnknownElement(_))));
 }
 
@@ -629,4 +630,120 @@ fn a_mixture_is_bounded_and_says_what_it_dropped() {
     // A trace species that does not make the cut is told so.
     let tiny = ids[0];
     assert!(!m.add(tiny, 1e-9), "a trace below everything held must be refused, not silently lost");
+}
+
+// ---------------------------------------------------------------------------
+// the table itself
+// ---------------------------------------------------------------------------
+
+/// Hydrogen to plutonium, with nothing missing and nothing invented.
+#[test]
+fn the_table_runs_to_plutonium() {
+    assert_eq!(Element::from_symbol("Pu"), Some(Element(94)));
+    assert_eq!(Element(94).symbol(), "Pu");
+    assert!(!Element(95).known(), "the table must stop where the data does");
+
+    // Every element in range answers every question.
+    for z in 1..=elements::HEAVIEST {
+        let e = Element(z);
+        assert!(e.known(), "Z={z} is in range and must be known");
+        for (what, present) in [
+            ("weight", e.weight().is_some()),
+            ("electronegativity", e.electronegativity().is_some()),
+            ("covalent radius", e.covalent_radius().is_some()),
+            ("van der Waals radius", e.vdw_radius().is_some()),
+            ("valence", e.valence().is_some()),
+            ("valence electrons", e.valence_electrons().is_some()),
+            ("bond energy", e.homonuclear_bond().is_some()),
+        ] {
+            assert!(present, "{} (Z={z}) has no {what}", e.symbol());
+        }
+        assert!(e.weight().unwrap() > 0.0, "{} has no mass", e.symbol());
+        assert!(e.vdw_radius().unwrap() > e.covalent_radius().unwrap(),
+            "{}: a van der Waals radius must exceed the covalent one", e.symbol());
+    }
+
+    // Symbols are unique, or `from_symbol` would be ambiguous.
+    let mut seen = std::collections::BTreeSet::new();
+    for z in 1..=elements::HEAVIEST {
+        assert!(seen.insert(Element(z).symbol()), "duplicate symbol at Z={z}");
+    }
+    println!("  {} elements, H to Pu, complete", elements::HEAVIEST);
+}
+
+/// Atomic weights against the values a chemist would look up.
+#[test]
+fn atomic_weights_are_right_across_the_table() {
+    for (sym, real) in [
+        ("H", 1.008), ("C", 12.011), ("O", 15.999), ("Na", 22.990), ("Cl", 35.45),
+        ("Fe", 55.845), ("Ag", 107.87), ("I", 126.90), ("W", 183.84), ("Au", 196.97),
+        ("Pb", 207.2), ("U", 238.03), ("Pu", 244.0),
+    ] {
+        let e = Element::from_symbol(sym).unwrap_or_else(|| panic!("{sym} missing"));
+        let got = e.weight().unwrap();
+        println!("  {sym:<3} Z={:<3} {got:>8.3} u", e.z());
+        assert!((got - real).abs() < 0.01, "{sym}: {got} against {real}");
+    }
+}
+
+/// The heavy elements are usable, not merely present: a uranium compound has to
+/// analyse like any other.
+#[test]
+fn a_heavy_element_analyses_like_any_other() {
+    let u = Element::from_symbol("U").unwrap();
+    let o = Element::from_symbol("O").unwrap();
+    // Uranium dioxide, the ceramic reactor fuel is made of. Fluorite lattice,
+    // cell edge 547 pm holding four formula units.
+    let uo2 = Arrangement::crystal(
+        vec![u, o, o],
+        vec![Bond::new(0, 1, Order::Ionic), Bond::new(0, 2, Order::Ionic)],
+        Lattice::Cubic { a: 5.47e-10 / 4f64.cbrt() },
+    );
+    let p = analyse(&uo2).expect("uranium dioxide must analyse");
+    println!(
+        "  {} : M {:.2} g/mol (real 270.03), density {:.0} kg/m3 (real 10970), \
+         ionicity {:.2}, melts at {:.0} K (real 3138)",
+        uo2.formula().hill(),
+        p.molar_mass * 1000.0,
+        p.density,
+        p.ionicity,
+        p.melting_point
+    );
+    assert!((p.molar_mass * 1000.0 - 270.03).abs() < 0.05, "molar mass is exact or nothing is");
+    // Density comes from the lattice, so it should be close.
+    assert!(
+        (p.density / 10970.0 - 1.0).abs() < 0.15,
+        "density {:.0} against a real 10970",
+        p.density
+    );
+    assert!(p.ionicity > 0.4, "a metal oxide should be substantially ionic");
+    // And it is not soluble in water, which is what makes it a fuel pellet
+    // rather than a hazard the moment it rains. A multiply-charged lattice is
+    // outside the range the solubility model is calibrated on, so what is
+    // asserted here is the class — negligible — and not the digits.
+    println!("  water solubility {:.3e} kg/kg (real ~1e-9: negligible)", p.water_solubility);
+    assert!(p.water_solubility < 1e-6, "a fuel pellet must not dissolve in rain");
+}
+
+/// Plutonium metal: the case the table was extended for.
+#[test]
+fn plutonium_is_a_substance_like_any_other() {
+    let mut reg = Registry::new();
+    let pu = Element::from_symbol("Pu").unwrap();
+    let metal = Arrangement::crystal(
+        vec![pu],
+        Vec::new(),
+        // Delta-phase plutonium: face-centred cubic, 463 pm, four atoms a cell.
+        Lattice::Cubic { a: 4.63e-10 / 4f64.cbrt() },
+    );
+    let id = reg.intern(metal).expect("plutonium must analyse");
+    let s = reg.get(id).unwrap();
+    println!(
+        "  {} : M {:.1} g/mol (real 244.0), density {:.0} kg/m3 (real 15920)",
+        s.formula.hill(),
+        s.props.molar_mass * 1000.0,
+        s.props.density
+    );
+    assert!((s.props.molar_mass * 1000.0 - 244.0).abs() < 0.1);
+    assert!((s.props.density / 15920.0 - 1.0).abs() < 0.15);
 }

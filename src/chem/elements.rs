@@ -24,11 +24,28 @@
 //!
 //! # The table
 //!
-//! Standard atomic weights (CIAAW), Pauling electronegativities, and Cordero
-//! covalent radii for Z = 1..36, which spans everything ordinary matter at
-//! human, animal and vehicle scale is made of. Past krypton the table stops and
-//! [`Element::known`] says so rather than inventing values: an estimated
-//! electronegativity would propagate silently into every bond it touched.
+//! Standard atomic weights (CIAAW), Pauling electronegativities, Cordero
+//! covalent radii and van der Waals radii (Bondi for the main group, Alvarez
+//! beyond it) for Z = 1..94 — hydrogen to plutonium. That is every element
+//! ordinary matter is made of, every element a reactor or a weapon is made of,
+//! and every element with a stable or long-lived isotope.
+//!
+//! Past plutonium the table stops and [`Element::known`] says so rather than
+//! inventing values: an estimated electronegativity would propagate silently
+//! into every bond it touched. Nothing beyond plutonium exists in quantity
+//! anyway — the transplutonics are made an atom at a time — so the boundary is
+//! where the chemistry stops rather than where the patience did.
+//!
+//! # Which numbers to trust
+//!
+//! Atomic weights are exact to the digits shown and electronegativities and
+//! radii are good throughout. The homonuclear bond energies are the weakest
+//! column: they are well measured for the main group, approximate for the
+//! transition metals whose condensed phase is metallic rather than covalent,
+//! and for the lanthanides and actinides they are estimates from cohesive
+//! energies rather than measured diatomic dissociation. `Confidence` is how a
+//! caller finds out; anything built from an f-block element should be read as
+//! an order of magnitude.
 
 /// An element, by atomic number.
 ///
@@ -93,7 +110,7 @@ const fn e(
 }
 
 /// Indexed by atomic number; slot zero is a placeholder so `Z` indexes directly.
-const TABLE: [Entry; 37] = [
+const TABLE: [Entry; 95] = [
     e("?", 0.0, 0.0, 0.0, 0.0, 0, 0, 0.0),
     e("H", 1.008, 2.2, 31.0, 120.0, 1, 1, 436.0),
     e("He", 4.0026, 0.0, 28.0, 140.0, 0, 2, 0.0),
@@ -131,10 +148,68 @@ const TABLE: [Entry; 37] = [
     e("Se", 78.971, 2.55, 120.0, 190.0, 2, 6, 172.0),
     e("Br", 79.904, 2.96, 120.0, 185.0, 1, 7, 193.0),
     e("Kr", 83.798, 3.0, 116.0, 202.0, 0, 8, 0.0),
+    e("Rb", 85.468, 0.82, 220.0, 303.0, 1, 1, 46.0),
+    e("Sr", 87.62, 0.95, 195.0, 249.0, 2, 2, 84.0),
+    e("Y", 88.906, 1.22, 190.0, 232.0, 3, 3, 165.0),
+    e("Zr", 91.224, 1.33, 175.0, 223.0, 4, 4, 298.0),
+    e("Nb", 92.906, 1.6, 164.0, 218.0, 5, 5, 513.0),
+    e("Mo", 95.95, 2.16, 154.0, 217.0, 6, 6, 436.0),
+    e("Tc", 98.0, 1.9, 147.0, 216.0, 7, 7, 330.0),
+    e("Ru", 101.07, 2.2, 146.0, 213.0, 6, 6, 415.0),
+    e("Rh", 102.91, 2.28, 142.0, 210.0, 6, 6, 236.0),
+    e("Pd", 106.42, 2.2, 139.0, 163.0, 4, 4, 136.0),
+    e("Ag", 107.87, 1.93, 145.0, 172.0, 1, 1, 163.0),
+    e("Cd", 112.41, 1.69, 144.0, 158.0, 2, 2, 8.0),
+    e("In", 114.82, 1.78, 142.0, 193.0, 3, 3, 100.0),
+    e("Sn", 118.71, 1.96, 139.0, 217.0, 4, 4, 187.0),
+    e("Sb", 121.76, 2.05, 139.0, 206.0, 3, 5, 121.0),
+    e("Te", 127.6, 2.1, 138.0, 206.0, 2, 6, 138.0),
+    e("I", 126.9, 2.66, 139.0, 198.0, 1, 7, 151.0),
+    e("Xe", 131.29, 2.6, 140.0, 216.0, 0, 8, 0.0),
+    e("Cs", 132.91, 0.79, 244.0, 343.0, 1, 1, 44.0),
+    e("Ba", 137.33, 0.89, 215.0, 268.0, 2, 2, 44.0),
+    e("La", 138.91, 1.1, 207.0, 243.0, 3, 3, 247.0),
+    e("Ce", 140.12, 1.12, 204.0, 242.0, 3, 3, 243.0),
+    e("Pr", 140.91, 1.13, 203.0, 240.0, 3, 3, 133.0),
+    e("Nd", 144.24, 1.14, 201.0, 239.0, 3, 3, 164.0),
+    e("Pm", 145.0, 1.13, 199.0, 238.0, 3, 3, 130.0),
+    e("Sm", 150.36, 1.17, 198.0, 236.0, 3, 3, 127.0),
+    e("Eu", 151.96, 1.2, 198.0, 235.0, 3, 3, 107.0),
+    e("Gd", 157.25, 1.2, 196.0, 234.0, 3, 3, 138.0),
+    e("Tb", 158.93, 1.2, 194.0, 233.0, 3, 3, 132.0),
+    e("Dy", 162.5, 1.22, 192.0, 231.0, 3, 3, 138.0),
+    e("Ho", 164.93, 1.23, 192.0, 230.0, 3, 3, 138.0),
+    e("Er", 167.26, 1.24, 189.0, 229.0, 3, 3, 138.0),
+    e("Tm", 168.93, 1.25, 190.0, 227.0, 3, 3, 138.0),
+    e("Yb", 173.05, 1.1, 187.0, 226.0, 3, 3, 23.0),
+    e("Lu", 174.97, 1.27, 187.0, 224.0, 3, 3, 142.0),
+    e("Hf", 178.49, 1.3, 175.0, 223.0, 4, 4, 328.0),
+    e("Ta", 180.95, 1.5, 170.0, 222.0, 5, 5, 390.0),
+    e("W", 183.84, 2.36, 162.0, 218.0, 6, 6, 486.0),
+    e("Re", 186.21, 1.9, 151.0, 216.0, 7, 7, 385.0),
+    e("Os", 190.23, 2.2, 144.0, 216.0, 6, 6, 415.0),
+    e("Ir", 192.22, 2.2, 141.0, 213.0, 6, 6, 361.0),
+    e("Pt", 195.08, 2.28, 136.0, 175.0, 4, 4, 307.0),
+    e("Au", 196.97, 2.54, 136.0, 166.0, 3, 3, 226.0),
+    e("Hg", 200.59, 2.0, 132.0, 155.0, 2, 2, 8.0),
+    e("Tl", 204.38, 1.62, 145.0, 196.0, 3, 3, 64.0),
+    e("Pb", 207.2, 2.33, 146.0, 202.0, 4, 4, 87.0),
+    e("Bi", 208.98, 2.02, 148.0, 207.0, 3, 5, 200.0),
+    e("Po", 209.0, 2.0, 140.0, 197.0, 2, 6, 187.0),
+    e("At", 210.0, 2.2, 150.0, 202.0, 1, 7, 116.0),
+    e("Rn", 222.0, 2.2, 150.0, 220.0, 0, 8, 0.0),
+    e("Fr", 223.0, 0.7, 260.0, 348.0, 1, 1, 40.0),
+    e("Ra", 226.0, 0.9, 221.0, 283.0, 2, 2, 40.0),
+    e("Ac", 227.0, 1.1, 215.0, 260.0, 3, 3, 139.0),
+    e("Th", 232.04, 1.3, 206.0, 237.0, 4, 4, 289.0),
+    e("Pa", 231.04, 1.5, 200.0, 243.0, 5, 5, 250.0),
+    e("U", 238.03, 1.38, 196.0, 240.0, 6, 6, 222.0),
+    e("Np", 237.0, 1.36, 190.0, 221.0, 5, 5, 220.0),
+    e("Pu", 244.0, 1.28, 187.0, 243.0, 4, 4, 220.0),
 ];
 
 /// Highest atomic number the table covers.
-pub const HEAVIEST: u8 = 36;
+pub const HEAVIEST: u8 = 94;
 
 impl Element {
     pub const HYDROGEN: Element = Element(1);
