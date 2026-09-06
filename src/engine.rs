@@ -226,6 +226,15 @@ pub struct EngineStats {
     pub bubble_seconds: f64,
     /// Nodes currently carrying a bubble factor other than one.
     pub bubbled: usize,
+    /// Nodes that are made of something, and so run chemistry each frame.
+    pub reacting_nodes: usize,
+    /// Mass fractions moved into and out of solution, summed over nodes and
+    /// frames. Not a mass — a node's fraction — so it is a measure of how much
+    /// chemistry is happening rather than of how much matter there is.
+    pub dissolved: f64,
+    pub precipitated: f64,
+    /// Melting, freezing, boiling and condensing, likewise.
+    pub phase_changed: f64,
 }
 
 /// Where the world clock's span per frame comes from.
@@ -308,6 +317,24 @@ pub struct World {
     /// Per-node environment overrides, keyed by path so they survive the node
     /// being coarsened and rebuilt.
     pub environments: HashMap<PathKey, crate::morph::Environment>,
+    /// Every substance this world has ever analysed.
+    ///
+    /// World state, not scenery: a node's mixture names substances by id, so a
+    /// world reloaded without its catalogue would be pointing at nothing.
+    pub substances: crate::chem::Registry,
+    /// What each node is made of, by substance.
+    ///
+    /// A side table rather than a field on `Aggregate`, for the same reason
+    /// `environments` and `clocks` are: an `Aggregate` is `Copy` and about two
+    /// hundred bytes, a `Mixture` is another hundred and forty, and the
+    /// overwhelming majority of nodes have no chemistry at all — a galaxy is
+    /// not made of anything you could put in a beaker. Paying for it only
+    /// where it exists keeps a few million live nodes inside the memory budget
+    /// `Aggregate`'s own documentation claims.
+    ///
+    /// Keyed by `PathKey`, so it survives a node being coarsened away and
+    /// materialised again, which is the same reason pinned detail is.
+    pub mixtures: HashMap<PathKey, crate::chem::Mixture>,
     /// The structures currently being integrated through time.
     ///
     /// A bounded set, deliberately. Dynamics is expensive and it is only worth
@@ -346,6 +373,8 @@ impl World {
             labour_rate: 0.0,
             rejected_transactions: 0,
             environments: HashMap::new(),
+            substances: crate::chem::Registry::new(),
+            mixtures: HashMap::new(),
             shaking: Vec::new(),
             falling: Vec::new(),
             history_depth: 64,
@@ -374,6 +403,8 @@ impl World {
             labour_rate: self.labour_rate,
             rejected_transactions: self.rejected_transactions,
             environments: &self.environments,
+            substances: &self.substances,
+            mixtures: &self.mixtures,
             audit: &self.audit,
             mailbox: &self.mailbox,
         }
@@ -396,6 +427,8 @@ impl World {
         w.labour_rate = s.labour_rate;
         w.rejected_transactions = s.rejected_transactions;
         w.environments = s.environments;
+        w.substances = s.substances;
+        w.mixtures = s.mixtures;
         w.audit = s.audit;
         w.mailbox = crate::causal::Mailbox::restore(s.in_flight, s.delivered, s.in_flight_peak);
         w.stats.sim_time = s.time;
@@ -460,6 +493,11 @@ impl World {
         let coasted = self.coast_to(horizon);
 
         self.deliver_influences(horizon);
+        // Chemistry runs on the span the frame actually covered, after the
+        // influences that changed the temperatures it reads. It costs at most
+        // eight comparisons per node that is made of something, and nothing at
+        // all for every node that is not.
+        let chemistry = self.react_all(horizon - self.time);
         self.time = horizon;
         self.record_histories();
 
@@ -478,6 +516,13 @@ impl World {
         self.stats.worst_lateness = worst_lateness;
         self.stats.overdue = overdue;
         self.stats.coasted = coasted;
+        self.stats.dissolved += chemistry.dissolved;
+        self.stats.precipitated += chemistry.precipitated;
+        self.stats.phase_changed += chemistry.melted
+            + chemistry.frozen
+            + chemistry.boiled
+            + chemistry.condensed;
+        self.stats.reacting_nodes = self.mixtures.len();
         self.stats.bubbled = self.bubbles().len();
         plan
     }
@@ -2311,6 +2356,91 @@ impl World {
             time: self.time,
         });
         Some(accepted)
+    }
+
+    /// What a node is made of, by substance. Empty for anything nobody has
+    /// given a composition to.
+    pub fn mixture_of(&self, idx: NodeIdx) -> crate::chem::Mixture {
+        if idx.is_none() || idx.get() >= self.tree.nodes.len() {
+            return crate::chem::Mixture::new();
+        }
+        self.mixtures
+            .get(&self.tree.nodes[idx.get()].key)
+            .copied()
+            .unwrap_or_default()
+    }
+
+    /// Say what a node is made of.
+    ///
+    /// The mixture is *speciation*: it says which substances account for the
+    /// node's mass, and the elemental account it implies has to agree with the
+    /// aggregate's own composition. This does not check that — nothing can,
+    /// cheaply, for a partially speciated node — but `Mixture::composition` is
+    /// how a caller finds out, and `tests/chem.rs` asserts it for the cases
+    /// the engine builds itself.
+    pub fn set_mixture(&mut self, idx: NodeIdx, mix: crate::chem::Mixture) {
+        if idx.is_none() || idx.get() >= self.tree.nodes.len() {
+            return;
+        }
+        let key = self.tree.nodes[idx.get()].key;
+        if mix.is_empty() {
+            self.mixtures.remove(&key);
+        } else {
+            self.mixtures.insert(key, mix);
+        }
+    }
+
+    /// Run one pass of chemistry over every node that is made of something.
+    ///
+    /// O(substances) per node, which is at most eight, so this costs about what
+    /// a single conditional per node costs and is affordable every frame for
+    /// every node. Nodes with no mixture — every galaxy, star and planet the
+    /// engine builds — are not visited at all.
+    ///
+    /// Runs on the node's *local* clock, so a region in a time bubble reacts
+    /// faster along with everything else about it, and on the node's mixing
+    /// time, because how fast a node stirs itself is exactly what sets how fast
+    /// a solute reaches the far side of it.
+    fn react_all(&mut self, dt: f64) -> crate::chem::ReactionReport {
+        let mut total = crate::chem::ReactionReport::default();
+        if !(dt > 0.0) || self.mixtures.is_empty() {
+            return total;
+        }
+        let live: Vec<NodeIdx> = (0..self.tree.nodes.len())
+            .map(|i| NodeIdx(i as u32))
+            .filter(|i| {
+                let n = &self.tree.nodes[i.get()];
+                n.alive && self.mixtures.contains_key(&n.key)
+            })
+            .collect();
+        for idx in live {
+            let (key, temperature, mass) = {
+                let n = &self.tree.nodes[idx.get()];
+                (n.key, n.agg.temperature, n.agg.mass)
+            };
+            let local = dt * self.local_rate(idx);
+            let tau = self.mixing_time(idx);
+            let Some(mut mix) = self.mixtures.get(&key).copied() else { continue };
+            let r = crate::chem::react(&mut mix, &self.substances, temperature, local, tau);
+            self.mixtures.insert(key, mix);
+            if r.quiet() && r.heat == 0.0 {
+                continue;
+            }
+            // Latent heat is real energy and comes out of the node's own
+            // internal account. Positive `heat` was absorbed by the matter, so
+            // it leaves the thermal store.
+            let n = &mut self.tree.nodes[idx.get()];
+            n.agg.internal_energy = (n.agg.internal_energy - r.heat * mass).max(0.0);
+            total.melted += r.melted;
+            total.frozen += r.frozen;
+            total.boiled += r.boiled;
+            total.condensed += r.condensed;
+            total.dissolved += r.dissolved;
+            total.precipitated += r.precipitated;
+            total.heat += r.heat;
+            total.unresolved += r.unresolved;
+        }
+        total
     }
 
     /// Nodes currently carrying a bubble, with the factor each was given.

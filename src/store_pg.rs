@@ -87,7 +87,7 @@ fn key_from(b: &[u8]) -> Result<PathKey> {
 /// names a column rather than the real problem. So the layout carries its own
 /// version, checked on connect, and a mismatch is refused the way the file
 /// reader refuses an old format — by saying so, rather than by misbehaving.
-pub const SCHEMA_VERSION: i32 = 2;
+pub const SCHEMA_VERSION: i32 = 3;
 
 pub const SCHEMA: &str = r#"
 CREATE TABLE IF NOT EXISTS schema_version (
@@ -149,6 +149,16 @@ CREATE TABLE IF NOT EXISTS ledger_counters (
     sequence bigint NOT NULL,
     queries  bigint NOT NULL,
     commits  bigint NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS substances (
+    id      int PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+    catalogue bytea NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS mixture (
+    key  bytea PRIMARY KEY,
+    data bytea NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS environment (
@@ -254,7 +264,7 @@ impl PostgresStore {
         let mut client = Client::connect(url, NoTls).map_err(db)?;
         client
             .batch_execute(
-                "DROP TABLE IF EXISTS node, pinned, fact, environment, audit, world,
+                "DROP TABLE IF EXISTS node, pinned, fact, environment, audit, world, substances, mixture,
                  ledger_counters, in_flight, mailbox_counters, schema_version CASCADE;",
             )
             .map_err(db)?;
@@ -266,7 +276,7 @@ impl PostgresStore {
     pub fn clear(&mut self) -> Result<()> {
         self.client
             .batch_execute(
-                "TRUNCATE node, pinned, fact, environment, audit, world, ledger_counters,
+                "TRUNCATE node, pinned, fact, environment, audit, world, substances, mixture, ledger_counters,
                   in_flight, mailbox_counters;",
             )
             .map_err(db)
@@ -412,6 +422,31 @@ impl PostgresStore {
             crate::persist::put_environment_pub(&mut w, e);
             tx.execute(
                 "INSERT INTO environment (key, data) VALUES ($1,$2)",
+                &[&key_bytes(*k).to_vec(), &w.finish()],
+            )
+            .map_err(db)?;
+        }
+
+        // The substance catalogue is one blob because it is one ordered list:
+        // a mixture names substances by position in it, so splitting it into
+        // rows would invite exactly the renumbering that would break them.
+        tx.execute("DELETE FROM substances", &[]).map_err(db)?;
+        let mut cat = Writer::new();
+        crate::persist::put_registry(&mut cat, v.substances);
+        tx.execute(
+            "INSERT INTO substances (id, catalogue) VALUES (1, $1)",
+            &[&cat.finish()],
+        )
+        .map_err(db)?;
+
+        tx.execute("DELETE FROM mixture", &[]).map_err(db)?;
+        let mut mixes: Vec<_> = v.mixtures.iter().collect();
+        mixes.sort_by_key(|(k, _)| k.0);
+        for (k, m) in mixes {
+            let mut w = Writer::new();
+            crate::persist::put_mixture(&mut w, m);
+            tx.execute(
+                "INSERT INTO mixture (key, data) VALUES ($1,$2)",
                 &[&key_bytes(*k).to_vec(), &w.finish()],
             )
             .map_err(db)?;
@@ -600,6 +635,26 @@ fn load_impl(store: &mut PostgresStore) -> Result<Snapshot> {
         environments.insert(k, crate::persist::get_environment_pub(&mut r)?);
     }
 
+    let substances = match store
+        .client
+        .query_opt("SELECT catalogue FROM substances WHERE id = 1", &[])
+        .map_err(db)?
+    {
+        Some(row) => {
+            let blob: Vec<u8> = row.get("catalogue");
+            let mut r = Reader::new(&blob);
+            crate::persist::get_registry(&mut r)?
+        }
+        None => crate::chem::Registry::new(),
+    };
+    let mut mixtures = std::collections::HashMap::new();
+    for row in store.client.query("SELECT key, data FROM mixture", &[]).map_err(db)? {
+        let k = key_from(row.get::<_, Vec<u8>>("key").as_slice())?;
+        let blob: Vec<u8> = row.get("data");
+        let mut r = Reader::new(&blob);
+        mixtures.insert(k, crate::persist::get_mixture(&mut r)?);
+    }
+
     let mut audit = Vec::new();
     for row in store
         .client
@@ -665,6 +720,8 @@ fn load_impl(store: &mut PostgresStore) -> Result<Snapshot> {
         labour_rate: world.get("labour_rate"),
         rejected_transactions: world.get::<_, i64>("rejected") as u64,
         environments,
+        substances,
+        mixtures,
         audit,
     };
     // Nodes skipped by an incremental write are at whatever instant they were

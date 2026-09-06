@@ -40,6 +40,10 @@ pub const MAGIC: [u8; 4] = *b"PHYS";
 /// The format version. Bump it whenever the layout changes in a way an older
 /// reader would misinterpret; add a migration in `persist::load` when you do.
 ///
+/// * **3** — the world carries its substance catalogue and every node's
+///   mixture. A node's mixture names substances by position in that catalogue,
+///   so the two are one change: a file with mixtures and no registry would
+///   point at nothing.
 /// * **2** — a node carries its `bubble`, the administrative multiplier on how
 ///   fast its interior runs. A version 1 file has no such field and every node
 ///   in it was implicitly at 1.0, but the field sits in the middle of the node
@@ -47,7 +51,7 @@ pub const MAGIC: [u8; 4] = *b"PHYS";
 ///   about every byte after it. Nothing has shipped that writes v1, so there is
 ///   no migration: the version simply refuses the old layout instead of
 ///   misreading it.
-pub const FORMAT_VERSION: u16 = 2;
+pub const FORMAT_VERSION: u16 = 3;
 
 /// A hard ceiling on any single length prefix, independent of the bytes
 /// available. Nothing legitimate in this engine has a billion of anything in

@@ -145,6 +145,15 @@ pub struct Properties {
     /// Zero for anything symmetric, which is why carbon dioxide is non-polar
     /// despite two strongly polar bonds.
     pub dipole: f64,
+    /// Hydrogen-bond donors per formula unit: hydrogens bonded to nitrogen,
+    /// oxygen or fluorine.
+    ///
+    /// Carried on the substance because two entropy rules need it. Trouton's
+    /// and Richard's constants both assume a liquid and a solid that are not
+    /// associated, and hydrogen-bonded substances are more ordered than either
+    /// assumes — which is why water boils at 373 K rather than 462 and needs
+    /// 334 kJ/kg to melt rather than 126.
+    pub hydrogen_bonds: u8,
     /// Energy per atom holding this substance's crystal together, eV. Zero for
     /// a molecular substance, which has no lattice to break before it
     /// dissolves.
@@ -391,6 +400,7 @@ pub fn analyse(arr: &Arrangement) -> Result<Properties, Illegal> {
     Ok(Properties {
         unit_mass,
         polarity,
+        hydrogen_bonds: hydrogen_bond_donors(arr).min(255) as u8,
         lattice_binding_ev,
         molar_mass: unit_mass * N_AVOGADRO,
         cohesive_energy: cohesive,

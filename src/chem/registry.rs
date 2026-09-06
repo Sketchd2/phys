@@ -188,6 +188,29 @@ impl Registry {
         }
     }
 
+    /// Put back a substance's stored state after `intern_exact` has rebuilt it
+    /// from its arrangement.
+    ///
+    /// For loading only. A saved substance carries the properties it was
+    /// analysed with, and re-deriving them on load would silently migrate a
+    /// world to whatever this build's model happens to say — which is exactly
+    /// the drift `Provenance` exists to make visible. So the arrangement is
+    /// re-interned to rebuild the index and the properties are restored as
+    /// they were written.
+    pub fn restore(
+        &mut self,
+        id: SubstanceId,
+        props: Properties,
+        provenance: Provenance,
+        label: Option<String>,
+    ) {
+        if let Some(s) = self.substances.get_mut(id.0 as usize) {
+            s.props = props;
+            s.provenance = provenance;
+            s.label = label;
+        }
+    }
+
     /// Find a substance by the name somebody gave it. A convenience for
     /// authoring and for tests; the engine never looks anything up this way.
     pub fn by_name(&self, label: &str) -> Option<SubstanceId> {
@@ -207,6 +230,49 @@ impl Registry {
 /// simply stops being attributed to a named substance.
 pub const MIXTURE_SLOTS: usize = 8;
 
+/// What state a parcel of one substance is in.
+///
+/// A property of the *entry*, not of the substance: ice and water are the same
+/// substance, and a registry that stored "solid" against water would have to
+/// store water twice. What decides the phase is the node's temperature against
+/// the substance's own melting and boiling points, which `react` reads.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum Phase {
+    Solid,
+    Liquid,
+    Gas,
+    /// Broken up and surrounded by whatever liquid dominates the node. Not a
+    /// fourth state of matter — a solute in solution — but it behaves as its
+    /// own pool because it is no longer available to melt, boil or precipitate
+    /// as the pure substance would.
+    Dissolved,
+}
+
+impl Phase {
+    pub fn name(self) -> &'static str {
+        match self {
+            Phase::Solid => "solid",
+            Phase::Liquid => "liquid",
+            Phase::Gas => "gas",
+            Phase::Dissolved => "dissolved",
+        }
+    }
+
+    /// Whether this pool can act as a solvent.
+    pub fn is_solvent(self) -> bool {
+        self == Phase::Liquid
+    }
+}
+
+/// One pool of matter in a node: a substance, in a state, as a mass fraction.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Pool {
+    pub substance: SubstanceId,
+    pub phase: Phase,
+    /// Fraction of the node's total mass.
+    pub fraction: f64,
+}
+
 /// What a node is made of, by substance.
 ///
 /// Fixed size and `Copy`, so it can sit in an `Aggregate` without an
@@ -215,13 +281,20 @@ pub const MIXTURE_SLOTS: usize = 8;
 /// kelvin is all of it.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Mixture {
-    slots: [(SubstanceId, f64); MIXTURE_SLOTS],
+    slots: [Pool; MIXTURE_SLOTS],
     used: u8,
 }
 
 impl Default for Mixture {
     fn default() -> Mixture {
-        Mixture { slots: [(SubstanceId::UNSPECIATED, 0.0); MIXTURE_SLOTS], used: 0 }
+        Mixture {
+            slots: [Pool {
+                substance: SubstanceId::UNSPECIATED,
+                phase: Phase::Solid,
+                fraction: 0.0,
+            }; MIXTURE_SLOTS],
+            used: 0,
+        }
     }
 }
 
@@ -246,18 +319,36 @@ impl Mixture {
         self.used == 0
     }
 
-    pub fn entries(&self) -> &[(SubstanceId, f64)] {
+    pub fn entries(&self) -> &[Pool] {
         &self.slots[..self.used as usize]
     }
 
-    /// Mass fraction of one substance.
+    pub fn entries_mut(&mut self) -> &mut [Pool] {
+        &mut self.slots[..self.used as usize]
+    }
+
+    /// Mass fraction of one substance, in every phase it is in.
     pub fn fraction_of(&self, id: SubstanceId) -> f64 {
-        self.entries().iter().find(|(s, _)| *s == id).map(|(_, f)| *f).unwrap_or(0.0)
+        self.entries().iter().filter(|p| p.substance == id).map(|p| p.fraction).sum()
+    }
+
+    /// Mass fraction of one substance in one phase.
+    pub fn pool(&self, id: SubstanceId, phase: Phase) -> f64 {
+        self.entries()
+            .iter()
+            .find(|p| p.substance == id && p.phase == phase)
+            .map(|p| p.fraction)
+            .unwrap_or(0.0)
     }
 
     /// Fraction of the node's mass that has a molecular identity at all.
     pub fn speciated(&self) -> f64 {
-        self.entries().iter().map(|(_, f)| *f).sum()
+        self.entries().iter().map(|p| p.fraction).sum()
+    }
+
+    /// Total mass fraction in one phase, whatever the substance.
+    pub fn in_phase(&self, phase: Phase) -> f64 {
+        self.entries().iter().filter(|p| p.phase == phase).map(|p| p.fraction).sum()
     }
 
     /// Add mass of a substance, merging with what is already there.
@@ -265,18 +356,20 @@ impl Mixture {
     /// Returns false if the mixture was full and this was smaller than
     /// everything in it, which is the case where the caller is told its trace
     /// species did not make the cut rather than silently losing it.
-    pub fn add(&mut self, id: SubstanceId, fraction: f64) -> bool {
+    /// Add mass of a substance in a given phase, merging with any pool of the
+    /// same substance already in the same phase.
+    pub fn add(&mut self, id: SubstanceId, phase: Phase, fraction: f64) -> bool {
         if !fraction.is_finite() || fraction <= 0.0 || id == SubstanceId::UNSPECIATED {
             return false;
         }
         for slot in self.slots[..self.used as usize].iter_mut() {
-            if slot.0 == id {
-                slot.1 += fraction;
+            if slot.substance == id && slot.phase == phase {
+                slot.fraction += fraction;
                 return true;
             }
         }
         if (self.used as usize) < MIXTURE_SLOTS {
-            self.slots[self.used as usize] = (id, fraction);
+            self.slots[self.used as usize] = Pool { substance: id, phase, fraction };
             self.used += 1;
             return true;
         }
@@ -284,14 +377,61 @@ impl Mixture {
         let (i, smallest) = self.slots[..MIXTURE_SLOTS]
             .iter()
             .enumerate()
-            .map(|(i, (_, f))| (i, *f))
+            .map(|(i, p)| (i, p.fraction))
             .fold((0, f64::INFINITY), |a, b| if b.1 < a.1 { b } else { a });
         if fraction > smallest {
-            self.slots[i] = (id, fraction);
+            self.slots[i] = Pool { substance: id, phase, fraction };
             true
         } else {
             false
         }
+    }
+
+    /// Move mass of one substance from one phase to another.
+    ///
+    /// The only operation `react` needs, and the reason it cannot change the
+    /// elemental account: nothing is created or destroyed, it only changes
+    /// state. Returns how much actually moved, which is less than asked for
+    /// when the source pool runs out.
+    pub fn convert(&mut self, id: SubstanceId, from: Phase, to: Phase, amount: f64) -> f64 {
+        if !amount.is_finite() || amount <= 0.0 || from == to {
+            return 0.0;
+        }
+        let available = self.pool(id, from);
+        let moved = amount.min(available);
+        if moved <= 0.0 {
+            return 0.0;
+        }
+        for slot in self.slots[..self.used as usize].iter_mut() {
+            if slot.substance == id && slot.phase == from {
+                slot.fraction -= moved;
+            }
+        }
+        if !self.add(id, to, moved) {
+            // The destination could not be created, so put it back rather than
+            // losing mass. Only reachable on a full mixture.
+            for slot in self.slots[..self.used as usize].iter_mut() {
+                if slot.substance == id && slot.phase == from {
+                    slot.fraction += moved;
+                }
+            }
+            return 0.0;
+        }
+        self.compact();
+        moved
+    }
+
+    /// Drop pools that have run down to nothing, so a mixture that has been
+    /// through a phase change does not carry empty slots for ever.
+    pub fn compact(&mut self) {
+        let mut w = 0;
+        for r in 0..self.used as usize {
+            if self.slots[r].fraction > 1e-18 {
+                self.slots[w] = self.slots[r];
+                w += 1;
+            }
+        }
+        self.used = w as u8;
     }
 
     /// Scale every fraction so they sum to `total`.
@@ -300,7 +440,7 @@ impl Mixture {
         if sum > 0.0 && total >= 0.0 {
             let k = total / sum;
             for slot in self.slots[..self.used as usize].iter_mut() {
-                slot.1 *= k;
+                slot.fraction *= k;
             }
         }
     }
@@ -312,9 +452,9 @@ impl Mixture {
     pub fn canonical(&self) -> Mixture {
         let mut out = *self;
         for slot in out.slots[..out.used as usize].iter_mut() {
-            slot.1 = (slot.1 / Mixture::TOLERANCE).round() * Mixture::TOLERANCE;
+            slot.fraction = (slot.fraction / Mixture::TOLERANCE).round() * Mixture::TOLERANCE;
         }
-        out.slots[..out.used as usize].sort_by(|a, b| a.0.cmp(&b.0));
+        out.slots[..out.used as usize].sort_by(|a, b| (a.substance, a.phase).cmp(&(b.substance, b.phase)));
         out
     }
 
@@ -328,11 +468,12 @@ impl Mixture {
     pub fn fingerprint(&self) -> u64 {
         let c = self.canonical();
         let mut h = 0xcbf2_9ce4_8422_2325u64;
-        for (id, f) in c.entries() {
-            for byte in id.0.to_le_bytes() {
+        for p in c.entries() {
+            for byte in p.substance.0.to_le_bytes() {
                 h = (h ^ byte as u64).wrapping_mul(0x1000_0000_01b3);
             }
-            for byte in ((f / Mixture::TOLERANCE).round() as i64).to_le_bytes() {
+            h = (h ^ p.phase as u64).wrapping_mul(0x1000_0000_01b3);
+            for byte in ((p.fraction / Mixture::TOLERANCE).round() as i64).to_le_bytes() {
                 h = (h ^ byte as u64).wrapping_mul(0x1000_0000_01b3);
             }
         }
@@ -348,13 +489,13 @@ impl Mixture {
     pub fn composition(&self, reg: &Registry) -> (Composition, f64) {
         let mut acc = [0.0f64; crate::units::NSPECIES];
         let mut explained = 0.0;
-        for (id, frac) in self.entries() {
-            let Some(s) = reg.get(*id) else { continue };
+        for p in self.entries() {
+            let Some(s) = reg.get(p.substance) else { continue };
             let Some(c) = s.formula.as_composition() else { continue };
             for (slot, part) in acc.iter_mut().zip(c.0.iter()) {
-                *slot += part * frac;
+                *slot += part * p.fraction;
             }
-            explained += frac;
+            explained += p.fraction;
         }
         if explained > 0.0 {
             for slot in acc.iter_mut() {
@@ -372,11 +513,11 @@ impl Mixture {
     pub fn molar_mass(&self, reg: &Registry) -> Option<f64> {
         let mut moles = 0.0;
         let mut mass = 0.0;
-        for (id, frac) in self.entries() {
-            let s = reg.get(*id)?;
+        for p in self.entries() {
+            let s = reg.get(p.substance)?;
             if s.props.molar_mass > 0.0 {
-                moles += frac / s.props.molar_mass;
-                mass += frac;
+                moles += p.fraction / s.props.molar_mass;
+                mass += p.fraction;
             }
         }
         if moles > 0.0 {

@@ -17,6 +17,7 @@ use phys::chem::analyse::{
     bond_energy, bond_length, ionicity, solubility_in, Illegal, WATER_POLARITY,
 };
 use phys::chem::arrange::{Bond, Lattice, Order};
+use phys::chem::react::{react, settle};
 use phys::chem::*;
 
 fn el(z: u8) -> Element {
@@ -547,8 +548,8 @@ fn a_mixture_reconciles_with_the_elemental_account() {
 
     // Seawater, roughly: 3.5% salt by mass.
     let mut brine = Mixture::new();
-    assert!(brine.add(salt, 0.035));
-    assert!(brine.add(h2o, 0.965));
+    assert!(brine.add(salt, Phase::Solid, 0.035));
+    assert!(brine.add(h2o, Phase::Liquid, 0.965));
 
     let (comp, explained) = brine.composition(&reg);
     println!(
@@ -579,8 +580,8 @@ fn similar_recipes_are_one_recipe() {
 
     let brew = |s: f64| {
         let mut m = Mixture::new();
-        m.add(salt, s);
-        m.add(h2o, 1.0 - s);
+        m.add(salt, Phase::Solid, s);
+        m.add(h2o, Phase::Liquid, 1.0 - s);
         m
     };
     let a = brew(0.0350);
@@ -599,8 +600,8 @@ fn similar_recipes_are_one_recipe() {
 
     // Order of assembly must not matter either.
     let mut reversed = Mixture::new();
-    reversed.add(h2o, 0.965);
-    reversed.add(salt, 0.035);
+    reversed.add(h2o, Phase::Liquid, 0.965);
+    reversed.add(salt, Phase::Solid, 0.035);
     assert!(a.same_as(&reversed));
 }
 
@@ -618,7 +619,7 @@ fn a_mixture_is_bounded_and_says_what_it_dropped() {
         ids.push(reg.intern(Arrangement::molecule(atoms, bonds)).unwrap());
     }
     for (k, id) in ids.iter().enumerate() {
-        m.add(*id, 0.01 * (k + 1) as f64);
+        m.add(*id, Phase::Solid, 0.01 * (k + 1) as f64);
     }
     println!(
         "  {} substances offered, {} kept, {:.3} of the mass speciated",
@@ -629,7 +630,10 @@ fn a_mixture_is_bounded_and_says_what_it_dropped() {
     assert_eq!(m.len(), phys::chem::registry::MIXTURE_SLOTS);
     // A trace species that does not make the cut is told so.
     let tiny = ids[0];
-    assert!(!m.add(tiny, 1e-9), "a trace below everything held must be refused, not silently lost");
+    assert!(
+        !m.add(tiny, Phase::Solid, 1e-9),
+        "a trace below everything held must be refused, not silently lost"
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -746,4 +750,363 @@ fn plutonium_is_a_substance_like_any_other() {
     );
     assert!((s.props.molar_mass * 1000.0 - 244.0).abs() < 0.1);
     assert!((s.props.density / 15920.0 - 1.0).abs() < 0.15);
+}
+
+// ---------------------------------------------------------------------------
+// chemistry that happens while the world is running
+// ---------------------------------------------------------------------------
+
+/// A beaker: salt and water, described as separate ingredients, at room
+/// temperature.
+fn beaker(salt_fraction: f64) -> (Registry, Mixture, SubstanceId, SubstanceId) {
+    let mut reg = Registry::new();
+    let salt = reg.intern(rock_salt()).unwrap();
+    let h2o = reg.intern(water()).unwrap();
+    reg.name(salt, "salt");
+    reg.name(h2o, "water");
+    let mut mix = Mixture::new();
+    mix.add(salt, Phase::Solid, salt_fraction);
+    mix.add(h2o, Phase::Liquid, 1.0 - salt_fraction);
+    (reg, mix, salt, h2o)
+}
+
+/// The requirement, run rather than described: put salt in water and it goes
+/// into solution by itself.
+#[test]
+fn salt_put_in_water_dissolves() {
+    let (reg, mut mix, salt, _) = beaker(0.02);
+    assert_eq!(mix.pool(salt, Phase::Dissolved), 0.0, "it starts as a solid");
+
+    // Half a second at a time, with the node stirring itself on a one-second
+    // timescale.
+    let mut heat = 0.0;
+    for _ in 0..20 {
+        let r = react(&mut mix, &reg, 293.0, 0.5, 1.0);
+        heat += r.heat;
+    }
+
+    let dissolved = mix.pool(salt, Phase::Dissolved);
+    let solid = mix.pool(salt, Phase::Solid);
+    println!(
+        "  after 10 s: {:.4} dissolved, {:.4} still solid, {heat:+.3e} J/kg absorbed",
+        dissolved, solid
+    );
+    assert!(dissolved > 0.019, "nearly all of 2% salt should go into solution");
+    assert!(solid < 0.001, "and almost none should be left undissolved");
+}
+
+/// It stops at saturation. A spoonful dissolves; a bag does not.
+#[test]
+fn a_solution_saturates() {
+    let (reg, mut mix, salt, water_id) = beaker(0.6);
+    settle(&mut mix, &reg, 293.0);
+
+    let dissolved = mix.pool(salt, Phase::Dissolved);
+    let solid = mix.pool(salt, Phase::Solid);
+    let solvent = mix.pool(water_id, Phase::Liquid);
+    let per_kg = dissolved / solvent;
+    println!(
+        "  60% salt offered: {:.4} dissolved, {:.4} left as solid — {:.3} kg per kg of water",
+        dissolved, solid, per_kg
+    );
+    assert!(solid > 0.0, "past saturation there must be undissolved salt left over");
+    // The ceiling is `solubility_in`, which for salt in water is order one.
+    let ceiling = solubility_in(&reg.get(salt).unwrap().props, &reg.get(water_id).unwrap().props);
+    assert!(
+        (per_kg / ceiling - 1.0).abs() < 0.05,
+        "saturation should sit at the solubility limit: {per_kg:.3} against {ceiling:.3}"
+    );
+}
+
+/// The invariant that makes this safe to run everywhere: dissolving changes
+/// what a node is *made of* but not what it is made of *elementally*.
+#[test]
+fn dissolving_cannot_move_the_elemental_account() {
+    let (reg, mut mix, _, _) = beaker(0.02);
+    let (before, before_explained) = mix.composition(&reg);
+    let before_mass = mix.speciated();
+
+    settle(&mut mix, &reg, 293.0);
+
+    let (after, after_explained) = mix.composition(&reg);
+    let after_mass = mix.speciated();
+    println!(
+        "  mass {before_mass:.12} -> {after_mass:.12}, speciated {before_explained:.12} -> {after_explained:.12}"
+    );
+    assert!((after_mass - before_mass).abs() < 1e-12, "mass must not move");
+    assert!((after_explained - before_explained).abs() < 1e-12);
+    for sp in phys::units::Species::ALL {
+        let (a, b) = (before.get(sp), after.get(sp));
+        assert!(
+            (a - b).abs() < 1e-12,
+            "{sp:?} moved from {a} to {b} — dissolution transmuted something"
+        );
+    }
+}
+
+/// Cool a saturated solution and the salt comes back out.
+#[test]
+fn cooling_a_solution_precipitates() {
+    let (reg, mut mix, salt, _) = beaker(0.35);
+    settle(&mut mix, &reg, 350.0);
+    let hot = mix.pool(salt, Phase::Dissolved);
+
+    // Freeze the solvent. With no liquid left there is nothing to hold the
+    // salt in solution, and it comes out.
+    for _ in 0..40 {
+        react(&mut mix, &reg, 100.0, 1.0, 1.0);
+    }
+    let cold = mix.pool(salt, Phase::Dissolved);
+    let back = mix.pool(salt, Phase::Solid);
+    println!("  {hot:.4} dissolved when warm, {cold:.4} when frozen, {back:.4} back as solid");
+    assert!(hot > 0.0, "it has to dissolve before it can come back out");
+    assert!(cold < hot * 0.05, "freezing the solvent must bring the solute out");
+    assert!(back > 0.0);
+}
+
+/// Phase changes, against the substance's own derived transition temperatures,
+/// with the latent heat booked.
+#[test]
+fn water_freezes_and_boils_and_the_heat_is_booked() {
+    let mut reg = Registry::new();
+    let h2o = reg.intern(water()).unwrap();
+    let props = reg.get(h2o).unwrap().props;
+    println!(
+        "  derived melting {:.1} K, boiling {:.1} K",
+        props.melting_point, props.boiling_point
+    );
+
+    // Well below its melting point: it freezes, and releases heat doing so.
+    let mut mix = Mixture::new();
+    mix.add(h2o, Phase::Liquid, 1.0);
+    let mut released = 0.0;
+    for _ in 0..40 {
+        released += react(&mut mix, &reg, props.melting_point - 50.0, 1.0, 1.0).heat;
+    }
+    println!("  frozen: {:.4} solid, {released:+.3e} J/kg", mix.pool(h2o, Phase::Solid));
+    assert!(mix.pool(h2o, Phase::Solid) > 0.99, "it should be ice");
+    assert!(released < 0.0, "freezing releases heat");
+
+    // Well above its boiling point: it boils, and absorbs.
+    let mut mix = Mixture::new();
+    mix.add(h2o, Phase::Liquid, 1.0);
+    let mut absorbed = 0.0;
+    for _ in 0..40 {
+        absorbed += react(&mut mix, &reg, props.boiling_point + 50.0, 1.0, 1.0).heat;
+    }
+    println!("  boiled: {:.4} gas, {absorbed:+.3e} J/kg", mix.pool(h2o, Phase::Gas));
+    assert!(mix.pool(h2o, Phase::Gas) > 0.99, "it should be steam");
+    assert!(absorbed > 0.0, "boiling absorbs heat");
+
+    // And the latent heats are the right size. Water's are 334 kJ/kg to melt
+    // and 2260 kJ/kg to boil; these come from Richard's and Trouton's rules
+    // applied to derived transition temperatures, so being within a factor of
+    // two is the honest claim.
+    // Richard's and Trouton's rules turn a transition temperature into a latent
+    // heat with one constant each. Both take the associated-liquid exception,
+    // because a hydrogen-bond network is more ordered than either rule assumes
+    // — without it water melts at 126 kJ/kg instead of 334.
+    //
+    // The remaining error is the melting point's, not the rule's: it is the
+    // weakest number `analyse` produces and it feeds straight in here.
+    let fusion = phys::chem::react::heat_of_fusion(&props);
+    let vapour = phys::chem::react::heat_of_vaporisation(&props);
+    println!("  latent heats: {:.0} kJ/kg to melt (real 334), {:.0} to boil (real 2260)",
+        fusion / 1e3, vapour / 1e3);
+    assert!((fusion / 334e3 - 1.0).abs() < 0.3, "fusion {:.0} kJ/kg against 334", fusion / 1e3);
+    assert!((vapour / 2260e3 - 1.0).abs() < 0.3, "vaporisation {:.0} kJ/kg against 2260", vapour / 1e3);
+}
+
+/// A pass shorter than the node's mixing time barely moves; one much longer
+/// reaches equilibrium. The rate is a rate, not a jump.
+#[test]
+fn a_pass_relaxes_rather_than_jumping() {
+    let equilibrium = {
+        let (reg, mut mix, salt, _) = beaker(0.02);
+        settle(&mut mix, &reg, 293.0);
+        mix.pool(salt, Phase::Dissolved)
+    };
+
+    let after = |dt: f64| {
+        let (reg, mut mix, salt, _) = beaker(0.02);
+        react(&mut mix, &reg, 293.0, dt, 100.0);
+        mix.pool(salt, Phase::Dissolved) / equilibrium
+    };
+
+    let (quick, matched, long) = (after(1.0), after(100.0), after(1000.0));
+    println!(
+        "  a 1 s pass reaches {:.1}% of equilibrium, 100 s (one mixing time) {:.1}%, 1000 s {:.1}%",
+        quick * 100.0,
+        matched * 100.0,
+        long * 100.0
+    );
+    assert!(quick < 0.05, "a pass far shorter than the mixing time barely moves");
+    // One time constant is 1 - 1/e.
+    assert!((matched - 0.632).abs() < 0.02, "one mixing time should give 63%, got {matched:.3}");
+    assert!(long > 0.99, "many mixing times should be done");
+}
+
+/// Nothing to react is not an error.
+#[test]
+fn an_empty_or_unspeciated_mixture_is_quiet() {
+    let reg = Registry::new();
+    let mut mix = Mixture::new();
+    let r = react(&mut mix, &reg, 293.0, 1.0, 1.0);
+    assert!(r.quiet());
+    assert_eq!(r.unresolved, 0);
+
+    // A pool whose substance is not in this registry is reported, not ignored.
+    let mut orphan = Mixture::new();
+    orphan.add(SubstanceId(7), Phase::Solid, 0.5);
+    let r = react(&mut orphan, &reg, 293.0, 1.0, 1.0);
+    println!("  an orphaned pool reports {} unresolved", r.unresolved);
+    assert!(r.unresolved > 0, "a pool with no substance behind it must be reported");
+}
+
+// ---------------------------------------------------------------------------
+// in a running world
+// ---------------------------------------------------------------------------
+
+/// The whole thing, end to end: a node made of salt and water, in a world that
+/// is running, with nobody calling chemistry by hand.
+#[test]
+fn a_node_of_brine_dissolves_as_the_world_runs() {
+    use phys::engine::{default_spec, galaxy, World};
+    use phys::units::Tier;
+
+    let mut w = World::new(galaxy(0xB21E5, 1e9), 20.0);
+    w.tree.nodes[0].spec.count = 256;
+    let root = w.tree.root;
+    let beaker = *w.drill(root, Tier::Continuum, &default_spec).last().unwrap();
+
+    // Give it a composition. Everything about these two substances is derived
+    // from their arrangements; nothing here says what salt or water *are*.
+    let salt = w.substances.intern(rock_salt()).unwrap();
+    let h2o = w.substances.intern(water()).unwrap();
+    w.substances.name(salt, "salt");
+    w.substances.name(h2o, "water");
+
+    let mut mix = Mixture::new();
+    mix.add(salt, Phase::Solid, 0.02);
+    mix.add(h2o, Phase::Liquid, 0.98);
+    w.set_mixture(beaker, mix);
+    w.tree.nodes[beaker.get()].agg.set_temperature(293.0);
+    w.pace_fixed(1.0);
+
+    assert_eq!(w.mixture_of(beaker).pool(salt, Phase::Dissolved), 0.0);
+    assert_eq!(w.stats.reacting_nodes, 0, "nothing has run yet");
+
+    for _ in 0..30 {
+        w.step_frame(20_000.0);
+    }
+
+    let after = w.mixture_of(beaker);
+    println!(
+        "  after {:.1} s of world time: {:.4} dissolved, {:.4} still solid; \
+         {} reacting node(s), {:.4} of mass dissolved across the world",
+        w.time,
+        after.pool(salt, Phase::Dissolved),
+        after.pool(salt, Phase::Solid),
+        w.stats.reacting_nodes,
+        w.stats.dissolved
+    );
+    assert_eq!(w.stats.reacting_nodes, 1);
+    assert!(
+        after.pool(salt, Phase::Dissolved) > 0.0,
+        "the salt should have gone into solution with nobody asking it to"
+    );
+    assert!(w.stats.dissolved > 0.0, "and the world should say it happened");
+
+    // Chemistry moved substances, not elements.
+    let (comp, _) = after.composition(&w.substances);
+    assert!(
+        (comp.get(phys::units::Species::Other) - 0.02).abs() < 1e-9,
+        "the sodium and chlorine are still there"
+    );
+}
+
+/// A world reloaded without its catalogue would have mixtures pointing at
+/// nothing, so the two travel together.
+#[test]
+fn the_catalogue_and_the_mixtures_survive_a_save() {
+    use phys::engine::{galaxy, World};
+    use phys::persist::{MemoryStore, WorldStore};
+
+    let mut w = World::new(galaxy(0x5A17, 1e9), 20.0);
+    let root = w.tree.root;
+    let salt = w.substances.intern(rock_salt()).unwrap();
+    let h2o = w.substances.intern(water()).unwrap();
+    w.substances.name(salt, "salt");
+
+    // One substance with a measurement overriding what was derived, so the
+    // provenance has something to carry.
+    let mut measured = w.substances.get(h2o).unwrap().props;
+    measured.boiling_point = 373.15;
+    w.substances.measured(h2o, measured);
+
+    let mut mix = Mixture::new();
+    mix.add(salt, Phase::Solid, 0.1);
+    mix.add(h2o, Phase::Liquid, 0.9);
+    w.set_mixture(root, mix);
+
+    let mut store = MemoryStore::default();
+    store.save(w.view()).expect("save");
+    let back = World::from_snapshot(store.load().expect("load"), 20.0);
+
+    println!(
+        "  {} substances saved, {} came back; root mixture has {} pool(s)",
+        w.substances.len(),
+        back.substances.len(),
+        back.mixture_of(back.tree.root).len()
+    );
+    assert_eq!(back.substances.len(), w.substances.len());
+    // Ids are positions in the catalogue and every mixture refers to them, so
+    // the order has to come back exactly.
+    assert_eq!(back.substances.by_name("salt"), Some(salt));
+    for id in [salt, h2o] {
+        let a = w.substances.get(id).unwrap();
+        let b = back.substances.get(id).unwrap();
+        assert_eq!(a.formula, b.formula);
+        assert_eq!(a.props, b.props, "properties must come back as saved, not re-derived");
+        assert_eq!(a.provenance, b.provenance, "a measurement must survive");
+        assert_eq!(a.label, b.label);
+    }
+    let m = back.mixture_of(back.tree.root);
+    assert_eq!(m.len(), 2);
+    assert!((m.pool(salt, Phase::Solid) - 0.1).abs() < 1e-15);
+    assert!((m.pool(h2o, Phase::Liquid) - 0.9).abs() < 1e-15);
+}
+
+/// A time bubble speeds chemistry up along with everything else about a node,
+/// because the reaction pass runs on the node's own clock.
+#[test]
+fn a_bubble_speeds_up_chemistry() {
+    use phys::engine::{default_spec, galaxy, World};
+    use phys::units::Tier;
+
+    let brew = |rate: f64| {
+        let mut w = World::new(galaxy(0xB0B, 1e9), 20.0);
+        w.tree.nodes[0].spec.count = 256;
+        let root = w.tree.root;
+        let beaker = *w.drill(root, Tier::Continuum, &default_spec).last().unwrap();
+        let salt = w.substances.intern(rock_salt()).unwrap();
+        let h2o = w.substances.intern(water()).unwrap();
+        let mut mix = Mixture::new();
+        mix.add(salt, Phase::Solid, 0.02);
+        mix.add(h2o, Phase::Liquid, 0.98);
+        w.set_mixture(beaker, mix);
+        w.tree.nodes[beaker.get()].agg.set_temperature(293.0);
+        w.pace_fixed(1e-6);
+        if rate != 1.0 {
+            w.dilate(beaker, rate);
+        }
+        for _ in 0..10 {
+            w.step_frame(20_000.0);
+        }
+        w.mixture_of(beaker).pool(salt, Phase::Dissolved)
+    };
+
+    let (slow, fast) = (brew(1.0), brew(1000.0));
+    println!("  at 1x {slow:.3e} dissolved; at 1000x {fast:.3e}");
+    assert!(fast > slow * 10.0, "a bubbled node must react faster: {fast:.3e} against {slow:.3e}");
 }

@@ -9,9 +9,11 @@ pub mod analyse;
 pub mod arrange;
 pub mod elements;
 pub mod geometry;
+pub mod react;
 pub mod registry;
 
 pub use analyse::{analyse, Confidence, Illegal, Properties};
 pub use arrange::{Arrangement, Bond, Formula, Lattice, Order};
 pub use elements::Element;
-pub use registry::{Mixture, Provenance, Registry, Substance, SubstanceId};
+pub use react::{react, settle, ReactionReport};
+pub use registry::{Mixture, Phase, Pool, Provenance, Registry, Substance, SubstanceId};

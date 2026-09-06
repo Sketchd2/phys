@@ -377,6 +377,201 @@ pub(crate) fn get_spec(r: &mut Reader) -> Result<ProlongSpec> {
     })
 }
 
+
+// ---------------------------------------------------------------------------
+// chemistry
+// ---------------------------------------------------------------------------
+//
+// The substance catalogue is world state, not scenery. A node's mixture names
+// substances by id, so a world reloaded without its registry would be pointing
+// at nothing — and the ids are positions in the catalogue, so the order it is
+// written in *is* the identity. It is written as a list rather than a map for
+// exactly that reason.
+
+const SUBSTANCE_MIN_BYTES: usize = 4 + 4 + 1 + 8 * 12 + 1 + 1;
+const MIXTURE_MIN_BYTES: usize = 16 + 4;
+
+fn put_element(w: &mut Writer, e: crate::chem::Element) {
+    w.u8(e.z());
+}
+fn get_element(r: &mut Reader) -> Result<crate::chem::Element> {
+    Ok(crate::chem::Element(r.u8()?))
+}
+
+const ORDERS: [crate::chem::Order; 5] = [
+    crate::chem::Order::Single,
+    crate::chem::Order::Double,
+    crate::chem::Order::Triple,
+    crate::chem::Order::Ionic,
+    crate::chem::Order::Hydrogen,
+];
+
+const PHASES: [crate::chem::Phase; 4] = [
+    crate::chem::Phase::Solid,
+    crate::chem::Phase::Liquid,
+    crate::chem::Phase::Gas,
+    crate::chem::Phase::Dissolved,
+];
+
+fn put_arrangement(w: &mut Writer, a: &crate::chem::Arrangement) {
+    w.seq(a.atoms.len());
+    for e in &a.atoms {
+        put_element(w, *e);
+    }
+    w.seq(a.bonds.len());
+    for b in &a.bonds {
+        w.u16(b.a);
+        w.u16(b.b);
+        w.u8(ORDERS.iter().position(|o| *o == b.order).unwrap_or(0) as u8);
+    }
+    match a.lattice {
+        crate::chem::Lattice::Molecular => w.u8(0),
+        crate::chem::Lattice::Cubic { a } => {
+            w.u8(1);
+            w.f64(a);
+        }
+        crate::chem::Lattice::Hexagonal { a, c } => {
+            w.u8(2);
+            w.f64(a);
+            w.f64(c);
+        }
+    }
+    w.u8(a.charge as u8);
+}
+
+fn get_arrangement(r: &mut Reader) -> Result<crate::chem::Arrangement> {
+    let n = r.seq("atoms", 1)?;
+    let mut atoms = Vec::with_capacity(n);
+    for _ in 0..n {
+        atoms.push(get_element(r)?);
+    }
+    let n = r.seq("bonds", 5)?;
+    let mut bonds = Vec::with_capacity(n);
+    for _ in 0..n {
+        let a = r.u16()?;
+        let b = r.u16()?;
+        let order = ORDERS[r.tag("bond order", 5)? as usize];
+        bonds.push(crate::chem::Bond { a, b, order });
+    }
+    let lattice = match r.tag("lattice", 3)? {
+        0 => crate::chem::Lattice::Molecular,
+        1 => crate::chem::Lattice::Cubic { a: r.f64()? },
+        _ => crate::chem::Lattice::Hexagonal { a: r.f64()?, c: r.f64()? },
+    };
+    let charge = r.u8()? as i8;
+    Ok(crate::chem::Arrangement { atoms, bonds, lattice, charge })
+}
+
+const CONFIDENCES: [crate::chem::Confidence; 4] = [
+    crate::chem::Confidence::Exact,
+    crate::chem::Confidence::Derived,
+    crate::chem::Confidence::Correlated,
+    crate::chem::Confidence::Guessed,
+];
+
+fn put_properties(w: &mut Writer, p: &crate::chem::Properties) {
+    for v in [
+        p.unit_mass,
+        p.molar_mass,
+        p.cohesive_energy,
+        p.ionicity,
+        p.polarity,
+        p.lattice_binding_ev,
+        p.dipole,
+        p.density,
+        p.melting_point,
+        p.boiling_point,
+        p.water_solubility,
+    ] {
+        w.f64(v);
+    }
+    w.u8(p.hydrogen_bonds);
+    w.u8(CONFIDENCES.iter().position(|c| *c == p.confidence).unwrap_or(3) as u8);
+}
+
+fn get_properties(r: &mut Reader) -> Result<crate::chem::Properties> {
+    Ok(crate::chem::Properties {
+        unit_mass: r.f64()?,
+        molar_mass: r.f64()?,
+        cohesive_energy: r.f64()?,
+        ionicity: r.f64()?,
+        polarity: r.f64()?,
+        lattice_binding_ev: r.f64()?,
+        dipole: r.f64()?,
+        density: r.f64()?,
+        melting_point: r.f64()?,
+        boiling_point: r.f64()?,
+        water_solubility: r.f64()?,
+        hydrogen_bonds: r.u8()?,
+        confidence: CONFIDENCES[r.tag("confidence", 4)? as usize],
+    })
+}
+
+pub fn put_registry(w: &mut Writer, reg: &crate::chem::Registry) {
+    w.seq(reg.len());
+    for s in reg.all() {
+        put_arrangement(w, &s.arrangement);
+        put_properties(w, &s.props);
+        match &s.provenance {
+            crate::chem::Provenance::Derived => w.u8(0),
+            crate::chem::Provenance::Measured { replaced } => {
+                w.u8(1);
+                put_properties(w, replaced);
+            }
+        }
+        match &s.label {
+            Some(l) => {
+                w.bool(true);
+                w.str(l);
+            }
+            None => w.bool(false),
+        }
+    }
+}
+
+pub fn get_registry(r: &mut Reader) -> Result<crate::chem::Registry> {
+    let n = r.seq("substances", SUBSTANCE_MIN_BYTES)?;
+    let mut reg = crate::chem::Registry::new();
+    for i in 0..n {
+        let arrangement = get_arrangement(r)?;
+        let props = get_properties(r)?;
+        let provenance = match r.tag("provenance", 2)? {
+            0 => crate::chem::Provenance::Derived,
+            _ => crate::chem::Provenance::Measured { replaced: Box::new(get_properties(r)?) },
+        };
+        let label = if r.bool()? { Some(r.str()?) } else { None };
+        // `intern_exact`, not `intern`: the ids are positions in the catalogue
+        // and every mixture in the file refers to them, so deduplicating on the
+        // way back in would renumber everything. A saved registry is restored
+        // exactly as it was saved, including any deliberate duplicates.
+        let id = reg
+            .intern_exact(arrangement)
+            .map_err(|e| WireError::Io(format!("substance {i} does not analyse: {e}")))?;
+        reg.restore(id, props, provenance, label);
+    }
+    Ok(reg)
+}
+
+pub fn put_mixture(w: &mut Writer, m: &crate::chem::Mixture) {
+    w.seq(m.len());
+    for p in m.entries() {
+        w.u32(p.substance.0);
+        w.u8(PHASES.iter().position(|x| *x == p.phase).unwrap_or(0) as u8);
+        w.f64(p.fraction);
+    }
+}
+
+pub fn get_mixture(r: &mut Reader) -> Result<crate::chem::Mixture> {
+    let n = r.seq("pools", 13)?;
+    let mut m = crate::chem::Mixture::new();
+    for _ in 0..n {
+        let id = crate::chem::SubstanceId(r.u32()?);
+        let phase = PHASES[r.tag("phase", 4)? as usize];
+        m.add(id, phase, r.f64()?);
+    }
+    Ok(m)
+}
+
 // ---------------------------------------------------------------------------
 // morphology
 // ---------------------------------------------------------------------------
@@ -742,6 +937,8 @@ pub struct Snapshot {
     pub labour_rate: f64,
     pub rejected_transactions: u64,
     pub environments: HashMap<PathKey, Environment>,
+    pub substances: crate::chem::Registry,
+    pub mixtures: HashMap<PathKey, crate::chem::Mixture>,
     pub audit: Vec<AuthorEvent>,
     /// Influences posted and not yet arrived. Durable: an impulse in the
     /// light-delay between the act and its landing is an action somebody took,
@@ -768,6 +965,8 @@ pub struct WorldView<'a> {
     pub labour_rate: f64,
     pub rejected_transactions: u64,
     pub environments: &'a HashMap<PathKey, Environment>,
+    pub substances: &'a crate::chem::Registry,
+    pub mixtures: &'a HashMap<PathKey, crate::chem::Mixture>,
     pub audit: &'a [AuthorEvent],
     pub mailbox: &'a Mailbox,
 }
@@ -786,6 +985,8 @@ impl Snapshot {
             labour_rate: self.labour_rate,
             rejected_transactions: self.rejected_transactions,
             environments: &self.environments,
+            substances: &self.substances,
+            mixtures: &self.mixtures,
             audit: &self.audit,
             mailbox: &self.mailbox_view,
         }
@@ -847,6 +1048,15 @@ pub fn encode(s: WorldView<'_>) -> Vec<u8> {
     for (k, e) in envs {
         w.u128(k.0);
         put_environment_pub(&mut w, e);
+    }
+
+    put_registry(&mut w, s.substances);
+    let mut mixes: Vec<(&PathKey, &crate::chem::Mixture)> = s.mixtures.iter().collect();
+    mixes.sort_by_key(|(k, _)| k.0);
+    w.seq(mixes.len());
+    for (k, m) in mixes {
+        w.u128(k.0);
+        put_mixture(&mut w, m);
     }
 
     w.seq(s.audit.len());
@@ -956,6 +1166,14 @@ pub fn decode(bytes: &[u8]) -> Result<Snapshot> {
         environments.insert(k, get_environment_pub(&mut r)?);
     }
 
+    let substances = get_registry(&mut r)?;
+    let n = r.seq("mixtures", MIXTURE_MIN_BYTES)?;
+    let mut mixtures = HashMap::with_capacity(n);
+    for _ in 0..n {
+        let k = PathKey(r.u128()?);
+        mixtures.insert(k, get_mixture(&mut r)?);
+    }
+
     let n = r.seq("audit", AUDIT_MIN_BYTES)?;
     let mut audit = Vec::with_capacity(n);
     for _ in 0..n {
@@ -999,6 +1217,8 @@ pub fn decode(bytes: &[u8]) -> Result<Snapshot> {
         labour_rate,
         rejected_transactions,
         environments,
+        substances,
+        mixtures,
         audit,
     })
 }
