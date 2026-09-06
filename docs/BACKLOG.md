@@ -93,34 +93,77 @@ nothing in the physics reads `name`.
 
 ---
 
-## The pacer cannot serve a crowd
+## Pacing to an unmaterialised node runs the clock 10^10x too fast
 
-**Noticed:** building the volume query (Phase 2 bandwidth work).
-**Where:** `engine.rs` — `refresh_pace`, `pace_to`, `lateness`.
+**Noticed:** measuring the volume query's neighbourhood (Phase 2 bandwidth work).
+**Where:** `engine.rs` — `node_cadence`, `pace_to`. `state.rs` —
+`characteristic_speed`.
 
-`phys-headless serve` promotes two hundred neighbours around the node it is
-watching and paces the clock to that node. Worst lateness settles around 300:
-two hundred live nodes cannot all be re-solved at the cadence of the finest one
-inside a 50 ms frame, so most of them fall behind by a couple of orders of
-magnitude and stay there. The scheduler is behaving correctly — it ranks by
-lateness and spends what it has — but "correctly" here means every node is
-equally, badly late.
+`pace_to(idx)` sets the world clock from the target's characteristic time, and
+`node_cadence` derives that from body speeds when the node is materialised and
+from the aggregate when it is not. A promoted child's aggregate has
+`momentum = ZERO` by construction — `promote` says so explicitly, and is right
+to: inside a node's own frame the net momentum *is* zero, which is what a rest
+frame means. But that leaves nothing for `characteristic_speed` to measure, so
+an unmaterialised node reports a characteristic time far longer than it has.
 
-It shows up in `tests/view.rs::a_neighbourhood`, which has to call `pace_to`
-explicitly or the neighbours travel 10^8 node radii between two frames.
+Measured on a galaxy drilled to a planetary node with 128 promoted neighbours,
+pacing to one of the neighbours:
 
-**The fix** is probably not more throughput. It is that a crowd of nodes at the
-same tier doing nothing in particular should not each be a scheduling unit:
-they want to be *one* unit — a coarse node with them as bodies — until
-something happens to one of them, which is the promotion rule running in
-reverse. `coarsen` already exists and `mixing_time` already says when detail may
-be released; what is missing is the same judgement applied to a *sibling group*
-rather than to one node's interior.
+```text
+    unmaterialised target:   pace 2.597e11 s/frame,  worst lateness 3.6e8
+    same target, refined:    pace 6.187e0  s/frame,  worst lateness 1.2
+```
 
-**Trigger:** the first scene that needs more than a few dozen live nodes at
-once, which is any city. Not urgent while the play space is one node deep, and
-deliberately not attempted inside a bandwidth change — the two would have been
-impossible to tell apart in the numbers.
+A factor of 4x10^10 in the world clock, decided by whether the thing being
+watched happens to have been materialised yet.
+
+This is on the client path, which is what makes it urgent rather than curious:
+`pace_to` follows what is being watched, a `ViewRequest` may name any node, and
+recipes now mean a client can be looking at scenery the engine never
+materialised. `tests/view.rs::an_unpinned_reload_comes_back_coarse` records the
+same mechanism as an oddity of reloading; it is not an oddity, it is this.
+
+**The fix** is that a node with no bodies has no measurable internal motion, so
+its cadence must come from something else — the tier's own timestep, or the
+speed the parent's body list says it has — and never from a rest-frame
+aggregate that is zero by construction. `pace_to` should also refuse a target
+whose cadence it cannot measure rather than silently accepting a nonsense one.
+
+**Trigger:** now. Anything measured against a badly paced world is measuring
+the pace.
+
+---
+
+## Crowd lateness is tier-dependent, and unexplained
+
+**Noticed:** the same measurements.
+**Where:** `engine.rs` — `refresh_pace`, `lateness`, the planner in `budget.rs`.
+
+With the pace target materialised, 128 promoted neighbours behave completely
+differently depending on where on the ladder they sit:
+
+```text
+    continuum neighbours (the play space):  136 live nodes, worst lateness 0.028
+    planetary neighbours:                   131 live nodes, worst lateness 1.175
+    planetary, pace target unmaterialised:  131 live nodes, worst lateness 6.8
+```
+
+Lateness under one means every node was re-solved before it had changed, so the
+play space — animal, human and vehicle scale — holds a crowd of 136 comfortably
+today. `phys-headless serve` reports a worst lateness around 300, but it
+promotes 200 planetary nodes out of a galaxy, which is not a scene anyone will
+play in.
+
+So this is **not** currently a blocker, and an earlier draft of this entry
+claiming a city needs a new scheduling rule was wrong — it generalised from the
+galaxy-scale demo without measuring the play scale. What is not understood is
+why the planetary tier is forty times worse than the continuum tier at the same
+node count.
+
+**Trigger:** a play-scale scene that measures over one. Worth understanding
+before anyone concludes the scheduler needs changing, because the numbers above
+say the load is not what is hurting it.
 
 ---
 
