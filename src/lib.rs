@@ -61,6 +61,8 @@ pub mod topology;
 pub mod tree;
 pub mod units;
 pub mod view;
+#[cfg(feature = "postgres")]
+pub mod store_pg;
 pub mod wire;
 pub mod wasm;
 

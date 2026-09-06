@@ -322,6 +322,26 @@ impl Mailbox {
         Mailbox::default()
     }
 
+    /// Everything still in flight, for persistence.
+    ///
+    /// An influence that has been posted and not yet arrived is *not* transient
+    /// state: it is an action somebody took, committed, and travelling. Dropping
+    /// it on a save would quietly undo a player's impulse if the world happened
+    /// to be written in the light-delay between the act and its arrival.
+    pub fn in_flight(&self) -> impl Iterator<Item = &Influence> + '_ {
+        self.heap.iter().map(|t| &t.0)
+    }
+
+    /// Rebuild a mailbox from saved influences. Arrival order comes back from
+    /// the heap invariant, not from the order they are inserted.
+    pub fn restore(influences: Vec<Influence>, delivered: u64, in_flight_peak: usize) -> Mailbox {
+        let mut heap = BinaryHeap::with_capacity(influences.len());
+        for i in influences {
+            heap.push(Timed(i));
+        }
+        Mailbox { heap, delivered, in_flight_peak }
+    }
+
     /// Post an influence, computing its arrival from the separation. The
     /// `+ d/c` here is the entire relativistic content of the interaction
     /// system: nothing else in the engine needs to know about light delay.

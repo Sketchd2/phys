@@ -55,7 +55,7 @@ fn main() {
     }
 
     if path.exists() {
-        second_run(&store, &path);
+        second_run(&mut store, &path);
     } else {
         first_run(&mut store, &path);
     }
@@ -147,7 +147,7 @@ fn first_run(store: &mut FileStore, path: &std::path::Path) {
 
 // ---------------------------------------------------------------------------
 
-fn second_run(store: &FileStore, path: &std::path::Path) {
+fn second_run(store: &mut FileStore, path: &std::path::Path) {
     rule("1. Load");
 
     let snapshot = match store.load() {

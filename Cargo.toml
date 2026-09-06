@@ -5,6 +5,16 @@ edition = "2021"
 description = "Multiscale galaxy physics engine: lazy, causally-gated materialization from kiloparsecs to femtometres"
 license = "MIT"
 
+[features]
+# Off by default. The core crate has no dependencies and must keep building for
+# wasm32, which cannot link a database client; the Postgres backend is one
+# implementation of `WorldStore` and nothing else depends on it.
+default = []
+postgres = ["dep:postgres"]
+
+[dependencies]
+postgres = { version = "0.19", optional = true }
+
 [lib]
 name = "phys"
 path = "src/lib.rs"

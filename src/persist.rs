@@ -37,6 +37,7 @@
 //! would make "did anything actually change" unanswerable, and content
 //! addressing impossible later.
 
+use crate::causal::{Influence, InfluenceKind, Mailbox};
 use crate::coords::Frame;
 use crate::ids::{NodeIdx, PathKey};
 use crate::morph::{Environment, Event, EventKind, Morphology, Program};
@@ -141,6 +142,25 @@ fn put_quantity(w: &mut Writer, q: Quantity) {
     let t = QUANTITIES.iter().position(|&x| x == q).unwrap_or(0);
     w.u8(t as u8);
 }
+/// Decode a quantity tag that arrived as a database column rather than from
+/// the wire.
+#[cfg(feature = "postgres")]
+pub(crate) fn quantity_from(tag: u8) -> Result<Quantity> {
+    QUANTITIES
+        .get(tag as usize)
+        .copied()
+        .ok_or(crate::wire::WireError::BadTag { what: "quantity", tag: tag as u64 })
+}
+
+/// As `quantity_from`, for an authored property.
+#[cfg(feature = "postgres")]
+pub(crate) fn property_from(tag: u8) -> Result<Property> {
+    PROPERTIES
+        .get(tag as usize)
+        .copied()
+        .ok_or(crate::wire::WireError::BadTag { what: "property", tag: tag as u64 })
+}
+
 fn get_quantity(r: &mut Reader) -> Result<Quantity> {
     let t = r.tag("quantity", QUANTITIES.len() as u8)?;
     Ok(QUANTITIES[t as usize])
@@ -213,13 +233,13 @@ fn get_body(r: &mut Reader) -> Result<Body> {
 /// length prefix before allocating; it must never overstate the true size.
 const BODY_MIN_BYTES: usize = 8 * (3 + 3 + 5 + NSPECIES + 3) + 4 + 1;
 
-fn put_bodies(w: &mut Writer, bodies: &[Body]) {
+pub(crate) fn put_bodies_pub(w: &mut Writer, bodies: &[Body]) {
     w.seq(bodies.len());
     for b in bodies {
         put_body(w, b);
     }
 }
-fn get_bodies(r: &mut Reader) -> Result<Vec<Body>> {
+pub(crate) fn get_bodies_pub(r: &mut Reader) -> Result<Vec<Body>> {
     let n = r.seq("bodies", BODY_MIN_BYTES)?;
     let mut v = Vec::with_capacity(n);
     for _ in 0..n {
@@ -545,7 +565,7 @@ fn put_option<T, F: FnOnce(&mut Writer, &T)>(w: &mut Writer, v: &Option<T>, f: F
     }
 }
 
-fn put_node(w: &mut Writer, n: &Node) {
+pub(crate) fn put_node_payload(w: &mut Writer, n: &Node) {
     w.u128(n.key.0);
     w.u32(n.parent.0);
     w.u32(n.slot);
@@ -557,7 +577,7 @@ fn put_node(w: &mut Writer, n: &Node) {
     // node's address and epoch, and `tests/persistence.rs` checks that the
     // regenerated bodies match what was discarded.
     if n.pinned {
-        put_bodies(w, &n.bodies);
+        put_bodies_pub(w, &n.bodies);
     } else {
         w.seq(0);
     }
@@ -580,7 +600,7 @@ fn put_node(w: &mut Writer, n: &Node) {
     w.u64(n.steps_taken);
 }
 
-fn get_node(r: &mut Reader) -> Result<Node> {
+pub(crate) fn get_node_payload(r: &mut Reader) -> Result<Node> {
     let key = PathKey(r.u128()?);
     let parent = NodeIdx(r.u32()?);
     let slot = r.u32()?;
@@ -588,7 +608,7 @@ fn get_node(r: &mut Reader) -> Result<Node> {
     let tier = get_tier(r)?;
     let agg = get_aggregate(r)?;
     let frame = get_frame(r)?;
-    let bodies = get_bodies(r)?;
+    let bodies = get_bodies_pub(r)?;
     let potential = r.f64()?;
     let n = r.seq("children", 4)?;
     let mut children = Vec::with_capacity(n);
@@ -625,7 +645,7 @@ fn get_node(r: &mut Reader) -> Result<Node> {
     })
 }
 
-fn put_stats(w: &mut Writer, s: &TreeStats) {
+pub(crate) fn put_tree_stats(w: &mut Writer, s: &TreeStats) {
     w.u64(s.materialisations);
     w.u64(s.coarsenings);
     w.u64(s.idempotent_coarsenings);
@@ -639,7 +659,7 @@ fn put_stats(w: &mut Writer, s: &TreeStats) {
     w.u64(s.persisted_bodies);
     w.f64(s.worst_conservation_error);
 }
-fn get_stats(r: &mut Reader) -> Result<TreeStats> {
+pub(crate) fn get_tree_stats(r: &mut Reader) -> Result<TreeStats> {
     Ok(TreeStats {
         materialisations: r.u64()?,
         coarsenings: r.u64()?,
@@ -664,7 +684,7 @@ fn put_tree(w: &mut Writer, t: &Tree) {
     w.u32(t.root.0);
     w.seq(t.nodes.len());
     for n in &t.nodes {
-        put_node(w, n);
+        put_node_payload(w, n);
     }
     // Sorted, so two saves of the same world are byte-identical.
     let mut keys: Vec<&PathKey> = t.persisted.keys().collect();
@@ -672,9 +692,9 @@ fn put_tree(w: &mut Writer, t: &Tree) {
     w.seq(keys.len());
     for k in keys {
         w.u128(k.0);
-        put_bodies(w, &t.persisted[k]);
+        put_bodies_pub(w, &t.persisted[k]);
     }
-    put_stats(w, &t.stats);
+    put_tree_stats(w, &t.stats);
 }
 
 fn get_tree(r: &mut Reader) -> Result<Tree> {
@@ -683,15 +703,15 @@ fn get_tree(r: &mut Reader) -> Result<Tree> {
     let n = r.seq("nodes", NODE_MIN_BYTES)?;
     let mut nodes = Vec::with_capacity(n);
     for _ in 0..n {
-        nodes.push(get_node(r)?);
+        nodes.push(get_node_payload(r)?);
     }
     let n = r.seq("persisted", 16 + 4)?;
     let mut persisted = HashMap::with_capacity(n);
     for _ in 0..n {
         let k = PathKey(r.u128()?);
-        persisted.insert(k, get_bodies(r)?);
+        persisted.insert(k, get_bodies_pub(r)?);
     }
-    let stats = get_stats(r)?;
+    let stats = get_tree_stats(r)?;
     Ok(Tree::restore(nodes, root, world_seed, persisted, stats))
 }
 
@@ -706,6 +726,8 @@ fn get_tree(r: &mut Reader) -> Result<Tree> {
 /// they are not saved: a world reloaded on another machine gets that machine's
 /// budget, and whoever opens it supplies their own observers.
 pub struct Snapshot {
+    /// Reconstructed mailbox, so `view()` has something to borrow.
+    pub mailbox_view: Mailbox,
     pub tree: Tree,
     pub ledger: Ledger,
     pub time: f64,
@@ -717,6 +739,12 @@ pub struct Snapshot {
     pub rejected_transactions: u64,
     pub environments: HashMap<PathKey, Environment>,
     pub audit: Vec<AuthorEvent>,
+    /// Influences posted and not yet arrived. Durable: an impulse in the
+    /// light-delay between the act and its landing is an action somebody took,
+    /// and a save that dropped it would quietly undo them.
+    pub in_flight: Vec<Influence>,
+    pub delivered: u64,
+    pub in_flight_peak: usize,
 }
 
 /// A borrowed view of the same thing, for writing.
@@ -736,6 +764,7 @@ pub struct WorldView<'a> {
     pub rejected_transactions: u64,
     pub environments: &'a HashMap<PathKey, Environment>,
     pub audit: &'a [AuthorEvent],
+    pub mailbox: &'a Mailbox,
 }
 
 impl Snapshot {
@@ -752,11 +781,12 @@ impl Snapshot {
             rejected_transactions: self.rejected_transactions,
             environments: &self.environments,
             audit: &self.audit,
+            mailbox: &self.mailbox_view,
         }
     }
 }
 
-fn put_environment(w: &mut Writer, e: &Environment) {
+pub(crate) fn put_environment_pub(w: &mut Writer, e: &Environment) {
     w.f64(e.light_flux);
     w.f64(e.temperature);
     w.f64(e.water);
@@ -764,7 +794,7 @@ fn put_environment(w: &mut Writer, e: &Environment) {
     w.f64(e.reservoir_mass);
     w.f64(e.labour);
 }
-fn get_environment(r: &mut Reader) -> Result<Environment> {
+pub(crate) fn get_environment_pub(r: &mut Reader) -> Result<Environment> {
     Ok(Environment {
         light_flux: r.f64()?,
         temperature: r.f64()?,
@@ -809,7 +839,7 @@ pub fn encode(s: WorldView<'_>) -> Vec<u8> {
     w.seq(envs.len());
     for (k, e) in envs {
         w.u128(k.0);
-        put_environment(&mut w, e);
+        put_environment_pub(&mut w, e);
     }
 
     w.seq(s.audit.len());
@@ -819,12 +849,63 @@ pub fn encode(s: WorldView<'_>) -> Vec<u8> {
         w.f64(a.delta_energy);
         w.f64(a.time);
     }
+
+    // Sorted by arrival, so two saves of one world are the same bytes even
+    // though a binary heap does not iterate in order.
+    let mut flying: Vec<&Influence> = s.mailbox.in_flight().collect();
+    flying.sort_by(|a, b| {
+        a.arrives
+            .partial_cmp(&b.arrives)
+            .unwrap_or(std::cmp::Ordering::Equal)
+            .then(a.target.0.cmp(&b.target.0))
+    });
+    w.seq(flying.len());
+    for i in flying {
+        w.f64(i.arrives);
+        w.u32(i.target.0);
+        put_influence_kind(&mut w, i.kind);
+        w.f64(i.energy);
+        w.vec3(i.momentum);
+        w.f64(i.source_distance);
+    }
+    w.u64(s.mailbox.delivered);
+    w.u32(s.mailbox.in_flight_peak as u32);
     w.finish()
 }
 
 const FACT_MIN_BYTES: usize = 16 + 1 + 8 + 8 + 8;
 const ENV_MIN_BYTES: usize = 16 + 8 * 6;
 const AUDIT_MIN_BYTES: usize = 16 + 1 + 8 + 8;
+const INFLUENCE_MIN_BYTES: usize = 8 + 4 + 1 + 8 + 24 + 8;
+
+const INFLUENCE_KINDS: [InfluenceKind; 5] = [
+    InfluenceKind::Radiation,
+    InfluenceKind::Blast,
+    InfluenceKind::Impact,
+    InfluenceKind::Probe,
+    InfluenceKind::UserImpulse,
+];
+
+pub(crate) fn influence_kind_tag(k: InfluenceKind) -> u8 {
+    INFLUENCE_KINDS.iter().position(|&x| x == k).unwrap_or(0) as u8
+}
+
+/// Decode an influence-kind tag that arrived as a database column.
+#[cfg(feature = "postgres")]
+pub(crate) fn influence_kind_from(tag: u8) -> Result<InfluenceKind> {
+    INFLUENCE_KINDS
+        .get(tag as usize)
+        .copied()
+        .ok_or(crate::wire::WireError::BadTag { what: "influence kind", tag: tag as u64 })
+}
+
+fn put_influence_kind(w: &mut Writer, k: InfluenceKind) {
+    w.u8(influence_kind_tag(k));
+}
+fn get_influence_kind(r: &mut Reader) -> Result<InfluenceKind> {
+    let t = r.tag("influence kind", INFLUENCE_KINDS.len() as u8)?;
+    Ok(INFLUENCE_KINDS[t as usize])
+}
 
 /// Parse a snapshot. Never panics, whatever the bytes contain.
 pub fn decode(bytes: &[u8]) -> Result<Snapshot> {
@@ -860,7 +941,7 @@ pub fn decode(bytes: &[u8]) -> Result<Snapshot> {
     let mut environments = HashMap::with_capacity(n);
     for _ in 0..n {
         let k = PathKey(r.u128()?);
-        environments.insert(k, get_environment(&mut r)?);
+        environments.insert(k, get_environment_pub(&mut r)?);
     }
 
     let n = r.seq("audit", AUDIT_MIN_BYTES)?;
@@ -874,8 +955,27 @@ pub fn decode(bytes: &[u8]) -> Result<Snapshot> {
         });
     }
 
+    let n = r.seq("in flight", INFLUENCE_MIN_BYTES)?;
+    let mut in_flight = Vec::with_capacity(n);
+    for _ in 0..n {
+        in_flight.push(Influence {
+            arrives: r.f64()?,
+            target: NodeIdx(r.u32()?),
+            kind: get_influence_kind(&mut r)?,
+            energy: r.f64()?,
+            momentum: r.vec3()?,
+            source_distance: r.f64()?,
+        });
+    }
+    let delivered = r.u64()?;
+    let in_flight_peak = r.u32()? as usize;
+
     r.finish()?;
     Ok(Snapshot {
+        mailbox_view: Mailbox::restore(in_flight.clone(), delivered, in_flight_peak),
+        in_flight,
+        delivered,
+        in_flight_peak,
         tree,
         ledger,
         time,
@@ -901,10 +1001,79 @@ pub fn decode(bytes: &[u8]) -> Result<Snapshot> {
 /// SpacetimeDB-backed implementation is what §03 of the review proposes, and if
 /// that bet goes badly it costs one implementation rather than the project.
 pub trait WorldStore {
+    /// Write the whole world.
     fn save(&mut self, view: WorldView<'_>) -> Result<()>;
-    fn load(&self) -> Result<Snapshot>;
+
+    /// Write only what has changed since the world instant `since`.
+    ///
+    /// This is the operation that decides whether a store can carry a large
+    /// world, and the reason it can is the scheduler: a node that was coasted
+    /// has not been re-derived, so there is nothing new to say about it. Writes
+    /// are proportional to *events* — solves and disturbances — rather than to
+    /// how much world there is.
+    ///
+    /// The default implementation writes everything, so a blob store is still a
+    /// perfectly valid store; it just does more work than it needs to. That
+    /// default is what keeps the trait honest as a swap point rather than a
+    /// Postgres-shaped hole.
+    fn save_since(&mut self, view: WorldView<'_>, since: f64) -> Result<Flushed> {
+        let total = view.tree.nodes.len();
+        self.save(view)?;
+        let _ = since;
+        Ok(Flushed { nodes_written: total, nodes_skipped: 0, incremental: false })
+    }
+
+    fn load(&mut self) -> Result<Snapshot>;
+
     /// Bytes the store is holding, for reporting.
     fn size(&self) -> usize;
+}
+
+/// What a flush actually did.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct Flushed {
+    pub nodes_written: usize,
+    pub nodes_skipped: usize,
+    /// False when the store fell back to writing everything.
+    pub incremental: bool,
+}
+
+/// Which nodes have something new to say since the instant `since`.
+///
+/// A node is dirty when its dynamics were re-derived (`last_solved`) or
+/// something happened to it (`last_disturbed`). A node that was merely carried
+/// forward is not: its position at any instant is a closed-form function of the
+/// state already stored, so the reader can reconstruct it by coasting — which is
+/// exactly what [`Snapshot::settle`] does on load.
+pub fn dirty_nodes(tree: &Tree, since: f64) -> Vec<usize> {
+    (0..tree.nodes.len())
+        .filter(|&i| {
+            let n = &tree.nodes[i];
+            n.last_solved > since || n.last_disturbed > since
+        })
+        .collect()
+}
+
+impl Snapshot {
+    /// Bring every node up to the world instant.
+    ///
+    /// A store that wrote only the dirty nodes left the rest at whatever instant
+    /// they were last written at. Carrying them forward is the same closed-form
+    /// step the scheduler performs every frame, and it is exact — which is what
+    /// makes skipping the write safe rather than lossy.
+    pub fn settle(&mut self) {
+        let instant = self.time;
+        for n in self.tree.nodes.iter_mut() {
+            if !n.alive {
+                continue;
+            }
+            let dt = instant - n.time;
+            if dt > 0.0 {
+                n.frame.advance(dt);
+                n.time = instant;
+            }
+        }
+    }
 }
 
 /// In memory. For tests, and for a world that has not been given a home yet.
@@ -927,7 +1096,7 @@ impl WorldStore for MemoryStore {
         self.bytes = encode(view);
         Ok(())
     }
-    fn load(&self) -> Result<Snapshot> {
+    fn load(&mut self) -> Result<Snapshot> {
         decode(&self.bytes)
     }
     fn size(&self) -> usize {
@@ -966,7 +1135,7 @@ impl WorldStore for FileStore {
         std::fs::rename(&tmp, &self.path).map_err(|e| WireError::Io(e.to_string()))?;
         Ok(())
     }
-    fn load(&self) -> Result<Snapshot> {
+    fn load(&mut self) -> Result<Snapshot> {
         let bytes = std::fs::read(&self.path).map_err(|e| WireError::Io(e.to_string()))?;
         decode(&bytes)
     }

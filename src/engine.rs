@@ -340,6 +340,7 @@ impl World {
             rejected_transactions: self.rejected_transactions,
             environments: &self.environments,
             audit: &self.audit,
+            mailbox: &self.mailbox,
         }
     }
 
@@ -360,6 +361,7 @@ impl World {
         w.rejected_transactions = s.rejected_transactions;
         w.environments = s.environments;
         w.audit = s.audit;
+        w.mailbox = crate::causal::Mailbox::restore(s.in_flight, s.delivered, s.in_flight_peak);
         w.stats.sim_time = s.time;
         w
     }
