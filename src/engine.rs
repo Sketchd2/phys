@@ -530,10 +530,60 @@ impl World {
         if idx.is_none() || !self.tree.nodes[idx.get()].alive {
             return;
         }
-        let tau = self.node_cadence(idx);
+        let tau = self.node_pace(idx);
         if tau.is_finite() && tau > 0.0 {
             self.pace = tau;
         }
+    }
+
+    /// How much world time a frame should cover, for someone watching `idx`.
+    ///
+    /// # Why this is not the cadence
+    ///
+    /// It was, and that was a bug worth writing down, because the two questions
+    /// look identical and are not.
+    ///
+    /// [`World::node_cadence`] asks *may this representation go stale* — and for
+    /// a node held as a single aggregate the honest answer can be "not for a
+    /// very long time". A ball of ten-thousand-kelvin hydrogen has no bulk
+    /// motion in its own rest frame (`promote` sets the momentum to zero, which
+    /// is what a rest frame means), barely spins, and is not being stirred, so
+    /// nothing an aggregate reports about it — mass, radius, temperature —
+    /// changes at all. Its measured cadence was 5.2x10^18 seconds. That is not
+    /// wrong: a hundred and sixty billion years is genuinely how long that
+    /// *description* stays accurate.
+    ///
+    /// The pace asks something else: *how fast should the clock run for someone
+    /// looking at this*. Answering it with the cadence let a client watching an
+    /// unmaterialised node set the world clock to 2.6x10^11 seconds a frame
+    /// instead of 6.2 — a factor of four times ten to the tenth, decided by
+    /// whether the thing being watched happened to have been materialised yet.
+    /// Recipes made that reachable from outside: a client can now be looking at
+    /// scenery the engine never built.
+    ///
+    /// So the pace is additionally bounded by how long the node's *interior*
+    /// takes to rearrange, which is one resolution element at the internal
+    /// random speed. [`Aggregate::velocity_dispersion`] is that speed and is
+    /// floored at the thermal speed, so it is never zero for warm matter — it
+    /// reported 8.2 km/s for the node above, giving four days rather than a
+    /// hundred and sixty billion years.
+    ///
+    /// For a materialised node the cadence is already the shorter of the two
+    /// and the bound does nothing, which is the property that keeps "zooming in
+    /// slows time" an arithmetic consequence: time slows when detail is
+    /// *resolved*, not merely when something small is pointed at.
+    pub fn node_pace(&self, idx: NodeIdx) -> f64 {
+        if idx.is_none() || idx.get() >= self.tree.nodes.len() || !self.tree.nodes[idx.get()].alive
+        {
+            return f64::INFINITY;
+        }
+        let cadence = self.node_cadence(idx);
+        let n = &self.tree.nodes[idx.get()];
+        let churn = n.agg.velocity_dispersion();
+        if !(churn > 0.0) || !churn.is_finite() {
+            return cadence;
+        }
+        cadence.min(self.node_resolution(idx) / churn)
     }
 
     /// The length scale a node is currently represented at, metres.

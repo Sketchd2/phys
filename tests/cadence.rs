@@ -246,3 +246,85 @@ fn finer_resolution_demands_a_faster_cadence() {
         "watching a kilometre of it should demand seconds, not {watched_at_a_km:.1} s"
     );
 }
+
+/// Watching something the engine has not materialised must not run the clock
+/// away.
+///
+/// This is a bug, kept. `refresh_pace` took the world clock straight from
+/// `node_cadence`, and for a node held as a single aggregate the cadence is
+/// legitimately enormous: a ball of 10^4 K hydrogen has no bulk motion in its
+/// own rest frame, barely spins and is not being stirred, so nothing an
+/// aggregate reports about it changes for 5.2x10^18 seconds. Correct answer,
+/// wrong question — the pace is not "may this description go stale" but "how
+/// fast should the clock run for someone looking at it", and answering the
+/// second with the first set a frame to 2.6x10^11 seconds instead of 6.2.
+///
+/// Recipes are what made it reachable from outside: a client can now be looking
+/// at scenery the engine never built, and `pace_to` follows what is watched.
+#[test]
+fn pacing_to_an_unmaterialised_node_is_bounded() {
+    use phys::engine::{default_spec, galaxy, World};
+
+    let mut w = World::new(galaxy(0x5CE7E, 1e9), 20.0);
+    w.tree.nodes[0].spec.count = 2000;
+    let root = w.tree.root;
+    let here = *w.drill(root, Tier::Planetary, &default_spec).last().unwrap();
+    w.tree.refine(here);
+    let spec = default_spec(w.tree.nodes[here.get()].tier.finer());
+    let kid = w.tree.promote(here, 0, spec);
+    assert!(!w.tree.nodes[kid.get()].is_materialised());
+
+    let blind = w.node_pace(kid);
+    let cadence = w.node_cadence(kid);
+    w.tree.refine(kid);
+    let seeing = w.node_pace(kid);
+
+    println!(
+        "  unmaterialised: cadence {cadence:.3e} s, pace {blind:.3e} s\n  \
+         materialised:   pace {seeing:.3e} s  — pace ratio {:.1}x",
+        blind / seeing
+    );
+
+    // The cadence is still enormous, and still right: as a single aggregate,
+    // nothing about this node changes. The pace must not be.
+    assert!(cadence > 1e17, "the cadence is supposed to be huge here");
+    assert!(
+        blind < cadence / 1e10,
+        "the pace followed the cadence off a cliff: {blind:.3e} against {cadence:.3e}"
+    );
+    // Materialising may fairly shorten the pace — that is "zooming in slows
+    // time" — but not by the ten orders of magnitude this used to move by.
+    assert!(
+        blind < seeing * 1e5,
+        "pointing at the same node blind and resolved must not change the clock \
+         by {:.1e}x",
+        blind / seeing
+    );
+}
+
+/// The bound is the node's own interior, measured, not a table.
+#[test]
+fn the_pace_bound_is_the_time_the_interior_takes_to_rearrange() {
+    use phys::engine::{default_spec, galaxy, World};
+
+    let mut w = World::new(galaxy(0x5CE7E, 1e9), 20.0);
+    w.tree.nodes[0].spec.count = 2000;
+    let root = w.tree.root;
+    let here = *w.drill(root, Tier::Planetary, &default_spec).last().unwrap();
+    w.tree.refine(here);
+    let spec = default_spec(w.tree.nodes[here.get()].tier.finer());
+    let kid = w.tree.promote(here, 0, spec);
+
+    let n = &w.tree.nodes[kid.get()];
+    let expected = n.agg.radius / n.agg.velocity_dispersion();
+    let got = w.node_pace(kid);
+    println!(
+        "  R {:.3e} m at {:.3e} m/s internal — {expected:.3e} s, pace says {got:.3e} s",
+        n.agg.radius,
+        n.agg.velocity_dispersion()
+    );
+    assert!(
+        (got - expected).abs() / expected < 1e-12,
+        "the pace should be one resolution element at the internal random speed"
+    );
+}
