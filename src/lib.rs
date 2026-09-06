@@ -44,6 +44,7 @@
 
 pub mod budget;
 pub mod causal;
+pub mod chem;
 pub mod control;
 pub mod coords;
 pub mod dilation;
