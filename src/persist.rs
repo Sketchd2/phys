@@ -248,7 +248,7 @@ pub(crate) fn get_bodies_pub(r: &mut Reader) -> Result<Vec<Body>> {
     Ok(v)
 }
 
-fn put_aggregate(w: &mut Writer, a: &Aggregate) {
+pub(crate) fn put_aggregate(w: &mut Writer, a: &Aggregate) {
     w.f64(a.mass);
     w.vec3(a.com);
     w.vec3(a.momentum);
@@ -268,7 +268,7 @@ fn put_aggregate(w: &mut Writer, a: &Aggregate) {
     w.f64(a.magnetic_energy);
     w.f64(a.luminosity);
 }
-fn get_aggregate(r: &mut Reader) -> Result<Aggregate> {
+pub(crate) fn get_aggregate(r: &mut Reader) -> Result<Aggregate> {
     Ok(Aggregate {
         mass: r.f64()?,
         com: r.vec3()?,
@@ -357,7 +357,7 @@ fn get_spectrum(r: &mut Reader) -> Result<MassSpectrum> {
     })
 }
 
-fn put_spec(w: &mut Writer, s: &ProlongSpec) {
+pub(crate) fn put_spec(w: &mut Writer, s: &ProlongSpec) {
     w.u32(s.count as u32);
     put_profile(w, &s.profile);
     put_spectrum(w, &s.spectrum);
@@ -365,7 +365,7 @@ fn put_spec(w: &mut Writer, s: &ProlongSpec) {
     w.f64(s.composition_scatter);
     w.f64(s.turbulent_fraction);
 }
-fn get_spec(r: &mut Reader) -> Result<ProlongSpec> {
+pub(crate) fn get_spec(r: &mut Reader) -> Result<ProlongSpec> {
     Ok(ProlongSpec {
         count: r.u32()? as usize,
         profile: get_profile(r)?,
@@ -380,7 +380,7 @@ fn get_spec(r: &mut Reader) -> Result<ProlongSpec> {
 // morphology
 // ---------------------------------------------------------------------------
 
-fn put_morphology(w: &mut Writer, m: &Morphology) {
+pub(crate) fn put_morphology(w: &mut Writer, m: &Morphology) {
     put_program(w, m.program);
     for g in m.genome {
         w.u32(g.to_bits());
@@ -402,7 +402,7 @@ fn put_morphology(w: &mut Writer, m: &Morphology) {
 /// 8 + 1 + 4 + 8 for one event.
 const EVENT_MIN_BYTES: usize = 21;
 
-fn get_morphology(r: &mut Reader) -> Result<Morphology> {
+pub(crate) fn get_morphology(r: &mut Reader) -> Result<Morphology> {
     let program = get_program(r)?;
     let mut genome = [0.0f32; 8];
     for g in genome.iter_mut() {

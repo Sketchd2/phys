@@ -1177,22 +1177,31 @@ fn refresh_scene(e: &mut Explorer) {
         return;
     };
 
-    let scene = e.world.render(&crate::view::ViewRequest {
+    let mut scene = e.world.render(&crate::view::ViewRequest {
         node: here,
         max_bodies: 0,
         trail: 16,
         // The explorer redraws from scratch each time rather than carrying its
         // own bodies forward, so it always wants them.
         since: f64::NEG_INFINITY,
+        volume: None,
+        // The explorer is a client, and it can run the sampler. So a node the
+        // engine has not materialised draws anyway, out of its recipe — which
+        // is the point of recipes made visible. The readouts still report
+        // `materialised: false`, because it isn't.
+        allow_recipes: true,
     });
+    // If the sampler in this build cannot reproduce the recipe, draw nothing
+    // rather than draw something wrong. There is no server to re-ask here.
+    let _ = scene.materialise();
     e.scene = scene;
 
     e.points.clear();
-    e.points.reserve(e.scene.bodies.len() * POINT_STRIDE);
+    e.points.reserve(e.scene.bodies().len() * POINT_STRIDE);
     let mut fastest = 0.0f32;
     let mut hottest = 0.0f32;
     let mut heaviest = 0.0f32;
-    for b in &e.scene.bodies {
+    for b in e.scene.bodies() {
         fastest = fastest.max(b.speed());
         hottest = hottest.max(b.temperature);
         heaviest = heaviest.max(b.mass);
@@ -1208,12 +1217,12 @@ fn refresh_scene(e: &mut Explorer) {
         ]);
     }
 
-    let n = &e.scene.node;
+    let n = e.scene.node();
     let d = &e.scene.world;
     e.readouts[0] = n.mass as f32;
     e.readouts[1] = n.radius as f32;
     e.readouts[2] = n.temperature as f32;
-    e.readouts[3] = e.scene.bodies.len() as f32;
+    e.readouts[3] = e.scene.bodies().len() as f32;
     e.readouts[4] = n.tier as f32;
     e.readouts[5] = e.path.len() as f32 - 1.0;
     e.readouts[6] = heaviest;
@@ -1250,7 +1259,7 @@ pub extern "C" fn scene_value(which: u32) -> f64 {
     // Read from the scene, not from the world. If a number is not in the scene
     // then a real client could not have it either, and the readout would be
     // quietly lying about what the boundary carries.
-    let n = &e.scene.node;
+    let n = e.scene.node();
     let d = &e.scene.world;
     match which {
         0 => n.mass,
@@ -1281,7 +1290,7 @@ pub extern "C" fn scene_trail_metres(up: u32) -> f64 {
         return 0.0;
     }
     if up == 0 {
-        return e.scene.node.radius;
+        return e.scene.node().radius;
     }
     e.scene.trail.get(up as usize - 1).map(|t| t.radius).unwrap_or(0.0)
 }
@@ -1317,7 +1326,7 @@ pub extern "C" fn scene_trail_tier(up: u32) -> u32 {
         return 255;
     }
     if up == 0 {
-        return e.scene.node.tier as u32;
+        return e.scene.node().tier as u32;
     }
     // The trail travels in the scene, nearest ancestor first.
     e.scene.trail.get(up as usize - 1).map(|t| t.tier as u32).unwrap_or(255)

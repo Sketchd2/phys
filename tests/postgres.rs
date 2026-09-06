@@ -11,6 +11,16 @@
 //! Skipping rather than failing is deliberate: a contributor without a database
 //! should still get a green suite, and the property these tests check — that a
 //! store is swappable — is only meaningful when there is something to swap to.
+//!
+//! # One database, one test at a time
+//!
+//! Every test here starts by truncating, because a store that carries the last
+//! test's rows is not a store being tested. Rust runs tests in parallel by
+//! default, so that truncate lands in the middle of another test's save and it
+//! reads back a world with somebody else's clock in it — which is exactly what
+//! happened, intermittently, and looked like a serialisation bug rather than a
+//! harness one. `LOCK` serialises them. It is held for the whole test, not just
+//! the truncate, because the window is the whole test.
 
 #![cfg(feature = "postgres")]
 
@@ -21,12 +31,21 @@ use phys::persist::{dirty_nodes, WorldStore};
 use phys::store_pg::PostgresStore;
 use phys::units::*;
 
-fn store() -> Option<PostgresStore> {
+/// Held for the length of each test, so no two of them share the database.
+static LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+type Session = (PostgresStore, std::sync::MutexGuard<'static, ()>);
+
+fn store() -> Option<Session> {
     let url = std::env::var("PHYS_PG").ok()?;
+    // A test that panics poisons the lock. The next test still wants the
+    // database, and a poisoned mutex here means "the last test failed", not
+    // "the data is unsafe" — it is about to truncate anyway.
+    let guard = LOCK.lock().unwrap_or_else(|e| e.into_inner());
     match PostgresStore::connect(&url) {
         Ok(mut s) => {
             s.clear().expect("truncate");
-            Some(s)
+            Some((s, guard))
         }
         Err(e) => {
             eprintln!("PHYS_PG is set but unusable ({e}); skipping");
@@ -59,7 +78,7 @@ fn a_world() -> World {
 /// than as a trait.
 #[test]
 fn a_world_round_trips_through_postgres() {
-    let mut pg = db!();
+    let (mut pg, _held) = db!();
     let mut w = a_world();
     let root = w.tree.root;
     let path = w.drill(root, Tier::Continuum, &default_spec);
@@ -97,7 +116,7 @@ fn a_world_round_trips_through_postgres() {
 /// not, one of them is lying and the trait is not a swap point.
 #[test]
 fn postgres_and_a_file_agree() {
-    let mut pg = db!();
+    let (mut pg, _held) = db!();
     let mut w = a_world();
     let root = w.tree.root;
     w.drill(root, Tier::Planetary, &default_spec);
@@ -132,7 +151,7 @@ fn postgres_and_a_file_agree() {
 /// whole scheduler design was for, and the database is where it finally pays.
 #[test]
 fn writes_are_proportional_to_events() {
-    let mut pg = db!();
+    let (mut pg, _held) = db!();
     let mut w = a_world();
     let root = w.tree.root;
     w.drill(root, Tier::Planetary, &default_spec);
@@ -241,7 +260,7 @@ fn the_dirty_set_is_derived_not_tracked() {
 /// in the light-delay between the act and its landing must not lose it.
 #[test]
 fn an_impulse_in_flight_survives_a_save() {
-    let mut pg = db!();
+    let (mut pg, _held) = db!();
     let mut w = a_world();
     let root = w.tree.root;
     let deep = *w.drill(root, Tier::Planetary, &default_spec).last().unwrap();
@@ -278,7 +297,7 @@ fn an_impulse_in_flight_survives_a_save() {
 /// blob. A shard will be a `WHERE` clause over these columns.
 #[test]
 fn nodes_are_rows_you_can_ask_questions_about() {
-    let mut pg = db!();
+    let (mut pg, _held) = db!();
     let mut w = a_world();
     let root = w.tree.root;
     w.drill(root, Tier::Molecular, &default_spec);

@@ -90,3 +90,59 @@ only the name of a material somebody *built* is lost.
 **Trigger:** goes away by itself when materials become data (Track C2 of the
 review), at which point the name is data too. Not worth fixing before then —
 nothing in the physics reads `name`.
+
+---
+
+## The pacer cannot serve a crowd
+
+**Noticed:** building the volume query (Phase 2 bandwidth work).
+**Where:** `engine.rs` — `refresh_pace`, `pace_to`, `lateness`.
+
+`phys-headless serve` promotes two hundred neighbours around the node it is
+watching and paces the clock to that node. Worst lateness settles around 300:
+two hundred live nodes cannot all be re-solved at the cadence of the finest one
+inside a 50 ms frame, so most of them fall behind by a couple of orders of
+magnitude and stay there. The scheduler is behaving correctly — it ranks by
+lateness and spends what it has — but "correctly" here means every node is
+equally, badly late.
+
+It shows up in `tests/view.rs::a_neighbourhood`, which has to call `pace_to`
+explicitly or the neighbours travel 10^8 node radii between two frames.
+
+**The fix** is probably not more throughput. It is that a crowd of nodes at the
+same tier doing nothing in particular should not each be a scheduling unit:
+they want to be *one* unit — a coarse node with them as bodies — until
+something happens to one of them, which is the promotion rule running in
+reverse. `coarsen` already exists and `mixing_time` already says when detail may
+be released; what is missing is the same judgement applied to a *sibling group*
+rather than to one node's interior.
+
+**Trigger:** the first scene that needs more than a few dozen live nodes at
+once, which is any city. Not urgent while the play space is one node deep, and
+deliberately not attempted inside a bandwidth change — the two would have been
+impossible to tell apart in the numbers.
+
+---
+
+## Recipes assume the client's sampler matches the server's
+
+**Noticed:** building `view::Recipe` (Phase 2 bandwidth work).
+**Where:** `view.rs` — `Recipe::build`, and `prolong.rs` underneath it.
+
+A recipe is ~300 bytes that regenerate a node's detail on the client, and it is
+only ever sent for detail the server does not itself hold. That is what makes it
+safe: there is no server-side truth for a client's version to disagree with, so
+two clients sampling untouched scenery a few ulps apart is a difference nobody
+can observe. `build` also checks the generated mass against the aggregate, which
+catches a blob from a different build of the engine.
+
+What it does *not* catch is a sampler that differs subtly — a different
+`libm`, a different FMA contraction, x87 excess precision — producing bodies
+that conserve mass and sit in slightly different places. Today that is
+cosmetic.
+
+**Trigger:** the moment a client's regenerated detail is allowed to *matter* —
+client-side hit detection against recipe scenery, say, or a client authoring
+into a node it generated. At that point the sampler needs a determinism
+guarantee (soft-float for the sampling path, or a server-supplied hash of the
+positions), not just a mass check.

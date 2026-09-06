@@ -64,6 +64,10 @@ pub enum WireError {
     TrailingBytes { count: usize },
     /// Text that was not valid UTF-8.
     BadText,
+    /// A recipe did not check out: the blob was mangled, or the sampler in
+    /// this build does not reproduce what the one that wrote it produced.
+    /// Either way the client should ask again with `allow_recipes: false`.
+    BadRecipe { what: &'static str },
     Io(String),
 }
 
@@ -85,6 +89,7 @@ impl std::fmt::Display for WireError {
                 write!(f, "{count} bytes left over after decoding")
             }
             WireError::BadText => write!(f, "invalid UTF-8"),
+            WireError::BadRecipe { what } => write!(f, "recipe failed its {what} check"),
             WireError::Io(e) => write!(f, "io: {e}"),
         }
     }
