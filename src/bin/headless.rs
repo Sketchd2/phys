@@ -92,13 +92,30 @@ fn serve() {
     let mut solve_us = 0.0;
     let mut render_us = 0.0;
 
+    // What a client that re-asks for everything every frame would cost, against
+    // what one that carries its own bodies forward costs. The difference is the
+    // entire answer to "this scales badly with scene complexity".
+    let mut naive_bytes = 0usize;
+    let mut sent_since = f64::NEG_INFINITY;
+    let mut updates = 0usize;
+
     for _ in 0..FRAMES {
         let t = std::time::Instant::now();
         w.step_frame(50_000.0);
         solve_us += t.elapsed().as_secs_f64() * 1e6;
 
         let t = std::time::Instant::now();
-        let scene = w.render(&ViewRequest { node: watched, max_bodies: 0, trail: 16 });
+        let everything =
+            w.render(&ViewRequest { node: watched, max_bodies: 0, trail: 16, since: f64::NEG_INFINITY });
+        naive_bytes += view::encode(&everything).len();
+
+        // What we actually send: bodies only when the node has been re-solved.
+        let scene =
+            w.render(&ViewRequest { node: watched, max_bodies: 0, trail: 16, since: sent_since });
+        if scene.bodies_included {
+            sent_since = w.time;
+            updates += 1;
+        }
         let bytes = view::encode(&scene);
         render_us += t.elapsed().as_secs_f64() * 1e6;
 
@@ -113,17 +130,34 @@ fn serve() {
 
     rule("What that cost");
     let per_frame = stream.len() as f64 / FRAMES as f64;
+    let naive_per_frame = naive_bytes as f64 / FRAMES as f64;
     println!("  solve:  {:>8.2} ms/frame", solve_us / FRAMES as f64 / 1e3);
-    println!("  render: {:>8.2} ms/frame  ({:.1}% of the solve)",
-        render_us / FRAMES as f64 / 1e3,
-        100.0 * render_us / solve_us.max(1e-9));
-    println!("  wire:   {:>8.1} kB/frame  ({} total)", per_frame / 1e3, si(stream.len() as f64, "B"));
     println!(
-        "\n  At 20 frames a second that is {:.1} MB/s to one client.",
-        per_frame * 20.0 / 1e6
+        "  render: {:>8.2} ms/frame  ({:.1}% of the solve)",
+        render_us / FRAMES as f64 / 1e3,
+        100.0 * render_us / solve_us.max(1e-9)
     );
-    println!("  That number is what decides how many clients a region can carry,");
-    println!("  and it is the first thing Phase 3 has to measure against a budget.");
+
+    rule("Bandwidth");
+    println!("  re-sending every body every frame:");
+    println!(
+        "    {:>8.1} kB/frame   {:.2} MB/s at 20 fps",
+        naive_per_frame / 1e3,
+        naive_per_frame * 20.0 / 1e6
+    );
+    println!("  sending only when the node is re-solved ({updates} of {FRAMES} frames):");
+    println!(
+        "    {:>8.1} kB/frame   {:.2} MB/s at 20 fps   \x1b[1m{:.1}x less\x1b[0m",
+        per_frame / 1e3,
+        per_frame * 20.0 / 1e6,
+        naive_per_frame / per_frame.max(1.0)
+    );
+    println!(
+        "\n  The saving is not compression. A node nobody re-solved has bodies the\n  \
+         client can carry forward itself, so there is nothing to say about it —\n  \
+         which makes traffic track what is *happening* rather than what is *visible*.\n  \
+         A city of still buildings costs nothing after the first frame."
+    );
     println!("\n  Now run `watch`. Nothing it does will touch this engine.");
 }
 
@@ -149,6 +183,10 @@ fn watch() {
     let mut first: Option<Scene> = None;
     let mut last: Option<Scene> = None;
     let mut drawn = 0u64;
+    let mut held: Vec<phys::view::Speck> = Vec::new();
+    let mut held_at = 0.0f64;
+    let mut updates = 0usize;
+    let mut carried = 0usize;
 
     while at + 4 <= bytes.len() {
         let n = u32::from_le_bytes([bytes[at], bytes[at + 1], bytes[at + 2], bytes[at + 3]]) as usize;
@@ -166,11 +204,32 @@ fn watch() {
         };
         at += n;
         frames += 1;
-        drawn += scene.bodies.len() as u64;
-        if first.is_none() {
-            first = Some(scene.clone());
+
+        // The client's half of the bargain. A frame that carries no bodies is
+        // not an empty frame — it means nothing was re-solved, so what we
+        // already hold is still right, carried forward by its own velocities.
+        // This is the same closed-form step the engine performs internally, and
+        // doing it here is what makes the server's silence affordable.
+        if scene.bodies_included {
+            held = scene.bodies.clone();
+            updates += 1;
+            held_at = scene.instant;
+        } else {
+            let dt = (scene.instant - held_at) as f32;
+            for b in held.iter_mut() {
+                b.pos = b.at(dt);
+            }
+            held_at = scene.instant;
+            carried += 1;
         }
-        last = Some(scene);
+        drawn += held.len() as u64;
+
+        let mut shown = scene.clone();
+        shown.bodies = held.clone();
+        if first.is_none() {
+            first = Some(shown.clone());
+        }
+        last = Some(shown);
     }
 
     let (Some(first), Some(last)) = (first, last) else {
@@ -179,7 +238,10 @@ fn watch() {
     };
 
     rule("What a client can say about a world it cannot touch");
-    println!("  {frames} frames, {drawn} bodies drawn in total");
+    println!(
+        "  {frames} frames, {drawn} bodies drawn — {updates} frames brought new bodies,\n  \
+         {carried} were carried forward by the client from what it already had"
+    );
     println!(
         "\n  node:    {} tier, solved by {}",
         tier_name(last.node.tier),
@@ -201,8 +263,16 @@ fn watch() {
         last.bodies.iter().map(|b| kind_name(b.kind)).collect();
     println!("  holding: {}", kinds.into_iter().collect::<Vec<_>>().join(", "));
 
-    let (lo, hi) = last.channel_range(|b| b.speed);
-    println!("  speeds:  {} to {}", si(lo as f64, "m/s"), si(hi as f64, "m/s"));
+    // Node radii per second: everything a client sees is scaled to the node,
+    // which is what lets one renderer draw a galaxy and a nucleus.
+    let (lo, hi) = last.channel_range(|b| b.speed());
+    println!(
+        "  speeds:  {:.3e} to {:.3e} node radii/s  ({} to {} at this scale)",
+        lo,
+        hi,
+        si(lo as f64 * last.node.radius, "m/s"),
+        si(hi as f64 * last.node.radius, "m/s")
+    );
 
     rule("And that the world moved");
     println!(

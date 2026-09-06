@@ -9,12 +9,28 @@
 use phys::engine::{default_spec, galaxy, World};
 use phys::units::*;
 use phys::view::{decode, encode, kind_name, solver_name, tier_name, Scene, ViewRequest};
+use phys::view::Speck;
 
 fn ok(r: Result<Scene, phys::wire::WireError>) -> Scene {
     match r {
         Ok(s) => s,
         Err(e) => panic!("scene decode failed: {e}"),
     }
+}
+
+/// Mean spacing between bodies, in node radii.
+///
+/// Computed from the extent the bodies *actually* occupy rather than from the
+/// node's nominal radius: a sampled profile has a tail, so a node whose radius
+/// says one can easily have bodies out at forty, and the spacing that matters
+/// is the one between the things being drawn.
+fn spacing(s: &Scene) -> f32 {
+    let extent = s
+        .bodies
+        .iter()
+        .flat_map(|b| b.pos)
+        .fold(0.0f32, |a, c| a.max(c.abs()));
+    2.0 * extent.max(1e-6) / (s.bodies.len().max(1) as f32).cbrt()
 }
 
 fn a_world() -> World {
@@ -117,7 +133,7 @@ fn a_body_budget_samples_rather_than_truncates() {
     let all = w.render(&ViewRequest::of(root));
     assert!(all.bodies.len() > 500);
 
-    let few = w.render(&ViewRequest { node: root, max_bodies: 100, trail: 4 });
+    let few = w.render(&ViewRequest { node: root, max_bodies: 100, trail: 4, since: f64::NEG_INFINITY });
     assert!(few.bodies.len() <= 110, "budget overshot: {}", few.bodies.len());
     assert!(few.bodies.len() >= 90, "budget undershot: {}", few.bodies.len());
     assert_eq!(few.node.body_count as usize, all.bodies.len(), "the true count should still travel");
@@ -229,7 +245,19 @@ fn a_scene_survives_the_wire() {
         assert_eq!(a.radius.to_bits(), b.radius.to_bits());
     }
     assert_eq!(back.bodies.len(), scene.bodies.len());
-    assert_eq!(back.bodies, scene.bodies, "a body changed crossing the wire");
+    // Not equality: the wire is quantised on purpose, and
+    // `quantisation_is_finer_than_the_physics` is where that error is bounded.
+    // Here it is enough that every body came back as recognisably itself.
+    let element = spacing(&scene);
+    for (a, b) in scene.bodies.iter().zip(back.bodies.iter()) {
+        assert_eq!(a.kind, b.kind, "a body changed kind crossing the wire");
+        for k in 0..3 {
+            assert!(
+                (a.pos[k] - b.pos[k]).abs() < element * 0.01,
+                "a body moved crossing the wire"
+            );
+        }
+    }
 
     let per_body = bytes.len() as f64 / scene.bodies.len().max(1) as f64;
     println!(
@@ -237,7 +265,25 @@ fn a_scene_survives_the_wire() {
         scene.bodies.len(),
         bytes.len()
     );
-    assert_eq!(encode(&back), bytes, "re-encoding gave different bytes");
+    // Re-encoding a *decoded* scene is not byte-identical, and asserting that
+    // it were would be asserting the wrong thing: the ranges are measured from
+    // the values present, so a decoded scene — whose values sit on the
+    // quantisation grid — measures a marginally smaller span and lands the grid
+    // somewhere marginally different. The server always encodes from the world,
+    // never from a scene it decoded, and `rendering_is_deterministic` covers
+    // that path.
+    //
+    // What a transport does need is that decoding is *stable*: sending a scene
+    // back and forth must not let it wander.
+    let twice = ok(decode(&encode(&back)));
+    let mut wander = 0.0f32;
+    for (a, b) in back.bodies.iter().zip(twice.bodies.iter()) {
+        for k in 0..3 {
+            wander = wander.max((a.pos[k] - b.pos[k]).abs());
+        }
+    }
+    println!("  a second round trip moved bodies by at most {wander:.8} node radii");
+    assert!(wander < element * 0.01, "the scene wandered on a second round trip");
 }
 
 /// Rendering the same unchanged world twice gives the same bytes. Without this
@@ -300,4 +346,212 @@ fn a_client_can_name_things_without_the_engine() {
         kinds.iter().cloned().collect::<Vec<_>>().join(", ")
     );
     assert!(!kinds.contains(&"?"), "an unnamed body kind reached a client");
+}
+
+
+/// Quantising the wire is only safe if the step is small against *the node's
+/// own resolution* — the engine never claims to know where anything is more
+/// precisely than one resolution element. This is that claim, measured rather
+/// than argued.
+#[test]
+fn quantisation_is_finer_than_the_physics() {
+    let mut w = a_world();
+    let root = w.tree.root;
+    w.tree.refine(root);
+    let scene = w.render(&ViewRequest::of(root));
+    let back = ok(decode(&encode(&scene)));
+
+    let n = scene.bodies.len();
+    let element = spacing(&scene);
+    let mut worst = 0.0f32;
+    for (a, b) in scene.bodies.iter().zip(back.bodies.iter()) {
+        for k in 0..3 {
+            worst = worst.max((a.pos[k] - b.pos[k]).abs());
+        }
+    }
+    // The ratio should come out at about `n^(1/3) / 65536` regardless of how
+    // spread out the node is, because both the step and the spacing scale with
+    // the measured extent. That cancellation is the reason an adaptive span is
+    // the right design rather than merely a bigger one.
+    let predicted = (n as f32).cbrt() / 65536.0;
+    println!(
+        "  {n} bodies: mean spacing {element:.5} node radii, worst quantisation error \
+         {worst:.7} — {:.4}% of a spacing (predicted {:.4}%)",
+        100.0 * worst / element,
+        100.0 * predicted
+    );
+    assert!(
+        worst < element * 0.01,
+        "quantisation error {worst:.3e} is {:.2}% of the body spacing",
+        100.0 * worst / element
+    );
+}
+
+/// Velocity survives too, because the client needs it to carry a coasting node
+/// forward itself.
+#[test]
+fn velocity_survives_the_wire_well_enough_to_extrapolate() {
+    let mut w = a_world();
+    let root = w.tree.root;
+    w.tree.refine(root);
+    let scene = w.render(&ViewRequest::of(root));
+    let back = ok(decode(&encode(&scene)));
+
+    // Carry both forward by one cadence and compare where they land. That is
+    // the use the velocity is actually put to, so it is the error that matters.
+    let dt = w.node_cadence(root) as f32;
+    let mut worst = 0.0f32;
+    for (a, b) in scene.bodies.iter().zip(back.bodies.iter()) {
+        let (x, y) = (a.at(dt), b.at(dt));
+        for k in 0..3 {
+            worst = worst.max((x[k] - y[k]).abs());
+        }
+    }
+    let element = spacing(&scene);
+    println!(
+        "  after carrying one whole cadence ({dt:.3e} s), the two disagree by \
+         {worst:.6} node radii — {:.2}% of an element",
+        100.0 * worst / element
+    );
+    assert!(
+        worst < element * 0.25,
+        "extrapolating a decoded velocity drifted {:.2}% of an element",
+        100.0 * worst / element
+    );
+}
+
+/// The thing that stops bandwidth scaling with how much world is on screen: a
+/// node nobody re-solved has nothing new to say, so nothing is sent.
+#[test]
+fn an_unchanged_node_costs_almost_nothing() {
+    let mut w = a_world();
+    let root = w.tree.root;
+    w.tree.refine(root);
+    w.step_frame(50_000.0);
+
+    let full = encode(&w.render(&ViewRequest::of(root)));
+
+    // Ask again as a client that already has them, at the current instant.
+    let quiet = w.render(&ViewRequest { node: root, max_bodies: 0, trail: 16, since: w.time });
+    let quiet_bytes = encode(&quiet);
+
+    println!(
+        "  {} bodies: {} bytes when they are new, {} bytes when the client already \
+         has them — {:.0}x less",
+        full.len() / 17,
+        full.len(),
+        quiet_bytes.len(),
+        full.len() as f64 / quiet_bytes.len() as f64
+    );
+    assert!(!quiet.bodies_included, "an unchanged node sent its bodies anyway");
+    assert!(quiet.bodies.is_empty());
+    assert!(quiet_bytes.len() < full.len() / 50, "the quiet answer is not small enough");
+
+    // But the facts still come, so the client can still say what it is looking
+    // at and how far behind it is.
+    let back = ok(decode(&quiet_bytes));
+    assert_eq!(back.node.body_count, w.tree.nodes[root.get()].bodies.len() as u32);
+    assert!(back.node.mass > 0.0);
+    assert!(!back.bodies_included);
+}
+
+/// And a node that *has* been re-solved still sends. A transport that never
+/// sent anything would pass the test above.
+#[test]
+fn a_resolved_node_still_sends() {
+    let mut w = a_world();
+    let root = w.tree.root;
+    w.tree.refine(root);
+    let mark = w.time;
+    // Step until the node actually comes due and is solved.
+    for _ in 0..40 {
+        w.step_frame(50_000.0);
+        if w.tree.nodes[root.get()].last_solved > mark {
+            break;
+        }
+    }
+    assert!(
+        w.tree.nodes[root.get()].last_solved > mark,
+        "the node never got solved, so this proves nothing"
+    );
+    let scene = w.render(&ViewRequest { node: root, max_bodies: 0, trail: 16, since: mark });
+    println!("  re-solved node sent {} bodies", scene.bodies.len());
+    assert!(scene.bodies_included);
+    assert!(!scene.bodies.is_empty());
+}
+
+/// The per-body cost on the wire, stated so a regression is visible.
+#[test]
+fn the_wire_cost_per_body_is_what_we_think() {
+    let mut w = a_world();
+    let root = w.tree.root;
+    w.tree.refine(root);
+    let scene = w.render(&ViewRequest::of(root));
+    let bytes = encode(&scene);
+    let overhead = encode(&Scene { bodies: Vec::new(), ..scene.clone() }).len();
+    let per_body = (bytes.len() - overhead) as f64 / scene.bodies.len() as f64;
+    println!(
+        "  {} bodies, {} bytes total, {overhead} of header — {per_body:.1} bytes per body",
+        scene.bodies.len(),
+        bytes.len()
+    );
+    assert!(
+        (per_body - 17.0).abs() < 0.5,
+        "per-body cost moved to {per_body:.1}; update the estimate or find the regression"
+    );
+    let _ = Speck::default();
+}
+
+
+/// A node materialised long after it was last solved must not be flung across
+/// the sky.
+///
+/// `refine` samples bodies from the aggregate *as it currently is*, so they are
+/// valid now — but it has no clock, so `last_solved` stays wherever it was. A
+/// renderer that carried them by `time - last_solved` extrapolated correct
+/// positions at three and a half node radii out to 10^8, and nothing caught it
+/// because a scene that absurd still round-tripped and still drew.
+///
+/// The cap in `render_lag` is one cadence, which is by definition one
+/// resolution element of travel. This is that bug, kept.
+#[test]
+fn a_freshly_materialised_node_is_not_extrapolated() {
+    let mut w = a_world();
+    let root = w.tree.root;
+    let deep = *w.drill(root, Tier::Planetary, &default_spec).last().unwrap();
+
+    // Let a lot of world time pass with the node unresolved, so `last_solved`
+    // is far behind, then materialise it.
+    for _ in 0..5 {
+        w.step_frame(50_000.0);
+    }
+    w.tree.refine(deep);
+
+    let node = &w.tree.nodes[deep.get()];
+    let truth = node
+        .bodies
+        .iter()
+        .map(|b| b.pos.norm() / node.agg.radius)
+        .fold(0.0f64, f64::max);
+    let stale = w.time - node.last_solved;
+
+    let scene = w.render(&ViewRequest::of(deep));
+    let drawn = scene.bodies.iter().flat_map(|b| b.pos).fold(0.0f32, |a, c| a.max(c.abs()));
+
+    println!(
+        "  last solved {stale:.3e} s ago; bodies really reach {truth:.2} node radii, \
+         drawn at {drawn:.2}"
+    );
+    assert!(
+        (drawn as f64) < truth * 3.0 + 1.0,
+        "a freshly materialised node was drawn at {drawn:.3e} radii when its bodies \
+         are at {truth:.3e}"
+    );
+    // And the cap is the cadence, so the carry is at most one element.
+    assert!(
+        scene.node.lag <= w.node_cadence(deep) * 1.000001,
+        "render lag {:.3e} exceeded the cadence {:.3e}",
+        scene.node.lag,
+        w.node_cadence(deep)
+    );
 }

@@ -997,7 +997,26 @@ impl World {
         if idx.is_none() || !self.tree.nodes[idx.get()].alive {
             return 0.0;
         }
-        (self.time - self.tree.nodes[idx.get()].last_solved).max(0.0)
+        let raw = (self.time - self.tree.nodes[idx.get()].last_solved).max(0.0);
+        // Never carry further than one of the node's own characteristic times.
+        //
+        // A cadence is *defined* as how long the fastest body takes to cross one
+        // resolution element, so this caps the extrapolation at one element —
+        // which is exactly as far as a straight line is a refinement of the
+        // truth rather than a different picture.
+        //
+        // The bound is not theoretical tidiness. `last_solved` can legitimately
+        // be far in the past while the bodies are valid *now*: materialising a
+        // node samples it from the aggregate as it currently is, and `refine`
+        // has no clock to say so. Without this cap, rendering a freshly
+        // materialised node in an old world flung every body to 10^8 node radii
+        // — bodies that were sitting, correctly, at three and a half.
+        let cadence = self.node_cadence(idx);
+        if cadence.is_finite() && cadence > 0.0 {
+            raw.min(cadence)
+        } else {
+            raw
+        }
     }
 
     /// May this node's detail be thrown away and drawn again?

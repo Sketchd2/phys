@@ -1181,6 +1181,9 @@ fn refresh_scene(e: &mut Explorer) {
         node: here,
         max_bodies: 0,
         trail: 16,
+        // The explorer redraws from scratch each time rather than carrying its
+        // own bodies forward, so it always wants them.
+        since: f64::NEG_INFINITY,
     });
     e.scene = scene;
 
@@ -1190,7 +1193,7 @@ fn refresh_scene(e: &mut Explorer) {
     let mut hottest = 0.0f32;
     let mut heaviest = 0.0f32;
     for b in &e.scene.bodies {
-        fastest = fastest.max(b.speed);
+        fastest = fastest.max(b.speed());
         hottest = hottest.max(b.temperature);
         heaviest = heaviest.max(b.mass);
         e.points.extend_from_slice(&[
@@ -1200,7 +1203,7 @@ fn refresh_scene(e: &mut Explorer) {
             b.radius,
             b.mass,
             b.temperature,
-            b.speed,
+            b.speed(),
             b.kind as f32,
         ]);
     }
@@ -1258,7 +1261,7 @@ pub extern "C" fn scene_value(which: u32) -> f64 {
         5 => n.internal_energy,
         6 => n.binding_energy,
         7 => n.luminosity,
-        8 => e.scene.channel_range(|b| b.speed).1 as f64,
+        8 => e.scene.channel_range(|b| b.speed()).1 as f64,
         9 => d.detail_bytes as f64,
         10 => n.cadence,
         11 => d.frame_span,
