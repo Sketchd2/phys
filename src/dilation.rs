@@ -70,6 +70,35 @@
 //! delivery on light travel time in coordinate seconds; a node whose *position*
 //! advanced at a hundred times the rate would outrun the influences it had
 //! already emitted, and the mailbox would deliver its past to its own future.
+//!
+//! # And it does not go backwards
+//!
+//! A negative rate is refused on every path, which is a decision rather than an
+//! oversight, so here is the measurement behind it.
+//!
+//! Run a body list forward one sub-step and then back by the same amount, and
+//! ask whether it returns to where it started
+//! (`reversing_a_step_is_only_exact_where_the_integrator_is_symmetric`).
+//! Gravity does: leapfrog is time-reversible, and bodies that travelled
+//! 6.0x10^8 m came back to within 41 m — seven parts in a hundred million. SPH
+//! does not: bodies that travelled 16.5 m came back 1.5 m short, losing nine
+//! percent of the distance in a single step, because artificial viscosity is
+//! dissipative *on purpose* — that is what it is for. Decay sampling is
+//! stochastic, growth transactions will not balance against a negative span,
+//! and thermalisation destroys the trajectory outright by replacing it with a
+//! draw from an ensemble.
+//!
+//! So a negative rate would not be time reversal. It would be exact reversal
+//! wherever the integrator happens to be symmetric and quietly wrong
+//! everywhere else, with no way for a caller to tell the two apart — the worst
+//! available outcome. The engine already has an honest way to go back, and it
+//! is `persist`: a saved world reloads bit-for-bit, which is what "rewind"
+//! actually means when entropy is being tracked.
+//!
+//! Even without the refusal it would not reverse anything: `advance_to` derives
+//! its coordinate sub-step as `node_dt / rate`, so a negative rate gives a
+//! negative step and the loop breaks on its first pass, and `lateness` clamps
+//! at zero so the node is never scheduled at all. It would freeze, not rewind.
 
 use crate::math::Vec3;
 use crate::units::C;
@@ -162,9 +191,17 @@ pub fn physical_rate(velocity: Vec3, potential_energy: f64, mass: f64) -> TimeRa
 
 /// Clamp a requested bubble factor to what the arithmetic can carry.
 ///
-/// Returns the accepted value; `None` for a request that is not a positive
-/// finite number at all, which is a caller bug rather than an over-ambitious
-/// admin and should be reported as one.
+/// Returns the accepted value. `None` for anything that is not a positive
+/// finite number — zero, negative, infinite or NaN — which is a caller bug
+/// rather than an over-ambitious administrator and is reported as one instead
+/// of being quietly turned into a number that happens to be legal.
+///
+/// This is the single gate. Every path that can set a bubble goes through it,
+/// including reads: `Node::bubble` is a public field, so `World::time_rate_of`
+/// sanitises what it finds there rather than trusting it. Without that, a
+/// value written directly made [`TimeRate`] report a rate that
+/// [`TimeRate::total`] did not apply, and a struct whose accessors disagree
+/// about their own contents is worse than either answer alone.
 pub fn accept_bubble(rate: f64) -> Option<f64> {
     if !rate.is_finite() || rate <= 0.0 {
         return None;

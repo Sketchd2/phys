@@ -616,7 +616,10 @@ impl World {
                 n.agg.external_potential,
                 n.agg.mass,
             );
-            here.bubble = n.bubble;
+            // Through the gate, not straight from the field. `Node::bubble` is
+            // public and a value written directly would otherwise be reported
+            // here and not applied by `total()`.
+            here.bubble = crate::dilation::accept_bubble(n.bubble).unwrap_or(1.0);
             rate = rate.compose(here);
             cur = n.parent;
             guard += 1;
@@ -2233,13 +2236,17 @@ impl World {
                 Property::Radius => n.agg.radius = value.max(1e-30),
                 Property::Charge => n.agg.charge = value,
                 Property::Luminosity => n.agg.luminosity = value.max(0.0),
-                // Routed here only if someone reaches for `author` directly.
-                // `dilate` is the way in, because a bubble needs clamping and
-                // must not pin or bump the epoch — see below.
-                Property::TimeRate => n.bubble = value.clamp(
-                    crate::dilation::MIN_BUBBLE,
-                    crate::dilation::MAX_BUBBLE,
-                ),
+                // Reachable only if someone calls `author` directly; `dilate`
+                // is the way in. It used to clamp, which meant this path and
+                // that one disagreed: `dilate(-5.0)` was refused while
+                // `Author { TimeRate, -5.0 }` silently became a millionfold
+                // *slowdown*. Two ways to write one field must not have two
+                // opinions about what is legal.
+                Property::TimeRate => {
+                    if let Some(r) = crate::dilation::accept_bubble(value) {
+                        n.bubble = r;
+                    }
+                }
             }
             n.key
         };

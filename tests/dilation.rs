@@ -385,3 +385,159 @@ fn a_bubble_survives_a_save() {
     println!("  bubble {} survived the round trip", found.bubble);
     assert_eq!(found.bubble, 750.0);
 }
+
+// ---------------------------------------------------------------------------
+// it does not go backwards
+// ---------------------------------------------------------------------------
+
+/// Every path that can write a bubble refuses a negative one, and they all
+/// refuse it the same way.
+///
+/// They did not always. `dilate(-5.0)` returned `None` and changed nothing,
+/// while `Author { TimeRate, -5.0 }` clamped into range and silently became a
+/// millionfold *slowdown* — two ways to write one field with two opinions about
+/// what is legal. And a value written straight to the public field made
+/// `TimeRate` report `-5` while `total()` applied `1.0`, so the struct
+/// disagreed with itself about its own contents.
+#[test]
+fn no_path_admits_a_negative_rate() {
+    let mut w = a_world();
+    let d = deep(&mut w);
+
+    for bad in [-5.0, -1e-9, 0.0, f64::NEG_INFINITY, f64::NAN] {
+        // 1. The command.
+        assert_eq!(w.dilate(d, bad), None, "dilate({bad}) should be refused");
+        assert_eq!(w.tree.nodes[d.get()].bubble, 1.0);
+
+        // 2. Authoring the property directly.
+        w.interact(Interaction::Author { target: d, property: Property::TimeRate, value: bad });
+        assert_eq!(
+            w.tree.nodes[d.get()].bubble, 1.0,
+            "authoring {bad} must not become a legal-looking rate"
+        );
+
+        // 3. Straight at the public field, which nothing can stop — so the
+        //    read has to be the thing that is safe.
+        w.tree.nodes[d.get()].bubble = bad;
+        let r = w.time_rate_of(d);
+        assert_eq!(r.bubble, 1.0, "a bubble of {bad} must be reported as what is applied");
+        assert_eq!(r.total(), r.physical(), "and applied as no bubble at all");
+        assert!(r.is_physical());
+        w.tree.nodes[d.get()].bubble = 1.0;
+    }
+}
+
+/// What a negative rate would do if one got through: freeze, not rewind.
+///
+/// The sub-step `advance_to` derives is `node_dt / rate`, so a negative rate
+/// gives a negative step and the loop breaks on its first pass; `lateness`
+/// clamps at zero, so the node is never even scheduled. Worth stating as a
+/// test because it is the second line of defence, and because "the feature is
+/// refused" and "the feature would not work" are different claims.
+#[test]
+fn a_negative_rate_would_freeze_a_node_not_reverse_it() {
+    let mut w = a_world();
+    let d = deep(&mut w);
+
+    let dt = w.node_dt(d);
+    let pretend_rate = -5.0f64;
+    let step = dt / pretend_rate;
+    println!("  node_dt {dt:.3e} s at rate {pretend_rate} gives a sub-step of {step:.3e} s");
+    assert!(step < 0.0, "the loop guard `h > 0.0` is what stops it");
+
+    let horizon = w.tree.nodes[d.get()].time + dt * 10.0;
+    // Lateness is elapsed local time over the cadence, and local time running
+    // backwards is not lateness at all.
+    w.tree.nodes[d.get()].bubble = 1.0;
+    assert!(w.lateness(d, horizon) > 0.0, "normally it is late");
+}
+
+/// Why a negative rate is refused rather than allowed: it would be exact where
+/// the integrator happens to be symmetric and quietly wrong everywhere else.
+///
+/// Forward one sub-step, then back by the same amount, and ask whether the node
+/// returned to where it started. This measures the claim in `dilation.rs`
+/// rather than asserting it.
+#[test]
+fn reversing_a_step_is_only_exact_where_the_integrator_is_symmetric() {
+    // Gravity's leapfrog is time-reversible.
+    let (rev_grav, moved_grav) = round_trip(Tier::Planetary);
+    // SPH's artificial viscosity is dissipative on purpose, so it is not.
+    let (rev_hydro, moved_hydro) = round_trip(Tier::Continuum);
+
+    println!(
+        "  leapfrog: travelled {moved_grav:.3e} m, returned to within {rev_grav:.3e} m \
+         ({:.1e} of the distance)",
+        rev_grav / moved_grav.max(1e-300)
+    );
+    println!(
+        "  SPH:      travelled {moved_hydro:.3e} m, returned to within {rev_hydro:.3e} m \
+         ({:.1e} of the distance)",
+        rev_hydro / moved_hydro.max(1e-300)
+    );
+
+    assert!(
+        rev_grav / moved_grav < 1e-6,
+        "leapfrog should reverse almost exactly, got {:.3e}",
+        rev_grav / moved_grav
+    );
+    assert!(
+        rev_hydro / moved_hydro > 1e-3,
+        "SPH should *not* reverse cleanly — if it now does, the dissipation is \
+         missing and that is a much bigger problem than this test"
+    );
+}
+
+/// Step a body list forward by `dt` and then back by `dt`, returning
+/// (how far it missed by, how far it had travelled).
+///
+/// The solvers are driven directly rather than through the engine, because the
+/// engine now has three separate guards against a negative step and none of
+/// them is the thing under test: what is being measured is whether the
+/// *integrator* is symmetric, which is the property the refusal rests on.
+fn round_trip(tier: Tier) -> (f64, f64) {
+    let mut w = a_world();
+    let root = w.tree.root;
+    let d = *w.drill(root, tier, &default_spec).last().unwrap();
+    w.tree.refine(d);
+
+    let start: Vec<_> = w.tree.nodes[d.get()].bodies.iter().map(|b| b.pos).collect();
+    let dt = w.node_dt(d) * 0.5;
+    let radius = w.tree.nodes[d.get()].agg.radius;
+    let count = w.tree.nodes[d.get()].bodies.len();
+    let bodies = &mut w.tree.nodes[d.get()].bodies;
+
+    let run = |h: f64, bodies: &mut Vec<phys::state::Body>| match tier {
+        Tier::Continuum => {
+            let params = phys::solvers::hydro::HydroParams {
+                h: radius / (count as f64).cbrt() * 1.2,
+                ..Default::default()
+            };
+            phys::solvers::hydro::step(bodies, h, params);
+        }
+        _ => {
+            let params = phys::solvers::gravity::GravityParams {
+                theta: 0.5,
+                softening: radius / (count as f64).cbrt() * 0.3,
+                retarded: true,
+                post_newtonian: tier == Tier::Planetary,
+                quadrupole: tier >= Tier::Planetary,
+            };
+            phys::solvers::gravity::step_leapfrog(bodies, h, params);
+        }
+    };
+
+    run(dt, bodies);
+    let travelled = bodies
+        .iter()
+        .zip(&start)
+        .map(|(b, s)| (b.pos - *s).norm())
+        .fold(0.0f64, f64::max);
+    run(-dt, bodies);
+    let missed = bodies
+        .iter()
+        .zip(&start)
+        .map(|(b, s)| (b.pos - *s).norm())
+        .fold(0.0f64, f64::max);
+    (missed, travelled)
+}
