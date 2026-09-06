@@ -99,7 +99,7 @@ impl Observer {
 
 /// What an instrument reports. Every variant carries its own uncertainty,
 /// because an instrument that reports a number without one is lying.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Reading {
     /// Bolometric flux, W/m^2, plus the light travel time it arrived after.
     Flux { value: f64, uncertainty: f64, delay: f64 },
