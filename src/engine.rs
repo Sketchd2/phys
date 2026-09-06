@@ -214,6 +214,18 @@ pub struct EngineStats {
     /// overwhelming majority, every frame, and the reason one instant is
     /// affordable across thirty-eight orders of magnitude.
     pub coasted: usize,
+    /// Seconds of interior evolution handed out beyond what the world clock
+    /// paid for, summed over every bubbled node.
+    ///
+    /// The honest headline for a world somebody has been adjusting. Energy is
+    /// still conserved inside a bubble — a tree aged a century really does burn
+    /// a century of its own reserves — but what it *received* across its
+    /// boundary was one year of sunlight, and this is the size of that gap in
+    /// the only unit that covers every process at once. Zero for a world nobody
+    /// has touched, which is the assertion worth making in a test.
+    pub bubble_seconds: f64,
+    /// Nodes currently carrying a bubble factor other than one.
+    pub bubbled: usize,
 }
 
 /// The world.
@@ -442,6 +454,7 @@ impl World {
         self.stats.worst_lateness = worst_lateness;
         self.stats.overdue = overdue;
         self.stats.coasted = coasted;
+        self.stats.bubbled = self.bubbles().len();
         plan
     }
 
@@ -534,6 +547,43 @@ impl World {
         if tau.is_finite() && tau > 0.0 {
             self.pace = tau;
         }
+    }
+
+    /// How fast this node's interior runs, per second of world time.
+    ///
+    /// The product, up the chain of frames, of every level's relativistic
+    /// dilation and every level's administrative bubble — which is the chain
+    /// rule, not an approximation, because each node's frame velocity is
+    /// measured in its parent's frame. See `dilation.rs` for why the three
+    /// factors live in one product and are reported separately.
+    ///
+    /// Costs one multiply per level of depth, and depth is about twelve at the
+    /// bottom of the ladder.
+    pub fn time_rate_of(&self, idx: NodeIdx) -> crate::dilation::TimeRate {
+        let mut rate = crate::dilation::TimeRate::default();
+        if idx.is_none() || idx.get() >= self.tree.nodes.len() {
+            return rate;
+        }
+        let mut cur = idx;
+        let mut guard = 0;
+        while !cur.is_none() && guard < 64 {
+            let n = &self.tree.nodes[cur.get()];
+            let mut here = crate::dilation::physical_rate(
+                n.frame.velocity,
+                n.agg.external_potential,
+                n.agg.mass,
+            );
+            here.bubble = n.bubble;
+            rate = rate.compose(here);
+            cur = n.parent;
+            guard += 1;
+        }
+        rate
+    }
+
+    /// Local seconds per coordinate second, as one number.
+    pub fn local_rate(&self, idx: NodeIdx) -> f64 {
+        self.time_rate_of(idx).total()
     }
 
     /// How much world time a frame should cover, for someone watching `idx`.
@@ -644,7 +694,13 @@ impl World {
         if !cadence.is_finite() {
             return 0.0;
         }
-        ((horizon - self.tree.nodes[idx.get()].last_solved) / cadence).clamp(0.0, 1e9)
+        // In the node's own time, not the world's. The cadence is a local
+        // quantity — a resolution element at the speeds measured inside the
+        // node — so the elapsed span has to be local too. A node in a hundred-
+        // fold bubble has lived a hundred times as long since it was last
+        // solved, is a hundred times as late, and is ranked accordingly.
+        let elapsed = (horizon - self.tree.nodes[idx.get()].last_solved) * self.local_rate(idx);
+        (elapsed / cadence).clamp(0.0, 1e9)
     }
 
     /// How many sub-steps this node needs to cross one frame.
@@ -971,7 +1027,14 @@ impl World {
                     let n = &self.tree.nodes[task.node.get()];
                     let dt = horizon - n.last_grown;
                     if dt > 0.0 {
-                        self.grow_node(task.node, dt);
+                        // Growth is the archetypal thing a bubble is for — a
+                        // century of a tree in an afternoon — so it runs on the
+                        // node's own clock like the rest of its interior.
+                        let rate = self.local_rate(task.node);
+                        let physical = self.time_rate_of(task.node).physical();
+                        self.stats.bubble_seconds += dt * (rate - physical).abs();
+                        let local = dt * rate;
+                        self.grow_node(task.node, local);
                         self.tree.nodes[task.node.get()].last_grown = horizon;
                     }
                 }
@@ -1007,7 +1070,15 @@ impl World {
         if !(span > 0.0) {
             return;
         }
-        let h0 = self.node_dt(idx);
+        // `node_dt` is what the node's own physics needs, measured on the
+        // node's own clock. The loop below walks *coordinate* time toward the
+        // horizon, so the stable coordinate step is that divided by the rate:
+        // a node running a hundred times faster inside a bubble covers a
+        // hundredth as much world time per pass, and needs a hundred times as
+        // many passes to cross the same frame. That is the honest price of a
+        // bubble, and it is paid in the scheduler rather than hidden.
+        let rate = self.local_rate(idx);
+        let h0 = self.node_dt(idx) / rate;
         if h0 > 0.0 && h0.is_finite() && span / h0 > MAX_SUBSTEPS as f64 && self.forgettable(idx) {
             self.thermalise(idx, horizon);
             return;
@@ -1015,7 +1086,7 @@ impl World {
         let mut steps = 0u32;
         while self.tree.nodes[idx.get()].time < horizon && steps < allowance {
             let remaining = horizon - self.tree.nodes[idx.get()].time;
-            let h = self.node_dt(idx).min(remaining);
+            let h = (self.node_dt(idx) / rate).min(remaining);
             if !(h > 0.0) {
                 break;
             }
@@ -1076,7 +1147,13 @@ impl World {
     /// on it, because releasing it would take the whole subtree with it.
     pub fn forgettable(&self, idx: NodeIdx) -> bool {
         let n = &self.tree.nodes[idx.get()];
-        !n.pinned && !n.children.iter().any(|c| !c.is_none())
+        // A bubble is somebody deliberately watching this node run. Crossing it
+        // by ensemble is the right answer for matter nobody is following, and
+        // exactly the wrong one here: the whole point of speeding a region up
+        // is to see what it *does*, and thermalising it would replace that with
+        // a fresh draw from its equilibrium. A bubbled node falls behind
+        // honestly instead, and its lateness says by how much.
+        !n.pinned && n.bubble == 1.0 && !n.children.iter().any(|c| !c.is_none())
     }
 
     /// Cross a span too long to integrate, by ensemble instead of trajectory.
@@ -1152,10 +1229,13 @@ impl World {
             n.time = horizon;
             coasted += 1;
             let key = n.key;
-            let velocity = n.frame.velocity;
+            // Same two clocks as `advance_node`: the frame took its own
+            // kinematic share inside `advance`, and the node's own clock takes
+            // the whole chain.
+            let physical = self.time_rate_of(NodeIdx(i as u32)).physical();
             if let Some(c) = self.clocks.get_mut(&key) {
                 c.time = horizon;
-                c.proper_time += crate::coords::proper_time_step(dt, velocity);
+                c.proper_time += dt * physical;
             }
         }
         coasted
@@ -1211,6 +1291,14 @@ impl World {
         if count == 0 || dt <= 0.0 {
             return solvers::SolveReport::default();
         }
+        // `dt` is coordinate time — the span the world clock moved. What the
+        // node's *interior* experiences is that span on the node's own clock,
+        // which is where relativity and any bubble enter. Everything below the
+        // solver call therefore runs on `local`; everything about where the
+        // node *is* stays on `dt`. See `dilation.rs` for why the split falls
+        // this way round.
+        let rate = self.local_rate(idx);
+        let dt = dt * rate;
         let seed = self.tree.world_seed;
         let bodies = &mut self.tree.nodes[idx.get()].bodies;
 
@@ -1263,16 +1351,30 @@ impl World {
         };
 
         self.stats.bodies_stepped += count as u64;
+        // Back to coordinate time for everything the *parent* observes.
+        let coordinate = dt / rate;
+        let physical_rate = self.time_rate_of(idx).physical();
+        self.stats.bubble_seconds += coordinate * (rate - physical_rate).abs();
         let n = &mut self.tree.nodes[idx.get()];
-        n.time += dt;
+        n.time += coordinate;
         n.steps_taken += 1;
-        n.frame.advance(dt);
+        n.frame.advance(coordinate);
         let clock = self
             .clocks
             .entry(key)
             .or_insert_with(|| Clock::new(n.time, tier.dt()));
         clock.time = n.time;
-        clock.proper_time += crate::coords::proper_time_step(dt, n.frame.velocity);
+        // Two proper times, deliberately. `Frame::proper_time` is the frame's
+        // own kinematic share against its immediate parent, which is what makes
+        // a `Frame` meaningful on its own. `Clock::proper_time` is what a clock
+        // actually sitting on the node reads: the whole chain, gravity
+        // included. A bubble is excluded from both, because proper time is a
+        // physical reading and an administrator speeding a region up does not
+        // change what its clocks say.
+        let physical = self.time_rate_of(idx).physical();
+        if let Some(c) = self.clocks.get_mut(&key) {
+            c.proper_time += coordinate * physical;
+        }
         report
     }
 
@@ -1975,6 +2077,15 @@ impl World {
                 property,
                 value,
             } => self.author(target, property, value),
+            // Immediate, unlike `Impulse` and `Deposit` above, which are posted
+            // to the mailbox and arrive at the speed of light. A bubble is not
+            // an influence travelling through the world to reach the node — it
+            // is a change to how fast the engine agrees to run it, made by
+            // somebody standing outside the simulation. There is no distance
+            // for it to cross. Same reason `Pin` and `Author` apply here.
+            Interaction::Dilate { target, rate } => {
+                self.dilate(target, rate);
+            }
         }
     }
 
@@ -2079,6 +2190,13 @@ impl World {
                 Property::Radius => n.agg.radius = value.max(1e-30),
                 Property::Charge => n.agg.charge = value,
                 Property::Luminosity => n.agg.luminosity = value.max(0.0),
+                // Routed here only if someone reaches for `author` directly.
+                // `dilate` is the way in, because a bubble needs clamping and
+                // must not pin or bump the epoch — see below.
+                Property::TimeRate => n.bubble = value.clamp(
+                    crate::dilation::MIN_BUBBLE,
+                    crate::dilation::MAX_BUBBLE,
+                ),
             }
             n.key
         };
@@ -2092,6 +2210,69 @@ impl World {
         self.tree.pin(target);
         self.tree.bump_epoch(target);
         self.disturb(target);
+    }
+
+    /// Put a node and its subtree in a time bubble.
+    ///
+    /// Returns the rate actually applied, which differs from the one asked for
+    /// when it had to be clamped. Returns `None` for a target that does not
+    /// exist or a rate that is not a positive finite number — a caller bug, not
+    /// an over-ambitious administrator, and worth telling apart.
+    ///
+    /// # Why this is not `author`
+    ///
+    /// It goes in the same audit trail, for the same reason: somebody reached
+    /// in and changed something the physics did not. But it does three things
+    /// `author` must not.
+    ///
+    /// It does not **pin**. Pinning says "this detail was altered and can no
+    /// longer be regenerated", and a bubble alters nothing about the detail —
+    /// the node's contents are exactly what the sampler would draw. Pinning
+    /// every bubbled node would make a balancing pass permanently expensive.
+    ///
+    /// It does not **bump the epoch**. An epoch bump means the old detail is
+    /// gone for good; a bubble does not invalidate anything, it only changes
+    /// how fast what is there proceeds.
+    ///
+    /// It does not **disturb**. Disturbance resets the mixing-time clock that
+    /// decides when detail may be released, and a bubble is not an event in the
+    /// node's history — it is a statement about the observer's patience.
+    pub fn dilate(&mut self, target: NodeIdx, rate: f64) -> Option<f64> {
+        if target.is_none()
+            || target.get() >= self.tree.nodes.len()
+            || !self.tree.nodes[target.get()].alive
+        {
+            return None;
+        }
+        let accepted = crate::dilation::accept_bubble(rate)?;
+        let key = {
+            let n = &mut self.tree.nodes[target.get()];
+            n.bubble = accepted;
+            n.key
+        };
+        // Setting a rate injects no energy — the divergence a bubble causes is
+        // a flow, not a step, and `EngineStats::bubble_seconds` is where it
+        // accumulates. Recording zero here is the truthful entry, not a
+        // placeholder.
+        self.audit.push(AuthorEvent {
+            key,
+            property: Property::TimeRate,
+            delta_energy: 0.0,
+            time: self.time,
+        });
+        Some(accepted)
+    }
+
+    /// Nodes currently carrying a bubble, with the factor each was given.
+    pub fn bubbles(&self) -> Vec<(NodeIdx, f64)> {
+        (0..self.tree.nodes.len())
+            .map(|i| NodeIdx(i as u32))
+            .filter(|i| {
+                let n = &self.tree.nodes[i.get()];
+                n.alive && n.bubble != 1.0
+            })
+            .map(|i| (i, self.tree.nodes[i.get()].bubble))
+            .collect()
     }
 
     /// Everything the given observer can currently see, nearest first.

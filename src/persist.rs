@@ -166,12 +166,13 @@ fn get_quantity(r: &mut Reader) -> Result<Quantity> {
     Ok(QUANTITIES[t as usize])
 }
 
-const PROPERTIES: [Property; 5] = [
+const PROPERTIES: [Property; 6] = [
     Property::Mass,
     Property::Temperature,
     Property::Radius,
     Property::Charge,
     Property::Luminosity,
+    Property::TimeRate,
 ];
 
 fn put_property(w: &mut Writer, p: Property) {
@@ -594,6 +595,7 @@ pub(crate) fn put_node_payload(w: &mut Writer, n: &Node) {
     w.f64(n.last_grown);
     put_residency(w, n.residency);
     w.bool(n.pinned);
+    w.f64(n.bubble);
     w.bool(n.alive);
     put_option(w, &n.morphology, put_morphology);
     put_option(w, &n.topology, put_topology);
@@ -635,6 +637,7 @@ pub(crate) fn get_node_payload(r: &mut Reader) -> Result<Node> {
         last_grown: r.f64()?,
         residency: get_residency(r)?,
         pinned: r.bool()?,
+        bubble: r.f64()?,
         alive: r.bool()?,
         morphology: if r.bool()? { Some(get_morphology(r)?) } else { None },
         topology: if r.bool()? { Some(get_topology(r)?) } else { None },

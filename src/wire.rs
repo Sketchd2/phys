@@ -39,7 +39,15 @@ pub const MAGIC: [u8; 4] = *b"PHYS";
 
 /// The format version. Bump it whenever the layout changes in a way an older
 /// reader would misinterpret; add a migration in `persist::load` when you do.
-pub const FORMAT_VERSION: u16 = 1;
+///
+/// * **2** — a node carries its `bubble`, the administrative multiplier on how
+///   fast its interior runs. A version 1 file has no such field and every node
+///   in it was implicitly at 1.0, but the field sits in the middle of the node
+///   payload rather than at the end, so a v1 reader and a v2 file disagree
+///   about every byte after it. Nothing has shipped that writes v1, so there is
+///   no migration: the version simply refuses the old layout instead of
+///   misreading it.
+pub const FORMAT_VERSION: u16 = 2;
 
 /// A hard ceiling on any single length prefix, independent of the bytes
 /// available. Nothing legitimate in this engine has a billion of anything in

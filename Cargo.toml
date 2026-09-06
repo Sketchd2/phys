@@ -43,3 +43,7 @@ panic = "abort"
 
 [profile.bench]
 inherits = "release"
+
+[[bin]]
+name = "phys-bubble"
+path = "src/bin/bubble.rs"

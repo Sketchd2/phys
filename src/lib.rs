@@ -45,6 +45,7 @@
 pub mod budget;
 pub mod causal;
 pub mod coords;
+pub mod dilation;
 pub mod engine;
 pub mod ids;
 pub mod math;

@@ -438,6 +438,18 @@ pub enum Interaction {
         property: Property,
         value: f64,
     },
+    /// Put a node and its whole subtree in a time bubble: run its interior at
+    /// `rate` seconds per second of world time.
+    ///
+    /// Administrative, unphysical, and audited like `Author` — this is a
+    /// testing and balancing tool, not a thing the world does. `rate` of one
+    /// removes an existing bubble. Values outside
+    /// `dilation::MIN_BUBBLE ..= dilation::MAX_BUBBLE` are clamped, and the
+    /// clamp is recorded, because silently granting less speed-up than was
+    /// asked for would make a balancing run mean nothing.
+    ///
+    /// It scales what the node *does*, never where it *is*. See `dilation.rs`.
+    Dilate { target: NodeIdx, rate: f64 },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -447,6 +459,11 @@ pub enum Property {
     Radius,
     Charge,
     Luminosity,
+    /// The administrative time-bubble factor. Not a property of the matter —
+    /// a property of how fast the engine is being asked to run it — but it
+    /// travels the same audit path because it is the same kind of act: a
+    /// person reaching in and changing something the physics did not.
+    TimeRate,
 }
 
 /// Record of an authoring action that broke conservation, so the audit trail

@@ -125,6 +125,23 @@ pub struct Node {
     /// Set when the node's detail has been altered away from what `prolong`
     /// would produce, so it must be stored rather than regenerated.
     pub pinned: bool,
+    /// A deliberate, unphysical multiplier on how fast this node's *interior*
+    /// runs, and its whole subtree's with it.
+    ///
+    /// One for everything the engine builds. An administrator sets it to watch
+    /// a century of growth in an afternoon, or a reaction go to completion
+    /// while the world barely moves — testing and balancing, not physics. It
+    /// multiplies into `dilation::TimeRate` alongside the two relativistic
+    /// factors, so there is exactly one place that decides how fast anything
+    /// evolves; and it is reported separately from them, so a log can always
+    /// say which part was the universe and which part was somebody's thumb.
+    ///
+    /// It scales the interior only. Position and orientation still advance on
+    /// coordinate time, because an object that *travelled* a hundred times
+    /// faster is an object with a hundred times the velocity — which the engine
+    /// already models — and because a node whose position ran ahead of the
+    /// world clock would outrun the influences it had itself emitted.
+    pub bubble: f64,
     pub alive: bool,
     /// Developmental state, when this node is a structure rather than a
     /// statistical population. Its presence switches materialisation from
@@ -225,6 +242,7 @@ impl Tree {
             last_grown: 0.0,
             residency: Residency::Speculative,
             pinned: false,
+            bubble: 1.0,
             alive: true,
             morphology: None,
             topology: None,
@@ -446,6 +464,7 @@ impl Tree {
             last_grown: self.nodes[i.get()].time,
             residency: Residency::Speculative,
             pinned: false,
+            bubble: 1.0,
             alive: true,
             morphology: None,
             topology: None,
