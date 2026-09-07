@@ -42,7 +42,7 @@ fn shoot(
         Some(t) => t,
         None => return fixed.unwrap_or(Camera::framing(v3(0.0, 0.0, 0.0), 1.0, 0.6, 0.12)),
     };
-    // Frame on the structure's own extent.
+    // Framework on the structure's own extent.
     let mut lo = f64::INFINITY;
     let mut hi = f64::NEG_INFINITY;
     let mut radius: f64 = 0.0;

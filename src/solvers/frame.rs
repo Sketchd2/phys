@@ -83,14 +83,14 @@ impl Member {
 
 /// A structure ready to analyse: joints, members, and what is held down.
 #[derive(Debug, Clone)]
-pub struct Frame {
-    pub nodes: Vec<Vec3>,
+pub struct Framework {
+    pub joints: Vec<Vec3>,
     pub members: Vec<Member>,
     /// Nodes held against translation *and* rotation — a foundation, not a pin.
     pub fixed: Vec<bool>,
     pub material: Material,
 
-    /// Lumped mass and rotational inertia per node. Empty for a static
+    /// Lumped mass and rotational inertia per joint. Empty for a static
     /// analysis, where inertia is by definition irrelevant.
     ///
     /// This is what turns the operator from `K` into `s_m M + s_k K`, and it is
@@ -189,10 +189,10 @@ fn basis(axis: Vec3) -> (Vec3, Vec3, Vec3) {
     (e1, e2, e3)
 }
 
-impl Frame {
-    pub fn new(material: Material) -> Frame {
-        Frame {
-            nodes: Vec::new(),
+impl Framework {
+    pub fn new(material: Material) -> Framework {
+        Framework {
+            joints: Vec::new(),
             members: Vec::new(),
             fixed: Vec::new(),
             material,
@@ -203,9 +203,9 @@ impl Frame {
     }
 
     pub fn add_node(&mut self, p: Vec3, fixed: bool) -> u32 {
-        self.nodes.push(p);
+        self.joints.push(p);
         self.fixed.push(fixed);
-        (self.nodes.len() - 1) as u32
+        (self.joints.len() - 1) as u32
     }
 
     pub fn add_beam(&mut self, a: u32, b: u32, radius: f64) -> usize {
@@ -220,13 +220,13 @@ impl Frame {
 
     #[inline]
     fn length(&self, e: &Member) -> f64 {
-        (self.nodes[e.b as usize] - self.nodes[e.a as usize]).norm()
+        (self.joints[e.b as usize] - self.joints[e.a as usize]).norm()
     }
 
     /// Member stiffness applied to a displacement state, in global
     /// coordinates. Returns the internal force and moment at each end.
     fn element_apply(&self, e: &Member, d1: Dof, d2: Dof, stiffness: f64) -> (Dof, Dof) {
-        let d = self.nodes[e.b as usize] - self.nodes[e.a as usize];
+        let d = self.joints[e.b as usize] - self.joints[e.a as usize];
         let l = d.norm();
         if l <= 0.0 || stiffness <= 0.0 {
             return (Dof::default(), Dof::default());
@@ -328,13 +328,13 @@ impl Frame {
     /// member. It converged eventually and spent hundreds of iterations doing
     /// what one division per degree of freedom does here.
     fn diagonal(&self, stiff: &[f64]) -> Vec<Dof> {
-        let mut d = vec![Dof::default(); self.nodes.len()];
+        let mut d = vec![Dof::default(); self.joints.len()];
         for (i, e) in self.members.iter().enumerate() {
             let l = self.length(e);
             if l <= 0.0 || stiff[i] <= 0.0 {
                 continue;
             }
-            let (e1, e2, e3) = basis(self.nodes[e.b as usize] - self.nodes[e.a as usize]);
+            let (e1, e2, e3) = basis(self.joints[e.b as usize] - self.joints[e.a as usize]);
             let k = stiff[i] * self.stiff_scale;
             let ea = k * e.area() / l;
             let ei = k * e.inertia();
@@ -363,7 +363,7 @@ impl Frame {
 
     /// Solve for nodal displacements under the given loads.
     ///
-    /// `load` is force and moment per node. Returns displacements plus the
+    /// `load` is force and moment per joint. Returns displacements plus the
     /// internal forces in every member, including its buckling utilisation.
     pub fn solve(&self, load: &[Dof]) -> FrameSolution {
         self.solve_with(load, self.material.ductility > 0.0)
@@ -371,7 +371,7 @@ impl Frame {
 
     /// As [`solve`], with plastic redistribution optionally disabled.
     pub fn solve_with(&self, load: &[Dof], plastic: bool) -> FrameSolution {
-        let n = self.nodes.len();
+        let n = self.joints.len();
         let mut out = FrameSolution::default();
         if n == 0 || self.members.is_empty() {
             return out;
@@ -443,9 +443,9 @@ impl Frame {
         stiff: &[f64],
         precondition: bool,
     ) -> (Vec<Dof>, u32, bool) {
-        let n = self.nodes.len();
+        let n = self.joints.len();
         let diag = self.diagonal(stiff);
-        // Nodes touched by no element, and fixed nodes, are removed from the
+        // Nodes touched by no element, and fixed joints, are removed from the
         // system: they have an empty row but may carry a load, which is
         // inconsistent and which CG can never satisfy.
         let inv: Vec<Dof> = (0..n)
@@ -599,7 +599,7 @@ impl Frame {
                     return MemberForces::default();
                 }
                 let (f1, _f2) = self.element_apply(e, u[a], u[b], stiff[i]);
-                let (e1, _, _) = basis(self.nodes[b] - self.nodes[a]);
+                let (e1, _, _) = basis(self.joints[b] - self.joints[a]);
                 // Sign convention: positive axial is tension.
                 let axial = -f1.t.dot(e1);
                 let shear = (f1.t - e1.scale(f1.t.dot(e1))).norm();
@@ -731,7 +731,7 @@ impl Mat6 {
 
     /// Gauss-Jordan inverse with partial pivoting.
     ///
-    /// A degree of freedom with no stiffness and no mass behind it — a node
+    /// A degree of freedom with no stiffness and no mass behind it — a joint
     /// orphaned by a break — gives a singular block. Its row and column come
     /// back zero rather than infinite, which says "this direction is not
     /// determined" and is the same treatment the diagonal masking gives it.
@@ -845,8 +845,8 @@ impl TreeFactor {
         }
         // Forward: children first, each pushing its eliminated load onto its
         // parent.
-        for &node in &self.order {
-            let i = node as usize;
+        for &joint in &self.order {
+            let i = joint as usize;
             let p = self.parent[i];
             if p == u32::MAX {
                 continue;
@@ -855,8 +855,8 @@ impl TreeFactor {
             out[p as usize] = out[p as usize].sub(lifted);
         }
         // Back: parents first, each correcting its children.
-        for &node in self.order.iter().rev() {
-            let i = node as usize;
+        for &joint in self.order.iter().rev() {
+            let i = joint as usize;
             let p = self.parent[i];
             let mut y = out[i];
             if p != u32::MAX {
@@ -867,7 +867,7 @@ impl TreeFactor {
     }
 }
 
-impl Frame {
+impl Framework {
     /// Factorise the structure's spanning forest.
     ///
     /// Members outside the forest — the braces, which are exactly what makes a
@@ -875,7 +875,7 @@ impl Frame {
     /// coupling. Dropping them is what keeps the factorisation fill-free; it
     /// costs nothing in correctness because this is only ever a preconditioner.
     pub fn factor(&self, stiff: &[f64]) -> TreeFactor {
-        let n = self.nodes.len();
+        let n = self.joints.len();
         if n == 0 {
             return TreeFactor::default();
         }
@@ -966,8 +966,8 @@ impl Frame {
         order.reverse();
 
         let mut inverse = vec![Mat6::ZERO; n];
-        for &node in &order {
-            let i = node as usize;
+        for &joint in &order {
+            let i = joint as usize;
             inverse[i] = diag[i].inverse();
             let p = parent[i];
             if p != u32::MAX {
@@ -991,7 +991,7 @@ impl Frame {
     /// contribute stiffness to the free end and nothing else — there is no
     /// coupling for the factorisation to drop.
     pub fn redundancy(&self) -> usize {
-        let n = self.nodes.len();
+        let n = self.joints.len();
         let mut adjacent: Vec<Vec<u32>> = vec![Vec::new(); n];
         for e in &self.members {
             adjacent[e.a as usize].push(e.b);

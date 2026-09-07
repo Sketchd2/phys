@@ -24,7 +24,7 @@
 //! has been *touched* — measured, or hit by something — is different, and is
 //! pinned (see `Node::pinned` and `observe::Ledger`).
 
-use crate::coords::{Frame, Located};
+use crate::coords::{Motion, Located};
 use crate::ids::{NodeIdx, PathKey};
 use crate::math::Vec3;
 use crate::prolong::{prolong, ProlongReport, ProlongSpec};
@@ -77,7 +77,7 @@ pub struct Node {
     /// Bulk state. Always present — this is what a node *is*.
     pub agg: Aggregate,
     /// Position and velocity relative to the parent node's frame.
-    pub frame: Frame,
+    pub motion: Motion,
 
     /// Fine detail, if currently materialised.
     pub bodies: Vec<Body>,
@@ -226,10 +226,10 @@ impl Tree {
             // where that is recorded. Leaving it at the default meant the one
             // node in every world that nobody promotes — the root — was the one
             // node that never rotated.
-            frame: Frame {
+            motion: Motion {
                 spin_rate: root_agg.angular_velocity(),
                 orientation: crate::math::Quat::IDENTITY,
-                ..Frame::default()
+                ..Motion::default()
             },
             bodies: Vec::new(),
             potential: root_agg.binding_energy,
@@ -443,7 +443,7 @@ impl Tree {
             depth,
             tier,
             agg,
-            frame: Frame {
+            motion: Motion {
                 offset: body.pos,
                 velocity: body.vel,
                 // A body's spin becomes the node's rotation. Orientation starts
@@ -451,7 +451,7 @@ impl Tree {
                 // and everything after is what the rotation did to it.
                 orientation: crate::math::Quat::IDENTITY,
                 spin_rate: agg.angular_velocity(),
-                proper_time: self.nodes[i.get()].frame.proper_time,
+                proper_time: self.nodes[i.get()].motion.proper_time,
             },
             bodies: Vec::new(),
             potential: 0.0,
@@ -597,7 +597,7 @@ impl Tree {
                 c.agg.spin,
                 c.agg.internal_energy,
                 c.agg.radius,
-                c.frame,
+                c.motion,
             )
         };
         let p = &mut self.nodes[parent.get()];
@@ -739,7 +739,7 @@ impl Tree {
                 let nb = &self.nodes[b.get()];
                 // Surface-to-surface: influence has to cross the gap, not the
                 // distance between centres.
-                let gap = (na.frame.offset - nb.frame.offset).norm()
+                let gap = (na.motion.offset - nb.motion.offset).norm()
                     - na.agg.radius
                     - nb.agg.radius;
                 best = best.min(gap.max(0.0));
@@ -775,7 +775,7 @@ impl Tree {
         let mut acc = Located::exact(local);
         while node != ancestor && !node.is_none() {
             let n = &self.nodes[node.get()];
-            acc = acc.add(Located::exact(n.frame.offset));
+            acc = acc.add(Located::exact(n.motion.offset));
             node = n.parent;
         }
         acc
@@ -799,7 +799,7 @@ impl Tree {
     pub fn velocity_from(&self, ancestor: NodeIdx, mut node: NodeIdx) -> Vec3 {
         let mut chain = Vec::new();
         while node != ancestor && !node.is_none() {
-            chain.push(self.nodes[node.get()].frame.velocity);
+            chain.push(self.nodes[node.get()].motion.velocity);
             node = self.nodes[node.get()].parent;
         }
         let mut v = Vec3::ZERO;

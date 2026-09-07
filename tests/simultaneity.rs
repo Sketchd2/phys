@@ -76,15 +76,15 @@ fn resolving_something_small_does_not_stop_the_galaxy() {
     );
 
     // And the galaxy really does move: over twenty frames the root turns.
-    let start = fine.tree.nodes[root.get()].frame.orientation;
+    let start = fine.tree.nodes[root.get()].motion.orientation;
     for _ in 0..20 {
         fine.step_frame(50_000.0);
     }
     let turned = start
         .conjugate()
-        .then(fine.tree.nodes[root.get()].frame.orientation)
+        .then(fine.tree.nodes[root.get()].motion.orientation)
         .angle();
-    let omega = fine.tree.nodes[root.get()].frame.spin_rate.norm();
+    let omega = fine.tree.nodes[root.get()].motion.spin_rate.norm();
     let expected = omega * fine.time;
     println!(
         "  after twenty frames the galaxy has advanced {:.3e} s and turned {turned:.3e} rad, \
@@ -170,16 +170,16 @@ fn nothing_is_starved() {
 fn carrying_a_node_forward_is_exact() {
     let mut w = World::new(galaxy(0xFEED, 1e9), 20.0);
     let root = w.tree.root;
-    let start = w.tree.nodes[root.get()].frame.offset;
+    let start = w.tree.nodes[root.get()].motion.offset;
     let v = v3(220e3, 0.0, 0.0);
-    w.tree.nodes[root.get()].frame.velocity = v;
+    w.tree.nodes[root.get()].motion.velocity = v;
 
     let frames = 30;
     for _ in 0..frames {
         w.step_frame(50_000.0);
     }
     let expected = start + v.scale(w.time);
-    let got = w.tree.nodes[root.get()].frame.offset;
+    let got = w.tree.nodes[root.get()].motion.offset;
     let error = (got - expected).norm();
     println!(
         "  after {frames} frames ({:.3e} s) the drift is {error:.3e} m over {:.3e} m travelled",

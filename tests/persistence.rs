@@ -107,10 +107,10 @@ fn every_field_round_trips() {
             b.agg.internal_energy.to_bits(),
             "node {i} internal energy bits"
         );
-        assert_eq!(a.frame.offset.x.to_bits(), b.frame.offset.x.to_bits(), "node {i} offset");
+        assert_eq!(a.motion.offset.x.to_bits(), b.motion.offset.x.to_bits(), "node {i} offset");
         assert_eq!(
-            a.frame.orientation.w.to_bits(),
-            b.frame.orientation.w.to_bits(),
+            a.motion.orientation.w.to_bits(),
+            b.motion.orientation.w.to_bits(),
             "node {i} orientation"
         );
         assert_eq!(a.time.to_bits(), b.time.to_bits(), "node {i} time");
@@ -274,8 +274,8 @@ fn reloading_does_not_change_the_future() {
     assert_eq!(a.time.to_bits(), b.time.to_bits(), "the clocks diverged");
     for (i, (x, y)) in a.tree.nodes.iter().zip(b.tree.nodes.iter()).enumerate() {
         assert_eq!(
-            x.frame.offset.x.to_bits(),
-            y.frame.offset.x.to_bits(),
+            x.motion.offset.x.to_bits(),
+            y.motion.offset.x.to_bits(),
             "node {i} drifted after a reload"
         );
         assert_eq!(x.agg.mass.to_bits(), y.agg.mass.to_bits(), "node {i} mass drifted");

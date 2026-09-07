@@ -150,7 +150,7 @@ fn postgres_and_a_file_agree() {
         assert_eq!(x.alive, y.alive, "node {i} alive");
         assert_eq!(x.epoch, y.epoch, "node {i} epoch");
         worst = worst.max(x.agg.mass.to_bits() ^ y.agg.mass.to_bits());
-        worst = worst.max(x.frame.offset.x.to_bits() ^ y.frame.offset.x.to_bits());
+        worst = worst.max(x.motion.offset.x.to_bits() ^ y.motion.offset.x.to_bits());
         worst = worst.max(x.last_solved.to_bits() ^ y.last_solved.to_bits());
     }
     println!("  {} nodes, worst bit difference between backends: {worst}", a.tree.nodes.len());
@@ -216,8 +216,8 @@ fn writes_are_proportional_to_events() {
             continue;
         }
         assert_eq!(y.time.to_bits(), w.time.to_bits(), "node {i} was not settled to the instant");
-        let slip = (x.frame.offset - y.frame.offset).norm();
-        let scale = x.frame.offset.norm().max(x.agg.radius).max(1.0);
+        let slip = (x.motion.offset - y.motion.offset).norm();
+        let scale = x.motion.offset.norm().max(x.agg.radius).max(1.0);
         assert!(
             slip <= scale * 1e-9,
             "node {i} was reconstructed {slip:.3e} m from where it should be"

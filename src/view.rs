@@ -1325,8 +1325,8 @@ impl crate::engine::World {
                 if !child.alive {
                     continue;
                 }
-                let cpos = pos + rot.rotate(child.frame.offset);
-                let crot = rot.then(child.frame.orientation);
+                let cpos = pos + rot.rotate(child.motion.offset);
+                let crot = rot.then(child.motion.orientation);
                 let d = (cpos - eye).norm();
                 // Children are contained in their parent, so a node whose own
                 // sphere misses the reach takes its whole subtree with it.

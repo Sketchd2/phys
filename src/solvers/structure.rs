@@ -528,7 +528,7 @@ fn accumulate(
 /// must be the same structure, down to which joints are welded together and
 /// which members are pin-jointed.
 pub struct BuiltFrame {
-    pub frame: crate::solvers::frame::Frame,
+    pub frame: crate::solvers::frame::Framework,
     /// Node at each member's far end, or `u32::MAX` if the member has none.
     pub tip_node: Vec<u32>,
     /// Node at each member's supported end.
@@ -563,9 +563,9 @@ pub fn build_frame(topo: &Topology, n: usize) -> BuiltFrame {
 /// hangs in the air exactly where it broke, and every test of falling debris
 /// reports that nothing ever reached the ground.
 pub fn build_frame_with(topo: &Topology, n: usize, anchored: bool) -> BuiltFrame {
-    use crate::solvers::frame::Frame;
+    use crate::solvers::frame::Framework;
 
-    let mut frame = Frame::new(topo.material);
+    let mut frame = Framework::new(topo.material);
     let mut tip_node = vec![u32::MAX; n];
     let mut base_node = vec![u32::MAX; n];
     let mut element_of = vec![usize::MAX; n];
@@ -626,7 +626,7 @@ fn frame_analyse(
     if frame.members.is_empty() {
         return None;
     }
-    let mut load = vec![Dof::default(); frame.nodes.len()];
+    let mut load = vec![Dof::default(); frame.joints.len()];
     for i in 0..n {
         if tip_node[i] == u32::MAX {
             continue;
@@ -928,14 +928,14 @@ impl Weld {
         )
     }
 
-    fn node(&mut self, frame: &mut crate::solvers::frame::Frame, p: Vec3, fixed: bool) -> u32 {
+    fn node(&mut self, frame: &mut crate::solvers::frame::Framework, p: Vec3, fixed: bool) -> u32 {
         let (cx, cy, cz, f) = self.cell(p, fixed);
         for dx in -1..=1 {
             for dy in -1..=1 {
                 for dz in -1..=1 {
                     if let Some(bucket) = self.cells.get(&(cx + dx, cy + dy, cz + dz, f)) {
                         for &id in bucket {
-                            if (frame.nodes[id as usize] - p).norm() <= self.eps {
+                            if (frame.joints[id as usize] - p).norm() <= self.eps {
                                 return id;
                             }
                         }
@@ -1024,7 +1024,7 @@ impl DynamicStructure {
     /// deflection [`analyse`] predicts for it.
     pub fn nodal_loads(&self, field: &LoadField) -> Vec<crate::solvers::frame::Dof> {
         use crate::solvers::frame::Dof;
-        let mut load = vec![Dof::default(); self.dynamics.frame.nodes.len()];
+        let mut load = vec![Dof::default(); self.dynamics.frame.joints.len()];
         for i in 0..self.tip_node.len().min(field.len()) {
             let (tip, base) = (self.tip_node[i], self.base_node[i]);
             if tip == u32::MAX || base == u32::MAX {

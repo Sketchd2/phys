@@ -657,7 +657,7 @@ impl World {
         while !cur.is_none() && guard < 64 {
             let n = &self.tree.nodes[cur.get()];
             let mut here = crate::dilation::physical_rate(
-                n.frame.velocity,
+                n.motion.velocity,
                 n.agg.external_potential,
                 n.agg.mass,
             );
@@ -1287,7 +1287,7 @@ impl World {
         let n = &mut self.tree.nodes[idx.get()];
         let dt = horizon - n.time;
         if dt > 0.0 {
-            n.frame.advance(dt);
+            n.motion.advance(dt);
         }
         n.time = horizon;
         n.last_solved = horizon;
@@ -1316,7 +1316,7 @@ impl World {
             if !(dt > 0.0) {
                 continue;
             }
-            n.frame.advance(dt);
+            n.motion.advance(dt);
             n.time = horizon;
             coasted += 1;
             let key = n.key;
@@ -1449,15 +1449,15 @@ impl World {
         let n = &mut self.tree.nodes[idx.get()];
         n.time += coordinate;
         n.steps_taken += 1;
-        n.frame.advance(coordinate);
+        n.motion.advance(coordinate);
         let clock = self
             .clocks
             .entry(key)
             .or_insert_with(|| Clock::new(n.time, tier.dt()));
         clock.time = n.time;
-        // Two proper times, deliberately. `Frame::proper_time` is the frame's
+        // Two proper times, deliberately. `Motion::proper_time` is the frame's
         // own kinematic share against its immediate parent, which is what makes
-        // a `Frame` meaningful on its own. `Clock::proper_time` is what a clock
+        // a `Motion` meaningful on its own. `Clock::proper_time` is what a clock
         // actually sitting on the node reads: the whole chain, gravity
         // included. A bubble is excluded from both, because proper time is a
         // physical reading and an administrator speeding a region up does not
@@ -1908,7 +1908,7 @@ impl World {
         let mut strikes: Vec<(NodeIdx, u32, crate::math::Vec3)> = Vec::new();
         for (node, frag) in self.falling.iter_mut() {
             frag.age += dt;
-            let n = frag.dynamics.dynamics.frame.nodes.len();
+            let n = frag.dynamics.dynamics.frame.joints.len();
             let mut load = vec![Dof::default(); n];
             for i in 0..n {
                 let m = frag.dynamics.dynamics.frame.lumped[i].t.z;
@@ -1998,7 +1998,7 @@ impl World {
         // shade, without a separate lighting system.
         let light = if !n.parent.is_none() {
             let p = &self.tree.nodes[n.parent.get()];
-            let d = n.frame.offset.norm().max(p.agg.radius * 0.01).max(1e-6);
+            let d = n.motion.offset.norm().max(p.agg.radius * 0.01).max(1e-6);
             (p.agg.luminosity / (4.0 * std::f64::consts::PI * d * d)).min(1400.0)
         } else {
             crate::morph::Environment::default().light_flux
@@ -2075,8 +2075,8 @@ impl World {
                     n.key,
                     Snapshot {
                         t: self.time,
-                        offset: n.frame.offset,
-                        velocity: n.frame.velocity,
+                        offset: n.motion.offset,
+                        velocity: n.motion.velocity,
                         mass: n.agg.mass,
                         luminosity: n.agg.luminosity,
                         temperature: n.agg.temperature,

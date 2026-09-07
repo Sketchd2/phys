@@ -80,7 +80,7 @@ pub struct Camera {
 }
 
 impl Camera {
-    /// Frame a structure: pull back far enough to see all of it, looking
+    /// Motion a structure: pull back far enough to see all of it, looking
     /// slightly downward from a corner so the depth reads.
     pub fn framing(centre: Vec3, radius: f64, azimuth: f64, elevation: f64) -> Camera {
         let fov: f64 = 0.6;

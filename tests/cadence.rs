@@ -6,7 +6,7 @@
 //! the node. Everything about which node runs when comes out of that, so it had
 //! better reproduce what the objects themselves do.
 
-use phys::coords::Frame;
+use phys::coords::Motion;
 use phys::math::{v3, Quat, Vec3};
 use phys::state::{Aggregate, Composition};
 use phys::units::*;
@@ -153,7 +153,7 @@ fn rotation_dominates_for_a_gas_giant() {
 fn rotation_between_updates_is_exact() {
     let period = 86164.0;
     let omega = std::f64::consts::TAU / period;
-    let mut frame = Frame::at_rest(Vec3::ZERO);
+    let mut frame = Motion::at_rest(Vec3::ZERO);
     frame.spin_rate = v3(0.0, 0.0, omega);
 
     // A point on the equator, carried forward a whole sidereal day in coarse
@@ -180,7 +180,7 @@ fn rotation_between_updates_is_exact() {
     );
 
     // And the step size must not matter: the same day in one step.
-    let mut coarse = Frame::at_rest(Vec3::ZERO);
+    let mut coarse = Motion::at_rest(Vec3::ZERO);
     coarse.spin_rate = v3(0.0, 0.0, omega);
     coarse.advance(period);
     let one = coarse.body_to_parent(point);

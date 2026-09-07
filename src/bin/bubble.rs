@@ -162,8 +162,8 @@ fn main() {
 
     rule("And nothing else moved");
     let (pa, pb) = (
-        w.tree.nodes[slow.get()].frame.offset,
-        w.tree.nodes[fast.get()].frame.offset,
+        w.tree.nodes[slow.get()].motion.offset,
+        w.tree.nodes[fast.get()].motion.offset,
     );
     println!("  world instant is one number: {} for both", si(w.time, "s"));
     println!("  A is at {} from its parent, B at {}", si(pa.norm(), "m"), si(pb.norm(), "m"));

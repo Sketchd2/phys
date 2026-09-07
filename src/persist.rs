@@ -38,7 +38,7 @@
 //! addressing impossible later.
 
 use crate::causal::{Influence, InfluenceKind, Mailbox};
-use crate::coords::Frame;
+use crate::coords::Motion;
 use crate::ids::{NodeIdx, PathKey};
 use crate::morph::{Environment, Event, EventKind, Morphology, Program};
 use crate::observe::{AuthorEvent, Fact, Ledger, Property, Quantity};
@@ -292,15 +292,15 @@ pub(crate) fn get_aggregate(r: &mut Reader) -> Result<Aggregate> {
     })
 }
 
-fn put_frame(w: &mut Writer, f: &Frame) {
+fn put_motion(w: &mut Writer, f: &Motion) {
     w.vec3(f.offset);
     w.vec3(f.velocity);
     w.quat(f.orientation);
     w.vec3(f.spin_rate);
     w.f64(f.proper_time);
 }
-fn get_frame(r: &mut Reader) -> Result<Frame> {
-    Ok(Frame {
+fn get_motion(r: &mut Reader) -> Result<Motion> {
+    Ok(Motion {
         offset: r.vec3()?,
         velocity: r.vec3()?,
         orientation: r.quat()?,
@@ -768,7 +768,7 @@ pub(crate) fn put_node_payload(w: &mut Writer, n: &Node) {
     w.u32(n.depth);
     put_tier(w, n.tier);
     put_aggregate(w, &n.agg);
-    put_frame(w, &n.frame);
+    put_motion(w, &n.motion);
     // Only pinned detail is written. Everything else is regenerated from the
     // node's address and epoch, and `tests/persistence.rs` checks that the
     // regenerated bodies match what was discarded.
@@ -804,7 +804,7 @@ pub(crate) fn get_node_payload(r: &mut Reader) -> Result<Node> {
     let depth = r.u32()?;
     let tier = get_tier(r)?;
     let agg = get_aggregate(r)?;
-    let frame = get_frame(r)?;
+    let motion = get_motion(r)?;
     let bodies = get_bodies_pub(r)?;
     let potential = r.f64()?;
     let n = r.seq("children", 4)?;
@@ -820,7 +820,7 @@ pub(crate) fn get_node_payload(r: &mut Reader) -> Result<Node> {
         depth,
         tier,
         agg,
-        frame,
+        motion,
         bodies,
         potential,
         children,
@@ -1302,7 +1302,7 @@ impl Snapshot {
             }
             let dt = instant - n.time;
             if dt > 0.0 {
-                n.frame.advance(dt);
+                n.motion.advance(dt);
                 n.time = instant;
             }
         }

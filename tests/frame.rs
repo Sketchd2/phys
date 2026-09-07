@@ -1,4 +1,4 @@
-//! Frame analysis against closed-form results.
+//! Framework analysis against closed-form results.
 //!
 //! Every case here has an exact answer from beam theory, so a failure is a
 //! failure of the solver and not of judgement.
@@ -27,7 +27,7 @@ fn load_at(n: usize, node: u32, force: Vec3) -> Vec<Dof> {
 fn cantilever_tip_deflection() {
     let (l, r, p) = (4.0, 0.05, 5000.0);
     let mat = steel();
-    let mut f = Frame::new(mat);
+    let mut f = Framework::new(mat);
     let base = f.add_node(v3(0.0, 0.0, 0.0), true);
     let tip = f.add_node(v3(l, 0.0, 0.0), false);
     f.add_beam(base, tip, r);
@@ -55,7 +55,7 @@ fn cantilever_tip_deflection() {
 fn fixed_fixed_beam_midspan_deflection() {
     let (l, r, p) = (6.0, 0.06, 20000.0);
     let mat = steel();
-    let mut f = Frame::new(mat);
+    let mut f = Framework::new(mat);
     let a = f.add_node(v3(0.0, 0.0, 0.0), true);
     let mid = f.add_node(v3(l / 2.0, 0.0, 0.0), false);
     let b = f.add_node(v3(l, 0.0, 0.0), true);
@@ -87,7 +87,7 @@ fn fixed_fixed_beam_midspan_deflection() {
 fn simply_supported_beam() {
     let (l, r, p) = (6.0, 0.06, 20000.0);
     let mat = steel();
-    let mut f = Frame::new(mat);
+    let mut f = Framework::new(mat);
     // Pins are modelled as ties to fixed anchors: axial restraint, free
     // rotation, which is exactly what a pin is.
     let anchor_a = f.add_node(v3(0.0, 0.0, -0.001), true);
@@ -118,7 +118,7 @@ fn simply_supported_beam() {
 fn axial_extension() {
     let (l, r, p) = (3.0, 0.02, 50000.0);
     let mat = steel();
-    let mut f = Frame::new(mat);
+    let mut f = Framework::new(mat);
     let a = f.add_node(v3(0.0, 0.0, 0.0), true);
     let b = f.add_node(v3(l, 0.0, 0.0), false);
     f.add_beam(a, b, r);
@@ -150,7 +150,7 @@ fn euler_buckling_is_detected() {
         p_squash / p_cr);
     assert!(p_cr < p_squash, "this strut is not slender enough to test buckling");
 
-    let mut f = Frame::new(mat);
+    let mut f = Framework::new(mat);
     let a = f.add_node(v3(0.0, 0.0, 0.0), true);
     let b = f.add_node(v3(0.0, 0.0, l), false);
     // A pin-jointed strut, so K = 1 and the classical formula applies.
@@ -185,7 +185,7 @@ fn ductile_materials_redistribute_and_brittle_ones_do_not() {
     // Three parallel struts of unequal length sharing one load. The short one
     // is stiffest and attracts the most force, so it yields first.
     let build = |mat: Material| {
-        let mut f = Frame::new(mat);
+        let mut f = Framework::new(mat);
         let top = f.add_node(v3(0.0, 0.0, 0.0), false);
         let anchors = [
             f.add_node(v3(0.0, 0.0, -1.0), true),
@@ -251,7 +251,7 @@ fn ductile_materials_redistribute_and_brittle_ones_do_not() {
 #[test]
 fn preconditioning_converges_quickly() {
     let mat = steel();
-    let mut f = Frame::new(mat);
+    let mut f = Framework::new(mat);
     // A twenty-storey braced frame: the case that motivated all of this.
     let mut below = [u32::MAX; 4];
     let mut loads = Vec::new();
@@ -279,7 +279,7 @@ fn preconditioning_converges_quickly() {
         loads.push(here[0]);
         below = here;
     }
-    let n = f.nodes.len();
+    let n = f.joints.len();
     let mut load = vec![Dof::default(); n];
     for node in &loads {
         load[*node as usize].t = v3(4000.0, 0.0, -30000.0);
@@ -328,7 +328,7 @@ fn redundant_truss_matches_the_analytic_split() {
     let t: f64 = std::f64::consts::FRAC_PI_4;
     let radius = 0.01;
 
-    let mut frame = Frame::new(Material::STEEL);
+    let mut frame = Framework::new(Material::STEEL);
     let apex = frame.add_node(v3(0.0, 0.0, 0.0), false);
     let bars: Vec<usize> = [0.0, -h * t.tan(), h * t.tan()]
         .iter()
@@ -339,7 +339,7 @@ fn redundant_truss_matches_the_analytic_split() {
         .collect();
 
     let p_load = 1000.0;
-    let mut load = vec![Dof::default(); frame.nodes.len()];
+    let mut load = vec![Dof::default(); frame.joints.len()];
     load[apex as usize].t = v3(0.0, 0.0, -p_load);
 
     let s = frame.solve(&load);
@@ -390,7 +390,7 @@ fn redundant_truss_matches_the_analytic_split() {
 fn the_tree_factorisation_is_exact_on_a_tree() {
     let mat = steel();
     for n in [16usize, 128, 1024] {
-        let mut f = Frame::new(mat);
+        let mut f = Framework::new(mat);
         // A chain that wanders, so the answer is not one-dimensional.
         let mut prev = f.add_node(v3(0.0, 0.0, 0.0), true);
         for i in 1..=n {
@@ -399,7 +399,7 @@ fn the_tree_factorisation_is_exact_on_a_tree() {
             f.add_beam(prev, node, 0.05);
             prev = node;
         }
-        let mut load = vec![Dof::default(); f.nodes.len()];
+        let mut load = vec![Dof::default(); f.joints.len()];
         for (i, l) in load.iter_mut().enumerate() {
             l.t = v3(0.0, 30.0 * (i as f64 * 0.11).sin(), -120.0);
         }
@@ -414,10 +414,10 @@ fn the_tree_factorisation_is_exact_on_a_tree() {
         assert!(iters <= 3, "n={n} took {iters} iterations");
 
         // And the answer really does solve the system.
-        let mut ku = vec![Dof::default(); f.nodes.len()];
+        let mut ku = vec![Dof::default(); f.joints.len()];
         f.apply_operator(&u, &stiff, &mut ku);
         let (mut residual, mut scale) = (0.0f64, 0.0f64);
-        for i in 0..f.nodes.len() {
+        for i in 0..f.joints.len() {
             if f.fixed[i] {
                 continue;
             }
@@ -461,7 +461,7 @@ fn the_tree_factorisation_is_exact_on_a_tree() {
 fn the_tree_factorisation_still_helps_a_braced_chain() {
     let mat = steel();
     let n = 200usize;
-    let mut f = Frame::new(mat);
+    let mut f = Framework::new(mat);
     let mut chain = vec![f.add_node(v3(0.0, 0.0, 0.0), true)];
     for i in 1..=n {
         let t = i as f64 * 0.3;
@@ -476,11 +476,11 @@ fn the_tree_factorisation_still_helps_a_braced_chain() {
     let redundancy = f.redundancy();
     assert!(redundancy > 0, "nothing here is redundant");
     assert!(
-        redundancy * 4 <= f.nodes.len(),
+        redundancy * 4 <= f.joints.len(),
         "this chain should take the factorisation"
     );
 
-    let mut load = vec![Dof::default(); f.nodes.len()];
+    let mut load = vec![Dof::default(); f.joints.len()];
     for (i, l) in load.iter_mut().enumerate() {
         l.t = v3(0.0, 30.0 * (i as f64 * 0.11).sin(), -120.0);
     }
@@ -490,7 +490,7 @@ fn the_tree_factorisation_still_helps_a_braced_chain() {
     println!(
         "  braced chain: {} joints, {} members, redundancy {redundancy} — {tree} iterations \
          factorised, {} without",
-        f.nodes.len(),
+        f.joints.len(),
         f.members.len(),
         if ok_plain { plain.to_string() } else { format!("{plain}, did not converge") }
     );
@@ -502,7 +502,7 @@ fn the_tree_factorisation_still_helps_a_braced_chain() {
 
     // The other side of the decision: a moment frame is redundant in every bay,
     // and the solver keeps the diagonal for it.
-    let mut frame = Frame::new(mat);
+    let mut frame = Framework::new(mat);
     let mut below = [u32::MAX; 4];
     for floor in 0..20 {
         let z = floor as f64 * 3.2;
@@ -525,12 +525,12 @@ fn the_tree_factorisation_still_helps_a_braced_chain() {
     }
     println!(
         "  moment frame: {} joints, {} members, redundancy {} — factorisation declined",
-        frame.nodes.len(),
+        frame.joints.len(),
         frame.members.len(),
         frame.redundancy()
     );
     assert!(
-        frame.redundancy() * 4 > frame.nodes.len(),
+        frame.redundancy() * 4 > frame.joints.len(),
         "a moment frame should be too redundant for the factorisation"
     );
 }

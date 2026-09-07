@@ -129,7 +129,7 @@ fn a_fast_node_evolves_on_its_own_clock() {
     // Now boost this node to 0.8c in its parent's frame. Gamma is 5/3, so its
     // own contribution should be exactly 0.6 — asserted as a ratio against the
     // ancestry it already had, which is the only part this test controls.
-    w.tree.nodes[d.get()].frame.velocity = v3(0.8 * C, 0.0, 0.0);
+    w.tree.nodes[d.get()].motion.velocity = v3(0.8 * C, 0.0, 0.0);
     let moving = w.time_rate_of(d);
     let own = moving.kinematic / resting.kinematic;
     println!(
@@ -151,8 +151,8 @@ fn dilation_composes_up_the_tree() {
     let parent = w.tree.nodes[d.get()].parent;
     assert!(!parent.is_none(), "need a parent for this to mean anything");
 
-    w.tree.nodes[d.get()].frame.velocity = v3(0.6 * C, 0.0, 0.0);
-    w.tree.nodes[parent.get()].frame.velocity = v3(0.0, 0.6 * C, 0.0);
+    w.tree.nodes[d.get()].motion.velocity = v3(0.6 * C, 0.0, 0.0);
+    w.tree.nodes[parent.get()].motion.velocity = v3(0.0, 0.6 * C, 0.0);
 
     let child = w.time_rate_of(d);
     let above = w.time_rate_of(parent);
@@ -174,14 +174,14 @@ fn a_dilated_node_still_travels_at_its_velocity() {
     let mut w = a_world();
     let d = deep(&mut w);
     let v = v3(0.0, 0.0, 0.9 * C);
-    w.tree.nodes[d.get()].frame.velocity = v;
-    let before = w.tree.nodes[d.get()].frame.offset;
+    w.tree.nodes[d.get()].motion.velocity = v;
+    let before = w.tree.nodes[d.get()].motion.offset;
     let t0 = w.tree.nodes[d.get()].time;
 
     w.advance_node(d, 1.0);
 
     let n = &w.tree.nodes[d.get()];
-    let moved = (n.frame.offset - before).norm();
+    let moved = (n.motion.offset - before).norm();
     let coordinate = n.time - t0;
     println!(
         "  {coordinate:.6} s of world time moved it {moved:.6e} m; v*dt would be {:.6e}",
@@ -211,12 +211,12 @@ fn a_bubble_multiplies_the_interior_and_nothing_else() {
     assert!((r.total() / r.physical() - 100.0).abs() < 1e-9);
 
     // The trajectory is untouched.
-    w.tree.nodes[d.get()].frame.velocity = v3(1000.0, 0.0, 0.0);
-    let before = w.tree.nodes[d.get()].frame.offset;
+    w.tree.nodes[d.get()].motion.velocity = v3(1000.0, 0.0, 0.0);
+    let before = w.tree.nodes[d.get()].motion.offset;
     let t0 = w.tree.nodes[d.get()].time;
     w.advance_node(d, 1.0);
     let n = &w.tree.nodes[d.get()];
-    let moved = (n.frame.offset - before).norm();
+    let moved = (n.motion.offset - before).norm();
     let coordinate = n.time - t0;
     println!("  bubbled 100x, one second: moved {moved:.3} m over {coordinate:.6} s of world time");
     assert!(

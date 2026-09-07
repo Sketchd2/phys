@@ -29,7 +29,7 @@
 //!
 //! With Rayleigh damping `C = a M + b K` the left-hand side is a multiple of
 //! the mass plus a multiple of the *same* stiffness operator the static
-//! analysis uses. So [`Frame`] grew two coefficients and a lumped mass vector,
+//! analysis uses. So [`Framework`] grew two coefficients and a lumped mass vector,
 //! and everything else is shared: the same conjugate gradient, the same Jacobi
 //! preconditioner, the same element forces, the same buckling and rupture
 //! criteria. A structure cannot move according to one stiffness and break
@@ -59,13 +59,13 @@
 //! current state is to leaving the regime rather than leaving the user to guess.
 
 use crate::math::Vec3;
-use crate::solvers::frame::{Dof, MemberForces, Frame};
+use crate::solvers::frame::{Dof, MemberForces, Framework};
 
 /// A structure with mass, integrated through time.
 #[derive(Debug, Clone)]
 pub struct Dynamics {
     /// Reference geometry, elements, supports and material.
-    pub frame: Frame,
+    pub frame: Framework,
     /// Displacement of each node from the reference geometry.
     pub displacement: Vec<Dof>,
     /// Velocity of each node, translational and angular.
@@ -117,8 +117,8 @@ impl Dynamics {
     /// Attach mass to a frame. Lumped mass and rotational inertia come from the
     /// members' own geometry and the material's density, so nothing here is a
     /// tuning parameter.
-    pub fn new(frame: Frame) -> Dynamics {
-        let n = frame.nodes.len();
+    pub fn new(frame: Framework) -> Dynamics {
+        let n = frame.joints.len();
         let stiffness = vec![frame.material.stiffness; frame.members.len()];
         let mut d = Dynamics {
             frame,
@@ -146,12 +146,12 @@ impl Dynamics {
     /// in the rotational block, and the solve would be free to spin joints at
     /// unbounded rate for nothing.
     pub fn relump(&mut self) {
-        let n = self.frame.nodes.len();
+        let n = self.frame.joints.len();
         self.frame.lumped = vec![Dof::default(); n];
         let rho = self.frame.material.density;
         for e in &self.frame.members {
             let (a, b) = (e.a as usize, e.b as usize);
-            let axis = self.frame.nodes[b] - self.frame.nodes[a];
+            let axis = self.frame.joints[b] - self.frame.joints[a];
             let l = axis.norm();
             if l <= 0.0 {
                 continue;
@@ -185,7 +185,7 @@ impl Dynamics {
     /// strain energy they were holding is reported as released rather than
     /// quietly deleted.
     pub fn step(&mut self, f: &[Dof], h: f64) -> StepReport {
-        let n = self.frame.nodes.len();
+        let n = self.frame.joints.len();
         let mut report = StepReport::default();
         if n == 0 || h <= 0.0 || self.frame.members.is_empty() {
             return report;
@@ -299,7 +299,7 @@ impl Dynamics {
     /// Strain energy held in one member, from its own internal forces.
     fn element_strain_energy(&self, i: usize, f: &MemberForces) -> f64 {
         let e = &self.frame.members[i];
-        let l = (self.frame.nodes[e.b as usize] - self.frame.nodes[e.a as usize]).norm();
+        let l = (self.frame.joints[e.b as usize] - self.frame.joints[e.a as usize]).norm();
         let k = self.stiffness[i];
         if l <= 0.0 || k <= 0.0 {
             return 0.0;
@@ -331,7 +331,7 @@ impl Dynamics {
 
     /// Elastic energy stored in the members, `1/2 x^T K x`.
     pub fn strain_energy(&self) -> f64 {
-        let n = self.frame.nodes.len();
+        let n = self.frame.joints.len();
         let mut kx = vec![Dof::default(); n];
         let mut f = self.frame.clone();
         f.mass_scale = 0.0;
@@ -343,7 +343,7 @@ impl Dynamics {
     /// Current position of each node.
     pub fn deformed(&self) -> Vec<Vec3> {
         self.frame
-            .nodes
+            .joints
             .iter()
             .zip(&self.displacement)
             .map(|(p, d)| *p + d.t)
@@ -366,7 +366,7 @@ impl Dynamics {
         let mut worst: f64 = 0.0;
         for e in &self.frame.members {
             let (a, b) = (e.a as usize, e.b as usize);
-            let axis = self.frame.nodes[b] - self.frame.nodes[a];
+            let axis = self.frame.joints[b] - self.frame.joints[a];
             let l = axis.norm();
             if l <= 0.0 {
                 continue;
@@ -388,7 +388,7 @@ impl Dynamics {
     /// affordable to ask every frame whether the timestep still resolves the
     /// motion.
     pub fn dominant_period(&self, shape: &[Dof]) -> f64 {
-        let n = self.frame.nodes.len();
+        let n = self.frame.joints.len();
         if shape.len() < n {
             return 0.0;
         }
@@ -424,7 +424,7 @@ impl Dynamics {
         if measured > 0.0 {
             return measured;
         }
-        let n = self.frame.nodes.len();
+        let n = self.frame.joints.len();
         let mut f = self.frame.clone();
         f.mass_scale = 0.0;
         f.stiff_scale = 1.0;

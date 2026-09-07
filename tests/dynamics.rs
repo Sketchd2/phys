@@ -7,12 +7,12 @@
 
 use phys::math::{v3, Vec3};
 use phys::solvers::dynamics::Dynamics;
-use phys::solvers::frame::{Dof, Frame};
+use phys::solvers::frame::{Dof, Framework};
 use phys::topology::Material;
 
 /// A cantilever of `n` equal elements, built in at node 0, running along +x.
 fn cantilever(material: Material, length: f64, radius: f64, n: usize) -> Dynamics {
-    let mut frame = Frame::new(material);
+    let mut frame = Framework::new(material);
     let mut prev = frame.add_node(v3(0.0, 0.0, 0.0), true);
     for i in 1..=n {
         let x = length * i as f64 / n as f64;
@@ -55,7 +55,7 @@ fn the_natural_period_matches_beam_theory() {
 
     // Trial shape: the static deflection under a tip load, which for a
     // cantilever is within a fraction of a percent of the true first mode.
-    let mut load = vec![Dof::default(); d.frame.nodes.len()];
+    let mut load = vec![Dof::default(); d.frame.joints.len()];
     load[n].t = v3(0.0, 0.0, -1000.0);
     let s = d.frame.solve(&load);
     assert!(s.converged);
@@ -92,18 +92,18 @@ fn a_released_cantilever_oscillates_at_its_natural_period() {
     undamped(&mut d);
 
     // Deflect statically under a tip load, then let go.
-    let mut load = vec![Dof::default(); d.frame.nodes.len()];
+    let mut load = vec![Dof::default(); d.frame.joints.len()];
     load[n].t = v3(0.0, 0.0, -2.0e4);
     let s = d.frame.solve(&load);
     assert!(s.converged);
-    for i in 0..d.frame.nodes.len() {
+    for i in 0..d.frame.joints.len() {
         d.displacement[i] = Dof { t: s.translation[i], r: s.rotation[i] };
     }
     let start = d.displacement[n].t.z;
     assert!(start < 0.0, "the tip should start deflected downwards");
 
     let h = expect / 40.0;
-    let free = vec![Dof::default(); d.frame.nodes.len()];
+    let free = vec![Dof::default(); d.frame.joints.len()];
     let mut crossings = Vec::new();
     let mut previous = start;
     let mut peak: f64 = 0.0;
@@ -157,7 +157,7 @@ fn a_suddenly_applied_load_doubles_the_deflection() {
     let mut d = cantilever(m, l, r, n);
     undamped(&mut d);
 
-    let mut load = vec![Dof::default(); d.frame.nodes.len()];
+    let mut load = vec![Dof::default(); d.frame.joints.len()];
     load[n].t = v3(0.0, 0.0, -3.0e3);
     let s = d.frame.solve(&load);
     assert!(s.converged);
@@ -197,16 +197,16 @@ fn damping_removes_energy_and_the_report_accounts_for_it() {
         d.mass_damping = mass_damping;
         d.stiff_damping = stiff_damping;
 
-        let mut load = vec![Dof::default(); d.frame.nodes.len()];
+        let mut load = vec![Dof::default(); d.frame.joints.len()];
         load[n].t = v3(0.0, 0.0, -1.0e4);
         let s = d.frame.solve(&load);
-        for i in 0..d.frame.nodes.len() {
+        for i in 0..d.frame.joints.len() {
             d.displacement[i] = Dof { t: s.translation[i], r: s.rotation[i] };
         }
         let start = d.strain_energy();
 
         let h = period / 60.0;
-        let free = vec![Dof::default(); d.frame.nodes.len()];
+        let free = vec![Dof::default(); d.frame.joints.len()];
         let mut dissipated = 0.0;
         for _ in 0..240 {
             let rep = d.step(&free, h);
@@ -259,7 +259,7 @@ fn breaking_a_member_moves_the_rest() {
 
     let mut broke_at = None;
     let mut speed_before = 0.0;
-    let mut load = vec![Dof::default(); d.frame.nodes.len()];
+    let mut load = vec![Dof::default(); d.frame.joints.len()];
     for step in 0..600 {
         let scale = 1.0 + 220.0 * (step as f64 * h / ramp).min(1.0);
         for (i, w) in lumped.iter().enumerate() {
@@ -303,7 +303,7 @@ fn breaking_a_member_moves_the_rest() {
 /// — the classic way an assembled operator goes wrong without any test noticing.
 #[test]
 fn a_free_structure_drifts_without_straining() {
-    let mut frame = Frame::new(Material::STEEL);
+    let mut frame = Framework::new(Material::STEEL);
     let a = frame.add_node(v3(0.0, 0.0, 0.0), false);
     let b = frame.add_node(v3(2.0, 0.0, 0.0), false);
     let c = frame.add_node(v3(2.0, 2.0, 0.0), false);
@@ -316,7 +316,7 @@ fn a_free_structure_drifts_without_straining() {
     for v in d.velocity.iter_mut() {
         v.t = drift;
     }
-    let free = vec![Dof::default(); d.frame.nodes.len()];
+    let free = vec![Dof::default(); d.frame.joints.len()];
     let ke = d.kinetic_energy();
     for _ in 0..50 {
         let rep = d.step(&free, 0.01);
@@ -331,7 +331,7 @@ fn a_free_structure_drifts_without_straining() {
         "rigid translation strained the structure by {:.3e} J",
         d.strain_energy()
     );
-    for i in 0..d.frame.nodes.len() {
+    for i in 0..d.frame.joints.len() {
         let v = d.velocity[i].t;
         assert!(
             (v - drift).norm() < 1e-9 * drift.norm(),
@@ -423,9 +423,9 @@ fn a_tree_sways_and_rings_down() {
     let (bodies, topo, _) = prolong_structured(&agg, &m, 400, 7, 0x1234, 0);
 
     let mut ds = dynamic_structure(&bodies, &topo).expect("a tree has members");
-    let tip = (0..ds.dynamics.frame.nodes.len())
+    let tip = (0..ds.dynamics.frame.joints.len())
         .max_by(|&a, &b| {
-            ds.dynamics.frame.nodes[a].z.total_cmp(&ds.dynamics.frame.nodes[b].z)
+            ds.dynamics.frame.joints[a].z.total_cmp(&ds.dynamics.frame.joints[b].z)
         })
         .unwrap();
 

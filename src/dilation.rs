@@ -2,7 +2,7 @@
 //!
 //! # What was wrong
 //!
-//! The engine computed proper time and then threw it away. `Frame::advance`
+//! The engine computed proper time and then threw it away. `Motion::advance`
 //! accumulated `dt/γ` into `proper_time`, `Clock` carried the number, the UI
 //! could display it — and nothing ever *read* it. Every node's chemistry,
 //! growth, decay and dynamics were stepped with coordinate `dt` regardless of
@@ -20,7 +20,7 @@
 //!
 //! * **Its trajectory through its parent's frame** — where it is, which way it
 //!   points — advances on *coordinate* time. That is what "the parent watched
-//!   it move" means, and it is what `Frame::advance` has always done.
+//!   it move" means, and it is what `Motion::advance` has always done.
 //! * **Its interior** — what it is doing, burning, growing, becoming —
 //!   advances on *local* time, which is coordinate time multiplied by the rate
 //!   below.

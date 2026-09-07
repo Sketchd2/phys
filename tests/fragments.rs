@@ -239,7 +239,7 @@ fn debris_comes_to_rest() {
     let mut frag = Fragment::new(&bodies, &topo, members).expect("a piece");
 
     use phys::solvers::frame::Dof;
-    let n = frag.dynamics.dynamics.frame.nodes.len();
+    let n = frag.dynamics.dynamics.frame.joints.len();
     // Where the ground is in this structure's own frame: a generated tree is
     // recentred on its centre of mass, so its foundations are not at zero.
     let ground = (0..topo.support.len())

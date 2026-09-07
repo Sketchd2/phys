@@ -242,9 +242,17 @@ pub fn aberrate(n_rest: Vec3, v_obs: Vec3) -> Vec3 {
     n.unit()
 }
 
-/// A rest frame: origin offset and velocity relative to the parent frame.
+/// Where a node is, how fast, and which way it is pointing — all relative to
+/// its parent's rest frame.
+///
+/// Named for what it holds rather than for the frame it defines, because
+/// "frame" already means two other things here: the render frame that
+/// `step_frame` advances, and the truss that `solvers::frame` analyses. Of the
+/// three the render frame is the one in everyday use, so it keeps the word.
+/// `n.motion.advance(dt)` also says which of the three is being advanced,
+/// which `n.frame.advance(dt)` did not.
 #[derive(Debug, Clone, Copy, Default)]
-pub struct Frame {
+pub struct Motion {
     pub offset: Vec3,
     pub velocity: Vec3,
     /// Which way the node is pointing.
@@ -261,9 +269,9 @@ pub struct Frame {
     pub proper_time: f64,
 }
 
-impl Frame {
-    pub fn at_rest(offset: Vec3) -> Frame {
-        Frame {
+impl Motion {
+    pub fn at_rest(offset: Vec3) -> Motion {
+        Motion {
             offset,
             velocity: Vec3::ZERO,
             orientation: Quat::IDENTITY,
@@ -273,8 +281,8 @@ impl Frame {
     }
 
     /// Compose with the parent frame to express this frame in the grandparent.
-    pub fn compose(self, parent: Frame) -> Frame {
-        Frame {
+    pub fn compose(self, parent: Motion) -> Motion {
+        Motion {
             offset: parent.offset + self.offset,
             velocity: velocity_add(parent.velocity, self.velocity),
             orientation: self.orientation.then(parent.orientation).unit(),
