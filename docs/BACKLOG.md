@@ -192,22 +192,95 @@ so the cast saturates to `i64::MAX` and the neighbour walk's `cx + 1` overflows.
 forces are computed against whatever neighbours happen to be there. Silently
 wrong physics is worse than the panic.
 
-**The real cause is upstream.** The spacing is `2h` and `h` comes from
-`radius / count^(1/3) * 1.2`, so `s = 1e-9` implies a node about seven
-nanometres across — and its bodies are sitting 6.6x10^10 m away, twenty orders
-of magnitude outside it. Bodies are node-relative by construction and should be
-within a few radii of the origin. Something is putting parent-frame coordinates
-into a node's body list, or a node's radius is being set without its contents.
-The failing tests both drill the full ladder ("24 tiers, galaxy to nucleus"), so
-a scale transition is the place to look.
+**The real cause is upstream, and it is not what this entry first said.** The
+first guess here was that something puts parent-frame coordinates into a node's
+body list. Probing disproved that. The bodies start where they belong — a few
+times 10^-11 m from the node origin — and are *flung* there by an unstable
+integration inside a single `advance_node` call:
 
-**Two fixes, and they are separate.** The grid should use saturating arithmetic
-regardless — a bucket index that cannot be represented should clamp, not wrap,
-whatever put the body there. And the thing that put the body there needs
-finding, which is the actual bug; a `debug_assert` that a node's bodies lie
-within some multiple of its own radius would have caught it at the source
-rather than twenty tiers later.
+```text
+    PROBE MD Atomic dt=1.000e-18 stable=1.000e-24 wanted=1.000e6
+             substeps capped to 64 -> h=1.563e-20
+             far=9.208e-12 fastest=2.811e4
+```
 
-**Trigger:** before trusting any SPH result at a tier boundary, and before the
-debug suite can be used as a gate. It is not blocking the release suite, which
-is green.
+`engine.rs` hands the Atomic node a scheduler step of 1e-18 s.
+`configuration_dt` answers that the Lennard-Jones force field is stable at
+1e-24 s, so a million substeps are wanted. `.clamp(1, 64)` then caps that
+silently, and the node integrates at 1.6x10^4 times the stable step. The
+comment directly above the clamp says what happens next — "a molecular system
+handed a step longer than its own vibrational period does not integrate
+inaccurately, it detonates" — and then the code does it anyway. Bodies leave at
+2.8x10^4 m/s and keep going; twenty tiers later the grid index overflows.
+
+**Three fixes, and they are separate.**
+
+1. **The clamp must stop lying.** A ceiling on substeps is reasonable — 10^6
+   substeps in one frame is not affordable — but capping and continuing is not.
+   The node should integrate the span it *can* integrate stably and fall
+   behind, which is the engine's own philosophy everywhere else: nodes fall
+   behind honestly, and their lateness says so. Silently running an unstable
+   step is the one thing the scheduler is built to avoid.
+
+2. **The grid should saturate, not wrap.** A bucket index that cannot be
+   represented should clamp, whatever put the body there. Release currently
+   wraps `i64::MAX + 1` to `i64::MIN`, consults an arbitrary far cell, and
+   computes that body's SPH forces against whatever is in it. Silently wrong
+   physics is worse than the panic debug gives.
+
+3. **A spread check would have caught it at the source.** A `debug_assert`
+   that a node's bodies lie within some multiple of its own radius fails on the
+   first frame after the detonation, not twenty tiers later inside a hash. This
+   is the same measurement node splitting needs, so the two share a detector.
+
+Note also that `MdParams::default().cutoff` is a fixed 1e-9 m and does not
+scale with node radius, unlike gravity's softening and hydro's `h` (both
+`radius / count^(1/3) * k`). That is a separate latent inconsistency.
+
+**Trigger:** before trusting any SPH or MD result at a tier boundary, and
+before the debug suite can be used as a gate. It is not blocking the release
+suite, which is green.
+
+---
+
+## A node cannot split when its contents spread out
+
+**Noticed:** chasing the overflow above, which is *not* an instance of it.
+**Where:** `engine.rs` — `refine`, `coarsen`, `promote` change a node's
+resolution; nothing changes a node's **extent** or its **count**.
+
+The tree can make a node's contents finer or coarser in place, and it can push
+a child up a tier. It cannot say "these bodies are no longer one neighbourhood"
+and hand them to two nodes. A node's radius is fixed when it is created, so
+contents that legitimately expand — a gas cloud, dispersing debris, an
+explosion, anything with a positive velocity divergence — either stay inside a
+radius that no longer describes them, or leave it and are tracked by a node
+that claims a volume they are not in.
+
+Every downstream consumer of node radius is then wrong by the same factor: the
+SPH smoothing length `h = radius / count^(1/3) * 1.2`, the gravity softening,
+the LOD's angular size, the volume query's node selection, and the neighbour
+grid spacing. None of them fail loudly; they all quietly describe a
+neighbourhood that has stopped existing.
+
+**What it needs.** A spread measurement per node — RMS distance of bodies from
+the centre of mass, or the principal axes of their second moment — evaluated on
+the same cadence as the node itself. Three outcomes: within the radius, do
+nothing; larger than the radius but still one clump, grow the radius and
+re-derive everything that depends on it; genuinely bimodal, split into two
+nodes, each with its own centre, radius and body list, and `summarise` the pair
+back to the parent so the conserved quantities still add up. The inverse merge
+belongs with it, or two clumps that fall back together stay two nodes forever.
+
+**It does not fix the overflow entry above.** That was checked. The bodies there
+are flung across twenty orders of magnitude *inside one* `advance_node` call, so
+a split evaluated afterwards would faithfully split corrupt state into two nodes
+of corrupt state. The spread measurement is still worth having as the *detector*
+for that class of fault — it fires on the first frame, in the node that caused
+it, rather than in a hash function twenty tiers away.
+
+**Trigger:** the first simulation whose contents are meant to expand and are
+meant to be measured afterwards — a detonation, a vented compartment, an
+ablating surface. Nothing built so far expands; every test either holds a bound
+configuration or collapses one. This is the reason it has not bitten yet, and
+the reason it will.
