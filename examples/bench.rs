@@ -7,9 +7,9 @@ use phys::state::*;
 use phys::units::*;
 use std::time::Instant;
 
-fn bodies(n: usize, profile: Profile, kind: BodyKind, agg: &Aggregate) -> Vec<Body> {
+fn bodies(n: usize, profile: Profile, kind: BodyKind, matter: &Matter) -> Vec<Body> {
     let spec = SampleSpec::new(n, profile, MassSpectrum::Equal, kind);
-    sample(agg, spec, 1, 0x1234, 0).0
+    sample(matter, spec, 1, 0x1234, 0).0
 }
 
 fn time<F: FnMut()>(reps: usize, mut f: F) -> f64 {
@@ -24,11 +24,11 @@ fn main() {
     println!("# measured on this machine, single core, release build\n");
 
     println!("## materialisation (sample)");
-    let agg = Aggregate::neutral(1e5 * M_SUN, PARSEC, 30.0, Composition::solar());
+    let matter = Matter::neutral(1e5 * M_SUN, PARSEC, 30.0, Composition::solar());
     for n in [1_000usize, 10_000, 100_000, 500_000] {
         let spec = SampleSpec::new(n, Profile::Plummer, MassSpectrum::Equal, BodyKind::Star);
         let us = time(2, || {
-            std::hint::black_box(sample(&agg, spec, 1, 0x99, 0));
+            std::hint::black_box(sample(&matter, spec, 1, 0x99, 0));
         });
         println!("  n={n:>9}  {us:>10.0} us   {:>7.3} us/body   {:>8.1} M bodies/s",
             us / n as f64, n as f64 / us);
@@ -36,7 +36,7 @@ fn main() {
 
     println!("\n## gravity (Barnes-Hut, theta=0.5, one leapfrog step)");
     for n in [1_000usize, 10_000, 50_000] {
-        let b0 = bodies(n, Profile::Plummer, BodyKind::Star, &agg);
+        let b0 = bodies(n, Profile::Plummer, BodyKind::Star, &matter);
         let p = gravity::GravityParams { theta: 0.5, softening: PARSEC * 0.01, retarded: false, post_newtonian: false, quadrupole: false };
         let mut b = b0.clone();
         let us = time(2, || {
@@ -47,7 +47,7 @@ fn main() {
     }
 
     println!("\n## gravity: cost of the extras");
-    let b0 = bodies(50_000, Profile::Plummer, BodyKind::Star, &agg);
+    let b0 = bodies(50_000, Profile::Plummer, BodyKind::Star, &matter);
     for (name, p) in [
         ("monopole only, theta=0.7", gravity::GravityParams { theta: 0.7, softening: PARSEC * 0.01, retarded: false, post_newtonian: false, quadrupole: false }),
         ("theta=0.5", gravity::GravityParams { theta: 0.5, softening: PARSEC * 0.01, retarded: false, post_newtonian: false, quadrupole: false }),
@@ -64,7 +64,7 @@ fn main() {
     }
 
     println!("\n## hydrodynamics (SPH, ~50 neighbours)");
-    let gas = Aggregate::neutral(1e30, 1e12, 1e4, Composition::solar());
+    let gas = Matter::neutral(1e30, 1e12, 1e4, Composition::solar());
     for n in [1_000usize, 10_000, 50_000] {
         let mut b = bodies(n, Profile::Uniform, BodyKind::GasParcel, &gas);
         let h = 1e12 / (n as f64).cbrt() * 1.2;
@@ -79,7 +79,7 @@ fn main() {
     println!("\n## molecular dynamics (LJ, cell lists)");
     for n in [1_000usize, 10_000, 100_000] {
         let side = 4e-9 * (n as f64 / 4096.0).cbrt();
-        let mol = Aggregate::neutral(n as f64 * 12.0 * AMU, side, 300.0, Composition::pure(CoarseElement::Carbon));
+        let mol = Matter::neutral(n as f64 * 12.0 * AMU, side, 300.0, Composition::pure(CoarseElement::Carbon));
         let mut b = bodies(n, Profile::Uniform, BodyKind::Atom, &mol);
         let p = md::MdParams::default();
         let us = time(2, || {
@@ -91,7 +91,7 @@ fn main() {
 
     println!("\n## summarising (coarsen)");
     for n in [10_000usize, 100_000, 500_000] {
-        let b = bodies(n, Profile::Plummer, BodyKind::Star, &agg);
+        let b = bodies(n, Profile::Plummer, BodyKind::Star, &matter);
         let us = time(5, || {
             std::hint::black_box(summarise(&b, 0.0));
         });
@@ -118,9 +118,9 @@ fn main() {
             };
             m.built = mass;
             let prog = if planned { Program::Tower } else { Program::Tree };
-            let agg = Aggregate::neutral(mass, m.extent(), 291.0, prog.substrate());
+            let matter = Matter::neutral(mass, m.extent(), 291.0, prog.substrate());
             for n in [500usize, 2000, 8000] {
-                let (b, topo, _) = sample_structured(&agg, &m, n, 7, 0x1234, 0);
+                let (b, topo, _) = sample_structured(&matter, &m, n, 7, 0x1234, 0);
                 let mut field = st::LoadField::new(b.len(), 291.0);
                 field.apply(&st::weather::wind(25.0, v3(1.0, 0.0, 0.0)), &b, &topo);
                 field.apply(&st::weather::gravity(), &b, &topo);
@@ -148,7 +148,7 @@ fn main() {
 
     println!("\n## memory");
     println!("  Body           {:>4} bytes", std::mem::size_of::<Body>());
-    println!("  Aggregate      {:>4} bytes", std::mem::size_of::<Aggregate>());
+    println!("  Matter      {:>4} bytes", std::mem::size_of::<Matter>());
     println!("  Node           {:>4} bytes", std::mem::size_of::<phys::tree::Node>());
     println!("  Moment         {:>4} bytes", std::mem::size_of::<phys::causal::Moment>());
     let per_gb = 1e9 / std::mem::size_of::<Body>() as f64;

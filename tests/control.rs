@@ -33,7 +33,7 @@ fn a_world() -> (World, NodeIdx) {
 /// under test unless a test says so.
 fn embodied(w: &World, at: NodeIdx) -> Actor {
     let mut a = Actor::person(ActorId(1), at);
-    a.reach = w.tree.nodes[at.get()].agg.radius * 10.0;
+    a.reach = w.tree.nodes[at.get()].matter.radius * 10.0;
     a
 }
 
@@ -54,7 +54,7 @@ fn an_actor_cannot_state_a_fact() {
     let a = embodied(&w, d);
     roster.admit(&mut w, a);
 
-    let before = w.tree.nodes[d.get()].agg.temperature;
+    let before = w.tree.nodes[d.get()].matter.temperature;
 
     // Everything an actor can send, sent at once. None of it sets anything.
     for act in [
@@ -66,7 +66,7 @@ fn an_actor_cannot_state_a_fact() {
     }
 
     // The only way to set a temperature is the administrative path.
-    let after_acting = w.tree.nodes[d.get()].agg.temperature;
+    let after_acting = w.tree.nodes[d.get()].matter.temperature;
     assert_eq!(
         after_acting, before,
         "no act may set a bulk property; heat is delivered as energy through the mailbox"
@@ -80,7 +80,7 @@ fn an_actor_cannot_state_a_fact() {
             value: before * 2.0,
         }),
     );
-    let after_admin = w.tree.nodes[d.get()].agg.temperature;
+    let after_admin = w.tree.nodes[d.get()].matter.temperature;
     println!("  {before:.3e} K -> {after_acting:.3e} K by acting -> {after_admin:.3e} K by authoring");
     assert!(after_admin > after_acting, "authoring is the path that can set things");
     assert!(!w.audit.is_empty(), "and it is audited");
@@ -468,7 +468,7 @@ fn an_actor_can_act_and_then_see_what_changed() {
     let before = phys::view::decode(&phys::view::encode(&client.frame(&w, &req)))
         .expect("the first scene decoded");
     let mass_before = before.node().mass;
-    let momentum_before = w.tree.nodes[d.get()].agg.momentum;
+    let momentum_before = w.tree.nodes[d.get()].matter.momentum;
 
     // Act. Bytes in.
     let cmd = encode(&Command::Act {
@@ -482,11 +482,11 @@ fn an_actor_can_act_and_then_see_what_changed() {
     // it is not felt until the world has run. That delay is the point: an
     // actor's act is an influence crossing space, not an assignment.
     let mut steps = 0;
-    while w.tree.nodes[d.get()].agg.momentum == momentum_before && steps < 200 {
+    while w.tree.nodes[d.get()].matter.momentum == momentum_before && steps < 200 {
         w.step_frame(20_000.0);
         steps += 1;
     }
-    let delivered = w.tree.nodes[d.get()].agg.momentum - momentum_before;
+    let delivered = w.tree.nodes[d.get()].matter.momentum - momentum_before;
     println!(
         "  {} bytes of command; the impulse arrived after {steps} frame(s), \
          changing momentum by {:.3e} kg m/s",

@@ -56,7 +56,7 @@ pub struct MdParams {
     /// Coulomb screening length. Real MD uses Ewald summation for the
     /// long-range part; here the engine leans on the tier above instead — a
     /// charge imbalance large enough to matter at long range is, by
-    /// construction, visible in the parent node's aggregate charge.
+    /// construction, visible in the parent node's total charge.
     pub debye: f64,
     pub thermostat: Option<f64>,
     /// Langevin friction, 1/s.

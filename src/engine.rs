@@ -24,7 +24,7 @@ use crate::observe::*;
 use crate::sampler::SampleSpec;
 use crate::rng::{Purpose, Stream};
 use crate::solvers::{self, SolverKind};
-use crate::state::{Aggregate, Body};
+use crate::state::{Matter, Body};
 use crate::tree::{Residency, Tree};
 use crate::units::*;
 use std::collections::HashMap;
@@ -44,7 +44,7 @@ pub const MAX_SUBSTEPS: u32 = 256;
 /// Refinement error above which a node resolves itself, with or without an
 /// audience.
 ///
-/// `refinement_error` is about 0.05 for a node the aggregate describes
+/// `refinement_error` is about 0.05 for a node the matter describes
 /// perfectly and climbs past one when the bulk state has started lying: an
 /// unresolved Jeans length, or a dynamical time shorter than the frame. Set
 /// just above the quiet value, so "something is happening here" is what
@@ -294,7 +294,7 @@ pub struct World {
     /// Held as a node rather than a number because a node's cadence changes
     /// under it: materialising a galaxy into twenty thousand stars shortens its
     /// characteristic time by two orders of magnitude, and a pace fixed when it
-    /// was still a single aggregate would then be asking for a span its own
+    /// was still unmaterialised would then be asking for a span its own
     /// stars could not be integrated across.
     pub paced_to: NodeIdx,
     /// Retained history, only for nodes something might observe from a
@@ -324,13 +324,13 @@ pub struct World {
     pub substances: crate::chem::Registry,
     /// What each node is made of, by substance.
     ///
-    /// A side table rather than a field on `Aggregate`, for the same reason
-    /// `environments` and `clocks` are: an `Aggregate` is `Copy` and about two
+    /// A side table rather than a field on `Matter`, for the same reason
+    /// `environments` and `clocks` are: an `Matter` is `Copy` and about two
     /// hundred bytes, a `Mixture` is another hundred and forty, and the
     /// overwhelming majority of nodes have no chemistry at all — a galaxy is
     /// not made of anything you could put in a beaker. Paying for it only
     /// where it exists keeps a few million live nodes inside the memory budget
-    /// `Aggregate`'s own documentation claims.
+    /// `Matter`'s own documentation claims.
     ///
     /// Keyed by `PathKey`, so it survives a node being coarsened away and
     /// materialised again, which is the same reason pinned detail is.
@@ -658,8 +658,8 @@ impl World {
             let n = &self.tree.nodes[cur.get()];
             let mut here = crate::dilation::physical_rate(
                 n.motion.velocity,
-                n.agg.external_potential,
-                n.agg.mass,
+                n.matter.external_potential,
+                n.matter.mass,
             );
             // Through the gate, not straight from the field. `Node::bubble` is
             // public and a value written directly would otherwise be reported
@@ -685,11 +685,11 @@ impl World {
     /// look identical and are not.
     ///
     /// [`World::node_cadence`] asks *may this representation go stale* — and for
-    /// a node held as a single aggregate the honest answer can be "not for a
+    /// a node held as bulk matter the honest answer can be "not for a
     /// very long time". A ball of ten-thousand-kelvin hydrogen has no bulk
     /// motion in its own rest frame (`promote` sets the momentum to zero, which
     /// is what a rest frame means), barely spins, and is not being stirred, so
-    /// nothing an aggregate reports about it — mass, radius, temperature —
+    /// nothing a node's matter reports about it — mass, radius, temperature —
     /// changes at all. Its measured cadence was 5.2x10^18 seconds. That is not
     /// wrong: a hundred and sixty billion years is genuinely how long that
     /// *description* stays accurate.
@@ -704,7 +704,7 @@ impl World {
     ///
     /// So the pace is additionally bounded by how long the node's *interior*
     /// takes to rearrange, which is one resolution element at the internal
-    /// random speed. [`Aggregate::velocity_dispersion`] is that speed and is
+    /// random speed. [`Matter::velocity_dispersion`] is that speed and is
     /// floored at the thermal speed, so it is never zero for warm matter — it
     /// reported 8.2 km/s for the node above, giving four days rather than a
     /// hundred and sixty billion years.
@@ -720,7 +720,7 @@ impl World {
         }
         let cadence = self.node_cadence(idx);
         let n = &self.tree.nodes[idx.get()];
-        let churn = n.agg.velocity_dispersion();
+        let churn = n.matter.velocity_dispersion();
         if !(churn > 0.0) || !churn.is_finite() {
             return cadence;
         }
@@ -730,7 +730,7 @@ impl World {
     /// The length scale a node is currently represented at, metres.
     ///
     /// Not the node's radius — the size of the smallest thing it is currently
-    /// showing. A planet held as a single aggregate is represented at its own
+    /// showing. A planet held as bulk matter is represented at its own
     /// radius; the same planet split into four thousand parcels is represented
     /// at four hundred kilometres, and has to be re-solved sixteen times as
     /// often for the difference to mean anything.
@@ -738,15 +738,15 @@ impl World {
         let n = &self.tree.nodes[idx.get()];
         let parts = n.bodies.len();
         if parts > 1 {
-            n.agg.radius / (parts as f64).cbrt()
+            n.matter.radius / (parts as f64).cbrt()
         } else {
-            n.agg.radius
+            n.matter.radius
         }
     }
 
     /// How long this node may be left alone before its state is visibly stale.
     ///
-    /// For a node held as bulk state this is [`Aggregate::characteristic_time`]
+    /// For a node held as bulk state this is [`Matter::characteristic_time`]
     /// — how long before the thing moves, turns, or rearranges by its own size.
     /// For a materialised node it is the bodies that are represented, so it is
     /// the bodies that set the cadence: the time for the fastest of them to
@@ -759,7 +759,7 @@ impl World {
         if n.is_materialised() {
             let h = self.node_resolution(idx);
             // The bodies' own speeds, and nothing else. Seeding this with the
-            // aggregate's sound speed looked harmless and was not: a galaxy's
+            // matter's sound speed looked harmless and was not: a galaxy's
             // "sound speed" is a gas-pressure formula applied to a collisionless
             // stellar system, and it saturated at 0.577c, so a materialised
             // galaxy claimed to need re-solving four orders of magnitude more
@@ -769,7 +769,7 @@ impl World {
             let v = n.bodies.iter().map(|b| b.vel.norm()).fold(0.0f64, f64::max);
             return if v > 0.0 { h / v } else { f64::INFINITY };
         }
-        n.agg.characteristic_time(n.agg.radius)
+        n.matter.characteristic_time(n.matter.radius)
     }
 
     /// How many of its own characteristic times a node has gone unsolved.
@@ -855,8 +855,8 @@ impl World {
         if n.children.iter().any(|c| !c.is_none()) {
             return f64::INFINITY;
         }
-        let dispersion = n.agg.velocity_dispersion();
-        let ordered = n.agg.angular_velocity().norm() * n.agg.radius;
+        let dispersion = n.matter.velocity_dispersion();
+        let ordered = n.matter.angular_velocity().norm() * n.matter.radius;
         let random2 = dispersion * dispersion - ordered * ordered;
         if !(random2 > 0.0) {
             return f64::INFINITY;
@@ -915,7 +915,7 @@ impl World {
         for idx in live {
             let (tier, materialised, count, radius) = {
                 let n = &self.tree.nodes[idx.get()];
-                (n.tier, n.is_materialised(), n.bodies.len(), n.agg.radius)
+                (n.tier, n.is_materialised(), n.bodies.len(), n.matter.radius)
             };
 
             // What the observers want is *resolution*, not whether the physics
@@ -966,7 +966,7 @@ impl World {
             //
             // Two independent reasons, and the second is the one that was
             // missing. `acuity` is somebody wanting to see it; `error` is the
-            // node's own state saying the aggregate is no longer an adequate
+            // node's own state saying the matter is no longer an adequate
             // description of it — an unresolved Jeans length, a dynamical time
             // shorter than the frame. A cloud collapsing in the dark refines
             // because it is collapsing, not because anyone turned to look.
@@ -1010,7 +1010,7 @@ impl World {
 
             // Growth advances whether or not anything is materialised — in
             // fact especially when nothing is. This is the payoff of the
-            // aggregate representation: a forest of 10^9 trees held as 10^4
+            // bulk representation: a forest of 10^9 trees held as 10^4
             // nodes costs 10^4 ODE steps, so growth can run on the entire world
             // every frame while the fine structure stays unbuilt.
             if self.tree.nodes[idx.get()].morphology.is_some() {
@@ -1057,7 +1057,7 @@ impl World {
     /// node is evolving faster than we are looking at it).
     fn refinement_error(&self, idx: NodeIdx) -> f64 {
         let n = &self.tree.nodes[idx.get()];
-        let a = &n.agg;
+        let a = &n.matter;
         let mut e = 0.05;
         let jeans = a.jeans_length();
         if jeans.is_finite() && jeans < 2.0 * a.radius {
@@ -1219,7 +1219,7 @@ impl World {
         //
         // The bound is not theoretical tidiness. `last_solved` can legitimately
         // be far in the past while the bodies are valid *now*: materialising a
-        // node samples it from the aggregate as it currently is, and `refine`
+        // node samples it from the matter as it currently is, and `refine`
         // has no clock to say so. Without this cap, rendering a freshly
         // materialised node in an old world flung every body to 10^8 node radii
         // — bodies that were sitting, correctly, at three and a half.
@@ -1355,8 +1355,8 @@ impl World {
         let mut natural = n
             .tier
             .dt()
-            .min(n.agg.dynamical_time() / 50.0)
-            .min(0.25 * n.agg.signal_crossing(parts, flow));
+            .min(n.matter.dynamical_time() / 50.0)
+            .min(0.25 * n.matter.signal_crossing(parts, flow));
         // Where a force field decides the timestep, ask the force field. The
         // engine already has a function whose entire job is "what step does
         // this system need"; the scheduler was not calling it.
@@ -1377,7 +1377,7 @@ impl World {
     pub fn advance_node(&mut self, idx: NodeIdx, dt: f64) -> solvers::SolveReport {
         let (tier, key, epoch, radius, count, tick) = {
             let n = &self.tree.nodes[idx.get()];
-            (n.tier, n.key, n.epoch, n.agg.radius, n.bodies.len(), n.steps_taken)
+            (n.tier, n.key, n.epoch, n.matter.radius, n.bodies.len(), n.steps_taken)
         };
         if count == 0 || dt <= 0.0 {
             return solvers::SolveReport::default();
@@ -1508,7 +1508,7 @@ impl World {
 
     /// Advance one structure's developmental state.
     ///
-    /// The environment is read off the node's own aggregate, so a structure in
+    /// The environment is read off the node's own matter, so a structure in
     /// a cold or crowded node grows slowly without anyone having to arrange it.
     /// The transaction is validated before it is applied: a growth program
     /// cannot mint free energy or order, it can only trade for them.
@@ -1529,18 +1529,18 @@ impl World {
         let extent = morph.extent().max(1e-30);
         let stored = morph.stored_energy();
 
-        // Apply the transaction to the aggregate. Mass moves *within* the node
+        // Apply the growth step to the node's matter. Mass moves *within* the node
         // — carbon from its air into its wood — so mass, composition and baryon
         // number are all unchanged, and only the energy and entropy accounts
         // move. What crosses the boundary is energy, and it is booked.
-        node.agg.chemical_energy = stored;
+        node.matter.chemical_energy = stored;
         // Only the thermalised share stays. What was re-radiated has left the
         // node, and adding it here would cook a forest in a season.
-        node.agg.internal_energy += txn.heat_released;
-        node.agg.entropy += txn.entropy_local;
-        node.agg.entropy_exported += txn.entropy_exported;
-        node.agg.radius = extent;
-        node.agg.luminosity = crate::state::stefan_boltzmann(extent, node.agg.temperature);
+        node.matter.internal_energy += txn.heat_released;
+        node.matter.entropy += txn.entropy_local;
+        node.matter.entropy_exported += txn.entropy_exported;
+        node.matter.radius = extent;
+        node.matter.luminosity = crate::state::stefan_boltzmann(extent, node.matter.temperature);
 
         // The structure it would generate has changed, so any materialised copy
         // is stale. Discarding it is correct and cheap — it is regenerable.
@@ -1579,7 +1579,7 @@ impl World {
         self.disturb(idx);
         self.tree.refine(idx);
 
-        let ambient = self.tree.nodes[idx.get()].agg.temperature;
+        let ambient = self.tree.nodes[idx.get()].matter.temperature;
         let bodies = self.tree.nodes[idx.get()].bodies.clone();
         let mut topo = match self.tree.nodes[idx.get()].topology.clone() {
             Some(t) => t,
@@ -1672,7 +1672,7 @@ impl World {
         }
 
         let node = &mut self.tree.nodes[idx.get()];
-        let temperature = node.agg.temperature;
+        let temperature = node.matter.temperature;
         if let Some(m) = node.morphology.as_mut() {
             if !sites.is_empty() && structural_mass > 0.0 {
                 let fraction = (failures.detached_mass / structural_mass).clamp(0.0, 1.0);
@@ -1685,17 +1685,17 @@ impl World {
                     // Burning releases the free energy the wood was holding.
                     // The atoms stay in the node as combustion products, so mass
                     // and baryon number are untouched; only the energy moves.
-                    node.agg.chemical_energy -= burn.energy_released;
-                    node.agg.internal_energy += burn.heat_released;
-                    node.agg.entropy += burn.entropy_local;
-                    node.agg.entropy_exported += burn.entropy_exported;
+                    node.matter.chemical_energy -= burn.energy_released;
+                    node.matter.internal_energy += burn.heat_released;
+                    node.matter.entropy += burn.entropy_local;
+                    node.matter.entropy_exported += burn.entropy_exported;
                     out.energy_released = burn.energy_released;
                 } else {
                     self.rejected_growth_steps += 1;
                 }
             }
-            node.agg.chemical_energy = m.stored_energy();
-            node.agg.radius = m.extent().max(1e-30);
+            node.matter.chemical_energy = m.stored_energy();
+            node.matter.radius = m.extent().max(1e-30);
         }
         // The structure it would generate has changed.
         node.bodies.clear();
@@ -1733,7 +1733,7 @@ impl World {
         }
         self.disturb(idx);
         self.tree.refine(idx);
-        let ambient = self.tree.nodes[idx.get()].agg.temperature;
+        let ambient = self.tree.nodes[idx.get()].matter.temperature;
         let bodies = self.tree.nodes[idx.get()].bodies.clone();
         let topo = match self.tree.nodes[idx.get()].topology.clone() {
             Some(t) => t,
@@ -1852,8 +1852,8 @@ impl World {
                 let txn = m.sever_many(&sites, fraction);
                 out.detached_mass = txn.mass_detached;
             }
-            node.agg.chemical_energy = m.stored_energy();
-            node.agg.radius = m.extent().max(1e-30);
+            node.matter.chemical_energy = m.stored_energy();
+            node.matter.radius = m.extent().max(1e-30);
         }
         node.bodies.clear();
         node.topology = None;
@@ -1998,14 +1998,14 @@ impl World {
         // shade, without a separate lighting system.
         let light = if !n.parent.is_none() {
             let p = &self.tree.nodes[n.parent.get()];
-            let d = n.motion.offset.norm().max(p.agg.radius * 0.01).max(1e-6);
-            (p.agg.luminosity / (4.0 * std::f64::consts::PI * d * d)).min(1400.0)
+            let d = n.motion.offset.norm().max(p.matter.radius * 0.01).max(1e-6);
+            (p.matter.luminosity / (4.0 * std::f64::consts::PI * d * d)).min(1400.0)
         } else {
             crate::morph::Environment::default().light_flux
         };
         crate::morph::Environment {
             light_flux: light,
-            temperature: n.agg.temperature,
+            temperature: n.matter.temperature,
             water: 1.0,
             crowding: 0.0,
             // A structure can only be built out of matter that is actually
@@ -2013,7 +2013,7 @@ impl World {
             // Using the total lets a node grow a structure many times its own
             // mass, because the limit then applies per step rather than
             // cumulatively — a one-kilogram node grew a three-tonne tree.
-            reservoir_mass: (n.agg.mass
+            reservoir_mass: (n.matter.mass
                 - n.morphology.as_ref().map(|m| m.built).unwrap_or(0.0))
             .max(0.0),
             labour: self.labour_rate,
@@ -2034,12 +2034,12 @@ impl World {
         let n = &mut self.tree.nodes[inf.target.get()];
         match inf.kind {
             InfluenceKind::Radiation | InfluenceKind::Blast => {
-                n.agg.add_heat(inf.energy);
-                n.agg.momentum += inf.momentum;
+                n.matter.add_heat(inf.energy);
+                n.matter.momentum += inf.momentum;
             }
             InfluenceKind::Impact | InfluenceKind::UserImpulse => {
-                n.agg.momentum += inf.momentum;
-                n.agg.add_heat(inf.energy);
+                n.matter.momentum += inf.momentum;
+                n.matter.add_heat(inf.energy);
             }
             InfluenceKind::Probe => {}
         }
@@ -2052,7 +2052,7 @@ impl World {
             // discarding them — throwing away detail a user is looking at, in
             // response to that user poking it, is the worst possible moment.
             let n = &mut self.tree.nodes[idx.get()];
-            let total = n.agg.mass.max(1e-300);
+            let total = n.matter.mass.max(1e-300);
             for b in n.bodies.iter_mut() {
                 let f = b.mass / total;
                 if b.mass > 0.0 {
@@ -2077,9 +2077,9 @@ impl World {
                         t: self.time,
                         offset: n.motion.offset,
                         velocity: n.motion.velocity,
-                        mass: n.agg.mass,
-                        luminosity: n.agg.luminosity,
-                        temperature: n.agg.temperature,
+                        mass: n.matter.mass,
+                        luminosity: n.matter.luminosity,
+                        temperature: n.matter.temperature,
                     },
                 )
             })
@@ -2142,12 +2142,12 @@ impl World {
                     return;
                 }
                 let n = &mut self.tree.nodes[target.get()];
-                let old = n.agg.mass;
-                n.agg.composition =
-                    crate::state::Composition::blend(n.agg.composition, old, composition, mass);
-                n.agg.mass += mass;
-                n.agg.momentum += velocity.scale(mass);
-                n.agg.baryon_number = n.agg.mass * n.agg.composition.nucleons_per_kg();
+                let old = n.matter.mass;
+                n.matter.composition =
+                    crate::state::Composition::blend(n.matter.composition, old, composition, mass);
+                n.matter.mass += mass;
+                n.matter.momentum += velocity.scale(mass);
+                n.matter.baryon_number = n.matter.mass * n.matter.composition.nucleons_per_kg();
                 self.tree.pin(target);
                 self.tree.bump_epoch(target);
                 self.disturb(target);
@@ -2203,9 +2203,9 @@ impl World {
         if target.is_none() || !self.tree.nodes[target.get()].alive {
             return None;
         }
-        let (key, agg, epoch) = {
+        let (key, matter, epoch) = {
             let n = &self.tree.nodes[target.get()];
-            (n.key, n.agg, n.epoch)
+            (n.key, n.matter, n.epoch)
         };
         let obs = *self.observers.first()?;
         let sep = self.tree.separation(obs.anchor, obs.offset, target, Vec3::ZERO);
@@ -2218,9 +2218,9 @@ impl World {
                     t: self.time,
                     offset: sep.value + obs.offset,
                     velocity: self.tree.velocity_from(self.tree.root, target),
-                    mass: agg.mass,
-                    luminosity: agg.luminosity,
-                    temperature: agg.temperature,
+                    mass: matter.mass,
+                    luminosity: matter.luminosity,
+                    temperature: matter.temperature,
                 },
                 t_retarded: self.time - d / C,
                 delay: d / C,
@@ -2244,21 +2244,21 @@ impl World {
                 Quantity::DecayTime => {
                     solvers::nuclear::Isotope::Neutron.sample_lifetime(s)
                 }
-                Quantity::Temperature => agg.temperature * (1.0 + 1e-3 * s.normal()),
+                Quantity::Temperature => matter.temperature * (1.0 + 1e-3 * s.normal()),
                 _ => s.uniform(),
             },
         );
         let _ = fact;
 
         let mut stream = Stream::at(seed, key.0, epoch, Purpose::PhotonEmission);
-        let reading = read(instrument, &obs, &view, &agg, &mut stream);
+        let reading = read(instrument, &obs, &view, &matter, &mut stream);
 
         // Measurement disturbs. An interferometer deposits real energy, and the
         // engine applies it rather than reporting a free lunch.
         if let Reading::Position { disturbance, .. } = reading {
             if disturbance > 0.0 {
                 let n = &mut self.tree.nodes[target.get()];
-                n.agg.add_heat(disturbance);
+                n.matter.add_heat(disturbance);
                 self.tree.pin(target);
                 self.disturb(target);
             }
@@ -2272,15 +2272,15 @@ impl World {
         if target.is_none() || !self.tree.nodes[target.get()].alive {
             return;
         }
-        let before = self.tree.nodes[target.get()].agg.total_energy();
+        let before = self.tree.nodes[target.get()].matter.total_energy();
         let key = {
             let n = &mut self.tree.nodes[target.get()];
             match property {
-                Property::Mass => n.agg.mass = value.max(0.0),
-                Property::Temperature => n.agg.set_temperature(value),
-                Property::Radius => n.agg.radius = value.max(1e-30),
-                Property::Charge => n.agg.charge = value,
-                Property::Luminosity => n.agg.luminosity = value.max(0.0),
+                Property::Mass => n.matter.mass = value.max(0.0),
+                Property::Temperature => n.matter.set_temperature(value),
+                Property::Radius => n.matter.radius = value.max(1e-30),
+                Property::Charge => n.matter.charge = value,
+                Property::Luminosity => n.matter.luminosity = value.max(0.0),
                 // Reachable only if someone calls `author` directly; `dilate`
                 // is the way in. It used to clamp, which meant this path and
                 // that one disagreed: `dilate(-5.0)` was refused while
@@ -2295,7 +2295,7 @@ impl World {
             }
             n.key
         };
-        let after = self.tree.nodes[target.get()].agg.total_energy();
+        let after = self.tree.nodes[target.get()].matter.total_energy();
         self.audit.push(AuthorEvent {
             key,
             property,
@@ -2374,7 +2374,7 @@ impl World {
     ///
     /// The mixture is *speciation*: it says which substances account for the
     /// node's mass, and the elemental account it implies has to agree with the
-    /// aggregate's own composition. This does not check that — nothing can,
+    /// matter's own composition. This does not check that — nothing can,
     /// cheaply, for a partially speciated node — but `Mixture::composition` is
     /// how a caller finds out, and `tests/chem.rs` asserts it for the cases
     /// the engine builds itself.
@@ -2416,7 +2416,7 @@ impl World {
         for idx in live {
             let (key, temperature, mass) = {
                 let n = &self.tree.nodes[idx.get()];
-                (n.key, n.agg.temperature, n.agg.mass)
+                (n.key, n.matter.temperature, n.matter.mass)
             };
             let local = dt * self.local_rate(idx);
             let tau = self.mixing_time(idx);
@@ -2430,7 +2430,7 @@ impl World {
             // internal account. Positive `heat` was absorbed by the matter, so
             // it leaves the thermal store.
             let n = &mut self.tree.nodes[idx.get()];
-            n.agg.internal_energy = (n.agg.internal_energy - r.heat * mass).max(0.0);
+            n.matter.internal_energy = (n.matter.internal_energy - r.heat * mass).max(0.0);
             total.melted += r.melted;
             total.frozen += r.frozen;
             total.boiled += r.boiled;
@@ -2468,9 +2468,9 @@ impl World {
             .collect();
 
         for idx in live {
-            let (key, agg) = {
+            let (key, matter) = {
                 let n = &self.tree.nodes[idx.get()];
-                (n.key, n.agg)
+                (n.key, n.matter)
             };
             let sep = self.tree.separation(obs.anchor, obs.offset, idx, Vec3::ZERO);
             let d = sep.value.norm();
@@ -2484,9 +2484,9 @@ impl World {
                         t: self.time,
                         offset: sep.value + obs.offset,
                         velocity: self.tree.velocity_from(self.tree.root, idx),
-                        mass: agg.mass,
-                        luminosity: agg.luminosity,
-                        temperature: agg.temperature,
+                        mass: matter.mass,
+                        luminosity: matter.luminosity,
+                        temperature: matter.temperature,
                     },
                     t_retarded: self.time - d / C,
                     delay: d / C,
@@ -2494,11 +2494,11 @@ impl World {
                     within_history: false,
                 },
             };
-            let theta = crate::coords::angular_size(agg.radius, d);
+            let theta = crate::coords::angular_size(matter.radius, d);
             let dir = (view.snapshot.offset - obs.offset).unit();
             let dop = crate::coords::doppler(view.snapshot.velocity - obs.velocity, dir);
             let mut stream = Stream::at(self.tree.world_seed, key.0, 0, Purpose::PhotonEmission);
-            let reading = read(instrument, &obs, &view, &agg, &mut stream);
+            let reading = read(instrument, &obs, &view, &matter, &mut stream);
             out.push(Sighting {
                 node: idx,
                 key,
@@ -2506,7 +2506,7 @@ impl World {
                 angular_size: theta,
                 resolved: theta >= obs.angular_resolution,
                 required_tier: obs.required_tier(d),
-                flux: flux(agg.luminosity, d, dop),
+                flux: flux(matter.luminosity, d, dop),
                 doppler: dop,
                 reading,
             });
@@ -2590,8 +2590,8 @@ impl World {
                     .separation(*a, Vec3::ZERO, *b, Vec3::ZERO)
                     .value
                     .norm()
-                    - na.agg.radius
-                    - nb.agg.radius)
+                    - na.matter.radius
+                    - nb.matter.radius)
                     .max(0.0);
                 worst = worst.max(crate::causal::causality_violation(na.time, nb.time, gap));
             }
@@ -2630,22 +2630,22 @@ pub fn galaxy(world_seed: u64, stars: f64) -> Tree {
     let total = mass_stars + mass_gas;
     let radius = 15.0 * KPC;
 
-    let mut agg = Aggregate::neutral(total, radius, 1e4, crate::state::Composition::primordial());
+    let mut matter = Matter::neutral(total, radius, 1e4, crate::state::Composition::primordial());
     // A galaxy's internal energy is dominated by orbital motion, not heat:
     // the virial theorem sets it, so derive it rather than inventing a number.
     // The halo dominates the potential, so the velocity dispersion is set by
     // the *total* enclosed mass even though only the baryons are represented.
     let enclosed = total + mass_dark;
     let sigma = (G * enclosed / (2.0 * radius)).sqrt();
-    agg.internal_energy = 0.5 * total * sigma * sigma;
+    matter.internal_energy = 0.5 * total * sigma * sigma;
     // The baryons' own binding, which refinement can and must reproduce...
-    agg.binding_energy = -0.6 * G * total * total / radius;
+    matter.binding_energy = -0.6 * G * total * total / radius;
     // ...and the halo's grip on them, which it cannot, because the halo is not
     // made of the thing being refined.
-    agg.external_potential = -G * total * mass_dark / radius;
+    matter.external_potential = -G * total * mass_dark / radius;
     // Angular momentum of a rotationally supported disc.
-    agg.spin = crate::math::v3(0.0, 0.0, 0.7 * total * sigma * radius);
-    agg.luminosity = stars * 3.828e26 * 0.3;
+    matter.spin = crate::math::v3(0.0, 0.0, 0.7 * total * sigma * radius);
+    matter.luminosity = stars * 3.828e26 * 0.3;
 
     let spec = SampleSpec {
         count: 20_000,
@@ -2657,7 +2657,7 @@ pub fn galaxy(world_seed: u64, stars: f64) -> Tree {
         composition_scatter: 0.15,
         turbulent_fraction: 0.3,
     };
-    Tree::new(world_seed, agg, Tier::Galactic, spec)
+    Tree::new(world_seed, matter, Tier::Galactic, spec)
 }
 
 /// The default refinement policy, and the budgeted form of it.

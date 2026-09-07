@@ -21,7 +21,7 @@ fn plant(seed: u64, mass: f64) -> (World, phys::ids::NodeIdx) {
         let n = &mut w.tree.nodes[node.get()];
         // A patch of ground: soil, water and air, of which the tree will build
         // itself a few tonnes. The reservoir is what bounds how big it gets.
-        n.agg = Aggregate::neutral(mass, 6.0, 291.0, Program::Tree.substrate());
+        n.matter = Matter::neutral(mass, 6.0, 291.0, Program::Tree.substrate());
         n.spec.count = 9000;
     }
     w.plant(node, Program::Tree, Environment::default());

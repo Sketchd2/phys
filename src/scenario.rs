@@ -1,8 +1,8 @@
 //! Starting points: what the world is, before anybody looks at it.
 //!
-//! A scenario is one [`Aggregate`] and one refinement policy at one tier. That
+//! A scenario is one [`Matter`] and one refinement policy at one tier. That
 //! is genuinely all it takes, because everything else the engine does is
-//! *derived*: the detail is generated on demand from the aggregate, the solver
+//! *derived*: the detail is generated on demand from the matter, the solver
 //! is chosen by the tier, the timestep by the physics, and the whole ladder
 //! below is produced by refining. A galaxy and an iron nucleus differ by
 //! forty-five orders of magnitude in size and by nothing at all in structure.
@@ -19,7 +19,7 @@
 //!
 //! # The energy budgets are not decoration
 //!
-//! An aggregate that says it is a star has to carry a star's internal energy,
+//! Matter that says it is a star has to carry a star's internal energy,
 //! binding energy and angular momentum, because those are what the
 //! materialisation is constrained to reproduce. Give a nucleus a thermal energy
 //! computed as though it were a gas and the projection will still close its
@@ -31,7 +31,7 @@
 use crate::engine::{default_spec, galaxy};
 use crate::math::v3;
 use crate::sampler::{MassSpectrum, Profile, SampleSpec};
-use crate::state::{Aggregate, BodyKind, Composition};
+use crate::state::{Matter, BodyKind, Composition};
 use crate::tree::Tree;
 use crate::units::*;
 
@@ -129,11 +129,11 @@ fn build_galaxy(seed: u64) -> Tree {
 fn build_cloud(seed: u64) -> Tree {
     let mass = 1.0e5 * M_SUN;
     let radius = 20.0 * PARSEC;
-    let mut agg = Aggregate::neutral(mass, radius, 20.0, Composition::primordial());
+    let mut matter = Matter::neutral(mass, radius, 20.0, Composition::primordial());
     let sigma = (G * mass / radius).sqrt();
-    agg.internal_energy = 0.5 * mass * sigma * sigma;
-    agg.binding_energy = -0.6 * G * mass * mass / radius;
-    agg.spin = v3(0.0, 0.0, 0.25 * mass * sigma * radius);
+    matter.internal_energy = 0.5 * mass * sigma * sigma;
+    matter.binding_energy = -0.6 * G * mass * mass / radius;
+    matter.spin = v3(0.0, 0.0, 0.25 * mass * sigma * radius);
     let spec = SampleSpec {
         count: 8_000,
         profile: Profile::Plummer,
@@ -142,7 +142,7 @@ fn build_cloud(seed: u64) -> Tree {
         composition_scatter: 0.05,
         turbulent_fraction: 0.7,
     };
-    Tree::new(seed, agg, Tier::Stellar, spec)
+    Tree::new(seed, matter, Tier::Stellar, spec)
 }
 
 /// A star, sized by the virial theorem rather than by a number typed in.
@@ -155,12 +155,12 @@ fn build_star(seed: u64) -> Tree {
     let mass = M_SUN;
     let radius = R_SUN;
     let binding = -0.6 * G * mass * mass / radius;
-    let mut agg = Aggregate::neutral(mass, radius, 5.8e3, Composition::solar());
-    agg.internal_energy = -0.5 * binding;
-    agg.binding_energy = binding;
-    agg.luminosity = 3.828e26;
-    agg.spin = v3(0.0, 0.0, 1.9e41);
-    Tree::new(seed, agg, Tier::Planetary, default_spec(Tier::Planetary))
+    let mut matter = Matter::neutral(mass, radius, 5.8e3, Composition::solar());
+    matter.internal_energy = -0.5 * binding;
+    matter.binding_energy = binding;
+    matter.luminosity = 3.828e26;
+    matter.spin = v3(0.0, 0.0, 1.9e41);
+    Tree::new(seed, matter, Tier::Planetary, default_spec(Tier::Planetary))
 }
 
 /// A rocky planet. Same virial relation, a thousandth the mass, and a
@@ -174,14 +174,14 @@ fn build_planet(seed: u64) -> Tree {
     comp[CoarseElement::Silicon as usize] = 0.15;
     comp[CoarseElement::Oxygen as usize] = 0.30;
     comp[CoarseElement::Other as usize] = 0.23;
-    let mut agg = Aggregate::neutral(mass, radius, 2000.0, Composition(comp).normalised());
+    let mut matter = Matter::neutral(mass, radius, 2000.0, Composition(comp).normalised());
     // A planet is not an ideal gas: most of its binding is held by material
     // strength and electron degeneracy, not by heat. Booking the full virial
     // internal energy would have the Earth at 10^5 K throughout.
-    agg.internal_energy = -0.1 * binding;
-    agg.binding_energy = binding;
-    agg.spin = v3(0.0, 0.0, 7.05e33);
-    Tree::new(seed, agg, Tier::Planetary, default_spec(Tier::Planetary))
+    matter.internal_energy = -0.1 * binding;
+    matter.binding_energy = binding;
+    matter.spin = v3(0.0, 0.0, 7.05e33);
+    Tree::new(seed, matter, Tier::Planetary, default_spec(Tier::Planetary))
 }
 
 /// A cubic metre of granite. Cold, dense, and held together by chemistry rather
@@ -196,10 +196,10 @@ fn build_rock(seed: u64) -> Tree {
     comp[CoarseElement::Silicon as usize] = 0.28;
     comp[CoarseElement::Iron as usize] = 0.05;
     comp[CoarseElement::Other as usize] = 0.20;
-    let mut agg = Aggregate::neutral(mass, half * 3f64.sqrt(), 290.0, Composition(comp).normalised());
+    let mut matter = Matter::neutral(mass, half * 3f64.sqrt(), 290.0, Composition(comp).normalised());
     // Cohesive energy of a silicate, a few electron volts per atom.
-    agg.binding_energy = -mass * agg.composition.nucleons_per_kg() / 20.0 * 5.0 * EV;
-    Tree::new(seed, agg, Tier::Continuum, default_spec(Tier::Continuum))
+    matter.binding_energy = -mass * matter.composition.nucleons_per_kg() / 20.0 * 5.0 * EV;
+    Tree::new(seed, matter, Tier::Continuum, default_spec(Tier::Continuum))
 }
 
 /// Water vapour: a box of molecules hot enough to be a gas and cool enough that
@@ -212,10 +212,10 @@ fn build_vapour(seed: u64) -> Tree {
     let mut comp = [0.0; COARSE_ELEMENTS];
     comp[CoarseElement::Hydrogen as usize] = 2.0 * 1.008 / 18.015;
     comp[CoarseElement::Oxygen as usize] = 15.999 / 18.015;
-    let mut agg = Aggregate::neutral(mass, radius, 400.0, Composition(comp).normalised());
+    let mut matter = Matter::neutral(mass, radius, 400.0, Composition(comp).normalised());
     // Bound, and by a lot: two O-H bonds per molecule at 4.8 eV each.
-    agg.binding_energy = -count * 2.0 * 4.81 * EV;
-    Tree::new(seed, agg, Tier::Molecular, default_spec(Tier::Molecular))
+    matter.binding_energy = -count * 2.0 * 4.81 * EV;
+    Tree::new(seed, matter, Tier::Molecular, default_spec(Tier::Molecular))
 }
 
 /// A carbon atom, which refines into its own nucleons rather than into more
@@ -230,11 +230,11 @@ fn build_vapour(seed: u64) -> Tree {
 fn build_atom(seed: u64) -> Tree {
     let mass = 12.011 * AMU;
     let radius = 7.0e-11;
-    let mut agg = Aggregate::neutral(mass, radius, 300.0, Composition::pure(CoarseElement::Carbon));
+    let mut matter = Matter::neutral(mass, radius, 300.0, Composition::pure(CoarseElement::Carbon));
     // Total electronic binding of neutral carbon, about 1030 eV.
-    agg.binding_energy = -1030.0 * EV;
-    agg.internal_energy = 1030.0 * EV * 0.5;
-    Tree::new(seed, agg, Tier::Atomic, default_spec(Tier::Nuclear))
+    matter.binding_energy = -1030.0 * EV;
+    matter.internal_energy = 1030.0 * EV * 0.5;
+    Tree::new(seed, matter, Tier::Atomic, default_spec(Tier::Nuclear))
 }
 
 /// An iron nucleus, at the top of the binding energy curve.
@@ -248,9 +248,9 @@ fn build_nucleus(seed: u64) -> Tree {
     let a: f64 = 56.0;
     let mass = 55.845 * AMU;
     let radius = 1.2e-15 * a.cbrt();
-    let mut agg = Aggregate::neutral(mass, radius, 1.0e9, Composition::pure(CoarseElement::Iron));
-    agg.binding_energy = -8.79 * MEV * a;
-    agg.internal_energy = 0.6 * 33.0 * MEV * a;
-    agg = agg.with_charge(26.0 * E_CHARGE);
-    Tree::new(seed, agg, Tier::Nuclear, default_spec(Tier::Nuclear))
+    let mut matter = Matter::neutral(mass, radius, 1.0e9, Composition::pure(CoarseElement::Iron));
+    matter.binding_energy = -8.79 * MEV * a;
+    matter.internal_energy = 0.6 * 33.0 * MEV * a;
+    matter = matter.with_charge(26.0 * E_CHARGE);
+    Tree::new(seed, matter, Tier::Nuclear, default_spec(Tier::Nuclear))
 }

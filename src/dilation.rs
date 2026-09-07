@@ -172,7 +172,7 @@ impl TimeRate {
 /// One frame's physical contribution: its velocity in its parent's frame, and
 /// the potential energy it holds by sitting where it does.
 ///
-/// `potential_energy` is what `Aggregate::external_potential` stores — an
+/// `potential_energy` is what `Matter::external_potential` stores — an
 /// energy in joules, not a potential — so it is divided by the mass here. A
 /// massless or empty node contributes nothing, which is correct: there is
 /// nothing there to have a clock.

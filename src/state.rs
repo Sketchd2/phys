@@ -1,4 +1,4 @@
-//! Aggregate state: what the engine stores when it is *not* storing particles.
+//! Matter state: what the engine stores when it is *not* storing particles.
 //!
 //! A node holds a bulk description of its contents. Everything below its own
 //! resolution is absent — not approximated, absent — and is regenerated on
@@ -394,13 +394,38 @@ impl Composition {
     }
 }
 
-/// Everything a node knows about itself without materialising its children.
+/// What a node is made of: everything it knows about itself without
+/// materialising its children.
 ///
-/// Roughly 200 bytes. A galaxy's worth of these (a few million live nodes) is
-/// well under a gigabyte, which is what makes the whole approach fit in a
-/// 6 GB card alongside the materialised working set.
+/// 248 bytes. A galaxy's worth (a few million live nodes) is well under a
+/// gigabyte, which is what makes the whole approach fit in a 6 GB card
+/// alongside the materialised working set.
+///
+/// # Why this is not just fields on `Node`
+///
+/// It is `Copy` and `Node` is not — `Node` holds body lists, children, a
+/// morphology — and that difference is load-bearing. The engine copies the
+/// matter out of a node to release the borrow on the tree before doing work
+/// that needs `&mut self`, which it could not do with something holding a
+/// `Vec`.
+///
+/// It is also the unit the scale transform is defined over: `summarise` takes
+/// bodies and returns this, `sample` takes this and returns bodies, and neither
+/// has any business seeing a node's address or its scheduling timestamps. The
+/// engine's central guarantee, `summarise(sample(m)) = m` on the conserved set,
+/// is a statement about a *value*, so it has to be one. Fifty-odd places build
+/// one with no node behind it at all — the scenario builders, and `promote`,
+/// where a single body is reinterpreted as the matter of a new node.
+///
+/// # Why it was called `Aggregate`
+///
+/// Because it can be produced by aggregating children. But that is the rarer
+/// direction: usually there are no children, and they are produced from *this*.
+/// The name claimed a direction the type does not have, and `Bulk` — the other
+/// candidate — would have claimed a resolution it does not have either, since a
+/// materialised node carries one of these kept in step with its bodies.
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub struct Aggregate {
+pub struct Matter {
     pub mass: f64,
     /// Centre of mass offset from the node's own origin (metres, node frame).
     /// Kept near zero by construction; drift here is a diagnostic.
@@ -464,9 +489,9 @@ pub struct Aggregate {
     pub luminosity: f64,
 }
 
-impl Default for Aggregate {
+impl Default for Matter {
     fn default() -> Self {
-        Aggregate {
+        Matter {
             mass: 0.0,
             com: Vec3::ZERO,
             momentum: Vec3::ZERO,
@@ -489,13 +514,13 @@ impl Default for Aggregate {
     }
 }
 
-impl Aggregate {
+impl Matter {
     /// Neutral matter of the given composition: charge zero, and baryon/lepton
     /// numbers implied by the mass. This is the normal way to create matter.
-    pub fn neutral(mass: f64, radius: f64, temperature: f64, composition: Composition) -> Aggregate {
+    pub fn neutral(mass: f64, radius: f64, temperature: f64, composition: Composition) -> Matter {
         let nucleons = mass * composition.nucleons_per_kg();
         let electrons = nucleons * composition.electrons_per_nucleon();
-        let mut a = Aggregate {
+        let mut a = Matter {
             mass,
             radius,
             temperature,
@@ -517,7 +542,7 @@ impl Aggregate {
     /// to +26e has no electrons left, and saying otherwise creates 26 leptons
     /// out of nothing. Setting `charge` directly is therefore a trap, so the
     /// supported path adjusts both together.
-    pub fn with_charge(mut self, charge: f64) -> Aggregate {
+    pub fn with_charge(mut self, charge: f64) -> Matter {
         let electrons_removed = charge / E_CHARGE;
         self.charge = charge;
         self.lepton_number -= electrons_removed;
@@ -599,7 +624,7 @@ impl Aggregate {
     /// 0.577c — which then set the galaxy's timestep, demanded three thousand
     /// sub-steps a frame, and priced every stellar solve out of the budget.
     ///
-    /// [`Aggregate::velocity_dispersion`] is the same quantity computed from
+    /// [`Matter::velocity_dispersion`] is the same quantity computed from
     /// the energy that is present rather than from a temperature. For a real
     /// gas the two agree within 30% — `c_s = 1.29 sigma` exactly, for an ideal
     /// monatomic one — so the cap costs nothing where the formula is valid and
@@ -626,7 +651,7 @@ impl Aggregate {
     /// Moment of inertia about any axis through the centre, kg m^2.
     ///
     /// A uniform sphere, `2/5 M R^2`. Centrally condensed bodies are stiffer
-    /// than this — the Earth's is 0.33 rather than 0.4 — but the aggregate does
+    /// than this — the Earth's is 0.33 rather than 0.4 — but the matter does
     /// not carry a density profile, and inventing one to get a 20% correction
     /// on a quantity used for scheduling would be false precision.
     pub fn moment_of_inertia(&self) -> f64 {
@@ -681,7 +706,7 @@ impl Aggregate {
     /// speed asks the engine to re-solve a granite block every 174 microseconds
     /// and a bacterium every 5 nanoseconds, and to produce the same answer
     /// every time. The sound speed still bounds the *timestep* once a node is
-    /// being solved — that is [`Aggregate::signal_crossing`], and it is a
+    /// being solved — that is [`Matter::signal_crossing`], and it is a
     /// stability limit, not a cadence.
     pub fn characteristic_speed(&self) -> f64 {
         let bulk = if self.mass > 0.0 {
@@ -720,7 +745,7 @@ impl Aggregate {
         self.signal_crossing(parts, 0.0)
     }
 
-    /// As [`Aggregate::sound_crossing`], for a flow that is already moving.
+    /// As [`Matter::sound_crossing`], for a flow that is already moving.
     ///
     /// Information crosses a resolution element at the greater of the sound
     /// speed and the flow speed, and a supersonic flow is the case where the
@@ -961,14 +986,14 @@ impl Body {
 /// This is the *summarising* operator R. Together with sampling P it must
 /// satisfy `R(P(s)) = s` on the conserved set — the property that lets the
 /// engine throw detail away safely. See `tests/consistency.rs`.
-pub fn summarise(bodies: &[Body], mutual_potential: f64) -> Aggregate {
+pub fn summarise(bodies: &[Body], mutual_potential: f64) -> Matter {
     if bodies.is_empty() {
-        return Aggregate::default();
+        return Matter::default();
     }
     let n = bodies.len();
     let mass = det_sum_by(n, &|i| bodies[i].mass);
     if mass <= 0.0 {
-        return Aggregate::default();
+        return Matter::default();
     }
     let com = det_sum_v3_by(n, &|i| bodies[i].pos.scale(bodies[i].mass)).scale(1.0 / mass);
     let momentum = total_momentum(bodies);
@@ -1000,7 +1025,7 @@ pub fn summarise(bodies: &[Body], mutual_potential: f64) -> Aggregate {
     let composition = Composition(comp).normalised();
     let charge = det_sum_by(n, &|i| bodies[i].charge);
 
-    let mut agg = Aggregate {
+    let mut matter = Matter {
         mass,
         com,
         momentum,
@@ -1026,21 +1051,21 @@ pub fn summarise(bodies: &[Body], mutual_potential: f64) -> Aggregate {
             _ => 0.0,
         }),
     };
-    agg.lepton_number =
-        agg.baryon_number * composition.electrons_per_nucleon() - charge / E_CHARGE;
+    matter.lepton_number =
+        matter.baryon_number * composition.electrons_per_nucleon() - charge / E_CHARGE;
 
     // Temperature is *derived* from the random kinetic energy, never averaged
     // from the children: averaging temperatures across unequal masses is wrong,
     // and across this dynamic range it is wrong by orders of magnitude.
     let mu = composition.mean_molecular_mass(1e4);
     let particles = if mu > 0.0 { mass / mu } else { 0.0 };
-    agg.temperature = if particles > 0.0 {
+    matter.temperature = if particles > 0.0 {
         (2.0 * internal.max(0.0) / (3.0 * particles * K_B)).max(2.725)
     } else {
         2.725
     };
-    agg.entropy = agg.estimate_entropy();
-    agg
+    matter.entropy = matter.estimate_entropy();
+    matter
 }
 
 /// RMS radius to equivalent-uniform-sphere radius: a uniform ball of radius R

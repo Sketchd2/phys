@@ -348,7 +348,7 @@ fn a_free_structure_drifts_without_straining() {
 use phys::morph::{Morphology, Program};
 use phys::sampler::sample_structured;
 use phys::solvers::structure::*;
-use phys::state::Aggregate;
+use phys::state::Matter;
 
 /// The two solvers must agree.
 ///
@@ -361,8 +361,8 @@ fn a_held_load_settles_to_the_static_answer() {
     let mut m = Morphology::planned(Program::Tower, 3.0e6, 11, 0x77);
     m.progress = 1.0;
     m.built = 3.0e6;
-    let agg = Aggregate::neutral(3.0e6, m.extent(), 290.0, Program::Tower.substrate());
-    let (bodies, topo, _) = sample_structured(&agg, &m, 600, 7, 0x77, 0);
+    let matter = Matter::neutral(3.0e6, m.extent(), 290.0, Program::Tower.substrate());
+    let (bodies, topo, _) = sample_structured(&matter, &m, 600, 7, 0x77, 0);
 
     let mut field = LoadField::new(bodies.len(), 290.0);
     field.apply(&weather::wind(22.0, v3(1.0, 0.0, 0.0)), &bodies, &topo);
@@ -418,9 +418,9 @@ fn a_tree_sways_and_rings_down() {
     let mut m = Morphology::new(Program::Tree, 0xACE, 0x1234, 0);
     m.built = 900.0;
     m.age = 40.0 * phys::units::YEAR;
-    let mut agg = Aggregate::neutral(900.0, m.extent(), 291.0, Program::Tree.substrate());
-    agg.chemical_energy = m.stored_energy();
-    let (bodies, topo, _) = sample_structured(&agg, &m, 400, 7, 0x1234, 0);
+    let mut matter = Matter::neutral(900.0, m.extent(), 291.0, Program::Tree.substrate());
+    matter.chemical_energy = m.stored_energy();
+    let (bodies, topo, _) = sample_structured(&matter, &m, 400, 7, 0x1234, 0);
 
     let mut ds = dynamic_structure(&bodies, &topo).expect("a tree has members");
     let tip = (0..ds.dynamics.frame.joints.len())

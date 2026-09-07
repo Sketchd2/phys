@@ -990,7 +990,7 @@ fn a_node_of_brine_dissolves_as_the_world_runs() {
     mix.add(salt, Phase::Solid, 0.02);
     mix.add(h2o, Phase::Liquid, 0.98);
     w.set_mixture(beaker, mix);
-    w.tree.nodes[beaker.get()].agg.set_temperature(293.0);
+    w.tree.nodes[beaker.get()].matter.set_temperature(293.0);
     w.pace_fixed(1.0);
 
     assert_eq!(w.mixture_of(beaker).pool(salt, Phase::Dissolved), 0.0);
@@ -1095,7 +1095,7 @@ fn a_bubble_speeds_up_chemistry() {
         mix.add(salt, Phase::Solid, 0.02);
         mix.add(h2o, Phase::Liquid, 0.98);
         w.set_mixture(beaker, mix);
-        w.tree.nodes[beaker.get()].agg.set_temperature(293.0);
+        w.tree.nodes[beaker.get()].matter.set_temperature(293.0);
         w.pace_fixed(1e-6);
         if rate != 1.0 {
             w.dilate(beaker, rate);

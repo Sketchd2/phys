@@ -8,32 +8,32 @@ use phys::sampler::*;
 use phys::state::*;
 use phys::units::*;
 
-fn sample_aggregates() -> Vec<(&'static str, Aggregate)> {
+fn sample_matter() -> Vec<(&'static str, Matter)> {
     let mut out = Vec::new();
 
-    let mut cloud = Aggregate::neutral(3.0e4 * M_SUN, 12.0 * PARSEC, 20.0, Composition::solar());
+    let mut cloud = Matter::neutral(3.0e4 * M_SUN, 12.0 * PARSEC, 20.0, Composition::solar());
     cloud.momentum = v3(1e33, -2e32, 5e32);
     cloud.spin = v3(0.0, 0.0, 4e50);
     out.push(("molecular cloud", cloud));
 
-    let mut star = Aggregate::neutral(M_SUN, R_SUN, 5.8e6, Composition::solar());
+    let mut star = Matter::neutral(M_SUN, R_SUN, 5.8e6, Composition::solar());
     star.spin = v3(1e41, 0.0, 1.1e42);
     star.binding_energy = -0.6 * G * M_SUN * M_SUN / R_SUN;
     out.push(("star", star));
 
-    let mut planet = Aggregate::neutral(M_EARTH, R_EARTH, 3000.0, Composition::pure(CoarseElement::Silicon));
+    let mut planet = Matter::neutral(M_EARTH, R_EARTH, 3000.0, Composition::pure(CoarseElement::Silicon));
     planet.spin = v3(0.0, 0.0, 7.05e33);
     out.push(("planet", planet));
 
-    let grain = Aggregate::neutral(1e-9, 1e-5, 150.0, Composition::pure(CoarseElement::Carbon));
+    let grain = Matter::neutral(1e-9, 1e-5, 150.0, Composition::pure(CoarseElement::Carbon));
     out.push(("dust grain", grain));
 
-    let ion = Aggregate::neutral(56.0 * AMU, 4.6e-15, 1e7, Composition::pure(CoarseElement::Iron))
+    let ion = Matter::neutral(56.0 * AMU, 4.6e-15, 1e7, Composition::pure(CoarseElement::Iron))
         .with_charge(26.0 * E_CHARGE);
     assert_eq!(ion.validate(), 0.0, "test fixture must be self-consistent");
     out.push(("iron nucleus (fully stripped)", ion));
 
-    let hot = Aggregate::neutral(1e-20, 1e-9, 1e6, Composition::primordial());
+    let hot = Matter::neutral(1e-20, 1e-9, 1e6, Composition::primordial());
     out.push(("hot plasma parcel", hot));
 
     out
@@ -56,15 +56,15 @@ fn specs() -> Vec<(&'static str, SampleSpec)> {
 fn round_trip_conserves_everything() {
     let mut worst = 0.0f64;
     let mut worst_case = String::new();
-    for (aname, agg) in sample_aggregates() {
+    for (aname, matter) in sample_matter() {
         for (sname, spec) in specs() {
             for seed in [1u64, 0xDEAD_BEEF, 0x5EED_5EED] {
-                let (bodies, report) = sample(&agg, spec, seed, 0xABCD_1234, 0);
+                let (bodies, report) = sample(&matter, spec, seed, 0xABCD_1234, 0);
                 assert!(!bodies.is_empty(), "{aname}/{sname} produced nothing");
                 let mut back = summarise(&bodies, report.potential);
-                back.external_potential = agg.external_potential;
+                back.external_potential = matter.external_potential;
                 let scales = Scales::of(&bodies);
-                let err = back.conserved().error_against(&agg.conserved(), &scales);
+                let err = back.conserved().error_against(&matter.conserved(), &scales);
                 if err > worst {
                     worst = err;
                     worst_case = format!("{aname} / {sname} / seed {seed:x}");
@@ -89,16 +89,16 @@ fn round_trip_conserves_everything() {
 /// tolerance for scale-relative fudging: these are counted quantities.
 #[test]
 fn counted_quantities_are_exact() {
-    for (name, agg) in sample_aggregates() {
+    for (name, matter) in sample_matter() {
         for (sname, spec) in specs() {
-            let (bodies, report) = sample(&agg, spec, 7, 0x1111, 0);
+            let (bodies, report) = sample(&matter, spec, 7, 0x1111, 0);
             let back = summarise(&bodies, report.potential);
-            let dm = (back.mass - agg.mass).abs() / agg.mass;
+            let dm = (back.mass - matter.mass).abs() / matter.mass;
             assert!(dm < 1e-14, "{name}/{sname}: mass drift {dm:.3e}");
-            let dq = (back.charge - agg.charge).abs() / agg.charge.abs().max(E_CHARGE);
+            let dq = (back.charge - matter.charge).abs() / matter.charge.abs().max(E_CHARGE);
             assert!(dq < 1e-10, "{name}/{sname}: charge drift {dq:.3e}");
-            let db = (back.baryon_number - agg.baryon_number).abs()
-                / agg.baryon_number.abs().max(1.0);
+            let db = (back.baryon_number - matter.baryon_number).abs()
+                / matter.baryon_number.abs().max(1.0);
             assert!(db < 1e-10, "{name}/{sname}: baryon drift {db:.3e}");
         }
     }
@@ -108,10 +108,10 @@ fn counted_quantities_are_exact() {
 /// epoch — same bodies, bit for bit, however many times you ask.
 #[test]
 fn regeneration_is_bit_identical() {
-    let agg = sample_aggregates()[0].1;
+    let matter = sample_matter()[0].1;
     let spec = specs()[2].1;
-    let a = sample(&agg, spec, 99, 0xFEED_FACE, 3).0;
-    let b = sample(&agg, spec, 99, 0xFEED_FACE, 3).0;
+    let a = sample(&matter, spec, 99, 0xFEED_FACE, 3).0;
+    let b = sample(&matter, spec, 99, 0xFEED_FACE, 3).0;
     assert_eq!(a.len(), b.len());
     for (x, y) in a.iter().zip(&b) {
         assert_eq!(x.pos, y.pos);
@@ -126,12 +126,12 @@ fn regeneration_is_bit_identical() {
 /// galaxy is a tiling of one cloud.
 #[test]
 fn different_addresses_decorrelate() {
-    let agg = sample_aggregates()[0].1;
+    let matter = sample_matter()[0].1;
     let spec = specs()[0].1;
-    let a = sample(&agg, spec, 1, 0x1, 0).0;
-    let b = sample(&agg, spec, 1, 0x2, 0).0;
-    let c = sample(&agg, spec, 2, 0x1, 0).0;
-    let d = sample(&agg, spec, 1, 0x1, 1).0;
+    let a = sample(&matter, spec, 1, 0x1, 0).0;
+    let b = sample(&matter, spec, 1, 0x2, 0).0;
+    let c = sample(&matter, spec, 2, 0x1, 0).0;
+    let d = sample(&matter, spec, 1, 0x1, 1).0;
     let differs = |x: &Vec<Body>, y: &Vec<Body>| x.iter().zip(y).filter(|(p, q)| p.pos != q.pos).count();
     assert!(differs(&a, &b) > a.len() * 9 / 10, "path key must decorrelate");
     assert!(differs(&a, &c) > a.len() * 9 / 10, "world seed must decorrelate");
@@ -145,10 +145,10 @@ fn tree_round_trip_is_idempotent() {
     use phys::tree::Tree;
     let mut tree: Tree = galaxy(0xC0FFEE, 1e9);
     let root = tree.root;
-    let before_agg = tree.nodes[root.get()].agg;
+    let before_agg = tree.nodes[root.get()].matter;
     let first: Vec<Body> = tree.refine(root).to_vec();
     let err = tree.coarsen(root);
-    let after_agg = tree.nodes[root.get()].agg;
+    let after_agg = tree.nodes[root.get()].matter;
     assert!(err < 1e-9, "coarsening error {err:.3e}");
     assert_eq!(before_agg.mass, after_agg.mass, "mass must be untouched");
     assert_eq!(
@@ -182,12 +182,12 @@ fn deep_descent_stays_exact() {
             n.depth,
             n.last_report.conservation_error
         );
-        assert!(n.agg.mass > 0.0 && n.agg.mass.is_finite());
-        assert!(n.agg.radius > 0.0 && n.agg.radius.is_finite());
+        assert!(n.matter.mass > 0.0 && n.matter.mass.is_finite());
+        assert!(n.matter.radius > 0.0 && n.matter.radius.is_finite());
     }
     // The descent must actually span the scales it claims to.
-    let top = w.tree.nodes[path[0].get()].agg.radius;
-    let bottom = w.tree.nodes[path[path.len() - 1].get()].agg.radius;
+    let top = w.tree.nodes[path[0].get()].matter.radius;
+    let bottom = w.tree.nodes[path[path.len() - 1].get()].matter.radius;
     assert!(
         top / bottom > 1e30,
         "descent spanned only {:.1e} in scale",
@@ -199,7 +199,7 @@ fn deep_descent_stays_exact() {
 trait FiniteState {
     fn is_finite_state(&self) -> bool;
 }
-impl FiniteState for Aggregate {
+impl FiniteState for Matter {
     fn is_finite_state(&self) -> bool {
         self.is_finite() && self.total_energy().is_finite()
     }

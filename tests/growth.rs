@@ -8,13 +8,13 @@ use phys::sampler::*;
 use phys::state::*;
 use phys::units::*;
 
-fn oak(mass: f64) -> (Aggregate, Morphology) {
+fn oak(mass: f64) -> (Matter, Morphology) {
     let mut m = Morphology::new(Program::Tree, 0xACE, 0x1234, 0);
     m.built = mass;
     m.age = 40.0 * YEAR;
-    let mut agg = Aggregate::neutral(mass, m.extent(), 291.0, Program::Tree.substrate());
-    agg.chemical_energy = m.stored_energy();
-    (agg, m)
+    let mut matter = Matter::neutral(mass, m.extent(), 291.0, Program::Tree.substrate());
+    matter.chemical_energy = m.stored_energy();
+    (matter, m)
 }
 
 /// A generated structure is held to exactly the conservation standard a
@@ -29,21 +29,21 @@ fn structures_conserve_like_everything_else() {
             m.design_mass = mass;
             m.progress = 0.6;
             m.age = 10.0 * YEAR;
-            let mut agg =
-                Aggregate::neutral(mass, m.extent(), 290.0, program.substrate());
-            agg.chemical_energy = m.stored_energy();
-            agg.momentum = v3(mass * 0.5, -mass * 0.2, 0.0);
-            agg.spin = v3(0.0, 0.0, mass * 1e-2);
+            let mut matter =
+                Matter::neutral(mass, m.extent(), 290.0, program.substrate());
+            matter.chemical_energy = m.stored_energy();
+            matter.momentum = v3(mass * 0.5, -mass * 0.2, 0.0);
+            matter.spin = v3(0.0, 0.0, mass * 1e-2);
 
             for budget in [16usize, 256, 4096] {
-                let (bodies, _topo, r) = sample_structured(&agg, &m, budget, 7, 0x99, 0);
+                let (bodies, _topo, r) = sample_structured(&matter, &m, budget, 7, 0x99, 0);
                 assert!(!bodies.is_empty(), "{:?} produced no geometry", program);
                 let mut back = summarise(&bodies, r.potential);
-                back.chemical_energy = agg.chemical_energy;
-                back.entropy_exported = agg.entropy_exported;
-                back.external_potential = agg.external_potential;
+                back.chemical_energy = matter.chemical_energy;
+                back.entropy_exported = matter.entropy_exported;
+                back.external_potential = matter.external_potential;
                 let scales = Scales::of(&bodies);
-                let err = back.conserved().error_against(&agg.conserved(), &scales);
+                let err = back.conserved().error_against(&matter.conserved(), &scales);
                 worst = worst.max(err);
                 assert!(
                     err < 1e-9,
@@ -51,7 +51,7 @@ fn structures_conserve_like_everything_else() {
                     program
                 );
                 // The mass has to land in the structure, not near it.
-                assert!((back.mass - agg.mass).abs() / agg.mass < 1e-12);
+                assert!((back.mass - matter.mass).abs() / matter.mass < 1e-12);
             }
         }
     }
@@ -61,9 +61,9 @@ fn structures_conserve_like_everything_else() {
 /// The whole point: the same tree comes back, not a different one.
 #[test]
 fn the_same_tree_comes_back() {
-    let (agg, m) = oak(900.0);
-    let a = sample_structured(&agg, &m, 2000, 7, 0x1234, 0).0;
-    let b = sample_structured(&agg, &m, 2000, 7, 0x1234, 0).0;
+    let (matter, m) = oak(900.0);
+    let a = sample_structured(&matter, &m, 2000, 7, 0x1234, 0).0;
+    let b = sample_structured(&matter, &m, 2000, 7, 0x1234, 0).0;
     assert_eq!(a.len(), b.len());
     for (x, y) in a.iter().zip(&b) {
         assert_eq!(x.pos, y.pos, "the tree regrew differently");
@@ -74,7 +74,7 @@ fn the_same_tree_comes_back() {
     let mut other = Morphology::new(Program::Tree, 0xACE, 0x5678, 0);
     other.built = m.built;
     other.age = m.age;
-    let c = sample_structured(&agg, &other, 2000, 7, 0x5678, 0).0;
+    let c = sample_structured(&matter, &other, 2000, 7, 0x5678, 0).0;
     let differing = a.iter().zip(&c).filter(|(p, q)| p.pos != q.pos).count();
     assert!(
         differing > a.len() / 2,
@@ -85,8 +85,8 @@ fn the_same_tree_comes_back() {
 /// The state that stands in for the structure is tiny — that is the trick.
 #[test]
 fn developmental_state_is_small() {
-    let (agg, m) = oak(900.0);
-    let bodies = sample_structured(&agg, &m, 20_000, 7, 0x1234, 0).0;
+    let (matter, m) = oak(900.0);
+    let bodies = sample_structured(&matter, &m, 20_000, 7, 0x1234, 0).0;
     let rendered = bodies.len() * std::mem::size_of::<Body>();
     let state = m.state_bytes();
     println!(
@@ -257,10 +257,10 @@ fn partial_construction_renders_partially() {
 /// that its history is visible.
 #[test]
 fn damage_persists_through_regeneration() {
-    let (agg, mut m) = oak(900.0);
+    let (matter, mut m) = oak(900.0);
     // A budget large enough that the whole tree fits, so the count is the
     // structure's own size rather than the budget's.
-    let before = sample_structured(&agg, &m, 20_000, 7, 0x1234, 0).0;
+    let before = sample_structured(&matter, &m, 20_000, 7, 0x1234, 0).0;
     let mass_before: f64 = before.iter().map(|b| b.mass).sum();
 
     let built_before = m.built;
@@ -269,7 +269,7 @@ fn damage_persists_through_regeneration() {
         291.0,
     );
     txn.validate().expect("severing must balance");
-    let after = sample_structured(&agg, &m, 20_000, 7, 0x1234, 0).0;
+    let after = sample_structured(&matter, &m, 20_000, 7, 0x1234, 0).0;
 
     // The structure lost both geometry and mass...
     assert!(m.built < built_before, "severing removed no mass from the structure");
@@ -297,7 +297,7 @@ fn damage_persists_through_regeneration() {
     assert!(structural < mass_before * 0.9, "structure did not get lighter");
 
     // And it is still deterministic afterwards.
-    let again = sample_structured(&agg, &m, 20_000, 7, 0x1234, 0).0;
+    let again = sample_structured(&matter, &m, 20_000, 7, 0x1234, 0).0;
     for (x, y) in after.iter().zip(&again) {
         assert_eq!(x.pos, y.pos);
     }
@@ -341,18 +341,18 @@ fn engine_grows_unobserved_structures() {
     let node = w.tree.promote(root, 3, phys::engine::default_spec(Tier::Stellar));
     assert!(!node.is_none());
 
-    // Give it a plausible tree-sized aggregate, then plant.
+    // Give it plausible tree-sized matter, then plant.
     {
         let n = &mut w.tree.nodes[node.get()];
-        n.agg = Aggregate::neutral(500.0, 8.0, 291.0, Program::Tree.substrate());
+        n.matter = Matter::neutral(500.0, 8.0, 291.0, Program::Tree.substrate());
     }
     w.plant(node, Program::Tree, Environment::default());
-    let start_mass = w.tree.nodes[node.get()].agg.mass;
+    let start_mass = w.tree.nodes[node.get()].matter.mass;
     let seeded = w.tree.nodes[node.get()].morphology.as_ref().unwrap().built;
     // Audited on the non-rest energy: rest mass is nine orders larger and would
     // swamp the entire growth budget in round-off.
-    let e0 = w.tree.nodes[node.get()].agg.non_rest_energy();
-    let s0 = w.tree.nodes[node.get()].agg.total_entropy();
+    let e0 = w.tree.nodes[node.get()].matter.non_rest_energy();
+    let s0 = w.tree.nodes[node.get()].matter.total_entropy();
     let absorbed0 = w.tree.stats.external_energy_absorbed;
 
     // Grow for a simulated decade without ever materialising the tree.
@@ -360,8 +360,8 @@ fn engine_grows_unobserved_structures() {
         w.grow_node(node, YEAR / 12.0);
     }
     let n = &w.tree.nodes[node.get()];
-    let e1 = n.agg.non_rest_energy();
-    let s1 = n.agg.total_entropy();
+    let e1 = n.matter.non_rest_energy();
+    let s1 = n.matter.total_entropy();
     let absorbed = w.tree.stats.external_energy_absorbed - absorbed0;
 
     println!(
@@ -387,13 +387,13 @@ fn engine_grows_unobserved_structures() {
     assert!(err < 1e-12, "node energy changed by {delta:.6e} but net flux was {absorbed:.6e}");
     // Mass, composition and baryon number are untouched: growth moves carbon
     // from the node's air into its wood, both of which are inside the node.
-    assert_eq!(n.agg.mass, start_mass, "growth changed the node's mass");
+    assert_eq!(n.matter.mass, start_mass, "growth changed the node's mass");
 
     // The second law, across the same decade.
     assert!(s1 > s0, "total entropy did not increase");
     // ...and the local entropy went the other way, which is the interesting bit.
     assert!(
-        n.agg.entropy < s0,
+        n.matter.entropy < s0,
         "local entropy did not fall while the structure ordered itself"
     );
 }
@@ -407,7 +407,7 @@ fn structures_round_trip_through_the_tree() {
     let node = w.tree.promote(root, 5, phys::engine::default_spec(Tier::Stellar));
     {
         let n = &mut w.tree.nodes[node.get()];
-        n.agg = Aggregate::neutral(1200.0, 10.0, 291.0, Program::Tree.substrate());
+        n.matter = Matter::neutral(1200.0, 10.0, 291.0, Program::Tree.substrate());
         n.spec.count = 1500;
     }
     w.plant(node, Program::Tree, Environment::default());
@@ -415,9 +415,9 @@ fn structures_round_trip_through_the_tree() {
         w.grow_node(node, YEAR / 12.0);
     }
 
-    let e0 = w.tree.nodes[node.get()].agg.total_energy();
-    let chem0 = w.tree.nodes[node.get()].agg.chemical_energy;
-    let ent0 = w.tree.nodes[node.get()].agg.entropy;
+    let e0 = w.tree.nodes[node.get()].matter.total_energy();
+    let chem0 = w.tree.nodes[node.get()].matter.chemical_energy;
+    let ent0 = w.tree.nodes[node.get()].matter.entropy;
     let first = w.tree.refine(node).to_vec();
     assert!(!first.is_empty(), "structure did not materialise");
     let err = w.tree.coarsen(node);
@@ -425,9 +425,9 @@ fn structures_round_trip_through_the_tree() {
 
     println!("{} parts, round-trip error {err:.3e}", first.len());
     assert!(err < 1e-9, "structural round trip error {err:.3e}");
-    assert_eq!(n.agg.chemical_energy, chem0, "stored free energy was lost");
-    assert_eq!(n.agg.entropy, ent0, "summarising overwrote structural entropy");
-    assert!((n.agg.total_energy() - e0).abs() / e0.abs() < 1e-12);
+    assert_eq!(n.matter.chemical_energy, chem0, "stored free energy was lost");
+    assert_eq!(n.matter.entropy, ent0, "summarising overwrote structural entropy");
+    assert!((n.matter.total_energy() - e0).abs() / e0.abs() < 1e-12);
 
     let second = w.tree.refine(node).to_vec();
     for (a, b) in first.iter().zip(&second) {

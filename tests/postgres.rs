@@ -149,7 +149,7 @@ fn postgres_and_a_file_agree() {
         assert_eq!(x.key, y.key, "node {i} key");
         assert_eq!(x.alive, y.alive, "node {i} alive");
         assert_eq!(x.epoch, y.epoch, "node {i} epoch");
-        worst = worst.max(x.agg.mass.to_bits() ^ y.agg.mass.to_bits());
+        worst = worst.max(x.matter.mass.to_bits() ^ y.matter.mass.to_bits());
         worst = worst.max(x.motion.offset.x.to_bits() ^ y.motion.offset.x.to_bits());
         worst = worst.max(x.last_solved.to_bits() ^ y.last_solved.to_bits());
     }
@@ -217,7 +217,7 @@ fn writes_are_proportional_to_events() {
         }
         assert_eq!(y.time.to_bits(), w.time.to_bits(), "node {i} was not settled to the instant");
         let slip = (x.motion.offset - y.motion.offset).norm();
-        let scale = x.motion.offset.norm().max(x.agg.radius).max(1.0);
+        let scale = x.motion.offset.norm().max(x.matter.radius).max(1.0);
         assert!(
             slip <= scale * 1e-9,
             "node {i} was reconstructed {slip:.3e} m from where it should be"
@@ -286,19 +286,19 @@ fn an_impulse_in_flight_survives_a_save() {
     assert_eq!(back.mailbox.pending(), flying, "an in-flight influence was dropped");
 
     // And it still lands, on the reloaded world, with the same effect.
-    let before = back.tree.nodes[deep.get()].agg.momentum;
+    let before = back.tree.nodes[deep.get()].matter.momentum;
     for _ in 0..6 {
         w.step_frame(50_000.0);
         back.step_frame(50_000.0);
     }
-    let after = back.tree.nodes[deep.get()].agg.momentum;
+    let after = back.tree.nodes[deep.get()].matter.momentum;
     println!(
         "  {flying} in flight across the save; momentum {:.4e} -> {:.4e} after it landed",
         before.norm(),
         after.norm()
     );
     assert_eq!(
-        w.tree.nodes[deep.get()].agg.momentum.x.to_bits(),
+        w.tree.nodes[deep.get()].matter.momentum.x.to_bits(),
         after.x.to_bits(),
         "the reloaded world applied the impulse differently"
     );

@@ -1,6 +1,6 @@
 //! The scale tree: the object that is 10^68 particles without storing them.
 //!
-//! A `Node` is a region of space at a tier, holding a bulk `Aggregate`. It has
+//! A `Node` is a region of space at a tier, holding a bulk `Matter`. It has
 //! two optional finer representations:
 //!
 //! * **materialised bodies** — a `Vec<Body>` produced by `sample`. Cheap to
@@ -28,11 +28,11 @@ use crate::coords::{Motion, Bounded};
 use crate::ids::{NodeIdx, PathKey};
 use crate::math::Vec3;
 use crate::sampler::{sample, SampleReport, SampleSpec};
-use crate::state::{summarise, Aggregate, Body};
+use crate::state::{summarise, Matter, Body};
 use crate::units::Tier;
 use std::collections::HashMap;
 
-/// How closely a summarising must agree with the stored aggregate before the
+/// How closely summarising must agree with the stored matter before the
 /// engine treats the two as the same state. Set well above the round-off floor
 /// (~10^-16) and far below anything physically detectable.
 pub const IDEMPOTENT_TOLERANCE: f64 = 1e-12;
@@ -75,7 +75,7 @@ pub struct Node {
     pub tier: Tier,
 
     /// Bulk state. Always present — this is what a node *is*.
-    pub agg: Aggregate,
+    pub matter: Matter,
     /// Position and velocity relative to the parent node's frame.
     pub motion: Motion,
 
@@ -118,7 +118,7 @@ pub struct Node {
     /// lateness, and lateness is what the scheduler ranks on.
     pub last_solved: f64,
     /// World instant this node's morphology was last advanced to. Separate
-    /// from `last_solved` because growth runs on the aggregate and costs O(1),
+    /// from `last_solved` because growth runs on the matter and costs O(1),
     /// so it keeps up on nodes whose dynamics cannot.
     pub last_grown: f64,
     pub residency: Residency,
@@ -196,7 +196,7 @@ pub struct TreeStats {
     pub idempotent_coarsenings: u64,
     /// Nodes carrying a developmental state.
     pub structures: u64,
-    /// Growth and construction steps advanced on aggregates, without ever
+    /// Growth and construction steps advanced on bulk matter, without ever
     /// materialising the structures they describe.
     pub growth_steps: u64,
     /// Structures loaded to failure.
@@ -214,14 +214,14 @@ pub struct TreeStats {
 }
 
 impl Tree {
-    pub fn new(world_seed: u64, root_agg: Aggregate, tier: Tier, spec: SampleSpec) -> Tree {
+    pub fn new(world_seed: u64, root_agg: Matter, tier: Tier, spec: SampleSpec) -> Tree {
         let root = Node {
             key: PathKey::ROOT,
             parent: NodeIdx::NONE,
             slot: 0,
             depth: 0,
             tier,
-            agg: root_agg,
+            matter: root_agg,
             // A node that carries angular momentum is turning, and the frame is
             // where that is recorded. Leaving it at the default meant the one
             // node in every world that nobody promotes — the root — was the one
@@ -344,14 +344,14 @@ impl Tree {
             return &self.nodes[i.get()].bodies;
         }
 
-        let (agg, spec, epoch, morph) = {
+        let (matter, spec, epoch, morph) = {
             let n = &self.nodes[i.get()];
-            (n.agg, n.spec, n.epoch, n.morphology.clone())
+            (n.matter, n.spec, n.epoch, n.morphology.clone())
         };
         let (bodies, topo, report) = match &morph {
             Some(m) => {
                 let (b, t, r) = crate::sampler::sample_structured(
-                    &agg,
+                    &matter,
                     m,
                     spec.count,
                     self.world_seed,
@@ -361,7 +361,7 @@ impl Tree {
                 (b, Some(t), r)
             }
             None => {
-                let (b, r) = sample(&agg, spec, self.world_seed, key.0, epoch);
+                let (b, r) = sample(&matter, spec, self.world_seed, key.0, epoch);
                 (b, None, r)
             }
         };
@@ -382,7 +382,7 @@ impl Tree {
 
     /// Turn one materialised body into a node of its own, one tier finer.
     ///
-    /// The child's aggregate is *the body itself*, reinterpreted: same mass,
+    /// The child's matter is *the body itself*, reinterpreted: same mass,
     /// same composition, same momentum in the parent's frame. Nothing is
     /// invented at this step — invention happens when the child is refined.
     pub fn promote(&mut self, i: NodeIdx, slot: usize, spec: SampleSpec) -> NodeIdx {
@@ -426,15 +426,15 @@ impl Tree {
             crate::sampler::budgeted_spec(tier, spec.count)
         };
 
-        let mut agg = Aggregate::neutral(body.mass, body.radius.max(1e-30), body.temperature, body.composition);
-        agg.charge = body.charge;
-        agg.spin = body.spin;
+        let mut matter = Matter::neutral(body.mass, body.radius.max(1e-30), body.temperature, body.composition);
+        matter.charge = body.charge;
+        matter.spin = body.spin;
         // The child's own frame carries the bulk motion, so inside its frame the
         // net momentum is zero — that is what "rest frame" means. Bulk motion is
         // never double-counted.
-        agg.momentum = Vec3::ZERO;
-        agg.internal_energy = body.internal_energy.max(agg.thermal_energy());
-        agg.luminosity = crate::state::stefan_boltzmann(agg.radius, agg.temperature);
+        matter.momentum = Vec3::ZERO;
+        matter.internal_energy = body.internal_energy.max(matter.thermal_energy());
+        matter.luminosity = crate::state::stefan_boltzmann(matter.radius, matter.temperature);
 
         let child = Node {
             key,
@@ -442,7 +442,7 @@ impl Tree {
             slot: slot as u32,
             depth,
             tier,
-            agg,
+            matter,
             motion: Motion {
                 offset: body.pos,
                 velocity: body.vel,
@@ -450,7 +450,7 @@ impl Tree {
                 // at identity: the child's body frame *is* how it was sampled,
                 // and everything after is what the rotation did to it.
                 orientation: crate::math::Quat::IDENTITY,
-                spin_rate: agg.angular_velocity(),
+                spin_rate: matter.angular_velocity(),
                 proper_time: self.nodes[i.get()].motion.proper_time,
             },
             bodies: Vec::new(),
@@ -498,15 +498,15 @@ impl Tree {
 
         let (before, potential, pinned, key) = {
             let n = &self.nodes[i.get()];
-            (n.agg.conserved(), n.potential, n.pinned, n.key)
+            (n.matter.conserved(), n.potential, n.pinned, n.key)
         };
         let bodies = std::mem::take(&mut self.nodes[i.get()].bodies);
-        let mut agg = summarise(&bodies, potential);
-        agg.external_potential = self.nodes[i.get()].agg.external_potential;
-        agg.chemical_energy = self.nodes[i.get()].agg.chemical_energy;
-        agg.entropy_exported = self.nodes[i.get()].agg.entropy_exported;
+        let mut matter = summarise(&bodies, potential);
+        matter.external_potential = self.nodes[i.get()].matter.external_potential;
+        matter.chemical_energy = self.nodes[i.get()].matter.chemical_energy;
+        matter.entropy_exported = self.nodes[i.get()].matter.entropy_exported;
         let scales = crate::state::Scales::of(&bodies);
-        let err = agg.conserved().error_against(&before, &scales);
+        let err = matter.conserved().error_against(&before, &scales);
 
         if pinned {
             self.stats.persisted_bodies += bodies.len() as u64;
@@ -521,7 +521,7 @@ impl Tree {
         // only by round-off.
         //
         // This is what makes "leave and come back" *exactly* idempotent rather
-        // than merely accurate. Without it, every visit perturbs the aggregate
+        // than merely accurate. Without it, every visit perturbs the matter
         // in the last bits, the next materialisation samples from a marginally
         // different distribution, and a region a user visits a thousand times
         // slowly drifts away from itself. With it, a region nobody has
@@ -538,18 +538,18 @@ impl Tree {
         // Preserve the node's own frame-level bookkeeping: `summarise` measures
         // the children in the node's frame, so the node's momentum and com are
         // updated, but its tier, spec and identity are untouched.
-        n.agg.mass = agg.mass;
-        n.agg.com = agg.com;
-        n.agg.momentum = agg.momentum;
-        n.agg.spin = agg.spin;
-        n.agg.internal_energy = agg.internal_energy;
-        n.agg.binding_energy = agg.binding_energy;
-        n.agg.radius = agg.radius;
-        n.agg.temperature = agg.temperature;
-        n.agg.composition = agg.composition;
-        n.agg.charge = agg.charge;
-        n.agg.baryon_number = agg.baryon_number;
-        n.agg.lepton_number = agg.lepton_number;
+        n.matter.mass = matter.mass;
+        n.matter.com = matter.com;
+        n.matter.momentum = matter.momentum;
+        n.matter.spin = matter.spin;
+        n.matter.internal_energy = matter.internal_energy;
+        n.matter.binding_energy = matter.binding_energy;
+        n.matter.radius = matter.radius;
+        n.matter.temperature = matter.temperature;
+        n.matter.composition = matter.composition;
+        n.matter.charge = matter.charge;
+        n.matter.baryon_number = matter.baryon_number;
+        n.matter.lepton_number = matter.lepton_number;
         // Entropy needs two corrections that the original one-liner got wrong
         // as soon as anything in the world could become more ordered.
         //
@@ -566,18 +566,18 @@ impl Tree {
         // information is not there to be recovered. The developmental state is
         // the authority.
         if n.morphology.is_none() {
-            let total_stored = n.agg.total_entropy();
-            let total_restricted = agg.entropy + n.agg.entropy_exported;
+            let total_stored = n.matter.total_entropy();
+            let total_restricted = matter.entropy + n.matter.entropy_exported;
             if total_restricted >= total_stored {
-                n.agg.entropy = agg.entropy;
+                n.matter.entropy = matter.entropy;
             }
         }
-        n.agg.luminosity = agg.luminosity;
+        n.matter.luminosity = matter.luminosity;
         // The morphology owns the structure's size, for the same reason it owns
         // its entropy: `summarise` measures the parts, but what the parts add up
         // to is the program's business.
         if let Some(m) = &n.morphology {
-            n.agg.radius = m.extent().max(1e-30);
+            n.matter.radius = m.extent().max(1e-30);
         }
         n.children.clear();
         self.stats.coarsenings += 1;
@@ -590,13 +590,13 @@ impl Tree {
         let (mass, comp, temp, charge, spin, internal, radius, frame) = {
             let c = &self.nodes[child.get()];
             (
-                c.agg.mass,
-                c.agg.composition,
-                c.agg.temperature,
-                c.agg.charge,
-                c.agg.spin,
-                c.agg.internal_energy,
-                c.agg.radius,
+                c.matter.mass,
+                c.matter.composition,
+                c.matter.temperature,
+                c.matter.charge,
+                c.matter.spin,
+                c.matter.internal_energy,
+                c.matter.radius,
                 c.motion,
             )
         };
@@ -646,7 +646,7 @@ impl Tree {
     /// Give a node a developmental state, turning it from a statistical
     /// population into a structure with a history.
     ///
-    /// The aggregate's radius, chemical energy and entropy are taken over by
+    /// The matter's radius, chemical energy and entropy are taken over by
     /// the morphology from this point on; the conserved tuple is untouched, so
     /// nothing about the surrounding world changes.
     pub fn plant(&mut self, i: NodeIdx, program: crate::morph::Program) -> &mut crate::morph::Morphology {
@@ -658,10 +658,10 @@ impl Tree {
         // feedstock the thing grows out of — soil, air, water — so planting
         // neither creates nor destroys anything, and growth is bounded by what
         // is actually there.
-        m.built = (self.nodes[i.get()].agg.mass * 1e-3).clamp(1e-6, 1.0);
+        m.built = (self.nodes[i.get()].matter.mass * 1e-3).clamp(1e-6, 1.0);
         let n = &mut self.nodes[i.get()];
-        n.agg.radius = m.extent().max(n.agg.radius.min(1e-3)).max(1e-30);
-        n.agg.chemical_energy = m.stored_energy();
+        n.matter.radius = m.extent().max(n.matter.radius.min(1e-3)).max(1e-30);
+        n.matter.chemical_energy = m.stored_energy();
         n.bodies.clear();
         n.children.clear();
         n.morphology = Some(m);
@@ -720,7 +720,7 @@ impl Tree {
     ///
     /// Ancestors are excluded on purpose. A child node is not a separate system
     /// sitting zero metres from its parent — it *is* part of its parent, and
-    /// the parent's aggregate already accounts for it. Applying the light-speed
+    /// the parent's matter already accounts for it. Applying the light-speed
     /// constraint between a node and its own ancestor would force a nucleus and
     /// the galaxy containing it into lockstep, at the nucleus's zeptosecond
     /// timestep, which is precisely the catastrophe the multi-rate scheme
@@ -740,8 +740,8 @@ impl Tree {
                 // Surface-to-surface: influence has to cross the gap, not the
                 // distance between centres.
                 let gap = (na.motion.offset - nb.motion.offset).norm()
-                    - na.agg.radius
-                    - nb.agg.radius;
+                    - na.matter.radius
+                    - nb.matter.radius;
                 best = best.min(gap.max(0.0));
             }
             out.push((a, best));
@@ -834,7 +834,7 @@ impl Tree {
     fn sum_conserved(&self, i: NodeIdx) -> crate::state::Conserved {
         let n = &self.nodes[i.get()];
         if !n.is_materialised() {
-            return n.agg.conserved();
+            return n.matter.conserved();
         }
         let mut total = crate::state::Conserved::zero();
         for (slot, b) in n.bodies.iter().enumerate() {

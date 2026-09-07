@@ -8,12 +8,12 @@
 
 use phys::coords::Motion;
 use phys::math::{v3, Quat, Vec3};
-use phys::state::{Aggregate, Composition};
+use phys::state::{Matter, Composition};
 use phys::units::*;
 
-/// Build an aggregate with a given rotation period about z.
-fn spinning(mass: f64, radius: f64, temperature: f64, period: f64) -> Aggregate {
-    let mut a = Aggregate::neutral(mass, radius, temperature, Composition::solar());
+/// Build a node's matter with a given rotation period about z.
+fn spinning(mass: f64, radius: f64, temperature: f64, period: f64) -> Matter {
+    let mut a = Matter::neutral(mass, radius, temperature, Composition::solar());
     if period > 0.0 {
         let omega = std::f64::consts::TAU / period;
         a.spin = v3(0.0, 0.0, omega * a.moment_of_inertia());
@@ -82,7 +82,7 @@ fn the_cadence_matches_what_the_object_does() {
     // would have demanded an update every five nanoseconds, does not count,
     // because a body in equilibrium is not changing.
     let bug = {
-        let mut a = Aggregate::neutral(1e-15, 1.0e-5, 300.0, Composition::solar());
+        let mut a = Matter::neutral(1e-15, 1.0e-5, 300.0, Composition::solar());
         a.internal_energy = 0.0;
         a.momentum = v3(2.0e-5 * 1e-15, 0.0, 0.0);
         a
@@ -251,10 +251,10 @@ fn finer_resolution_demands_a_faster_cadence() {
 /// away.
 ///
 /// This is a bug, kept. `refresh_pace` took the world clock straight from
-/// `node_cadence`, and for a node held as a single aggregate the cadence is
+/// `node_cadence`, and for a node held as bulk matter the cadence is
 /// legitimately enormous: a ball of 10^4 K hydrogen has no bulk motion in its
 /// own rest frame, barely spins and is not being stirred, so nothing an
-/// aggregate reports about it changes for 5.2x10^18 seconds. Correct answer,
+/// the matter reports about it changes for 5.2x10^18 seconds. Correct answer,
 /// wrong question — the pace is not "may this description go stale" but "how
 /// fast should the clock run for someone looking at it", and answering the
 /// second with the first set a frame to 2.6x10^11 seconds instead of 6.2.
@@ -285,7 +285,7 @@ fn pacing_to_an_unmaterialised_node_is_bounded() {
         blind / seeing
     );
 
-    // The cadence is still enormous, and still right: as a single aggregate,
+    // The cadence is still enormous, and still right: as bulk matter,
     // nothing about this node changes. The pace must not be.
     assert!(cadence > 1e17, "the cadence is supposed to be huge here");
     assert!(
@@ -316,12 +316,12 @@ fn the_pace_bound_is_the_time_the_interior_takes_to_rearrange() {
     let kid = w.tree.promote(here, 0, spec);
 
     let n = &w.tree.nodes[kid.get()];
-    let expected = n.agg.radius / n.agg.velocity_dispersion();
+    let expected = n.matter.radius / n.matter.velocity_dispersion();
     let got = w.node_pace(kid);
     println!(
         "  R {:.3e} m at {:.3e} m/s internal — {expected:.3e} s, pace says {got:.3e} s",
-        n.agg.radius,
-        n.agg.velocity_dispersion()
+        n.matter.radius,
+        n.matter.velocity_dispersion()
     );
     assert!(
         (got - expected).abs() / expected < 1e-12,

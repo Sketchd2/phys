@@ -66,14 +66,14 @@ fn measurement_commits_permanently() {
 fn measurement_disturbs() {
     let (mut w, _) = world();
     let target = deepest(&w);
-    let before = w.tree.nodes[target.get()].agg.internal_energy;
+    let before = w.tree.nodes[target.get()].matter.internal_energy;
     let r = w.measure(target, Instrument::Interferometer, Quantity::Position);
     match r {
         Some(Reading::Position { uncertainty, disturbance, .. }) => {
             assert!(uncertainty > 0.0);
             assert!(disturbance > 0.0, "position measurement must cost momentum");
             // dx dp >= hbar/2
-            let dp = (2.0 * w.tree.nodes[target.get()].agg.mass * disturbance).sqrt();
+            let dp = (2.0 * w.tree.nodes[target.get()].matter.mass * disturbance).sqrt();
             assert!(
                 uncertainty * dp >= H_BAR / 2.0 * 0.99,
                 "uncertainty principle violated"
@@ -81,7 +81,7 @@ fn measurement_disturbs() {
         }
         other => panic!("expected a position reading, got {other:?}"),
     }
-    let after = w.tree.nodes[target.get()].agg.internal_energy;
+    let after = w.tree.nodes[target.get()].matter.internal_energy;
     assert!(after >= before, "measurement removed energy");
     assert!(w.tree.nodes[target.get()].pinned, "a measured node must be pinned");
 
@@ -117,7 +117,7 @@ fn interactions_respect_light_delay() {
         .separation(w.tree.root, v3(8.0 * KPC, 0.0, 0.0), target, v3(0.0, 0.0, 0.0))
         .value
         .norm();
-    let before = w.tree.nodes[target.get()].agg.momentum;
+    let before = w.tree.nodes[target.get()].matter.momentum;
     w.interact(Interaction::Impulse { target, dp: v3(1e40, 0.0, 0.0) });
 
     let arrival = w.mailbox.next_arrival().expect("influence must be queued");
@@ -129,7 +129,7 @@ fn interactions_respect_light_delay() {
         w.step_frame(50_000.0);
         if w.time < arrival {
             assert_eq!(
-                w.tree.nodes[target.get()].agg.momentum, before,
+                w.tree.nodes[target.get()].matter.momentum, before,
                 "influence arrived early"
             );
         }
@@ -173,13 +173,13 @@ fn authoring_is_audited() {
     let target = phys::ids::NodeIdx(
         w.tree.nodes.iter().position(|n| n.alive && n.depth == 2).unwrap() as u32,
     );
-    let before = w.tree.nodes[target.get()].agg.total_energy();
+    let before = w.tree.nodes[target.get()].matter.total_energy();
     w.interact(Interaction::Author {
         target,
         property: Property::Temperature,
         value: 1e8,
     });
-    let after = w.tree.nodes[target.get()].agg.total_energy();
+    let after = w.tree.nodes[target.get()].matter.total_energy();
     assert_eq!(w.audit.len(), 1, "authoring must be recorded");
     let ev = w.audit[0];
     assert!((ev.delta_energy - (after - before)).abs() <= (after - before).abs() * 1e-9);
@@ -229,17 +229,17 @@ fn repeated_zoom_does_not_drift() {
     w.tree.nodes[target.get()].pinned = false;
     w.tree.nodes[target.get()].residency = phys::tree::Residency::Speculative;
     // One cycle to settle: the first coarsening after a drill legitimately
-    // updates the aggregate, because it folds back state the promoted children
+    // updates the node's matter, because it folds back state the promoted children
     // evolved on their own. What must not drift is everything after that.
     w.tree.coarsen(target);
     let first = w.tree.refine(target).to_vec();
-    let e0 = w.tree.nodes[target.get()].agg.total_energy();
+    let e0 = w.tree.nodes[target.get()].matter.total_energy();
     for _ in 0..50 {
         w.tree.coarsen(target);
         w.tree.refine(target);
     }
     let last = w.tree.nodes[target.get()].bodies.clone();
-    let e1 = w.tree.nodes[target.get()].agg.total_energy();
+    let e1 = w.tree.nodes[target.get()].matter.total_energy();
     assert_eq!(e0, e1, "50 zoom cycles changed the energy");
     for (a, b) in first.iter().zip(&last) {
         assert_eq!(a.pos, b.pos, "50 zoom cycles moved a body");

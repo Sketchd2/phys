@@ -19,9 +19,9 @@ fn every_scenario_refines_and_conserves() {
         let bodies = world.tree.refine(root).len();
         assert!(bodies > 0, "{}: refined to nothing", s.name);
 
-        let before = world.tree.nodes[root.get()].agg;
+        let before = world.tree.nodes[root.get()].matter;
         world.tree.coarsen(root);
-        let after = world.tree.nodes[root.get()].agg;
+        let after = world.tree.nodes[root.get()].matter;
 
         let scale = before.mass.abs().max(1e-30);
         let mass_error = (after.mass - before.mass).abs() / scale;
@@ -99,7 +99,7 @@ fn the_ladder_runs_all_the_way_down() {
 
     // And the node it arrives at is a nucleus by the same measure the scenario
     // that starts as one is: same tier, same solver, same order of size.
-    let arrived = world.tree.nodes[path.last().unwrap().get()].agg.radius;
+    let arrived = world.tree.nodes[path.last().unwrap().get()].matter.radius;
     let direct = scenario::ALL.last().unwrap();
     println!(
         "  arrived at a {arrived:.3e} m node; the {} scenario starts at {:.3e} m",
@@ -122,14 +122,14 @@ fn descending_and_returning_leaves_no_trace() {
         let mut world = World::new(s.build(0x5EED), 20.0);
         let root = world.tree.root;
         world.tree.refine(root);
-        let before = world.tree.nodes[root.get()].agg.mass;
+        let before = world.tree.nodes[root.get()].matter.mass;
 
         let child = world.tree.promote(root, 0, default_spec(s.tier.finer()));
         assert!(!child.is_none(), "{}: could not descend", s.name);
         let inner = world.tree.refine(child).len();
         world.tree.coarsen(child);
         world.tree.coarsen(root);
-        let after = world.tree.nodes[root.get()].agg.mass;
+        let after = world.tree.nodes[root.get()].matter.mass;
         println!(
             "  {:<16} {} -> {} : {inner} bodies inside, mass error {:.2e}",
             s.name,
@@ -213,7 +213,7 @@ fn stepping_does_not_heat_a_node() {
              worst drift {:.2e}",
             s.name,
             tier.name(),
-            world.tree.nodes[cur.get()].agg.radius,
+            world.tree.nodes[cur.get()].matter.radius,
             before,
             after,
             after / before.max(1e-30),

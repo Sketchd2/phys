@@ -76,7 +76,7 @@ nothing in the physics reads `name`.
 
 `pace_to(idx)` sets the world clock from the target's characteristic time, and
 `node_cadence` derives that from body speeds when the node is materialised and
-from the aggregate when it is not. A promoted child's aggregate has
+from the matter when it is not. A promoted child's matter has
 `momentum = ZERO` by construction — `promote` says so explicitly, and is right
 to: inside a node's own frame the net momentum *is* zero, which is what a rest
 frame means. But that leaves nothing for `characteristic_speed` to measure, so
@@ -102,7 +102,7 @@ same mechanism as an oddity of reloading; it is not an oddity, it is this.
 **The fix** is that a node with no bodies has no measurable internal motion, so
 its cadence must come from something else — the tier's own timestep, or the
 speed the parent's body list says it has — and never from a rest-frame
-aggregate that is zero by construction. `pace_to` should also refuse a target
+matter that is zero by construction. `pace_to` should also refuse a target
 whose cadence it cannot measure rather than silently accepting a nonsense one.
 
 **Trigger:** now. Anything measured against a badly paced world is measuring
@@ -149,7 +149,7 @@ A recipe is ~300 bytes that regenerate a node's detail on the client, and it is
 only ever sent for detail the server does not itself hold. That is what makes it
 safe: there is no server-side truth for a client's version to disagree with, so
 two clients sampling untouched scenery a few ulps apart is a difference nobody
-can observe. `build` also checks the generated mass against the aggregate, which
+can observe. `build` also checks the generated mass against the matter, which
 catches a blob from a different build of the engine.
 
 What it does *not* catch is a sampler that differs subtly — a different

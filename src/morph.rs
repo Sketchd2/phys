@@ -29,7 +29,7 @@
 //!
 //! # Why this fits the architecture better than the physics does
 //!
-//! Growth runs on the *aggregate*, never on the fine structure. A forest does
+//! Growth runs on the node's *matter*, never on the fine structure. A forest does
 //! not grow by integrating 10^9 trees; it grows by advancing one ordinary
 //! differential equation on a forest node, at O(1) per node. That is cheap
 //! enough to run on the entire world every frame, coarse or not — so the
@@ -271,9 +271,9 @@ impl Morphology {
 
     /// Characteristic size of the structure, metres.
     ///
-    /// The aggregate's radius is kept equal to this, so that geometry and bulk
+    /// The node's radius is kept equal to this, so that geometry and bulk
     /// state agree by construction rather than by correction. The developmental
-    /// state is the authority on how big the thing is; the aggregate follows.
+    /// state is the authority on how big the thing is; the matter follows.
     pub fn extent(&self) -> f64 {
         match self.program {
             Program::Tree => self.tree_height().max(1e-3) * 0.5,
@@ -336,7 +336,7 @@ impl Morphology {
     /// Advance the developmental state, returning the transaction that has to
     /// balance for the step to be legitimate.
     ///
-    /// Runs on the aggregate. The fine structure is never touched, never
+    /// Runs on the node's matter. The fine structure is never touched, never
     /// materialised, and does not need to exist.
     pub fn advance(&mut self, dt: f64, env: &Environment) -> GrowthStep {
         if dt <= 0.0 {
@@ -552,7 +552,7 @@ impl Morphology {
     ///
     /// Pure in `(genome, age, built, progress, events)`. Returns positions,
     /// relative masses and per-part radii; `sample` scales them so the totals
-    /// match the aggregate exactly, exactly as it does for a sampled cloud.
+    /// match the matter exactly, exactly as it does for a sampled cloud.
     pub fn render(&self, budget: usize) -> Skeleton {
         let n = budget.max(1);
         match self.program {
@@ -937,7 +937,7 @@ impl Skeleton {
     }
 }
 
-/// Conditions the structure grows in. Derived from the node's own aggregate
+/// Conditions the structure grows in. Derived from the node's own matter
 /// plus whatever is arriving from outside.
 #[derive(Debug, Clone, Copy)]
 pub struct Environment {

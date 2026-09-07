@@ -177,7 +177,7 @@ impl Formula {
     /// This formula's mass split across the engine's eight lumped buckets, as
     /// fractions summing to one.
     ///
-    /// The bridge back to `Aggregate::composition`. A substance's contribution
+    /// The bridge back to `Matter::composition`. A substance's contribution
     /// to a node's bulk elemental account is exactly this, scaled by how much
     /// of the node is that substance — which is the invariant the registry
     /// tests.

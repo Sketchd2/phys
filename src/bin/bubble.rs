@@ -68,7 +68,7 @@ fn years(seconds: f64) -> String {
 fn state(w: &World, i: NodeIdx) -> (f64, f64, f64) {
     let n = &w.tree.nodes[i.get()];
     match &n.morphology {
-        Some(m) => (m.age, m.built, n.agg.chemical_energy),
+        Some(m) => (m.age, m.built, n.matter.chemical_energy),
         None => (0.0, 0.0, 0.0),
     }
 }
@@ -194,7 +194,7 @@ fn main() {
     println!(
         "\n  worst lateness {:.3e}. A day a frame is far coarser than a resolved\n  \
          continuum node's dynamics can follow, and the engine says so rather\n  \
-         than pretending: growth runs on the aggregate and costs O(1), so it\n  \
+         than pretending: growth runs on the matter and costs O(1), so it\n  \
          keeps up on nodes whose trajectories cannot. Tree B is additionally\n  \
          {}x as late as its own clock says, which is how the scheduler knows to\n  \
          prioritise it — and why a bubbled node is never thermalised away.",

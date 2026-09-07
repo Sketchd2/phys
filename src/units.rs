@@ -198,7 +198,7 @@ impl Tier {
     }
 }
 
-/// The granularity every aggregate and every body tracks matter at.
+/// The granularity every node and every body tracks matter at.
 ///
 /// Eight buckets — hydrogen, helium, the CNO catalysts, silicon, iron, and
 /// everything else — because that is what nuclear burning, cooling curves and

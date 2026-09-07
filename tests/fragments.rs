@@ -11,7 +11,7 @@ use phys::morph::{Environment, Program, NO_SUPPORT};
 use phys::engine::default_spec;
 use phys::sampler::sample_structured;
 use phys::solvers::structure::*;
-use phys::state::Aggregate;
+use phys::state::Matter;
 use phys::topology::{Material, Member, Topology};
 use phys::units::{Tier, YEAR};
 
@@ -19,9 +19,9 @@ fn tree(mass: f64, budget: usize) -> (Vec<phys::state::Body>, Topology) {
     let mut m = phys::morph::Morphology::new(Program::Tree, 0xACE, 0x1234, 0);
     m.built = mass;
     m.age = 45.0 * YEAR;
-    let mut agg = Aggregate::neutral(mass, m.extent(), 291.0, Program::Tree.substrate());
-    agg.chemical_energy = m.stored_energy();
-    let (b, t, _) = sample_structured(&agg, &m, budget, 7, 0x1234, 0);
+    let mut matter = Matter::neutral(mass, m.extent(), 291.0, Program::Tree.substrate());
+    matter.chemical_energy = m.stored_energy();
+    let (b, t, _) = sample_structured(&matter, &m, budget, 7, 0x1234, 0);
     (b, t)
 }
 
@@ -147,7 +147,7 @@ fn a_falling_limb_damages_what_it_lands_on() {
     let node = world.tree.promote(root, 3, default_spec(Tier::Stellar));
     {
         let n = &mut world.tree.nodes[node.get()];
-        n.agg = Aggregate::neutral(4000.0, 6.0, 291.0, Program::Tree.substrate());
+        n.matter = Matter::neutral(4000.0, 6.0, 291.0, Program::Tree.substrate());
         n.spec.count = 900;
     }
     world.plant(node, Program::Tree, Environment::default());

@@ -68,7 +68,7 @@ pub enum TaskKind {
     Coarsen,
     Promote,
     Observe,
-    /// Advance a structure's developmental state. Runs on the aggregate, never
+    /// Advance a structure's developmental state. Runs on the node's matter, never
     /// on the structure, so it costs O(1) per node no matter how elaborate the
     /// thing being grown is.
     Grow,
@@ -272,7 +272,7 @@ pub mod cost {
     pub const HYDRO_STEP_US: f64 = 3.2;
     pub const MD_STEP_US: f64 = 1.8;
     pub const STATISTICAL_STEP_US: f64 = 0.05;
-    /// Per node, per growth step. One ODE evaluation on an aggregate.
+    /// Per node, per growth step. One ODE evaluation on a node's matter.
     pub const GROW_US: f64 = 0.12;
     /// Per body produced.
     pub const MATERIALISE_US: f64 = 0.35;

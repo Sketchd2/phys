@@ -102,7 +102,7 @@ analysis going from 12 ms to 23 ms before the threshold was added.
 | Structure | Bytes |
 |---|---:|
 | `Body` | 184 |
-| `Aggregate` | 232 |
+| `Matter` | 248 |
 | `Node` | 576 |
 | `Snapshot` (history) | 80 |
 

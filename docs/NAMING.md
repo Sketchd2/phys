@@ -1,7 +1,7 @@
 # Naming pass
 
-> **Status:** Tiers 1 and 2 are done, `Species` → `CoarseElement` with them.
-> Tier 3 is untouched and still a question — see the note at the bottom.
+> **Status:** done. Tiers 1 and 2, `Species` → `CoarseElement`, and
+> `Aggregate` → `Matter`.
 
 A survey of names that are wrong, colliding, or needlessly opaque, with what
 they should become and what each will cost. Nothing here has been changed yet:
@@ -126,7 +126,7 @@ Worth doing if the pass is going that far; harmless to leave.
 
 | Name | Where | Note |
 |---|---|---|
-| `Aggregate` | `state` | Its own doc opens *"Bulk state. Always present — this is what a node **is**."* → **`Bulk`** pairs with `summarise` and is shorter. But `Aggregate` is not wrong, not colliding, and an ordinary English word, and the change would touch 100 references plus 55 prose sites that would all have to stop saying "the aggregate". **Not done — wants a decision, not a default.** |
+| `Aggregate` | `state` | → **`Matter`**. Done, but not for the reason first proposed. `Bulk` was the initial candidate and was rejected as saying too little; working out why exposed that both names claim something the type does not have. `Aggregate` claims a *direction* — assembled from parts — when usually there are no parts and the parts come from it. `Bulk` claims a *resolution* — but a materialised node carries one of these too, kept in step with its bodies. `Matter` commits to neither, and `n.matter.mass` is the one form that reads like English at the call site. |
 | `Residency` | `tree` | Why a node is holding detail. Not wrong, just abstract. → `HoldReason`, or leave. |
 | `Dof` | `solvers::structure` | Degrees of freedom. Standard in the field; an abbreviation everywhere else. Leave. |
 

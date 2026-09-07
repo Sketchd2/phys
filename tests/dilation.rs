@@ -503,7 +503,7 @@ fn round_trip(tier: Tier) -> (f64, f64) {
 
     let start: Vec<_> = w.tree.nodes[d.get()].bodies.iter().map(|b| b.pos).collect();
     let dt = w.node_dt(d) * 0.5;
-    let radius = w.tree.nodes[d.get()].agg.radius;
+    let radius = w.tree.nodes[d.get()].matter.radius;
     let count = w.tree.nodes[d.get()].bodies.len();
     let bodies = &mut w.tree.nodes[d.get()].bodies;
 

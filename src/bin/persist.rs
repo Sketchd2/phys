@@ -15,7 +15,7 @@ use phys::math::v3;
 use phys::morph::{Environment, Program};
 use phys::persist::{FileStore, WorldStore};
 use phys::solvers::structure::weather;
-use phys::state::Aggregate;
+use phys::state::Matter;
 use phys::tree::Tree;
 use phys::units::*;
 
@@ -38,9 +38,9 @@ fn bytes(n: usize) -> String {
 
 /// A patch of ground with enough carbon in it to grow something.
 fn a_meadow() -> Tree {
-    let mut agg = Aggregate::neutral(4.0e4, 12.0, 291.0, Program::Tree.substrate());
-    agg.internal_energy = agg.thermal_energy();
-    Tree::new(0x5011, agg, Tier::Continuum, default_spec(Tier::Continuum))
+    let mut matter = Matter::neutral(4.0e4, 12.0, 291.0, Program::Tree.substrate());
+    matter.internal_energy = matter.thermal_energy();
+    Tree::new(0x5011, matter, Tier::Continuum, default_spec(Tier::Continuum))
 }
 
 fn main() {
@@ -81,7 +81,7 @@ fn first_run(store: &mut FileStore, path: &std::path::Path) {
     );
     println!("  planted a tree in a 12 m patch of ground");
 
-    // Twenty years of growth, on the aggregate. The tree does not exist yet:
+    // Twenty years of growth, on the node's matter. The tree does not exist yet:
     // growth runs on bulk state, so this costs one ODE step per frame however
     // elaborate the thing being grown is.
     //
@@ -97,7 +97,7 @@ fn first_run(store: &mut FileStore, path: &std::path::Path) {
     println!(
         "  grew it for {:.0} years: {:.1} m tall, {:.0} kg of wood, still {} bodies materialised",
         m.age / YEAR,
-        w.tree.nodes[root.get()].agg.radius,
+        w.tree.nodes[root.get()].matter.radius,
         m.built,
         w.tree.nodes[root.get()].bodies.len()
     );

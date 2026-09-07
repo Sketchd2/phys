@@ -115,7 +115,7 @@ femtometre separations where the systems are tiny anyway.
 The corollary that keeps it correct: **the constraint applies between disjoint
 regions, not between a node and its own ancestor.** A nucleus is not a separate
 system sitting zero metres from the galaxy containing it — it is *part of* it,
-and the galaxy's aggregate already accounts for it. Applying the light-speed
+and the galaxy's matter already accounts for it. Applying the light-speed
 rule across that relationship would force the galaxy to advance at the nucleus's
 zeptosecond timestep, which is precisely the catastrophe the scheme exists to
 avoid (`Tree::sibling_separations`).
@@ -151,7 +151,7 @@ the structure, because the state does not.
 
 Three consequences make this fit rather than bolt on:
 
-**Growth runs on the aggregate.** A forest does not grow by integrating 10⁹
+**Growth runs on the matter.** A forest does not grow by integrating 10⁹
 trees; it grows by advancing one ODE on a forest node, at O(1) per node. That is
 cheap enough to run on the entire world every frame while the fine structure
 stays unbuilt — so the laziness the rest of the engine works for is simply free
@@ -484,7 +484,7 @@ early is not.
 
 ### 4.1 The scale tree
 
-A node is a region at a tier holding a bulk `Aggregate`. It has two independent
+A node is a region at a tier holding its `Matter`. It has two independent
 finer representations:
 
 - **materialised bodies**, produced by `sample` — cheap to make, cheap to
@@ -548,8 +548,8 @@ heating (`rng::Stream::split`). Second, reductions are pairwise with a fixed
 tree shape (`math::det_sum`) so that CPU and GPU agree bit for bit.
 
 Coarsening is also made *idempotent*: if the restricted state agrees with the
-stored aggregate to within 10⁻¹², the coarse state is left exactly as it was.
-Without that, every visit perturbs the aggregate in its last bits, the next
+stored matter to within 10⁻¹², the coarse state is left exactly as it was.
+Without that, every visit perturbs the matter in its last bits, the next
 materialisation samples from a marginally different distribution, and a region a
 user visits a thousand times slowly drifts away from itself.
 

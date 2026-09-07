@@ -43,7 +43,7 @@
 
 use crate::math::{det_sum_by, det_sum_v3_by, Vec3};
 use crate::rng::{Purpose, Stream};
-use crate::state::{mutual_gravitational_energy, Aggregate, Body, BodyKind, Composition};
+use crate::state::{mutual_gravitational_energy, Matter, Body, BodyKind, Composition};
 use crate::units::*;
 
 /// Spatial arrangement of the children. Chosen by tier and by what the node is.
@@ -78,7 +78,7 @@ pub enum MassSpectrum {
     CoarseElement,
 }
 
-/// Everything needed to turn one aggregate into many bodies.
+/// Everything needed to turn one node's matter into many bodies.
 #[derive(Debug, Clone, Copy)]
 pub struct SampleSpec {
     pub count: usize,
@@ -120,7 +120,7 @@ pub struct SampleReport {
     /// Fraction of internal energy that ended up as coherent rotation.
     pub rotational_fraction: f64,
     /// Set when the target state was thermodynamically impossible and had to be
-    /// relaxed. A non-empty reason is a bug in whatever produced the aggregate.
+    /// relaxed. A non-empty reason is a bug in whatever produced the matter.
     pub relaxations: u32,
     /// How much of the energy budget had to be absorbed into the children's
     /// internal account rather than their motion, as a fraction of the
@@ -185,7 +185,7 @@ fn inertia_of_slices(pos: &[Vec3], masses: &[f64]) -> crate::math::Mat3 {
 /// Deterministic in `(world_seed, path_key, epoch)` — call it a thousand times,
 /// on a thousand machines, get the same bodies.
 pub fn sample(
-    agg: &Aggregate,
+    matter: &Matter,
     spec: SampleSpec,
     world_seed: u64,
     path_key: u128,
@@ -202,30 +202,30 @@ pub fn sample(
     // nucleons than it has, produces particles whose spacing is far below their
     // own interaction radii — and a Lennard-Jones potential handed that
     // configuration answers with several hundred electron volts per pair.
-    let n = particle_limit(agg, spec).max(1);
+    let n = particle_limit(matter, spec).max(1);
     let mut report = SampleReport {
         count: n,
         ..Default::default()
     };
 
-    if agg.mass <= 0.0 || !agg.is_finite() {
+    if matter.mass <= 0.0 || !matter.is_finite() {
         return (Vec::new(), report);
     }
 
     // ---- 1. masses ------------------------------------------------------
-    let mut masses = sample_masses(agg, spec, n, world_seed, path_key, epoch);
+    let mut masses = sample_masses(matter, spec, n, world_seed, path_key, epoch);
     let m_sum = det_sum_by(n, &|i| masses[i]);
-    let k = agg.mass / m_sum;
+    let k = matter.mass / m_sum;
     for m in masses.iter_mut() {
-        *m *= k; // exact by construction: sum is now agg.mass to round-off
+        *m *= k; // exact by construction: sum is now matter.mass to round-off
     }
 
     // ---- 2. positions ---------------------------------------------------
     let mut pos = sample_positions(spec, n, world_seed, path_key, epoch);
 
     // Centre so that sum m r = 0, then scale to hit the requested radius.
-    recentre(&mut pos, &masses, agg.mass);
-    let mut scale = radius_scale(&pos, &masses, agg.mass, agg.radius);
+    recentre(&mut pos, &masses, matter.mass);
+    let mut scale = radius_scale(&pos, &masses, matter.mass, matter.radius);
     for p in pos.iter_mut() {
         *p = p.scale(scale);
     }
@@ -239,9 +239,9 @@ pub fn sample(
     // and out does not leak energy even though the children's positions were
     // never stored: we are not required to reproduce the old potential, only
     // the old total.
-    let softening = agg.radius / (n as f64).cbrt() * 0.1;
-    let mut phi = potential_estimate(&pos, &masses, softening, spec.profile, agg);
-    let mut random_ke_target = agg.internal_energy + agg.binding_energy - phi;
+    let softening = matter.radius / (n as f64).cbrt() * 0.1;
+    let mut phi = potential_estimate(&pos, &masses, softening, spec.profile, matter);
+    let mut random_ke_target = matter.internal_energy + matter.binding_energy - phi;
 
     // A configuration can be too tightly bound to hold the energy it claims.
     // Physically the answer is that it must be bigger, so make it bigger.
@@ -251,14 +251,14 @@ pub fn sample(
             *p = p.scale(1.5);
         }
         scale *= 1.5;
-        phi = potential_estimate(&pos, &masses, softening * scale, spec.profile, agg);
-        random_ke_target = agg.internal_energy + agg.binding_energy - phi;
+        phi = potential_estimate(&pos, &masses, softening * scale, spec.profile, matter);
+        random_ke_target = matter.internal_energy + matter.binding_energy - phi;
         report.radius_overridden = true;
         report.relaxations += 1;
         guard += 1;
     }
     if random_ke_target <= 0.0 {
-        random_ke_target = agg.internal_energy.abs().max(1e-30);
+        random_ke_target = matter.internal_energy.abs().max(1e-30);
         report.relaxations += 1;
     }
 
@@ -270,8 +270,8 @@ pub fn sample(
     // this situation would shed mass; that belongs to the tier solver, not to
     // the sampler, so here we simply refuse to build an impossible state.)
     let mut inertia = inertia_tensor_of(&pos, &masses);
-    let mut omega = inertia.solve(agg.spin).unwrap_or(Vec3::ZERO);
-    let mut ke_rot = 0.5 * omega.dot(agg.spin);
+    let mut omega = inertia.solve(matter.spin).unwrap_or(Vec3::ZERO);
+    let mut ke_rot = 0.5 * omega.dot(matter.spin);
     guard = 0;
     while ke_rot > 0.95 * random_ke_target && ke_rot > 0.0 && guard < 32 {
         let need = (ke_rot / (0.5 * random_ke_target)).sqrt().max(1.2);
@@ -279,12 +279,12 @@ pub fn sample(
             *p = p.scale(need);
         }
         scale *= need;
-        phi = potential_estimate(&pos, &masses, softening * scale, spec.profile, agg);
+        phi = potential_estimate(&pos, &masses, softening * scale, spec.profile, matter);
         random_ke_target =
-            (agg.internal_energy + agg.binding_energy - phi).max(agg.internal_energy.abs().max(1e-30));
+            (matter.internal_energy + matter.binding_energy - phi).max(matter.internal_energy.abs().max(1e-30));
         inertia = inertia_tensor_of(&pos, &masses);
-        omega = inertia.solve(agg.spin).unwrap_or(Vec3::ZERO);
-        ke_rot = 0.5 * omega.dot(agg.spin);
+        omega = inertia.solve(matter.spin).unwrap_or(Vec3::ZERO);
+        ke_rot = 0.5 * omega.dot(matter.spin);
         report.radius_overridden = true;
         report.relaxations += 1;
         guard += 1;
@@ -301,16 +301,16 @@ pub fn sample(
     // `summarise` uses. It converges in three passes because each correction
     // lives in the null space of the others.
     let masses_for_comp = masses.clone();
-    let resid = sample_velocities(agg, spec, n, &pos, world_seed, path_key, epoch);
+    let resid = sample_velocities(matter, spec, n, &pos, world_seed, path_key, epoch);
 
     let parts = Parts {
         pos,
         masses,
-        comps: sample_compositions(agg, spec, &masses_for_comp, world_seed, path_key, epoch),
+        comps: sample_compositions(matter, spec, &masses_for_comp, world_seed, path_key, epoch),
         radii: Vec::new(),
         kind: spec.kind,
     };
-    let bodies = close_books(agg, parts, resid, phi, random_ke_target, omega, ke_rot, scale, &mut report);
+    let bodies = close_books(matter, parts, resid, phi, random_ke_target, omega, ke_rot, scale, &mut report);
 
     (bodies, report)
 }
@@ -324,7 +324,7 @@ pub use crate::state::summarise;
 // ---------------------------------------------------------------------------
 
 fn sample_masses(
-    agg: &Aggregate,
+    matter: &Matter,
     spec: SampleSpec,
     n: usize,
     seed: u64,
@@ -334,14 +334,14 @@ fn sample_masses(
     let mut st = Stream::at(seed, key, epoch, Purpose::Masses);
     let mut m = Vec::with_capacity(n);
     match spec.spectrum {
-        MassSpectrum::Equal => m.resize(n, agg.mass / n as f64),
+        MassSpectrum::Equal => m.resize(n, matter.mass / n as f64),
         MassSpectrum::Kroupa { min_msun, max_msun } => {
             for _ in 0..n {
                 m.push(kroupa_sample(&mut st, min_msun, max_msun) * M_SUN);
             }
         }
         MassSpectrum::PowerLaw { alpha, ratio } => {
-            let lo = agg.mass / n as f64 / ratio.max(1.0);
+            let lo = matter.mass / n as f64 / ratio.max(1.0);
             let hi = lo * ratio.max(1.0);
             for _ in 0..n {
                 m.push(st.power_law(lo, hi, alpha));
@@ -352,7 +352,7 @@ fn sample_masses(
             // then physical, not statistical.
             let mut weights = [0.0; COARSE_ELEMENTS];
             for (i, s) in CoarseElement::ALL.iter().enumerate() {
-                weights[i] = agg.composition.get(*s) / s.mass_kg();
+                weights[i] = matter.composition.get(*s) / s.mass_kg();
             }
             for _ in 0..n {
                 let i = st.weighted(&weights);
@@ -462,7 +462,7 @@ fn sample_positions(spec: SampleSpec, n: usize, seed: u64, key: u128, epoch: u32
 }
 
 fn sample_velocities(
-    agg: &Aggregate,
+    matter: &Matter,
     spec: SampleSpec,
     n: usize,
     pos: &[Vec3],
@@ -505,12 +505,12 @@ fn sample_velocities(
             out.push(thermal);
         }
     }
-    let _ = agg;
+    let _ = matter;
     out
 }
 
 fn sample_compositions(
-    agg: &Aggregate,
+    matter: &Matter,
     spec: SampleSpec,
     masses: &[f64],
     seed: u64,
@@ -519,12 +519,12 @@ fn sample_compositions(
 ) -> Vec<Composition> {
     let n = masses.len();
     if spec.composition_scatter <= 0.0 {
-        return vec![agg.composition; n];
+        return vec![matter.composition; n];
     }
     let mut st = Stream::at(seed, key, epoch, Purpose::Composition);
     let mut comps: Vec<Composition> = Vec::with_capacity(n);
     for _ in 0..n {
-        let mut c = agg.composition.0;
+        let mut c = matter.composition.0;
         for v in c.iter_mut() {
             if *v > 0.0 {
                 *v *= (1.0 + spec.composition_scatter * st.normal()).max(1e-6);
@@ -547,7 +547,7 @@ fn sample_compositions(
     for _round in 0..8 {
         for s in 0..COARSE_ELEMENTS {
             let have = det_sum_by(n, &|i| masses[i] * comps[i].0[s]) / total_mass;
-            let want = agg.composition.0[s];
+            let want = matter.composition.0[s];
             if have > 1e-300 && want > 0.0 {
                 let f = want / have;
                 for c in comps.iter_mut() {
@@ -609,7 +609,7 @@ fn potential_estimate(
     masses: &[f64],
     softening: f64,
     profile: Profile,
-    agg: &Aggregate,
+    matter: &Matter,
 ) -> f64 {
     let n = pos.len();
     if n <= 512 {
@@ -638,10 +638,10 @@ fn potential_estimate(
         let r2 = det_sum_by(n, &|i| masses[i] * pos[i].norm2()) / total;
         (r2.max(0.0).sqrt() * 1.291).max(1e-30)
     };
-    -k * G * agg.mass * agg.mass / r
+    -k * G * matter.mass * matter.mass / r
 }
 
-fn child_radius(agg: &Aggregate, spec: SampleSpec, mass: f64, n: usize) -> f64 {
+fn child_radius(matter: &Matter, spec: SampleSpec, mass: f64, n: usize) -> f64 {
     match spec.kind {
         BodyKind::Star => {
             // Main-sequence mass-radius relation, both branches.
@@ -660,7 +660,7 @@ fn child_radius(agg: &Aggregate, spec: SampleSpec, mass: f64, n: usize) -> f64 {
         BodyKind::Atom => BOHR,
         BodyKind::Electron => LAMBDA_COMPTON_E,
         BodyKind::Photon => 0.0,
-        _ => agg.radius / (n as f64).cbrt() * 0.5,
+        _ => matter.radius / (n as f64).cbrt() * 0.5,
     }
 }
 
@@ -690,7 +690,7 @@ pub(crate) struct Parts {
 /// conservation story — only a second way of choosing where the parts go.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn close_books(
-    agg: &Aggregate,
+    matter: &Matter,
     parts: Parts,
     resid: Vec<Vec3>,
     phi: f64,
@@ -708,7 +708,7 @@ pub(crate) fn close_books(
 
     // (a) remove net momentum
     let p_res = det_sum_v3_by(n, &|i| resid[i].scale(masses[i]));
-    let v_mean = p_res.scale(1.0 / agg.mass);
+    let v_mean = p_res.scale(1.0 / matter.mass);
     for v in resid.iter_mut() {
         *v -= v_mean;
     }
@@ -718,7 +718,7 @@ pub(crate) fn close_books(
         for i in 0..n {
             resid[i] -= w.cross(pos[i]);
         }
-        let p2 = det_sum_v3_by(n, &|i| resid[i].scale(masses[i])).scale(1.0 / agg.mass);
+        let p2 = det_sum_v3_by(n, &|i| resid[i].scale(masses[i])).scale(1.0 / matter.mass);
         for v in resid.iter_mut() {
             *v -= p2;
         }
@@ -733,12 +733,12 @@ pub(crate) fn close_books(
         0.0
     };
     let mut om = omega;
-    let mut vb = agg.momentum.scale(1.0 / agg.mass);
+    let mut vb = matter.momentum.scale(1.0 / matter.mass);
 
     // Targets, stated in exactly the form `summarise` will measure them.
-    let p_target = agg.momentum;
-    let l_target = agg.spin;
-    let k_target = random_ke_target + crate::state::bulk_kinetic(agg.mass, agg.momentum);
+    let p_target = matter.momentum;
+    let l_target = matter.spin;
+    let k_target = random_ke_target + crate::state::bulk_kinetic(matter.mass, matter.momentum);
 
     let mut vel = vec![Vec3::ZERO; n];
     let build = |vel: &mut Vec<Vec3>, s: f64, om: Vec3, vb: Vec3| {
@@ -746,7 +746,7 @@ pub(crate) fn close_books(
             vel[i] = resid[i].scale(s) + om.cross(pos[i]) + vb;
         }
     };
-    let com_now = det_sum_v3_by(n, &|i| pos[i].scale(masses[i])).scale(1.0 / agg.mass);
+    let com_now = det_sum_v3_by(n, &|i| pos[i].scale(masses[i])).scale(1.0 / matter.mass);
     let mut gmass = vec![0.0f64; n];
     for _pass in 0..10 {
         build(&mut vel, s, om, vb);
@@ -782,7 +782,7 @@ pub(crate) fn close_books(
     }
     build(&mut vel, s, om, vb);
 
-    report.realised_radius = agg.radius * scale;
+    report.realised_radius = matter.radius * scale;
     report.rotational_fraction = if random_ke_target > 0.0 {
         ke_rot / random_ke_target
     } else {
@@ -793,19 +793,19 @@ pub(crate) fn close_books(
     // ---- 6. composition, charge, internal energy ------------------------
     let mut bodies: Vec<Body> = Vec::with_capacity(n);
     for i in 0..n {
-        let frac = masses[i] / agg.mass;
+        let frac = masses[i] / matter.mass;
         bodies.push(Body {
-            pos: pos[i] + agg.com,
+            pos: pos[i] + matter.com,
             vel: vel[i],
             mass: masses[i],
             radius: if radii.is_empty() {
-                child_radius(agg, spec, masses[i], n)
+                child_radius(matter, spec, masses[i], n)
             } else {
                 radii[i]
             },
-            charge: agg.charge * frac,
+            charge: matter.charge * frac,
             internal_energy: 0.0,
-            temperature: agg.temperature,
+            temperature: matter.temperature,
             composition: comps[i],
             spin: Vec3::ZERO,
             slot: i as u32,
@@ -831,18 +831,18 @@ pub(crate) fn close_books(
     // than in the internal account.
     {
         let e_kin = crate::state::kinetic_energy_of(&bodies);
-        let target_internal_sum = crate::state::bulk_kinetic(agg.mass, agg.momentum)
-            + agg.internal_energy
-            + agg.binding_energy
+        let target_internal_sum = crate::state::bulk_kinetic(matter.mass, matter.momentum)
+            + matter.internal_energy
+            + matter.binding_energy
             - phi
             - e_kin;
-        report.internal_energy_residual = if agg.internal_energy.abs() > 0.0 {
-            target_internal_sum / agg.internal_energy.abs()
+        report.internal_energy_residual = if matter.internal_energy.abs() > 0.0 {
+            target_internal_sum / matter.internal_energy.abs()
         } else {
             0.0
         };
         for b in bodies.iter_mut() {
-            b.internal_energy = target_internal_sum * (b.mass / agg.mass);
+            b.internal_energy = target_internal_sum * (b.mass / matter.mass);
         }
     }
 
@@ -858,11 +858,11 @@ pub(crate) fn close_books(
     // every configuration, degenerate or not, and disturbs neither momentum nor
     // energy (intrinsic spin energy stays in the parent's internal budget).
     {
-        let com_now = det_sum_v3_by(n, &|i| bodies[i].pos.scale(bodies[i].mass)).scale(1.0 / agg.mass);
+        let com_now = det_sum_v3_by(n, &|i| bodies[i].pos.scale(bodies[i].mass)).scale(1.0 / matter.mass);
         let l_now = crate::state::total_spin(&bodies, com_now);
-        let residual = agg.spin - l_now;
+        let residual = matter.spin - l_now;
         for b in bodies.iter_mut() {
-            b.spin += residual.scale(b.mass / agg.mass);
+            b.spin += residual.scale(b.mass / matter.mass);
         }
     }
 
@@ -876,11 +876,11 @@ pub(crate) fn close_books(
     // surroundings, the free energy locked in its structure, and what it has
     // already dumped into the environment — so they pass through both
     // directions unchanged.
-    back.external_potential = agg.external_potential;
-    back.chemical_energy = agg.chemical_energy;
-    back.entropy_exported = agg.entropy_exported;
+    back.external_potential = matter.external_potential;
+    back.chemical_energy = matter.chemical_energy;
+    back.entropy_exported = matter.entropy_exported;
     let scales = crate::state::Scales::of(&bodies);
-    report.conservation_error = back.conserved().error_against(&agg.conserved(), &scales);
+    report.conservation_error = back.conserved().error_against(&matter.conserved(), &scales);
     report.scales = scales;
 
     bodies
@@ -900,14 +900,14 @@ pub(crate) fn close_books(
 /// **the developmental state is the authority on the structure's geometry.**
 ///
 /// * The positions are *not* rescaled to hit some independently-stored radius.
-///   The morphology decides how big the thing is, and the aggregate's radius is
+///   The morphology decides how big the thing is, and the matter's radius is
 ///   kept equal to `Morphology::extent()` by the growth step, so the two agree
 ///   by construction rather than by correction.
 /// * There is no gravitational relaxation loop. A tree is held together by
 ///   chemistry, not self-gravity, and expanding it until it is gravitationally
 ///   comfortable would be nonsense — its size is set by how much it has grown.
 pub fn sample_structured(
-    agg: &Aggregate,
+    matter: &Matter,
     morph: &crate::morph::Morphology,
     budget: usize,
     world_seed: u64,
@@ -918,7 +918,7 @@ pub fn sample_structured(
         count: budget,
         ..Default::default()
     };
-    if agg.mass <= 0.0 || !agg.is_finite() {
+    if matter.mass <= 0.0 || !matter.is_finite() {
         return (Vec::new(), crate::topology::Topology::default(), report);
     }
 
@@ -931,9 +931,9 @@ pub fn sample_structured(
     // severed, at which point the structure's mass drops while the node's does
     // not, and the missing mass gets silently redistributed into the surviving
     // branches — a tree that grows heavier every time you prune it.
-    let structural = morph.built.clamp(0.0, agg.mass);
-    let residual = (agg.mass - structural).max(0.0);
-    let residual_frac = residual / agg.mass;
+    let structural = morph.built.clamp(0.0, matter.mass);
+    let residual = (matter.mass - structural).max(0.0);
+    let residual_frac = residual / matter.mass;
 
     // Budget is allocated by *salience*, not by mass. Unstructured matter is
     // interchangeable — any sample of it is as good as any other — so a handful
@@ -971,7 +971,7 @@ pub fn sample_structured(
             pos_all.push(st.in_ball());
             masses.push(each);
             radii_all.push(0.0);
-            comps.push(agg.composition);
+            comps.push(matter.composition);
         }
     }
     let n = pos_all.len();
@@ -979,12 +979,12 @@ pub fn sample_structured(
     report.structural_parts = n_struct;
 
     // The skeleton is generated in units of the structure's extent. Scale it so
-    // that `summarise` reports exactly `agg.radius` — which the growth step has
+    // that `summarise` reports exactly `matter.radius` — which the growth step has
     // already set to `morph.extent()`, so this is a unit conversion rather than
     // a correction to the shape.
     let mut pos = pos_all;
-    let com_shift = recentre(&mut pos, &masses, agg.mass);
-    let scale = radius_scale(&pos, &masses, agg.mass, agg.radius);
+    let com_shift = recentre(&mut pos, &masses, matter.mass);
+    let scale = radius_scale(&pos, &masses, matter.mass, matter.radius);
     for p in pos.iter_mut() {
         *p = p.scale(scale);
     }
@@ -1016,13 +1016,13 @@ pub fn sample_structured(
     }
 
     // ---- 2. energy budget ------------------------------------------------
-    let softening = agg.radius / (n as f64).cbrt() * 0.1;
-    let phi = potential_estimate(&pos, &masses, softening, Profile::Uniform, agg);
+    let softening = matter.radius / (n as f64).cbrt() * 0.1;
+    let phi = potential_estimate(&pos, &masses, softening, Profile::Uniform, matter);
     // Same expression the sampled path uses. Self-gravity is negligible for a
     // structure, so this is essentially the thermal budget, but it is written
     // the same way so that the two paths cannot drift apart.
-    let random_ke_target = (agg.internal_energy + agg.binding_energy - phi)
-        .max(agg.internal_energy.abs().max(1e-30));
+    let random_ke_target = (matter.internal_energy + matter.binding_energy - phi)
+        .max(matter.internal_energy.abs().max(1e-30));
 
     // ---- 3. thermal jitter, then the shared projection --------------------
     //
@@ -1033,8 +1033,8 @@ pub fn sample_structured(
     let resid: Vec<Vec3> = (0..n).map(|_| st.normal3()).collect();
 
     let inertia = inertia_of_slices(&pos, &masses);
-    let omega = inertia.solve(agg.spin).unwrap_or(Vec3::ZERO);
-    let ke_rot = 0.5 * omega.dot(agg.spin);
+    let omega = inertia.solve(matter.spin).unwrap_or(Vec3::ZERO);
+    let ke_rot = 0.5 * omega.dot(matter.spin);
 
     let member_radii = radii.clone();
     let parts = Parts {
@@ -1045,7 +1045,7 @@ pub fn sample_structured(
         kind: morph.body_kind(),
     };
     let bodies = close_books(
-        agg,
+        matter,
         parts,
         resid,
         phi,
@@ -1152,16 +1152,16 @@ fn design_cases(
 ///
 /// The requested count, bounded by physics wherever the bodies are countable
 /// things rather than statistical stand-ins. See the note in [`sample`].
-fn particle_limit(agg: &Aggregate, spec: SampleSpec) -> usize {
+fn particle_limit(matter: &Matter, spec: SampleSpec) -> usize {
     let requested = spec.count.max(1);
     let cap = match spec.kind {
         BodyKind::Atom | BodyKind::Molecule => {
-            let each = agg.composition.mean_atomic_mass();
-            if each > 0.0 { agg.mass / each } else { f64::INFINITY }
+            let each = matter.composition.mean_atomic_mass();
+            if each > 0.0 { matter.mass / each } else { f64::INFINITY }
         }
         // The baryon number *is* the nucleon count. There is no arguing with it.
-        BodyKind::Nucleon => agg.baryon_number,
-        BodyKind::Electron => agg.lepton_number,
+        BodyKind::Nucleon => matter.baryon_number,
+        BodyKind::Electron => matter.lepton_number,
         _ => f64::INFINITY,
     };
     if cap.is_finite() && cap >= 1.0 {

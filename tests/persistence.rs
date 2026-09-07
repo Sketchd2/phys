@@ -101,10 +101,10 @@ fn every_field_round_trips() {
         assert_eq!(a.spec.kind, b.spec.kind, "node {i} spec kind");
         // Bit-exact, not approximately equal. A save that renormalised a float
         // would break the idempotent-coarsening guarantee invisibly.
-        assert_eq!(a.agg.mass.to_bits(), b.agg.mass.to_bits(), "node {i} mass bits");
+        assert_eq!(a.matter.mass.to_bits(), b.matter.mass.to_bits(), "node {i} mass bits");
         assert_eq!(
-            a.agg.internal_energy.to_bits(),
-            b.agg.internal_energy.to_bits(),
+            a.matter.internal_energy.to_bits(),
+            b.matter.internal_energy.to_bits(),
             "node {i} internal energy bits"
         );
         assert_eq!(a.motion.offset.x.to_bits(), b.motion.offset.x.to_bits(), "node {i} offset");
@@ -278,7 +278,7 @@ fn reloading_does_not_change_the_future() {
             y.motion.offset.x.to_bits(),
             "node {i} drifted after a reload"
         );
-        assert_eq!(x.agg.mass.to_bits(), y.agg.mass.to_bits(), "node {i} mass drifted");
+        assert_eq!(x.matter.mass.to_bits(), y.matter.mass.to_bits(), "node {i} mass drifted");
     }
 }
 
@@ -377,7 +377,7 @@ fn a_world_survives_a_round_trip_through_a_file() {
     let back = World::from_snapshot(ok(store.load()), 20.0);
     let after = back.conserved();
     // Not bit-exact, and it must not be asserted as such. `sum_conserved` reads
-    // a node's *bodies* when it is materialised and its *aggregate* when it is
+    // a node's *bodies* when it is materialised and its *matter* when it is
     // not, and the file deliberately drops unpinned bodies — so a reload swaps
     // which of the two paths is taken. The difference is the sample/summarise
     // round-off the engine already bounds by `IDEMPOTENT_TOLERANCE`, and it is
@@ -428,7 +428,7 @@ fn committed_facts_survive() {
 /// This is not a defect, but it is surprising enough to be worth pinning down.
 /// The file stores no unpinned bodies, so a reloaded node is bulk state; and
 /// `node_cadence` reads body speeds when a node is materialised and the
-/// aggregate's own characteristic speed when it is not. The pace follows the
+/// matter's own characteristic speed when it is not. The pace follows the
 /// cadence of whatever is being watched, so a coarse world runs at a coarser
 /// pace — correctly, because there is nothing resolved that needs finer steps.
 ///

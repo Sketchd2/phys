@@ -310,17 +310,17 @@ pub fn read(
     instrument: Instrument,
     obs: &Observer,
     view: &RetardedView,
-    agg: &crate::state::Aggregate,
+    matter: &crate::state::Matter,
     stream: &mut Stream,
 ) -> Reading {
     let d = view.distance.max(1e-30);
     let sep_dir = (view.snapshot.offset - obs.offset).unit();
     let dop = doppler(view.snapshot.velocity - obs.velocity, sep_dir);
-    let theta = angular_size(agg.radius, d);
+    let theta = angular_size(matter.radius, d);
 
     match instrument {
         Instrument::Imager => {
-            let f = flux(agg.luminosity, d, dop);
+            let f = flux(matter.luminosity, d, dop);
             if theta < obs.angular_resolution {
                 // Unresolved: the observer gets a point source and a bound on
                 // its size, which is exactly what a real telescope gets.
@@ -330,7 +330,7 @@ pub fn read(
                 };
             }
             // Photon shot noise: the fundamental limit on any flux measurement.
-            let photon_e = 2.7 * K_B * agg.temperature.max(2.725);
+            let photon_e = 2.7 * K_B * matter.temperature.max(2.725);
             let n = if photon_e > 0.0 {
                 f * obs.integration_time / photon_e
             } else {
@@ -345,7 +345,7 @@ pub fn read(
         }
         Instrument::Spectrometer => {
             let mut bins = Vec::with_capacity(32);
-            let t = agg.temperature.max(2.725);
+            let t = matter.temperature.max(2.725);
             for i in 0..32 {
                 let lambda = 1e-8 * (10.0f64).powf(i as f64 / 8.0);
                 // Planck function, Doppler-shifted into the observer's frame.
@@ -364,14 +364,14 @@ pub fn read(
             }
         }
         Instrument::Thermometer => Reading::Temperature {
-            kelvin: agg.temperature,
+            kelvin: matter.temperature,
             // A thermometer in contact with N particles cannot do better than
             // the thermodynamic fluctuation limit.
-            uncertainty: agg.temperature / agg.particle_count().max(1.0).sqrt(),
+            uncertainty: matter.temperature / matter.particle_count().max(1.0).sqrt(),
         },
         Instrument::ParticleDetector => {
-            let f = flux(agg.luminosity, d, dop);
-            let photon_e = (2.7 * K_B * agg.temperature.max(2.725)).max(1e-30);
+            let f = flux(matter.luminosity, d, dop);
+            let photon_e = (2.7 * K_B * matter.temperature.max(2.725)).max(1e-30);
             let expected = f * obs.integration_time / photon_e;
             Reading::ParticleCount {
                 counts: stream.poisson(expected.min(1e12)),
@@ -381,7 +381,7 @@ pub fn read(
         Instrument::Interferometer => {
             let precision = obs.linear_resolution(d);
             let m = crate::solvers::quantum::measure_position(
-                agg.mass,
+                matter.mass,
                 view.snapshot.offset,
                 sep_dir,
                 precision,
@@ -394,7 +394,7 @@ pub fn read(
             }
         }
         Instrument::MassSpectrometer => Reading::Composition {
-            fractions: agg.composition.0,
+            fractions: matter.composition.0,
         },
     }
 }

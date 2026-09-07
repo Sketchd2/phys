@@ -27,7 +27,7 @@
 //!
 //! # Two accounts, reconciled
 //!
-//! A node carries both `Aggregate::composition` — eight lumped coarse elements, which
+//! A node carries both `Matter::composition` — eight lumped coarse elements, which
 //! is what nuclear burning and mass conservation run on — and a `Mixture`,
 //! which says how much of that mass is in *which substances*. The second is a
 //! speciation of the first and may be partial: at ten million kelvin there are
@@ -35,7 +35,7 @@
 //! story.
 //!
 //! [`Mixture::composition`] projects a mixture back down to the eight buckets,
-//! and it must agree with the aggregate's own composition to within round-off.
+//! and it must agree with its own matter's composition to within round-off.
 //! That is the invariant tying the two together, and `tests/chem.rs` asserts it
 //! rather than trusting it.
 
@@ -226,7 +226,7 @@ impl Registry {
 /// Eight, for the same reason the elemental account has eight buckets: a node
 /// is a *bulk* description, and a bulk description that tracked forty trace
 /// trace elements would cost more than the detail it stands in for. What falls off
-/// the end is not lost — its mass stays in the aggregate's composition, it
+/// the end is not lost — its mass stays in the node's matter, it
 /// simply stops being attributed to a named substance.
 pub const MIXTURE_SLOTS: usize = 8;
 
@@ -275,7 +275,7 @@ pub struct Pool {
 
 /// What a node is made of, by substance.
 ///
-/// Fixed size and `Copy`, so it can sit in an `Aggregate` without an
+/// Fixed size and `Copy`, so it can sit in an `Matter` without an
 /// allocation. Fractions are of the node's total mass and need not sum to one:
 /// what is left over is matter with no molecular identity, which at ten million
 /// kelvin is all of it.
@@ -484,7 +484,7 @@ impl Mixture {
     ///
     /// The reconciliation between the two accounts. Returns the composition of
     /// the speciated part only, together with what fraction of the mass that
-    /// was — a caller comparing against an aggregate has to know how much of it
+    /// was — a caller comparing against a node's matter has to know how much of it
     /// this claims to explain.
     pub fn composition(&self, reg: &Registry) -> (Composition, f64) {
         let mut acc = [0.0f64; crate::units::COARSE_ELEMENTS];

@@ -73,9 +73,9 @@ fn integrator_is_second_order() {
 /// machine precision — not to truncation.
 #[test]
 fn sph_conserves_momentum_exactly() {
-    let agg = Aggregate::neutral(1e30, 1e12, 1e4, Composition::solar());
+    let matter = Matter::neutral(1e30, 1e12, 1e4, Composition::solar());
     let spec = phys::sampler::SampleSpec::new(600, phys::sampler::Profile::Uniform, phys::sampler::MassSpectrum::Equal, BodyKind::GasParcel);
-    let (mut b, _) = phys::sampler::sample(&agg, spec, 3, 0x77, 0);
+    let (mut b, _) = phys::sampler::sample(&matter, spec, 3, 0x77, 0);
     let params = hydro::HydroParams { h: 1e11, cooling: false, ..Default::default() };
     let p0 = total_momentum(&b);
     for _ in 0..20 {
@@ -91,9 +91,9 @@ fn sph_conserves_momentum_exactly() {
 /// Artificial viscosity must heat on compression and never cool.
 #[test]
 fn sph_viscosity_only_heats() {
-    let agg = Aggregate::neutral(1e30, 1e12, 1e4, Composition::solar());
+    let matter = Matter::neutral(1e30, 1e12, 1e4, Composition::solar());
     let spec = phys::sampler::SampleSpec::new(400, phys::sampler::Profile::Uniform, phys::sampler::MassSpectrum::Equal, BodyKind::GasParcel);
-    let (mut b, _) = phys::sampler::sample(&agg, spec, 3, 0x78, 0);
+    let (mut b, _) = phys::sampler::sample(&matter, spec, 3, 0x78, 0);
     // Drive a convergent flow.
     for body in b.iter_mut() {
         body.vel = body.pos.unit().scale(-3e4);
@@ -141,9 +141,9 @@ fn lennard_jones_minimum() {
 /// stay there rather than exploding or freezing.
 #[test]
 fn molecular_dynamics_is_stable() {
-    let agg = Aggregate::neutral(64.0 * 12.0 * AMU, 2e-9, 300.0, Composition::pure(CoarseElement::Carbon));
+    let matter = Matter::neutral(64.0 * 12.0 * AMU, 2e-9, 300.0, Composition::pure(CoarseElement::Carbon));
     let spec = phys::sampler::SampleSpec::new(64, phys::sampler::Profile::Lattice, phys::sampler::MassSpectrum::CoarseElement, BodyKind::Atom);
-    let (mut b, _) = phys::sampler::sample(&agg, spec, 5, 0x1234, 0);
+    let (mut b, _) = phys::sampler::sample(&matter, spec, 5, 0x1234, 0);
     let params = md::MdParams { thermostat: Some(300.0), friction: 1e12, ..Default::default() };
     let dt = md::stable_dt(&b);
     assert!(dt > 0.0 && dt < 1e-13, "implausible MD timestep {dt:.3e}");

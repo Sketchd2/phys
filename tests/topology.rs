@@ -10,17 +10,17 @@ use phys::morph::NO_SUPPORT;
 use phys::topology::*;
 use phys::units::*;
 
-fn tree(mass: f64) -> (Aggregate, Morphology) {
+fn tree(mass: f64) -> (Matter, Morphology) {
     let mut m = Morphology::new(Program::Tree, 0xACE, 0x1234, 0);
     m.built = mass;
     m.age = 40.0 * YEAR;
-    let mut agg = Aggregate::neutral(mass, m.extent(), 291.0, Program::Tree.substrate());
-    agg.chemical_energy = m.stored_energy();
-    (agg, m)
+    let mut matter = Matter::neutral(mass, m.extent(), 291.0, Program::Tree.substrate());
+    matter.chemical_energy = m.stored_energy();
+    (matter, m)
 }
 
-fn load(agg: &Aggregate, m: &Morphology, budget: usize) -> (Vec<Body>, Topology) {
-    let (b, t, _) = sample_structured(agg, m, budget, 7, 0x1234, 0);
+fn load(matter: &Matter, m: &Morphology, budget: usize) -> (Vec<Body>, Topology) {
+    let (b, t, _) = sample_structured(matter, m, budget, 7, 0x1234, 0);
     (b, t)
 }
 
@@ -33,8 +33,8 @@ fn the_support_graph_is_a_well_formed_tree() {
         m.built = 5000.0;
         m.design_mass = 5000.0;
         m.progress = 1.0;
-        let agg = Aggregate::neutral(5000.0, m.extent(), 290.0, program.substrate());
-        let (bodies, topo, report) = sample_structured(&agg, &m, 3000, 7, 0x2, 0);
+        let matter = Matter::neutral(5000.0, m.extent(), 290.0, program.substrate());
+        let (bodies, topo, report) = sample_structured(&matter, &m, 3000, 7, 0x2, 0);
         assert!(!topo.is_empty(), "{program:?} produced no joints");
 
         let n = report.structural_parts;
@@ -71,8 +71,8 @@ fn the_support_graph_is_a_well_formed_tree() {
 /// and if it did not, every failure result below would be meaningless.
 #[test]
 fn a_tree_stands_up() {
-    let (agg, m) = tree(900.0);
-    let (bodies, topo) = load(&agg, &m, 4000);
+    let (matter, m) = tree(900.0);
+    let (bodies, topo) = load(&matter, &m, 4000);
     let mut field = LoadField::new(bodies.len(), 291.0);
     field.apply(&weather::gravity(), &bodies, &topo);
     let loads = analyse(&bodies, &topo, &field);
@@ -98,8 +98,8 @@ fn a_tree_stands_up() {
 /// density, or every stress in the model is wrong by the cube of the error.
 #[test]
 fn member_geometry_matches_its_mass() {
-    let (agg, m) = tree(900.0);
-    let (bodies, topo, report) = sample_structured(&agg, &m, 4000, 7, 0x1234, 0);
+    let (matter, m) = tree(900.0);
+    let (bodies, topo, report) = sample_structured(&matter, &m, 4000, 7, 0x1234, 0);
     let mut volume = 0.0;
     for i in 0..report.structural_parts {
         let len = (topo.tip[i] - topo.base[i]).norm();
@@ -124,11 +124,11 @@ fn member_geometry_matches_its_mass() {
 /// Wind: survivable gale, damaging storm, destructive hurricane.
 #[test]
 fn wind_damage_scales_with_speed() {
-    let (agg, m) = tree(900.0);
+    let (matter, m) = tree(900.0);
     let mut last = 0.0;
     let mut results = Vec::new();
     for speed in [15.0, 25.0, 40.0, 60.0] {
-        let (bodies, mut topo) = load(&agg, &m, 4000);
+        let (bodies, mut topo) = load(&matter, &m, 4000);
         let mut field = LoadField::new(bodies.len(), 291.0);
         field.apply(&weather::wind(speed, v3(1.0, 0.0, 0.0)), &bodies, &topo);
         field.apply(&weather::gravity(), &bodies, &topo);
@@ -152,9 +152,9 @@ fn wind_damage_scales_with_speed() {
 /// tell them apart is not modelling snow, it is modelling weight.
 #[test]
 fn only_wet_snow_breaks_branches() {
-    let (agg, m) = tree(900.0);
+    let (matter, m) = tree(900.0);
     let survives = |depth: f64, density: f64| {
-        let (bodies, mut topo) = load(&agg, &m, 4000);
+        let (bodies, mut topo) = load(&matter, &m, 4000);
         let mut field = LoadField::new(bodies.len(), 271.0);
         field.apply(&weather::snow(depth, density, m.capture_area()), &bodies, &topo);
         field.apply(&weather::gravity(), &bodies, &topo);
@@ -191,10 +191,10 @@ fn only_wet_snow_breaks_branches() {
 /// kilogram.
 #[test]
 fn lightning_destroys_along_its_path() {
-    let (agg, m) = tree(900.0);
+    let (matter, m) = tree(900.0);
     let mut previous = 0;
     for joules in [1e7, 1e8, 1e9] {
-        let (bodies, mut topo) = load(&agg, &m, 4000);
+        let (bodies, mut topo) = load(&matter, &m, 4000);
         let entry = (bodies.len() / 2) as u32;
         let mut field = LoadField::new(bodies.len(), 291.0);
         field.apply(&weather::lightning(joules, entry), &bodies, &topo);
@@ -218,9 +218,9 @@ fn lightning_destroys_along_its_path() {
 /// ones do not.
 #[test]
 fn fire_consumes_fine_fuel_first() {
-    let (agg, m) = tree(900.0);
+    let (matter, m) = tree(900.0);
     let burn = |temperature: f64, duration: f64, height: f64| {
-        let (bodies, mut topo) = load(&agg, &m, 4000);
+        let (bodies, mut topo) = load(&matter, &m, 4000);
         let mut field = LoadField::new(bodies.len(), 291.0);
         field.apply(&weather::fire(temperature, height, duration), &bodies, &topo);
         field.apply(&weather::gravity(), &bodies, &topo);
@@ -252,14 +252,14 @@ fn damage_persists_and_conserves() {
     let node = w.tree.promote(root, 7, phys::engine::default_spec(Tier::Stellar));
     {
         let n = &mut w.tree.nodes[node.get()];
-        n.agg = Aggregate::neutral(900.0, 6.0, 291.0, Program::Tree.substrate());
+        n.matter = Matter::neutral(900.0, 6.0, 291.0, Program::Tree.substrate());
         n.spec.count = 3000;
     }
     w.plant(node, Program::Tree, Environment::default());
-    let mass0 = w.tree.nodes[node.get()].agg.mass;
-    let baryon0 = w.tree.nodes[node.get()].agg.baryon_number;
+    let mass0 = w.tree.nodes[node.get()].matter.mass;
+    let baryon0 = w.tree.nodes[node.get()].matter.baryon_number;
     let built0 = w.tree.nodes[node.get()].morphology.as_ref().unwrap().built;
-    let entropy0 = w.tree.nodes[node.get()].agg.total_entropy();
+    let entropy0 = w.tree.nodes[node.get()].matter.total_entropy();
 
     let out = w.damage(node, &[weather::snow(0.25, 450.0, 30.0)]);
     println!(
@@ -271,10 +271,10 @@ fn damage_persists_and_conserves() {
 
     let n = &w.tree.nodes[node.get()];
     // Mass and baryon number are untouched: the limb is on the ground, not gone.
-    assert_eq!(n.agg.mass, mass0, "node mass changed when a limb fell");
-    assert!((n.agg.baryon_number - baryon0).abs() / baryon0 < 1e-12);
+    assert_eq!(n.matter.mass, mass0, "node mass changed when a limb fell");
+    assert!((n.matter.baryon_number - baryon0).abs() / baryon0 < 1e-12);
     assert!(n.morphology.as_ref().unwrap().built < built0, "structure did not lose mass");
-    assert!(n.agg.total_entropy() >= entropy0, "total entropy fell");
+    assert!(n.matter.total_entropy() >= entropy0, "total entropy fell");
     assert_eq!(w.rejected_growth_steps, 0);
 
     // And it is still deterministic, and still damaged, after regeneration.
@@ -300,13 +300,13 @@ fn fire_releases_stored_energy_without_losing_mass() {
     let node = w.tree.promote(root, 9, phys::engine::default_spec(Tier::Stellar));
     {
         let n = &mut w.tree.nodes[node.get()];
-        n.agg = Aggregate::neutral(900.0, 6.0, 291.0, Program::Tree.substrate());
+        n.matter = Matter::neutral(900.0, 6.0, 291.0, Program::Tree.substrate());
         n.spec.count = 3000;
     }
     w.plant(node, Program::Tree, Environment::default());
-    let mass0 = w.tree.nodes[node.get()].agg.mass;
-    let chem0 = w.tree.nodes[node.get()].agg.chemical_energy;
-    let internal0 = w.tree.nodes[node.get()].agg.internal_energy;
+    let mass0 = w.tree.nodes[node.get()].matter.mass;
+    let chem0 = w.tree.nodes[node.get()].matter.chemical_energy;
+    let internal0 = w.tree.nodes[node.get()].matter.internal_energy;
 
     let out = w.damage(node, &[weather::fire(1100.0, 30.0, 600.0)]);
     let n = &w.tree.nodes[node.get()];
@@ -315,17 +315,17 @@ fn fire_releases_stored_energy_without_losing_mass() {
         out.consumed_mass, out.energy_released
     );
     assert!(out.consumed_mass > 0.0, "nothing burned");
-    assert_eq!(n.agg.mass, mass0, "combustion lost mass; the atoms have to go somewhere");
-    assert!(n.agg.chemical_energy < chem0, "burning released no stored energy");
-    assert!(n.agg.internal_energy > internal0, "the fire produced no heat");
+    assert_eq!(n.matter.mass, mass0, "combustion lost mass; the atoms have to go somewhere");
+    assert!(n.matter.chemical_energy < chem0, "burning released no stored energy");
+    assert!(n.matter.internal_energy > internal0, "the fire produced no heat");
     assert_eq!(w.rejected_growth_steps, 0, "a combustion transaction failed to balance");
 }
 
 /// Topology costs little enough to be worth having on every structure.
 #[test]
 fn topology_is_cheap() {
-    let (agg, m) = tree(900.0);
-    let (bodies, topo, _) = sample_structured(&agg, &m, 8000, 7, 0x1234, 0);
+    let (matter, m) = tree(900.0);
+    let (bodies, topo, _) = sample_structured(&matter, &m, 8000, 7, 0x1234, 0);
     let geometry = bodies.len() * std::mem::size_of::<Body>();
     let cohesion = topo.bytes();
     println!(
@@ -345,8 +345,8 @@ fn topology_is_cheap() {
 #[test]
 fn renderer_draws_the_structure() {
     use phys::render::*;
-    let (agg, m) = tree(900.0);
-    let (bodies, topo) = load(&agg, &m, 3000);
+    let (matter, m) = tree(900.0);
+    let (bodies, topo) = load(&matter, &m, 3000);
     let cam = Camera::framing(v3(0.0, 0.0, 0.0), m.extent() * 1.2, 0.6, 0.1);
     let intact = vec![true; bodies.len()];
     let mut canvas = Canvas::new(320, 260);
@@ -498,8 +498,8 @@ fn bracing_relieves_the_primary_path() {
     let mut m = Morphology::planned(Program::Tower, 3.0e6, 11, 0x77);
     m.progress = 1.0;
     m.built = 3.0e6;
-    let agg = Aggregate::neutral(3.0e6, m.extent(), 290.0, Program::Tower.substrate());
-    let (bodies, topo, _) = sample_structured(&agg, &m, 2000, 7, 0x77, 0);
+    let matter = Matter::neutral(3.0e6, m.extent(), 290.0, Program::Tower.substrate());
+    let (bodies, topo, _) = sample_structured(&matter, &m, 2000, 7, 0x77, 0);
     assert!(!topo.ties.is_empty(), "a framed tower should be braced");
     assert!(!topo.is_determinate());
 
@@ -544,8 +544,8 @@ fn bracing_relieves_the_primary_path() {
 /// ash, and the same drag law describes air and water.
 #[test]
 fn mechanisms_are_not_weather_specific() {
-    let (agg, m) = tree(900.0);
-    let (bodies, topo) = load(&agg, &m, 3000);
+    let (matter, m) = tree(900.0);
+    let (bodies, topo) = load(&matter, &m, 3000);
     let crown = m.capture_area();
 
     let peak = |mech: Mechanism| {
@@ -587,8 +587,8 @@ fn mechanisms_are_not_weather_specific() {
 /// the numbers say it should.
 #[test]
 fn materials_are_interchangeable_data() {
-    let (agg, m) = tree(900.0);
-    let (bodies, base) = load(&agg, &m, 2000);
+    let (matter, m) = tree(900.0);
+    let (bodies, base) = load(&matter, &m, 2000);
 
     let peak_for = |mat: Material| {
         let mut topo = base.clone();
@@ -622,8 +622,8 @@ fn materials_are_interchangeable_data() {
 /// Otherwise the fast path would be a different physics, not a special case.
 #[test]
 fn the_two_solvers_agree_on_determinate_structures() {
-    let (agg, m) = tree(900.0);
-    let (bodies, topo) = load(&agg, &m, 1500);
+    let (matter, m) = tree(900.0);
+    let (bodies, topo) = load(&matter, &m, 1500);
     let mut field = LoadField::new(bodies.len(), 290.0);
     // A load the structure is comfortable under. The two paths are only
     // *required* to agree while everything stays elastic: the redundant solver
@@ -680,8 +680,8 @@ fn the_two_solvers_agree_on_determinate_structures() {
 #[test]
 fn a_structure_is_proportioned_for_its_loads_when_it_is_built() {
     for (label, mass, budget) in [("900 kg", 900.0, 1200usize), ("6 t", 6000.0, 400)] {
-        let (agg, m) = tree(mass);
-        let (_, _, report) = sample_structured(&agg, &m, budget, 7, 0x1234, 0);
+        let (matter, m) = tree(mass);
+        let (_, _, report) = sample_structured(&matter, &m, budget, 7, 0x1234, 0);
         let d = report.design;
         println!(
             "  {label:>6}: peak {:.3} -> {:.3}, spread {:.3} -> {:.3} over {} passes, \
@@ -718,8 +718,8 @@ fn a_structure_is_proportioned_for_its_loads_when_it_is_built() {
 /// nothing was designed for.
 #[test]
 fn the_design_pass_does_not_overfit_its_own_load_cases() {
-    let (agg, m) = tree(900.0);
-    let (bodies, topo) = load(&agg, &m, 1500);
+    let (matter, m) = tree(900.0);
+    let (bodies, topo) = load(&matter, &m, 1500);
 
     // A direction the design cases do not use, at a speed below what a tree of
     // this size should be troubled by.

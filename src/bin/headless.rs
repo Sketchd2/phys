@@ -130,7 +130,7 @@ fn main() {
 
 /// A galaxy, drilled to a stellar node, with neighbours promoted around it.
 ///
-/// The neighbours are the point. Each is a real node with its own aggregate
+/// The neighbours are the point. Each is a real node with its own matter
 /// that the engine has *not* materialised, which is the shape a city has: many
 /// things present, few of them being solved. What a client can be told about
 /// them is the entire question this program measures.
@@ -339,7 +339,7 @@ fn watch() {
         // The client's half of the bargain, in four parts.
         //
         // A recipe is built here, by the same sampler the engine uses, from an
-        // aggregate that arrived in a few hundred bytes. If this build cannot
+        // matter that arrived in a few hundred bytes. If this build cannot
         // reproduce it the scene says so rather than drawing something wrong,
         // and a real client would re-ask with `allow_recipes: false`.
         let from_recipe: std::collections::HashSet<u128> = scene
@@ -390,7 +390,7 @@ fn watch() {
                 }
                 // Turned into `Explicit` by `materialise` above, unless this
                 // build could not reproduce it — in which case there is
-                // nothing to hold and the node draws as its aggregate.
+                // nothing to hold and the node draws as bulk matter.
                 view::Detail::Recipe(_) => {}
             }
         }

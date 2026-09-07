@@ -231,7 +231,7 @@ fn an_unreachable_span_is_crossed_by_ensemble() {
     assert!(w.tree.nodes[deep.get()].is_materialised());
 
     let before = w.conserved();
-    let mass_before = w.tree.nodes[deep.get()].agg.mass;
+    let mass_before = w.tree.nodes[deep.get()].matter.mass;
     // Ask for a span the node cannot possibly integrate: a whole second of
     // molecular time is 10^14 steps.
     let horizon = w.time + 1.0;
@@ -249,7 +249,7 @@ fn an_unreachable_span_is_crossed_by_ensemble() {
     println!("  baryon-number drift across the crossing: {drift:.3e}");
     assert!(drift < 1e-9, "ensemble crossing lost baryons: {drift:.3e}");
     assert!(
-        (w.tree.nodes[deep.get()].agg.mass - mass_before).abs()
+        (w.tree.nodes[deep.get()].matter.mass - mass_before).abs()
             <= mass_before * 1e-9,
         "the node's own mass changed"
     );

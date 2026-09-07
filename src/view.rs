@@ -12,7 +12,7 @@
 //! receives a [`Scene`], and a `Scene` is the *only* thing it gets. It carries
 //! no solver and no clock: a renderer holding one can draw a picture and cannot
 //! advance physics, which is the property worth having. Note what that
-//! guarantee is *not*. A [`Recipe`] does hand the client an aggregate, because
+//! guarantee is *not*. A [`Recipe`] does hand the client a node's matter, because
 //! the client needs one to generate its own scenery — the invariant is
 //! "cannot step time", not "cannot see state", and it survives intact, since
 //! [`crate::sampler`] samples an instant and has no time argument to give it.
@@ -51,7 +51,7 @@
 //!    [`Recipe`].
 //! 2. **Volume queries with distance LOD.** [`Volume`] asks for everything
 //!    near an eye and gives each node detail in proportion to the angle it
-//!    subtends. A building a pixel wide comes back as an aggregate. Cost is
+//!    subtends. A building a pixel wide comes back as bulk matter. Cost is
 //!    bounded by the screen, not by the world.
 //! 3. **Per-client deltas.** A [`Client`] remembers what it sent and sends only
 //!    what changed, plus the keys that left the query. See [`Detail::Unchanged`]
@@ -250,7 +250,7 @@ fn stride_for(have: usize, want: usize) -> usize {
 /// `&self` on [`crate::engine::World::render`] exists to forbid.
 ///
 /// A recipe is the way out. [`crate::sampler`] is deterministic in
-/// `(aggregate, spec, world_seed, path_key, epoch)` and nothing else, so those
+/// `(matter, spec, world_seed, path_key, epoch)` and nothing else, so those
 /// ~300 bytes *are* the bodies, losslessly, whatever the count. Ten thousand
 /// procedural buildings cost three megabytes of recipes once instead of a
 /// hundred and twenty megabytes of bodies every time one comes into view, and
@@ -260,7 +260,7 @@ fn stride_for(have: usize, want: usize) -> usize {
 ///
 /// Only for detail the server does not hold. A node that is materialised has
 /// bodies that have since been *stepped*, and stepped bodies are not what the
-/// sampler would draw from the current aggregate — so those are sent
+/// sampler would draw from the current matter — so those are sent
 /// explicitly. A node that is pinned or has stored detail was altered by an
 /// interaction and by definition cannot be regenerated; those are explicit too.
 ///
@@ -273,7 +273,7 @@ fn stride_for(have: usize, want: usize) -> usize {
 ///
 /// # What is checked
 ///
-/// [`Recipe::build`] verifies that the mass it generated sums to the aggregate
+/// [`Recipe::build`] verifies that the mass it generated sums to the matter
 /// mass it was given. That catches the failure that matters — a blob from a
 /// different build of the engine, decoded into plausible-looking nonsense —
 /// and costs no extra bytes on the wire. `checksum` catches the cruder case of
@@ -292,13 +292,13 @@ pub struct Recipe {
     pub lag: f64,
     /// FNV-1a over `blob`.
     pub checksum: u64,
-    /// Aggregate, spec and morphology, in the crate's own encoding. Opaque
+    /// Matter, spec and morphology, in the crate's own encoding. Opaque
     /// here on purpose: the client opens it through [`Recipe::build`] and the
     /// wire never has to know what is in it.
     blob: Vec<u8>,
 }
 
-/// Largest recipe blob accepted from the wire. An aggregate and a spec are
+/// Largest recipe blob accepted from the wire. A node's matter and a spec are
 /// about 290 bytes; a morphology adds its event log. Well clear of both, and
 /// far under anything that could be used to make a client allocate.
 const MAX_RECIPE_BYTES: usize = 1 << 16;
@@ -327,27 +327,27 @@ impl Recipe {
             return Err(crate::wire::WireError::BadRecipe { what: "checksum" });
         }
         let mut r = Reader::new(&self.blob);
-        let agg = crate::persist::get_aggregate(&mut r)?;
+        let matter = crate::persist::get_matter(&mut r)?;
         let spec = crate::persist::get_spec(&mut r)?;
         let morph = if r.bool()? { Some(crate::persist::get_morphology(&mut r)?) } else { None };
         r.finish()?;
 
         let bodies = match &morph {
             Some(m) => {
-                crate::sampler::sample_structured(&agg, m, spec.count, self.seed, self.key.0, self.epoch).0
+                crate::sampler::sample_structured(&matter, m, spec.count, self.seed, self.key.0, self.epoch).0
             }
-            None => crate::sampler::sample(&agg, spec, self.seed, self.key.0, self.epoch).0,
+            None => crate::sampler::sample(&matter, spec, self.seed, self.key.0, self.epoch).0,
         };
 
         // The check that is worth making. If this build of the engine samples
         // differently from the one that wrote the recipe, the conserved
         // quantity it was built against is the first thing to disagree.
         let got: f64 = bodies.iter().map(|b| b.mass).sum();
-        if agg.mass > 0.0 && ((got - agg.mass) / agg.mass).abs() > 1e-9 {
+        if matter.mass > 0.0 && ((got - matter.mass) / matter.mass).abs() > 1e-9 {
             return Err(crate::wire::WireError::BadRecipe { what: "mass" });
         }
 
-        Ok(specks_of(&bodies, agg.radius, self.lag, self.stride as usize))
+        Ok(specks_of(&bodies, matter.radius, self.lag, self.stride as usize))
     }
 }
 
@@ -357,7 +357,7 @@ pub enum Detail {
     /// Nothing new. Either the node has not been re-solved since the client
     /// last heard about it, or it is too small on screen to be worth detailing.
     /// A client holding bodies for it should carry them forward; a client
-    /// holding none should draw it as its aggregate.
+    /// holding none should draw it as bulk matter.
     Unchanged,
     /// Bodies, quantised.
     Explicit(Vec<Speck>),
@@ -1228,13 +1228,13 @@ impl crate::engine::World {
             return scene;
         }
         let frame = &self.tree.nodes[idx.get()];
-        let frame_radius = frame.agg.radius.max(1e-300);
+        let frame_radius = frame.matter.radius.max(1e-300);
 
         // The ladder above, nearest first.
         let mut cur = frame.parent;
         while !cur.is_none() && scene.trail.len() < req.trail {
             let a = &self.tree.nodes[cur.get()];
-            scene.trail.push(TrailStep { tier: a.tier.index() as u8, radius: a.agg.radius });
+            scene.trail.push(TrailStep { tier: a.tier.index() as u8, radius: a.matter.radius });
             cur = a.parent;
         }
 
@@ -1265,7 +1265,7 @@ impl crate::engine::World {
                     (c.offset.y / frame_radius) as f32,
                     (c.offset.z / frame_radius) as f32,
                 ],
-                scale: (n.agg.radius / frame_radius) as f32,
+                scale: (n.matter.radius / frame_radius) as f32,
                 angular_size: if c.angle.is_finite() { c.angle as f32 } else { 0.0 },
                 detail,
             });
@@ -1281,13 +1281,13 @@ impl crate::engine::World {
             tier: n.tier.index() as u8,
             solver: crate::solvers::for_tier(n.tier) as u8,
             depth: n.depth,
-            mass: n.agg.mass,
-            radius: n.agg.radius,
-            temperature: n.agg.temperature,
-            internal_energy: n.agg.internal_energy,
-            binding_energy: n.agg.binding_energy,
-            luminosity: n.agg.luminosity,
-            charge: n.agg.charge,
+            mass: n.matter.mass,
+            radius: n.matter.radius,
+            temperature: n.matter.temperature,
+            internal_energy: n.matter.internal_energy,
+            binding_energy: n.matter.binding_energy,
+            luminosity: n.matter.luminosity,
+            charge: n.matter.charge,
             cadence: self.node_cadence(idx),
             timestep: self.node_dt(idx),
             mixing_time: self.mixing_time(idx),
@@ -1330,10 +1330,10 @@ impl crate::engine::World {
                 let d = (cpos - eye).norm();
                 // Children are contained in their parent, so a node whose own
                 // sphere misses the reach takes its whole subtree with it.
-                if d - child.agg.radius > reach {
+                if d - child.matter.radius > reach {
                     continue;
                 }
-                let angle = child.agg.radius / d.max(1e-300);
+                let angle = child.matter.radius / d.max(1e-300);
                 out.push(Candidate { idx: c, offset: cpos, angle });
                 // Below the detail angle there is nothing to draw and nothing
                 // inside it can be bigger, so the walk stops. This is what
@@ -1386,7 +1386,7 @@ impl crate::engine::World {
         let lag = self.render_lag(idx);
         if n.is_materialised() {
             let stride = stride_for(n.bodies.len(), want);
-            return Detail::Explicit(specks_of(&n.bodies, n.agg.radius, lag, stride));
+            return Detail::Explicit(specks_of(&n.bodies, n.matter.radius, lag, stride));
         }
 
         // Nothing materialised. The server has no bodies to send — but it has
@@ -1411,7 +1411,7 @@ impl Recipe {
             return None;
         }
         let mut w = Writer::new();
-        crate::persist::put_aggregate(&mut w, &n.agg);
+        crate::persist::put_matter(&mut w, &n.matter);
         crate::persist::put_spec(&mut w, &n.spec);
         match &n.morphology {
             Some(m) => {

@@ -19,7 +19,7 @@
 //! It moves mass between *phases* of substances and nothing else. That single
 //! summarising is what makes it safe to run on every node every frame: the
 //! elemental account cannot move, because dissolving a salt does not transmute
-//! anything, so `Aggregate::composition`, the baryon number and the mass are
+//! anything, so `Matter::composition`, the baryon number and the mass are
 //! all untouched by construction rather than by care.
 //!
 //! What does move is energy, and it is booked. Melting absorbs, freezing

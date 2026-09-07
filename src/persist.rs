@@ -3,13 +3,13 @@
 //! # What is durable, and what is not
 //!
 //! The engine's whole argument is that most of the world is *derivable* — a
-//! galaxy's stars are a maximum-entropy sample of its aggregate, and coarsening
-//! them returns the aggregate exactly. So a save file does not contain the
+//! galaxy's stars are a maximum-entropy sample of its matter, and coarsening
+//! them returns the matter exactly. So a save file does not contain the
 //! world; it contains the part of the world that could not be worked out again:
 //!
 //! | Durable | Why |
 //! |---|---|
-//! | Node aggregates, frames, tiers, addresses | This *is* the world |
+//! | Node matter, motion, tiers, addresses | This *is* the world |
 //! | Pinned detail (`Tree::persisted`) | Somebody touched it, so it is no longer a sample of anything |
 //! | Morphology and topology | A tree that lost a branch has lost it |
 //! | Ledger facts | A measurement made a value a fact; re-sampling it would be a lie |
@@ -43,7 +43,7 @@ use crate::ids::{NodeIdx, PathKey};
 use crate::morph::{Environment, Event, EventKind, Morphology, Program};
 use crate::observe::{AuthorEvent, Fact, Ledger, Property, Quantity};
 use crate::sampler::{MassSpectrum, Profile, SampleReport, SampleSpec};
-use crate::state::{Aggregate, Body, BodyKind, Composition};
+use crate::state::{Matter, Body, BodyKind, Composition};
 use crate::topology::{Joint, Material, Tie, Topology};
 use crate::tree::{Node, Residency, Tree, TreeStats};
 use crate::units::{CoarseElement, Tier, COARSE_ELEMENTS};
@@ -249,7 +249,7 @@ pub(crate) fn get_bodies_pub(r: &mut Reader) -> Result<Vec<Body>> {
     Ok(v)
 }
 
-pub(crate) fn put_aggregate(w: &mut Writer, a: &Aggregate) {
+pub(crate) fn put_matter(w: &mut Writer, a: &Matter) {
     w.f64(a.mass);
     w.vec3(a.com);
     w.vec3(a.momentum);
@@ -269,8 +269,8 @@ pub(crate) fn put_aggregate(w: &mut Writer, a: &Aggregate) {
     w.f64(a.magnetic_energy);
     w.f64(a.luminosity);
 }
-pub(crate) fn get_aggregate(r: &mut Reader) -> Result<Aggregate> {
-    Ok(Aggregate {
+pub(crate) fn get_matter(r: &mut Reader) -> Result<Matter> {
+    Ok(Matter {
         mass: r.f64()?,
         com: r.vec3()?,
         momentum: r.vec3()?,
@@ -767,7 +767,7 @@ pub(crate) fn put_node_payload(w: &mut Writer, n: &Node) {
     w.u32(n.slot);
     w.u32(n.depth);
     put_tier(w, n.tier);
-    put_aggregate(w, &n.agg);
+    put_matter(w, &n.matter);
     put_motion(w, &n.motion);
     // Only pinned detail is written. Everything else is regenerated from the
     // node's address and epoch, and `tests/persistence.rs` checks that the
@@ -803,7 +803,7 @@ pub(crate) fn get_node_payload(r: &mut Reader) -> Result<Node> {
     let slot = r.u32()?;
     let depth = r.u32()?;
     let tier = get_tier(r)?;
-    let agg = get_aggregate(r)?;
+    let matter = get_matter(r)?;
     let motion = get_motion(r)?;
     let bodies = get_bodies_pub(r)?;
     let potential = r.f64()?;
@@ -819,7 +819,7 @@ pub(crate) fn get_node_payload(r: &mut Reader) -> Result<Node> {
         slot,
         depth,
         tier,
-        agg,
+        matter,
         motion,
         bodies,
         potential,

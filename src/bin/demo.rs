@@ -75,10 +75,10 @@ fn main() {
         println!(
             "  {:<11} {:>14} {:>12} {:>9} {:>10.3e} {:>11.2e}",
             n.tier.name(),
-            fmt_mass(n.agg.mass),
-            fmt_length(n.agg.radius),
+            fmt_mass(n.matter.mass),
+            fmt_length(n.matter.radius),
             n.bodies.len(),
-            n.agg.temperature,
+            n.matter.temperature,
             n.last_report.conservation_error
         );
     }
@@ -98,9 +98,9 @@ fn main() {
     w.tree.refine(sibling);
     let target = sibling;
     let before: Vec<Body> = w.tree.nodes[target.get()].bodies.clone();
-    let agg_before = w.tree.nodes[target.get()].agg;
+    let agg_before = w.tree.nodes[target.get()].matter;
     let err = w.tree.coarsen(target);
-    let agg_mid = w.tree.nodes[target.get()].agg;
+    let agg_mid = w.tree.nodes[target.get()].matter;
     let after: Vec<Body> = w.tree.refine(target).to_vec();
     let _ = NodeIdx::NONE;
     let identical = before.len() == after.len()
@@ -224,12 +224,12 @@ fn main() {
     let forest = w.tree.promote(root, 11, default_spec(Tier::Stellar));
     {
         let n = &mut w.tree.nodes[forest.get()];
-        n.agg = Aggregate::neutral(2.0, 0.4, 291.0, phys::morph::Program::Tree.substrate());
+        n.matter = Matter::neutral(2.0, 0.4, 291.0, phys::morph::Program::Tree.substrate());
         n.spec.count = 6000;
     }
     w.plant(forest, phys::morph::Program::Tree, phys::morph::Environment::default());
 
-    let entropy0 = w.tree.nodes[forest.get()].agg.entropy;
+    let entropy0 = w.tree.nodes[forest.get()].matter.entropy;
     println!("  {:>6} {:>12} {:>10} {:>14} {:>14}", "year", "biomass", "height", "absorbed (J)", "total dS (J/K)");
     let mut absorbed = 0.0;
     let mut entropy = 0.0;
@@ -260,13 +260,13 @@ fn main() {
     println!("  Developmental state:     {} bytes  ({}x smaller)",
         m.state_bytes(),
         (bodies.len() * std::mem::size_of::<Body>()) / m.state_bytes().max(1));
-    println!("  Free energy stored:      {:.4e} J", w.tree.nodes[forest.get()].agg.chemical_energy);
-    let agg_now = w.tree.nodes[forest.get()].agg;
+    println!("  Free energy stored:      {:.4e} J", w.tree.nodes[forest.get()].matter.chemical_energy);
+    let agg_now = w.tree.nodes[forest.get()].matter;
     println!("  Local entropy:           {:+.4e} J/K   (it ordered itself)",
         agg_now.entropy - entropy0);
     println!("  Exported to surroundings:{:+.4e} J/K   (so the total rose)",
         agg_now.entropy_exported);
-    println!("\n  Growth ran on the aggregate: {} steps, no fine structure touched.",
+    println!("\n  Growth ran on the node's matter: {} steps, no fine structure touched.",
         w.tree.stats.growth_steps);
     println!("  Transactions refused for breaking the books: {}", w.rejected_growth_steps);
 

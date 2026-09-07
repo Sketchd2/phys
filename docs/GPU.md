@@ -28,13 +28,13 @@ The engine's guarantees are not negotiable across backends:
 |---|---|---|
 | Positions within a node | `f32` | Node-local coordinates span ≤ 6 orders; `f32` gives 7 digits |
 | Velocities, accelerations | `f32` | Same |
-| Node aggregates, conserved tuples | `f64` | Where exactness is claimed, and there are only ~10⁶ of them |
+| Node matter, conserved tuples | `f64` | Where exactness is claimed, and there are only ~10⁶ of them |
 | Summarising reductions | `f64` | The conservation guarantee lives here |
 | Time | `f64` | 10⁶⁰ dynamic range across tiers |
 
 This split is exactly what the no-global-coordinates design already enables:
 because positions are always node-relative, `f32` is sufficient for them, and
-the `f64` work is confined to the small aggregate layer.
+the `f64` work is confined to the small matter layer.
 
 ## Data layout
 

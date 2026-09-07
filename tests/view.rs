@@ -81,8 +81,8 @@ fn an_unresolved_node_renders_empty() {
     assert!(!scene.node().materialised);
     // But the node's own facts are still there — a client can say what it is
     // looking at without anything having been built.
-    assert!(scene.node().mass > 0.0, "the aggregate should still describe itself");
-    assert_eq!(scene.node().radius, w.tree.nodes[root.get()].agg.radius);
+    assert!(scene.node().mass > 0.0, "the matter should still describe itself");
+    assert_eq!(scene.node().radius, w.tree.nodes[root.get()].matter.radius);
     println!(
         "  unresolved {} node: {:.3e} kg, {:.3e} m, 0 bodies",
         tier_name(scene.node().tier),
@@ -188,7 +188,7 @@ fn a_scene_is_interpolated_to_one_instant() {
     // linearly is honest rather than a smear.
     let lateness = w.lateness(root, w.time);
     let elements = w.tree.nodes[root.get()].bodies.len() as f64;
-    let element = w.tree.nodes[root.get()].agg.radius / elements.cbrt();
+    let element = w.tree.nodes[root.get()].matter.radius / elements.cbrt();
     let moved = w
         .tree
         .nodes[root.get()]
@@ -516,7 +516,7 @@ fn the_wire_cost_per_body_is_what_we_think() {
 /// A node materialised long after it was last solved must not be flung across
 /// the sky.
 ///
-/// `refine` samples bodies from the aggregate *as it currently is*, so they are
+/// `refine` samples bodies from the matter *as it currently is*, so they are
 /// valid now — but it has no clock, so `last_solved` stays wherever it was. A
 /// renderer that carried them by `time - last_solved` extrapolated correct
 /// positions at three and a half node radii out to 10^8, and nothing caught it
@@ -541,7 +541,7 @@ fn a_freshly_materialised_node_is_not_extrapolated() {
     let truth = node
         .bodies
         .iter()
-        .map(|b| b.pos.norm() / node.agg.radius)
+        .map(|b| b.pos.norm() / node.matter.radius)
         .fold(0.0f64, f64::max);
     let stale = w.time - node.last_solved;
 

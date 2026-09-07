@@ -21,7 +21,7 @@ use crate::ids::NodeIdx;
 use crate::math::{v3, Vec3};
 use crate::morph::{Environment, Program};
 use crate::solvers::structure::{self as st, LoadField, Mechanism};
-use crate::state::Aggregate;
+use crate::state::Matter;
 use crate::units::{Tier, YEAR};
 
 /// Everything the host needs to keep between calls.
@@ -81,7 +81,7 @@ pub extern "C" fn create(seed: u32, program: u32, reservoir_kg: f32, budget: u32
     };
     {
         let n = &mut world.tree.nodes[node.get()];
-        n.agg = Aggregate::neutral(reservoir_kg as f64, 6.0, 291.0, prog.substrate());
+        n.matter = Matter::neutral(reservoir_kg as f64, 6.0, 291.0, prog.substrate());
         n.spec.count = budget as usize;
     }
     // The environment override is what the node actually grows in, so a
@@ -129,7 +129,7 @@ pub extern "C" fn step(years: f32) {
     let s = session();
     let dt = years as f64 * YEAR;
     if dt > 0.0 {
-        // Growth runs on the aggregate — the structure is not materialised for
+        // Growth runs on the matter — the structure is not materialised for
         // this, however large it is.
         s.world.grow_node(s.node, dt);
         s.dirty = true;
@@ -239,7 +239,7 @@ fn refresh(s: &mut Session) {
 
     // Current stress, so the viewer can colour by how hard each member is
     // working rather than only showing what has already failed.
-    let ambient = s.world.tree.nodes[node.get()].agg.temperature;
+    let ambient = s.world.tree.nodes[node.get()].matter.temperature;
     let mut field = LoadField::new(bodies.len(), ambient);
     if s.wind > 0.0 {
         field.apply(&st::weather::wind(s.wind, s.wind_dir), &bodies, &topo);
@@ -287,15 +287,15 @@ fn refresh(s: &mut Session) {
     s.readouts[3] = (s.geometry.len() / 8) as f32;
     s.readouts[4] = m.map(|m| m.state_bytes()).unwrap_or(0) as f32;
     s.readouts[5] = peak;
-    s.readouts[8] = n.agg.chemical_energy as f32;
-    s.readouts[9] = n.agg.entropy_exported as f32;
+    s.readouts[8] = n.matter.chemical_energy as f32;
+    s.readouts[9] = n.matter.entropy_exported as f32;
     s.readouts[10] = m.map(|m| m.progress).unwrap_or(0.0) as f32;
     s.readouts[11] = if indeterminate { 1.0 } else { 0.0 };
     s.readouts[12] = iters as f32;
-    s.readouts[13] = (n.agg.mass - m.map(|m| m.built).unwrap_or(0.0)) as f32;
+    s.readouts[13] = (n.matter.mass - m.map(|m| m.built).unwrap_or(0.0)) as f32;
     s.readouts[6] = s.total_broken as f32;
     s.readouts[14] = m.map(|m| m.events.len()).unwrap_or(0) as f32;
-    s.readouts[15] = n.agg.temperature as f32;
+    s.readouts[15] = n.matter.temperature as f32;
 }
 
 /// Pointer to the interleaved member geometry in linear memory.
@@ -568,7 +568,7 @@ pub extern "C" fn create_forest(seed: u32, count: u32, extent: f32, budget: u32)
         let reservoir = 8000.0 * (0.35 + 1.9 * stream.uniform().powi(2));
         {
             let n = &mut world.tree.nodes[node.get()];
-            n.agg = Aggregate::neutral(reservoir, 6.0, 291.0, Program::Tree.substrate());
+            n.matter = Matter::neutral(reservoir, 6.0, 291.0, Program::Tree.substrate());
             n.spec.count = per_tree;
         }
         world.plant(node, Program::Tree, Environment::default());
@@ -738,7 +738,7 @@ fn refresh_forest(f: &mut Forest) {
                 continue;
             }
         };
-        let ambient = f.world.tree.nodes[node.get()].agg.temperature;
+        let ambient = f.world.tree.nodes[node.get()].matter.temperature;
         let mut field = LoadField::new(bodies.len(), ambient);
         let speed = (f.wind + f.gust.get(i).copied().unwrap_or(0.0)).max(0.0);
         if speed > 0.0 {
@@ -992,7 +992,7 @@ pub extern "C" fn scene_create(index: u32, seed: u32, budget: u32) {
 ///
 /// Promoting is what makes a body into a node: the statistical stand-in becomes
 /// a thing with its own contents, generated from its own address. Nothing about
-/// the body was stored — the child is built from the aggregate the body
+/// the body was stored — the child is built from the matter the body
 /// represents, at the refinement policy its new tier calls for.
 #[unsafe(no_mangle)]
 pub extern "C" fn scene_descend(index: u32) -> u32 {
@@ -1341,5 +1341,5 @@ pub extern "C" fn scene_trail_scale(up: u32) -> f32 {
         return 0.0;
     }
     let idx = e.path[len - 1 - up as usize];
-    e.world.tree.nodes[idx.get()].agg.radius as f32
+    e.world.tree.nodes[idx.get()].matter.radius as f32
 }
