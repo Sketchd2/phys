@@ -58,7 +58,7 @@ pub const LAMBDA_COMPTON_E: f64 = 2.426_310_238_67e-12;
 /// is not merely a zoom level: crossing a tier boundary changes what the state
 /// vector means (a `Stellar` node's "temperature" is a sub-grid ISM
 /// temperature; a `Nuclear` node has no temperature at all, it has excitation
-/// levels). Prolongation and restriction operators (`prolong.rs`) translate
+/// levels). Sampling and summarising operators (`sampler.rs`) translate
 /// between adjacent tiers and are required to conserve the invariant set
 /// exactly.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]

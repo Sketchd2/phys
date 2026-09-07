@@ -1,15 +1,15 @@
 //! Measured cost of every hot path, on whatever machine runs it.
 //! These are the numbers `docs/PERFORMANCE.md` reasons from.
 
-use phys::prolong::*;
+use phys::sampler::*;
 use phys::solvers::*;
 use phys::state::*;
 use phys::units::*;
 use std::time::Instant;
 
 fn bodies(n: usize, profile: Profile, kind: BodyKind, agg: &Aggregate) -> Vec<Body> {
-    let spec = ProlongSpec::new(n, profile, MassSpectrum::Equal, kind);
-    prolong(agg, spec, 1, 0x1234, 0).0
+    let spec = SampleSpec::new(n, profile, MassSpectrum::Equal, kind);
+    sample(agg, spec, 1, 0x1234, 0).0
 }
 
 fn time<F: FnMut()>(reps: usize, mut f: F) -> f64 {
@@ -23,12 +23,12 @@ fn time<F: FnMut()>(reps: usize, mut f: F) -> f64 {
 fn main() {
     println!("# measured on this machine, single core, release build\n");
 
-    println!("## materialisation (prolong)");
+    println!("## materialisation (sample)");
     let agg = Aggregate::neutral(1e5 * M_SUN, PARSEC, 30.0, Composition::solar());
     for n in [1_000usize, 10_000, 100_000, 500_000] {
-        let spec = ProlongSpec::new(n, Profile::Plummer, MassSpectrum::Equal, BodyKind::Star);
+        let spec = SampleSpec::new(n, Profile::Plummer, MassSpectrum::Equal, BodyKind::Star);
         let us = time(2, || {
-            std::hint::black_box(prolong(&agg, spec, 1, 0x99, 0));
+            std::hint::black_box(sample(&agg, spec, 1, 0x99, 0));
         });
         println!("  n={n:>9}  {us:>10.0} us   {:>7.3} us/body   {:>8.1} M bodies/s",
             us / n as f64, n as f64 / us);
@@ -89,11 +89,11 @@ fn main() {
             us / n as f64, n as f64 / us);
     }
 
-    println!("\n## restriction (coarsen)");
+    println!("\n## summarising (coarsen)");
     for n in [10_000usize, 100_000, 500_000] {
         let b = bodies(n, Profile::Plummer, BodyKind::Star, &agg);
         let us = time(5, || {
-            std::hint::black_box(restrict(&b, 0.0));
+            std::hint::black_box(summarise(&b, 0.0));
         });
         println!("  n={n:>9}  {us:>10.0} us   {:>7.3} us/body", us / n as f64);
     }
@@ -101,7 +101,7 @@ fn main() {
     println!("\n## structural analysis and dynamics");
     {
         use phys::morph::{Morphology, Program};
-        use phys::prolong::prolong_structured;
+        use phys::sampler::sample_structured;
         use phys::solvers::structure as st;
         use phys::math::v3;
 
@@ -120,7 +120,7 @@ fn main() {
             let prog = if planned { Program::Tower } else { Program::Tree };
             let agg = Aggregate::neutral(mass, m.extent(), 291.0, prog.substrate());
             for n in [500usize, 2000, 8000] {
-                let (b, topo, _) = prolong_structured(&agg, &m, n, 7, 0x1234, 0);
+                let (b, topo, _) = sample_structured(&agg, &m, n, 7, 0x1234, 0);
                 let mut field = st::LoadField::new(b.len(), 291.0);
                 field.apply(&st::weather::wind(25.0, v3(1.0, 0.0, 0.0)), &b, &topo);
                 field.apply(&st::weather::gravity(), &b, &topo);

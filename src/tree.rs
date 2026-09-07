@@ -3,7 +3,7 @@
 //! A `Node` is a region of space at a tier, holding a bulk `Aggregate`. It has
 //! two optional finer representations:
 //!
-//! * **materialised bodies** — a `Vec<Body>` produced by `prolong`. Cheap to
+//! * **materialised bodies** — a `Vec<Body>` produced by `sample`. Cheap to
 //!   make, cheap to throw away, regenerable bit-for-bit.
 //! * **promoted children** — full `Node`s standing in for individual bodies,
 //!   created only for the handful of bodies someone is actually looking at.
@@ -19,20 +19,20 @@
 //!
 //! Every frame, most of the tree is *deleted*. That is not a cache eviction
 //! policy bolted on the side; it is the whole design. The invariant that makes
-//! it safe is stated in `prolong.rs` and enforced in `tests/consistency.rs`:
-//! restriction after prolongation returns the same conserved tuple. Detail that
+//! it safe is stated in `sampler.rs` and enforced in `tests/consistency.rs`:
+//! summarising after sampling returns the same conserved tuple. Detail that
 //! has been *touched* — measured, or hit by something — is different, and is
 //! pinned (see `Node::pinned` and `observe::Ledger`).
 
 use crate::coords::{Motion, Located};
 use crate::ids::{NodeIdx, PathKey};
 use crate::math::Vec3;
-use crate::prolong::{prolong, ProlongReport, ProlongSpec};
-use crate::state::{restrict, Aggregate, Body};
+use crate::sampler::{sample, SampleReport, SampleSpec};
+use crate::state::{summarise, Aggregate, Body};
 use crate::units::Tier;
 use std::collections::HashMap;
 
-/// How closely a restriction must agree with the stored aggregate before the
+/// How closely a summarising must agree with the stored aggregate before the
 /// engine treats the two as the same state. Set well above the round-off floor
 /// (~10^-16) and far below anything physically detectable.
 pub const IDEMPOTENT_TOLERANCE: f64 = 1e-12;
@@ -81,15 +81,15 @@ pub struct Node {
 
     /// Fine detail, if currently materialised.
     pub bodies: Vec<Body>,
-    /// Self-potential the materialisation was built against. Restriction must
-    /// use this same number (see `ProlongReport::potential`).
+    /// Self-potential the materialisation was built against. Summarising must
+    /// use this same number (see `SampleReport::potential`).
     pub potential: f64,
     /// Children promoted from `bodies`; `NodeIdx::NONE` where not promoted.
     /// Parallel to `bodies`, and empty when nothing is promoted.
     pub children: Vec<NodeIdx>,
 
     /// How this node is to be split when refined.
-    pub spec: ProlongSpec,
+    pub spec: SampleSpec,
     /// Bumped whenever a recorded interaction changes the node's contents.
     /// Detail regenerated at the same epoch is identical; a new epoch means the
     /// old detail is gone for good.
@@ -122,7 +122,7 @@ pub struct Node {
     /// so it keeps up on nodes whose dynamics cannot.
     pub last_grown: f64,
     pub residency: Residency,
-    /// Set when the node's detail has been altered away from what `prolong`
+    /// Set when the node's detail has been altered away from what `sample`
     /// would produce, so it must be stored rather than regenerated.
     pub pinned: bool,
     /// A deliberate, unphysical multiplier on how fast this node's *interior*
@@ -155,7 +155,7 @@ pub struct Node {
     /// Number of solver steps this node has taken. Part of the address for any
     /// per-step randomness (see `rng::Stream::split`).
     pub steps_taken: u64,
-    pub last_report: ProlongReport,
+    pub last_report: SampleReport,
 }
 
 impl Node {
@@ -214,7 +214,7 @@ pub struct TreeStats {
 }
 
 impl Tree {
-    pub fn new(world_seed: u64, root_agg: Aggregate, tier: Tier, spec: ProlongSpec) -> Tree {
+    pub fn new(world_seed: u64, root_agg: Aggregate, tier: Tier, spec: SampleSpec) -> Tree {
         let root = Node {
             key: PathKey::ROOT,
             parent: NodeIdx::NONE,
@@ -247,7 +247,7 @@ impl Tree {
             morphology: None,
             topology: None,
             steps_taken: 0,
-            last_report: ProlongReport::default(),
+            last_report: SampleReport::default(),
         };
         Tree {
             nodes: vec![root],
@@ -350,7 +350,7 @@ impl Tree {
         };
         let (bodies, topo, report) = match &morph {
             Some(m) => {
-                let (b, t, r) = crate::prolong::prolong_structured(
+                let (b, t, r) = crate::sampler::sample_structured(
                     &agg,
                     m,
                     spec.count,
@@ -361,7 +361,7 @@ impl Tree {
                 (b, Some(t), r)
             }
             None => {
-                let (b, r) = prolong(&agg, spec, self.world_seed, key.0, epoch);
+                let (b, r) = sample(&agg, spec, self.world_seed, key.0, epoch);
                 (b, None, r)
             }
         };
@@ -385,7 +385,7 @@ impl Tree {
     /// The child's aggregate is *the body itself*, reinterpreted: same mass,
     /// same composition, same momentum in the parent's frame. Nothing is
     /// invented at this step — invention happens when the child is refined.
-    pub fn promote(&mut self, i: NodeIdx, slot: usize, spec: ProlongSpec) -> NodeIdx {
+    pub fn promote(&mut self, i: NodeIdx, slot: usize, spec: SampleSpec) -> NodeIdx {
         self.refine(i);
         {
             let n = &self.nodes[i.get()];
@@ -420,10 +420,10 @@ impl Tree {
         // a budget. A spec meant for a finer one is kept: asking to split an
         // atom into nucleons is a deliberate step down and not a mistake, and
         // overriding it would leave the ladder unable to reach its own bottom.
-        let spec = if crate::prolong::tier_of(spec.kind) >= tier {
+        let spec = if crate::sampler::tier_of(spec.kind) >= tier {
             spec
         } else {
-            crate::prolong::budgeted_spec(tier, spec.count)
+            crate::sampler::budgeted_spec(tier, spec.count)
         };
 
         let mut agg = Aggregate::neutral(body.mass, body.radius.max(1e-30), body.temperature, body.composition);
@@ -469,7 +469,7 @@ impl Tree {
             morphology: None,
             topology: None,
             steps_taken: 0,
-            last_report: ProlongReport::default(),
+            last_report: SampleReport::default(),
         };
         let idx = self.alloc(child);
         self.nodes[i.get()].children[slot] = idx;
@@ -501,7 +501,7 @@ impl Tree {
             (n.agg.conserved(), n.potential, n.pinned, n.key)
         };
         let bodies = std::mem::take(&mut self.nodes[i.get()].bodies);
-        let mut agg = restrict(&bodies, potential);
+        let mut agg = summarise(&bodies, potential);
         agg.external_potential = self.nodes[i.get()].agg.external_potential;
         agg.chemical_energy = self.nodes[i.get()].agg.chemical_energy;
         agg.entropy_exported = self.nodes[i.get()].agg.entropy_exported;
@@ -517,7 +517,7 @@ impl Tree {
 
         // If the detail did not actually change the bulk state — the usual case
         // when a user simply pans away — keep the coarse state as the
-        // authority rather than overwriting it with a restriction that differs
+        // authority rather than overwriting it with a summarising that differs
         // only by round-off.
         //
         // This is what makes "leave and come back" *exactly* idempotent rather
@@ -535,7 +535,7 @@ impl Tree {
         }
 
         let n = &mut self.nodes[i.get()];
-        // Preserve the node's own frame-level bookkeeping: `restrict` measures
+        // Preserve the node's own frame-level bookkeeping: `summarise` measures
         // the children in the node's frame, so the node's momentum and com are
         // updated, but its tier, spec and identity are untouched.
         n.agg.mass = agg.mass;
@@ -559,7 +559,7 @@ impl Tree {
         // visit has legitimately lowered its local entropy, and clamping it back
         // up would silently destroy the record of that and unbalance the books.
         //
-        // Second, for a structured node `restrict` is not entitled to an
+        // Second, for a structured node `summarise` is not entitled to an
         // opinion at all: it sees an unstructured heap of parts and reports the
         // entropy of the same mass as a gas, which erases precisely the order
         // that makes the thing a structure. `Body` carries no topology, so the
@@ -574,7 +574,7 @@ impl Tree {
         }
         n.agg.luminosity = agg.luminosity;
         // The morphology owns the structure's size, for the same reason it owns
-        // its entropy: `restrict` measures the parts, but what the parts add up
+        // its entropy: `summarise` measures the parts, but what the parts add up
         // to is the program's business.
         if let Some(m) = &n.morphology {
             n.agg.radius = m.extent().max(1e-30);
@@ -671,7 +671,7 @@ impl Tree {
 
     /// Mark a node — and its whole ancestry — as holding non-derivable detail.
     /// Ancestors must be pinned too: a changed child means the parent's
-    /// materialisation no longer matches what `prolong` would produce.
+    /// materialisation no longer matches what `sample` would produce.
     pub fn pin(&mut self, i: NodeIdx) {
         let mut cur = i;
         while !cur.is_none() {

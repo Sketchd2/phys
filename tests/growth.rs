@@ -4,7 +4,7 @@
 use phys::engine::{galaxy, World};
 use phys::math::v3;
 use phys::morph::*;
-use phys::prolong::*;
+use phys::sampler::*;
 use phys::state::*;
 use phys::units::*;
 
@@ -36,9 +36,9 @@ fn structures_conserve_like_everything_else() {
             agg.spin = v3(0.0, 0.0, mass * 1e-2);
 
             for budget in [16usize, 256, 4096] {
-                let (bodies, _topo, r) = prolong_structured(&agg, &m, budget, 7, 0x99, 0);
+                let (bodies, _topo, r) = sample_structured(&agg, &m, budget, 7, 0x99, 0);
                 assert!(!bodies.is_empty(), "{:?} produced no geometry", program);
-                let mut back = restrict(&bodies, r.potential);
+                let mut back = summarise(&bodies, r.potential);
                 back.chemical_energy = agg.chemical_energy;
                 back.entropy_exported = agg.entropy_exported;
                 back.external_potential = agg.external_potential;
@@ -62,8 +62,8 @@ fn structures_conserve_like_everything_else() {
 #[test]
 fn the_same_tree_comes_back() {
     let (agg, m) = oak(900.0);
-    let a = prolong_structured(&agg, &m, 2000, 7, 0x1234, 0).0;
-    let b = prolong_structured(&agg, &m, 2000, 7, 0x1234, 0).0;
+    let a = sample_structured(&agg, &m, 2000, 7, 0x1234, 0).0;
+    let b = sample_structured(&agg, &m, 2000, 7, 0x1234, 0).0;
     assert_eq!(a.len(), b.len());
     for (x, y) in a.iter().zip(&b) {
         assert_eq!(x.pos, y.pos, "the tree regrew differently");
@@ -74,7 +74,7 @@ fn the_same_tree_comes_back() {
     let mut other = Morphology::new(Program::Tree, 0xACE, 0x5678, 0);
     other.built = m.built;
     other.age = m.age;
-    let c = prolong_structured(&agg, &other, 2000, 7, 0x5678, 0).0;
+    let c = sample_structured(&agg, &other, 2000, 7, 0x5678, 0).0;
     let differing = a.iter().zip(&c).filter(|(p, q)| p.pos != q.pos).count();
     assert!(
         differing > a.len() / 2,
@@ -86,7 +86,7 @@ fn the_same_tree_comes_back() {
 #[test]
 fn developmental_state_is_small() {
     let (agg, m) = oak(900.0);
-    let bodies = prolong_structured(&agg, &m, 20_000, 7, 0x1234, 0).0;
+    let bodies = sample_structured(&agg, &m, 20_000, 7, 0x1234, 0).0;
     let rendered = bodies.len() * std::mem::size_of::<Body>();
     let state = m.state_bytes();
     println!(
@@ -260,7 +260,7 @@ fn damage_persists_through_regeneration() {
     let (agg, mut m) = oak(900.0);
     // A budget large enough that the whole tree fits, so the count is the
     // structure's own size rather than the budget's.
-    let before = prolong_structured(&agg, &m, 20_000, 7, 0x1234, 0).0;
+    let before = sample_structured(&agg, &m, 20_000, 7, 0x1234, 0).0;
     let mass_before: f64 = before.iter().map(|b| b.mass).sum();
 
     let built_before = m.built;
@@ -269,7 +269,7 @@ fn damage_persists_through_regeneration() {
         291.0,
     );
     txn.validate().expect("severing must balance");
-    let after = prolong_structured(&agg, &m, 20_000, 7, 0x1234, 0).0;
+    let after = sample_structured(&agg, &m, 20_000, 7, 0x1234, 0).0;
 
     // The structure lost both geometry and mass...
     assert!(m.built < built_before, "severing removed no mass from the structure");
@@ -297,7 +297,7 @@ fn damage_persists_through_regeneration() {
     assert!(structural < mass_before * 0.9, "structure did not get lighter");
 
     // And it is still deterministic afterwards.
-    let again = prolong_structured(&agg, &m, 20_000, 7, 0x1234, 0).0;
+    let again = sample_structured(&agg, &m, 20_000, 7, 0x1234, 0).0;
     for (x, y) in after.iter().zip(&again) {
         assert_eq!(x.pos, y.pos);
     }
@@ -426,7 +426,7 @@ fn structures_round_trip_through_the_tree() {
     println!("{} parts, round-trip error {err:.3e}", first.len());
     assert!(err < 1e-9, "structural round trip error {err:.3e}");
     assert_eq!(n.agg.chemical_energy, chem0, "stored free energy was lost");
-    assert_eq!(n.agg.entropy, ent0, "restriction overwrote structural entropy");
+    assert_eq!(n.agg.entropy, ent0, "summarising overwrote structural entropy");
     assert!((n.agg.total_energy() - e0).abs() / e0.abs() < 1e-12);
 
     let second = w.tree.refine(node).to_vec();

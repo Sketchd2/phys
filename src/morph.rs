@@ -2,7 +2,7 @@
 //!
 //! # Why the rest of the engine cannot represent a tree
 //!
-//! Everything `prolong` regenerates is *ergodic*. One max-entropy sample of a
+//! Everything `sample` regenerates is *ergodic*. One max-entropy sample of a
 //! gas cloud is as good as another, because no observation can tell them apart,
 //! and that interchangeability is what licenses throwing the detail away.
 //!
@@ -551,7 +551,7 @@ impl Morphology {
     /// Generate the structure's geometry, in units of `extent()`.
     ///
     /// Pure in `(genome, age, built, progress, events)`. Returns positions,
-    /// relative masses and per-part radii; `prolong` scales them so the totals
+    /// relative masses and per-part radii; `sample` scales them so the totals
     /// match the aggregate exactly, exactly as it does for a sampled cloud.
     pub fn render(&self, budget: usize) -> Skeleton {
         let n = budget.max(1);

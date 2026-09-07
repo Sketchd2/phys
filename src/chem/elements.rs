@@ -15,8 +15,8 @@
 //! and useless at the bench.
 //!
 //! So the two coexist. `CoarseElement` stays the *elemental and nuclear* account,
-//! carried by every aggregate and every body, conserved through prolongation
-//! and restriction, unchanged by this module. [`Element`] is the *chemical*
+//! carried by every aggregate and every body, conserved through sampling
+//! and summarising, unchanged by this module. [`Element`] is the *chemical*
 //! account, used where arrangements are analysed, and it names real elements by
 //! atomic number. A substance's formula is in elements; its contribution to a
 //! node's bulk composition is that formula lumped back into coarse elements, which is

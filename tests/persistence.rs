@@ -379,7 +379,7 @@ fn a_world_survives_a_round_trip_through_a_file() {
     // Not bit-exact, and it must not be asserted as such. `sum_conserved` reads
     // a node's *bodies* when it is materialised and its *aggregate* when it is
     // not, and the file deliberately drops unpinned bodies — so a reload swaps
-    // which of the two paths is taken. The difference is the prolong/restrict
+    // which of the two paths is taken. The difference is the sample/summarise
     // round-off the engine already bounds by `IDEMPOTENT_TOLERANCE`, and it is
     // the cost of not storing detail that can be worked out again.
     let drift = (after.baryon - before.baryon).abs() / before.baryon.abs().max(1e-300);

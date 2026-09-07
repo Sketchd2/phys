@@ -1,4 +1,4 @@
-//! Prolongation: manufacturing fine detail that is *provably* consistent with
+//! Sampling: manufacturing fine detail that is *provably* consistent with
 //! the coarse state it came from.
 //!
 //! # The problem
@@ -80,7 +80,7 @@ pub enum MassSpectrum {
 
 /// Everything needed to turn one aggregate into many bodies.
 #[derive(Debug, Clone, Copy)]
-pub struct ProlongSpec {
+pub struct SampleSpec {
     pub count: usize,
     pub profile: Profile,
     pub spectrum: MassSpectrum,
@@ -93,9 +93,9 @@ pub struct ProlongSpec {
     pub turbulent_fraction: f64,
 }
 
-impl ProlongSpec {
+impl SampleSpec {
     pub fn new(count: usize, profile: Profile, spectrum: MassSpectrum, kind: BodyKind) -> Self {
-        ProlongSpec {
+        SampleSpec {
             count,
             profile,
             spectrum,
@@ -106,10 +106,10 @@ impl ProlongSpec {
     }
 }
 
-/// What actually happened during a prolongation. The engine keeps these; the
+/// What actually happened during a sampling. The engine keeps these; the
 /// consistency tests assert on them; the debug UI shows them.
 #[derive(Debug, Clone, Copy)]
-pub struct ProlongReport {
+pub struct SampleReport {
     pub count: usize,
     /// Worst relative error across the conserved tuple. Must stay at round-off.
     pub conservation_error: f64,
@@ -140,14 +140,14 @@ pub struct ProlongReport {
     /// Natural magnitudes the error above is measured against.
     pub scales: crate::state::Scales,
     /// The self-potential the sampler settled on. The engine must use this same
-    /// value when restricting these bodies, or the two directions are measuring
+    /// value when summarising these bodies, or the two directions are measuring
     /// different quantities and the round trip is not a round trip.
     pub potential: f64,
 }
 
-impl Default for ProlongReport {
+impl Default for SampleReport {
     fn default() -> Self {
-        ProlongReport {
+        SampleReport {
             count: 0,
             conservation_error: 0.0,
             radius_overridden: false,
@@ -180,17 +180,17 @@ fn inertia_of_slices(pos: &[Vec3], masses: &[f64]) -> crate::math::Mat3 {
     m
 }
 
-/// The prolongation operator P.
+/// The sampling operator P.
 ///
 /// Deterministic in `(world_seed, path_key, epoch)` — call it a thousand times,
 /// on a thousand machines, get the same bodies.
-pub fn prolong(
+pub fn sample(
     agg: &Aggregate,
-    spec: ProlongSpec,
+    spec: SampleSpec,
     world_seed: u64,
     path_key: u128,
     epoch: u32,
-) -> (Vec<Body>, ProlongReport) {
+) -> (Vec<Body>, SampleReport) {
     // You cannot materialise more atoms than there are atoms.
     //
     // Above the molecular tier a body is a statistical stand-in and the count
@@ -203,7 +203,7 @@ pub fn prolong(
     // own interaction radii — and a Lennard-Jones potential handed that
     // configuration answers with several hundred electron volts per pair.
     let n = particle_limit(agg, spec).max(1);
-    let mut report = ProlongReport {
+    let mut report = SampleReport {
         count: n,
         ..Default::default()
     };
@@ -298,7 +298,7 @@ pub fn prolong(
     // one part in 10^6 for a galactic disk, which is far too large to accept
     // in a quantity that gets round-tripped thousands of times. So we finish
     // with a fixed-point polish against the *exact* functionals, the same ones
-    // `restrict` uses. It converges in three passes because each correction
+    // `summarise` uses. It converges in three passes because each correction
     // lives in the null space of the others.
     let masses_for_comp = masses.clone();
     let resid = sample_velocities(agg, spec, n, &pos, world_seed, path_key, epoch);
@@ -315,9 +315,9 @@ pub fn prolong(
     (bodies, report)
 }
 
-/// Inverse of `prolong` for the purposes of the round trip: see
-/// `state::restrict`. Kept here as documentation of the pairing.
-pub use crate::state::restrict;
+/// Inverse of `sample` for the purposes of the round trip: see
+/// `state::summarise`. Kept here as documentation of the pairing.
+pub use crate::state::summarise;
 
 // ---------------------------------------------------------------------------
 // samplers
@@ -325,7 +325,7 @@ pub use crate::state::restrict;
 
 fn sample_masses(
     agg: &Aggregate,
-    spec: ProlongSpec,
+    spec: SampleSpec,
     n: usize,
     seed: u64,
     key: u128,
@@ -391,7 +391,7 @@ fn kroupa_sample(st: &mut Stream, lo: f64, hi: f64) -> f64 {
     st.power_law(a, b, al)
 }
 
-fn sample_positions(spec: ProlongSpec, n: usize, seed: u64, key: u128, epoch: u32) -> Vec<Vec3> {
+fn sample_positions(spec: SampleSpec, n: usize, seed: u64, key: u128, epoch: u32) -> Vec<Vec3> {
     let mut st = Stream::at(seed, key, epoch, Purpose::Positions);
     let mut out = Vec::with_capacity(n);
     match spec.profile {
@@ -463,7 +463,7 @@ fn sample_positions(spec: ProlongSpec, n: usize, seed: u64, key: u128, epoch: u3
 
 fn sample_velocities(
     agg: &Aggregate,
-    spec: ProlongSpec,
+    spec: SampleSpec,
     n: usize,
     pos: &[Vec3],
     seed: u64,
@@ -511,7 +511,7 @@ fn sample_velocities(
 
 fn sample_compositions(
     agg: &Aggregate,
-    spec: ProlongSpec,
+    spec: SampleSpec,
     masses: &[f64],
     seed: u64,
     key: u128,
@@ -583,8 +583,8 @@ fn recentre(pos: &mut [Vec3], masses: &[f64], total: f64) -> Vec3 {
     com
 }
 
-/// Choose the scale factor that makes `restrict` report exactly `target`.
-/// `restrict` uses `1.291 * rms` (the RMS-to-uniform-sphere conversion), so we
+/// Choose the scale factor that makes `summarise` report exactly `target`.
+/// `summarise` uses `1.291 * rms` (the RMS-to-uniform-sphere conversion), so we
 /// invert that same expression rather than guessing.
 fn radius_scale(pos: &[Vec3], masses: &[f64], total: f64, target: f64) -> f64 {
     let n = pos.len();
@@ -641,7 +641,7 @@ fn potential_estimate(
     -k * G * agg.mass * agg.mass / r
 }
 
-fn child_radius(agg: &Aggregate, spec: ProlongSpec, mass: f64, n: usize) -> f64 {
+fn child_radius(agg: &Aggregate, spec: SampleSpec, mass: f64, n: usize) -> f64 {
     match spec.kind {
         BodyKind::Star => {
             // Main-sequence mass-radius relation, both branches.
@@ -698,11 +698,11 @@ pub(crate) fn close_books(
     omega: Vec3,
     ke_rot: f64,
     scale: f64,
-    report: &mut ProlongReport,
+    report: &mut SampleReport,
 ) -> Vec<Body> {
     let Parts { pos, masses, comps, radii, kind } = parts;
     let n = pos.len();
-    let spec = ProlongSpec::new(n.max(1), Profile::Uniform, MassSpectrum::Equal, kind);
+    let spec = SampleSpec::new(n.max(1), Profile::Uniform, MassSpectrum::Equal, kind);
     let inertia = inertia_of_slices(&pos, &masses);
     let mut resid = resid;
 
@@ -735,7 +735,7 @@ pub(crate) fn close_books(
     let mut om = omega;
     let mut vb = agg.momentum.scale(1.0 / agg.mass);
 
-    // Targets, stated in exactly the form `restrict` will measure them.
+    // Targets, stated in exactly the form `summarise` will measure them.
     let p_target = agg.momentum;
     let l_target = agg.spin;
     let k_target = random_ke_target + crate::state::bulk_kinetic(agg.mass, agg.momentum);
@@ -752,7 +752,7 @@ pub(crate) fn close_books(
         build(&mut vel, s, om, vb);
         // The functionals are evaluated straight from the slices. Materialising
         // a `Vec<Body>` per pass (three per pass, at 184 bytes each) dominated
-        // the cost of prolongation — it was more expensive than every physical
+        // the cost of sampling — it was more expensive than every physical
         // computation in the sampler put together.
         for i in 0..n {
             gmass[i] = crate::coords::gamma(vel[i]) * masses[i];
@@ -821,7 +821,7 @@ pub(crate) fn close_books(
     // separating cleanly. Rather than iterate harder and hope, close the
     // remaining gap *algebraically*.
     //
-    // `restrict` computes the parent's internal energy as
+    // `summarise` computes the parent's internal energy as
     // `E_kinetic + sum(U_i) - K_bulk`, so `sum(U_i)` is a free parameter that
     // appears linearly and affects neither momentum nor angular momentum.
     // Solving for it makes total energy exact by construction for any
@@ -871,7 +871,7 @@ pub(crate) fn close_books(
     // Measured with the same potential estimator the engine will use when it
     // coarsens these bodies back down, because "conserved" is only meaningful
     // relative to a fixed definition of the terms.
-    let mut back = crate::state::restrict(&bodies, phi);
+    let mut back = crate::state::summarise(&bodies, phi);
     // These are properties the children cannot report on — the node's
     // surroundings, the free energy locked in its structure, and what it has
     // already dumped into the environment — so they pass through both
@@ -896,7 +896,7 @@ pub(crate) fn close_books(
 /// the conservation standard a gas cloud is, because it goes through exactly
 /// the same code.
 ///
-/// Two things differ from `prolong`, and both follow from the same principle:
+/// Two things differ from `sample`, and both follow from the same principle:
 /// **the developmental state is the authority on the structure's geometry.**
 ///
 /// * The positions are *not* rescaled to hit some independently-stored radius.
@@ -906,15 +906,15 @@ pub(crate) fn close_books(
 /// * There is no gravitational relaxation loop. A tree is held together by
 ///   chemistry, not self-gravity, and expanding it until it is gravitationally
 ///   comfortable would be nonsense — its size is set by how much it has grown.
-pub fn prolong_structured(
+pub fn sample_structured(
     agg: &Aggregate,
     morph: &crate::morph::Morphology,
     budget: usize,
     world_seed: u64,
     path_key: u128,
     epoch: u32,
-) -> (Vec<Body>, crate::topology::Topology, ProlongReport) {
-    let mut report = ProlongReport {
+) -> (Vec<Body>, crate::topology::Topology, SampleReport) {
+    let mut report = SampleReport {
         count: budget,
         ..Default::default()
     };
@@ -979,7 +979,7 @@ pub fn prolong_structured(
     report.structural_parts = n_struct;
 
     // The skeleton is generated in units of the structure's extent. Scale it so
-    // that `restrict` reports exactly `agg.radius` — which the growth step has
+    // that `summarise` reports exactly `agg.radius` — which the growth step has
     // already set to `morph.extent()`, so this is a unit conversion rather than
     // a correction to the shape.
     let mut pos = pos_all;
@@ -1151,8 +1151,8 @@ fn design_cases(
 /// How many bodies a materialisation may actually produce.
 ///
 /// The requested count, bounded by physics wherever the bodies are countable
-/// things rather than statistical stand-ins. See the note in [`prolong`].
-fn particle_limit(agg: &Aggregate, spec: ProlongSpec) -> usize {
+/// things rather than statistical stand-ins. See the note in [`sample`].
+fn particle_limit(agg: &Aggregate, spec: SampleSpec) -> usize {
     let requested = spec.count.max(1);
     let cap = match spec.kind {
         BodyKind::Atom | BodyKind::Molecule => {
@@ -1182,7 +1182,7 @@ fn particle_limit(agg: &Aggregate, spec: ProlongSpec) -> usize {
 /// mass is divided among them. Changing a line here changes the character of
 /// the world at that scale and nothing else — the conservation machinery,
 /// scheduler and observation path are all indifferent to it.
-pub fn budgeted_spec(tier: Tier, requested: usize) -> ProlongSpec {
+pub fn budgeted_spec(tier: Tier, requested: usize) -> SampleSpec {
     let mut spec = default_spec(tier);
     // Below the molecular tier the count is a number of *particles*, not a
     // resolution. A carbon atom has six electrons and an iron nucleus
@@ -1195,10 +1195,10 @@ pub fn budgeted_spec(tier: Tier, requested: usize) -> ProlongSpec {
 }
 
 /// The default refinement policy: how each tier splits into the next.
-pub fn default_spec(tier: Tier) -> ProlongSpec {
+pub fn default_spec(tier: Tier) -> SampleSpec {
             match tier {
         // A galaxy resolves into star-forming complexes and dark matter.
-        Tier::Galactic => ProlongSpec {
+        Tier::Galactic => SampleSpec {
             count: 20_000,
             profile: Profile::Disk { scale_height_ratio: 0.12 },
             spectrum: MassSpectrum::Equal,
@@ -1208,7 +1208,7 @@ pub fn default_spec(tier: Tier) -> ProlongSpec {
         },
         // A complex resolves into individual stars, drawn from the IMF — which
         // is where "a statistical stand-in" becomes "a particular star".
-        Tier::Stellar => ProlongSpec {
+        Tier::Stellar => SampleSpec {
             count: 4_000,
             profile: Profile::Plummer,
             spectrum: MassSpectrum::Kroupa { min_msun: 0.08, max_msun: 60.0 },
@@ -1217,7 +1217,7 @@ pub fn default_spec(tier: Tier) -> ProlongSpec {
             turbulent_fraction: 0.45,
         },
         // A star resolves into its structural shells; a planet into its layers.
-        Tier::Planetary => ProlongSpec {
+        Tier::Planetary => SampleSpec {
             count: 2_000,
             profile: Profile::Plummer,
             spectrum: MassSpectrum::PowerLaw { alpha: -1.5, ratio: 30.0 },
@@ -1226,7 +1226,7 @@ pub fn default_spec(tier: Tier) -> ProlongSpec {
             turbulent_fraction: 0.6,
         },
         // Bulk matter resolves into fluid parcels or grains.
-        Tier::Continuum => ProlongSpec {
+        Tier::Continuum => SampleSpec {
             count: 4_000,
             profile: Profile::Uniform,
             spectrum: MassSpectrum::Equal,
@@ -1235,7 +1235,7 @@ pub fn default_spec(tier: Tier) -> ProlongSpec {
             turbulent_fraction: 0.2,
         },
         // A parcel resolves into molecules.
-        Tier::Molecular => ProlongSpec {
+        Tier::Molecular => SampleSpec {
             count: 8_000,
             profile: Profile::Uniform,
             spectrum: MassSpectrum::CoarseElement,
@@ -1248,7 +1248,7 @@ pub fn default_spec(tier: Tier) -> ProlongSpec {
         // sixty-four atoms into a molecule-sized sphere puts every pair well
         // inside its own Lennard-Jones radius, where the potential is hundreds
         // of electron volts and the configuration is not a molecule at all.
-        Tier::Atomic => ProlongSpec {
+        Tier::Atomic => SampleSpec {
             count: 8,
             profile: Profile::Lattice,
             spectrum: MassSpectrum::CoarseElement,
@@ -1260,7 +1260,7 @@ pub fn default_spec(tier: Tier) -> ProlongSpec {
         // stops producing trajectories and switches to the statistical
         // description in `solvers::quantum` — not because it runs out of
         // compute, but because there is nothing else there to describe.
-        Tier::Nuclear => ProlongSpec {
+        Tier::Nuclear => SampleSpec {
             count: 56,
             profile: Profile::WoodsSaxon,
             spectrum: MassSpectrum::Equal,

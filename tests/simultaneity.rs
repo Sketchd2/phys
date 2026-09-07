@@ -218,8 +218,8 @@ fn resolution_sets_the_cadence() {
 /// Following the trajectory of a resolved node across fifty milliseconds of
 /// molecular time would take 10^13 steps. It is also not the right answer:
 /// after that long the node has sampled its states 10^13 times, and where it
-/// ends up is a draw from its equilibrium ensemble. Restriction is conservative
-/// and prolongation is a maximum-entropy sample of the same conserved tuple, so
+/// ends up is a draw from its equilibrium ensemble. Summarising is conservative
+/// and sampling is a maximum-entropy sample of the same conserved tuple, so
 /// crossing by ensemble is exactly that draw.
 #[test]
 fn an_unreachable_span_is_crossed_by_ensemble() {

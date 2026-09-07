@@ -11,9 +11,9 @@ checked rather than believed.
 
 `cargo run --release --example bench`
 
-### Materialisation and restriction
+### Materialisation and summarising
 
-| n | prolong | per body | restrict | per body |
+| n | sample | per body | summarise | per body |
 |---:|---:|---:|---:|---:|
 | 1,000 | 0.74 ms | 0.74 µs | — | — |
 | 10,000 | 8.1 ms | 0.81 µs | 0.60 ms | 0.060 µs |
@@ -21,7 +21,7 @@ checked rather than believed.
 | 500,000 | 524 ms | 1.05 µs | 62.3 ms | 0.125 µs |
 
 Flat in *n*, as it must be — the sampler is a single pass plus a fixed number of
-projection passes. Restriction is 8× cheaper than materialisation, which is the
+projection passes. Summarising is 8× cheaper than materialisation, which is the
 right asymmetry: the engine coarsens far more often than it refines.
 
 ### Gravity — Barnes-Hut, one leapfrog step (two tree builds, two traversals)

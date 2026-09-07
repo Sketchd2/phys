@@ -21,7 +21,7 @@ use crate::causal::{CausalGate, Clock, History, Influence, InfluenceKind, Mailbo
 use crate::ids::{NodeIdx, PathKey};
 use crate::math::Vec3;
 use crate::observe::*;
-use crate::prolong::ProlongSpec;
+use crate::sampler::SampleSpec;
 use crate::rng::{Purpose, Stream};
 use crate::solvers::{self, SolverKind};
 use crate::state::{Aggregate, Body};
@@ -763,7 +763,7 @@ impl World {
             // "sound speed" is a gas-pressure formula applied to a collisionless
             // stellar system, and it saturated at 0.577c, so a materialised
             // galaxy claimed to need re-solving four orders of magnitude more
-            // often than its own stars could justify. Prolongation samples
+            // often than its own stars could justify. Sampling samples
             // thermal motion into the bodies already, so where a sound speed is
             // meaningful it is in here anyway.
             let v = n.bodies.iter().map(|b| b.vel.norm()).fold(0.0f64, f64::max);
@@ -1258,8 +1258,8 @@ impl World {
     /// state, the bulk state is carried across in closed form, and the detail
     /// is drawn again at the far end.
     ///
-    /// Both halves are things the engine already guarantees: restriction is
-    /// conservative to within `IDEMPOTENT_TOLERANCE` and prolongation is a
+    /// Both halves are things the engine already guarantees: summarising is
+    /// conservative to within `IDEMPOTENT_TOLERANCE` and sampling is a
     /// maximum-entropy sample of the same conserved tuple, which is exactly
     /// what "a fresh draw from the ensemble" means.
     ///
@@ -2526,7 +2526,7 @@ impl World {
     /// This is the "zoom in" primitive: the path from a galaxy to a nucleus is
     /// one call, and the engine materialises exactly the chain of nodes along
     /// the way and nothing else. That chain is a few thousand bodies, not 10^66.
-    pub fn drill(&mut self, from: NodeIdx, to_tier: Tier, specs: &dyn Fn(Tier) -> ProlongSpec) -> Vec<NodeIdx> {
+    pub fn drill(&mut self, from: NodeIdx, to_tier: Tier, specs: &dyn Fn(Tier) -> SampleSpec) -> Vec<NodeIdx> {
         let mut path = vec![from];
         let mut cur = from;
         for _ in 0..64 {
@@ -2647,12 +2647,12 @@ pub fn galaxy(world_seed: u64, stars: f64) -> Tree {
     agg.spin = crate::math::v3(0.0, 0.0, 0.7 * total * sigma * radius);
     agg.luminosity = stars * 3.828e26 * 0.3;
 
-    let spec = ProlongSpec {
+    let spec = SampleSpec {
         count: 20_000,
-        profile: crate::prolong::Profile::Disk {
+        profile: crate::sampler::Profile::Disk {
             scale_height_ratio: 0.12,
         },
-        spectrum: crate::prolong::MassSpectrum::Equal,
+        spectrum: crate::sampler::MassSpectrum::Equal,
         kind: crate::state::BodyKind::Super,
         composition_scatter: 0.15,
         turbulent_fraction: 0.3,
@@ -2662,9 +2662,9 @@ pub fn galaxy(world_seed: u64, stars: f64) -> Tree {
 
 /// The default refinement policy, and the budgeted form of it.
 ///
-/// Both live in [`crate::prolong`] because [`crate::tree::Tree::promote`] needs
+/// Both live in [`crate::sampler`] because [`crate::tree::Tree::promote`] needs
 /// them: a child's tier follows from its *size*, so a caller that guesses the
 /// tier from the parent can be wrong, and the node then materialises under a
 /// policy meant for a different scale. The tier has to be able to reach for its
 /// own policy, and the tier is decided below this module.
-pub use crate::prolong::{budgeted_spec, default_spec};
+pub use crate::sampler::{budgeted_spec, default_spec};

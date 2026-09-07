@@ -331,9 +331,9 @@ impl Topology {
     /// Build the joint list from a generated skeleton.
     ///
     /// `scale` converts the skeleton's normalised units into metres — the same
-    /// factor `prolong_structured` applies to the positions, so the joints land
+    /// factor `sample_structured` applies to the positions, so the joints land
     /// exactly on the parts.
-    /// `shift` and `scale` are the same centring and scaling `prolong_structured`
+    /// `shift` and `scale` are the same centring and scaling `sample_structured`
     /// applied to the positions, and `radii` the density-corrected member radii.
     /// Passing anything else puts the joints somewhere the parts are not.
     pub fn from_skeleton(

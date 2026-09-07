@@ -9,7 +9,7 @@ use phys::engine::{galaxy, World};
 use phys::math::v3;
 use phys::morph::{Environment, Program, NO_SUPPORT};
 use phys::engine::default_spec;
-use phys::prolong::prolong_structured;
+use phys::sampler::sample_structured;
 use phys::solvers::structure::*;
 use phys::state::Aggregate;
 use phys::topology::{Material, Member, Topology};
@@ -21,7 +21,7 @@ fn tree(mass: f64, budget: usize) -> (Vec<phys::state::Body>, Topology) {
     m.age = 45.0 * YEAR;
     let mut agg = Aggregate::neutral(mass, m.extent(), 291.0, Program::Tree.substrate());
     agg.chemical_energy = m.stored_energy();
-    let (b, t, _) = prolong_structured(&agg, &m, budget, 7, 0x1234, 0);
+    let (b, t, _) = sample_structured(&agg, &m, budget, 7, 0x1234, 0);
     (b, t)
 }
 

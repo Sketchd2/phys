@@ -4,7 +4,7 @@
 //! fine detail was generated rather than simulated.
 
 use phys::math::v3;
-use phys::prolong::*;
+use phys::sampler::*;
 use phys::state::*;
 use phys::units::*;
 
@@ -39,19 +39,19 @@ fn sample_aggregates() -> Vec<(&'static str, Aggregate)> {
     out
 }
 
-fn specs() -> Vec<(&'static str, ProlongSpec)> {
+fn specs() -> Vec<(&'static str, SampleSpec)> {
     vec![
-        ("uniform/equal", ProlongSpec::new(1000, Profile::Uniform, MassSpectrum::Equal, BodyKind::GasParcel)),
-        ("plummer/kroupa", ProlongSpec::new(1000, Profile::Plummer, MassSpectrum::Kroupa { min_msun: 0.08, max_msun: 60.0 }, BodyKind::Star)),
-        ("disk/powerlaw", ProlongSpec { count: 2000, profile: Profile::Disk { scale_height_ratio: 0.1 }, spectrum: MassSpectrum::PowerLaw { alpha: -1.8, ratio: 50.0 }, kind: BodyKind::Super, composition_scatter: 0.2, turbulent_fraction: 0.5 }),
-        ("shell/equal", ProlongSpec::new(500, Profile::Shell, MassSpectrum::Equal, BodyKind::GasParcel)),
-        ("woods-saxon", ProlongSpec::new(56, Profile::WoodsSaxon, MassSpectrum::Equal, BodyKind::Nucleon)),
-        ("lattice/species", ProlongSpec::new(64, Profile::Lattice, MassSpectrum::CoarseElement, BodyKind::Atom)),
-        ("tiny", ProlongSpec::new(2, Profile::Uniform, MassSpectrum::Equal, BodyKind::Grain)),
+        ("uniform/equal", SampleSpec::new(1000, Profile::Uniform, MassSpectrum::Equal, BodyKind::GasParcel)),
+        ("plummer/kroupa", SampleSpec::new(1000, Profile::Plummer, MassSpectrum::Kroupa { min_msun: 0.08, max_msun: 60.0 }, BodyKind::Star)),
+        ("disk/powerlaw", SampleSpec { count: 2000, profile: Profile::Disk { scale_height_ratio: 0.1 }, spectrum: MassSpectrum::PowerLaw { alpha: -1.8, ratio: 50.0 }, kind: BodyKind::Super, composition_scatter: 0.2, turbulent_fraction: 0.5 }),
+        ("shell/equal", SampleSpec::new(500, Profile::Shell, MassSpectrum::Equal, BodyKind::GasParcel)),
+        ("woods-saxon", SampleSpec::new(56, Profile::WoodsSaxon, MassSpectrum::Equal, BodyKind::Nucleon)),
+        ("lattice/species", SampleSpec::new(64, Profile::Lattice, MassSpectrum::CoarseElement, BodyKind::Atom)),
+        ("tiny", SampleSpec::new(2, Profile::Uniform, MassSpectrum::Equal, BodyKind::Grain)),
     ]
 }
 
-/// The invariant: restriction after prolongation returns the original state.
+/// The invariant: summarising after sampling returns the original state.
 #[test]
 fn round_trip_conserves_everything() {
     let mut worst = 0.0f64;
@@ -59,9 +59,9 @@ fn round_trip_conserves_everything() {
     for (aname, agg) in sample_aggregates() {
         for (sname, spec) in specs() {
             for seed in [1u64, 0xDEAD_BEEF, 0x5EED_5EED] {
-                let (bodies, report) = prolong(&agg, spec, seed, 0xABCD_1234, 0);
+                let (bodies, report) = sample(&agg, spec, seed, 0xABCD_1234, 0);
                 assert!(!bodies.is_empty(), "{aname}/{sname} produced nothing");
-                let mut back = restrict(&bodies, report.potential);
+                let mut back = summarise(&bodies, report.potential);
                 back.external_potential = agg.external_potential;
                 let scales = Scales::of(&bodies);
                 let err = back.conserved().error_against(&agg.conserved(), &scales);
@@ -91,8 +91,8 @@ fn round_trip_conserves_everything() {
 fn counted_quantities_are_exact() {
     for (name, agg) in sample_aggregates() {
         for (sname, spec) in specs() {
-            let (bodies, report) = prolong(&agg, spec, 7, 0x1111, 0);
-            let back = restrict(&bodies, report.potential);
+            let (bodies, report) = sample(&agg, spec, 7, 0x1111, 0);
+            let back = summarise(&bodies, report.potential);
             let dm = (back.mass - agg.mass).abs() / agg.mass;
             assert!(dm < 1e-14, "{name}/{sname}: mass drift {dm:.3e}");
             let dq = (back.charge - agg.charge).abs() / agg.charge.abs().max(E_CHARGE);
@@ -110,8 +110,8 @@ fn counted_quantities_are_exact() {
 fn regeneration_is_bit_identical() {
     let agg = sample_aggregates()[0].1;
     let spec = specs()[2].1;
-    let a = prolong(&agg, spec, 99, 0xFEED_FACE, 3).0;
-    let b = prolong(&agg, spec, 99, 0xFEED_FACE, 3).0;
+    let a = sample(&agg, spec, 99, 0xFEED_FACE, 3).0;
+    let b = sample(&agg, spec, 99, 0xFEED_FACE, 3).0;
     assert_eq!(a.len(), b.len());
     for (x, y) in a.iter().zip(&b) {
         assert_eq!(x.pos, y.pos);
@@ -128,10 +128,10 @@ fn regeneration_is_bit_identical() {
 fn different_addresses_decorrelate() {
     let agg = sample_aggregates()[0].1;
     let spec = specs()[0].1;
-    let a = prolong(&agg, spec, 1, 0x1, 0).0;
-    let b = prolong(&agg, spec, 1, 0x2, 0).0;
-    let c = prolong(&agg, spec, 2, 0x1, 0).0;
-    let d = prolong(&agg, spec, 1, 0x1, 1).0;
+    let a = sample(&agg, spec, 1, 0x1, 0).0;
+    let b = sample(&agg, spec, 1, 0x2, 0).0;
+    let c = sample(&agg, spec, 2, 0x1, 0).0;
+    let d = sample(&agg, spec, 1, 0x1, 1).0;
     let differs = |x: &Vec<Body>, y: &Vec<Body>| x.iter().zip(y).filter(|(p, q)| p.pos != q.pos).count();
     assert!(differs(&a, &b) > a.len() * 9 / 10, "path key must decorrelate");
     assert!(differs(&a, &c) > a.len() * 9 / 10, "world seed must decorrelate");

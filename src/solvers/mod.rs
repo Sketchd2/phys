@@ -10,7 +10,7 @@
 //! takes a set of bodies plus a timestep, and every solver is required to
 //! report the conserved tuple it started with and ended with. A solver that
 //! cannot state its energy budget cannot be part of the ladder, because the
-//! scale-transition guarantee in `prolong.rs` would have nothing to stand on.
+//! scale-transition guarantee in `sampler.rs` would have nothing to stand on.
 
 pub mod dynamics;
 pub mod frame;
@@ -109,8 +109,8 @@ impl SolverKind {
 
 /// Total conserved quantities of a materialised set, about the origin.
 pub fn measure(bodies: &[Body], potential: f64) -> Conserved {
-    let mut c = crate::state::restrict(bodies, potential).conserved();
-    // `restrict` measures spin about the centre of mass; for a solver check we
+    let mut c = crate::state::summarise(bodies, potential).conserved();
+    // `summarise` measures spin about the centre of mass; for a solver check we
     // want angular momentum about a fixed origin, which is what actually has to
     // be conserved under internal forces.
     c.angular_momentum = crate::state::total_spin(bodies, crate::math::Vec3::ZERO);

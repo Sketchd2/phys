@@ -10,7 +10,7 @@ written**.
 The engine's guarantees are not negotiable across backends:
 
 1. **Bit-exact agreement with the CPU reference** for materialisation and
-   restriction. Anything else and a scenario recorded on one machine cannot be
+   summarising. Anything else and a scenario recorded on one machine cannot be
    replayed on another.
 2. **Deterministic reductions.** No atomics whose ordering varies between runs.
    Sums use the same fixed pairwise tree as `math::det_sum`, which means a
@@ -29,7 +29,7 @@ The engine's guarantees are not negotiable across backends:
 | Positions within a node | `f32` | Node-local coordinates span ≤ 6 orders; `f32` gives 7 digits |
 | Velocities, accelerations | `f32` | Same |
 | Node aggregates, conserved tuples | `f64` | Where exactness is claimed, and there are only ~10⁶ of them |
-| Restriction reductions | `f64` | The conservation guarantee lives here |
+| Summarising reductions | `f64` | The conservation guarantee lives here |
 | Time | `f64` | 10⁶⁰ dynamic range across tiers |
 
 This split is exactly what the no-global-coordinates design already enables:
@@ -61,8 +61,8 @@ card, and cuts the bandwidth per force pass by 5.75×.
 
 | Kernel | Shape | Notes |
 |---|---|---|
-| `materialise` | 1 thread/body | `prolong`'s samplers are per-body pure functions of `(address, i)`. The projection passes are three reductions plus a broadcast. |
-| `restrict` | tree reduction | Deterministic pairwise, fixed block shape, `f64` accumulator |
+| `materialise` | 1 thread/body | `sample`'s samplers are per-body pure functions of `(address, i)`. The projection passes are three reductions plus a broadcast. |
+| `summarise` | tree reduction | Deterministic pairwise, fixed block shape, `f64` accumulator |
 | `build_octree` | radix sort on Morton codes | Standard: sort, then build the hierarchy from the sorted order (Karras 2012) |
 | `traverse_gravity` | 1 thread/body, warp-shared stack | The divergence-critical kernel; see below |
 | `sph_density`, `sph_force` | 1 thread/body, cell lists | Regular and cache-friendly; the easy case |

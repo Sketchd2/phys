@@ -103,13 +103,13 @@ default:
 
 | Name | Where | Why it is wrong | Becomes |
 |---|---|---|---|
-| `prolong` | `prolong` | Multigrid jargon; and the tree already calls this axis `refine`/`coarsen`, so there are two vocabularies for one idea | **`sample`**, module → `sampler.rs` |
-| `restrict` | `state` | Same, other direction. Nothing is being restricted | **`summarise`** |
+| `sample` | `sample` | Multigrid jargon; and the tree already calls this axis `refine`/`coarsen`, so there are two vocabularies for one idea | **`sample`**, module → `sampler.rs` |
+| `summarise` | `state` | Same, other direction. Nothing is being restricted | **`summarise`** |
 | `ProlongSpec` / `ProlongReport` | | follow the above | **`SampleSpec`** / **`SampleReport`** |
 | `Transaction` | `morph` | Reads as a database transaction; it is one growth step's energy and mass accounting | **`GrowthStep`** |
 | `Located` | `coords` | A `Vec3` carrying an error bound. "Located" says nothing about the error, which is the entire point of the type | **`Bounded`** |
 
-On `prolong`/`restrict`: the docs already describe prolongation as *"a
+On `sample`/`summarise`: the docs already describe sampling as *"a
 maximum-entropy sample of the same conserved tuple"*, so `sample` is not a
 softening — it is what the function is. `Tree::refine` and `Tree::coarsen` keep
 their names and stay the tree-level verbs; `sample` and `summarise` become the
@@ -162,7 +162,7 @@ rename touches.
 | `Snapshot` ×2 → `Snapshot` / `Moment` | 39 | |
 | `settle` ×3 | 3 definitions | Trivial |
 | `Species` → chosen name | 204 | Largest single rename |
-| `prolong` / `restrict` | 80 | Plus a module file rename |
+| `sample` / `summarise` | 80 | Plus a module file rename |
 | `Transaction` → `GrowthStep` | 27 | |
 | `Located` → `Bounded` | 18 | |
 | `Aggregate` → `Bulk` | 100 | Tier 3, optional |
@@ -177,7 +177,7 @@ actively misleading today.
 1. Tier 1 collisions (nine types, one field, one module file, three functions).
 2. `Species` → whichever of the three is chosen. Largest single change at 204
    references; entirely mechanical.
-3. `prolong`/`restrict` → `sample`/`summarise`, with the module rename.
+3. `sample`/`summarise` → `sample`/`summarise`, with the module rename.
 4. Tier 2 remainder, then Tier 3 if wanted.
 
 Each step also touches `docs/`, which describes several of these by name, and

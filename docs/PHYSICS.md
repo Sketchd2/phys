@@ -40,7 +40,7 @@ E = M c²  +  K_bulk(M, P)  +  U_internal  +  Φ_binding  +  Φ_external
 ```
 
 - `K_bulk` is the **exact** relativistic form, `√((Mc²)² + (Pc)²) − Mc²`, not
-  `p²/2M`. The decomposition has to be invertible to the last bit — `restrict`
+  `p²/2M`. The decomposition has to be invertible to the last bit — `summarise`
   recovers `U` from `(M, P, E, Φ)` — and a Newtonian bulk term makes the round
   trip lossy at the 10⁻⁵ level for anything moving at galactic rotation speeds,
   which shows up as visible energy drift when a user pans across a disc.

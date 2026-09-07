@@ -2,7 +2,7 @@
 //!
 //! A node holds a bulk description of its contents. Everything below its own
 //! resolution is absent — not approximated, absent — and is regenerated on
-//! demand by `prolong.rs`. For that to be legitimate, the bulk description must
+//! demand by `sampler.rs`. For that to be legitimate, the bulk description must
 //! carry every quantity that the missing detail is *not allowed to change*:
 //! the conserved set. If refinement and re-coarsening return exactly the same
 //! conserved tuple, no experiment performed at the coarse scale can tell
@@ -799,7 +799,7 @@ impl Aggregate {
     ///
     /// The bulk term is the *exact* relativistic one, not `p^2/2M`, so that the
     /// decomposition is invertible to the last bit: given `(M, P, E, Phi)` you
-    /// recover `U` exactly, which is what `restrict` does. A Newtonian bulk
+    /// recover `U` exactly, which is what `summarise` does. A Newtonian bulk
     /// term makes the round trip lossy at the 10^-5 level for anything moving
     /// at galactic-rotation speeds, which is enough to be visible as energy
     /// drift when a user pans across a disk.
@@ -958,10 +958,10 @@ impl Body {
 
 /// Reduce a materialised set back to a bulk description.
 ///
-/// This is the *restriction* operator R. Together with prolongation P it must
+/// This is the *summarising* operator R. Together with sampling P it must
 /// satisfy `R(P(s)) = s` on the conserved set — the property that lets the
 /// engine throw detail away safely. See `tests/consistency.rs`.
-pub fn restrict(bodies: &[Body], mutual_potential: f64) -> Aggregate {
+pub fn summarise(bodies: &[Body], mutual_potential: f64) -> Aggregate {
     if bodies.is_empty() {
         return Aggregate::default();
     }

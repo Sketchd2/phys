@@ -2,7 +2,7 @@
 //! A cloud whose parcels conserve energy but follow the wrong velocity
 //! distribution is detectable by anyone with a spectrograph.
 
-use phys::prolong::*;
+use phys::sampler::*;
 use phys::rng::{Purpose, Stream};
 use phys::state::*;
 use phys::units::*;
@@ -16,8 +16,8 @@ use phys::units::*;
 #[test]
 fn velocities_are_maxwellian() {
     let agg = Aggregate::neutral(1e30, 1e12, 1e4, Composition::primordial());
-    let spec = ProlongSpec::new(50_000, Profile::Uniform, MassSpectrum::Equal, BodyKind::GasParcel);
-    let (bodies, _) = prolong(&agg, spec, 4242, 0xAA, 0);
+    let spec = SampleSpec::new(50_000, Profile::Uniform, MassSpectrum::Equal, BodyKind::GasParcel);
+    let (bodies, _) = sample(&agg, spec, 4242, 0xAA, 0);
     let vbulk = total_momentum(&bodies).scale(1.0 / agg.mass);
     let n = bodies.len() as f64;
     let m2: f64 = bodies.iter().map(|b| (b.vel - vbulk).norm2()).sum::<f64>() / n;
@@ -40,13 +40,13 @@ fn velocities_are_maxwellian() {
 #[test]
 fn imf_slope_is_kroupa() {
     let agg = Aggregate::neutral(1e5 * M_SUN, PARSEC, 30.0, Composition::solar());
-    let spec = ProlongSpec::new(
+    let spec = SampleSpec::new(
         200_000,
         Profile::Plummer,
         MassSpectrum::Kroupa { min_msun: 0.08, max_msun: 60.0 },
         BodyKind::Star,
     );
-    let (bodies, _) = prolong(&agg, spec, 11, 0xBB, 0);
+    let (bodies, _) = sample(&agg, spec, 11, 0xBB, 0);
     // The masses are rescaled to hit the total exactly, so recover the slope
     // from the *shape* rather than absolute values.
     let mut masses: Vec<f64> = bodies.iter().map(|b| b.mass).collect();
@@ -69,8 +69,8 @@ fn imf_slope_is_kroupa() {
 #[test]
 fn plummer_profile_is_correct() {
     let agg = Aggregate::neutral(1e5 * M_SUN, PARSEC, 30.0, Composition::solar());
-    let spec = ProlongSpec::new(100_000, Profile::Plummer, MassSpectrum::Equal, BodyKind::Star);
-    let (bodies, report) = prolong(&agg, spec, 13, 0xCC, 0);
+    let spec = SampleSpec::new(100_000, Profile::Plummer, MassSpectrum::Equal, BodyKind::Star);
+    let (bodies, report) = sample(&agg, spec, 13, 0xCC, 0);
     let com = bodies.iter().fold(phys::math::Vec3::ZERO, |a, b| a + b.pos).scale(1.0 / bodies.len() as f64);
     let mut r: Vec<f64> = bodies.iter().map(|b| (b.pos - com).norm()).collect();
     r.sort_by(|a, b| a.partial_cmp(b).unwrap());
@@ -145,11 +145,11 @@ fn directions_are_isotropic() {
 #[test]
 fn composition_scatter_preserves_the_mean() {
     let agg = Aggregate::neutral(1e30, 1e10, 1e4, Composition::solar());
-    let spec = ProlongSpec {
+    let spec = SampleSpec {
         composition_scatter: 0.3,
-        ..ProlongSpec::new(5000, Profile::Uniform, MassSpectrum::Equal, BodyKind::GasParcel)
+        ..SampleSpec::new(5000, Profile::Uniform, MassSpectrum::Equal, BodyKind::GasParcel)
     };
-    let (bodies, _) = prolong(&agg, spec, 21, 0xDD, 0);
+    let (bodies, _) = sample(&agg, spec, 21, 0xDD, 0);
     let total: f64 = bodies.iter().map(|b| b.mass).sum();
     for s in CoarseElement::ALL {
         let mean: f64 = bodies.iter().map(|b| b.mass * b.composition.get(s)).sum::<f64>() / total;

@@ -30,7 +30,7 @@
 
 use crate::engine::{default_spec, galaxy};
 use crate::math::v3;
-use crate::prolong::{MassSpectrum, Profile, ProlongSpec};
+use crate::sampler::{MassSpectrum, Profile, SampleSpec};
 use crate::state::{Aggregate, BodyKind, Composition};
 use crate::tree::Tree;
 use crate::units::*;
@@ -134,7 +134,7 @@ fn build_cloud(seed: u64) -> Tree {
     agg.internal_energy = 0.5 * mass * sigma * sigma;
     agg.binding_energy = -0.6 * G * mass * mass / radius;
     agg.spin = v3(0.0, 0.0, 0.25 * mass * sigma * radius);
-    let spec = ProlongSpec {
+    let spec = SampleSpec {
         count: 8_000,
         profile: Profile::Plummer,
         spectrum: MassSpectrum::Equal,

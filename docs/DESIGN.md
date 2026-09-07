@@ -82,7 +82,7 @@ because the residual field has zero angular momentum by construction, it is
 
 Two details make it exact rather than merely good:
 
-- **Energy is closed algebraically, not by iteration.** `restrict` computes the
+- **Energy is closed algebraically, not by iteration.** `summarise` computes the
   parent's internal energy as `E_kin + Σ U_i − K_bulk`, so `Σ U_i` is a free
   parameter that appears linearly and disturbs neither momentum nor angular
   momentum. Solving for it makes total energy exact for *any* configuration,
@@ -94,7 +94,7 @@ Two details make it exact rather than merely good:
   somewhere, and the honest place is the children's intrinsic spin — which is
   exactly what the parent's spin *was*, one level down.
 
-*The guarantee.* `restrict(prolong(s)) = s` on the conserved set, to machine
+*The guarantee.* `summarise(sample(s)) = s` on the conserved set, to machine
 precision, at every tier. Measured worst case: 5.8 × 10⁻¹⁶
 (`tests/consistency.rs`).
 
@@ -173,7 +173,7 @@ choosing where the parts go. Measured worst case across four programs, three
 masses and three budgets: 3.6 × 10⁻¹⁶.
 
 Two things the implementation had to get right that are easy to get wrong.
-`restrict` is not entitled to an opinion about a structure's entropy: it sees an
+`summarise` is not entitled to an opinion about a structure's entropy: it sees an
 unstructured heap of parts and reports the entropy of the same mass as a gas,
 erasing precisely the order that makes the thing a structure. `Body` carries no
 topology, so the information is not there to recover — the developmental state
@@ -426,8 +426,8 @@ has sampled its accessible states 10¹⁹ times, and where it ends up is a draw
 from its equilibrium ensemble, not the endpoint of a trajectory. So past a
 sub-step ceiling the node is *thermalised* — restricted to its bulk state,
 carried across in closed form, and drawn again at the far end. Both halves are
-things the engine already guarantees: restriction is conservative to within
-`IDEMPOTENT_TOLERANCE`, and prolongation is a maximum-entropy sample of the same
+things the engine already guarantees: summarising is conservative to within
+`IDEMPOTENT_TOLERANCE`, and sampling is a maximum-entropy sample of the same
 conserved tuple, which is exactly what a fresh draw from the ensemble means.
 Detail somebody has touched, and detail something finer has been built on, is
 exempt and falls behind honestly instead.
@@ -487,7 +487,7 @@ early is not.
 A node is a region at a tier holding a bulk `Aggregate`. It has two independent
 finer representations:
 
-- **materialised bodies**, produced by `prolong` — cheap to make, cheap to
+- **materialised bodies**, produced by `sample` — cheap to make, cheap to
   destroy, regenerable bit-for-bit;
 - **promoted children**, full nodes standing in for individual bodies, created
   only for the few bodies something is actually happening to.
@@ -588,7 +588,7 @@ engine depends on.
   produces the right correlations at one scale, not the right spectrum across
   scales.
 - **The refinement table is a choice, not a derivation.** How many children a
-  node has and how they are arranged comes from a table in `prolong.rs`, and the
+  node has and how they are arranged comes from a table in `sampler.rs`, and the
   table is only *consistent* — a node's radius, its contents' count and their
   interaction radii have to agree, and where they do not the materialised
   configuration is unphysical. Two cases where they did not have been fixed

@@ -1,6 +1,6 @@
 //! What the on-creation design pass does to a generated structure.
 use phys::morph::{Morphology, Program};
-use phys::prolong::prolong_structured;
+use phys::sampler::sample_structured;
 use phys::state::Aggregate;
 use phys::units::YEAR;
 
@@ -22,7 +22,7 @@ fn main() {
         };
         m.built = mass;
         let agg = Aggregate::neutral(mass, m.extent(), 291.0, prog.substrate());
-        let (_, _, report) = prolong_structured(&agg, &m, budget, 7, 0x1234, 0);
+        let (_, _, report) = sample_structured(&agg, &m, budget, 7, 0x1234, 0);
         let d = report.design;
         println!(
             "{label:<20} peak {:.3} -> {:.3}   spread {:.3} -> {:.3}   {} passes   \

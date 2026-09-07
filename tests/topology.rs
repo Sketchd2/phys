@@ -3,7 +3,7 @@
 use phys::engine::{galaxy, World};
 use phys::math::v3;
 use phys::morph::*;
-use phys::prolong::*;
+use phys::sampler::*;
 use phys::solvers::structure::*;
 use phys::state::*;
 use phys::morph::NO_SUPPORT;
@@ -20,7 +20,7 @@ fn tree(mass: f64) -> (Aggregate, Morphology) {
 }
 
 fn load(agg: &Aggregate, m: &Morphology, budget: usize) -> (Vec<Body>, Topology) {
-    let (b, t, _) = prolong_structured(agg, m, budget, 7, 0x1234, 0);
+    let (b, t, _) = sample_structured(agg, m, budget, 7, 0x1234, 0);
     (b, t)
 }
 
@@ -34,7 +34,7 @@ fn the_support_graph_is_a_well_formed_tree() {
         m.design_mass = 5000.0;
         m.progress = 1.0;
         let agg = Aggregate::neutral(5000.0, m.extent(), 290.0, program.substrate());
-        let (bodies, topo, report) = prolong_structured(&agg, &m, 3000, 7, 0x2, 0);
+        let (bodies, topo, report) = sample_structured(&agg, &m, 3000, 7, 0x2, 0);
         assert!(!topo.is_empty(), "{program:?} produced no joints");
 
         let n = report.structural_parts;
@@ -99,7 +99,7 @@ fn a_tree_stands_up() {
 #[test]
 fn member_geometry_matches_its_mass() {
     let (agg, m) = tree(900.0);
-    let (bodies, topo, report) = prolong_structured(&agg, &m, 4000, 7, 0x1234, 0);
+    let (bodies, topo, report) = sample_structured(&agg, &m, 4000, 7, 0x1234, 0);
     let mut volume = 0.0;
     for i in 0..report.structural_parts {
         let len = (topo.tip[i] - topo.base[i]).norm();
@@ -325,7 +325,7 @@ fn fire_releases_stored_energy_without_losing_mass() {
 #[test]
 fn topology_is_cheap() {
     let (agg, m) = tree(900.0);
-    let (bodies, topo, _) = prolong_structured(&agg, &m, 8000, 7, 0x1234, 0);
+    let (bodies, topo, _) = sample_structured(&agg, &m, 8000, 7, 0x1234, 0);
     let geometry = bodies.len() * std::mem::size_of::<Body>();
     let cohesion = topo.bytes();
     println!(
@@ -499,7 +499,7 @@ fn bracing_relieves_the_primary_path() {
     m.progress = 1.0;
     m.built = 3.0e6;
     let agg = Aggregate::neutral(3.0e6, m.extent(), 290.0, Program::Tower.substrate());
-    let (bodies, topo, _) = prolong_structured(&agg, &m, 2000, 7, 0x77, 0);
+    let (bodies, topo, _) = sample_structured(&agg, &m, 2000, 7, 0x77, 0);
     assert!(!topo.ties.is_empty(), "a framed tower should be braced");
     assert!(!topo.is_determinate());
 
@@ -681,7 +681,7 @@ fn the_two_solvers_agree_on_determinate_structures() {
 fn a_structure_is_proportioned_for_its_loads_when_it_is_built() {
     for (label, mass, budget) in [("900 kg", 900.0, 1200usize), ("6 t", 6000.0, 400)] {
         let (agg, m) = tree(mass);
-        let (_, _, report) = prolong_structured(&agg, &m, budget, 7, 0x1234, 0);
+        let (_, _, report) = sample_structured(&agg, &m, budget, 7, 0x1234, 0);
         let d = report.design;
         println!(
             "  {label:>6}: peak {:.3} -> {:.3}, spread {:.3} -> {:.3} over {} passes, \

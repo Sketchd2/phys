@@ -15,7 +15,7 @@
 //! guarantee is *not*. A [`Recipe`] does hand the client an aggregate, because
 //! the client needs one to generate its own scenery — the invariant is
 //! "cannot step time", not "cannot see state", and it survives intact, since
-//! [`crate::prolong`] samples an instant and has no time argument to give it.
+//! [`crate::sampler`] samples an instant and has no time argument to give it.
 //!
 //! # Everything is node-relative
 //!
@@ -249,7 +249,7 @@ fn stride_for(have: usize, want: usize) -> usize {
 /// be for `render` to call `refine` — a view mutating the world, which the
 /// `&self` on [`crate::engine::World::render`] exists to forbid.
 ///
-/// A recipe is the way out. [`crate::prolong`] is deterministic in
+/// A recipe is the way out. [`crate::sampler`] is deterministic in
 /// `(aggregate, spec, world_seed, path_key, epoch)` and nothing else, so those
 /// ~300 bytes *are* the bodies, losslessly, whatever the count. Ten thousand
 /// procedural buildings cost three megabytes of recipes once instead of a
@@ -334,9 +334,9 @@ impl Recipe {
 
         let bodies = match &morph {
             Some(m) => {
-                crate::prolong::prolong_structured(&agg, m, spec.count, self.seed, self.key.0, self.epoch).0
+                crate::sampler::sample_structured(&agg, m, spec.count, self.seed, self.key.0, self.epoch).0
             }
-            None => crate::prolong::prolong(&agg, spec, self.seed, self.key.0, self.epoch).0,
+            None => crate::sampler::sample(&agg, spec, self.seed, self.key.0, self.epoch).0,
         };
 
         // The check that is worth making. If this build of the engine samples
@@ -662,7 +662,7 @@ const MIN_SPAN: f32 = 1e-6;
 ///
 /// Positions are stored as `i16` across a span the scene *measures* rather than
 /// assumes. A fixed range looked safe and was not: bodies do not sit inside
-/// their node's nominal radius, because `prolong` samples profiles with tails —
+/// their node's nominal radius, because `sample` samples profiles with tails —
 /// a Plummer sphere puts outliers many radii out — and every one of them
 /// clamped to the edge, collapsing the outer half of a galaxy onto a cube.
 ///
@@ -677,7 +677,7 @@ const MIN_SPAN: f32 = 1e-6;
 /// ```
 ///
 /// which for a span of ten radii holds to `n` of about 35,000 — comfortably
-/// past anything `prolong` builds. So the wire is two orders of magnitude finer
+/// past anything `sample` builds. So the wire is two orders of magnitude finer
 /// than the physics it describes, and quantisation is provably not the limiting
 /// error. `quantisation_is_finer_than_the_physics` measures it rather than
 /// trusting this arithmetic.

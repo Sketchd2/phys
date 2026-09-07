@@ -17,7 +17,7 @@
 //!
 //! ## The four ideas
 //!
-//! 1. **Lazy materialisation with exact conservation** (`prolong`, `state`).
+//! 1. **Lazy materialisation with exact conservation** (`sample`, `state`).
 //!    Detail is generated on demand from a seeded distribution and destroyed
 //!    when nobody is looking. The generator is constrained so that coarsening
 //!    the generated detail returns the original bulk state *exactly* — energy,
@@ -54,7 +54,7 @@ pub mod math;
 pub mod morph;
 pub mod observe;
 pub mod persist;
-pub mod prolong;
+pub mod sampler;
 pub mod render;
 pub mod scenario;
 pub mod rng;

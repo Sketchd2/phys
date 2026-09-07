@@ -44,7 +44,7 @@ cannot see.
 boundary degrees of freedom, solve the coarse frame with sections as
 super-members, then solve interiors with the coarse solution as boundary
 conditions. Static condensation is ordinary finite-element practice, and here it
-is the same operation `restrict` already performs on mass and energy, applied to
+is the same operation `summarise` already performs on mass and energy, applied to
 a stiffness matrix instead.
 
 **Trigger:** the first structure that does not fit in one node. Nothing built so
@@ -143,7 +143,7 @@ bubble is the escape hatch either way.
 ## Recipes assume the client's sampler matches the server's
 
 **Noticed:** building `view::Recipe` (Phase 2 bandwidth work).
-**Where:** `view.rs` — `Recipe::build`, and `prolong.rs` underneath it.
+**Where:** `view.rs` — `Recipe::build`, and `sampler.rs` underneath it.
 
 A recipe is ~300 bytes that regenerate a node's detail on the client, and it is
 only ever sent for detail the server does not itself hold. That is what makes it
