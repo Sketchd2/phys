@@ -4,7 +4,7 @@
 //!
 //! `solvers::nuclear::burn` takes a composition, a density, a temperature and a
 //! span, and gives back a changed composition and the energy it released. It
-//! costs O(species) rather than O(particles) and runs on a node's bulk state,
+//! costs O(substances) rather than O(particles) and runs on a node's bulk state,
 //! which is what lets a star burn while nobody is looking at its interior.
 //!
 //! This is the same shape one tier down. A node's [`Mixture`] says what it is

@@ -151,7 +151,7 @@ fn composition_scatter_preserves_the_mean() {
     };
     let (bodies, _) = prolong(&agg, spec, 21, 0xDD, 0);
     let total: f64 = bodies.iter().map(|b| b.mass).sum();
-    for s in Species::ALL {
+    for s in CoarseElement::ALL {
         let mean: f64 = bodies.iter().map(|b| b.mass * b.composition.get(s)).sum::<f64>() / total;
         let want = agg.composition.get(s);
         let err = (mean - want).abs() / want.max(1e-12);
@@ -159,7 +159,7 @@ fn composition_scatter_preserves_the_mean() {
     }
     // And they must actually differ from one another.
     let spread: f64 = {
-        let vals: Vec<f64> = bodies.iter().map(|b| b.composition.get(Species::Iron)).collect();
+        let vals: Vec<f64> = bodies.iter().map(|b| b.composition.get(CoarseElement::Iron)).collect();
         let m = vals.iter().sum::<f64>() / vals.len() as f64;
         (vals.iter().map(|v| (v - m).powi(2)).sum::<f64>() / vals.len() as f64).sqrt() / m
     };

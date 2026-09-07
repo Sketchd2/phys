@@ -553,17 +553,17 @@ fn a_mixture_reconciles_with_the_elemental_account() {
 
     let (comp, explained) = brine.composition(&reg);
     println!(
-        "  brine explains {:.1}% of the mass; as species H {:.4} O {:.4} Other {:.4}",
+        "  brine explains {:.1}% of the mass; as coarse elements H {:.4} O {:.4} Other {:.4}",
         explained * 100.0,
-        comp.get(phys::units::Species::Hydrogen),
-        comp.get(phys::units::Species::Oxygen),
-        comp.get(phys::units::Species::Other),
+        comp.get(phys::units::CoarseElement::Hydrogen),
+        comp.get(phys::units::CoarseElement::Oxygen),
+        comp.get(phys::units::CoarseElement::Other),
     );
     assert!((explained - 1.0).abs() < 1e-12);
     // Sodium and chlorine both lump into `Other`, and their combined mass
     // fraction has to come back out.
-    assert!((comp.get(phys::units::Species::Other) - 0.035).abs() < 1e-9);
-    let sum: f64 = phys::units::Species::ALL.iter().map(|s| comp.get(*s)).sum();
+    assert!((comp.get(phys::units::CoarseElement::Other) - 0.035).abs() < 1e-9);
+    let sum: f64 = phys::units::CoarseElement::ALL.iter().map(|s| comp.get(*s)).sum();
     assert!((sum - 1.0).abs() < 1e-12, "a composition must sum to one, got {sum}");
 
     // The molar mass the lumped account cannot give.
@@ -628,7 +628,7 @@ fn a_mixture_is_bounded_and_says_what_it_dropped() {
         m.speciated()
     );
     assert_eq!(m.len(), phys::chem::registry::MIXTURE_SLOTS);
-    // A trace species that does not make the cut is told so.
+    // A trace substance that does not make the cut is told so.
     let tiny = ids[0];
     assert!(
         !m.add(tiny, Phase::Solid, 1e-9),
@@ -835,7 +835,7 @@ fn dissolving_cannot_move_the_elemental_account() {
     );
     assert!((after_mass - before_mass).abs() < 1e-12, "mass must not move");
     assert!((after_explained - before_explained).abs() < 1e-12);
-    for sp in phys::units::Species::ALL {
+    for sp in phys::units::CoarseElement::ALL {
         let (a, b) = (before.get(sp), after.get(sp));
         assert!(
             (a - b).abs() < 1e-12,
@@ -1020,7 +1020,7 @@ fn a_node_of_brine_dissolves_as_the_world_runs() {
     // Chemistry moved substances, not elements.
     let (comp, _) = after.composition(&w.substances);
     assert!(
-        (comp.get(phys::units::Species::Other) - 0.02).abs() < 1e-9,
+        (comp.get(phys::units::CoarseElement::Other) - 0.02).abs() < 1e-9,
         "the sodium and chlorine are still there"
     );
 }

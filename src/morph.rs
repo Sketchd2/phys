@@ -146,27 +146,27 @@ impl Program {
 
     /// What the structure is built out of.
     pub fn substrate(self) -> Composition {
-        let mut c = [0.0; NSPECIES];
+        let mut c = [0.0; COARSE_ELEMENTS];
         match self {
             // Cellulose, CH2O: roughly 44% C, 6% H, 50% O by mass.
             Program::Tree => {
-                c[Species::Carbon as usize] = 0.44;
-                c[Species::Hydrogen as usize] = 0.06;
-                c[Species::Oxygen as usize] = 0.50;
+                c[CoarseElement::Carbon as usize] = 0.44;
+                c[CoarseElement::Hydrogen as usize] = 0.06;
+                c[CoarseElement::Oxygen as usize] = 0.50;
             }
             // Calcium carbonate, lumped: carbon, oxygen, and heavier cations.
             Program::Coral => {
-                c[Species::Carbon as usize] = 0.12;
-                c[Species::Oxygen as usize] = 0.48;
-                c[Species::Other as usize] = 0.40;
+                c[CoarseElement::Carbon as usize] = 0.12;
+                c[CoarseElement::Oxygen as usize] = 0.48;
+                c[CoarseElement::Other as usize] = 0.40;
             }
             // Concrete and steel: silicates, oxygen, iron.
             Program::Tower | Program::Wall => {
-                c[Species::Oxygen as usize] = 0.46;
-                c[Species::Silicon as usize] = 0.27;
-                c[Species::Iron as usize] = 0.12;
-                c[Species::Carbon as usize] = 0.03;
-                c[Species::Other as usize] = 0.12;
+                c[CoarseElement::Oxygen as usize] = 0.46;
+                c[CoarseElement::Silicon as usize] = 0.27;
+                c[CoarseElement::Iron as usize] = 0.12;
+                c[CoarseElement::Carbon as usize] = 0.03;
+                c[CoarseElement::Other as usize] = 0.12;
             }
         }
         Composition(c).normalised()

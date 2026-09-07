@@ -222,9 +222,9 @@ impl Scales {
     }
 }
 
-/// Mass fractions by species. Always sums to 1 for a non-empty node.
+/// Mass fractions by coarse element. Always sums to 1 for a non-empty node.
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub struct Composition(pub [f64; NSPECIES]);
+pub struct Composition(pub [f64; COARSE_ELEMENTS]);
 
 impl Default for Composition {
     fn default() -> Self {
@@ -236,29 +236,29 @@ impl Composition {
     /// Big Bang nucleosynthesis output: the initial condition for gas that has
     /// never been through a star.
     pub fn primordial() -> Composition {
-        let mut c = [0.0; NSPECIES];
-        c[Species::Hydrogen as usize] = 0.75;
-        c[Species::Helium as usize] = 0.25;
+        let mut c = [0.0; COARSE_ELEMENTS];
+        c[CoarseElement::Hydrogen as usize] = 0.75;
+        c[CoarseElement::Helium as usize] = 0.25;
         Composition(c)
     }
 
     /// Roughly solar (Asplund 2009 mass fractions, lumped into our buckets).
     pub fn solar() -> Composition {
-        let mut c = [0.0; NSPECIES];
-        c[Species::Hydrogen as usize] = 0.7381;
-        c[Species::Helium as usize] = 0.2485;
-        c[Species::Carbon as usize] = 0.0024;
-        c[Species::Nitrogen as usize] = 0.0007;
-        c[Species::Oxygen as usize] = 0.0057;
-        c[Species::Silicon as usize] = 0.0007;
-        c[Species::Iron as usize] = 0.0013;
-        c[Species::Other as usize] = 0.0026;
+        let mut c = [0.0; COARSE_ELEMENTS];
+        c[CoarseElement::Hydrogen as usize] = 0.7381;
+        c[CoarseElement::Helium as usize] = 0.2485;
+        c[CoarseElement::Carbon as usize] = 0.0024;
+        c[CoarseElement::Nitrogen as usize] = 0.0007;
+        c[CoarseElement::Oxygen as usize] = 0.0057;
+        c[CoarseElement::Silicon as usize] = 0.0007;
+        c[CoarseElement::Iron as usize] = 0.0013;
+        c[CoarseElement::Other as usize] = 0.0026;
         Composition(c).normalised()
     }
 
-    /// Pure one species — used when the user drills into a specific atom.
-    pub fn pure(s: Species) -> Composition {
-        let mut c = [0.0; NSPECIES];
+    /// Pure one element — used when the user drills into a specific atom.
+    pub fn pure(s: CoarseElement) -> Composition {
+        let mut c = [0.0; COARSE_ELEMENTS];
         c[s as usize] = 1.0;
         Composition(c)
     }
@@ -266,7 +266,7 @@ impl Composition {
     /// Cold dark matter: gravitationally active, chemically inert. Lives in the
     /// `Other` bucket but is flagged separately by the tier's solver.
     pub fn dark() -> Composition {
-        Composition::pure(Species::Other)
+        Composition::pure(CoarseElement::Other)
     }
 
     pub fn normalised(mut self) -> Composition {
@@ -279,7 +279,7 @@ impl Composition {
         self
     }
 
-    pub fn get(&self, s: Species) -> f64 {
+    pub fn get(&self, s: CoarseElement) -> f64 {
         self.0[s as usize]
     }
 
@@ -294,8 +294,8 @@ impl Composition {
         if t <= 0.0 {
             return a;
         }
-        let mut c = [0.0; NSPECIES];
-        for i in 0..NSPECIES {
+        let mut c = [0.0; COARSE_ELEMENTS];
+        for i in 0..COARSE_ELEMENTS {
             c[i] = (a.0[i] * ma + b.0[i] * mb) / t;
         }
         Composition(c)
@@ -307,7 +307,7 @@ impl Composition {
     pub fn mean_molecular_mass(&self, temperature: f64) -> f64 {
         let ionised = temperature > 1.0e4;
         let mut inv = 0.0;
-        for s in Species::ALL {
+        for s in CoarseElement::ALL {
             let x = self.get(s);
             if x <= 0.0 {
                 continue;
@@ -333,7 +333,7 @@ impl Composition {
     /// Electrons per nucleon — needed for opacity and for charge bookkeeping.
     pub fn electrons_per_nucleon(&self) -> f64 {
         let mut n = 0.0;
-        for s in Species::ALL {
+        for s in CoarseElement::ALL {
             n += self.get(s) * s.z() / s.a();
         }
         n
@@ -348,7 +348,7 @@ impl Composition {
     pub fn mean_atomic_mass(&self) -> f64 {
         let mut mass = 0.0;
         let mut number = 0.0;
-        for s in Species::ALL {
+        for s in CoarseElement::ALL {
             let f = self.get(s);
             if f <= 0.0 {
                 continue;
@@ -366,7 +366,7 @@ impl Composition {
 
     pub fn nucleons_per_kg(&self) -> f64 {
         let mut n = 0.0;
-        for s in Species::ALL {
+        for s in CoarseElement::ALL {
             n += self.get(s) / s.mass_kg() * s.a();
         }
         n
@@ -382,12 +382,12 @@ impl Composition {
     /// units of energy) injects ~10^13 J/kg of spurious heat.
     pub fn nuclear_energy_per_kg(&self) -> f64 {
         let mut e = 0.0;
-        for s in Species::ALL {
+        for s in CoarseElement::ALL {
             let x = self.get(s);
             if x <= 0.0 {
                 continue;
             }
-            // per kg of this species: (A nucleons / mass) * B/A
+            // per kg of this element: (A nucleons / mass) * B/A
             e -= x * (s.a() / s.mass_kg()) * s.binding_per_nucleon_mev() * MEV;
         }
         e
@@ -993,8 +993,8 @@ pub fn restrict(bodies: &[Body], mutual_potential: f64) -> Aggregate {
         (r2.max(0.0).sqrt() * RMS_TO_RADIUS).max(1e-30)
     };
 
-    let mut comp = [0.0; NSPECIES];
-    for s in 0..NSPECIES {
+    let mut comp = [0.0; COARSE_ELEMENTS];
+    for s in 0..COARSE_ELEMENTS {
         comp[s] = det_sum_by(n, &|i| bodies[i].mass * bodies[i].composition.0[s]) / mass;
     }
     let composition = Composition(comp).normalised();

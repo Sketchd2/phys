@@ -46,7 +46,7 @@ use crate::prolong::{MassSpectrum, Profile, ProlongReport, ProlongSpec};
 use crate::state::{Aggregate, Body, BodyKind, Composition};
 use crate::topology::{Joint, Material, Tie, Topology};
 use crate::tree::{Node, Residency, Tree, TreeStats};
-use crate::units::{Species, Tier, NSPECIES};
+use crate::units::{CoarseElement, Tier, COARSE_ELEMENTS};
 use crate::wire::{Reader, Result, WireError, Writer};
 use std::collections::HashMap;
 
@@ -189,12 +189,12 @@ fn get_property(r: &mut Reader) -> Result<Property> {
 // ---------------------------------------------------------------------------
 
 fn put_composition(w: &mut Writer, c: &Composition) {
-    for s in Species::ALL {
+    for s in CoarseElement::ALL {
         w.f64(c.get(s));
     }
 }
 fn get_composition(r: &mut Reader) -> Result<Composition> {
-    let mut a = [0.0f64; NSPECIES];
+    let mut a = [0.0f64; COARSE_ELEMENTS];
     for slot in a.iter_mut() {
         *slot = r.f64()?;
     }
@@ -232,7 +232,7 @@ fn get_body(r: &mut Reader) -> Result<Body> {
 
 /// Smallest number of bytes one body can occupy on the wire. Used to bound a
 /// length prefix before allocating; it must never overstate the true size.
-const BODY_MIN_BYTES: usize = 8 * (3 + 3 + 5 + NSPECIES + 3) + 4 + 1;
+const BODY_MIN_BYTES: usize = 8 * (3 + 3 + 5 + COARSE_ELEMENTS + 3) + 4 + 1;
 
 pub(crate) fn put_bodies_pub(w: &mut Writer, bodies: &[Body]) {
     w.seq(bodies.len());
@@ -346,7 +346,7 @@ fn put_spectrum(w: &mut Writer, s: &MassSpectrum) {
             w.f64(*alpha);
             w.f64(*ratio);
         }
-        MassSpectrum::Species => w.u8(3),
+        MassSpectrum::CoarseElement => w.u8(3),
     }
 }
 fn get_spectrum(r: &mut Reader) -> Result<MassSpectrum> {
@@ -354,7 +354,7 @@ fn get_spectrum(r: &mut Reader) -> Result<MassSpectrum> {
         0 => MassSpectrum::Equal,
         1 => MassSpectrum::Kroupa { min_msun: r.f64()?, max_msun: r.f64()? },
         2 => MassSpectrum::PowerLaw { alpha: r.f64()?, ratio: r.f64()? },
-        _ => MassSpectrum::Species,
+        _ => MassSpectrum::CoarseElement,
     })
 }
 
@@ -1277,7 +1277,7 @@ pub struct Flushed {
 /// something happened to it (`last_disturbed`). A node that was merely carried
 /// forward is not: its position at any instant is a closed-form function of the
 /// state already stored, so the reader can reconstruct it by coasting — which is
-/// exactly what [`Snapshot::settle`] does on load.
+/// exactly what [`Snapshot::catch_up`] does on load.
 pub fn dirty_nodes(tree: &Tree, since: f64) -> Vec<usize> {
     (0..tree.nodes.len())
         .filter(|&i| {

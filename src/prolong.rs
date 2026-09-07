@@ -74,8 +74,8 @@ pub enum MassSpectrum {
     /// `dN/dm ∝ m^alpha`. Cloud fragmentation, debris, dust grains.
     PowerLaw { alpha: f64, ratio: f64 },
     /// Masses set by the composition — one child per nucleus, correct
-    /// per-species masses. Used at molecular and finer tiers.
-    Species,
+    /// per-element masses. Used at molecular and finer tiers.
+    CoarseElement,
 }
 
 /// Everything needed to turn one aggregate into many bodies.
@@ -347,16 +347,16 @@ fn sample_masses(
                 m.push(st.power_law(lo, hi, alpha));
             }
         }
-        MassSpectrum::Species => {
+        MassSpectrum::CoarseElement => {
             // One child per nucleus, drawn from the composition. The masses are
             // then physical, not statistical.
-            let mut weights = [0.0; NSPECIES];
-            for (i, s) in Species::ALL.iter().enumerate() {
+            let mut weights = [0.0; COARSE_ELEMENTS];
+            for (i, s) in CoarseElement::ALL.iter().enumerate() {
                 weights[i] = agg.composition.get(*s) / s.mass_kg();
             }
             for _ in 0..n {
                 let i = st.weighted(&weights);
-                m.push(Species::ALL[i].mass_kg());
+                m.push(CoarseElement::ALL[i].mass_kg());
             }
         }
     }
@@ -536,7 +536,7 @@ fn sample_compositions(
     // composition to the last bit, because baryon number, lepton number and
     // charge are all derived from it.
     //
-    // Rescaling each species and then renormalising each body are two
+    // Rescaling each element and then renormalising each body are two
     // constraints that fight: the renormalisation undoes part of the rescaling.
     // Alternating them converges geometrically (this is Sinkhorn scaling), and
     // eight rounds takes the residual to round-off. Doing it once — the obvious
@@ -545,7 +545,7 @@ fn sample_compositions(
     // gaining nucleons every time a user zooms in.
     let total_mass = det_sum_by(n, &|i| masses[i]);
     for _round in 0..8 {
-        for s in 0..NSPECIES {
+        for s in 0..COARSE_ELEMENTS {
             let have = det_sum_by(n, &|i| masses[i] * comps[i].0[s]) / total_mass;
             let want = agg.composition.0[s];
             if have > 1e-300 && want > 0.0 {
@@ -1238,7 +1238,7 @@ pub fn default_spec(tier: Tier) -> ProlongSpec {
         Tier::Molecular => ProlongSpec {
             count: 8_000,
             profile: Profile::Uniform,
-            spectrum: MassSpectrum::Species,
+            spectrum: MassSpectrum::CoarseElement,
             kind: BodyKind::Molecule,
             composition_scatter: 0.0,
             turbulent_fraction: 0.0,
@@ -1251,7 +1251,7 @@ pub fn default_spec(tier: Tier) -> ProlongSpec {
         Tier::Atomic => ProlongSpec {
             count: 8,
             profile: Profile::Lattice,
-            spectrum: MassSpectrum::Species,
+            spectrum: MassSpectrum::CoarseElement,
             kind: BodyKind::Atom,
             composition_scatter: 0.0,
             turbulent_fraction: 0.0,

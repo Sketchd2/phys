@@ -27,7 +27,7 @@
 //!
 //! # Two accounts, reconciled
 //!
-//! A node carries both `Aggregate::composition` — eight lumped species, which
+//! A node carries both `Aggregate::composition` — eight lumped coarse elements, which
 //! is what nuclear burning and mass conservation run on — and a `Mixture`,
 //! which says how much of that mass is in *which substances*. The second is a
 //! speciation of the first and may be partial: at ten million kelvin there are
@@ -225,7 +225,7 @@ impl Registry {
 ///
 /// Eight, for the same reason the elemental account has eight buckets: a node
 /// is a *bulk* description, and a bulk description that tracked forty trace
-/// species would cost more than the detail it stands in for. What falls off
+/// trace elements would cost more than the detail it stands in for. What falls off
 /// the end is not lost — its mass stays in the aggregate's composition, it
 /// simply stops being attributed to a named substance.
 pub const MIXTURE_SLOTS: usize = 8;
@@ -355,7 +355,7 @@ impl Mixture {
     ///
     /// Returns false if the mixture was full and this was smaller than
     /// everything in it, which is the case where the caller is told its trace
-    /// species did not make the cut rather than silently losing it.
+    /// trace species did not make the cut rather than silently losing it.
     /// Add mass of a substance in a given phase, merging with any pool of the
     /// same substance already in the same phase.
     pub fn add(&mut self, id: SubstanceId, phase: Phase, fraction: f64) -> bool {
@@ -480,14 +480,14 @@ impl Mixture {
         h
     }
 
-    /// This mixture projected onto the engine's eight lumped species.
+    /// This mixture projected onto the engine's eight lumped coarse elements.
     ///
     /// The reconciliation between the two accounts. Returns the composition of
     /// the speciated part only, together with what fraction of the mass that
     /// was — a caller comparing against an aggregate has to know how much of it
     /// this claims to explain.
     pub fn composition(&self, reg: &Registry) -> (Composition, f64) {
-        let mut acc = [0.0f64; crate::units::NSPECIES];
+        let mut acc = [0.0f64; crate::units::COARSE_ELEMENTS];
         let mut explained = 0.0;
         for p in self.entries() {
             let Some(s) = reg.get(p.substance) else { continue };
@@ -507,8 +507,8 @@ impl Mixture {
 
     /// Mean molar mass of the speciated part, kg/mol.
     ///
-    /// What the lumped species account cannot give: a kilogram of salt counted
-    /// through `Species::Other` contains 2.8 times too few particles, and this
+    /// What the lumped account cannot give: a kilogram of salt counted
+    /// through `CoarseElement::Other` contains 2.8 times too few particles, and this
     /// is the number that fixes it.
     pub fn molar_mass(&self, reg: &Registry) -> Option<f64> {
         let mut moles = 0.0;

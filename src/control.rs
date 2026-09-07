@@ -579,7 +579,7 @@ pub fn decode(bytes: &[u8]) -> Result<Command> {
                     let target = NodeIdx(r.u32()?);
                     let kg_per_second = r.f64()?;
                     let seconds = r.f64()?;
-                    let mut c = [0.0f64; crate::units::NSPECIES];
+                    let mut c = [0.0f64; crate::units::COARSE_ELEMENTS];
                     for slot in c.iter_mut() {
                         *slot = r.f64()?;
                     }

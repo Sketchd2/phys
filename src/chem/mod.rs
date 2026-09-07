@@ -1,6 +1,6 @@
 //! Chemistry: what matter *is*, as opposed to what elements it contains.
 //!
-//! See `elements` for why this coexists with `units::Species` rather than
+//! See `elements` for why this coexists with `units::CoarseElement` rather than
 //! replacing it, `arrange` for how a substance is described, `analyse` for
 //! how its properties are derived rather than looked up, and `registry` for
 //! where the derivation is kept.

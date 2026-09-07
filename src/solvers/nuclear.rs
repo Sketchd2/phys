@@ -24,7 +24,7 @@ use crate::units::*;
 /// and it is exactly the difference in nuclear binding — which is why iron is
 /// the end of the line, and why the engine gets that for free rather than
 /// having it hard-coded.
-pub fn fusion_energy(from: Species, to: Species, mass: f64) -> f64 {
+pub fn fusion_energy(from: CoarseElement, to: CoarseElement, mass: f64) -> f64 {
     let nucleons = mass / from.mass_kg() * from.a();
     let delta_per_nucleon = (to.binding_per_nucleon_mev() - from.binding_per_nucleon_mev()) * MEV;
     nucleons * delta_per_nucleon
@@ -100,9 +100,9 @@ pub struct BurnResult {
 }
 
 pub fn burn(comp: Composition, rho: f64, temperature: f64, mass: f64, dt: f64) -> BurnResult {
-    let x_h = comp.get(Species::Hydrogen);
-    let y_he = comp.get(Species::Helium);
-    let x_cno = comp.get(Species::Carbon) + comp.get(Species::Nitrogen) + comp.get(Species::Oxygen);
+    let x_h = comp.get(CoarseElement::Hydrogen);
+    let y_he = comp.get(CoarseElement::Helium);
+    let x_cno = comp.get(CoarseElement::Carbon) + comp.get(CoarseElement::Nitrogen) + comp.get(CoarseElement::Oxygen);
 
     let pp = pp_chain_rate(rho, temperature, x_h);
     let cno = cno_rate(rho, temperature, x_h, x_cno);
@@ -117,14 +117,14 @@ pub fn burn(comp: Composition, rho: f64, temperature: f64, mass: f64, dt: f64) -
     // 0.7% of the rest mass; He -> C releases 0.07%.
     let h_to_he = (pp + cno) * mass * dt / (0.00712 * C2);
     let he_to_c = tri * mass * dt / (0.00076 * C2);
-    let h_avail = c[Species::Hydrogen as usize] * mass;
-    let he_avail = c[Species::Helium as usize] * mass;
+    let h_avail = c[CoarseElement::Hydrogen as usize] * mass;
+    let he_avail = c[CoarseElement::Helium as usize] * mass;
     let dh = h_to_he.min(h_avail * 0.1);
     let dhe = he_to_c.min(he_avail * 0.1);
     if mass > 0.0 {
-        c[Species::Hydrogen as usize] -= dh / mass;
-        c[Species::Helium as usize] += dh / mass - dhe / mass;
-        c[Species::Carbon as usize] += dhe / mass;
+        c[CoarseElement::Hydrogen as usize] -= dh / mass;
+        c[CoarseElement::Helium as usize] += dh / mass - dhe / mass;
+        c[CoarseElement::Carbon as usize] += dhe / mass;
     }
 
     BurnResult {
@@ -134,7 +134,7 @@ pub fn burn(comp: Composition, rho: f64, temperature: f64, mass: f64, dt: f64) -
     }
 }
 
-/// A radioactive species the engine can follow explicitly when a user zooms in
+/// A radioactive nuclide the engine can follow explicitly when a user zooms in
 /// on one. Half-lives in seconds.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Isotope {
@@ -217,7 +217,7 @@ pub const SIGMA_THOMSON: f64 = 6.652_458_7321e-29;
 
 /// Electron-scattering opacity, m^2/kg.
 pub fn electron_opacity(comp: Composition) -> f64 {
-    0.02 * (1.0 + comp.get(Species::Hydrogen)) * 10.0
+    0.02 * (1.0 + comp.get(CoarseElement::Hydrogen)) * 10.0
 }
 
 /// Kramers' bound-free/free-free opacity, m^2/kg.
@@ -241,7 +241,7 @@ pub fn coulomb_barrier(z1: f64, z2: f64, a1: f64, a2: f64) -> f64 {
 }
 
 /// Semi-empirical mass formula binding energy, MeV — used when the engine needs
-/// a nucleus that is not in the lumped species table.
+/// a nucleus that is not in the lumped element table.
 pub fn semf_binding(z: f64, a: f64) -> f64 {
     if a <= 0.0 {
         return 0.0;

@@ -10,19 +10,19 @@ use phys::solvers::md::{self, Bonded};
 use phys::state::{Body, Composition};
 use phys::units::*;
 
-fn atom(species: Species, pos: Vec3, mass_amu: f64) -> Body {
+fn atom(coarse_element: CoarseElement, pos: Vec3, mass_amu: f64) -> Body {
     Body {
         pos,
         mass: mass_amu * AMU,
-        composition: Composition::pure(species),
+        composition: Composition::pure(coarse_element),
         ..Default::default()
     }
 }
 
 fn hydrogen_molecule(separation: f64) -> (Vec<Body>, Bonded) {
     let bodies = vec![
-        atom(Species::Hydrogen, v3(0.0, 0.0, 0.0), 1.00794),
-        atom(Species::Hydrogen, v3(separation, 0.0, 0.0), 1.00794),
+        atom(CoarseElement::Hydrogen, v3(0.0, 0.0, 0.0), 1.00794),
+        atom(CoarseElement::Hydrogen, v3(separation, 0.0, 0.0), 1.00794),
     ];
     let mut bonded = Bonded::default();
     bonded.bond(&bodies, 0, 1);
@@ -37,7 +37,7 @@ fn hydrogen_molecule(separation: f64) -> (Vec<Body>, Bonded) {
 /// rather than by being told.
 #[test]
 fn a_diatomic_vibrates_at_its_spectroscopic_frequency() {
-    let (r0, well, k) = md::covalent(Species::Hydrogen, Species::Hydrogen);
+    let (r0, well, k) = md::covalent(CoarseElement::Hydrogen, CoarseElement::Hydrogen);
     // Displace by a hundredth of the bond length: small enough that the Morse
     // well is harmonic to well under a percent.
     let stretch = r0 * 0.01;
@@ -91,7 +91,7 @@ fn a_diatomic_vibrates_at_its_spectroscopic_frequency() {
 /// does and what a harmonic one never does however large you make it.
 #[test]
 fn a_molecule_comes_apart_at_its_dissociation_energy() {
-    let (r0, well, _) = md::covalent(Species::Hydrogen, Species::Hydrogen);
+    let (r0, well, _) = md::covalent(CoarseElement::Hydrogen, CoarseElement::Hydrogen);
     let params = md::MdParams::default();
 
     for (label, fraction, should_break) in
@@ -179,13 +179,13 @@ fn drift(before: phys::state::Conserved, bodies: &[Body], bonded: &Bonded) -> f6
 /// own bending.
 #[test]
 fn bonded_forces_are_internal() {
-    let (r0, _, _) = md::covalent(Species::Hydrogen, Species::Oxygen);
+    let (r0, _, _) = md::covalent(CoarseElement::Hydrogen, CoarseElement::Oxygen);
     let theta: f64 = 104.5f64.to_radians();
     let mut bodies = vec![
-        atom(Species::Oxygen, v3(0.0, 0.0, 0.0), 15.999),
-        atom(Species::Hydrogen, v3(r0, 0.0, 0.0), 1.00794),
+        atom(CoarseElement::Oxygen, v3(0.0, 0.0, 0.0), 15.999),
+        atom(CoarseElement::Hydrogen, v3(r0, 0.0, 0.0), 1.00794),
         atom(
-            Species::Hydrogen,
+            CoarseElement::Hydrogen,
             v3(r0 * theta.cos(), r0 * theta.sin(), 0.0),
             1.00794,
         ),
@@ -228,13 +228,13 @@ fn bonded_forces_are_internal() {
 /// A bend must actually restore the geometry it was given.
 #[test]
 fn an_angle_holds_a_molecule_in_shape() {
-    let (r0, _, _) = md::covalent(Species::Hydrogen, Species::Oxygen);
+    let (r0, _, _) = md::covalent(CoarseElement::Hydrogen, CoarseElement::Oxygen);
     let rest: f64 = 104.5f64.to_radians();
     let place = |t: f64| v3(r0 * t.cos(), r0 * t.sin(), 0.0);
     let mut bodies = vec![
-        atom(Species::Oxygen, v3(0.0, 0.0, 0.0), 15.999),
-        atom(Species::Hydrogen, place(0.0), 1.00794),
-        atom(Species::Hydrogen, place(rest), 1.00794),
+        atom(CoarseElement::Oxygen, v3(0.0, 0.0, 0.0), 15.999),
+        atom(CoarseElement::Hydrogen, place(0.0), 1.00794),
+        atom(CoarseElement::Hydrogen, place(rest), 1.00794),
     ];
     let mut bonded = Bonded::default();
     bonded.bond(&bodies, 0, 1);
@@ -287,7 +287,7 @@ fn angle(b: &[Body]) -> f64 {
 /// — and that is worth checking over enough steps for a drift to show.
 #[test]
 fn bonded_energy_stays_bounded() {
-    let (r0, _, _) = md::covalent(Species::Hydrogen, Species::Hydrogen);
+    let (r0, _, _) = md::covalent(CoarseElement::Hydrogen, CoarseElement::Hydrogen);
     let (mut bodies, bonded) = hydrogen_molecule(r0 * 1.15);
     let params = md::MdParams::default();
     let dt = md::stable_dt_bonded(&bodies, &bonded);
@@ -321,15 +321,15 @@ fn bonded_energy_stays_bounded() {
 /// switch is zero, the moment of creation is energetically invisible.
 #[test]
 fn a_bond_forms_without_changing_the_energy() {
-    let (_, well, _) = md::covalent(Species::Hydrogen, Species::Hydrogen);
+    let (_, well, _) = md::covalent(CoarseElement::Hydrogen, CoarseElement::Hydrogen);
     // Outside the capture radius, closing slowly. The capture radius is set by
     // where dispersion dies rather than by the bond length, so it is several
     // times the bond length — for hydrogen, 4.9 angstroms against a 0.74
     // angstrom bond.
-    let capture = Bonded::capture_radius(Species::Hydrogen, Species::Hydrogen);
+    let capture = Bonded::capture_radius(CoarseElement::Hydrogen, CoarseElement::Hydrogen);
     let mut bodies = vec![
-        atom(Species::Hydrogen, v3(0.0, 0.0, 0.0), 1.00794),
-        atom(Species::Hydrogen, v3(1.3 * capture, 0.0, 0.0), 1.00794),
+        atom(CoarseElement::Hydrogen, v3(0.0, 0.0, 0.0), 1.00794),
+        atom(CoarseElement::Hydrogen, v3(1.3 * capture, 0.0, 0.0), 1.00794),
     ];
     let approach = 600.0;
     bodies[0].vel = v3(approach, 0.0, 0.0);
@@ -385,10 +385,10 @@ fn a_bond_forms_without_changing_the_energy() {
 /// means, and the conserved tuple has to show it coming from the potential.
 #[test]
 fn forming_a_bond_warms_the_gas() {
-    let (r0, well, _) = md::covalent(Species::Hydrogen, Species::Hydrogen);
+    let (r0, well, _) = md::covalent(CoarseElement::Hydrogen, CoarseElement::Hydrogen);
     let mut bodies = vec![
-        atom(Species::Hydrogen, v3(0.0, 0.0, 0.0), 1.00794),
-        atom(Species::Hydrogen, v3(3.0 * r0, 0.0, 0.0), 1.00794),
+        atom(CoarseElement::Hydrogen, v3(0.0, 0.0, 0.0), 1.00794),
+        atom(CoarseElement::Hydrogen, v3(3.0 * r0, 0.0, 0.0), 1.00794),
     ];
     bodies[0].vel = v3(200.0, 0.0, 0.0);
     bodies[1].vel = v3(-200.0, 0.0, 0.0);
@@ -430,13 +430,13 @@ fn forming_a_bond_warms_the_gas() {
 /// not chemistry, it is a bug with a plausible-looking rendering.
 #[test]
 fn valence_limits_what_can_bond() {
-    let (r0, _, _) = md::covalent(Species::Hydrogen, Species::Oxygen);
+    let (r0, _, _) = md::covalent(CoarseElement::Hydrogen, CoarseElement::Oxygen);
     // One oxygen with four hydrogens crowded around it. Oxygen takes two.
-    let mut bodies = vec![atom(Species::Oxygen, v3(0.0, 0.0, 0.0), 15.999)];
+    let mut bodies = vec![atom(CoarseElement::Oxygen, v3(0.0, 0.0, 0.0), 15.999)];
     for k in 0..4 {
         let a = std::f64::consts::TAU * k as f64 / 4.0;
         bodies.push(atom(
-            Species::Hydrogen,
+            CoarseElement::Hydrogen,
             v3(1.2 * r0 * a.cos(), 1.2 * r0 * a.sin(), 0.0),
             1.00794,
         ));
@@ -448,7 +448,7 @@ fn valence_limits_what_can_bond() {
         "  {} bonds formed; oxygen holds {} (valence {}), hydrogens hold {:?}",
         reaction.formed,
         z[0],
-        md::valence(Species::Oxygen),
+        md::valence(CoarseElement::Oxygen),
         &z[1..]
     );
     assert_eq!(z[0], 2, "oxygen took {} bonds, valence is 2", z[0]);
@@ -468,12 +468,12 @@ fn valence_limits_what_can_bond() {
 /// and it must be the same molecule every time.
 #[test]
 fn atoms_assemble_into_water() {
-    let (r0, _, _) = md::covalent(Species::Hydrogen, Species::Oxygen);
+    let (r0, _, _) = md::covalent(CoarseElement::Hydrogen, CoarseElement::Oxygen);
     let build = || {
         let mut bodies = vec![
-            atom(Species::Oxygen, v3(0.0, 0.0, 0.0), 15.999),
-            atom(Species::Hydrogen, v3(2.1 * r0, 0.0, 0.0), 1.00794),
-            atom(Species::Hydrogen, v3(-0.9 * r0, 1.9 * r0, 0.0), 1.00794),
+            atom(CoarseElement::Oxygen, v3(0.0, 0.0, 0.0), 15.999),
+            atom(CoarseElement::Hydrogen, v3(2.1 * r0, 0.0, 0.0), 1.00794),
+            atom(CoarseElement::Hydrogen, v3(-0.9 * r0, 1.9 * r0, 0.0), 1.00794),
         ];
         // A little inward drift so they meet rather than sitting still.
         bodies[1].vel = v3(-120.0, 0.0, 0.0);
@@ -527,7 +527,7 @@ fn atoms_assemble_into_water() {
 /// must cost nothing either.
 #[test]
 fn a_bond_breaks_without_changing_the_energy() {
-    let (r0, _, _) = md::covalent(Species::Hydrogen, Species::Hydrogen);
+    let (r0, _, _) = md::covalent(CoarseElement::Hydrogen, CoarseElement::Hydrogen);
     let (mut bodies, _) = hydrogen_molecule(r0);
     let mut bonded = Bonded::default();
     assert_eq!(bonded.react(&bodies).formed, 1);

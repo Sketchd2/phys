@@ -79,7 +79,7 @@ fn main() {
     println!("\n## molecular dynamics (LJ, cell lists)");
     for n in [1_000usize, 10_000, 100_000] {
         let side = 4e-9 * (n as f64 / 4096.0).cbrt();
-        let mol = Aggregate::neutral(n as f64 * 12.0 * AMU, side, 300.0, Composition::pure(Species::Carbon));
+        let mol = Aggregate::neutral(n as f64 * 12.0 * AMU, side, 300.0, Composition::pure(CoarseElement::Carbon));
         let mut b = bodies(n, Profile::Uniform, BodyKind::Atom, &mol);
         let p = md::MdParams::default();
         let us = time(2, || {

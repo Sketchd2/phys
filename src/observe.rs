@@ -110,7 +110,7 @@ pub enum Reading {
     ParticleCount { counts: u64, expected: f64 },
     /// Position along an axis, with the disturbance the measurement caused.
     Position { value: f64, uncertainty: f64, disturbance: f64 },
-    Composition { fractions: [f64; NSPECIES] },
+    Composition { fractions: [f64; COARSE_ELEMENTS] },
     /// Bulk properties an observer could infer without resolving structure.
     Bulk { mass: f64, radius: f64, velocity: Vec3 },
     /// The instrument could not resolve the target at all.

@@ -21,14 +21,14 @@ fn sample_aggregates() -> Vec<(&'static str, Aggregate)> {
     star.binding_energy = -0.6 * G * M_SUN * M_SUN / R_SUN;
     out.push(("star", star));
 
-    let mut planet = Aggregate::neutral(M_EARTH, R_EARTH, 3000.0, Composition::pure(Species::Silicon));
+    let mut planet = Aggregate::neutral(M_EARTH, R_EARTH, 3000.0, Composition::pure(CoarseElement::Silicon));
     planet.spin = v3(0.0, 0.0, 7.05e33);
     out.push(("planet", planet));
 
-    let grain = Aggregate::neutral(1e-9, 1e-5, 150.0, Composition::pure(Species::Carbon));
+    let grain = Aggregate::neutral(1e-9, 1e-5, 150.0, Composition::pure(CoarseElement::Carbon));
     out.push(("dust grain", grain));
 
-    let ion = Aggregate::neutral(56.0 * AMU, 4.6e-15, 1e7, Composition::pure(Species::Iron))
+    let ion = Aggregate::neutral(56.0 * AMU, 4.6e-15, 1e7, Composition::pure(CoarseElement::Iron))
         .with_charge(26.0 * E_CHARGE);
     assert_eq!(ion.validate(), 0.0, "test fixture must be self-consistent");
     out.push(("iron nucleus (fully stripped)", ion));
@@ -46,7 +46,7 @@ fn specs() -> Vec<(&'static str, ProlongSpec)> {
         ("disk/powerlaw", ProlongSpec { count: 2000, profile: Profile::Disk { scale_height_ratio: 0.1 }, spectrum: MassSpectrum::PowerLaw { alpha: -1.8, ratio: 50.0 }, kind: BodyKind::Super, composition_scatter: 0.2, turbulent_fraction: 0.5 }),
         ("shell/equal", ProlongSpec::new(500, Profile::Shell, MassSpectrum::Equal, BodyKind::GasParcel)),
         ("woods-saxon", ProlongSpec::new(56, Profile::WoodsSaxon, MassSpectrum::Equal, BodyKind::Nucleon)),
-        ("lattice/species", ProlongSpec::new(64, Profile::Lattice, MassSpectrum::Species, BodyKind::Atom)),
+        ("lattice/species", ProlongSpec::new(64, Profile::Lattice, MassSpectrum::CoarseElement, BodyKind::Atom)),
         ("tiny", ProlongSpec::new(2, Profile::Uniform, MassSpectrum::Equal, BodyKind::Grain)),
     ]
 }

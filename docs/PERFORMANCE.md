@@ -109,7 +109,7 @@ analysis going from 12 ms to 23 ms before the threshold was added.
 5.4 M bodies per GB. On a 6 GB card with 60% given to bodies: **19.6 M bodies
 resident** — the hard ceiling on the working set, independent of time.
 
-`Body` is 184 bytes because it carries an 8-species composition. The GPU layout
+`Body` is 184 bytes because it carries an 8-element composition. The GPU layout
 in `docs/GPU.md` splits this into a 32-byte hot record plus cold arrays, which
 raises the resident ceiling to ~110 M.
 

@@ -1,8 +1,8 @@
 //! The elements, as data rather than as a lumped bucket.
 //!
-//! # Why this is not `units::Species`
+//! # Why this is not `units::CoarseElement`
 //!
-//! [`Species`](crate::units::Species) is eight buckets — H, He, C, N, O, Si,
+//! [`CoarseElement`](crate::units::CoarseElement) is eight buckets — H, He, C, N, O, Si,
 //! Fe and everything-else — and for what it does that is not a compromise. It
 //! is the account nuclear burning runs on, and burning cares about hydrogen,
 //! helium, the CNO catalysts, silicon and the iron floor. Astrophysics uses
@@ -14,12 +14,12 @@
 //! atoms. That is harmless at stellar tier, where nobody counts sodium atoms,
 //! and useless at the bench.
 //!
-//! So the two coexist. `Species` stays the *elemental and nuclear* account,
+//! So the two coexist. `CoarseElement` stays the *elemental and nuclear* account,
 //! carried by every aggregate and every body, conserved through prolongation
 //! and restriction, unchanged by this module. [`Element`] is the *chemical*
 //! account, used where arrangements are analysed, and it names real elements by
 //! atomic number. A substance's formula is in elements; its contribution to a
-//! node's bulk composition is that formula lumped back into species, which is
+//! node's bulk composition is that formula lumped back into coarse elements, which is
 //! how the two stay reconcilable — see `chem::registry`, which tests it.
 //!
 //! # The table
@@ -51,7 +51,7 @@
 ///
 /// A newtype rather than an enum on purpose. The set of elements is not a thing
 /// this engine gets to choose, and an enum would make "the elements we happen
-/// to have written down" into a type — which is exactly the mistake `Species`
+/// to have written down" into a type — which is exactly the mistake `CoarseElement`
 /// makes deliberately and this module exists to avoid.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Element(pub u8);
@@ -307,17 +307,17 @@ impl Element {
     ///
     /// The bridge between the two accounts. Everything the coarse tiers cannot
     /// name individually lands in `Other`, which is what that bucket is for.
-    pub fn species(self) -> crate::units::Species {
-        use crate::units::Species;
+    pub fn coarse_element(self) -> crate::units::CoarseElement {
+        use crate::units::CoarseElement;
         match self.0 {
-            1 => Species::Hydrogen,
-            2 => Species::Helium,
-            6 => Species::Carbon,
-            7 => Species::Nitrogen,
-            8 => Species::Oxygen,
-            14 => Species::Silicon,
-            26 => Species::Iron,
-            _ => Species::Other,
+            1 => CoarseElement::Hydrogen,
+            2 => CoarseElement::Helium,
+            6 => CoarseElement::Carbon,
+            7 => CoarseElement::Nitrogen,
+            8 => CoarseElement::Oxygen,
+            14 => CoarseElement::Silicon,
+            26 => CoarseElement::Iron,
+            _ => CoarseElement::Other,
         }
     }
 }

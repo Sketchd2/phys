@@ -582,7 +582,7 @@ engine depends on.
   is not a compromise — the tabulated rates *are* the experimental facts.
 - **General relativity is post-Newtonian only.** Adequate to a few hundred
   Schwarzschild radii; a genuine metric solver would be needed closer.
-- **Chemistry is eight lumped species.** Enough for burning, cooling, opacity
+- **The elemental account is eight lumped elements.** Enough for burning, cooling, opacity
   and gross chemistry; not enough for real molecular diversity.
 - **Turbulence is a prescribed solenoidal field**, not a solved cascade. It
   produces the right correlations at one scale, not the right spectrum across

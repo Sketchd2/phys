@@ -198,15 +198,24 @@ impl Tier {
     }
 }
 
-/// Chemical species tracked in every aggregate state.
+/// The granularity every aggregate and every body tracks matter at.
 ///
-/// Eight buckets is a deliberate compromise: it is enough to drive nuclear
-/// burning, cooling curves, opacity and chemistry, and it fits a cache line
-/// alongside the rest of the state. Finer speciation is materialised on demand
-/// at `Molecular` and below.
+/// Eight buckets — hydrogen, helium, the CNO catalysts, silicon, iron, and
+/// everything else — because that is what nuclear burning, cooling curves and
+/// opacity need, and because it fits a cache line alongside the rest of the
+/// state. Astrophysics uses very nearly this list for the same reasons.
+///
+/// It was called `Species`, which meant neither what a biologist nor what a
+/// chemist would take it to mean, and which became actively misleading once
+/// [`crate::chem::Element`] arrived beside it. That type names *real* elements
+/// — sodium, chlorine, uranium — and is what arrangements are analysed in.
+/// This one is the coarse account they lump back into, which
+/// `chem::Element::coarse_element` does. Sodium counted through `Other` weighs
+/// 65 amu instead of 23: harmless at stellar tier where nobody counts sodium
+/// atoms, and useless at the bench, which is why there are two.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
-pub enum Species {
+pub enum CoarseElement {
     Hydrogen = 0,
     Helium = 1,
     Carbon = 2,
@@ -219,58 +228,58 @@ pub enum Species {
     Other = 7,
 }
 
-pub const NSPECIES: usize = 8;
+pub const COARSE_ELEMENTS: usize = 8;
 
-impl Species {
-    pub const ALL: [Species; NSPECIES] = [
-        Species::Hydrogen,
-        Species::Helium,
-        Species::Carbon,
-        Species::Nitrogen,
-        Species::Oxygen,
-        Species::Silicon,
-        Species::Iron,
-        Species::Other,
+impl CoarseElement {
+    pub const ALL: [CoarseElement; COARSE_ELEMENTS] = [
+        CoarseElement::Hydrogen,
+        CoarseElement::Helium,
+        CoarseElement::Carbon,
+        CoarseElement::Nitrogen,
+        CoarseElement::Oxygen,
+        CoarseElement::Silicon,
+        CoarseElement::Iron,
+        CoarseElement::Other,
     ];
 
     pub fn name(self) -> &'static str {
         match self {
-            Species::Hydrogen => "H",
-            Species::Helium => "He",
-            Species::Carbon => "C",
-            Species::Nitrogen => "N",
-            Species::Oxygen => "O",
-            Species::Silicon => "Si",
-            Species::Iron => "Fe",
-            Species::Other => "Z",
+            CoarseElement::Hydrogen => "H",
+            CoarseElement::Helium => "He",
+            CoarseElement::Carbon => "C",
+            CoarseElement::Nitrogen => "N",
+            CoarseElement::Oxygen => "O",
+            CoarseElement::Silicon => "Si",
+            CoarseElement::Iron => "Fe",
+            CoarseElement::Other => "Z",
         }
     }
 
     /// Atomic number.
     pub fn z(self) -> f64 {
         match self {
-            Species::Hydrogen => 1.0,
-            Species::Helium => 2.0,
-            Species::Carbon => 6.0,
-            Species::Nitrogen => 7.0,
-            Species::Oxygen => 8.0,
-            Species::Silicon => 14.0,
-            Species::Iron => 26.0,
-            Species::Other => 30.0,
+            CoarseElement::Hydrogen => 1.0,
+            CoarseElement::Helium => 2.0,
+            CoarseElement::Carbon => 6.0,
+            CoarseElement::Nitrogen => 7.0,
+            CoarseElement::Oxygen => 8.0,
+            CoarseElement::Silicon => 14.0,
+            CoarseElement::Iron => 26.0,
+            CoarseElement::Other => 30.0,
         }
     }
 
     /// Mass number (mean, for the lumped bucket).
     pub fn a(self) -> f64 {
         match self {
-            Species::Hydrogen => 1.0,
-            Species::Helium => 4.0,
-            Species::Carbon => 12.0,
-            Species::Nitrogen => 14.0,
-            Species::Oxygen => 16.0,
-            Species::Silicon => 28.0,
-            Species::Iron => 56.0,
-            Species::Other => 65.0,
+            CoarseElement::Hydrogen => 1.0,
+            CoarseElement::Helium => 4.0,
+            CoarseElement::Carbon => 12.0,
+            CoarseElement::Nitrogen => 14.0,
+            CoarseElement::Oxygen => 16.0,
+            CoarseElement::Silicon => 28.0,
+            CoarseElement::Iron => 56.0,
+            CoarseElement::Other => 65.0,
         }
     }
 
@@ -282,14 +291,14 @@ impl Species {
     /// engine that iron is the floor.
     pub fn binding_per_nucleon_mev(self) -> f64 {
         match self {
-            Species::Hydrogen => 0.0,
-            Species::Helium => 7.074,
-            Species::Carbon => 7.680,
-            Species::Nitrogen => 7.476,
-            Species::Oxygen => 7.976,
-            Species::Silicon => 8.447,
-            Species::Iron => 8.790,
-            Species::Other => 8.60,
+            CoarseElement::Hydrogen => 0.0,
+            CoarseElement::Helium => 7.074,
+            CoarseElement::Carbon => 7.680,
+            CoarseElement::Nitrogen => 7.476,
+            CoarseElement::Oxygen => 7.976,
+            CoarseElement::Silicon => 8.447,
+            CoarseElement::Iron => 8.790,
+            CoarseElement::Other => 8.60,
         }
     }
 }

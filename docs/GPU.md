@@ -38,7 +38,7 @@ the `f64` work is confined to the small aggregate layer.
 
 ## Data layout
 
-`Body` is 184 bytes on the CPU, dominated by the 8-species composition. On the
+`Body` is 184 bytes on the CPU, dominated by the 8-element composition. On the
 GPU it splits:
 
 ```wgsl

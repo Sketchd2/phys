@@ -18,27 +18,27 @@ use crate::solvers::SolveReport;
 use crate::state::Body;
 use crate::units::*;
 
-/// Lennard-Jones parameters per species: `(sigma [m], epsilon [J])`.
+/// Lennard-Jones parameters per element: `(sigma [m], epsilon [J])`.
 /// Values are the standard UFF-like set, adequate for the qualitative
 /// behaviour an observer can actually see at this tier.
-pub fn lj_params(s: Species) -> (f64, f64) {
+pub fn lj_params(s: CoarseElement) -> (f64, f64) {
     match s {
-        Species::Hydrogen => (2.571e-10, 0.0184 * EV),
-        Species::Helium => (2.640e-10, 0.0024 * EV),
-        Species::Carbon => (3.431e-10, 0.0046 * EV),
-        Species::Nitrogen => (3.261e-10, 0.0031 * EV),
-        Species::Oxygen => (3.118e-10, 0.0026 * EV),
-        Species::Silicon => (3.826e-10, 0.0175 * EV),
-        Species::Iron => (2.912e-10, 0.0056 * EV),
-        Species::Other => (3.500e-10, 0.0050 * EV),
+        CoarseElement::Hydrogen => (2.571e-10, 0.0184 * EV),
+        CoarseElement::Helium => (2.640e-10, 0.0024 * EV),
+        CoarseElement::Carbon => (3.431e-10, 0.0046 * EV),
+        CoarseElement::Nitrogen => (3.261e-10, 0.0031 * EV),
+        CoarseElement::Oxygen => (3.118e-10, 0.0026 * EV),
+        CoarseElement::Silicon => (3.826e-10, 0.0175 * EV),
+        CoarseElement::Iron => (2.912e-10, 0.0056 * EV),
+        CoarseElement::Other => (3.500e-10, 0.0050 * EV),
     }
 }
 
-/// Dominant species of a body, for force-field lookup.
-fn dominant(b: &Body) -> Species {
-    let mut best = Species::Hydrogen;
+/// Dominant element of a body, for force-field lookup.
+fn dominant(b: &Body) -> CoarseElement {
+    let mut best = CoarseElement::Hydrogen;
     let mut bv = -1.0;
-    for s in Species::ALL {
+    for s in CoarseElement::ALL {
         let v = b.composition.get(s);
         if v > bv {
             bv = v;
@@ -683,8 +683,8 @@ pub struct Angle {
 /// the vibrational frequency, the dissociation energy and the bond length are
 /// then not three independent knobs — fixing any two fixes the third, and the
 /// tests check that the solver reproduces all of them.
-pub fn covalent(a: Species, b: Species) -> (f64, f64, f64) {
-    use Species::*;
+pub fn covalent(a: CoarseElement, b: CoarseElement) -> (f64, f64, f64) {
+    use CoarseElement::*;
     let (lo, hi) = if (a as u8) <= (b as u8) { (a, b) } else { (b, a) };
     let (r0_ang, de_ev, k) = match (lo, hi) {
         (Hydrogen, Hydrogen) => (0.741, 4.75, 575.0),
@@ -704,7 +704,7 @@ pub fn covalent(a: Species, b: Species) -> (f64, f64, f64) {
     (r0_ang * 1.0e-10, de_ev * EV, k)
 }
 
-/// How many covalent bonds a species will hold.
+/// How many covalent bonds an element will hold.
 ///
 /// This is what stops a hydrogen atom acquiring five neighbours. The
 /// alternative — a many-body bond order that weakens every bond as an atom
@@ -713,16 +713,16 @@ pub fn covalent(a: Species, b: Species) -> (f64, f64, f64) {
 /// intermediate coordination right. The question being asked here is only
 /// whether a molecule holds together and can react, and a valence count answers
 /// it with a rule nobody has to calibrate.
-pub fn valence(s: Species) -> usize {
+pub fn valence(s: CoarseElement) -> usize {
     match s {
-        Species::Hydrogen => 1,
-        Species::Helium => 0,
-        Species::Carbon => 4,
-        Species::Nitrogen => 3,
-        Species::Oxygen => 2,
-        Species::Silicon => 4,
-        Species::Iron => 6,
-        Species::Other => 2,
+        CoarseElement::Hydrogen => 1,
+        CoarseElement::Helium => 0,
+        CoarseElement::Carbon => 4,
+        CoarseElement::Nitrogen => 3,
+        CoarseElement::Oxygen => 2,
+        CoarseElement::Silicon => 4,
+        CoarseElement::Iron => 6,
+        CoarseElement::Other => 2,
     }
 }
 
@@ -732,10 +732,10 @@ pub fn valence(s: Species) -> usize {
 /// angle down from the ideal. That is the difference between water at 104.5
 /// degrees and a linear triatomic, and it is visible in every property water
 /// has.
-pub fn bond_angle(s: Species, bonds: usize) -> f64 {
+pub fn bond_angle(s: CoarseElement, bonds: usize) -> f64 {
     let degrees: f64 = match (s, bonds) {
-        (Species::Oxygen, 2) => 104.5,
-        (Species::Nitrogen, 3) => 107.0,
+        (CoarseElement::Oxygen, 2) => 104.5,
+        (CoarseElement::Nitrogen, 3) => 107.0,
         (_, 0 | 1 | 2) => 180.0,
         (_, 3) => 120.0,
         _ => 109.4712206,
@@ -745,12 +745,12 @@ pub fn bond_angle(s: Species, bonds: usize) -> f64 {
 
 /// Bending force constant at an atom, J/rad^2. Measured values; water's bend at
 /// 0.70 aJ/rad^2 is the one most people would recognise.
-pub fn bend_constant(s: Species) -> f64 {
+pub fn bend_constant(s: CoarseElement) -> f64 {
     match s {
-        Species::Oxygen => 4.37 * EV,
-        Species::Nitrogen => 4.00 * EV,
-        Species::Carbon => 3.90 * EV,
-        Species::Silicon => 2.20 * EV,
+        CoarseElement::Oxygen => 4.37 * EV,
+        CoarseElement::Nitrogen => 4.00 * EV,
+        CoarseElement::Carbon => 3.90 * EV,
+        CoarseElement::Silicon => 2.20 * EV,
         _ => 3.00 * EV,
     }
 }
@@ -771,7 +771,7 @@ impl Bonded {
         self.bonds.is_empty() && self.angles.is_empty()
     }
 
-    /// MorseBond two particles using the constants for their dominant species.
+    /// Bond two particles using the constants for their dominant element.
     pub fn bond(&mut self, bodies: &[Body], a: u32, b: u32) {
         let (sa, sb) = (dominant(&bodies[a as usize]), dominant(&bodies[b as usize]));
         let (r0, well, k) = covalent(sa, sb);
@@ -779,8 +779,8 @@ impl Bonded {
         self.bonds.push(MorseBond::new(a, b, r0, well, k, sigma));
     }
 
-    /// The range at which a pair of species starts counting as bonded.
-    pub fn capture_radius(a: Species, b: Species) -> f64 {
+    /// The range at which a pair of atoms starts counting as bonded.
+    pub fn capture_radius(a: CoarseElement, b: CoarseElement) -> f64 {
         let (r0, well, k) = covalent(a, b);
         let alpha = if well > 0.0 { (k / (2.0 * well)).sqrt() } else { 0.0 };
         let sigma = 0.5 * (lj_params(a).0 + lj_params(b).0);
@@ -793,7 +793,7 @@ impl Bonded {
     /// honest default for a bend imposed by hand: the geometry the caller
     /// produced is the geometry it meant, and inventing a tetrahedral angle for
     /// it would silently deform the molecule on the first step. Angles built by
-    /// [`Bonded::react`] use the species' own rest angle instead, because there
+    /// [`Bonded::react`] use the element's own rest angle instead, because there
     /// the geometry is an accident of how the atoms happened to meet.
     pub fn bend(&mut self, bodies: &[Body], a: u32, b: u32, c: u32, stiffness: f64) {
         let u = bodies[a as usize].pos - bodies[b as usize].pos;
@@ -869,7 +869,7 @@ impl Bonded {
         let mut reach: f64 = 0.0;
         for b in bodies.iter() {
             let si = dominant(b);
-            for s in Species::ALL {
+            for s in CoarseElement::ALL {
                 reach = reach.max(Bonded::capture_radius(si, s));
             }
         }
@@ -931,7 +931,7 @@ impl Bonded {
 
     /// Rebuild every bend from the current bond list.
     ///
-    /// Rest angles come from the species and its coordination rather than from
+    /// Rest angles come from the element and its coordination rather than from
     /// the geometry: two hydrogens that have just found an oxygen are wherever
     /// they happened to arrive, and the molecule's job is to pull them to 104.5
     /// degrees, not to memorise the accident.
@@ -952,9 +952,9 @@ impl Bonded {
             if list.len() < 2 {
                 continue;
             }
-            let species = dominant(&bodies[centre]);
-            let rest = bond_angle(species, list.len());
-            let stiffness = bend_constant(species);
+            let coarse_element = dominant(&bodies[centre]);
+            let rest = bond_angle(coarse_element, list.len());
+            let stiffness = bend_constant(coarse_element);
             for x in 0..list.len() {
                 for y in x + 1..list.len() {
                     self.angles.push(Angle {
@@ -1133,7 +1133,7 @@ impl Bonded {
     /// it is about to form will survive, not the one its current bonds need.
     pub fn reachable_period(bodies: &[Body]) -> f64 {
         let mut shortest = f64::INFINITY;
-        let mut seen: Vec<Species> = Vec::new();
+        let mut seen: Vec<CoarseElement> = Vec::new();
         for b in bodies.iter() {
             let s = dominant(b);
             if !seen.contains(&s) {

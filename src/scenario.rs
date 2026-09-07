@@ -169,11 +169,11 @@ fn build_planet(seed: u64) -> Tree {
     let mass = 5.972e24;
     let radius = 6.371e6;
     let binding = -0.6 * G * mass * mass / radius;
-    let mut comp = [0.0; NSPECIES];
-    comp[Species::Iron as usize] = 0.32;
-    comp[Species::Silicon as usize] = 0.15;
-    comp[Species::Oxygen as usize] = 0.30;
-    comp[Species::Other as usize] = 0.23;
+    let mut comp = [0.0; COARSE_ELEMENTS];
+    comp[CoarseElement::Iron as usize] = 0.32;
+    comp[CoarseElement::Silicon as usize] = 0.15;
+    comp[CoarseElement::Oxygen as usize] = 0.30;
+    comp[CoarseElement::Other as usize] = 0.23;
     let mut agg = Aggregate::neutral(mass, radius, 2000.0, Composition(comp).normalised());
     // A planet is not an ideal gas: most of its binding is held by material
     // strength and electron degeneracy, not by heat. Booking the full virial
@@ -191,11 +191,11 @@ fn build_rock(seed: u64) -> Tree {
     let half: f64 = 0.5;
     let volume = (2.0 * half).powi(3);
     let mass = density * volume;
-    let mut comp = [0.0; NSPECIES];
-    comp[Species::Oxygen as usize] = 0.47;
-    comp[Species::Silicon as usize] = 0.28;
-    comp[Species::Iron as usize] = 0.05;
-    comp[Species::Other as usize] = 0.20;
+    let mut comp = [0.0; COARSE_ELEMENTS];
+    comp[CoarseElement::Oxygen as usize] = 0.47;
+    comp[CoarseElement::Silicon as usize] = 0.28;
+    comp[CoarseElement::Iron as usize] = 0.05;
+    comp[CoarseElement::Other as usize] = 0.20;
     let mut agg = Aggregate::neutral(mass, half * 3f64.sqrt(), 290.0, Composition(comp).normalised());
     // Cohesive energy of a silicate, a few electron volts per atom.
     agg.binding_energy = -mass * agg.composition.nucleons_per_kg() / 20.0 * 5.0 * EV;
@@ -209,9 +209,9 @@ fn build_vapour(seed: u64) -> Tree {
     let mass_per = 18.015 * AMU;
     let mass = count * mass_per;
     let radius = 3.0e-9;
-    let mut comp = [0.0; NSPECIES];
-    comp[Species::Hydrogen as usize] = 2.0 * 1.008 / 18.015;
-    comp[Species::Oxygen as usize] = 15.999 / 18.015;
+    let mut comp = [0.0; COARSE_ELEMENTS];
+    comp[CoarseElement::Hydrogen as usize] = 2.0 * 1.008 / 18.015;
+    comp[CoarseElement::Oxygen as usize] = 15.999 / 18.015;
     let mut agg = Aggregate::neutral(mass, radius, 400.0, Composition(comp).normalised());
     // Bound, and by a lot: two O-H bonds per molecule at 4.8 eV each.
     agg.binding_energy = -count * 2.0 * 4.81 * EV;
@@ -230,7 +230,7 @@ fn build_vapour(seed: u64) -> Tree {
 fn build_atom(seed: u64) -> Tree {
     let mass = 12.011 * AMU;
     let radius = 7.0e-11;
-    let mut agg = Aggregate::neutral(mass, radius, 300.0, Composition::pure(Species::Carbon));
+    let mut agg = Aggregate::neutral(mass, radius, 300.0, Composition::pure(CoarseElement::Carbon));
     // Total electronic binding of neutral carbon, about 1030 eV.
     agg.binding_energy = -1030.0 * EV;
     agg.internal_energy = 1030.0 * EV * 0.5;
@@ -248,7 +248,7 @@ fn build_nucleus(seed: u64) -> Tree {
     let a: f64 = 56.0;
     let mass = 55.845 * AMU;
     let radius = 1.2e-15 * a.cbrt();
-    let mut agg = Aggregate::neutral(mass, radius, 1.0e9, Composition::pure(Species::Iron));
+    let mut agg = Aggregate::neutral(mass, radius, 1.0e9, Composition::pure(CoarseElement::Iron));
     agg.binding_energy = -8.79 * MEV * a;
     agg.internal_energy = 0.6 * 33.0 * MEV * a;
     agg = agg.with_charge(26.0 * E_CHARGE);

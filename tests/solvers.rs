@@ -129,7 +129,7 @@ fn cooling_curve_behaves() {
 /// molecular structure the engine produces is wrong.
 #[test]
 fn lennard_jones_minimum() {
-    let (sigma, epsilon) = md::lj_params(Species::Carbon);
+    let (sigma, epsilon) = md::lj_params(CoarseElement::Carbon);
     let r_min = 2f64.powf(1.0 / 6.0) * sigma;
     let f = md::lj_force(r_min, sigma, epsilon);
     assert!(f.abs() < 1e-3 * epsilon / sigma, "force at minimum: {f:.3e}");
@@ -141,8 +141,8 @@ fn lennard_jones_minimum() {
 /// stay there rather than exploding or freezing.
 #[test]
 fn molecular_dynamics_is_stable() {
-    let agg = Aggregate::neutral(64.0 * 12.0 * AMU, 2e-9, 300.0, Composition::pure(Species::Carbon));
-    let spec = phys::prolong::ProlongSpec::new(64, phys::prolong::Profile::Lattice, phys::prolong::MassSpectrum::Species, BodyKind::Atom);
+    let agg = Aggregate::neutral(64.0 * 12.0 * AMU, 2e-9, 300.0, Composition::pure(CoarseElement::Carbon));
+    let spec = phys::prolong::ProlongSpec::new(64, phys::prolong::Profile::Lattice, phys::prolong::MassSpectrum::CoarseElement, BodyKind::Atom);
     let (mut b, _) = phys::prolong::prolong(&agg, spec, 5, 0x1234, 0);
     let params = md::MdParams { thermostat: Some(300.0), friction: 1e12, ..Default::default() };
     let dt = md::stable_dt(&b);
@@ -204,21 +204,21 @@ fn stellar_burning_reproduces_the_sun() {
 #[test]
 fn fusion_energy_matches_the_binding_curve() {
     let mass = 1.0;
-    let e = nuclear::fusion_energy(Species::Hydrogen, Species::Helium, mass);
+    let e = nuclear::fusion_energy(CoarseElement::Hydrogen, CoarseElement::Helium, mass);
     let fraction = e / (mass * C2);
     println!("H->He releases {:.4}% of rest mass", fraction * 100.0);
     assert!((fraction - 0.00712).abs() < 5e-4, "got {fraction:.5}");
 
     // Iron is the floor: nothing exothermic goes past it.
-    for s in [Species::Carbon, Species::Oxygen, Species::Silicon] {
+    for s in [CoarseElement::Carbon, CoarseElement::Oxygen, CoarseElement::Silicon] {
         assert!(
-            nuclear::fusion_energy(s, Species::Iron, 1.0) > 0.0,
+            nuclear::fusion_energy(s, CoarseElement::Iron, 1.0) > 0.0,
             "fusing {} to iron should release energy",
             s.name()
         );
     }
     assert!(
-        nuclear::fusion_energy(Species::Iron, Species::Other, 1.0) < 0.0,
+        nuclear::fusion_energy(CoarseElement::Iron, CoarseElement::Other, 1.0) < 0.0,
         "fusing past iron must cost energy"
     );
 }

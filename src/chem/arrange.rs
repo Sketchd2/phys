@@ -182,11 +182,11 @@ impl Formula {
     /// of the node is that substance — which is the invariant the registry
     /// tests.
     pub fn as_composition(&self) -> Option<crate::state::Composition> {
-        let mut c = [0.0f64; crate::units::NSPECIES];
+        let mut c = [0.0f64; crate::units::COARSE_ELEMENTS];
         let mut total = 0.0;
         for (e, n) in &self.0 {
             let m = e.mass_kg()? * *n as f64;
-            c[e.species() as usize] += m;
+            c[e.coarse_element() as usize] += m;
             total += m;
         }
         if total > 0.0 {
