@@ -313,7 +313,7 @@ pub struct World {
     /// per second. Zero means no crews are working.
     pub labour_rate: f64,
     /// Growth steps refused because their transaction did not balance.
-    pub rejected_transactions: u64,
+    pub rejected_growth_steps: u64,
     /// Per-node environment overrides, keyed by path so they survive the node
     /// being coarsened and rebuilt.
     pub environments: HashMap<PathKey, crate::morph::Environment>,
@@ -371,7 +371,7 @@ impl World {
             audit: Vec::new(),
             gpu: false,
             labour_rate: 0.0,
-            rejected_transactions: 0,
+            rejected_growth_steps: 0,
             environments: HashMap::new(),
             substances: crate::chem::Registry::new(),
             mixtures: HashMap::new(),
@@ -401,7 +401,7 @@ impl World {
             paced_to: self.paced_to,
             pace_mode: self.pace_mode,
             labour_rate: self.labour_rate,
-            rejected_transactions: self.rejected_transactions,
+            rejected_growth_steps: self.rejected_growth_steps,
             environments: &self.environments,
             substances: &self.substances,
             mixtures: &self.mixtures,
@@ -425,7 +425,7 @@ impl World {
         w.paced_to = s.paced_to;
         w.pace_mode = s.pace_mode;
         w.labour_rate = s.labour_rate;
-        w.rejected_transactions = s.rejected_transactions;
+        w.rejected_growth_steps = s.rejected_growth_steps;
         w.environments = s.environments;
         w.substances = s.substances;
         w.mixtures = s.mixtures;
@@ -1512,7 +1512,7 @@ impl World {
     /// a cold or crowded node grows slowly without anyone having to arrange it.
     /// The transaction is validated before it is applied: a growth program
     /// cannot mint free energy or order, it can only trade for them.
-    pub fn grow_node(&mut self, idx: NodeIdx, dt: f64) -> Option<crate::morph::Transaction> {
+    pub fn grow_node(&mut self, idx: NodeIdx, dt: f64) -> Option<crate::morph::GrowthStep> {
         if idx.is_none() || !self.tree.nodes[idx.get()].alive || dt <= 0.0 {
             return None;
         }
@@ -1523,7 +1523,7 @@ impl World {
         if txn.validate().is_err() {
             // A program that cannot balance its books does not get to run. This
             // is a bug in the program, not a condition to be smoothed over.
-            self.rejected_transactions += 1;
+            self.rejected_growth_steps += 1;
             return None;
         }
         let extent = morph.extent().max(1e-30);
@@ -1691,7 +1691,7 @@ impl World {
                     node.agg.entropy_exported += burn.entropy_exported;
                     out.energy_released = burn.energy_released;
                 } else {
-                    self.rejected_transactions += 1;
+                    self.rejected_growth_steps += 1;
                 }
             }
             node.agg.chemical_energy = m.stored_energy();

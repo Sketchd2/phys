@@ -321,7 +321,7 @@ impl PostgresStore {
                     &(v.paced_to.0 as i64),
                     &(v.pace_mode == crate::engine::PaceMode::Fixed),
                     &v.labour_rate,
-                    &(v.rejected_transactions as i64),
+                    &(v.rejected_growth_steps as i64),
                     &stats.finish(),
                 ],
             )
@@ -721,7 +721,7 @@ fn load_impl(store: &mut PostgresStore) -> Result<Snapshot> {
                 crate::engine::PaceMode::Follow
             },
         labour_rate: world.get("labour_rate"),
-        rejected_transactions: world.get::<_, i64>("rejected") as u64,
+        rejected_growth_steps: world.get::<_, i64>("rejected") as u64,
         environments,
         substances,
         mixtures,

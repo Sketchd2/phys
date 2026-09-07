@@ -24,7 +24,7 @@
 //! has been *touched* — measured, or hit by something — is different, and is
 //! pinned (see `Node::pinned` and `observe::Ledger`).
 
-use crate::coords::{Motion, Located};
+use crate::coords::{Motion, Bounded};
 use crate::ids::{NodeIdx, PathKey};
 use crate::math::Vec3;
 use crate::sampler::{sample, SampleReport, SampleSpec};
@@ -769,13 +769,13 @@ impl Tree {
     }
 
     /// Offset of `(node, local)` from `ancestor`'s origin, accumulating the
-    /// round-off honestly. See `coords::Located` for why the error bound is
+    /// round-off honestly. See `coords::Bounded` for why the error bound is
     /// carried rather than assumed negligible.
-    pub fn offset_from(&self, ancestor: NodeIdx, mut node: NodeIdx, local: Vec3) -> Located {
-        let mut acc = Located::exact(local);
+    pub fn offset_from(&self, ancestor: NodeIdx, mut node: NodeIdx, local: Vec3) -> Bounded {
+        let mut acc = Bounded::exact(local);
         while node != ancestor && !node.is_none() {
             let n = &self.nodes[node.get()];
-            acc = acc.add(Located::exact(n.motion.offset));
+            acc = acc.add(Bounded::exact(n.motion.offset));
             node = n.parent;
         }
         acc
@@ -788,7 +788,7 @@ impl Tree {
     /// relative to each other to ~10^-31 m, while a nucleon and a star on the
     /// far side of the galaxy are located to ~10^5 m — and nothing couples them
     /// more tightly than that.
-    pub fn separation(&self, a: NodeIdx, a_local: Vec3, b: NodeIdx, b_local: Vec3) -> Located {
+    pub fn separation(&self, a: NodeIdx, a_local: Vec3, b: NodeIdx, b_local: Vec3) -> Bounded {
         let anc = self.lca(a, b);
         let pa = self.offset_from(anc, a, a_local);
         let pb = self.offset_from(anc, b, b_local);

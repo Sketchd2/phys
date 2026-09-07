@@ -935,7 +935,7 @@ pub struct Snapshot {
     pub paced_to: NodeIdx,
     pub pace_mode: crate::engine::PaceMode,
     pub labour_rate: f64,
-    pub rejected_transactions: u64,
+    pub rejected_growth_steps: u64,
     pub environments: HashMap<PathKey, Environment>,
     pub substances: crate::chem::Registry,
     pub mixtures: HashMap<PathKey, crate::chem::Mixture>,
@@ -963,7 +963,7 @@ pub struct WorldView<'a> {
     pub paced_to: NodeIdx,
     pub pace_mode: crate::engine::PaceMode,
     pub labour_rate: f64,
-    pub rejected_transactions: u64,
+    pub rejected_growth_steps: u64,
     pub environments: &'a HashMap<PathKey, Environment>,
     pub substances: &'a crate::chem::Registry,
     pub mixtures: &'a HashMap<PathKey, crate::chem::Mixture>,
@@ -983,7 +983,7 @@ impl Snapshot {
             paced_to: self.paced_to,
             pace_mode: self.pace_mode,
             labour_rate: self.labour_rate,
-            rejected_transactions: self.rejected_transactions,
+            rejected_growth_steps: self.rejected_growth_steps,
             environments: &self.environments,
             substances: &self.substances,
             mixtures: &self.mixtures,
@@ -1040,7 +1040,7 @@ pub fn encode(s: WorldView<'_>) -> Vec<u8> {
     w.u32(s.paced_to.0);
     w.bool(s.pace_mode == crate::engine::PaceMode::Fixed);
     w.f64(s.labour_rate);
-    w.u64(s.rejected_transactions);
+    w.u64(s.rejected_growth_steps);
 
     let mut envs: Vec<(&PathKey, &Environment)> = s.environments.iter().collect();
     envs.sort_by_key(|(k, _)| k.0);
@@ -1157,7 +1157,7 @@ pub fn decode(bytes: &[u8]) -> Result<Snapshot> {
         crate::engine::PaceMode::Follow
     };
     let labour_rate = r.f64()?;
-    let rejected_transactions = r.u64()?;
+    let rejected_growth_steps = r.u64()?;
 
     let n = r.seq("environments", ENV_MIN_BYTES)?;
     let mut environments = HashMap::with_capacity(n);
@@ -1215,7 +1215,7 @@ pub fn decode(bytes: &[u8]) -> Result<Snapshot> {
         paced_to,
         pace_mode,
         labour_rate,
-        rejected_transactions,
+        rejected_growth_steps,
         environments,
         substances,
         mixtures,

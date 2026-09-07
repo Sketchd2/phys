@@ -38,10 +38,10 @@
 //! # Growth is a transaction, not an exemption
 //!
 //! Building order out of disorder costs free energy and exports entropy. Every
-//! step returns a [`Transaction`] that has to balance before it is applied:
+//! step returns a [`GrowthStep`] that has to balance before it is applied:
 //! energy in equals energy stored plus heat released, and local entropy plus
 //! exported entropy is non-negative. A program that tried to grow too
-//! efficiently would be rejected by `Transaction::validate` rather than
+//! efficiently would be rejected by `GrowthStep::validate` rather than
 //! quietly minting free energy.
 
 use crate::math::{v3, Vec3};
@@ -338,9 +338,9 @@ impl Morphology {
     ///
     /// Runs on the aggregate. The fine structure is never touched, never
     /// materialised, and does not need to exist.
-    pub fn advance(&mut self, dt: f64, env: &Environment) -> Transaction {
+    pub fn advance(&mut self, dt: f64, env: &Environment) -> GrowthStep {
         if dt <= 0.0 {
-            return Transaction::none();
+            return GrowthStep::none();
         }
         let txn = if self.program.is_planned() {
             self.advance_construction(dt, env)
@@ -351,7 +351,7 @@ impl Morphology {
         txn
     }
 
-    fn advance_growth(&mut self, dt: f64, env: &Environment) -> Transaction {
+    fn advance_growth(&mut self, dt: f64, env: &Environment) -> GrowthStep {
         let program = self.program;
         // Seed mass: a structure has to start somewhere, and a zero-mass tree
         // has zero capture area and can never grow.
@@ -387,7 +387,7 @@ impl Morphology {
         // was respired away. Only one of the two is ever non-zero.
         let energy_stored = actual.max(0.0) * program.energy_density();
         let energy_released = (-actual).max(0.0) * program.energy_density();
-        Transaction::build(
+        GrowthStep::build(
             actual.max(0.0),
             program.substrate(),
             energy_absorbed,
@@ -398,10 +398,10 @@ impl Morphology {
         )
     }
 
-    fn advance_construction(&mut self, dt: f64, env: &Environment) -> Transaction {
+    fn advance_construction(&mut self, dt: f64, env: &Environment) -> GrowthStep {
         let program = self.program;
         if self.design_mass <= 0.0 || self.progress >= 1.0 {
-            return Transaction::none();
+            return GrowthStep::none();
         }
         // Progress is limited by whichever of labour and materials runs out
         // first — the honest bottleneck on any real site.
@@ -431,7 +431,7 @@ impl Morphology {
         // process heat, and only the embodied energy ends up in the structure.
         let energy_stored = mass * program.energy_density();
         let energy_absorbed = energy_stored / CONSTRUCTION_EFFICIENCY;
-        Transaction::build(
+        GrowthStep::build(
             mass,
             program.substrate(),
             energy_absorbed,
@@ -451,12 +451,12 @@ impl Morphology {
     /// that mass is released, and the matter itself stays in the node as
     /// litter. Nothing is created or destroyed — it just stops being part of
     /// the structure.
-    pub fn record(&mut self, event: Event, temperature: f64) -> Transaction {
-        let mut txn = Transaction::none();
+    pub fn record(&mut self, event: Event, temperature: f64) -> GrowthStep {
+        let mut txn = GrowthStep::none();
         if event.kind == EventKind::Severed {
             let lost = (self.built * event.magnitude.clamp(0.0, 1.0)).max(0.0);
             self.built -= lost;
-            txn = Transaction::build(
+            txn = GrowthStep::build(
                 -lost,
                 self.program.substrate(),
                 0.0,
@@ -488,7 +488,7 @@ impl Morphology {
     /// compound the mass loss n times — each call taking a fraction of what the
     /// previous one left. A storm that breaks two hundred joints does not
     /// remove two hundred successive fractions of the tree.
-    pub fn sever_many(&mut self, sites: &[u32], fraction: f64) -> Transaction {
+    pub fn sever_many(&mut self, sites: &[u32], fraction: f64) -> GrowthStep {
         let lost = (self.built * fraction.clamp(0.0, 1.0)).max(0.0);
         self.built -= lost;
         for &site in sites {
@@ -503,20 +503,20 @@ impl Morphology {
         // The limb is on the ground, not gone: its free energy is still locked
         // in the wood. Nothing is released until something decomposes or burns
         // it, which is a separate process.
-        Transaction {
+        GrowthStep {
             mass_incorporated: 0.0,
             composition: self.program.substrate(),
-            ..Transaction::none()
+            ..GrowthStep::none()
         }
         .with_detached(lost)
     }
 
     /// Consume structural mass outright — burned, vaporised — releasing the
     /// free energy that was holding it together.
-    pub fn consume(&mut self, mass: f64, temperature: f64) -> Transaction {
+    pub fn consume(&mut self, mass: f64, temperature: f64) -> GrowthStep {
         let lost = mass.clamp(0.0, self.built);
         self.built -= lost;
-        Transaction::build(
+        GrowthStep::build(
             0.0,
             self.program.substrate(),
             0.0,
@@ -994,7 +994,7 @@ impl Environment {
 /// before the transaction is applied, so a program cannot silently mint free
 /// energy or order.
 #[derive(Debug, Clone, Copy, Default)]
-pub struct Transaction {
+pub struct GrowthStep {
     /// Mass moved from the surrounding reservoir into the structure, kg.
     pub mass_incorporated: f64,
     /// Mass that left the structure but stayed in the node, kg. A fallen limb
@@ -1026,15 +1026,15 @@ pub struct Transaction {
     pub entropy_exported: f64,
 }
 
-impl Transaction {
-    pub fn none() -> Transaction {
-        Transaction {
+impl GrowthStep {
+    pub fn none() -> GrowthStep {
+        GrowthStep {
             composition: Composition::primordial(),
             ..Default::default()
         }
     }
 
-    fn with_detached(mut self, mass: f64) -> Transaction {
+    fn with_detached(mut self, mass: f64) -> GrowthStep {
         self.mass_detached = mass;
         self
     }
@@ -1048,14 +1048,14 @@ impl Transaction {
         energy_released: f64,
         thermalised_fraction: f64,
         temperature: f64,
-    ) -> Transaction {
+    ) -> GrowthStep {
         let t = temperature.max(2.725);
         // Whatever is not stored is waste. A little of it warms the structure;
         // the rest leaves as radiation.
         let waste = (energy_absorbed + energy_released - energy_stored).max(0.0);
         let heat_released = waste * thermalised_fraction;
         let energy_radiated = waste - heat_released;
-        Transaction {
+        GrowthStep {
             mass_incorporated: mass,
             mass_detached: 0.0,
             composition,

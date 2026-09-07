@@ -268,7 +268,7 @@ fn main() {
         agg_now.entropy_exported);
     println!("\n  Growth ran on the aggregate: {} steps, no fine structure touched.",
         w.tree.stats.growth_steps);
-    println!("  Transactions refused for breaking the books: {}", w.rejected_transactions);
+    println!("  Transactions refused for breaking the books: {}", w.rejected_growth_steps);
 
     rule("10. Where the memory went");
     let procedural = w.tree.detail_bytes();

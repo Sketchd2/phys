@@ -31,41 +31,41 @@ use crate::units::C;
 /// `err` exceeds the length scale of a physical process, the engine refuses to
 /// evaluate that process at that separation and defers to a coarser tier.
 #[derive(Debug, Clone, Copy)]
-pub struct Located {
+pub struct Bounded {
     pub value: Vec3,
     /// Absolute error bound in metres (1-sigma-ish; conservative).
     pub err: f64,
 }
 
-impl Located {
-    pub fn exact(value: Vec3) -> Located {
-        Located { value, err: 0.0 }
+impl Bounded {
+    pub fn exact(value: Vec3) -> Bounded {
+        Bounded { value, err: 0.0 }
     }
 
-    pub fn new(value: Vec3, err: f64) -> Located {
-        Located { value, err }
+    pub fn new(value: Vec3, err: f64) -> Bounded {
+        Bounded { value, err }
     }
 
     /// Sum two offsets, growing the error bound by the round-off of the
     /// larger magnitude. `f64::EPSILON/2` is the unit round-off.
-    pub fn add(self, o: Located) -> Located {
+    pub fn add(self, o: Bounded) -> Bounded {
         let v = self.value + o.value;
         let mag = self.value.max_abs().max(o.value.max_abs()).max(v.max_abs());
-        Located {
+        Bounded {
             value: v,
             err: self.err + o.err + mag * (f64::EPSILON * 0.5),
         }
     }
 
-    pub fn sub(self, o: Located) -> Located {
-        self.add(Located {
+    pub fn sub(self, o: Bounded) -> Bounded {
+        self.add(Bounded {
             value: -o.value,
             err: o.err,
         })
     }
 
-    pub fn scale(self, s: f64) -> Located {
-        Located {
+    pub fn scale(self, s: f64) -> Bounded {
+        Bounded {
             value: self.value.scale(s),
             err: self.err * s.abs(),
         }

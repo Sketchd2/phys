@@ -134,7 +134,7 @@ fn growth_obeys_both_laws() {
 /// A program that stored more energy than it absorbed would be rejected.
 #[test]
 fn impossible_transactions_are_refused() {
-    let bad = Transaction {
+    let bad = GrowthStep {
         mass_incorporated: 1.0,
         mass_detached: 0.0,
         composition: Composition::solar(),
@@ -148,7 +148,7 @@ fn impossible_transactions_are_refused() {
     };
     assert!(bad.validate().is_err(), "a free-energy machine was accepted");
 
-    let refrigerator = Transaction {
+    let refrigerator = GrowthStep {
         mass_incorporated: 1.0,
         mass_detached: 0.0,
         composition: Composition::solar(),
@@ -372,7 +372,7 @@ fn engine_grows_unobserved_structures() {
         w.tree.stats.materialisations
     );
 
-    assert_eq!(w.rejected_transactions, 0, "a transaction failed to balance");
+    assert_eq!(w.rejected_growth_steps, 0, "a transaction failed to balance");
     assert!(n.morphology.as_ref().unwrap().built > seeded, "no growth");
     assert!(
         n.morphology.as_ref().unwrap().built <= start_mass,

@@ -275,7 +275,7 @@ fn damage_persists_and_conserves() {
     assert!((n.agg.baryon_number - baryon0).abs() / baryon0 < 1e-12);
     assert!(n.morphology.as_ref().unwrap().built < built0, "structure did not lose mass");
     assert!(n.agg.total_entropy() >= entropy0, "total entropy fell");
-    assert_eq!(w.rejected_transactions, 0);
+    assert_eq!(w.rejected_growth_steps, 0);
 
     // And it is still deterministic, and still damaged, after regeneration.
     let a = w.tree.refine(node).to_vec();
@@ -318,7 +318,7 @@ fn fire_releases_stored_energy_without_losing_mass() {
     assert_eq!(n.agg.mass, mass0, "combustion lost mass; the atoms have to go somewhere");
     assert!(n.agg.chemical_energy < chem0, "burning released no stored energy");
     assert!(n.agg.internal_energy > internal0, "the fire produced no heat");
-    assert_eq!(w.rejected_transactions, 0, "a combustion transaction failed to balance");
+    assert_eq!(w.rejected_growth_steps, 0, "a combustion transaction failed to balance");
 }
 
 /// Topology costs little enough to be worth having on every structure.
