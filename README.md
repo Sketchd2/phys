@@ -247,6 +247,27 @@ tests/         consistency, causality, solvers, statistics, budget,
                fragments, scenarios
 ```
 
+## The store tests
+
+`tests/postgres.rs` proves the world persists identically through a completely
+different store, and needs a live PostgreSQL:
+
+```sh
+PHYS_PG='host=127.0.0.1 port=5433 user=phys dbname=phys' \
+  cargo test --release --features postgres
+```
+
+An *absent* `PHYS_PG` skips those six tests, which is what a contributor without
+a database should get. A `PHYS_PG` that is set and does not work **fails**
+them — they once reported six passes while running nothing at all, and a test
+that cannot run has to say so.
+
+`.claude/hooks/session-start.sh` brings that database up automatically in a web
+session, creating the cluster if the container is fresh, and exports `PHYS_PG`
+only once it has proved a connection. `cargo run --release --features postgres
+--example pgreset` drops and rebuilds the schema, which is what to do when the
+layout changes — there is no migration while the project is pre-alpha.
+
 ## Status
 
 This is a complete, tested architecture with a CPU reference implementation of
