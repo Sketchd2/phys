@@ -55,7 +55,7 @@ fn the_support_graph_is_a_well_formed_tree() {
         assert!(anchors >= 1, "{program:?} is anchored to nothing");
         // Joints sit where the parts actually are.
         for i in 0..n {
-            let d = (topo.bonds[i].at - bodies[i].pos).norm();
+            let d = (topo.joints[i].at - bodies[i].pos).norm();
             let len = (topo.tip[i] - topo.base[i]).norm();
             assert!(
                 d <= len * 0.51 + 1e-9,
@@ -80,7 +80,7 @@ fn a_tree_stands_up() {
     println!(
         "{:.1} m tree, trunk radius {:.3} m, peak self-weight utilisation {:.3} (safety factor {:.1})",
         m.tree_height(),
-        topo.bonds[0].radius,
+        topo.joints[0].radius,
         peak,
         1.0 / peak
     );
@@ -103,7 +103,7 @@ fn member_geometry_matches_its_mass() {
     let mut volume = 0.0;
     for i in 0..report.structural_parts {
         let len = (topo.tip[i] - topo.base[i]).norm();
-        volume += std::f64::consts::PI * topo.bonds[i].radius.powi(2) * len;
+        volume += std::f64::consts::PI * topo.joints[i].radius.powi(2) * len;
     }
     let expected = m.built / Program::Tree.density();
     let err = (volume - expected).abs() / expected;
@@ -115,9 +115,9 @@ fn member_geometry_matches_its_mass() {
     let _ = bodies;
     // And a real tree's trunk is not half a metre thick at 13 m tall.
     assert!(
-        (0.05..0.30).contains(&topo.bonds[0].radius),
+        (0.05..0.30).contains(&topo.joints[0].radius),
         "trunk radius {:.3} m",
-        topo.bonds[0].radius
+        topo.joints[0].radius
     );
 }
 

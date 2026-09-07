@@ -44,7 +44,7 @@ use crate::morph::{Environment, Event, EventKind, Morphology, Program};
 use crate::observe::{AuthorEvent, Fact, Ledger, Property, Quantity};
 use crate::prolong::{MassSpectrum, Profile, ProlongReport, ProlongSpec};
 use crate::state::{Aggregate, Body, BodyKind, Composition};
-use crate::topology::{Bond, Material, Tie, Topology};
+use crate::topology::{Joint, Material, Tie, Topology};
 use crate::tree::{Node, Residency, Tree, TreeStats};
 use crate::units::{Species, Tier, NSPECIES};
 use crate::wire::{Reader, Result, WireError, Writer};
@@ -669,8 +669,8 @@ fn get_material(r: &mut Reader) -> Result<Material> {
 }
 
 fn put_topology(w: &mut Writer, t: &Topology) {
-    w.seq(t.bonds.len());
-    for b in &t.bonds {
+    w.seq(t.joints.len());
+    for b in &t.joints {
         w.u32(b.child);
         w.u32(b.parent);
         w.vec3(b.at);
@@ -708,9 +708,9 @@ const TIE_MIN_BYTES: usize = 4 + 4 + 8 + 8;
 
 fn get_topology(r: &mut Reader) -> Result<Topology> {
     let n = r.seq("bonds", BOND_MIN_BYTES)?;
-    let mut bonds = Vec::with_capacity(n);
+    let mut joints = Vec::with_capacity(n);
     for _ in 0..n {
-        bonds.push(Bond {
+        joints.push(Joint {
             child: r.u32()?,
             parent: r.u32()?,
             at: r.vec3()?,
@@ -744,7 +744,7 @@ fn get_topology(r: &mut Reader) -> Result<Topology> {
     for _ in 0..n {
         ties.push(Tie { a: r.u32()?, b: r.u32()?, area: r.f64()?, integrity: r.f64()? });
     }
-    Ok(Topology { bonds, support, site, base, tip, material, ties })
+    Ok(Topology { joints, support, site, base, tip, material, ties })
 }
 
 // ---------------------------------------------------------------------------

@@ -130,7 +130,7 @@ fn every_field_round_trips() {
         }
         assert_eq!(a.topology.is_some(), b.topology.is_some(), "node {i} topology");
         if let (Some(t), Some(u)) = (&a.topology, &b.topology) {
-            assert_eq!(t.bonds.len(), u.bonds.len(), "bonds");
+            assert_eq!(t.joints.len(), u.joints.len(), "joints");
             assert_eq!(t.support, u.support, "support");
             assert_eq!(t.ties.len(), u.ties.len(), "ties");
             assert_eq!(t.material.name, u.material.name, "material name");

@@ -183,7 +183,7 @@ pub extern "C" fn strike(joules: f32, height_fraction: f32) {
     let structural = s.world.tree.nodes[s.node.get()]
         .topology
         .as_ref()
-        .map(|t| t.bonds.iter().filter(|b| b.radius > 0.0).count())
+        .map(|t| t.joints.iter().filter(|b| b.radius > 0.0).count())
         .unwrap_or(1);
     let entry = ((structural as f32 * height_fraction.clamp(0.0, 0.99)) as usize).min(structural.saturating_sub(1));
     let before = s.world.tree.nodes[s.node.get()]
@@ -261,8 +261,8 @@ fn refresh(s: &mut Session) {
 
     s.geometry.clear();
     let mut peak = 0.0f32;
-    for i in 0..bodies.len().min(topo.bonds.len()) {
-        if topo.bonds[i].radius <= 0.0 {
+    for i in 0..bodies.len().min(topo.joints.len()) {
+        if topo.joints[i].radius <= 0.0 {
             continue;
         }
         let u = loads.get(i).map(|l| l.utilisation).unwrap_or(0.0) as f32;
@@ -274,7 +274,7 @@ fn refresh(s: &mut Session) {
             topo.tip[i].x as f32,
             topo.tip[i].y as f32,
             topo.tip[i].z as f32,
-            topo.bonds[i].radius as f32,
+            topo.joints[i].radius as f32,
             u,
         ]);
     }
@@ -451,8 +451,8 @@ fn write_deformed(s: &mut Session) {
         None => return,
     };
     let mut slot = 0usize;
-    for i in 0..members.len().min(topo.bonds.len()) {
-        if topo.bonds[i].radius <= 0.0 {
+    for i in 0..members.len().min(topo.joints.len()) {
+        if topo.joints[i].radius <= 0.0 {
             continue;
         }
         let base = slot * 8;
@@ -749,8 +749,8 @@ fn refresh_forest(f: &mut Forest) {
 
         let start = f.geometry.len();
         let mut peak = 0.0f32;
-        for m in 0..bodies.len().min(topo.bonds.len()) {
-            if topo.bonds[m].radius <= 0.0 {
+        for m in 0..bodies.len().min(topo.joints.len()) {
+            if topo.joints[m].radius <= 0.0 {
                 continue;
             }
             let u = loads.get(m).map(|l| l.utilisation).unwrap_or(0.0) as f32;
@@ -763,7 +763,7 @@ fn refresh_forest(f: &mut Forest) {
                 t.x as f32,
                 t.y as f32,
                 t.z as f32,
-                topo.bonds[m].radius as f32,
+                topo.joints[m].radius as f32,
                 u,
             ]);
         }
@@ -843,8 +843,8 @@ fn write_forest_geometry(f: &mut Forest) {
             }
         };
         let mut written = 0usize;
-        for m in 0..members.len().min(topo.bonds.len()) {
-            if topo.bonds[m].radius <= 0.0 {
+        for m in 0..members.len().min(topo.joints.len()) {
+            if topo.joints[m].radius <= 0.0 {
                 continue;
             }
             let base = (slot + written) * 8;

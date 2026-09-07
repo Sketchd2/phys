@@ -47,7 +47,7 @@ fn shoot(
     let mut hi = f64::NEG_INFINITY;
     let mut radius: f64 = 0.0;
     for (i, b) in bodies.iter().enumerate() {
-        if i < topo.bonds.len() && (topo.tip[i] - topo.base[i]).norm2() > 0.0 {
+        if i < topo.joints.len() && (topo.tip[i] - topo.base[i]).norm2() > 0.0 {
             lo = lo.min(b.pos.z);
             hi = hi.max(b.pos.z);
             radius = radius.max(b.pos.norm());
@@ -68,7 +68,7 @@ fn shoot(
     println!(
         "  {:<24} {:>5} members  {:>8.1} kg standing  {:>6.1} m  -> {}",
         caption,
-        topo.bonds.len(),
+        topo.joints.len(),
         m.built,
         m.tree_height(),
         path
@@ -111,7 +111,7 @@ fn main() {
     let structural = w3.tree.nodes[n3.get()]
         .topology
         .as_ref()
-        .map(|t| t.bonds.iter().filter(|b| b.radius > 0.0).count())
+        .map(|t| t.joints.iter().filter(|b| b.radius > 0.0).count())
         .unwrap_or(1);
     let strike = w3.damage(n3, &[weather::lightning(2.0e9, (structural / 3) as u32)]);
     shoot(&mut w3, n3, "render_lightning.png", Style::default(), "after a 2 GJ strike", Some(cam));

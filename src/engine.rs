@@ -108,7 +108,7 @@ pub struct FallReport {
 fn ground_of(topo: &crate::topology::Topology) -> f64 {
     let mut lowest = f64::INFINITY;
     for i in 0..topo.support.len() {
-        if topo.support[i] == crate::morph::NO_SUPPORT && topo.bonds[i].radius > 0.0 {
+        if topo.support[i] == crate::morph::NO_SUPPORT && topo.joints[i].radius > 0.0 {
             lowest = lowest.min(topo.base[i].z.min(topo.tip[i].z));
         }
     }

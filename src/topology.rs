@@ -1,4 +1,4 @@
-//! Bonds: what makes a heap of parts into a structure.
+//! Joints: what makes a heap of parts into a structure.
 //!
 //! # The gap this closes
 //!
@@ -251,7 +251,7 @@ impl Material {
 
 /// One joint between two parts.
 #[derive(Debug, Clone, Copy)]
-pub struct Bond {
+pub struct Joint {
     /// The supported part.
     pub child: u32,
     /// The supporting part, or [`NO_SUPPORT`] for a ground anchor.
@@ -261,11 +261,11 @@ pub struct Bond {
     /// Cross-sectional radius of the joint, metres.
     pub radius: f64,
     /// Fraction of nominal strength remaining, 0..1. Reduced by heat, decay and
-    /// previous damage; a bond at zero has already failed.
+    /// previous damage; a joint at zero has already failed.
     pub integrity: f64,
 }
 
-impl Bond {
+impl Joint {
     /// Section modulus `I/c = pi r^3 / 4`, in m^3. Divide a bending moment by
     /// this to get the peak fibre stress.
     #[inline]
@@ -282,7 +282,7 @@ impl Bond {
 /// The joints of one structure, in the same index space as its bodies.
 #[derive(Debug, Clone, Default)]
 pub struct Topology {
-    pub bonds: Vec<Bond>,
+    pub joints: Vec<Joint>,
     /// Supporting part per body, parallel to the body list. `NO_SUPPORT` means
     /// the part is anchored, or is loose matter with no structural role.
     pub support: Vec<u32>,
@@ -346,9 +346,9 @@ impl Topology {
     ) -> Topology {
         let n = skel.len();
         let place = |p: Vec3| (p - shift).scale(scale);
-        let mut bonds = Vec::with_capacity(n);
+        let mut joints = Vec::with_capacity(n);
         for i in 0..n {
-            bonds.push(Bond {
+            joints.push(Joint {
                 child: i as u32,
                 parent: skel.support[i],
                 at: place(skel.base[i]),
@@ -358,13 +358,13 @@ impl Topology {
         }
         // The body list is longer than the skeleton whenever the node also
         // holds unstructured matter, so *every* parallel array is padded to the
-        // same length — including the bonds. Leaving `bonds` short while the
+        // same length — including the joints. Leaving `joints` short while the
         // others were padded meant any index derived from a body number could
         // walk off the end of it, which is exactly what an insult entering at a
         // litter particle did.
-        bonds.resize(
+        joints.resize(
             parts,
-            Bond {
+            Joint {
                 child: 0,
                 parent: NO_SUPPORT,
                 at: Vec3::ZERO,
@@ -383,7 +383,7 @@ impl Topology {
         base.resize(parts, Vec3::ZERO);
         tip.resize(parts, Vec3::ZERO);
         Topology {
-            bonds,
+            joints,
             support,
             site,
             base,
@@ -422,7 +422,7 @@ impl Topology {
         material: Material,
     ) -> Topology {
         let n = members.len();
-        let mut bonds = Vec::with_capacity(n);
+        let mut joints = Vec::with_capacity(n);
         let (mut support, mut site, mut base, mut tip) = (
             Vec::with_capacity(n),
             Vec::with_capacity(n),
@@ -430,7 +430,7 @@ impl Topology {
             Vec::with_capacity(n),
         );
         for (i, m) in members.iter().enumerate() {
-            bonds.push(Bond {
+            joints.push(Joint {
                 child: i as u32,
                 parent: m.support,
                 at: m.base,
@@ -443,7 +443,7 @@ impl Topology {
             tip.push(m.tip);
         }
         Topology {
-            bonds,
+            joints,
             support,
             site,
             base,
@@ -467,7 +467,7 @@ impl Topology {
     }
 
     pub fn is_empty(&self) -> bool {
-        self.bonds.is_empty()
+        self.joints.is_empty()
     }
 
     /// Parts that are held by nothing — the ones that fall.
@@ -481,7 +481,7 @@ impl Topology {
 
     /// Bytes held. Compared against the geometry it makes coherent.
     pub fn bytes(&self) -> usize {
-        self.bonds.len() * std::mem::size_of::<Bond>()
+        self.joints.len() * std::mem::size_of::<Joint>()
             + (self.support.len() + self.site.len()) * 4
             + (self.base.len() + self.tip.len()) * std::mem::size_of::<Vec3>()
     }

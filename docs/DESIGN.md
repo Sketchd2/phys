@@ -270,7 +270,7 @@ than a diagonal division. Both are measured rather than assumed, in
 
 #### Motion
 
-Knowing what a bond can take is not knowing what it makes its neighbours *do*.
+Knowing what a joint can take is not knowing what it makes its neighbours *do*.
 Until `solvers::dynamics`, a tree in a gale either stood exactly still or
 snapped, with nothing in between.
 

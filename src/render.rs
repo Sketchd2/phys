@@ -222,7 +222,7 @@ pub fn draw_structure(
     });
 
     for &i in &order {
-        let structural = i < topo.bonds.len() && (topo.tip[i] - topo.base[i]).norm2() > 0.0;
+        let structural = i < topo.joints.len() && (topo.tip[i] - topo.base[i]).norm2() > 0.0;
         if !structural {
             if !style.show_litter {
                 continue;
@@ -238,7 +238,7 @@ pub fn draw_structure(
             (Some(x), Some(y)) => (x, y),
             _ => continue,
         };
-        let radius_px = (topo.bonds[i].radius * pa.ppm).max(0.55);
+        let radius_px = (topo.joints[i].radius * pa.ppm).max(0.55);
         let colour = if intact.get(i).copied().unwrap_or(true) {
             style.member
         } else {

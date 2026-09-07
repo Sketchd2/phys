@@ -172,7 +172,7 @@ impl Mechanism {
                     }
                     // Only the part of the member across the flow presents area.
                     let across = (1.0 - axis.dot(d).abs()).max(0.0);
-                    let area = 2.0 * topo.bonds[i].radius * len * across;
+                    let area = 2.0 * topo.joints[i].radius * len * across;
                     out.force[i] +=
                         d.scale(0.5 * fluid_density * speed * speed * drag_coefficient * area);
                 }
@@ -197,7 +197,7 @@ impl Mechanism {
                         continue;
                     }
                     let upward = (1.0 - axis.z.abs()).max(0.0);
-                    let a = 2.0 * topo.bonds[i].radius * len * upward;
+                    let a = 2.0 * topo.joints[i].radius * len * upward;
                     per_member[i] = a;
                     total += a;
                     r2max = r2max
@@ -232,7 +232,7 @@ impl Mechanism {
                 let mut path = Vec::new();
                 let mut cur = entry as usize;
                 let mut guard = 0;
-                while cur < n && guard <= n && topo.bonds[cur].radius > 0.0 {
+                while cur < n && guard <= n && topo.joints[cur].radius > 0.0 {
                     path.push(cur);
                     let s = topo.support[cur];
                     if s == NO_SUPPORT {
@@ -270,7 +270,7 @@ impl Mechanism {
             } => {
                 let ground = structure_base(topo);
                 for i in 0..n {
-                    if topo.bonds[i].radius <= 0.0 {
+                    if topo.joints[i].radius <= 0.0 {
                         continue;
                     }
                     if bodies[i].pos.z - ground > ceiling {
@@ -280,7 +280,7 @@ impl Mechanism {
                     // own thermal mass: tau = rho c r / h. Thin members reach
                     // the environment and thick ones barely notice, which is
                     // the whole reason a ground fire takes the understory.
-                    let r = topo.bonds[i].radius.max(1e-6);
+                    let r = topo.joints[i].radius.max(1e-6);
                     // Lumped thermal time constant, tau = rho c r / h. The char
                     // layer and the moisture a live member carries are what
                     // make `h` an *effective* coefficient well below the raw
@@ -327,14 +327,14 @@ fn member_axis(topo: &Topology, i: usize) -> (Vec3, f64) {
 #[inline]
 fn member_resistance(topo: &Topology, i: usize) -> f64 {
     let (_, len) = member_axis(topo, i);
-    let a = topo.bonds[i].area().max(1e-12);
+    let a = topo.joints[i].area().max(1e-12);
     topo.material.resistivity * len.max(1e-9) / a
 }
 
 fn structure_base(topo: &Topology) -> f64 {
     topo.base
         .iter()
-        .zip(topo.bonds.iter())
+        .zip(topo.joints.iter())
         .filter(|(_, b)| b.radius > 0.0)
         .map(|(p, _)| p.z)
         .fold(f64::INFINITY, f64::min)
@@ -446,8 +446,8 @@ fn accumulate(
 
     let mut out = Vec::with_capacity(n);
     for i in 0..n {
-        let bond = topo.bonds.get(i);
-        let (at, radius) = match bond {
+        let joint = topo.joints.get(i);
+        let (at, radius) = match joint {
             Some(b) => (b.at, b.radius),
             None => (bodies[i].pos, bodies[i].radius),
         };
@@ -487,7 +487,7 @@ fn accumulate(
         };
 
         let t = loads.temperature.get(i).copied().unwrap_or(loads.ambient);
-        let integrity = bond.map(|b| b.integrity).unwrap_or(1.0);
+        let integrity = joint.map(|b| b.integrity).unwrap_or(1.0);
         // Tension is the weak direction for brittle materials, and it is what
         // decides whether masonry topples or merely settles.
         let tensile = axial > 0.0;
@@ -572,7 +572,7 @@ pub fn build_frame_with(topo: &Topology, n: usize, anchored: bool) -> BuiltFrame
     let mut weld = Weld::new(topo, n);
 
     for i in 0..n {
-        if topo.bonds[i].radius <= 0.0 || topo.bonds[i].integrity <= 0.0 {
+        if topo.joints[i].radius <= 0.0 || topo.joints[i].integrity <= 0.0 {
             continue;
         }
         tip_node[i] = weld.node(&mut frame, topo.tip[i], false);
@@ -592,8 +592,8 @@ pub fn build_frame_with(topo: &Topology, n: usize, anchored: bool) -> BuiltFrame
         if tip_node[i] == u32::MAX || base_node[i] == tip_node[i] {
             continue;
         }
-        element_of[i] = frame.add_beam(base_node[i], tip_node[i], topo.bonds[i].radius);
-        frame.elements[element_of[i]].integrity = topo.bonds[i].integrity;
+        element_of[i] = frame.add_beam(base_node[i], tip_node[i], topo.joints[i].radius);
+        frame.elements[element_of[i]].integrity = topo.joints[i].integrity;
     }
     for t in &topo.ties {
         let (a, b) = (t.a as usize, t.b as usize);
@@ -673,12 +673,12 @@ fn frame_analyse(
         let own = external.get(i).copied().unwrap_or(Vec3::ZERO).dot(axis) * 0.5;
         let axial = f.axial + own;
 
-        let area = topo.bonds[i].area().max(1e-30);
-        let section = topo.bonds[i].section_modulus().max(1e-30);
+        let area = topo.joints[i].area().max(1e-30);
+        let section = topo.joints[i].section_modulus().max(1e-30);
         let stress = f.moment / section + axial.abs() / area;
 
         let t = loads.temperature.get(i).copied().unwrap_or(loads.ambient);
-        let integrity = topo.bonds[i].integrity;
+        let integrity = topo.joints[i].integrity;
         let tensile = axial > 0.0;
         let ratio = if tensile { topo.material.tensile_ratio } else { 1.0 };
         let strength = topo.material.rupture * topo.material.strength_at(t) * integrity * ratio;
@@ -691,8 +691,8 @@ fn frame_analyse(
         };
 
         // Buckling likewise judges the section under the most compression.
-        let buckling = if axial < 0.0 && length > 0.0 && topo.bonds[i].radius > 0.0 {
-            let inertia = std::f64::consts::PI * topo.bonds[i].radius.powi(4) / 4.0;
+        let buckling = if axial < 0.0 && length > 0.0 && topo.joints[i].radius > 0.0 {
+            let inertia = std::f64::consts::PI * topo.joints[i].radius.powi(4) / 4.0;
             let critical = std::f64::consts::PI.powi(2) * topo.material.stiffness * inertia
                 / (0.85 * length).powi(2);
             if critical > 0.0 { -axial / critical } else { f64::INFINITY }
@@ -726,7 +726,7 @@ pub fn apply_failures(
     for i in 0..n {
         // Mechanisms can destroy a part outright, before any stress is involved.
         if field.destroyed.get(i).copied().unwrap_or(false) {
-            if let Some(b) = topo.bonds.get_mut(i) {
+            if let Some(b) = topo.joints.get_mut(i) {
                 if b.radius > 0.0 {
                     b.integrity = 0.0;
                     if topo.support[i] != NO_SUPPORT {
@@ -750,7 +750,7 @@ pub fn apply_failures(
             report.peak_at = i as u32;
         }
         if load.utilisation >= 1.0 {
-            if let Some(b) = topo.bonds.get_mut(i) {
+            if let Some(b) = topo.joints.get_mut(i) {
                 if b.parent != NO_SUPPORT {
                     b.integrity = 0.0;
                     topo.support[i] = NO_SUPPORT;
@@ -788,7 +788,7 @@ pub fn apply_failures(
     }
 
     for i in 0..n {
-        let structural = topo.bonds.get(i).map(|b| b.radius > 0.0).unwrap_or(false)
+        let structural = topo.joints.get(i).map(|b| b.radius > 0.0).unwrap_or(false)
             && topo.site[i] != NO_SUPPORT;
         if structural && !grounded[i] {
             report.detached.push(i as u32);
@@ -1005,7 +1005,7 @@ pub fn dynamic_structure_with(
         }
         let (axis, len) = member_axis(topo, i);
         let _ = axis;
-        let structural = density * topo.bonds[i].area() * len;
+        let structural = density * topo.joints[i].area() * len;
         let carried = (bodies[i].mass - structural).max(0.0);
         if carried > 0.0 {
             dynamics.add_point_mass(tip, carried * 0.5);
@@ -1190,13 +1190,13 @@ pub fn optimise(
     if n == 0 || passes == 0 || cases.is_empty() {
         return report;
     }
-    let original: Vec<f64> = topo.bonds.iter().take(n).map(|b| b.radius).collect();
+    let original: Vec<f64> = topo.joints.iter().take(n).map(|b| b.radius).collect();
 
     let volume = |t: &Topology| -> f64 {
         (0..n)
             .map(|i| {
                 let len = (t.tip[i] - t.base[i]).norm();
-                std::f64::consts::PI * t.bonds[i].radius * t.bonds[i].radius * len
+                std::f64::consts::PI * t.joints[i].radius * t.joints[i].radius * len
             })
             .sum::<f64>()
     };
@@ -1258,7 +1258,7 @@ pub fn optimise(
         }
 
         for i in 0..n {
-            let r = topo.bonds[i].radius;
+            let r = topo.joints[i].radius;
             if r <= 0.0 {
                 continue;
             }
@@ -1267,7 +1267,7 @@ pub fn optimise(
             // rather than vanishing.
             let ratio = if u > 1e-6 { u / target } else { 0.5 };
             let step = ratio.cbrt().clamp(0.7, 1.5);
-            topo.bonds[i].radius =
+            topo.joints[i].radius =
                 (r * step).clamp(original[i] * DESIGN_BOUNDS.0, original[i] * DESIGN_BOUNDS.1);
         }
 
@@ -1280,9 +1280,9 @@ pub fn optimise(
         }
         let renormalise = (report.volume_before / after).sqrt();
         for i in 0..n {
-            topo.bonds[i].radius = (topo.bonds[i].radius * renormalise)
+            topo.joints[i].radius = (topo.joints[i].radius * renormalise)
                 .clamp(original[i] * DESIGN_BOUNDS.0, original[i] * DESIGN_BOUNDS.1);
-            bodies[i].radius = topo.bonds[i].radius;
+            bodies[i].radius = topo.joints[i].radius;
         }
 
         worst = envelope(bodies, topo);
@@ -1298,8 +1298,8 @@ pub fn optimise(
     if after > 0.0 {
         let renormalise = (report.volume_before / after).sqrt();
         for i in 0..n {
-            topo.bonds[i].radius *= renormalise;
-            bodies[i].radius = topo.bonds[i].radius;
+            topo.joints[i].radius *= renormalise;
+            bodies[i].radius = topo.joints[i].radius;
         }
     }
     report.volume_after = volume(topo);
@@ -1447,10 +1447,10 @@ pub fn extract(
         piece.site.push(topo.site.get(o).copied().unwrap_or(old));
         piece.base.push(topo.base[o]);
         piece.tip.push(topo.tip[o]);
-        let mut bond = topo.bonds[o];
-        bond.child = remap[o];
-        bond.parent = *piece.support.last().unwrap();
-        piece.bonds.push(bond);
+        let mut joint = topo.joints[o];
+        joint.child = remap[o];
+        joint.parent = *piece.support.last().unwrap();
+        piece.joints.push(joint);
     }
     for t in &topo.ties {
         let (a, b) = (t.a as usize, t.b as usize);
@@ -1587,7 +1587,7 @@ impl Fragment {
             if a0 == a1 {
                 continue;
             }
-            let ra = self.topo.bonds[i].radius;
+            let ra = self.topo.joints[i].radius;
             let node = self.dynamics.tip_node[i];
             let v = if node == u32::MAX {
                 Vec3::ZERO
@@ -1615,8 +1615,8 @@ impl Fragment {
                 continue;
             }
             for j in 0..n {
-                let rb = struck.bonds[j].radius;
-                if rb <= 0.0 || struck.bonds[j].integrity <= 0.0 {
+                let rb = struck.joints[j].radius;
+                if rb <= 0.0 || struck.joints[j].integrity <= 0.0 {
                     continue;
                 }
                 let (b0, b1) = (struck.base[j], struck.tip[j]);

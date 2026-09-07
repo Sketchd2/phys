@@ -243,7 +243,7 @@ fn debris_comes_to_rest() {
     // Where the ground is in this structure's own frame: a generated tree is
     // recentred on its centre of mass, so its foundations are not at zero.
     let ground = (0..topo.support.len())
-        .filter(|&i| topo.support[i] == NO_SUPPORT && topo.bonds[i].radius > 0.0)
+        .filter(|&i| topo.support[i] == NO_SUPPORT && topo.joints[i].radius > 0.0)
         .map(|i| topo.base[i].z.min(topo.tip[i].z))
         .fold(f64::INFINITY, f64::min);
     let start = frag.lowest() - ground;
