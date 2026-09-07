@@ -593,7 +593,7 @@ pub fn build_frame_with(topo: &Topology, n: usize, anchored: bool) -> BuiltFrame
             continue;
         }
         element_of[i] = frame.add_beam(base_node[i], tip_node[i], topo.joints[i].radius);
-        frame.elements[element_of[i]].integrity = topo.joints[i].integrity;
+        frame.members[element_of[i]].integrity = topo.joints[i].integrity;
     }
     for t in &topo.ties {
         let (a, b) = (t.a as usize, t.b as usize);
@@ -607,7 +607,7 @@ pub fn build_frame_with(topo: &Topology, n: usize, anchored: bool) -> BuiltFrame
         }
         let radius = (t.area / std::f64::consts::PI).max(0.0).sqrt();
         let e = frame.add_tie(tip_node[a], tip_node[b], radius);
-        frame.elements[e].integrity = t.integrity;
+        frame.members[e].integrity = t.integrity;
     }
 
     BuiltFrame { frame, tip_node, base_node, element_of }
@@ -623,7 +623,7 @@ fn frame_analyse(
     use crate::solvers::frame::Dof;
 
     let BuiltFrame { frame, tip_node, base_node, element_of } = build_frame(topo, n);
-    if frame.elements.is_empty() {
+    if frame.members.is_empty() {
         return None;
     }
     let mut load = vec![Dof::default(); frame.nodes.len()];
@@ -993,7 +993,7 @@ pub fn dynamic_structure_with(
     let n = bodies.len().min(topo.support.len());
     let BuiltFrame { frame, tip_node, base_node, element_of } =
         build_frame_with(topo, n, anchored);
-    if frame.elements.is_empty() {
+    if frame.members.is_empty() {
         return None;
     }
     let density = frame.material.density;

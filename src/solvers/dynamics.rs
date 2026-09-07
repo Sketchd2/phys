@@ -59,7 +59,7 @@
 //! current state is to leaving the regime rather than leaving the user to guess.
 
 use crate::math::Vec3;
-use crate::solvers::frame::{Dof, ElementForces, Frame};
+use crate::solvers::frame::{Dof, MemberForces, Frame};
 
 /// A structure with mass, integrated through time.
 #[derive(Debug, Clone)]
@@ -119,7 +119,7 @@ impl Dynamics {
     /// tuning parameter.
     pub fn new(frame: Frame) -> Dynamics {
         let n = frame.nodes.len();
-        let stiffness = vec![frame.material.stiffness; frame.elements.len()];
+        let stiffness = vec![frame.material.stiffness; frame.members.len()];
         let mut d = Dynamics {
             frame,
             displacement: vec![Dof::default(); n],
@@ -149,7 +149,7 @@ impl Dynamics {
         let n = self.frame.nodes.len();
         self.frame.lumped = vec![Dof::default(); n];
         let rho = self.frame.material.density;
-        for e in &self.frame.elements {
+        for e in &self.frame.members {
             let (a, b) = (e.a as usize, e.b as usize);
             let axis = self.frame.nodes[b] - self.frame.nodes[a];
             let l = axis.norm();
@@ -187,7 +187,7 @@ impl Dynamics {
     pub fn step(&mut self, f: &[Dof], h: f64) -> StepReport {
         let n = self.frame.nodes.len();
         let mut report = StepReport::default();
-        if n == 0 || h <= 0.0 || self.frame.elements.is_empty() {
+        if n == 0 || h <= 0.0 || self.frame.members.is_empty() {
             return report;
         }
         let energy_before = self.kinetic_energy() + self.strain_energy();
@@ -297,8 +297,8 @@ impl Dynamics {
     }
 
     /// Strain energy held in one member, from its own internal forces.
-    fn element_strain_energy(&self, i: usize, f: &ElementForces) -> f64 {
-        let e = &self.frame.elements[i];
+    fn element_strain_energy(&self, i: usize, f: &MemberForces) -> f64 {
+        let e = &self.frame.members[i];
         let l = (self.frame.nodes[e.b as usize] - self.frame.nodes[e.a as usize]).norm();
         let k = self.stiffness[i];
         if l <= 0.0 || k <= 0.0 {
@@ -312,8 +312,8 @@ impl Dynamics {
     /// Whether a member has failed, by rupture or by buckling. The same test
     /// the static path applies, so a structure that survives a gust in the
     /// dynamic solver survives the same load held steady.
-    fn exceeds_limit(&self, i: usize, f: &ElementForces) -> bool {
-        let e = &self.frame.elements[i];
+    fn exceeds_limit(&self, i: usize, f: &MemberForces) -> bool {
+        let e = &self.frame.members[i];
         let m = self.frame.material;
         let ratio = if f.axial > 0.0 { m.tensile_ratio } else { 1.0 };
         let strength = m.rupture * e.integrity * ratio;
@@ -364,7 +364,7 @@ impl Dynamics {
     /// few percent, and beyond 0.3 the answer is qualitatively wrong.
     pub fn displacement_ratio(&self) -> f64 {
         let mut worst: f64 = 0.0;
-        for e in &self.frame.elements {
+        for e in &self.frame.members {
             let (a, b) = (e.a as usize, e.b as usize);
             let axis = self.frame.nodes[b] - self.frame.nodes[a];
             let l = axis.norm();

@@ -284,14 +284,14 @@ fn preconditioning_converges_quickly() {
     for node in &loads {
         load[*node as usize].t = v3(4000.0, 0.0, -30000.0);
     }
-    let stiff = vec![mat.stiffness; f.elements.len()];
+    let stiff = vec![mat.stiffness; f.members.len()];
     let (_, with_pre, ok_pre) = f.solve_elastic_opt(&load, &stiff, true);
     let (_, without, ok_plain) = f.solve_elastic_opt(&load, &stiff, false);
     println!(
         "  {} nodes ({} DOF), {} members: {} iterations preconditioned, {} without",
         n,
         n * 6,
-        f.elements.len(),
+        f.members.len(),
         with_pre,
         if ok_plain { without.to_string() } else { format!("{without}, did not converge") }
     );
@@ -403,7 +403,7 @@ fn the_tree_factorisation_is_exact_on_a_tree() {
         for (i, l) in load.iter_mut().enumerate() {
             l.t = v3(0.0, 30.0 * (i as f64 * 0.11).sin(), -120.0);
         }
-        let stiff = vec![mat.stiffness; f.elements.len()];
+        let stiff = vec![mat.stiffness; f.members.len()];
         let (u, iters, converged) = f.solve_elastic_opt(&load, &stiff, true);
         assert!(converged, "n={n} did not converge");
         // The iteration count does not grow with the structure, which is the
@@ -484,14 +484,14 @@ fn the_tree_factorisation_still_helps_a_braced_chain() {
     for (i, l) in load.iter_mut().enumerate() {
         l.t = v3(0.0, 30.0 * (i as f64 * 0.11).sin(), -120.0);
     }
-    let stiff = vec![mat.stiffness; f.elements.len()];
+    let stiff = vec![mat.stiffness; f.members.len()];
     let (_, tree, ok_tree) = f.solve_elastic_opt(&load, &stiff, true);
     let (_, plain, ok_plain) = f.solve_elastic_opt(&load, &stiff, false);
     println!(
         "  braced chain: {} joints, {} members, redundancy {redundancy} — {tree} iterations \
          factorised, {} without",
         f.nodes.len(),
-        f.elements.len(),
+        f.members.len(),
         if ok_plain { plain.to_string() } else { format!("{plain}, did not converge") }
     );
     assert!(ok_tree, "the braced chain did not converge");
@@ -526,7 +526,7 @@ fn the_tree_factorisation_still_helps_a_braced_chain() {
     println!(
         "  moment frame: {} joints, {} members, redundancy {} — factorisation declined",
         frame.nodes.len(),
-        frame.elements.len(),
+        frame.members.len(),
         frame.redundancy()
     );
     assert!(

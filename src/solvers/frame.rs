@@ -1,4 +1,4 @@
-//! Three-dimensional frame analysis: real beam elements, buckling, and plastic
+//! Three-dimensional frame analysis: real beam members, buckling, and plastic
 //! redistribution.
 //!
 //! # What was wrong with springs
@@ -17,15 +17,16 @@
 //! the fixed ends resist rotation. A translation-only model gets that badly
 //! wrong, and `tests/frame.rs` checks it.
 //!
-//! # The element
+//! # The member
 //!
-//! Standard Euler-Bernoulli 3D frame element: 6 degrees of freedom per node,
-//! 12 per element, with axial, torsional and biaxial bending terms. Every
+//! Each member is a standard Euler-Bernoulli 3D frame element — the term of
+//! art for the formulation — with 6 degrees of freedom per joint and 12 per
+//! member, with axial, torsional and biaxial bending terms. Every
 //! member the engine generates has a circular section, so `Iy == Iz` and the
 //! choice of principal axes is free — which removes the one genuinely fiddly
-//! part of assembling a frame element.
+//! part of assembling one.
 //!
-//! Ties are `truss` elements: axial only, no moment transfer. That is what
+//! Ties are `truss` members: axial only, no moment transfer. That is what
 //! bracing physically is, and modelling it as a full beam would over-stiffen
 //! the structure.
 //!
@@ -33,7 +34,7 @@
 //!
 //! A structure may be rebuilt every frame, so assembling a sparse `6n x 6n`
 //! matrix costs more than the solve. Conjugate gradient needs only the product
-//! `K u`, which is a loop over elements. The addition here over the previous
+//! `K u`, which is a loop over members. The addition here over the previous
 //! solver is a Jacobi preconditioner, which matters far more with rotational
 //! degrees of freedom than without: translations and rotations differ in units
 //! and by orders of magnitude in scale, and unpreconditioned CG spends its
@@ -47,7 +48,7 @@ pub const POISSON: f64 = 0.3;
 
 /// One member of a frame.
 #[derive(Debug, Clone, Copy)]
-pub struct Element {
+pub struct Member {
     pub a: u32,
     pub b: u32,
     /// Circular section radius, m.
@@ -58,7 +59,7 @@ pub struct Element {
     pub integrity: f64,
 }
 
-impl Element {
+impl Member {
     #[inline]
     pub fn area(&self) -> f64 {
         std::f64::consts::PI * self.radius * self.radius
@@ -84,7 +85,7 @@ impl Element {
 #[derive(Debug, Clone)]
 pub struct Frame {
     pub nodes: Vec<Vec3>,
-    pub elements: Vec<Element>,
+    pub members: Vec<Member>,
     /// Nodes held against translation *and* rotation — a foundation, not a pin.
     pub fixed: Vec<bool>,
     pub material: Material,
@@ -111,7 +112,7 @@ pub struct Frame {
 
 /// Internal forces in one member, in its own local frame.
 #[derive(Debug, Clone, Copy, Default)]
-pub struct ElementForces {
+pub struct MemberForces {
     /// Positive in tension, N.
     pub axial: f64,
     /// Resultant transverse force, N.
@@ -130,7 +131,7 @@ pub struct ElementForces {
 pub struct FrameSolution {
     pub translation: Vec<Vec3>,
     pub rotation: Vec<Vec3>,
-    pub forces: Vec<ElementForces>,
+    pub forces: Vec<MemberForces>,
     pub iterations: u32,
     pub converged: bool,
     /// Elements that yielded and shed load to their neighbours.
@@ -192,7 +193,7 @@ impl Frame {
     pub fn new(material: Material) -> Frame {
         Frame {
             nodes: Vec::new(),
-            elements: Vec::new(),
+            members: Vec::new(),
             fixed: Vec::new(),
             material,
             lumped: Vec::new(),
@@ -208,23 +209,23 @@ impl Frame {
     }
 
     pub fn add_beam(&mut self, a: u32, b: u32, radius: f64) -> usize {
-        self.elements.push(Element { a, b, radius, truss: false, integrity: 1.0 });
-        self.elements.len() - 1
+        self.members.push(Member { a, b, radius, truss: false, integrity: 1.0 });
+        self.members.len() - 1
     }
 
     pub fn add_tie(&mut self, a: u32, b: u32, radius: f64) -> usize {
-        self.elements.push(Element { a, b, radius, truss: true, integrity: 1.0 });
-        self.elements.len() - 1
+        self.members.push(Member { a, b, radius, truss: true, integrity: 1.0 });
+        self.members.len() - 1
     }
 
     #[inline]
-    fn length(&self, e: &Element) -> f64 {
+    fn length(&self, e: &Member) -> f64 {
         (self.nodes[e.b as usize] - self.nodes[e.a as usize]).norm()
     }
 
-    /// Element stiffness applied to a displacement state, in global
+    /// Member stiffness applied to a displacement state, in global
     /// coordinates. Returns the internal force and moment at each end.
-    fn element_apply(&self, e: &Element, d1: Dof, d2: Dof, stiffness: f64) -> (Dof, Dof) {
+    fn element_apply(&self, e: &Member, d1: Dof, d2: Dof, stiffness: f64) -> (Dof, Dof) {
         let d = self.nodes[e.b as usize] - self.nodes[e.a as usize];
         let l = d.norm();
         if l <= 0.0 || stiffness <= 0.0 {
@@ -300,7 +301,7 @@ impl Frame {
         for o in out.iter_mut() {
             *o = Dof::default();
         }
-        for (i, e) in self.elements.iter().enumerate() {
+        for (i, e) in self.members.iter().enumerate() {
             let (a, b) = (e.a as usize, e.b as usize);
             let (f1, f2) = self.element_apply(e, u[a], u[b], stiff[i] * self.stiff_scale);
             out[a] = out[a].add(f1);
@@ -328,7 +329,7 @@ impl Frame {
     /// what one division per degree of freedom does here.
     fn diagonal(&self, stiff: &[f64]) -> Vec<Dof> {
         let mut d = vec![Dof::default(); self.nodes.len()];
-        for (i, e) in self.elements.iter().enumerate() {
+        for (i, e) in self.members.iter().enumerate() {
             let l = self.length(e);
             if l <= 0.0 || stiff[i] <= 0.0 {
                 continue;
@@ -372,11 +373,11 @@ impl Frame {
     pub fn solve_with(&self, load: &[Dof], plastic: bool) -> FrameSolution {
         let n = self.nodes.len();
         let mut out = FrameSolution::default();
-        if n == 0 || self.elements.is_empty() {
+        if n == 0 || self.members.is_empty() {
             return out;
         }
         // Per-element stiffness, reduced where a member has yielded.
-        let mut stiff = vec![self.material.stiffness; self.elements.len()];
+        let mut stiff = vec![self.material.stiffness; self.members.len()];
         let mut solution = self.solve_elastic(load, &stiff);
         out.iterations = solution.1;
         out.converged = solution.2;
@@ -395,7 +396,7 @@ impl Frame {
                 for (i, f) in forces.iter().enumerate() {
                     let cap = self.material.rupture
                         * self.material.ductility
-                        * self.elements[i].integrity;
+                        * self.members[i].integrity;
                     if cap > 0.0 && f.stress > cap {
                         let secant = (cap / f.stress).clamp(1e-4, 1.0);
                         let next = stiff[i] * secant;
@@ -587,15 +588,15 @@ impl Frame {
     }
 
     /// Internal forces in every member, from a displacement state.
-    pub fn element_forces(&self, u: &[Dof], stiff: &[f64]) -> Vec<ElementForces> {
-        self.elements
+    pub fn element_forces(&self, u: &[Dof], stiff: &[f64]) -> Vec<MemberForces> {
+        self.members
             .iter()
             .enumerate()
             .map(|(i, e)| {
                 let (a, b) = (e.a as usize, e.b as usize);
                 let l = self.length(e);
                 if l <= 0.0 {
-                    return ElementForces::default();
+                    return MemberForces::default();
                 }
                 let (f1, _f2) = self.element_apply(e, u[a], u[b], stiff[i]);
                 let (e1, _, _) = basis(self.nodes[b] - self.nodes[a]);
@@ -629,7 +630,7 @@ impl Frame {
                     0.0
                 };
 
-                ElementForces { axial, shear, moment, torsion, stress, buckling }
+                MemberForces { axial, shear, moment, torsion, stress, buckling }
             })
             .collect()
     }
@@ -641,7 +642,7 @@ impl Frame {
             .iter()
             .enumerate()
             .map(|(i, f)| {
-                let e = &self.elements[i];
+                let e = &self.members[i];
                 let l = self.length(e);
                 if l <= 0.0 {
                     return 0.0;
@@ -810,7 +811,7 @@ impl Mat6 {
 /// # Why it was needed
 ///
 /// Jacobi preconditioning is fine for a squat braced frame and hopeless for a
-/// tree: a slender chain of `n` beam elements has a condition number growing
+/// tree: a slender chain of `n` beam members has a condition number growing
 /// like `n^4`, so a 2000-member tree took 3645 iterations and 700 ms for one
 /// substep. At twenty updates a second that is not a solver, it is a
 /// screensaver.
@@ -881,8 +882,8 @@ impl Frame {
         let mut diag = vec![Mat6::ZERO; n];
         // Adjacency, with the element index so blocks can be recovered.
         let mut adjacent: Vec<Vec<(u32, usize)>> = vec![Vec::new(); n];
-        let mut blocks: Vec<(Mat6, Mat6, Mat6, Mat6)> = Vec::with_capacity(self.elements.len());
-        for (i, e) in self.elements.iter().enumerate() {
+        let mut blocks: Vec<(Mat6, Mat6, Mat6, Mat6)> = Vec::with_capacity(self.members.len());
+        for (i, e) in self.members.iter().enumerate() {
             let k = stiff.get(i).copied().unwrap_or(0.0) * self.stiff_scale;
             let (aa, ab, ba, bb) = self.element_blocks(e, k);
             let (a, b) = (e.a as usize, e.b as usize);
@@ -916,7 +917,7 @@ impl Frame {
         // one to eleven hundred. Prim's algorithm takes the stiffest edge
         // available at every step and cannot make that mistake.
         let weight: Vec<f64> = self
-            .elements
+            .members
             .iter()
             .enumerate()
             .map(|(i, e)| {
@@ -955,7 +956,7 @@ impl Frame {
                 parent[j] = from;
                 let (_aa, ab, ba, _bb) = blocks[element as usize];
                 // The block on row `j`, column `from`.
-                to_parent[j] = if self.elements[element as usize].a as usize == j { ab } else { ba };
+                to_parent[j] = if self.members[element as usize].a as usize == j { ab } else { ba };
                 order.push(other);
                 push(&mut frontier, other);
             }
@@ -992,7 +993,7 @@ impl Frame {
     pub fn redundancy(&self) -> usize {
         let n = self.nodes.len();
         let mut adjacent: Vec<Vec<u32>> = vec![Vec::new(); n];
-        for e in &self.elements {
+        for e in &self.members {
             adjacent[e.a as usize].push(e.b);
             adjacent[e.b as usize].push(e.a);
         }
@@ -1017,7 +1018,7 @@ impl Frame {
             }
         }
         let free_members = self
-            .elements
+            .members
             .iter()
             .filter(|e| !self.fixed[e.a as usize] && !self.fixed[e.b as usize])
             .count();
@@ -1028,7 +1029,7 @@ impl Frame {
     /// each unit degree of freedom in turn. Twelve applications of a routine
     /// that already exists, rather than a second derivation of the same algebra
     /// that could drift away from it.
-    fn element_blocks(&self, e: &Element, stiff: f64) -> (Mat6, Mat6, Mat6, Mat6) {
+    fn element_blocks(&self, e: &Member, stiff: f64) -> (Mat6, Mat6, Mat6, Mat6) {
         let (mut aa, mut ab, mut ba, mut bb) =
             (Mat6::ZERO, Mat6::ZERO, Mat6::ZERO, Mat6::ZERO);
         let unit = |k: usize| {

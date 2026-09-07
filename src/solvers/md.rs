@@ -501,13 +501,13 @@ pub fn temperature_of(bodies: &[Body]) -> f64 {
 /// shows exactly where the heat came from.
 #[derive(Debug, Clone, Default)]
 pub struct Bonded {
-    pub bonds: Vec<Bond>,
+    pub bonds: Vec<MorseBond>,
     pub angles: Vec<Angle>,
 }
 
 /// A Morse bond between two particles, switched off smoothly at range.
 #[derive(Debug, Clone, Copy)]
-pub struct Bond {
+pub struct MorseBond {
     pub a: u32,
     pub b: u32,
     /// Equilibrium separation, m.
@@ -575,17 +575,17 @@ fn switch(r: f64, inner: f64, outer: f64) -> (f64, f64) {
     }
 }
 
-impl Bond {
+impl MorseBond {
     /// A bond with a given harmonic force constant `k` (N/m) and well depth.
     ///
     /// The switch runs from 1.6 to 2.4 times the equilibrium length: far enough
     /// out that the well depth and the vibrational frequency are untouched —
     /// `f = 1` well past where the potential has any curvature left — and short
     /// enough that the candidate search stays local.
-    pub fn new(a: u32, b: u32, r0: f64, well: f64, k: f64, sigma: f64) -> Bond {
+    pub fn new(a: u32, b: u32, r0: f64, well: f64, k: f64, sigma: f64) -> MorseBond {
         let alpha = if well > 0.0 { (k / (2.0 * well)).sqrt() } else { 0.0 };
         let (inner, outer, shield_outer) = ranges(r0, alpha, sigma);
-        Bond { a, b, r0, well, alpha, inner, outer, shield_inner: outer, shield_outer }
+        MorseBond { a, b, r0, well, alpha, inner, outer, shield_inner: outer, shield_outer }
     }
 
     /// How much of the pair's van der Waals interaction survives at `r`.
@@ -605,7 +605,7 @@ impl Bond {
     }
 
     /// Morse potential referenced to the dissociation limit: `-D_e` at rest,
-    /// zero at infinity. Unswitched; [`Bond::energy`] applies the switch.
+    /// zero at infinity. Unswitched; [`MorseBond::energy`] applies the switch.
     #[inline]
     pub fn morse(&self, r: f64) -> f64 {
         let x = 1.0 - (-self.alpha * (r - self.r0)).exp();
@@ -771,12 +771,12 @@ impl Bonded {
         self.bonds.is_empty() && self.angles.is_empty()
     }
 
-    /// Bond two particles using the constants for their dominant species.
+    /// MorseBond two particles using the constants for their dominant species.
     pub fn bond(&mut self, bodies: &[Body], a: u32, b: u32) {
         let (sa, sb) = (dominant(&bodies[a as usize]), dominant(&bodies[b as usize]));
         let (r0, well, k) = covalent(sa, sb);
         let sigma = 0.5 * (lj_params(sa).0 + lj_params(sb).0);
-        self.bonds.push(Bond::new(a, b, r0, well, k, sigma));
+        self.bonds.push(MorseBond::new(a, b, r0, well, k, sigma));
     }
 
     /// The range at which a pair of species starts counting as bonded.
@@ -853,7 +853,7 @@ impl Bonded {
         let mut report = Reaction::default();
 
         // Anything past its range is holding nothing.
-        let kept: Vec<Bond> = self
+        let kept: Vec<MorseBond> = self
             .bonds
             .iter()
             .copied()
