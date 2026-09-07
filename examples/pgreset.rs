@@ -1,8 +1,9 @@
 //! Drop and rebuild a PostgreSQL world at the current schema.
 //!
-//! `PostgresStore::connect` refuses a database built against an older layout
-//! rather than misreading it, and there is no migration path from an unknown
-//! one. This is the way out, and it is destructive by design.
+//! `PostgresStore::connect` refuses a database built against a different layout
+//! rather than misreading it. There is no migration while the project is
+//! pre-alpha, so this is the whole answer: drop the tables and rebuild the
+//! world. Destructive by design.
 //!
 //! ```sh
 //! PHYS_PG='host=127.0.0.1 port=5432 user=phys dbname=phys' \

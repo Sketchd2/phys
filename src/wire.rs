@@ -37,20 +37,22 @@ use crate::math::{Quat, Vec3};
 /// Every world file starts with these four bytes.
 pub const MAGIC: [u8; 4] = *b"PHYS";
 
-/// The format version. Bump it whenever the layout changes in a way an older
-/// reader would misinterpret; add a migration in `persist::load` when you do.
+/// The format stamp.
 ///
-/// * **3** — the world carries its substance catalogue and every node's
-///   mixture. A node's mixture names substances by position in that catalogue,
-///   so the two are one change: a file with mixtures and no registry would
-///   point at nothing.
-/// * **2** — a node carries its `bubble`, the administrative multiplier on how
-///   fast its interior runs. A version 1 file has no such field and every node
-///   in it was implicitly at 1.0, but the field sits in the middle of the node
-///   payload rather than at the end, so a v1 reader and a v2 file disagree
-///   about every byte after it. Nothing has shipped that writes v1, so there is
-///   no migration: the version simply refuses the old layout instead of
-///   misreading it.
+/// Bump it whenever the layout changes in a way an older reader would
+/// misinterpret. There is no migration and there is not going to be one while
+/// the project is pre-alpha: a file written by a different layout is refused,
+/// not converted, and the world is rebuilt. Keeping a stamp at all is what
+/// makes that refusal *loud* — without it a stale file would be parsed as
+/// nonsense rather than rejected.
+///
+/// No history is kept here. A changelog of layouts would be a promise to
+/// support them, and the promise is deliberately not being made.
+///
+/// `the_format_stamp_tracks_the_format` in `tests/persistence.rs` is what stops
+/// this being forgotten: it holds a checksum of a fully-populated world, so a
+/// layout change with no bump fails there rather than silently misreading
+/// somebody's file later.
 pub const FORMAT_VERSION: u16 = 3;
 
 /// A hard ceiling on any single length prefix, independent of the bytes
@@ -65,7 +67,8 @@ pub enum WireError {
     Truncated { what: &'static str, need: usize, have: usize },
     /// The first four bytes were not `PHYS`.
     BadMagic,
-    /// A version this build does not know how to read.
+    /// A layout this build does not read. Refused rather than converted —
+    /// see [`FORMAT_VERSION`].
     UnsupportedVersion { found: u16, supported: u16 },
     /// An enum tag outside the set this build defines.
     BadTag { what: &'static str, tag: u64 },
@@ -239,8 +242,9 @@ impl<'a> Reader<'a> {
         Ok(s)
     }
 
-    /// Magic and version. Returns the version so a caller can migrate.
-    pub fn header(&mut self) -> Result<u16> {
+    /// Magic and format stamp. Both must match exactly; there is nothing a
+    /// caller could do with a mismatch except refuse, so nothing is returned.
+    pub fn header(&mut self) -> Result<()> {
         let m = self.take("magic", 4)?;
         if m != MAGIC {
             return Err(WireError::BadMagic);
@@ -249,7 +253,7 @@ impl<'a> Reader<'a> {
         if v != FORMAT_VERSION {
             return Err(WireError::UnsupportedVersion { found: v, supported: FORMAT_VERSION });
         }
-        Ok(v)
+        Ok(())
     }
 
     #[inline]

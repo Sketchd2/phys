@@ -263,7 +263,7 @@ impl Tree {
     ///
     /// The free list is *derived* rather than stored: a slot is free exactly
     /// when its node is not alive, so persisting it would be storing a fact the
-    /// nodes already contain and risking the two disagreeing after a migration.
+    /// nodes already contain and risking the two disagreeing after a reload.
     pub fn restore(
         nodes: Vec<Node>,
         root: NodeIdx,

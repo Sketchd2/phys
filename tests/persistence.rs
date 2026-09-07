@@ -471,3 +471,112 @@ fn an_unpinned_reload_comes_back_coarse() {
         back.pace
     );
 }
+
+/// The stamp has to move when the layout does, and nothing but a person
+/// remembering makes that happen.
+///
+/// # What replaced migration
+///
+/// There is no migration and there is not going to be one while the project is
+/// pre-alpha: a file written by a different layout is refused and the world is
+/// rebuilt. That is only safe if the refusal actually fires, and it only fires
+/// if `FORMAT_VERSION` was bumped when the layout changed. Forget the bump and
+/// a stale file is not refused — it is *parsed*, into whatever the new reader
+/// makes of the old bytes, which is the exact failure the scheme exists to
+/// prevent.
+///
+/// So this holds the encoded size of a reference world with every awkward
+/// corner populated. Add a field, remove one, or change one's width, and the
+/// size moves and this fails, telling you to bump the stamp.
+///
+/// # Why a size and not a checksum
+///
+/// A checksum would also catch a field being reordered or retyped at the same
+/// width, which a size does not. It would also depend on every float in the
+/// file, and float bit patterns are not guaranteed identical across compilers
+/// and platforms — see the recipe-determinism entry in `docs/BACKLOG.md`. A
+/// size is invariant under every value in the world and varies with its shape,
+/// which is the thing being guarded. The checksum is printed for information;
+/// nothing asserts on it.
+///
+/// The world is built without `step_frame`, deliberately: stepping spends a
+/// wall-clock budget, so how much of it runs depends on how fast the machine
+/// is, and a reference world has to be the same everywhere. It is also built
+/// small — pinning a node pins its whole ancestor chain and a pinned node
+/// writes every body it holds, so drilling deep would put a hundred thousand
+/// bodies in the file and its size would then move whenever anybody tuned a
+/// default spec count.
+#[test]
+fn the_format_stamp_tracks_the_format() {
+    /// Bump `wire::FORMAT_VERSION`, then update this.
+    const REFERENCE_BYTES: usize = 2_798;
+
+    use phys::chem::{Arrangement, Bond, Element, Lattice, Mixture, Order, Phase};
+
+    let mut w = a_world();
+    w.tree.nodes[0].spec.count = 6;
+    let root = w.tree.root;
+    w.tree.refine(root);
+    let child = w.tree.promote(root, 0, default_spec(Tier::Stellar));
+    w.tree.nodes[child.get()].spec.count = 3;
+    w.tree.refine(child);
+
+    // A morphology and its topology, pinned detail, a ledger fact, an audit
+    // entry, an environment, an in-flight influence, a time bubble, a substance
+    // catalogue and a mixture.
+    w.plant(
+        child,
+        phys::morph::Program::Tree,
+        phys::morph::Environment { light_flux: 340.0, ..Default::default() },
+    );
+    w.interact(Interaction::Pin { target: child });
+    w.interact(Interaction::Impulse { target: child, dp: v3(1.0, 2.0, 3.0) });
+    w.interact(Interaction::Author {
+        target: child,
+        property: phys::observe::Property::Temperature,
+        value: 350.0,
+    });
+    w.dilate(child, 250.0);
+    w.ledger.commit(w.tree.nodes[root.get()].key, Quantity::DecayTime, 99.5, 7.0);
+
+    // Built by hand rather than by name: nothing in the engine knows what salt
+    // is, which is the whole point of the chemistry layer.
+    let salt = w
+        .substances
+        .intern(Arrangement::crystal(
+            vec![Element(11), Element(17)],
+            vec![Bond::new(0, 1, Order::Ionic)],
+            Lattice::Cubic { a: 3.55e-10 },
+        ))
+        .expect("salt analyses");
+    w.substances.name(salt, "salt");
+    let mut mix = Mixture::new();
+    mix.add(salt, Phase::Solid, 0.25);
+    w.set_mixture(child, mix);
+
+    let bytes = encode(w.view());
+    let checksum = bytes.iter().fold(0xcbf2_9ce4_8422_2325u64, |h, b| {
+        (h ^ *b as u64).wrapping_mul(0x1000_0000_01b3)
+    });
+    println!(
+        "  format {FORMAT_VERSION}: reference world is {} bytes (checksum {checksum:016x})",
+        bytes.len()
+    );
+
+    assert_eq!(
+        bytes.len(),
+        REFERENCE_BYTES,
+        "\nthe wire layout changed: the reference world is now {} bytes, not {REFERENCE_BYTES}.\n\
+         Bump `wire::FORMAT_VERSION` (currently {FORMAT_VERSION}) and set REFERENCE_BYTES to {}.\n\
+         There is no migration — an existing world is refused and has to be rebuilt.",
+        bytes.len(),
+        bytes.len()
+    );
+
+    // And what was written still reads back, so the size is not being held
+    // steady by something that quietly broke.
+    let back = ok(decode(&bytes));
+    assert_eq!(back.tree.nodes.len(), w.tree.nodes.len());
+    assert_eq!(back.substances.len(), 1);
+    assert_eq!(back.mixtures.len(), 1);
+}

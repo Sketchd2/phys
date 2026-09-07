@@ -78,15 +78,21 @@ fn key_from(b: &[u8]) -> Result<PathKey> {
     Ok(PathKey(u128::from_be_bytes(a)))
 }
 
-/// Bumped whenever the table layout changes in a way an existing database
-/// would not satisfy.
+/// The table layout's stamp.
+///
+/// Separate from `wire::FORMAT_VERSION` because the two can change
+/// independently: a new column here is not a new byte there. Bump it whenever
+/// the tables change.
 ///
 /// The tables are created with `IF NOT EXISTS`, which is right for a fresh
-/// database and silently wrong for one built against an older layout: the new
-/// column is never added, and every insert afterwards fails with an error that
-/// names a column rather than the real problem. So the layout carries its own
-/// version, checked on connect, and a mismatch is refused the way the file
-/// reader refuses an old format — by saying so, rather than by misbehaving.
+/// database and silently wrong for one built against an older layout — the new
+/// column is never added and every insert afterwards fails naming a column
+/// rather than the real problem. So the layout carries this stamp, checked on
+/// connect, and a mismatch is refused.
+///
+/// Refused, not migrated. There is no migration while the project is pre-alpha
+/// and `PostgresStore::reset` is the whole answer: drop the tables and rebuild
+/// the world.
 pub const SCHEMA_VERSION: i32 = 3;
 
 pub const SCHEMA: &str = r#"
@@ -225,23 +231,20 @@ impl PostgresStore {
             .map_err(db)?
             .get(0);
 
-        match existing {
-            Some(v) if v != SCHEMA_VERSION => {
-                return Err(WireError::UnsupportedVersion {
-                    found: v as u16,
-                    supported: SCHEMA_VERSION as u16,
-                });
-            }
-            // Tables from before the version stamp existed, or from a build
-            // that wrote a different layout. Either way this build cannot use
-            // them, and saying so beats a failed insert naming one column.
-            None if has_tables => {
-                return Err(WireError::UnsupportedVersion {
-                    found: 0,
-                    supported: SCHEMA_VERSION as u16,
-                });
-            }
-            _ => {}
+        // Anything already here that this build did not write is refused. The
+        // `None if has_tables` case is a database from before the stamp
+        // existed; it is no more readable than any other foreign layout, so it
+        // takes the same path.
+        let found = match (existing, has_tables) {
+            (Some(v), _) if v != SCHEMA_VERSION => Some(v),
+            (None, true) => Some(0),
+            _ => None,
+        };
+        if let Some(found) = found {
+            return Err(WireError::UnsupportedVersion {
+                found: found as u16,
+                supported: SCHEMA_VERSION as u16,
+            });
         }
 
         client.batch_execute(SCHEMA).map_err(db)?;
@@ -257,9 +260,9 @@ impl PostgresStore {
 
     /// Drop every table and build them again at the current layout.
     ///
-    /// The way out of the refusal above, and destructive by design: there is no
-    /// migration path from an unknown layout, and pretending otherwise would be
-    /// worse than saying what this does.
+    /// The way out of the refusal above, and destructive by design. Pre-alpha,
+    /// a world is cheap to rebuild and a half-converted one is not, so this is
+    /// the only route offered.
     pub fn reset(url: &str) -> Result<PostgresStore> {
         let mut client = Client::connect(url, NoTls).map_err(db)?;
         client
