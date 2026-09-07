@@ -150,7 +150,7 @@ fn main() {
     println!("  Body           {:>4} bytes", std::mem::size_of::<Body>());
     println!("  Aggregate      {:>4} bytes", std::mem::size_of::<Aggregate>());
     println!("  Node           {:>4} bytes", std::mem::size_of::<phys::tree::Node>());
-    println!("  Snapshot       {:>4} bytes", std::mem::size_of::<phys::causal::Snapshot>());
+    println!("  Moment         {:>4} bytes", std::mem::size_of::<phys::causal::Moment>());
     let per_gb = 1e9 / std::mem::size_of::<Body>() as f64;
     println!("  bodies per GB  {:>4.1} M", per_gb / 1e6);
     println!("  6 GB card, 60% for bodies: {:.1} M bodies resident", 6.0 * 0.6 * per_gb / 1e6);

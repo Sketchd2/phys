@@ -15,5 +15,5 @@ pub mod registry;
 pub use analyse::{analyse, Confidence, Illegal, Properties};
 pub use arrange::{Arrangement, Bond, Formula, Lattice, Order};
 pub use elements::Element;
-pub use react::{react, settle, ReactionReport};
+pub use react::{equilibrate, react, ReactionReport};
 pub use registry::{Mixture, Phase, Pool, Provenance, Registry, Substance, SubstanceId};

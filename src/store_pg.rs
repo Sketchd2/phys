@@ -729,6 +729,6 @@ fn load_impl(store: &mut PostgresStore) -> Result<Snapshot> {
     };
     // Nodes skipped by an incremental write are at whatever instant they were
     // last written at. Carrying them forward is exact.
-    snapshot.settle();
+    snapshot.catch_up();
     Ok(snapshot)
 }

@@ -128,7 +128,7 @@ fn engine_preserves_causality() {
 fn history_reports_its_limits() {
     let mut h = History::new(16);
     for i in 0..16 {
-        h.push(Snapshot {
+        h.push(Moment {
             t: i as f64,
             offset: v3(i as f64 * 1000.0, 0.0, 0.0),
             velocity: v3(1000.0, 0.0, 0.0),

@@ -17,7 +17,7 @@ use phys::chem::analyse::{
     bond_energy, bond_length, ionicity, solubility_in, Illegal, WATER_POLARITY,
 };
 use phys::chem::arrange::{Bond, Lattice, Order};
-use phys::chem::react::{react, settle};
+use phys::chem::react::{equilibrate, react};
 use phys::chem::*;
 
 fn el(z: u8) -> Element {
@@ -799,7 +799,7 @@ fn salt_put_in_water_dissolves() {
 #[test]
 fn a_solution_saturates() {
     let (reg, mut mix, salt, water_id) = beaker(0.6);
-    settle(&mut mix, &reg, 293.0);
+    equilibrate(&mut mix, &reg, 293.0);
 
     let dissolved = mix.pool(salt, Phase::Dissolved);
     let solid = mix.pool(salt, Phase::Solid);
@@ -826,7 +826,7 @@ fn dissolving_cannot_move_the_elemental_account() {
     let (before, before_explained) = mix.composition(&reg);
     let before_mass = mix.speciated();
 
-    settle(&mut mix, &reg, 293.0);
+    equilibrate(&mut mix, &reg, 293.0);
 
     let (after, after_explained) = mix.composition(&reg);
     let after_mass = mix.speciated();
@@ -848,7 +848,7 @@ fn dissolving_cannot_move_the_elemental_account() {
 #[test]
 fn cooling_a_solution_precipitates() {
     let (reg, mut mix, salt, _) = beaker(0.35);
-    settle(&mut mix, &reg, 350.0);
+    equilibrate(&mut mix, &reg, 350.0);
     let hot = mix.pool(salt, Phase::Dissolved);
 
     // Freeze the solvent. With no liquid left there is nothing to hold the
@@ -923,7 +923,7 @@ fn water_freezes_and_boils_and_the_heat_is_booked() {
 fn a_pass_relaxes_rather_than_jumping() {
     let equilibrium = {
         let (reg, mut mix, salt, _) = beaker(0.02);
-        settle(&mut mix, &reg, 293.0);
+        equilibrate(&mut mix, &reg, 293.0);
         mix.pool(salt, Phase::Dissolved)
     };
 

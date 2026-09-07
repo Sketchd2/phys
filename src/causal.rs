@@ -41,7 +41,7 @@ use std::collections::BinaryHeap;
 /// light-crossing time of its neighbourhood, and at galactic tier that is
 /// thousands of samples across millions of nodes.
 #[derive(Debug, Clone, Copy, Default)]
-pub struct Snapshot {
+pub struct Moment {
     pub t: f64,
     pub offset: Vec3,
     pub velocity: Vec3,
@@ -50,15 +50,15 @@ pub struct Snapshot {
     pub temperature: f64,
 }
 
-impl Snapshot {
-    pub fn lerp(a: &Snapshot, b: &Snapshot, t: f64) -> Snapshot {
+impl Moment {
+    pub fn lerp(a: &Moment, b: &Moment, t: f64) -> Moment {
         let dt = b.t - a.t;
         let u = if dt.abs() > 0.0 {
             ((t - a.t) / dt).clamp(0.0, 1.0)
         } else {
             0.0
         };
-        Snapshot {
+        Moment {
             t,
             // Hermite interpolation on position using the stored velocities:
             // linear interpolation of position alone puts a kink in the
@@ -86,7 +86,7 @@ fn hermite(p0: Vec3, v0: Vec3, p1: Vec3, v1: Vec3, dt: f64, u: f64) -> Vec3 {
 /// Fixed-capacity ring of past states.
 #[derive(Debug, Clone)]
 pub struct History {
-    ring: Vec<Snapshot>,
+    ring: Vec<Moment>,
     head: usize,
     len: usize,
 }
@@ -94,13 +94,13 @@ pub struct History {
 impl History {
     pub fn new(capacity: usize) -> History {
         History {
-            ring: vec![Snapshot::default(); capacity.max(2)],
+            ring: vec![Moment::default(); capacity.max(2)],
             head: 0,
             len: 0,
         }
     }
 
-    pub fn push(&mut self, s: Snapshot) {
+    pub fn push(&mut self, s: Moment) {
         let cap = self.ring.len();
         self.ring[self.head] = s;
         self.head = (self.head + 1) % cap;
@@ -115,13 +115,13 @@ impl History {
         self.len == 0
     }
 
-    fn at(&self, i: usize) -> &Snapshot {
+    fn at(&self, i: usize) -> &Moment {
         let cap = self.ring.len();
         let start = (self.head + cap - self.len) % cap;
         &self.ring[(start + i) % cap]
     }
 
-    pub fn newest(&self) -> Option<&Snapshot> {
+    pub fn newest(&self) -> Option<&Moment> {
         if self.len == 0 {
             None
         } else {
@@ -129,7 +129,7 @@ impl History {
         }
     }
 
-    pub fn oldest(&self) -> Option<&Snapshot> {
+    pub fn oldest(&self) -> Option<&Moment> {
         if self.len == 0 {
             None
         } else {
@@ -150,9 +150,9 @@ impl History {
     /// Interpolate the state at time `t`. `Err` carries the clamped result when
     /// `t` falls outside the retained window, so callers can degrade
     /// deliberately rather than by accident.
-    pub fn sample(&self, t: f64) -> Result<Snapshot, Snapshot> {
+    pub fn sample(&self, t: f64) -> Result<Moment, Moment> {
         if self.len == 0 {
-            return Err(Snapshot::default());
+            return Err(Moment::default());
         }
         let oldest = *self.at(0);
         let newest = *self.at(self.len - 1);
@@ -183,7 +183,7 @@ impl History {
                 hi = mid;
             }
         }
-        Ok(Snapshot::lerp(self.at(lo), self.at(hi), t))
+        Ok(Moment::lerp(self.at(lo), self.at(hi), t))
     }
 
     /// The state of this node on the past light cone of an observer at
@@ -198,7 +198,7 @@ impl History {
             Err(s) => (s, false),
         };
         RetardedView {
-            snapshot: Snapshot { offset: pos, ..snap },
+            snapshot: Moment { offset: pos, ..snap },
             t_retarded: t_ret,
             delay: t_obs - t_ret,
             distance: dist,
@@ -209,7 +209,7 @@ impl History {
 
 #[derive(Debug, Clone, Copy)]
 pub struct RetardedView {
-    pub snapshot: Snapshot,
+    pub snapshot: Moment,
     pub t_retarded: f64,
     pub delay: f64,
     pub distance: f64,

@@ -363,7 +363,7 @@ pub extern "C" fn set_dynamic(on: u32) {
     let s = session();
     s.dynamic = on != 0;
     if !s.dynamic {
-        s.world.settle();
+        s.world.stop_dynamics();
         s.dirty = true;
         refresh(s);
     }
@@ -616,7 +616,7 @@ pub extern "C" fn grow_forest(years: f32) {
     for node in nodes {
         f.world.grow_node(node, dt);
     }
-    f.world.settle();
+    f.world.stop_dynamics();
     refresh_forest(f);
 }
 
@@ -635,7 +635,7 @@ pub extern "C" fn set_forest_dynamic(on: u32) {
     let f = forest();
     f.dynamic = on != 0;
     if !f.dynamic {
-        f.world.settle();
+        f.world.stop_dynamics();
         refresh_forest(f);
     }
 }

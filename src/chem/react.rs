@@ -300,7 +300,7 @@ pub fn react(
 /// What authoring wants: a beaker of salt water described as "salt and water"
 /// should *be* salt water without anyone having to step the world. Equivalent
 /// to a `react` over an infinite span, which is what `tau = 0` means.
-pub fn settle(mix: &mut Mixture, reg: &Registry, temperature: f64) -> ReactionReport {
+pub fn equilibrate(mix: &mut Mixture, reg: &Registry, temperature: f64) -> ReactionReport {
     let mut total = ReactionReport::default();
     // A handful of passes, because dissolving changes what is liquid, which
     // changes what can dissolve. It converges in two or three; ten is a bound,

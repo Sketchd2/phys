@@ -1294,7 +1294,7 @@ impl Snapshot {
     /// they were last written at. Carrying them forward is the same closed-form
     /// step the scheduler performs every frame, and it is exact — which is what
     /// makes skipping the write safe rather than lossy.
-    pub fn settle(&mut self) {
+    pub fn catch_up(&mut self) {
         let instant = self.time;
         for n in self.tree.nodes.iter_mut() {
             if !n.alive {

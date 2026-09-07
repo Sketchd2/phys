@@ -17,7 +17,7 @@
 //! never lands on a node that has not yet been stepped to the right time.
 
 use crate::budget::{cost, FrameBudget, Plan, Task, TaskKind};
-use crate::causal::{CausalGate, Clock, History, Influence, InfluenceKind, Mailbox, Snapshot};
+use crate::causal::{CausalGate, Clock, History, Influence, InfluenceKind, Mailbox, Moment};
 use crate::ids::{NodeIdx, PathKey};
 use crate::math::Vec3;
 use crate::observe::*;
@@ -1972,7 +1972,7 @@ impl World {
     }
 
     /// Stop integrating everything, releasing the dynamic state.
-    pub fn settle(&mut self) {
+    pub fn stop_dynamics(&mut self) {
         self.shaking.clear();
         self.falling.clear();
     }
@@ -2065,7 +2065,7 @@ impl World {
 
     fn record_histories(&mut self) {
         let depth = self.history_depth;
-        let entries: Vec<(PathKey, Snapshot)> = self
+        let entries: Vec<(PathKey, Moment)> = self
             .tree
             .nodes
             .iter()
@@ -2073,7 +2073,7 @@ impl World {
             .map(|n| {
                 (
                     n.key,
-                    Snapshot {
+                    Moment {
                         t: self.time,
                         offset: n.motion.offset,
                         velocity: n.motion.velocity,
@@ -2214,7 +2214,7 @@ impl World {
         let view = match self.histories.get(&key) {
             Some(h) if !h.is_empty() => h.retarded(obs.offset, self.time),
             _ => crate::causal::RetardedView {
-                snapshot: Snapshot {
+                snapshot: Moment {
                     t: self.time,
                     offset: sep.value + obs.offset,
                     velocity: self.tree.velocity_from(self.tree.root, target),
@@ -2480,7 +2480,7 @@ impl World {
             let view = match self.histories.get(&key) {
                 Some(h) if !h.is_empty() => h.retarded(obs.offset, self.time),
                 _ => crate::causal::RetardedView {
-                    snapshot: Snapshot {
+                    snapshot: Moment {
                         t: self.time,
                         offset: sep.value + obs.offset,
                         velocity: self.tree.velocity_from(self.tree.root, idx),
