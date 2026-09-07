@@ -1,5 +1,8 @@
 # Naming pass
 
+> **Status:** Tiers 1 and 2 are done, `Species` → `CoarseElement` with them.
+> Tier 3 is untouched and still a question — see the note at the bottom.
+
 A survey of names that are wrong, colliding, or needlessly opaque, with what
 they should become and what each will cost. Nothing here has been changed yet:
 this is the thing to argue with before any of it is done.
@@ -123,7 +126,7 @@ Worth doing if the pass is going that far; harmless to leave.
 
 | Name | Where | Note |
 |---|---|---|
-| `Aggregate` | `state` | Its own doc opens *"Bulk state. Always present — this is what a node **is**."* → **`Bulk`** pairs with `summarise` and is shorter than what it replaces. 100 references. |
+| `Aggregate` | `state` | Its own doc opens *"Bulk state. Always present — this is what a node **is**."* → **`Bulk`** pairs with `summarise` and is shorter. But `Aggregate` is not wrong, not colliding, and an ordinary English word, and the change would touch 100 references plus 55 prose sites that would all have to stop saying "the aggregate". **Not done — wants a decision, not a default.** |
 | `Residency` | `tree` | Why a node is holding detail. Not wrong, just abstract. → `HoldReason`, or leave. |
 | `Dof` | `solvers::structure` | Degrees of freedom. Standard in the field; an abbreviation everywhere else. Leave. |
 
