@@ -162,3 +162,52 @@ client-side hit detection against recipe scenery, say, or a client authoring
 into a node it generated. At that point the sampler needs a determinism
 guarantee (soft-float for the sampling path, or a server-supplied hash of the
 positions), not just a mass check.
+
+---
+
+## A node whose bodies are 10^20 radii outside it
+
+**Noticed:** the first complete debug run of the suite (the naming pass).
+**Where:** surfaces at `solvers/hydro.rs::key_of`; the cause is upstream.
+
+`tests/simultaneity.rs` has two tests that fail in a **debug** build with
+`attempt to add with overflow`, and pass in release. They are not new — the same
+two fail identically at `1d0d6e5`, before the pace fix, the relativity work, the
+chemistry layer and the naming pass. They had never been seen because
+`frames_stay_within_budget` fails first in debug on a slow container and
+fail-fast stopped the run before reaching them.
+
+**The immediate cause.** `key_of` buckets a body into the neighbour grid with
+`(p.x / s).floor() as i64`. Measured, at the moment it breaks:
+
+```text
+    p = (6.564e10, -2.411e10, -6.473e10) m      grid spacing s = 1e-9 m
+    p.x / s = 6.6e19                            i64 tops out at 9.2e18
+```
+
+so the cast saturates to `i64::MAX` and the neighbour walk's `cx + 1` overflows.
+
+**Why it matters in release.** There is no crash: `i64::MAX + 1` wraps to
+`i64::MIN`, the lookup consults an arbitrary far-away cell, and that body's SPH
+forces are computed against whatever neighbours happen to be there. Silently
+wrong physics is worse than the panic.
+
+**The real cause is upstream.** The spacing is `2h` and `h` comes from
+`radius / count^(1/3) * 1.2`, so `s = 1e-9` implies a node about seven
+nanometres across — and its bodies are sitting 6.6x10^10 m away, twenty orders
+of magnitude outside it. Bodies are node-relative by construction and should be
+within a few radii of the origin. Something is putting parent-frame coordinates
+into a node's body list, or a node's radius is being set without its contents.
+The failing tests both drill the full ladder ("24 tiers, galaxy to nucleus"), so
+a scale transition is the place to look.
+
+**Two fixes, and they are separate.** The grid should use saturating arithmetic
+regardless — a bucket index that cannot be represented should clamp, not wrap,
+whatever put the body there. And the thing that put the body there needs
+finding, which is the actual bug; a `debug_assert` that a node's bodies lie
+within some multiple of its own radius would have caught it at the source
+rather than twenty tiers later.
+
+**Trigger:** before trusting any SPH result at a tier boundary, and before the
+debug suite can be used as a gate. It is not blocking the release suite, which
+is green.
