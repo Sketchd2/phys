@@ -165,7 +165,7 @@ positions), not just a mass check.
 
 ---
 
-## A node whose bodies are 10^20 radii outside it
+## A node whose bodies are 10^20 radii outside it — cause found, partly fixed
 
 **Noticed:** the first complete debug run of the suite (the naming pass).
 **Where:** surfaces at `solvers/hydro.rs::key_of`; the cause is upstream.
@@ -237,9 +237,62 @@ Note also that `MdParams::default().cutoff` is a fixed 1e-9 m and does not
 scale with node radius, unlike gravity's softening and hydro's `h` (both
 `radius / count^(1/3) * k`). That is a separate latent inconsistency.
 
-**Trigger:** before trusting any SPH or MD result at a tier boundary, and
-before the debug suite can be used as a gate. It is not blocking the release
-suite, which is green.
+**Closed** by all three. The clamp now takes `min(dt / substeps, stable)`, so a
+node that cannot afford the whole span covers the part it can integrate stably,
+reports the shortfall in `dt_used`, and has its clock advanced by what was
+actually integrated rather than by what was asked for. `advance_to` re-asks the
+unreachability question on the way out using the step the loop *demonstrated*
+rather than the one `node_dt` predicted, and thermalises or counts
+`Stats::unreachable` accordingly. `key_of` clamps to `KEY_LIMIT` and sends
+non-finite coordinates off-grid instead of to cell zero.
+
+`no_node_flings_its_bodies_out_of_itself` is the spread check, as a test, and
+it is `#[ignore]`d because **it still fails**. That is the useful part. The
+clamp fix cut the overshoot from 4.5x10^8 radii to 4.0x10^7 and stopped there,
+which is how we know the clamp was never the cause either.
+
+**The cause, third time asked, measured rather than guessed.** `Tier::Atomic`
+has `floor() == 1e-14` m. The drill refines within a tier as long as the child
+still belongs to it, so it walks an Atomic node down through radii of 5.3e-11,
+2.3e-11, 5.9e-12, ... 2.8e-14 m — every one of them "Atomic" by the table —
+and `sample` puts 56 bodies in each:
+
+```text
+    node 15  radius 1.680e-10 m  min separation 1.331e-10 m  configuration_dt 1e-14
+    node 16  radius 5.292e-11 m  min separation 5.704e-12 m  configuration_dt 3.8e-20
+    node 18  radius 5.917e-12 m  min separation 5.526e-13 m  configuration_dt floored
+    node 22  radius 2.762e-14 m  min separation 2.090e-15 m  configuration_dt floored
+```
+
+Node 15 is a real atomic neighbourhood and integrates perfectly. Node 22 is a
+sphere smaller than a nucleus holding fifty-six Lennard-Jones atoms two
+femtometres apart. The LJ repulsion there is of order `(sigma/r)^13` with
+sigma ~ 1e-10 m, so about 10^64: not a stiff system, an impossible one. No
+timestep integrates it, which is exactly what `configuration_dt` reports by
+returning something near zero — and `.max(1e-24)`, a third silent clamp of the
+same family as the other two, converts that honest refusal into a step 10^20
+too large.
+
+So the configuration is unphysical *before any integrator runs*. This is a
+sampling and tiering fault, and the two clamps fixed above were real bugs that
+were making it worse rather than causing it.
+
+**The fix is one of two, and they are not equivalent.** Either the tier floor is
+wrong — `Tier::Atomic.floor()` should be around 1e-10 m, the size of an atom
+and of the potential that describes one, not 1e-14 — or the floor is right and
+`sample` must refuse to place more bodies in a node than physically fit in its
+volume, which is a constraint it does not currently have and which every tier
+would benefit from. The first is a one-line change with consequences for the
+whole ladder's shape; the second is the more general guarantee. Deciding
+between them is the work, not typing either.
+
+**Trigger:** now, in the sense that the ignored test is the reminder. Nothing in
+the play space reaches Atomic tier yet, so it blocks nothing — but the debug
+suite cannot be a gate until it is green, and every MD result below 10^-10 m is
+meaningless until then.
+
+The `MdParams::default().cutoff` inconsistency noted above is untouched and
+still latent.
 
 ---
 

@@ -489,6 +489,14 @@ fn watch() {
         "  live nodes {} → {}, coasted {} per frame, worst lateness {:.3}",
         first.world.live_nodes, last.world.live_nodes, last.world.coasted, last.world.worst_lateness
     );
+    if last.world.unreachable > 0 {
+        println!(
+            "  {} node-frames could not be integrated at this pace and could not be
+               crossed by ensemble either — something is watching them. Their lateness
+               does not recover on its own.",
+            last.world.unreachable
+        );
+    }
 
     println!(
         "\n  Every number above came out of a byte stream. This half of the\n  \

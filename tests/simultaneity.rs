@@ -338,3 +338,93 @@ fn rendering_interpolates_to_the_instant() {
         "interpolation was {worst:.3e} m off on {travelled:.3e} m travelled"
     );
 }
+
+/// No node may end a frame with its bodies outside itself.
+///
+/// A node's bodies are node-relative by construction and belong within a few
+/// radii of its origin. Everything downstream assumes it: SPH's smoothing
+/// length, gravity's softening, the LOD's angular size, and — the place this
+/// first showed up — the neighbour grid's cell index, which at nanometre
+/// spacing cannot even *name* a cell 10^10 m out.
+///
+/// This is the check that would have caught the substep bug at its source. The
+/// molecular tier's force field asked for 10^6 substeps to cross the span the
+/// scheduler handed it; the cap silently stretched the step to fit 64 instead,
+/// and the Lennard-Jones potential did what the comment above the cap said it
+/// would. The atoms left at 2.8x10^4 m/s and the failure surfaced twenty tiers
+/// later inside a hash function, as an integer overflow, in a solver that had
+/// nothing to do with it.
+///
+/// So the assertion is deliberately made *here*, on the node that owns the
+/// bodies, on the frame it happens — not on the symptom.
+///
+/// **Ignored, because it still fails — and what it catches is a live bug.**
+/// Fixing the substep clamp cut the overshoot from 4.5x10^8 radii to 4.0x10^7
+/// and no further, because the clamp was never the cause. The cause is that
+/// `Tier::Atomic.floor()` is 1x10^-14 m, so the tier table calls a node four
+/// orders of magnitude smaller than an atom "Atomic", the drill keeps refining
+/// into it, and `sample` packs 56 Lennard-Jones bodies into a sphere smaller
+/// than one atom:
+///
+/// ```text
+///     node 15  radius 1.680e-10 m  min separation 1.331e-10 m  dt 1e-14  healthy
+///     node 18  radius 5.917e-12 m  min separation 5.526e-13 m  dt floored
+///     node 22  radius 2.762e-14 m  min separation 2.090e-15 m  dt floored
+/// ```
+///
+/// At 2x10^-15 m the Lennard-Jones repulsion is of order (sigma/r)^13 ~ 10^64.
+/// No timestep integrates that, which is why `configuration_dt` returns
+/// something near zero and `.max(1e-24)` — a third silent clamp — hands back a
+/// step that is still 10^20 too large. The configuration is unphysical before
+/// any integrator sees it, so this is a sampling and tiering fault, not a
+/// solver one. See `docs/BACKLOG.md`.
+#[test]
+#[ignore = "catches a live bug: Atomic nodes are refined below atomic scale"]
+fn no_node_flings_its_bodies_out_of_itself() {
+    // The setup matters, and it is the one the original failure used: drill the
+    // whole ladder, then run at the *galactic* pace. Pacing to the deep node
+    // instead shrinks the frame until the force field can afford it, and the
+    // bug does not appear — which is the point. It is the mismatch between the
+    // span a node is handed and the step its own physics needs that breaks it,
+    // so the test has to preserve that mismatch to mean anything.
+    let mut w = World::new(galaxy(0x5EED, 1e9), 20.0);
+    let root = w.tree.root;
+    let path = w.drill(root, Tier::Nuclear, &default_spec);
+    println!("  drilled {} tiers, galaxy to nucleus", path.len());
+    assert!(path.len() >= 6, "expected a deep ladder, got {}", path.len());
+
+    // Generous. A body two hundred radii out is already meaningless; the bug
+    // this guards against overshot by twenty orders of magnitude, so the bound
+    // does not need to be tight to be decisive.
+    const SLACK: f64 = 200.0;
+
+    for frame in 0..20 {
+        w.step_frame(50_000.0);
+        for (i, n) in w.tree.nodes.iter().enumerate() {
+            if !n.alive || n.bodies.is_empty() || !(n.matter.radius > 0.0) {
+                continue;
+            }
+            let (worst, at) = n.bodies.iter().enumerate().fold(
+                (0.0f64, 0usize),
+                |(d, k), (j, b)| {
+                    let r = b.pos.norm();
+                    if r > d { (r, j) } else { (d, k) }
+                },
+            );
+            assert!(
+                worst.is_finite(),
+                "frame {frame}: node {i} ({:?}) body {at} is at a non-finite position",
+                n.tier
+            );
+            assert!(
+                worst <= n.matter.radius * SLACK,
+                "frame {frame}: node {i} ({:?}) has radius {:.3e} m and its body {at} is \
+                 {:.3e} m from the origin — {:.1e} radii out",
+                n.tier,
+                n.matter.radius,
+                worst,
+                worst / n.matter.radius
+            );
+        }
+    }
+}

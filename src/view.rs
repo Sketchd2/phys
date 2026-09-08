@@ -437,6 +437,12 @@ pub struct WorldFacts {
     pub materialised_bodies: u64,
     pub detail_bytes: u64,
     pub thermalised: u64,
+    /// Nodes whose own physics needs a finer step than the frame can afford,
+    /// and which cannot be crossed by ensemble because something is watching
+    /// them. Distinct from lateness, which recovers: this does not. Non-zero
+    /// means the world is running at a pace something in it cannot be
+    /// integrated at, and it will still be non-zero next frame.
+    pub unreachable: u64,
     pub detail_debt: f64,
     pub frames: u64,
 }
@@ -899,6 +905,7 @@ pub fn encode(s: &Scene) -> Vec<u8> {
     w.u64(d.materialised_bodies);
     w.u64(d.detail_bytes);
     w.u64(d.thermalised);
+    w.u64(d.unreachable);
     w.u64(d.frames);
 
     w.seq(s.trail.len());
@@ -963,6 +970,7 @@ pub fn decode(bytes: &[u8]) -> Result<Scene> {
         materialised_bodies: r.u64()?,
         detail_bytes: r.u64()?,
         thermalised: r.u64()?,
+        unreachable: r.u64()?,
         frames: r.u64()?,
     };
 
@@ -1217,6 +1225,7 @@ impl crate::engine::World {
                 materialised_bodies: self.tree.materialised_bodies() as u64,
                 detail_bytes: self.tree.detail_bytes() as u64,
                 thermalised: self.stats.thermalised,
+                unreachable: self.stats.unreachable,
                 frames: self.stats.frames,
             },
             ..Default::default()

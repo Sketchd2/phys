@@ -269,3 +269,51 @@ fn decay_statistics_match_the_half_life() {
     println!("mean neutron lifetime {mean:.1} s (expected {expected:.1})");
     assert!(err < 0.02, "mean lifetime off by {:.1}%", err * 100.0);
 }
+
+/// A body the neighbour grid cannot index must not be allowed to corrupt the
+/// ones it can.
+///
+/// `key_of` buckets a body with `(p.x / s).floor() as i64`. At a grid spacing
+/// of a nanometre, a body 6.5x10^10 m out — which is where an unstable
+/// molecular integration puts one — needs cell index 6.5x10^19, and an `i64`
+/// stops at 9.2x10^18. The cast saturates to `i64::MAX`, and then the
+/// neighbour walk adds one to it: a panic in debug, and in release a wrap to
+/// `i64::MIN` that sends the lookup to an arbitrary far-away cell and computes
+/// that body's forces against whatever is sitting in it.
+///
+/// Getting there at all is a bug elsewhere. What this test pins down is that
+/// the grid degrades honestly when it happens: no panic, no wrap, and — the
+/// part that actually matters — the unindexable body is not silently served up
+/// as a neighbour of one at the origin.
+#[test]
+fn the_neighbour_grid_survives_a_body_it_cannot_index() {
+    let spacing = 1e-9;
+    let bodies = vec![
+        Body { pos: Vec3::ZERO, mass: 1.0, ..Default::default() },
+        Body { pos: v3(0.5e-9, 0.0, 0.0), mass: 1.0, ..Default::default() },
+        // Measured, from the real failure.
+        Body { pos: v3(6.564e10, -2.411e10, -6.473e10), mass: 1.0, ..Default::default() },
+        // Past saturation on every axis, and in the other direction.
+        Body { pos: v3(-1e300, 1e300, -1e300), mass: 1.0, ..Default::default() },
+        // NaN casts to zero, which is a real cell in the middle of the grid.
+        Body { pos: v3(f64::NAN, 0.0, 0.0), mass: 1.0, ..Default::default() },
+    ];
+
+    let grid = hydro::NeighbourGrid::build(&bodies, spacing);
+    let mut nb = Vec::new();
+
+    // The walk itself must not overflow, from any of them.
+    for b in &bodies {
+        grid.neighbours(b.pos, &mut nb);
+    }
+
+    grid.neighbours(Vec3::ZERO, &mut nb);
+    assert!(nb.contains(&1), "the body half a cell away is a neighbour and must be found");
+    for &bad in &[2u32, 3, 4] {
+        assert!(
+            !nb.contains(&bad),
+            "body {bad} is off the grid entirely and must not be served as a neighbour \
+             of the origin; got {nb:?}"
+        );
+    }
+}

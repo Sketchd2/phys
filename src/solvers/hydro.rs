@@ -116,13 +116,38 @@ impl NeighbourGrid {
     }
 }
 
+/// The largest cell index the grid will name.
+///
+/// A body far enough from the origin bucketed naively produces an index that
+/// does not fit in an `i64`, and the neighbour walk then adds one to it. In a
+/// debug build that panics; in a release build it wraps to `i64::MIN`, the
+/// lookup consults an arbitrary far-away cell, and that body's forces are
+/// computed against whatever happens to be in it. Silently wrong physics is
+/// the worse of the two, so the index is clamped instead — a quarter of the
+/// range leaves the `+/- 1` walk room on both sides.
+///
+/// Clamping puts everything beyond the grid into one of eight corner cells.
+/// That is a real loss of resolution and it is meant to be: a body 10^20 cells
+/// from its own node has no neighbourhood, and pretending otherwise is what
+/// this guard exists to stop. Nothing legitimate reaches it — a node's bodies
+/// are node-relative and lie within a few radii of the origin.
+const KEY_LIMIT: i64 = i64::MAX / 4;
+
+#[inline]
+fn axis_key(x: f64, s: f64) -> i64 {
+    // `f64 as i64` saturates on overflow, which is what makes the clamp
+    // sufficient, but it also maps NaN to *zero* — a real cell in the middle
+    // of the grid, where a body with a NaN coordinate would silently become
+    // everybody's neighbour. Send those off-grid with the rest.
+    if !x.is_finite() {
+        return KEY_LIMIT;
+    }
+    ((x / s).floor() as i64).clamp(-KEY_LIMIT, KEY_LIMIT)
+}
+
 #[inline]
 fn key_of(p: Vec3, s: f64) -> (i64, i64, i64) {
-    (
-        (p.x / s).floor() as i64,
-        (p.y / s).floor() as i64,
-        (p.z / s).floor() as i64,
-    )
+    (axis_key(p.x, s), axis_key(p.y, s), axis_key(p.z, s))
 }
 
 /// Densities by kernel summation.

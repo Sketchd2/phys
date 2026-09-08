@@ -41,6 +41,16 @@ use std::collections::HashMap;
 /// that a nucleus resolved inside a galaxy cannot stall the frame.
 pub const MAX_SUBSTEPS: u32 = 256;
 
+/// Substeps a molecular node will take inside one `advance_node` call.
+///
+/// Separate from [`MAX_SUBSTEPS`], and smaller, because it is bounding a
+/// different thing: that one bounds passes over a *span*, this one bounds work
+/// inside a single pass. A force field can ask for a million substeps once it
+/// has looked at the configuration, and this is the point past which the node
+/// stops covering the whole step and covers the part it can integrate stably
+/// instead.
+pub const MD_MAX_SUBSTEPS: u32 = 64;
+
 /// Refinement error above which a node resolves itself, with or without an
 /// audience.
 ///
@@ -210,6 +220,17 @@ pub struct EngineStats {
     /// Nodes carried across the frame by their ensemble rather than their
     /// trajectory, because the span was too long to integrate.
     pub thermalised: u64,
+    /// Nodes whose own physics needs a smaller step than the frame can afford,
+    /// and which cannot be thermalised out of the difficulty because something
+    /// is watching them — pinned, bubbled, or built upon.
+    ///
+    /// Unlike [`Self::overdue`], which is a node that lost a race for this
+    /// frame's budget and will win a later one, this is a standing condition:
+    /// the shortfall recurs every frame and the node's lateness grows without
+    /// bound. Non-zero here means the world is being asked to run at a pace
+    /// that something in it cannot be integrated at, and the answer is to slow
+    /// the pace, coarsen the node, or stop watching it — not to wait.
+    pub unreachable: u64,
     /// Nodes carried forward in closed form without being re-solved. The
     /// overwhelming majority, every frame, and the reason one instant is
     /// affordable across thirty-eight orders of magnitude.
@@ -1174,6 +1195,7 @@ impl World {
             self.thermalise(idx, horizon);
             return;
         }
+        let started_at = self.tree.nodes[idx.get()].time;
         let mut steps = 0u32;
         while self.tree.nodes[idx.get()].time < horizon && steps < allowance {
             let remaining = horizon - self.tree.nodes[idx.get()].time;
@@ -1183,6 +1205,42 @@ impl World {
             }
             self.advance_node(idx, h);
             steps += 1;
+        }
+        // The gate above is a *prediction*, made from `node_dt` — the estimate
+        // cheap enough to pay for every node every frame. A force field can
+        // demand far less than that estimate once it has looked at the actual
+        // configuration, and only `advance_node` pays the force evaluation that
+        // finds out. So ask the question again on the way out, using what the
+        // loop achieved rather than what it planned: the same test, against a
+        // step that has been measured instead of guessed.
+        //
+        // This is what stops a node falling behind *forever*. Short of budget
+        // and unreachable in principle look identical for one frame — the node
+        // did not reach the horizon either way — and they are not the same
+        // thing. A node that ran out of allowance catches up when the frame is
+        // cheaper. A node whose own physics needs more than `MAX_SUBSTEPS`
+        // passes per span never catches up, because the deficit is per frame
+        // and reappears in the next one. That node is crossed by its ensemble,
+        // which is exact for the only thing still observable at that cadence,
+        // and is at the horizon afterwards rather than permanently behind it.
+        if steps > 0 && self.tree.nodes[idx.get()].time < horizon {
+            let achieved = (self.tree.nodes[idx.get()].time - started_at) / steps as f64;
+            if !(achieved > 0.0) || span / achieved > MAX_SUBSTEPS as f64 {
+                if self.forgettable(idx) {
+                    self.thermalise(idx, horizon);
+                    return;
+                }
+                // Not forgettable — pinned, bubbled, or with something built on
+                // it. Somebody is deliberately watching this node run, so the
+                // one thing that must not happen is replacing the trajectory
+                // they asked for with a draw from its equilibrium. It falls
+                // behind, and goes on falling behind for as long as the world
+                // runs at a pace its own physics cannot afford. That is a real
+                // and permanent condition rather than a transient one, so it is
+                // counted rather than left to be inferred from a lateness that
+                // never comes down.
+                self.stats.unreachable += 1;
+            }
         }
         let n = &mut self.tree.nodes[idx.get()];
         let slack = horizon.abs() * 1e-12;
@@ -1379,7 +1437,10 @@ impl World {
             let n = &self.tree.nodes[idx.get()];
             (n.tier, n.key, n.epoch, n.matter.radius, n.bodies.len(), n.steps_taken)
         };
-        if count == 0 || dt <= 0.0 {
+        // `!(dt > 0.0)` rather than `dt <= 0.0` so a NaN span is refused rather
+        // than passed through: NaN fails every comparison, so the old spelling
+        // let it past, and a node's clock never recovers from one.
+        if count == 0 || !(dt > 0.0) || !dt.is_finite() {
             return solvers::SolveReport::default();
         }
         // `dt` is coordinate time — the span the world clock moved. What the
@@ -1421,8 +1482,20 @@ impl World {
                 // handed a step longer than its own vibrational period does not
                 // integrate inaccurately, it detonates.
                 let stable = solvers::md::configuration_dt(bodies, params).max(1e-24);
-                let substeps = ((dt / stable).ceil() as u32).clamp(1, 64);
-                let h = dt / substeps as f64;
+                // The cap on that substepping is a budget, not a licence. When
+                // the span needs more substeps than one pass will pay for, the
+                // node covers the part it can integrate *stably* and stops
+                // there; `dt_used` reports how far it got and the node's clock
+                // follows it, so the shortfall becomes lateness the scheduler
+                // can see. Stretching the step to fit the cap instead — which
+                // is what `dt / substeps` did unconditionally — is precisely
+                // the detonation described above, delivered by the guard that
+                // exists to prevent it.
+                let wanted = (dt / stable).ceil();
+                // `.max(1)` after the cast, not just the clamp before it: a
+                // float clamp propagates NaN, and `NaN as u32` is zero.
+                let substeps = (wanted.clamp(1.0, MD_MAX_SUBSTEPS as f64) as u32).max(1);
+                let h = (dt / substeps as f64).min(stable);
                 let mut total = solvers::SolveReport::default();
                 for k in 0..substeps {
                     let r = solvers::md::step(bodies, h, params, seed, key.0, epoch, tick + k as u64);
@@ -1435,13 +1508,23 @@ impl World {
                         total.non_mechanical_energy += r.non_mechanical_energy;
                     }
                 }
-                total.dt_used = dt;
+                total.dt_used = h * substeps as f64;
                 total
             }
             SolverKind::Statistical => self.advance_statistical(idx, dt),
         };
 
         self.stats.bodies_stepped += count as u64;
+        // A solver that could not cover the whole span says so in `dt_used`.
+        // The node's clock has to agree with it: advancing by the span that was
+        // *asked for* rather than the one that was *integrated* would make the
+        // node's lateness a fiction, and lateness is the one number the
+        // scheduler uses to decide what to do about a node that is struggling.
+        let dt = if report.dt_used.is_finite() && report.dt_used > 0.0 {
+            report.dt_used.min(dt)
+        } else {
+            dt
+        };
         // Back to coordinate time for everything the *parent* observes.
         let coordinate = dt / rate;
         let physical_rate = self.time_rate_of(idx).physical();
