@@ -201,7 +201,7 @@ fn resolution_sets_the_cadence() {
     w.tree.refine(root);
     let fine = w.node_cadence(root);
     println!(
-        "  galaxy as bulk state: {:.3e} s between solves; materialised into {} bodies: {:.3e} s",
+        "  galaxy as matter: {:.3e} s between solves; materialised into {} bodies: {:.3e} s",
         coarse,
         w.tree.nodes[root.get()].bodies.len(),
         fine

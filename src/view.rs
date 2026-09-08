@@ -51,7 +51,7 @@
 //!    [`Recipe`].
 //! 2. **Volume queries with distance LOD.** [`Volume`] asks for everything
 //!    near an eye and gives each node detail in proportion to the angle it
-//!    subtends. A building a pixel wide comes back as bulk matter. Cost is
+//!    subtends. A building a pixel wide comes back as matter alone. Cost is
 //!    bounded by the screen, not by the world.
 //! 3. **Per-client deltas.** A [`Client`] remembers what it sent and sends only
 //!    what changed, plus the keys that left the query. See [`Detail::Unchanged`]
@@ -357,7 +357,7 @@ pub enum Detail {
     /// Nothing new. Either the node has not been re-solved since the client
     /// last heard about it, or it is too small on screen to be worth detailing.
     /// A client holding bodies for it should carry them forward; a client
-    /// holding none should draw it as bulk matter.
+    /// holding none should draw it as matter alone.
     Unchanged,
     /// Bodies, quantised.
     Explicit(Vec<Speck>),

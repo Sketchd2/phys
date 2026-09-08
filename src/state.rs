@@ -1,8 +1,8 @@
 //! Matter state: what the engine stores when it is *not* storing particles.
 //!
-//! A node holds a bulk description of its contents. Everything below its own
+//! A node holds its contents as `Matter`. Everything below its own
 //! resolution is absent — not approximated, absent — and is regenerated on
-//! demand by `sampler.rs`. For that to be legitimate, the bulk description must
+//! demand by `sampler.rs`. For that to be legitimate, that matter must
 //! carry every quantity that the missing detail is *not allowed to change*:
 //! the conserved set. If refinement and re-coarsening return exactly the same
 //! conserved tuple, no experiment performed at the coarse scale can tell
@@ -981,7 +981,7 @@ impl Body {
     }
 }
 
-/// Reduce a materialised set back to a bulk description.
+/// Reduce a materialised set back to `Matter`.
 ///
 /// This is the *summarising* operator R. Together with sampling P it must
 /// satisfy `R(P(s)) = s` on the conserved set — the property that lets the

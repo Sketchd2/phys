@@ -25,7 +25,7 @@ fn spinning(mass: f64, radius: f64, temperature: f64, period: f64) -> Matter {
 ///
 /// Not "be of the right order" — a planet takes hours to change appreciably at
 /// its own size and a swimming bacterium about a second, and one expression has
-/// to give both from the bulk state alone.
+/// to give both from the matter alone.
 #[test]
 fn the_cadence_matches_what_the_object_does() {
     // Earth: internal energy booked as a tenth of the binding energy, as the
@@ -251,7 +251,7 @@ fn finer_resolution_demands_a_faster_cadence() {
 /// away.
 ///
 /// This is a bug, kept. `refresh_pace` took the world clock straight from
-/// `node_cadence`, and for a node held as bulk matter the cadence is
+/// `node_cadence`, and for a node held as matter alone the cadence is
 /// legitimately enormous: a ball of 10^4 K hydrogen has no bulk motion in its
 /// own rest frame, barely spins and is not being stirred, so nothing an
 /// the matter reports about it changes for 5.2x10^18 seconds. Correct answer,
@@ -285,7 +285,7 @@ fn pacing_to_an_unmaterialised_node_is_bounded() {
         blind / seeing
     );
 
-    // The cadence is still enormous, and still right: as bulk matter,
+    // The cadence is still enormous, and still right: as matter alone,
     // nothing about this node changes. The pace must not be.
     assert!(cadence > 1e17, "the cadence is supposed to be huge here");
     assert!(

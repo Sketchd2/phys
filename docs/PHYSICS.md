@@ -12,7 +12,7 @@ boundary where a different description becomes appropriate
 | Galactic | > 10¹⁸ m | 100 kyr | 10.6 kyr | Collisionless super-particles + static halo | Barnes-Hut |
 | Stellar | 10¹² – 10¹⁸ m | 100 yr | 1.06 yr | Clouds, clusters, individual stars | Barnes-Hut + SPH |
 | Planetary | 10⁴ – 10¹² m | 100 s | 3.3 s | Stars, planets, orbits, interiors | Barnes-Hut + 1PN + SPH |
-| Continuum | 10⁻⁸ – 10⁴ m | 1 ms | 3.3 ns | Fluid parcels, grains, bulk matter | SPH |
+| Continuum | 10⁻⁸ – 10⁴ m | 1 ms | 3.3 ns | Fluid parcels, grains, continuum matter | SPH |
 | Molecular | 3×10⁻¹⁰ – 10⁻⁸ m | 1 fs | 3.3 as | Molecules | Molecular dynamics |
 | Atomic | 10⁻¹⁴ – 3×10⁻¹⁰ m | 1 as | 0.3 zs | Atoms, electronic structure | MD + level ensembles |
 | Nuclear | < 10⁻¹⁴ m | 1 zs | — | Occupation numbers, not trajectories | Statistical |

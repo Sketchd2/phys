@@ -1,7 +1,8 @@
 # Naming pass
 
 > **Status:** done. Tiers 1 and 2, `Species` → `CoarseElement`, and
-> `Aggregate` → `Matter`.
+> `Aggregate` → `Matter`. Prose swept for the words the renames retired — see
+> **After the rename: which "bulk" survives** at the end.
 
 A survey of names that are wrong, colliding, or needlessly opaque, with what
 they should become and what each will cost. Nothing here has been changed yet:
@@ -186,3 +187,46 @@ actively misleading today.
 Each step also touches `docs/`, which describes several of these by name, and
 the doc comments — which is most of the value: a comment saying "restrict the
 bodies" reads differently once the function is called `summarise`.
+
+
+---
+
+## After the rename: which "bulk" survives
+
+Renaming `Aggregate` to `Matter` retired `Bulk` as a *candidate type name*, but
+"bulk" went on being used in prose as the descriptor for the same idea — "the
+bulk state", "held as bulk matter", "the bulk description" — in about sixty
+comments the rename never touched. Those are gone: a node holds `Matter`, and
+the prose says matter.
+
+**Three uses of the word are correct and stay.** They are not the retired sense
+and replacing them would make the text wrong rather than consistent:
+
+| sense | means | examples |
+|---|---|---|
+| **centre-of-mass** | the motion of the whole, as opposed to internal or thermal motion | `bulk_kinetic`, `K_bulk`, "bulk momentum", "bulk drift", `vbulk` |
+| **materials science** | density including voids | "bulk density of wood", "bulk density of a framed building" |
+| **ordinary English** | most of | "`f32` for the bulk of the numbers" |
+
+"Bulk kinetic energy" against "internal energy" is textbook, `bulk_kinetic` is
+a public function, and a tree's *bulk density* is a different measurement from
+its solid density. None of that is about resolution.
+
+A fourth use was ambiguous rather than wrong: "bulk matter" and "bulk material"
+meaning the *continuum regime* — undifferentiated stuff, as opposed to
+resolved bodies. Correct on its own terms, but it now reads as a phrase about
+the `Matter` type, so those say **continuum** matter, which is also the tier's
+own name.
+
+**The same sweep caught `restrict`.** `restrict` became `summarise` in the
+rename, and five comments still described the operation by the old verb —
+including the one in `thermalise`, the function whose whole explanation is the
+sampling/summarising round trip. That is the failure this document predicted at
+the end: "a comment saying *restrict the bodies* reads differently once the
+function is called `summarise`."
+
+**The lesson worth keeping.** A rename is not finished when the identifiers
+compile. The words that named the old concept survive in prose, where nothing
+checks them, and they teach the next reader — and the next author — the retired
+vocabulary. Grep for the *old word*, not just the old symbol, and expect to
+find that some hits are a different sense that must be left alone.

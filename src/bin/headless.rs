@@ -390,7 +390,7 @@ fn watch() {
                 }
                 // Turned into `Explicit` by `materialise` above, unless this
                 // build could not reproduce it — in which case there is
-                // nothing to hold and the node draws as bulk matter.
+                // nothing to hold and the node draws as matter alone.
                 view::Detail::Recipe(_) => {}
             }
         }

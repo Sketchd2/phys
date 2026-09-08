@@ -271,8 +271,8 @@ impl Morphology {
 
     /// Characteristic size of the structure, metres.
     ///
-    /// The node's radius is kept equal to this, so that geometry and bulk
-    /// state agree by construction rather than by correction. The developmental
+    /// The node's radius is kept equal to this, so that geometry and matter
+    /// agree by construction rather than by correction. The developmental
     /// state is the authority on how big the thing is; the matter follows.
     pub fn extent(&self) -> f64 {
         match self.program {

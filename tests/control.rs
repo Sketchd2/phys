@@ -69,7 +69,7 @@ fn an_actor_cannot_state_a_fact() {
     let after_acting = w.tree.nodes[d.get()].matter.temperature;
     assert_eq!(
         after_acting, before,
-        "no act may set a bulk property; heat is delivered as energy through the mailbox"
+        "no act may set a matter property; heat is delivered as energy through the mailbox"
     );
 
     roster.apply(

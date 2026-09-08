@@ -82,7 +82,7 @@ fn first_run(store: &mut FileStore, path: &std::path::Path) {
     println!("  planted a tree in a 12 m patch of ground");
 
     // Twenty years of growth, on the node's matter. The tree does not exist yet:
-    // growth runs on bulk state, so this costs one ODE step per frame however
+    // growth runs on matter alone, so this costs one ODE step per frame however
     // elaborate the thing being grown is.
     //
     // The clock is driven by hand here rather than following whatever is being

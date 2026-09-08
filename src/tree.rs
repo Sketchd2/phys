@@ -1,6 +1,6 @@
 //! The scale tree: the object that is 10^68 particles without storing them.
 //!
-//! A `Node` is a region of space at a tier, holding a bulk `Matter`. It has
+//! A `Node` is a region of space at a tier, holding a `Matter`. It has
 //! two optional finer representations:
 //!
 //! * **materialised bodies** — a `Vec<Body>` produced by `sample`. Cheap to
@@ -74,7 +74,7 @@ pub struct Node {
     pub depth: u32,
     pub tier: Tier,
 
-    /// Bulk state. Always present — this is what a node *is*.
+    /// The node's matter. Always present — this is what a node *is*.
     pub matter: Matter,
     /// Position and velocity relative to the parent node's frame.
     pub motion: Motion,
@@ -109,7 +109,7 @@ pub struct Node {
     ///
     /// Detail is kept for a mixing time after this and then released, because
     /// past a mixing time the stored sample is no longer *that* state, only *a*
-    /// state of the same bulk — which the sampler can draw for free.
+    /// state of the same matter — which the sampler can draw for free.
     pub last_disturbed: f64,
     /// World instant at which this node's dynamics were last re-derived, as
     /// opposed to merely carried forward.
@@ -196,7 +196,7 @@ pub struct TreeStats {
     pub idempotent_coarsenings: u64,
     /// Nodes carrying a developmental state.
     pub structures: u64,
-    /// Growth and construction steps advanced on bulk matter, without ever
+    /// Growth and construction steps advanced on matter alone, without ever
     /// materialising the structures they describe.
     pub growth_steps: u64,
     /// Structures loaded to failure.
@@ -477,7 +477,7 @@ impl Tree {
         idx
     }
 
-    /// Fold fine detail back into the bulk state and free it.
+    /// Fold fine detail back into the node's matter and free it.
     ///
     /// The conserved tuple is measured before and after; the difference is
     /// recorded in `stats.worst_conservation_error` and asserted on in the
@@ -515,7 +515,7 @@ impl Tree {
             self.stats.bodies_discarded += bodies.len() as u64;
         }
 
-        // If the detail did not actually change the bulk state — the usual case
+        // If the detail did not actually change the matter — the usual case
         // when a user simply pans away — keep the coarse state as the
         // authority rather than overwriting it with a summarising that differs
         // only by round-off.
@@ -567,8 +567,8 @@ impl Tree {
         // the authority.
         if n.morphology.is_none() {
             let total_stored = n.matter.total_entropy();
-            let total_restricted = matter.entropy + n.matter.entropy_exported;
-            if total_restricted >= total_stored {
+            let total_summarised = matter.entropy + n.matter.entropy_exported;
+            if total_summarised >= total_stored {
                 n.matter.entropy = matter.entropy;
             }
         }
@@ -585,7 +585,7 @@ impl Tree {
         err
     }
 
-    /// Write a promoted child's evolved bulk state back into the parent's body.
+    /// Write a promoted child's evolved matter back into the parent's body.
     fn sync_from_child(&mut self, parent: NodeIdx, slot: usize, child: NodeIdx) {
         let (mass, comp, temp, charge, spin, internal, radius, frame) = {
             let c = &self.nodes[child.get()];
@@ -683,7 +683,7 @@ impl Tree {
     }
 
     /// Advance the epoch of a node, invalidating its procedural detail. Called
-    /// when an interaction changes the node's bulk state enough that the old
+    /// when an interaction changes the node's matter enough that the old
     /// sample is no longer a valid representative of it.
     pub fn bump_epoch(&mut self, i: NodeIdx) {
         let n = &mut self.nodes[i.get()];

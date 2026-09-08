@@ -370,7 +370,7 @@ when `sample` regenerates it from a static seed.
 The seed is not the problem, and the answer to the question as asked is that
 `sample` is deterministic in `(matter, spec, world_seed, key, epoch)`, of which
 `matter` and `epoch` both move. Regenerating gives *a* sample of the node's
-**current** bulk state rather than the *same* sample — which is exactly the
+**current** matter rather than the *same* sample — which is exactly the
 rule `tree.rs` already states, that past a mixing time a stored sample is "no
 longer *that* state, only *a* state" — and detail somebody touched is exempt
 anyway, because it is pinned and comes back verbatim from the store.
@@ -382,9 +382,9 @@ anyway, because it is pinned and comes back verbatim from the store.
 * `TaskKind::Grow` runs on any node with a `morphology`, materialised or not.
   The comment there is right and is the model for everything below: "growth
   advances whether or not anything is materialised — in fact especially when
-  nothing is. This is the payoff of the bulk representation."
+  nothing is. This is the payoff of the matter representation."
 * `react_all` runs on any node with a `mixture`, materialised or not, on the
-  bulk temperature.
+  matter's temperature.
 * `TaskKind::Step` needs bodies, so it does nothing for a coarse node.
 
 So **a coarse node evolves if and only if it has a morphology or a mixture.**
@@ -397,30 +397,30 @@ and *read* — for illumination in `environment_at`, for flux in `observe.rs` �
 but nothing anywhere subtracts `luminosity * dt` from `internal_energy`. Every
 star in the world radiates into every scene and never spends anything.
 
-**What it needs** is a bulk evolution law: the coarse-state counterpart to the
-solvers, run from `survey` on the same "materialised or not" basis growth
-already uses. The candidates are the processes that are slow, monotone and
-depend only on the bulk tuple — radiative cooling, radioactive decay of the
+**What it needs** is a *matter evolution* law: `advance_matter` standing to a
+node's `Matter` as `advance_node` stands to its bodies, run from `survey` on
+the same "materialised or not" basis growth already uses. The candidates are the processes that are slow, monotone and
+depend only on the matter itself — radiative cooling, radioactive decay of the
 composition, tidal and orbital evolution, accretion and mass loss. Structurally
 this is the trick growth already proves works, applied to the quantities growth
-does not own; the cost argument is the same one, that 10^4 bulk nodes cost 10^4
+does not own; the cost argument is the same one, that 10^4 coarse nodes cost 10^4
 ODE steps whatever they stand for.
 
 **How this differs from growth, which is the obvious thing to mistake it for.**
 They look alike — both advance a coarse node, both write `internal_energy`,
 `radius` and `luminosity` — and they are opposites in the way that matters.
 
-| | `grow` | bulk evolution |
+| | `grow` | matter evolution |
 |---|---|---|
 | applies to | a node with a `morphology` somebody planted | every node, because it is physics |
 | driven by | a `Program` — a developmental rule or a construction plan | a law with no parameters to choose |
-| state | its own, in `Morphology`: segments, extent, stored energy. Not derivable from the bulk tuple | none beyond the bulk tuple itself |
+| state | its own, in `Morphology`: segments, extent, stored energy. Not derivable from the matter | none beyond the matter itself |
 | under coarsen/refine | persists; it *is* the state | must be idempotent, or looking changes the rate |
 | fine-solver counterpart | none — the morphology is the model at every resolution | must agree with it on the conserved quantities |
 
-`grow` is a program a node **runs**. Bulk evolution is a law a node **cannot
+`grow` is a program a node **runs**. Matter evolution is a law a node **cannot
 escape**. That is why `grow` may own state that only it can produce, and why
-bulk evolution must own none: the moment it has private state, a node that was
+matter evolution must own none: the moment it has private state, a node that was
 materialised and re-coarsened evolves differently from one that was not, and
 the observer has changed the physics.
 
@@ -434,7 +434,7 @@ with a morphology. So the two need one energy account between them, not two,
 and `grow`'s existing `validate` is the right place to keep them honest.
 
 Two more things to get right rather than assume. It has to be **consistent with
-the fine solver**: a node cooled as bulk for a century and then materialised must
+the fine solver**: a node cooled as matter for a century and then materialised must
 land where materialising it and integrating for a century would have — at
 least in the conserved quantities, which is the same guarantee
 `summarise(sample(m)) = m` already carries. And it has to be **idempotent

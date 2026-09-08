@@ -212,7 +212,7 @@ fn instruments_disagree_appropriately() {
                 Reading::Flux { value, .. } => assert!(value.is_finite() && *value >= 0.0),
                 Reading::ParticleCount { expected, .. } => assert!(expected.is_finite()),
                 Reading::Unresolved { angular_size, needed } => assert!(angular_size < needed),
-                Reading::Position { .. } | Reading::Bulk { .. } => {}
+                Reading::Position { .. } | Reading::Matter { .. } => {}
             }
         }
     }

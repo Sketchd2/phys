@@ -424,7 +424,7 @@ wrong:
 millisecond would need 10¹⁹ steps. It also does not need them: over that span it
 has sampled its accessible states 10¹⁹ times, and where it ends up is a draw
 from its equilibrium ensemble, not the endpoint of a trajectory. So past a
-sub-step ceiling the node is *thermalised* — restricted to its bulk state,
+sub-step ceiling the node is *thermalised* — summarised back to matter,
 carried across in closed form, and drawn again at the far end. Both halves are
 things the engine already guarantees: summarising is conservative to within
 `IDEMPOTENT_TOLERANCE`, and sampling is a maximum-entropy sample of the same
@@ -547,7 +547,7 @@ step", which for a Langevin thermostat means a constant force and unbounded
 heating (`rng::Stream::split`). Second, reductions are pairwise with a fixed
 tree shape (`math::det_sum`) so that CPU and GPU agree bit for bit.
 
-Coarsening is also made *idempotent*: if the restricted state agrees with the
+Coarsening is also made *idempotent*: if the summarised state agrees with the
 stored matter to within 10⁻¹², the coarse state is left exactly as it was.
 Without that, every visit perturbs the matter in its last bits, the next
 materialisation samples from a marginally different distribution, and a region a
@@ -566,7 +566,7 @@ engine depends on.
 | **Impulse / Deposit / Extract** | Momentum and energy, delivered after `d/c`. Pins the target. |
 | **Inject** | Adds matter with a composition; rebalances baryon and lepton number. |
 | **Pin** | Marks detail as non-regenerable, so it is stored rather than re-drawn. |
-| **Author** | Sets a bulk property directly. The one path that can break conservation — so it records exactly how much it broke it by, in an audit log. |
+| **Author** | Sets a matter property directly. The one path that can break conservation — so it records exactly how much it broke it by, in an audit log. |
 | **Time control** | `time_rate` scales simulated seconds per wall second, on top of a pace taken from whatever is being watched (`pace_to`). Zooming into a nucleus does not slow the frame rate — it slows *time*, and that is now arithmetic rather than policy, because materialising a node shortens its characteristic time and the pace is re-read every frame. |
 
 ## 6. Honest limitations

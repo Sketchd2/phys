@@ -111,8 +111,8 @@ pub enum Reading {
     /// Position along an axis, with the disturbance the measurement caused.
     Position { value: f64, uncertainty: f64, disturbance: f64 },
     Composition { fractions: [f64; COARSE_ELEMENTS] },
-    /// Bulk properties an observer could infer without resolving structure.
-    Bulk { mass: f64, radius: f64, velocity: Vec3 },
+    /// Matter properties an observer could infer without resolving structure.
+    Matter { mass: f64, radius: f64, velocity: Vec3 },
     /// The instrument could not resolve the target at all.
     Unresolved { angular_size: f64, needed: f64 },
 }
@@ -430,7 +430,7 @@ pub enum Interaction {
     },
     /// Pin a region so its detail persists even when nobody is looking.
     Pin { target: NodeIdx },
-    /// Explicit authoring: set a bulk property directly. Flagged in the audit
+    /// Explicit authoring: set a matter property directly. Flagged in the audit
     /// log because it is the one path that can break conservation, and the
     /// engine reports the discontinuity rather than hiding it.
     Author {

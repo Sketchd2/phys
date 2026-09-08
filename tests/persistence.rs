@@ -426,7 +426,7 @@ fn committed_facts_survive() {
 /// something asks for detail again.
 ///
 /// This is not a defect, but it is surprising enough to be worth pinning down.
-/// The file stores no unpinned bodies, so a reloaded node is bulk state; and
+/// The file stores no unpinned bodies, so a reloaded node is matter alone; and
 /// `node_cadence` reads body speeds when a node is materialised and the
 /// matter's own characteristic speed when it is not. The pace follows the
 /// cadence of whatever is being watched, so a coarse world runs at a coarser

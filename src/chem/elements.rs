@@ -19,7 +19,7 @@
 //! and summarising, unchanged by this module. [`Element`] is the *chemical*
 //! account, used where arrangements are analysed, and it names real elements by
 //! atomic number. A substance's formula is in elements; its contribution to a
-//! node's bulk composition is that formula lumped back into coarse elements, which is
+//! node's matter composition is that formula lumped back into coarse elements, which is
 //! how the two stay reconcilable — see `chem::registry`, which tests it.
 //!
 //! # The table

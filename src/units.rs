@@ -172,7 +172,7 @@ impl Tier {
         match self {
             Tier::Galactic => 1e18,  // ~30 pc: below this, self-gravitating clouds
             Tier::Stellar => 1e12,   // ~7 AU: below this, individual bodies
-            Tier::Planetary => 1e4,  // 10 km: below this, bulk material
+            Tier::Planetary => 1e4,  // 10 km: below this, continuum material
             Tier::Continuum => 1e-8, // 10 nm: below this, discrete molecules
             Tier::Molecular => 3e-10,
             Tier::Atomic => 1e-14,

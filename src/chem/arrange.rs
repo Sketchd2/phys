@@ -178,7 +178,7 @@ impl Formula {
     /// fractions summing to one.
     ///
     /// The bridge back to `Matter::composition`. A substance's contribution
-    /// to a node's bulk elemental account is exactly this, scaled by how much
+    /// to a node's matter elemental account is exactly this, scaled by how much
     /// of the node is that substance — which is the invariant the registry
     /// tests.
     pub fn as_composition(&self) -> Option<crate::state::Composition> {

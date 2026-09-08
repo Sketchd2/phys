@@ -76,7 +76,7 @@ fn round_trip_conserves_everything() {
                     assert!(back.mass > 0.0 && back.is_finite_state());
                 assert!(
                     back.validate() < 1e-9,
-                    "{aname}/{sname}: restricted state inconsistent ({:.3e})",
+                    "{aname}/{sname}: summarised state inconsistent ({:.3e})",
                     back.validate()
                 );
             }

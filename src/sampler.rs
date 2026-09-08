@@ -1225,7 +1225,7 @@ pub fn default_spec(tier: Tier) -> SampleSpec {
             composition_scatter: 0.02,
             turbulent_fraction: 0.6,
         },
-        // Bulk matter resolves into fluid parcels or grains.
+        // Continuum material resolves into fluid parcels or grains.
         Tier::Continuum => SampleSpec {
             count: 4_000,
             profile: Profile::Uniform,

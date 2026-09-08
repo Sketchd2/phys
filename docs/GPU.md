@@ -51,7 +51,7 @@ struct BodyHot {
 };
 // warm: touched by some solvers
 struct BodyWarm { charge: f32, temperature: f32, internal: f32, spin: vec3<f32>, };
-// cold: composition[8], kind, slot — parallel arrays, read on materialise/restrict only
+// cold: composition[8], kind, slot — parallel arrays, read on materialise/summarise only
 ```
 
 32 bytes hot raises the resident ceiling from 19.6 M bodies to ~110 M on a 6 GB

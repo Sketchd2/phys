@@ -12,7 +12,7 @@
 //! The engine could always be pointed at any scale — [`crate::engine::galaxy`]
 //! is one of these, written by hand. What was missing was a way to *say* which
 //! one without writing code, and a way for a viewer to offer the choice. Every
-//! scenario below is a few lines of bulk state, and the interesting claim is
+//! scenario below is a few lines of matter, and the interesting claim is
 //! that nothing else is needed: no per-scale renderer, no per-scale solver
 //! selection, no per-scale camera. Descending from a galaxy to a nucleus and
 //! loading a nucleus directly land in the same place.
@@ -84,7 +84,7 @@ pub const ALL: &[Scenario] = &[
     },
     Scenario {
         name: "Granite block",
-        blurb: "A cubic metre of rock at room temperature — bulk matter, where thermodynamics is the whole physics.",
+        blurb: "A cubic metre of rock at room temperature — continuum matter, where thermodynamics is the whole physics.",
         tier: Tier::Continuum,
         scale: 0.5,
         build: build_rock,

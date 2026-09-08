@@ -55,7 +55,7 @@ pub const MD_MAX_SUBSTEPS: u32 = 64;
 /// audience.
 ///
 /// `refinement_error` is about 0.05 for a node the matter describes
-/// perfectly and climbs past one when the bulk state has started lying: an
+/// perfectly and climbs past one when the matter has started lying: an
 /// unresolved Jeans length, or a dynamical time shorter than the frame. Set
 /// just above the quiet value, so "something is happening here" is what
 /// triggers detail and idleness is what does not.
@@ -706,7 +706,7 @@ impl World {
     /// look identical and are not.
     ///
     /// [`World::node_cadence`] asks *may this representation go stale* — and for
-    /// a node held as bulk matter the honest answer can be "not for a
+    /// a node held as matter alone the honest answer can be "not for a
     /// very long time". A ball of ten-thousand-kelvin hydrogen has no bulk
     /// motion in its own rest frame (`promote` sets the momentum to zero, which
     /// is what a rest frame means), barely spins, and is not being stirred, so
@@ -751,7 +751,7 @@ impl World {
     /// The length scale a node is currently represented at, metres.
     ///
     /// Not the node's radius — the size of the smallest thing it is currently
-    /// showing. A planet held as bulk matter is represented at its own
+    /// showing. A planet held as matter alone is represented at its own
     /// radius; the same planet split into four thousand parcels is represented
     /// at four hundred kilometres, and has to be re-solved sixteen times as
     /// often for the difference to mean anything.
@@ -767,12 +767,12 @@ impl World {
 
     /// How long this node may be left alone before its state is visibly stale.
     ///
-    /// For a node held as bulk state this is [`Matter::characteristic_time`]
+    /// For a node held as matter alone this is [`Matter::characteristic_time`]
     /// — how long before the thing moves, turns, or rearranges by its own size.
     /// For a materialised node it is the bodies that are represented, so it is
     /// the bodies that set the cadence: the time for the fastest of them to
     /// cross one resolution element. Thermal motion counts in that case and not
-    /// in the first, and the difference is not a fudge — at bulk resolution
+    /// in the first, and the difference is not a fudge — at matter resolution
     /// thermal motion is a temperature, and at parcel resolution it is
     /// something you can watch happen.
     pub fn node_cadence(&self, idx: NodeIdx) -> f64 {
@@ -842,7 +842,7 @@ impl World {
     }
 
     /// How long before this node's detail stops being *this* state and becomes
-    /// merely *a* state of the same bulk.
+    /// merely *a* state of the same matter.
     ///
     /// The persistence rule, and the replacement for "discard it when nobody is
     /// looking". Detail is kept because something happened in it, and released
@@ -981,7 +981,7 @@ impl World {
             let error = self.refinement_error(idx);
             let lateness = self.lateness(idx, horizon);
 
-            // Materialise when the bulk state cannot express what the node is
+            // Materialise when the matter cannot express what the node is
             // doing — and when the world's pace leaves room to actually
             // integrate it.
             //
@@ -1031,7 +1031,7 @@ impl World {
 
             // Growth advances whether or not anything is materialised — in
             // fact especially when nothing is. This is the payoff of the
-            // bulk representation: a forest of 10^9 trees held as 10^4
+            // matter representation: a forest of 10^9 trees held as 10^4
             // nodes costs 10^4 ODE steps, so growth can run on the entire world
             // every frame while the fine structure stays unbuilt.
             if self.tree.nodes[idx.get()].morphology.is_some() {
@@ -1072,7 +1072,7 @@ impl World {
 
     /// How wrong is it to leave this node coarse?
     ///
-    /// Two physical criteria, both of which are about structure the bulk state
+    /// Two physical criteria, both of which are about structure the matter
     /// cannot represent: an unresolved Jeans length (the node is about to
     /// fragment) and a short dynamical time relative to the frame step (the
     /// node is evolving faster than we are looking at it).
@@ -1312,8 +1312,8 @@ impl World {
     /// fifty milliseconds would need 10^21 steps; it also does not need them,
     /// because over that span it has sampled its accessible states 10^21 times
     /// and where it ends up is a draw from its equilibrium ensemble, not the
-    /// endpoint of a trajectory. So the detail is restricted back to the bulk
-    /// state, the bulk state is carried across in closed form, and the detail
+    /// endpoint of a trajectory. So the detail is summarised back to matter,
+    /// that matter is carried across in closed form, and the detail
     /// is drawn again at the far end.
     ///
     /// Both halves are things the engine already guarantees: summarising is
@@ -2069,7 +2069,7 @@ impl World {
     ///
     /// A scenario can override this per node — placing a lit planetary surface
     /// is authoring, not physics, and deriving insolation from the galaxy's
-    /// bulk luminosity gives a correct answer (about 10^-4 W/m^2) that is
+    /// own luminosity gives a correct answer (about 10^-4 W/m^2) that is
     /// correct precisely because a tree in interstellar space does not grow.
     pub fn environment_at(&self, idx: NodeIdx) -> crate::morph::Environment {
         let n = &self.tree.nodes[idx.get()];
@@ -2126,7 +2126,7 @@ impl World {
             }
             InfluenceKind::Probe => {}
         }
-        // The node's procedural detail no longer represents its bulk state.
+        // The node's procedural detail no longer represents its matter.
         let idx = inf.target;
         self.tree.pin(idx);
         self.disturb(idx);

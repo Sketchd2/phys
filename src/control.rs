@@ -14,8 +14,8 @@
 //!
 //! **An act is not an assertion.** [`Act`] has no variant that states a fact.
 //! There is no `SetHealth`, no `Declare`, no `IAmAt`. The engine's own
-//! [`Interaction::Author`](crate::observe::Interaction::Author) can set a bulk
-//! property directly and is exactly the kind of thing an actor must never
+//! [`Interaction::Author`](crate::observe::Interaction::Author) can set a
+//! matter property directly and is exactly the kind of thing an actor must never
 //! reach, so it is not in this enum — it is in [`Admin`], which an actor cannot
 //! construct a [`Command`] for without authority. This is a type-level
 //! guarantee rather than a validation rule: there is no code path to forget.
@@ -162,7 +162,7 @@ impl Act {
 pub enum Admin {
     /// Run a node and its subtree at `rate` seconds per second of world time.
     Dilate { target: NodeIdx, rate: f64 },
-    /// Set a bulk property directly. The one path that can break conservation.
+    /// Set a matter property directly. The one path that can break conservation.
     Author { target: NodeIdx, property: Property, value: f64 },
     /// Keep a node's detail even when nobody is looking.
     Pin { target: NodeIdx },

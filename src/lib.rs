@@ -20,7 +20,7 @@
 //! 1. **Lazy materialisation with exact conservation** (`sample`, `state`).
 //!    Detail is generated on demand from a seeded distribution and destroyed
 //!    when nobody is looking. The generator is constrained so that coarsening
-//!    the generated detail returns the original bulk state *exactly* — energy,
+//!    the generated detail returns the original matter *exactly* — energy,
 //!    momentum, angular momentum, charge, baryon and lepton number. No
 //!    experiment performed at the coarse scale can detect the deception.
 //!

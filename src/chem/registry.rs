@@ -224,7 +224,7 @@ impl Registry {
 /// How many substances one node can be made of before the smallest are lumped.
 ///
 /// Eight, for the same reason the elemental account has eight buckets: a node
-/// is a *bulk* description, and a bulk description that tracked forty trace
+/// is *matter*, a coarse account, and one that tracked forty trace
 /// trace elements would cost more than the detail it stands in for. What falls off
 /// the end is not lost — its mass stays in the node's matter, it
 /// simply stops being attributed to a named substance.
