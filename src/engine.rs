@@ -2672,19 +2672,6 @@ impl World {
         path
     }
 
-    /// Drill until the path reaches `to_tier`, expressed as the size that
-    /// means.
-    ///
-    /// Exactly equivalent to the tier test it replaces: `Tier::containing(r)`
-    /// is at least `to_tier` precisely when `r < to_tier.max_radius()`, and the
-    /// `.max(parent_tier)` in `promote` can only make a tier finer, which the
-    /// loop would already have stopped on. Kept because "drill to the molecular
-    /// tier" is what most callers mean, and because expressing it this way is
-    /// what makes it terminate on something monotone.
-    pub fn drill(&mut self, from: NodeIdx, to_tier: Tier, specs: &dyn Fn(Tier) -> SampleSpec) -> Vec<NodeIdx> {
-        self.drill_to(from, to_tier.max_radius(), specs)
-    }
-
     /// Total conserved quantities over the whole live world.
     pub fn conserved(&self) -> crate::state::Conserved {
         self.tree.total_conserved()

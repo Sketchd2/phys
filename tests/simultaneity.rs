@@ -19,7 +19,7 @@ use phys::units::*;
 fn the_whole_world_is_at_one_instant() {
     let mut w = World::new(galaxy(0xA11CE, 1e9), 20.0);
     let root = w.tree.root;
-    let path = w.drill(root, Tier::Nuclear, &default_spec);
+    let path = w.drill_to(root, Tier::Nuclear.max_radius(), &default_spec);
     println!("  drilled {} tiers, galaxy to nucleus", path.len());
     assert!(path.len() >= 6, "expected a deep ladder, got {}", path.len());
 
@@ -62,7 +62,7 @@ fn resolving_something_small_does_not_stop_the_galaxy() {
     let before = coarse.frame_dt();
 
     let mut fine = World::new(galaxy(0xB0B, 1e9), 20.0);
-    fine.drill(root, Tier::Nuclear, &default_spec);
+    fine.drill_to(root, Tier::Nuclear.max_radius(), &default_spec);
     let after = fine.frame_dt();
 
     println!(
@@ -106,7 +106,7 @@ fn the_pace_follows_the_subject() {
     let mut w = World::new(galaxy(0xC0FFEE, 1e9), 20.0);
     let root = w.tree.root;
     let galactic = w.pace;
-    let path = w.drill(root, Tier::Molecular, &default_spec);
+    let path = w.drill_to(root, Tier::Molecular.max_radius(), &default_spec);
     let deep = *path.last().unwrap();
     w.pace_to(deep);
     let molecular = w.pace;
@@ -142,7 +142,7 @@ fn nothing_is_starved() {
     let mut w = World::new(tree, 20.0);
     w.time_rate = 0.05;
     let root = w.tree.root;
-    w.drill(root, Tier::Stellar, &default_spec);
+    w.drill_to(root, Tier::Stellar.max_radius(), &default_spec);
     // Nobody is looking at anything. Under the old rule that meant no work at
     // all: every materialised node was coarsened on the frame it appeared.
     assert!(w.observers.is_empty());
@@ -225,7 +225,7 @@ fn resolution_sets_the_cadence() {
 fn an_unreachable_span_is_crossed_by_ensemble() {
     let mut w = World::new(galaxy(0x5A11, 1e9), 20.0);
     let root = w.tree.root;
-    let path = w.drill(root, Tier::Molecular, &default_spec);
+    let path = w.drill_to(root, Tier::Molecular.max_radius(), &default_spec);
     let deep = *path.last().unwrap();
     w.tree.refine(deep);
     assert!(w.tree.nodes[deep.get()].is_materialised());
@@ -261,7 +261,7 @@ fn an_unreachable_span_is_crossed_by_ensemble() {
 fn touched_detail_is_not_regenerated() {
     let mut w = World::new(galaxy(0x9111, 1e9), 20.0);
     let root = w.tree.root;
-    let path = w.drill(root, Tier::Molecular, &default_spec);
+    let path = w.drill_to(root, Tier::Molecular.max_radius(), &default_spec);
     let deep = *path.last().unwrap();
     w.tree.refine(deep);
     w.tree.pin(deep);
@@ -389,7 +389,7 @@ fn no_node_flings_its_bodies_out_of_itself() {
     // so the test has to preserve that mismatch to mean anything.
     let mut w = World::new(galaxy(0x5EED, 1e9), 20.0);
     let root = w.tree.root;
-    let path = w.drill(root, Tier::Nuclear, &default_spec);
+    let path = w.drill_to(root, Tier::Nuclear.max_radius(), &default_spec);
     println!("  drilled {} tiers, galaxy to nucleus", path.len());
     assert!(path.len() >= 6, "expected a deep ladder, got {}", path.len());
 

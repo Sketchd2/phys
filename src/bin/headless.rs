@@ -138,7 +138,7 @@ fn build() -> (World, NodeIdx) {
     let mut w = World::new(galaxy(0xA11A5, 1e9), 20.0);
     w.tree.nodes[0].spec.count = 4000;
     let root = w.tree.root;
-    let path = w.drill(root, Tier::Stellar, &default_spec);
+    let path = w.drill_to(root, Tier::Stellar.max_radius(), &default_spec);
     let watched = *path.last().unwrap();
     w.tree.refine(watched);
 

@@ -23,7 +23,7 @@ fn a_world() -> (World, NodeIdx) {
     w.tree.nodes[0].spec.count = 512;
     w.time_rate = 0.05;
     let root = w.tree.root;
-    let d = *w.drill(root, Tier::Continuum, &default_spec).last().unwrap();
+    let d = *w.drill_to(root, Tier::Continuum.max_radius(), &default_spec).last().unwrap();
     w.tree.refine(d);
     w.pace_to(d);
     (w, d)

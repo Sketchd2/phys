@@ -85,7 +85,7 @@ fn every_scenario_steps() {
 fn the_ladder_runs_all_the_way_down() {
     let mut world = World::new(scenario::ALL[0].build(0x5EED), 20.0);
     let root = world.tree.root;
-    let path = world.drill(root, Tier::Nuclear, &default_spec);
+    let path = world.drill_to(root, Tier::Nuclear.max_radius(), &default_spec);
     let tiers: Vec<&str> = path
         .iter()
         .map(|&n| world.tree.nodes[n.get()].tier.name())

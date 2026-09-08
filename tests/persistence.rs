@@ -58,7 +58,7 @@ fn every_field_round_trips() {
     // Populate the awkward corners: a structure with a morphology and a
     // topology, a ledger fact, an audit entry, an environment, and detail
     // somebody has touched.
-    let path = w.drill(root, Tier::Continuum, &default_spec);
+    let path = w.drill_to(root, Tier::Continuum.max_radius(), &default_spec);
     let deep = *path.last().unwrap();
     w.plant(
         deep,
@@ -171,7 +171,7 @@ fn every_field_round_trips() {
 fn pinned_detail_returns_byte_identical() {
     let mut w = a_world();
     let root = w.tree.root;
-    let path = w.drill(root, Tier::Continuum, &default_spec);
+    let path = w.drill_to(root, Tier::Continuum.max_radius(), &default_spec);
     let deep = *path.last().unwrap();
     w.tree.refine(deep);
     w.interact(Interaction::Impulse { target: deep, dp: v3(7.0, -3.0, 0.5) });
@@ -255,7 +255,7 @@ fn reloading_does_not_change_the_future() {
     // Pinned, so the reload comes back at the same *resolution* as well as the
     // same state. Without this the futures legitimately diverge — see
     // `an_unpinned_reload_comes_back_coarse`.
-    for &n in &a.drill(root, Tier::Planetary, &default_spec) {
+    for &n in &a.drill_to(root, Tier::Planetary.max_radius(), &default_spec) {
         a.tree.pin(n);
     }
     for _ in 0..4 {
@@ -288,7 +288,7 @@ fn reloading_does_not_change_the_future() {
 fn saving_is_deterministic() {
     let mut w = a_world();
     let root = w.tree.root;
-    let path = w.drill(root, Tier::Continuum, &default_spec);
+    let path = w.drill_to(root, Tier::Continuum.max_radius(), &default_spec);
     for &n in &path {
         w.tree.pin(n);
     }
@@ -358,7 +358,7 @@ fn a_world_survives_a_round_trip_through_a_file() {
 
     let mut w = a_world();
     let root = w.tree.root;
-    let path_nodes = w.drill(root, Tier::Continuum, &default_spec);
+    let path_nodes = w.drill_to(root, Tier::Continuum.max_radius(), &default_spec);
     let deep = *path_nodes.last().unwrap();
     w.plant(deep, phys::morph::Program::Tree, phys::morph::Environment::default());
     for _ in 0..5 {

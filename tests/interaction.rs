@@ -33,7 +33,7 @@ fn world() -> (World, usize) {
         ..Default::default()
     });
     w.gate = phys::causal::CausalGate::new(1e4 * YEAR);
-    let path = w.drill(root, Tier::Planetary, &default_spec);
+    let path = w.drill_to(root, Tier::Planetary.max_radius(), &default_spec);
     for &n in &path {
         w.tree.pin(n);
     }

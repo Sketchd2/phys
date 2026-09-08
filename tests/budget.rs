@@ -116,7 +116,7 @@ fn frames_stay_within_budget() {
         ..Default::default()
     });
     w.gate = phys::causal::CausalGate::new(1e4 * YEAR);
-    let path = w.drill(root, Tier::Molecular, &default_spec);
+    let path = w.drill_to(root, Tier::Molecular.max_radius(), &default_spec);
     for &n in &path {
         w.tree.pin(n);
     }

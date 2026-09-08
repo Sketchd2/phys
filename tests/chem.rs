@@ -977,7 +977,7 @@ fn a_node_of_brine_dissolves_as_the_world_runs() {
     let mut w = World::new(galaxy(0xB21E5, 1e9), 20.0);
     w.tree.nodes[0].spec.count = 256;
     let root = w.tree.root;
-    let beaker = *w.drill(root, Tier::Continuum, &default_spec).last().unwrap();
+    let beaker = *w.drill_to(root, Tier::Continuum.max_radius(), &default_spec).last().unwrap();
 
     // Give it a composition. Everything about these two substances is derived
     // from their arrangements; nothing here says what salt or water *are*.
@@ -1088,7 +1088,7 @@ fn a_bubble_speeds_up_chemistry() {
         let mut w = World::new(galaxy(0xB0B, 1e9), 20.0);
         w.tree.nodes[0].spec.count = 256;
         let root = w.tree.root;
-        let beaker = *w.drill(root, Tier::Continuum, &default_spec).last().unwrap();
+        let beaker = *w.drill_to(root, Tier::Continuum.max_radius(), &default_spec).last().unwrap();
         let salt = w.substances.intern(rock_salt()).unwrap();
         let h2o = w.substances.intern(water()).unwrap();
         let mut mix = Mixture::new();

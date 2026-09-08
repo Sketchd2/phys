@@ -92,7 +92,7 @@ fn a_world_round_trips_through_postgres() {
     let (mut pg, _held) = db!();
     let mut w = a_world();
     let root = w.tree.root;
-    let path = w.drill(root, Tier::Continuum, &default_spec);
+    let path = w.drill_to(root, Tier::Continuum.max_radius(), &default_spec);
     let deep = *path.last().unwrap();
     w.plant(deep, phys::morph::Program::Tree, phys::morph::Environment::default());
     for _ in 0..6 {
@@ -130,7 +130,7 @@ fn postgres_and_a_file_agree() {
     let (mut pg, _held) = db!();
     let mut w = a_world();
     let root = w.tree.root;
-    w.drill(root, Tier::Planetary, &default_spec);
+    w.drill_to(root, Tier::Planetary.max_radius(), &default_spec);
     for _ in 0..4 {
         w.step_frame(50_000.0);
     }
@@ -165,7 +165,7 @@ fn writes_are_proportional_to_events() {
     let (mut pg, _held) = db!();
     let mut w = a_world();
     let root = w.tree.root;
-    w.drill(root, Tier::Planetary, &default_spec);
+    w.drill_to(root, Tier::Planetary.max_radius(), &default_spec);
     for _ in 0..3 {
         w.step_frame(50_000.0);
     }
@@ -193,7 +193,7 @@ fn writes_are_proportional_to_events() {
     // The other direction matters as much: something that *did* happen must be
     // written. A store that skipped everything would pass the check above.
     let mark = w.time;
-    let deep = *w.drill(root, Tier::Continuum, &default_spec).last().unwrap();
+    let deep = *w.drill_to(root, Tier::Continuum.max_radius(), &default_spec).last().unwrap();
     w.interact(Interaction::Impulse { target: deep, dp: v3(9.0, 0.0, 0.0) });
     for _ in 0..4 {
         w.step_frame(50_000.0);
@@ -231,7 +231,7 @@ fn writes_are_proportional_to_events() {
 fn the_dirty_set_is_derived_not_tracked() {
     let mut w = a_world();
     let root = w.tree.root;
-    w.drill(root, Tier::Planetary, &default_spec);
+    w.drill_to(root, Tier::Planetary.max_radius(), &default_spec);
     for _ in 0..3 {
         w.step_frame(50_000.0);
     }
@@ -246,7 +246,7 @@ fn the_dirty_set_is_derived_not_tracked() {
     // light delay. Nothing is dirty until it lands, which is correct and is
     // exactly why the mailbox itself has to be durable.
     let mark = w.time;
-    let deep = *w.drill(root, Tier::Continuum, &default_spec).last().unwrap();
+    let deep = *w.drill_to(root, Tier::Continuum.max_radius(), &default_spec).last().unwrap();
     w.interact(Interaction::Impulse { target: deep, dp: v3(5.0, 0.0, 0.0) });
     assert!(w.mailbox.pending() > 0, "the impulse should be in flight, not applied");
     assert!(
@@ -274,7 +274,7 @@ fn an_impulse_in_flight_survives_a_save() {
     let (mut pg, _held) = db!();
     let mut w = a_world();
     let root = w.tree.root;
-    let deep = *w.drill(root, Tier::Planetary, &default_spec).last().unwrap();
+    let deep = *w.drill_to(root, Tier::Planetary.max_radius(), &default_spec).last().unwrap();
     w.step_frame(50_000.0);
 
     w.interact(Interaction::Impulse { target: deep, dp: v3(11.0, -4.0, 2.0) });
@@ -311,7 +311,7 @@ fn nodes_are_rows_you_can_ask_questions_about() {
     let (mut pg, _held) = db!();
     let mut w = a_world();
     let root = w.tree.root;
-    w.drill(root, Tier::Molecular, &default_spec);
+    w.drill_to(root, Tier::Molecular.max_radius(), &default_spec);
     w.step_frame(50_000.0);
     pg.save(w.view()).expect("save");
 

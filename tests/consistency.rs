@@ -171,7 +171,7 @@ fn deep_descent_stays_exact() {
     use phys::engine::{default_spec, galaxy, World};
     let mut w = World::new(galaxy(0x5EED, 1e9), 20.0);
     let root = w.tree.root;
-    let path = w.drill(root, Tier::Nuclear, &default_spec);
+    let path = w.drill_to(root, Tier::Nuclear.max_radius(), &default_spec);
     assert!(path.len() >= 15, "expected a deep descent, got {}", path.len());
     for &idx in &path {
         let n = &w.tree.nodes[idx.get()];

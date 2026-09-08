@@ -31,7 +31,7 @@ fn a_world() -> World {
 /// A node deep enough to be worth stepping, and its parent.
 fn deep(w: &mut World) -> NodeIdx {
     let root = w.tree.root;
-    let d = *w.drill(root, Tier::Continuum, &default_spec).last().unwrap();
+    let d = *w.drill_to(root, Tier::Continuum.max_radius(), &default_spec).last().unwrap();
     w.tree.refine(d);
     w.pace_to(d);
     d
@@ -498,7 +498,7 @@ fn reversing_a_step_is_only_exact_where_the_integrator_is_symmetric() {
 fn round_trip(tier: Tier) -> (f64, f64) {
     let mut w = a_world();
     let root = w.tree.root;
-    let d = *w.drill(root, tier, &default_spec).last().unwrap();
+    let d = *w.drill_to(root, tier.max_radius(), &default_spec).last().unwrap();
     w.tree.refine(d);
 
     let start: Vec<_> = w.tree.nodes[d.get()].bodies.iter().map(|b| b.pos).collect();

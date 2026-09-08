@@ -110,7 +110,7 @@ fn engine_preserves_causality() {
         ..Default::default()
     });
     w.gate = CausalGate::new(1e4 * YEAR);
-    let path = w.drill(root, Tier::Continuum, &default_spec);
+    let path = w.drill_to(root, Tier::Continuum.max_radius(), &default_spec);
     assert!(path.len() > 3);
     for _ in 0..12 {
         w.step_frame(50_000.0);
@@ -158,7 +158,7 @@ fn observation_is_retarded() {
         angular_resolution: 1e-7,
         ..Default::default()
     });
-    let path = w.drill(root, Tier::Planetary, &default_spec);
+    let path = w.drill_to(root, Tier::Planetary.max_radius(), &default_spec);
     // Pin the chain: without it the survey correctly coarsens away detail the
     // observer's resolution does not demand, and there is nothing left to see.
     for &n in &path {

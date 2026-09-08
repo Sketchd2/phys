@@ -69,7 +69,7 @@ fn main() {
     println!("  Only the chain is built - never the siblings' interiors.\n");
     println!("  {:<11} {:>14} {:>12} {:>9} {:>10} {:>11}", "tier", "mass", "radius", "children", "T (K)", "cons. err");
 
-    let path = w.drill(root, Tier::Nuclear, &default_spec);
+    let path = w.drill_to(root, Tier::Nuclear.max_radius(), &default_spec);
     for &idx in &path {
         let n = &w.tree.nodes[idx.get()];
         println!(

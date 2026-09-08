@@ -97,7 +97,7 @@ fn an_unresolved_node_renders_empty() {
 fn positions_are_node_relative_at_every_scale() {
     let mut w = a_world();
     let root = w.tree.root;
-    let path = w.drill(root, Tier::Nuclear, &default_spec);
+    let path = w.drill_to(root, Tier::Nuclear.max_radius(), &default_spec);
 
     let mut seen = 0;
     for &node in &path {
@@ -216,7 +216,7 @@ fn a_scene_is_interpolated_to_one_instant() {
 fn a_scene_survives_the_wire() {
     let mut w = a_world();
     let root = w.tree.root;
-    let path = w.drill(root, Tier::Planetary, &default_spec);
+    let path = w.drill_to(root, Tier::Planetary.max_radius(), &default_spec);
     let deep = *path.last().unwrap();
     w.step_frame(50_000.0);
     // Refine *after* stepping: a frame may coarsen or thermalise a node, and a
@@ -528,7 +528,7 @@ fn the_wire_cost_per_body_is_what_we_think() {
 fn a_freshly_materialised_node_is_not_extrapolated() {
     let mut w = a_world();
     let root = w.tree.root;
-    let deep = *w.drill(root, Tier::Planetary, &default_spec).last().unwrap();
+    let deep = *w.drill_to(root, Tier::Planetary.max_radius(), &default_spec).last().unwrap();
 
     // Let a lot of world time pass with the node unresolved, so `last_solved`
     // is far behind, then materialise it.
@@ -577,7 +577,7 @@ fn a_freshly_materialised_node_is_not_extrapolated() {
 fn a_recipe_builds_exactly_what_the_server_would_have_sent() {
     let mut w = a_world();
     let root = w.tree.root;
-    let deep = *w.drill(root, Tier::Stellar, &default_spec).last().unwrap();
+    let deep = *w.drill_to(root, Tier::Stellar.max_radius(), &default_spec).last().unwrap();
     assert!(
         !w.tree.nodes[deep.get()].is_materialised(),
         "the node is already materialised, so this proves nothing about recipes"
@@ -628,7 +628,7 @@ fn a_recipe_builds_exactly_what_the_server_would_have_sent() {
 fn a_recipe_crosses_the_wire() {
     let mut w = a_world();
     let root = w.tree.root;
-    let deep = *w.drill(root, Tier::Stellar, &default_spec).last().unwrap();
+    let deep = *w.drill_to(root, Tier::Stellar.max_radius(), &default_spec).last().unwrap();
 
     let sent = w.render(&ViewRequest::of(deep));
     let mut got = ok(decode(&encode(&sent)));
@@ -651,7 +651,7 @@ fn a_recipe_crosses_the_wire() {
 fn a_corrupt_recipe_is_refused() {
     let mut w = a_world();
     let root = w.tree.root;
-    let deep = *w.drill(root, Tier::Stellar, &default_spec).last().unwrap();
+    let deep = *w.drill_to(root, Tier::Stellar.max_radius(), &default_spec).last().unwrap();
     let mut scene = w.render(&ViewRequest::of(deep));
 
     let phys::view::Detail::Recipe(r) = &mut scene.nodes[0].detail else {
@@ -677,7 +677,7 @@ fn a_corrupt_recipe_is_refused() {
 fn a_client_without_a_sampler_gets_no_recipes() {
     let mut w = a_world();
     let root = w.tree.root;
-    let deep = *w.drill(root, Tier::Stellar, &default_spec).last().unwrap();
+    let deep = *w.drill_to(root, Tier::Stellar.max_radius(), &default_spec).last().unwrap();
     let scene = w.render(&ViewRequest { allow_recipes: false, ..ViewRequest::of(deep) });
     assert!(scene.nodes[0].detail.is_unchanged());
     assert!(!scene.bodies_included());
@@ -689,7 +689,7 @@ fn a_client_without_a_sampler_gets_no_recipes() {
 fn pinned_detail_is_never_sent_as_a_recipe() {
     let mut w = a_world();
     let root = w.tree.root;
-    let deep = *w.drill(root, Tier::Stellar, &default_spec).last().unwrap();
+    let deep = *w.drill_to(root, Tier::Stellar.max_radius(), &default_spec).last().unwrap();
     w.tree.nodes[deep.get()].pinned = true;
     let scene = w.render(&ViewRequest::of(deep));
     assert!(
@@ -707,7 +707,7 @@ fn pinned_detail_is_never_sent_as_a_recipe() {
 fn a_neighbourhood(n: usize) -> (World, phys::ids::NodeIdx) {
     let mut w = a_world();
     let root = w.tree.root;
-    let here = *w.drill(root, Tier::Stellar, &default_spec).last().unwrap();
+    let here = *w.drill_to(root, Tier::Stellar.max_radius(), &default_spec).last().unwrap();
     w.tree.refine(here);
     let have = w.tree.nodes[here.get()].bodies.len();
     let spec = default_spec(w.tree.nodes[here.get()].tier.finer());
@@ -1025,32 +1025,64 @@ fn drilling_targets_a_size() {
     }
 }
 
-/// The tier form still means what it meant.
+/// `Tier::max_radius` is the length that means "has reached this tier".
 ///
-/// `drill(from, t)` is now `drill_to(from, t.max_radius())`, and the claim is
-/// that this is not an approximation: `Tier::containing(r)` is at least `t`
-/// exactly when `r < t.max_radius()`. If that identity is wrong, every one of
-/// the forty-odd existing callers quietly changed behaviour.
+/// Every call site that used to say `drill(from, t)` now says
+/// `drill_to(from, t.max_radius())`, so this identity is the thing holding
+/// all forty-seven of them to their previous behaviour:
+///
+/// ```text
+///     Tier::containing(r) >= t   <=>   r < t.max_radius()
+/// ```
+///
+/// It is asserted directly rather than by comparing two spellings of the same
+/// call, because the interesting claim is about the arithmetic, not about the
+/// wrapper that used to hide it.
 #[test]
-fn the_tier_form_of_drilling_is_the_size_form() {
+fn max_radius_is_the_length_form_of_reaching_a_tier() {
     for tier in Tier::ALL {
-        let mut by_tier = a_world();
-        let root = by_tier.tree.root;
-        let a = by_tier.drill(root, tier, &default_spec);
+        let bound = tier.max_radius();
+        // Probe across the whole span the engine covers, plus the boundary
+        // itself and the values either side of it.
+        let mut probes: Vec<f64> = (-20..=22).map(|e| 10f64.powi(e)).collect();
+        if bound.is_finite() {
+            probes.extend([bound, bound * (1.0 - 1e-12), bound * (1.0 + 1e-12)]);
+        }
+        for r in probes {
+            assert_eq!(
+                Tier::containing(r) >= tier,
+                r < bound,
+                "{tier:?}: radius {r:.3e} m is {:?}, but max_radius is {bound:.3e} m",
+                Tier::containing(r)
+            );
+        }
+    }
+}
 
-        let mut by_size = a_world();
-        let root = by_size.tree.root;
-        let b = by_size.drill_to(root, tier.max_radius(), &default_spec);
-
-        assert_eq!(a, b, "{tier:?}: the two forms took different paths");
-        // And the path really is at the tier that was asked for.
-        let last = *a.last().unwrap();
+/// And drilling to that length really does land at that tier.
+///
+/// The identity above is arithmetic; this is the same claim about an actual
+/// descent, which also has `promote`'s `.max(parent_tier)` in it — that can
+/// only make a tier finer, and the loop would already have stopped, but
+/// asserting it beats reasoning about it.
+#[test]
+fn drilling_to_a_tiers_length_arrives_at_that_tier() {
+    for tier in Tier::ALL {
+        let mut w = a_world();
+        let root = w.tree.root;
+        let path = w.drill_to(root, tier.max_radius(), &default_spec);
+        let last = *path.last().unwrap();
+        let reached = w.tree.nodes[last.get()].tier;
         assert!(
-            by_tier.tree.nodes[last.get()].tier >= tier,
-            "{tier:?}: ended at {:?}",
-            by_tier.tree.nodes[last.get()].tier
+            reached >= tier,
+            "{tier:?}: descent to {:.3e} m ended at {reached:?}",
+            tier.max_radius()
         );
-        println!("  {tier:?}: {} nodes, target {:.3e} m", a.len(), tier.max_radius());
+        println!(
+            "  {tier:?}: {} nodes, target {:.3e} m, ended at {reached:?}",
+            path.len(),
+            tier.max_radius()
+        );
     }
 }
 

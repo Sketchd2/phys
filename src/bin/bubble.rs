@@ -79,7 +79,7 @@ fn main() {
     let mut w = World::new(galaxy(0xB0BB1E, 1e9), 20.0);
     w.tree.nodes[0].spec.count = 512;
     let root = w.tree.root;
-    let here = *w.drill(root, Tier::Continuum, &default_spec).last().unwrap();
+    let here = *w.drill_to(root, Tier::Continuum.max_radius(), &default_spec).last().unwrap();
     w.tree.refine(here);
 
     let spec = default_spec(w.tree.nodes[here.get()].tier.finer());

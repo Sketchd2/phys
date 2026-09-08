@@ -268,7 +268,7 @@ fn pacing_to_an_unmaterialised_node_is_bounded() {
     let mut w = World::new(galaxy(0x5CE7E, 1e9), 20.0);
     w.tree.nodes[0].spec.count = 2000;
     let root = w.tree.root;
-    let here = *w.drill(root, Tier::Planetary, &default_spec).last().unwrap();
+    let here = *w.drill_to(root, Tier::Planetary.max_radius(), &default_spec).last().unwrap();
     w.tree.refine(here);
     let spec = default_spec(w.tree.nodes[here.get()].tier.finer());
     let kid = w.tree.promote(here, 0, spec);
@@ -310,7 +310,7 @@ fn the_pace_bound_is_the_time_the_interior_takes_to_rearrange() {
     let mut w = World::new(galaxy(0x5CE7E, 1e9), 20.0);
     w.tree.nodes[0].spec.count = 2000;
     let root = w.tree.root;
-    let here = *w.drill(root, Tier::Planetary, &default_spec).last().unwrap();
+    let here = *w.drill_to(root, Tier::Planetary.max_radius(), &default_spec).last().unwrap();
     w.tree.refine(here);
     let spec = default_spec(w.tree.nodes[here.get()].tier.finer());
     let kid = w.tree.promote(here, 0, spec);
@@ -342,7 +342,7 @@ fn a_fixed_pace_stays_fixed() {
     let mut w = World::new(galaxy(0x5CE7E, 1e9), 20.0);
     w.tree.nodes[0].spec.count = 512;
     let root = w.tree.root;
-    let here = *w.drill(root, Tier::Continuum, &default_spec).last().unwrap();
+    let here = *w.drill_to(root, Tier::Continuum.max_radius(), &default_spec).last().unwrap();
 
     w.pace_to(here);
     assert_eq!(w.pace_mode, PaceMode::Follow);

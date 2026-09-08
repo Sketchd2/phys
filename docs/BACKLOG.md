@@ -406,8 +406,35 @@ this is the trick growth already proves works, applied to the quantities growth
 does not own; the cost argument is the same one, that 10^4 bulk nodes cost 10^4
 ODE steps whatever they stand for.
 
-Two things to get right rather than assume. It has to be **consistent with the
-fine solver**: a node cooled as bulk for a century and then materialised must
+**How this differs from growth, which is the obvious thing to mistake it for.**
+They look alike — both advance a coarse node, both write `internal_energy`,
+`radius` and `luminosity` — and they are opposites in the way that matters.
+
+| | `grow` | bulk evolution |
+|---|---|---|
+| applies to | a node with a `morphology` somebody planted | every node, because it is physics |
+| driven by | a `Program` — a developmental rule or a construction plan | a law with no parameters to choose |
+| state | its own, in `Morphology`: segments, extent, stored energy. Not derivable from the bulk tuple | none beyond the bulk tuple itself |
+| under coarsen/refine | persists; it *is* the state | must be idempotent, or looking changes the rate |
+| fine-solver counterpart | none — the morphology is the model at every resolution | must agree with it on the conserved quantities |
+
+`grow` is a program a node **runs**. Bulk evolution is a law a node **cannot
+escape**. That is why `grow` may own state that only it can produce, and why
+bulk evolution must own none: the moment it has private state, a node that was
+materialised and re-coarsened evolves differently from one that was not, and
+the observer has changed the physics.
+
+**They will collide, and the collision is specific.** `grow_node` already
+writes `internal_energy` (the thermalised share only), `entropy`,
+`entropy_exported`, `radius` and `luminosity`, and its `GrowthStep` books
+`energy_radiated` explicitly — "a leaf absorbs the whole solar flux and stores
+about 0.3% of it; the other 99.7% leaves again". A cooling law that subtracts
+`luminosity * dt` on every node would double-count that outflow on any node
+with a morphology. So the two need one energy account between them, not two,
+and `grow`'s existing `validate` is the right place to keep them honest.
+
+Two more things to get right rather than assume. It has to be **consistent with
+the fine solver**: a node cooled as bulk for a century and then materialised must
 land where materialising it and integrating for a century would have — at
 least in the conserved quantities, which is the same guarantee
 `summarise(sample(m)) = m` already carries. And it has to be **idempotent
