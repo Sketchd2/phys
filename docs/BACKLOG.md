@@ -175,7 +175,11 @@ positions), not just a mass check.
 two fail identically at `1d0d6e5`, before the pace fix, the relativity work, the
 chemistry layer and the naming pass. They had never been seen because
 `frames_stay_within_budget` fails first in debug on a slow container and
-fail-fast stopped the run before reaching them.
+fail-fast stopped the run before reaching them. That masking failure has since
+been explained and fixed — it was the unoptimised test profile, not the
+container: `frames_stay_within_budget` measures wall-clock frame time against a
+50 ms target, and unoptimised the engine took 1228 ms. It passes at
+`opt-level = 2`, which is now what `[profile.test]` sets.
 
 **The immediate cause.** `key_of` buckets a body into the neighbour grid with
 `(p.x / s).floor() as i64`. Measured, at the moment it breaks:
@@ -310,7 +314,9 @@ changes, since the path shortens from 24 to about 17.
 **Trigger:** now, in the sense that the ignored test is the reminder. Nothing in
 the play space reaches Atomic tier yet, so it blocks nothing — but the debug
 suite cannot be a gate until it is green, and every MD result below 10^-10 m is
-meaningless until then.
+meaningless until then. The rest of what stopped it being a gate is gone: the
+suite runs in 123 s and is otherwise green, so this ignored test is the only
+thing left between here and using it as one.
 
 The `MdParams::default().cutoff` inconsistency noted above is untouched and
 still latent.
@@ -448,3 +454,57 @@ that should have decayed, a body that should have cooled. It is invisible until
 someone looks twice and compares, and it is the mechanism by which "detail
 exists where something is happening" stays honest: a node that is not happening
 still has to *become* the thing you would find when you look again.
+
+---
+
+## ~~The test suite took twenty minutes and appeared to hang~~ — done
+
+**Noticed:** asked why the tests are slow and why they sometimes never finish.
+
+Two unrelated causes, and the second was not the tests at all.
+
+**Slow: the test profile was unoptimised.** `Cargo.toml` set `[profile.release]`
+and nothing for tests, so the whole numeric engine ran at `opt-level = 0`.
+Measured per test, one accounted for most of it:
+
+```text
+    stepping_does_not_heat_a_node   405 s      11 scenarios x 200 solver passes
+    every_scenario_steps             71 s
+    the other three                 ~2 s
+```
+
+Full release was 60 s for that test against 405 s. But release also drops the
+overflow checks that found the neighbour-grid bug, so the useful measurement
+was the middle one: `opt-level = 2` **with** `debug-assertions` and
+`overflow-checks` forced back on gives 66.7 s — within 10% of full release
+while keeping every check. The suite went from about twenty minutes to **123 s**.
+
+`overflow-checks` defaults *off* once `opt-level` rises, which would have
+silently turned a panicking overflow into a wrapping one — the exact failure
+that hid the grid bug in release. `tests/profile_guard.rs` asserts both flags
+are still in force, so the saving cannot quietly cost the checks later.
+
+**It also fixed `frames_stay_within_budget`**, which had been failing for the
+whole session and which I repeatedly reported as pre-existing and unrelated. It
+was pre-existing, and it was not unrelated: it measures wall-clock frame time
+against a 50 ms target and the unoptimised engine took 1228 ms. Nothing about
+the frame budget was wrong. The suite is now green.
+
+**Appeared to hang: it did not — the watcher did.** No test loops on a
+condition (the only `while` in `tests/` is bounded by `steps < 200`), every
+tree walk terminates on a parent chain that ends at `NodeIdx::NONE`, `execute`
+caps substeps at `MAX_SUBSTEPS` deliberately so the schedule does not depend on
+machine speed, and the Postgres mutex recovers from poisoning rather than
+deadlocking.
+
+What did not terminate were shell loops of the form
+`until ! pgrep -f "cargo test"; do sleep; done`, waiting for a command whose
+name appears in the waiting shell's *own* command line. The condition is
+permanently false and the loop never exits. Five were still running hours
+later. Match on the test binary (`deps/<name>-<hash>`) or a PID, never on a
+pattern the watcher itself contains.
+
+The remaining honest cause is that `cargo test` has no per-test timeout, so a
+405-second test is indistinguishable from a hang. At 123 s for the suite that
+matters much less, and `timeout` around the command turns the remaining case
+into an error rather than a wait.

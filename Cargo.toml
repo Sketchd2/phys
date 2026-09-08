@@ -47,3 +47,25 @@ inherits = "release"
 [[bin]]
 name = "phys-bubble"
 path = "src/bin/bubble.rs"
+
+# The test suite is numeric, and unoptimised it took twenty minutes: one test
+# alone (`stepping_does_not_heat_a_node`, eleven scenarios by two hundred
+# solver passes each) accounted for 405 s of that. Optimised it is 123 s for
+# everything. A suite nobody will sit through is a suite that gets run less
+# often than it should, which is a correctness problem wearing a performance
+# costume.
+#
+# The two flags below are not decoration and must not be dropped. `opt-level`
+# above 0 turns `overflow-checks` *off* by default, and this project depends on
+# integer overflow panicking in tests: that is how the neighbour-grid bug was
+# found at all, and in release the same overflow wraps silently to `i64::MIN`
+# and computes physics against an arbitrary cell. `debug-assertions` likewise
+# keeps every `debug_assert!` in the engine alive rather than compiling it out.
+# `tests/profile_guard.rs` asserts that both are still in force.
+#
+# Floating-point results are unaffected: rustc does not reassociate float
+# arithmetic at any opt-level, and the determinism tests pass either way.
+[profile.test]
+opt-level = 2
+debug-assertions = true
+overflow-checks = true
