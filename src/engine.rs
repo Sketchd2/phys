@@ -2603,18 +2603,45 @@ impl World {
         out
     }
 
-    /// Drill from a node down to the requested tier along the most massive
-    /// child at each step, materialising and promoting as it goes.
+    /// Drill from a node down to a target *size* along the most massive child
+    /// at each step, materialising and promoting as it goes.
     ///
     /// This is the "zoom in" primitive: the path from a galaxy to a nucleus is
     /// one call, and the engine materialises exactly the chain of nodes along
     /// the way and nothing else. That chain is a few thousand bodies, not 10^66.
-    pub fn drill(&mut self, from: NodeIdx, to_tier: Tier, specs: &dyn Fn(Tier) -> SampleSpec) -> Vec<NodeIdx> {
+    ///
+    /// `target` is a physical scale — the smallest thing that has to exist.
+    /// From a viewpoint it is [`crate::observe::Observer::linear_resolution`]
+    /// at the distance to the node, the smallest separation that observer
+    /// could tell apart. From a physical interaction it is whatever scale the
+    /// interaction acts at: a contact patch, a wavelength, a blast radius.
+    ///
+    /// **The target is a length rather than a tier deliberately.** A tier is a
+    /// label `promote` derives from the promoted *body's* radius, and a label
+    /// can disagree with what the node it names actually holds — a node full
+    /// of nucleons can be marked `Atomic` and then never satisfy
+    /// `tier >= Tier::Nuclear` however far the descent goes. A radius cannot
+    /// disagree with itself, and it shrinks at every step, so the loop ends
+    /// because it arrived rather than because it ran out of patience.
+    pub fn drill_to(
+        &mut self,
+        from: NodeIdx,
+        target: f64,
+        specs: &dyn Fn(Tier) -> SampleSpec,
+    ) -> Vec<NodeIdx> {
         let mut path = vec![from];
         let mut cur = from;
+        // Still capped. The cap is now a guard against a tree that misbehaves
+        // — a promoted body no larger than its parent, say — rather than the
+        // thing that ends an ordinary descent.
         for _ in 0..64 {
-            let tier = self.tree.nodes[cur.get()].tier;
-            if tier >= to_tier {
+            let (tier, radius) = {
+                let n = &self.tree.nodes[cur.get()];
+                (n.tier, n.matter.radius)
+            };
+            // Written so that a non-finite radius or target stops rather than
+            // spinning: `!(a >= b)` is false only when the comparison holds.
+            if !(radius >= target) {
                 break;
             }
             self.tree.refine(cur);
@@ -2643,6 +2670,19 @@ impl World {
             cur = child;
         }
         path
+    }
+
+    /// Drill until the path reaches `to_tier`, expressed as the size that
+    /// means.
+    ///
+    /// Exactly equivalent to the tier test it replaces: `Tier::containing(r)`
+    /// is at least `to_tier` precisely when `r < to_tier.max_radius()`, and the
+    /// `.max(parent_tier)` in `promote` can only make a tier finer, which the
+    /// loop would already have stopped on. Kept because "drill to the molecular
+    /// tier" is what most callers mean, and because expressing it this way is
+    /// what makes it terminate on something monotone.
+    pub fn drill(&mut self, from: NodeIdx, to_tier: Tier, specs: &dyn Fn(Tier) -> SampleSpec) -> Vec<NodeIdx> {
+        self.drill_to(from, to_tier.max_radius(), specs)
     }
 
     /// Total conserved quantities over the whole live world.

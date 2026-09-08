@@ -180,6 +180,25 @@ impl Tier {
         }
     }
 
+    /// The radius at or above which an object is *coarser* than this tier.
+    ///
+    /// The length form of "has this reached tier `self` yet": `containing(r)`
+    /// is at least `self` exactly when `r < self.max_radius()`. Infinite for
+    /// `Galactic`, because nothing is coarser than a galaxy.
+    ///
+    /// It exists so a descent can be expressed as a target *size* while still
+    /// meaning what a target tier meant. A size is the safer thing to loop on:
+    /// a tier is a label derived from a radius, and a label can disagree with
+    /// what a node actually holds, whereas a radius cannot disagree with
+    /// itself and shrinks on every step.
+    pub fn max_radius(self) -> f64 {
+        if self == Tier::Galactic {
+            f64::INFINITY
+        } else {
+            self.coarser().floor()
+        }
+    }
+
     /// The tier appropriate to an object of this size. Derived from the
     /// physical scale, never from how deep in the tree the object happens to
     /// sit.

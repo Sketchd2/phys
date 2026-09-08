@@ -973,3 +973,125 @@ fn a_new_epoch_forces_a_resend() {
     assert!(!after.nodes[0].detail.is_unchanged(), "old-epoch detail is gone, not stale");
     assert!(after.nodes[0].facts_included, "and its facts travel with it");
 }
+
+/// A descent ends because it arrived, not because it ran out of patience.
+///
+/// `drill_to` takes a target *size*. That matters beyond ergonomics: the tier
+/// it replaced as a stopping condition is a label `promote` derives from the
+/// promoted body's radius, and a label can disagree with what the node it
+/// names actually holds. A node full of nucleons marked `Atomic` never
+/// satisfies `tier >= Tier::Nuclear` however deep the descent goes, and the
+/// only thing that ends the loop is its iteration cap. A radius cannot
+/// disagree with itself, and it shrinks at every step.
+///
+/// So the assertions are: the descent stopped *below the target* and not at
+/// the cap, and every step above the last was genuinely still too big.
+#[test]
+fn drilling_targets_a_size() {
+    const CAP: usize = 64;
+
+    for &target in &[1e12, 1e6, 1e0, 1e-9] {
+        let mut w = a_world();
+        let root = w.tree.root;
+        let path = w.drill_to(root, target, &default_spec);
+        let last = *path.last().unwrap();
+        let reached = w.tree.nodes[last.get()].matter.radius;
+
+        assert!(
+            path.len() < CAP,
+            "target {target:.0e} m: the descent ran to its iteration cap, which means it \
+             stopped because it gave up rather than because it arrived"
+        );
+        assert!(
+            reached < target,
+            "target {target:.0e} m: stopped at a node of radius {reached:.3e} m, which is \
+             not below the target"
+        );
+        // Every node before the last had to still be too big, or the descent
+        // overshot and materialised detail nobody asked for.
+        for &n in &path[..path.len() - 1] {
+            let r = w.tree.nodes[n.get()].matter.radius;
+            assert!(
+                r >= target,
+                "target {target:.0e} m: node of radius {r:.3e} m is already below the \
+                 target and should have ended the descent"
+            );
+        }
+        println!(
+            "  target {target:.0e} m -> {} nodes, ending at {:.3e} m",
+            path.len(),
+            reached
+        );
+    }
+}
+
+/// The tier form still means what it meant.
+///
+/// `drill(from, t)` is now `drill_to(from, t.max_radius())`, and the claim is
+/// that this is not an approximation: `Tier::containing(r)` is at least `t`
+/// exactly when `r < t.max_radius()`. If that identity is wrong, every one of
+/// the forty-odd existing callers quietly changed behaviour.
+#[test]
+fn the_tier_form_of_drilling_is_the_size_form() {
+    for tier in Tier::ALL {
+        let mut by_tier = a_world();
+        let root = by_tier.tree.root;
+        let a = by_tier.drill(root, tier, &default_spec);
+
+        let mut by_size = a_world();
+        let root = by_size.tree.root;
+        let b = by_size.drill_to(root, tier.max_radius(), &default_spec);
+
+        assert_eq!(a, b, "{tier:?}: the two forms took different paths");
+        // And the path really is at the tier that was asked for.
+        let last = *a.last().unwrap();
+        assert!(
+            by_tier.tree.nodes[last.get()].tier >= tier,
+            "{tier:?}: ended at {:?}",
+            by_tier.tree.nodes[last.get()].tier
+        );
+        println!("  {tier:?}: {} nodes, target {:.3e} m", a.len(), tier.max_radius());
+    }
+}
+
+/// The viewpoint-driven form: drill to what an observer could actually resolve.
+///
+/// `Observer::linear_resolution(d)` is `d * angular_resolution` — the smallest
+/// separation distinguishable at that range. Feeding it to `drill_to` is the
+/// whole level-of-detail policy expressed as one call, and it is why the target
+/// is a length: an observer has a resolvable *size*, not a tier.
+#[test]
+fn a_viewpoint_supplies_the_target_size() {
+    use phys::observe::Observer;
+
+    let mut w = a_world();
+    let root = w.tree.root;
+
+    // Two observers of the same acuity at very different ranges want very
+    // different detail, and the descent should reflect exactly that.
+    let sharp = Observer { angular_resolution: 1e-4, ..Default::default() };
+    let near = sharp.linear_resolution(1e6);
+    let far = sharp.linear_resolution(1e20);
+    assert!(near < far, "a closer observer must demand finer detail");
+
+    let deep = w.drill_to(root, near, &default_spec);
+    let mut w2 = a_world();
+    let root2 = w2.tree.root;
+    let shallow = w2.drill_to(root2, far, &default_spec);
+
+    assert!(
+        deep.len() > shallow.len(),
+        "the closer observer's descent ({} nodes) should go deeper than the distant \
+         observer's ({} nodes)",
+        deep.len(),
+        shallow.len()
+    );
+    for (label, path, w) in [("near", &deep, &w), ("far", &shallow, &w2)] {
+        let last = *path.last().unwrap();
+        println!(
+            "  {label}: {} nodes, ending at {:.3e} m",
+            path.len(),
+            w.tree.nodes[last.get()].matter.radius
+        );
+    }
+}

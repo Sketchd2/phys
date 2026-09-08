@@ -358,3 +358,66 @@ meant to be measured afterwards — a detonation, a vented compartment, an
 ablating surface. Nothing built so far expands; every test either holds a bound
 configuration or collapses one. This is the reason it has not bitten yet, and
 the reason it will.
+
+---
+
+## A coarse node does not age
+
+**Noticed:** asked how a planet revisited after a hundred years can be right
+when `sample` regenerates it from a static seed.
+**Where:** `engine.rs` — `coast_to`, `survey`, `react_all`. `tree.rs` — `refine`.
+
+The seed is not the problem, and the answer to the question as asked is that
+`sample` is deterministic in `(matter, spec, world_seed, key, epoch)`, of which
+`matter` and `epoch` both move. Regenerating gives *a* sample of the node's
+**current** bulk state rather than the *same* sample — which is exactly the
+rule `tree.rs` already states, that past a mixing time a stored sample is "no
+longer *that* state, only *a* state" — and detail somebody touched is exempt
+anyway, because it is pinned and comes back verbatim from the store.
+
+**The problem is what moves `matter` while the node is coarse.** Measured:
+
+* `coast_to` advances **`motion` only** — position, velocity, orientation.
+  Not temperature, not composition, not internal energy.
+* `TaskKind::Grow` runs on any node with a `morphology`, materialised or not.
+  The comment there is right and is the model for everything below: "growth
+  advances whether or not anything is materialised — in fact especially when
+  nothing is. This is the payoff of the bulk representation."
+* `react_all` runs on any node with a `mixture`, materialised or not, on the
+  bulk temperature.
+* `TaskKind::Step` needs bodies, so it does nothing for a coarse node.
+
+So **a coarse node evolves if and only if it has a morphology or a mixture.**
+Everything else is frozen but moving. A planet with neither coasts a century
+and comes back at the same temperature, with the same composition and the same
+internal energy, having only changed position.
+
+The sharpest instance: `matter.luminosity` is computed from Stefan-Boltzmann
+and *read* — for illumination in `environment_at`, for flux in `observe.rs` —
+but nothing anywhere subtracts `luminosity * dt` from `internal_energy`. Every
+star in the world radiates into every scene and never spends anything.
+
+**What it needs** is a bulk evolution law: the coarse-state counterpart to the
+solvers, run from `survey` on the same "materialised or not" basis growth
+already uses. The candidates are the processes that are slow, monotone and
+depend only on the bulk tuple — radiative cooling, radioactive decay of the
+composition, tidal and orbital evolution, accretion and mass loss. Structurally
+this is the trick growth already proves works, applied to the quantities growth
+does not own; the cost argument is the same one, that 10^4 bulk nodes cost 10^4
+ODE steps whatever they stand for.
+
+Two things to get right rather than assume. It has to be **consistent with the
+fine solver**: a node cooled as bulk for a century and then materialised must
+land where materialising it and integrating for a century would have — at
+least in the conserved quantities, which is the same guarantee
+`summarise(sample(m)) = m` already carries. And it has to be **idempotent
+across coarsen/refine cycles**, or a node that is looked at repeatedly evolves
+at a different rate from one that is not, which would make observation change
+the physics.
+
+**Trigger:** the first thing whose *state* rather than position is expected to
+differ after being left alone — a star that should have dimmed, a reactor slug
+that should have decayed, a body that should have cooled. It is invisible until
+someone looks twice and compares, and it is the mechanism by which "detail
+exists where something is happening" stays honest: a node that is not happening
+still has to *become* the thing you would find when you look again.
