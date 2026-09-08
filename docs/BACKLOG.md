@@ -508,3 +508,173 @@ The remaining honest cause is that `cargo test` has no per-test timeout, so a
 405-second test is indistinguishable from a hang. At 123 s for the suite that
 matters much less, and `timeout` around the command turns the remaining case
 into an error rather than a wait.
+
+---
+
+## A promoted child never feels a force
+
+**Noticed:** auditing what the engine does and does not couple, after the
+neutron-bombardment question.
+**Where:** `tree.rs` — `promote`, `sync_from_child`. `coords.rs` —
+`Motion::advance`. `engine.rs` — `coast_to`, `advance_node`.
+
+`promote` sets a child's `Motion` from the body it stands for — `offset =
+body.pos`, `velocity = body.vel` — and sets `matter.momentum = ZERO`, because
+the child's *frame* now carries the bulk motion. That is right. What is missing
+is the other half: nothing ever changes `motion.velocity` again.
+
+`Motion::advance` is `offset += velocity * dt` and a constant spin. Grepped
+across the crate, `motion.velocity` is written in exactly two places —
+`promote`, and decoding a saved world — and read everywhere else. **A promoted
+node moves ballistically in its parent's frame for the rest of its life.**
+
+Meanwhile the parent still holds the body it was promoted from, in the same
+slot, and the parent's own solver goes on integrating it. So the same object has
+two representations moving under different laws. Measured, promoting the most
+massive body of a galaxy and running forty frames:
+
+```text
+    child node velocity  1.523667e4 m/s -> 1.523667e4 m/s   (unchanged)
+    parent body velocity 1.523667e4 m/s -> 1.520674e4 m/s   (gravity acting)
+    divergence after 40 frames: 6.7e18 m — 0.79 of the child's own radius
+```
+
+They reconcile only on `coarsen`, which calls `sync_from_child` — the single
+call site — and overwrites the parent's body from the child, discarding
+whatever the parent's solver did to it.
+
+**Why it has not been noticed.** Every test either promotes and then looks
+(where a fraction of a radius is invisible), or promotes and then coarsens
+(where the sync hides it). Nothing yet promotes two siblings and expects them to
+interact, which is the case where it becomes obvious: two vehicles in one frame
+do not attract, collide, or perturb each other at all, because neither one's
+node can be moved by anything.
+
+**The fix is a direction to choose, not a line to write.** Either the parent's
+body is the authority and the child's `Motion` is slaved to it each frame — cheap,
+but then a promoted node cannot have its own dynamics; or the child is the
+authority and the parent's body is slaved to the child, which is `sync_from_child`
+run every frame instead of only at coarsen, and costs one write per promoted node
+per frame. The second is more consistent with what promotion means everywhere
+else — the child is the real thing, the body is the stand-in — and it is what
+makes the parent's solver see the child's evolved position, which is what
+sibling interaction needs.
+
+**Trigger:** the first time two promoted things are meant to affect each other.
+That is most of the stated play space, so this is nearer than its position in
+this file suggests.
+
+---
+
+## Sparse discrete transport has no solver shape
+
+**Noticed:** asked how "a region of water bombarded by neutrons" would be
+handled.
+**Where:** nowhere, which is the point. `solvers::for_tier` offers Gravity,
+GravityHydro, Hydro, MolecularDynamics and Statistical.
+
+**Every solver in the engine is a dense-interaction solver.** Gravity: every
+body pulls every body. Hydro: every neighbour within `h`. MD: every neighbour
+within `cutoff`. All three assume a particle interacts with everything nearby,
+continuously, every step.
+
+A neutron is the opposite. It is a Nuclear-tier object (10^-15 m) whose *mean
+free path in water is centimetres* — Continuum tier, five tiers coarser than
+itself. It crosses ~10^23 molecules' worth of matter without touching any of
+them, then interacts once, discretely. Put it in a Continuum node as a `Body`
+today and `for_tier` hands it SPH, which would give it a smoothing length of
+centimetres and have it interact with everything continuously: modelling as
+dense the one thing whose entire physics is that it is rare.
+
+The same shape covers photons through a medium, cosmic rays, and any beam.
+
+**What exists.** The water is fine: `chem` builds H2O from first principles, a
+node carries it as a `Mixture`, `react_all` runs each frame. `Isotope::Neutron`
+decays correctly with an 878.4 s half-life in `advance_statistical`. And the
+delivery mechanism is already the right shape — `causal::Influence` is a
+discrete cross-node event with a causally-ordered arrival time, and
+`InfluenceKind::Radiation` already exists.
+
+**What does not.** Grepped for cross-section, mean free path, capture,
+moderation, attenuation, radiolysis: nothing.
+
+* `solvers::nuclear` is entirely *stellar* — Gamow peak, pp-chain, CNO,
+  triple-alpha, SEMF, opacity. Those are thermonuclear rates for a hot plasma
+  in equilibrium, not (n,elastic) or (n,gamma) for a beam.
+* `advance_statistical` moves bodies ballistically and samples decay. It never
+  asks what a body is passing *through*.
+* `apply_influence` can only `add_heat` and add momentum. Every `InfluenceKind`
+  collapses to those two, so `1H(n,gamma)2H` has no route in.
+* `Interaction::Inject` takes a `Composition`, which is the eight
+  `CoarseElement` buckets. There is no free neutron in that account.
+* `chem::react` moves mass between *phases only*, and its own module doc says
+  that is what makes it safe to run everywhere: "the elemental account cannot
+  move, because dissolving a salt does not transmute anything." Radiolysis
+  produces H., OH., e-aq, H2, H2O2 — new species. It is precisely what that
+  pass is built not to do.
+
+**What the shape would be**, and it fits the engine's principles rather than
+fighting them:
+
+1. **A travelling particle is an influence in flight, not a body.** The mailbox
+   already models a scheduled discrete event with a causally correct arrival
+   time. What is missing is that `apply_influence` cannot change composition.
+2. **Schedule by the mean free path, not the particle's size** — the same
+   lesson as `drill_to`. Lambda is a *length*, and `Tier::containing(1e-2)`
+   puts the flight at Continuum where it belongs.
+3. **Most cross sections derive.** Sigma = n·sigma, and the number density
+   comes from `Matter`'s mass, radius and composition, which every node already
+   carries. Elastic scattering off hydrogen is two-body kinematics — a neutron
+   loses half its energy per collision with a proton, which is *why* water
+   moderates, and ~18 collisions take 2 MeV to thermal. Only radiative capture
+   needs real data (1/v plus resonances): a legitimate derived-and-stored
+   shortcut rather than a table of everything.
+4. **Almost no molecule ever needs to exist.** 10 cm^3 of water is 3x10^23
+   molecules; a 10^9 n/s beam over a microsecond is ~10^3 interactions. Each is
+   one place to `drill_to`, do the physics, and let go. This scenario is close
+   to the ideal advertisement for the design.
+
+**Trigger:** any radiation, any beam weapon, any dosimetry, any reactor, and the
+"radiation damage to tissue" item that has been on the informal list since the
+morphology work. Also the honest answer to "what happens if I shine this at
+that", which is a question the play space will ask constantly.
+
+---
+
+## What else is not coupled — an audit
+
+**Noticed:** asked to check for other interactions that are not handled, having
+found the two above.
+**Method:** grepped for each mechanism by name across `src/`, then checked
+whether what was found is *read* by anything rather than merely stored.
+
+Recorded together because they share a cause: the engine models what happens
+*inside* a node very well and what happens *between* nodes barely at all. The
+only inter-node couplings that exist are the causal influence mailbox, the
+parent's luminosity reaching a child through `environment_at`, and
+`sync_from_child` at coarsen.
+
+| interaction | state | note |
+|---|---|---|
+| **Contact / collision** | only `Fragment` | `Fragment::contacts` handles a detached piece against the structure it fell from and the ground. Two vehicles cannot collide; nothing can rest on anything. |
+| **Electromagnetism above molecular tier** | absent | `md.rs` has a shifted-force Coulomb term, so charge is real at Molecular/Atomic tier. `Body::charge` is read by **no other solver** — an ion at Continuum tier has a charge that does nothing. |
+| **Magnetism** | dead state | `Matter::magnetic_energy` is persisted and initialised and **read by nothing**. No field, no Lorentz force, no MHD. |
+| **Radiative transfer** | one hop only | `environment_at` gives a child the flux from its *parent's* luminosity. No sibling-to-sibling light, no shadowing, no opacity attenuation. The opacity functions exist but serve stellar burning. |
+| **Heat conduction between nodes** | absent | A hot node beside a cold one never equilibrates. Conduction exists *within* a structure (`Mechanism::ConductedEnergy`) and within SPH neighbours, never across a node boundary. |
+| **Mass diffusion between nodes** | absent | Chemistry runs within one node's `Mixture`. Nothing crosses a boundary, so a solute cannot spread from one node into the next. |
+| **Free surfaces and interfaces** | absent | A node holds one `Mixture` with phase fractions, not a *surface* between them. So no buoyancy, no capillarity, no surface tension, no sloshing, no "water level". |
+| **Reactions beyond phase change** | absent | Combustion, corrosion, acid/base, redox. `react` may not move the elemental account by construction. |
+| **Transmutation by reaction** | stellar only | `burn` changes composition through fusion channels; nothing else can. |
+| **Friction between bodies** | absent | `MdParams` has Langevin friction (a thermostat, not contact) and `Mechanism::FlowDrag` is a fluid load on a structure. Sliding, rolling and static friction between two objects do not exist. |
+
+**The pattern worth naming.** Several of these are one mechanism wearing
+different clothes: conduction, diffusion, radiative exchange and contact are all
+"two adjacent nodes exchange a conserved quantity across their shared boundary".
+The engine has no notion of adjacency at all — nodes know their parent and their
+children, and `separation` can measure any two, but nothing enumerates *what is
+next to what*. A neighbour relation between sibling nodes is the single missing
+primitive underneath four of the rows above, and it is worth designing once
+rather than four times.
+
+**Trigger:** each row has its own, but the neighbour relation should be designed
+before the first of them is built, or it will be built four incompatible ways.
