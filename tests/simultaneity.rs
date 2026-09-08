@@ -360,24 +360,24 @@ fn rendering_interpolates_to_the_instant() {
 ///
 /// **Ignored, because it still fails — and what it catches is a live bug.**
 /// Fixing the substep clamp cut the overshoot from 4.5x10^8 radii to 4.0x10^7
-/// and no further, because the clamp was never the cause. The cause is that
-/// `Tier::Atomic.floor()` is 1x10^-14 m, so the tier table calls a node four
-/// orders of magnitude smaller than an atom "Atomic", the drill keeps refining
-/// into it, and `sample` packs 56 Lennard-Jones bodies into a sphere smaller
-/// than one atom:
+/// and no further, because the clamp was never the cause. Nor is the packing
+/// unphysical, which was the second wrong answer. The contents are correct and
+/// the *solver* is wrong:
 ///
 /// ```text
-///     node 15  radius 1.680e-10 m  min separation 1.331e-10 m  dt 1e-14  healthy
-///     node 18  radius 5.917e-12 m  min separation 5.526e-13 m  dt floored
-///     node 22  radius 2.762e-14 m  min separation 2.090e-15 m  dt floored
+///   node 15  tier=Atomic  MD  n= 8  Atom     r=1.680e-10  sep=1.331e-10  healthy
+///   node 16  tier=Atomic  MD  n=56  Nucleon  r=5.292e-11  sep=5.704e-12
+///   node 22  tier=Atomic  MD  n=56  Nucleon  r=2.762e-14  sep=2.090e-15
 /// ```
 ///
-/// At 2x10^-15 m the Lennard-Jones repulsion is of order (sigma/r)^13 ~ 10^64.
-/// No timestep integrates that, which is why `configuration_dt` returns
-/// something near zero and `.max(1e-24)` — a third silent clamp — hands back a
-/// step that is still 10^20 too large. The configuration is unphysical before
-/// any integrator sees it, so this is a sampling and tiering fault, not a
-/// solver one. See `docs/BACKLOG.md`.
+/// Those are nuclei — 56 nucleons in a Woods-Saxon profile, which is what a
+/// nucleus is. But `promote` takes the child's tier from the promoted *body's*
+/// radius, and the body is an atom, so the node is labelled `Atomic` and
+/// `for_tier(Atomic)` hands it molecular dynamics. Lennard-Jones, sigma about
+/// 1e-10 m, applied to nucleons a few femtometres apart. The drill then never
+/// reaches `Nuclear` to stop at, so it splits nucleons into nucleons for
+/// twenty-four levels. See `docs/BACKLOG.md` for the fix and what to check
+/// about it.
 #[test]
 #[ignore = "catches a live bug: Atomic nodes are refined below atomic scale"]
 fn no_node_flings_its_bodies_out_of_itself() {

@@ -251,40 +251,61 @@ it is `#[ignore]`d because **it still fails**. That is the useful part. The
 clamp fix cut the overshoot from 4.5x10^8 radii to 4.0x10^7 and stopped there,
 which is how we know the clamp was never the cause either.
 
-**The cause, third time asked, measured rather than guessed.** `Tier::Atomic`
-has `floor() == 1e-14` m. The drill refines within a tier as long as the child
-still belongs to it, so it walks an Atomic node down through radii of 5.3e-11,
-2.3e-11, 5.9e-12, ... 2.8e-14 m — every one of them "Atomic" by the table —
-and `sample` puts 56 bodies in each:
+**The cause. Measured this time, and it is not what the two paragraphs above
+first replaced the earlier guess with either — the packing is not unphysical,
+the solver assignment is wrong.**
 
 ```text
-    node 15  radius 1.680e-10 m  min separation 1.331e-10 m  configuration_dt 1e-14
-    node 16  radius 5.292e-11 m  min separation 5.704e-12 m  configuration_dt 3.8e-20
-    node 18  radius 5.917e-12 m  min separation 5.526e-13 m  configuration_dt floored
-    node 22  radius 2.762e-14 m  min separation 2.090e-15 m  configuration_dt floored
+  node  14  tier=Molecular  MolecularDynamics  n=8000  Molecule  r=6.720e-9   sep=1.540e-11
+  node  15  tier=Atomic     MolecularDynamics  n=   8  Atom      r=1.680e-10  sep=1.331e-10
+  node  16  tier=Atomic     MolecularDynamics  n=  56  Nucleon   r=5.292e-11  sep=5.704e-12
+  node  17  tier=Atomic     MolecularDynamics  n=  56  Nucleon   r=2.264e-11  sep=1.342e-12
+  ...
+  node  22  tier=Atomic     MolecularDynamics  n=  56  Nucleon   r=2.762e-14  sep=2.090e-15
 ```
 
-Node 15 is a real atomic neighbourhood and integrates perfectly. Node 22 is a
-sphere smaller than a nucleus holding fifty-six Lennard-Jones atoms two
-femtometres apart. The LJ repulsion there is of order `(sigma/r)^13` with
-sigma ~ 1e-10 m, so about 10^64: not a stiff system, an impossible one. No
-timestep integrates it, which is exactly what `configuration_dt` reports by
-returning something near zero — and `.max(1e-24)`, a third silent clamp of the
-same family as the other two, converts that honest refusal into a step 10^20
-too large.
+Node 15 is a real atom and integrates perfectly. Nodes 16 onward hold **56
+nucleons in a Woods-Saxon profile** — which is exactly right, a nucleus *is*
+fifty-six nucleons — and are labelled `Tier::Atomic`, so `solvers::for_tier`
+hands them **`MolecularDynamics`**. Lennard-Jones, with a sigma of about
+1e-10 m, applied to nucleons a few femtometres apart. The contents are correct
+physics; the solver is for a scale five orders of magnitude coarser.
 
-So the configuration is unphysical *before any integrator runs*. This is a
-sampling and tiering fault, and the two clamps fixed above were real bugs that
-were making it worse rather than causing it.
+**Why the tier is wrong.** `promote` derives the child's tier from
+`Tier::containing(body.radius)`, and the body being promoted out of node 15 is
+an *atom*, so its radius sits squarely in the Atomic band. The spec it is
+filled with, `default_spec(Atomic.finer())`, is the Nuclear one. Tier from the
+radius, contents from the spec, and nothing reconciles them.
 
-**The fix is one of two, and they are not equivalent.** Either the tier floor is
-wrong — `Tier::Atomic.floor()` should be around 1e-10 m, the size of an atom
-and of the potential that describes one, not 1e-14 — or the floor is right and
-`sample` must refuse to place more bodies in a node than physically fit in its
-volume, which is a constraint it does not currently have and which every tier
-would benefit from. The first is a one-line change with consequences for the
-whole ladder's shape; the second is the more general guarantee. Deciding
-between them is the work, not typing either.
+**Why it then runs away.** `drill` stops when `tier >= to_tier`. The tier never
+reaches Nuclear, so it promotes the most massive *nucleon* into a smaller node,
+fills it with 56 more nucleons, and repeats — twenty-four levels of nucleons
+splitting into nucleons, each one narrower than the last, until the radius
+finally falls below `Tier::Atomic.floor()`.
+
+**The guard for this is already written, and is half of one.** `tree.rs`
+lines 404-427 replace a spec meant for a *coarser* scale with the tier's own
+policy, and deliberately keep one meant for a finer scale: "asking to split an
+atom into nucleons is a deliberate step down and not a mistake, and overriding
+it would leave the ladder unable to reach its own bottom." That is right. But
+having kept the finer spec, it leaves the node's tier — and therefore its
+solver, its timestep and its cadence — describing the coarser scale it took
+the radius from.
+
+**The fix**, then, is narrower than the two options this entry previously
+offered, both of which were aimed at the wrong target: when the spec is
+deliberately finer than the radius-derived tier, the **tier should follow the
+spec**, not the radius. `tier = tier_of(spec.kind).max(...)` rather than
+`Tier::containing(body.radius).max(parent_tier)` in that branch. Node 16 then
+becomes Nuclear, takes the `Statistical` solver, no force field touches a
+nucleon, and `drill` terminates where it was asked to.
+
+Two things to check before believing that is all of it: a node of radius
+5.3e-11 m holding a nucleus is carrying its *atom's* radius, which is
+defensible for a node that represents the atom but means the Woods-Saxon
+profile is being scaled to the atom rather than to the nucleus (hence
+`sep=5.7e-12` where a real nucleus is ~1e-15 m across); and the ladder's shape
+changes, since the path shortens from 24 to about 17.
 
 **Trigger:** now, in the sense that the ignored test is the reminder. Nothing in
 the play space reaches Atomic tier yet, so it blocks nothing — but the debug
