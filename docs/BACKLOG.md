@@ -678,3 +678,118 @@ rather than four times.
 
 **Trigger:** each row has its own, but the neighbour relation should be designed
 before the first of them is built, or it will be built four incompatible ways.
+
+---
+
+## A detached fragment is neither a body nor a node
+
+**Noticed:** asked whether a broken tree branch should become its own node.
+**Where:** `engine.rs` — `World::falling`, `drop_fragments`, `MAX_FALLING`,
+`MAX_FALL_SECONDS`. `solvers/structure.rs` — `Fragment`, `detach`.
+
+A branch that snaps lives in a third place: `World::falling`, a
+`Vec<(NodeIdx, Fragment)>` keyed by the node it fell from. Its mass stays in
+that node — `GrowthStep::mass_detached` states the policy outright, "mass that
+left the structure but stayed in the node; a fallen limb is litter, not an
+absence" — while the `Fragment` carries its own topology and tumbling dynamics
+for at most twelve seconds and is then dropped.
+
+**The policy, when this is built: promote on leaving the volume, not on
+detaching.** Detachment is a topological fact; deserving a node is a spatial
+one. A branch that settles two metres down is still in the tree's
+neighbourhood — same frame, same volume, litter rather than structure — and
+promoting it buys nothing. A branch blown off a cliff, or knocked off a vehicle
+in flight, has left the parent's neighbourhood, and that is what a node is for.
+The test is the spread measurement that node splitting already needs, so the
+two share machinery.
+
+**Five things that are wrong today regardless.**
+
+1. `MAX_FALL_SECONDS = 12` is a terrestrial assumption. A piece falling from a
+   200 m tower, or in low gravity, is written off in mid-air and its mass
+   silently reverts to being inside the parent.
+2. `MAX_FALLING = 24`, and past it the loop simply `break`s. A vehicle at the
+   top of the stated play-space scale shedding debris gets twenty-four pieces.
+3. A fragment can only strike the node it fell from — `contacts` is called with
+   that node's bodies. A branch cannot land on the next tree, on a person, or
+   on a vehicle. That is the missing adjacency relation again.
+4. While it falls, its mass is in the wrong place: the parent's `matter.mass`,
+   `com` and `radius` are unchanged, so gravitationally and thermodynamically
+   the branch is still inside the tree while visually ten metres away.
+5. Fragments do not survive a save — `persist.rs` says in-flight solver state
+   is not stored. Mass is safe because it stayed in the node, but a save taken
+   mid-collapse loses the debris.
+
+**Two blockers, both already in this file, and the order matters.** A promoted
+fragment would *float, not fall*, because a promoted node never feels a force.
+And `promote(node, slot, spec)` takes a single slot, while a fragment is a *set*
+of members — expressing it needs the sibling-from-a-subset operation that node
+splitting is about. Fix those two and this stops being an architectural question
+and becomes one line of policy in the spread check.
+
+**Trigger:** the first debris that has to outlive twelve seconds, land on
+something other than its own parent, or survive a save.
+
+---
+
+## `World` accumulates what could not decide whose property it was
+
+**Noticed:** asked whether the world is not just a node with children, and
+whether the design had crept.
+
+**It has, in one specific way, and the core has not.** `Tree { nodes, root }`
+*is* the world, the root node is the universe, and `World::new` paces to the
+root immediately so a world is watchable the moment it exists. That much is
+intact. What `World` adds falls into three groups and only the third is creep.
+
+**Legitimate — the apparatus for simulating.** `budget`, `gate`, `observers`,
+`time`, `pace`, `pace_mode`, `stats`, `gpu`, `history_depth`. A universe does
+not have a frame budget; the process watching it does. These belong off the
+node, and the useful test is: *would this still be true if nobody were
+simulating?*
+
+**Defensible but drifting — sparse per-node data in side tables.**
+`histories`, `clocks`, `environments`, `mixtures`, all `HashMap<PathKey, _>`.
+Each has a real justification, and `mixtures` states it well: `Matter` is `Copy`
+and about two hundred bytes, a `Mixture` is another hundred and forty, and most
+nodes have no chemistry at all — "a galaxy is not made of anything you could put
+in a beaker". Keying by `PathKey` so they survive coarsening is the same trick
+pinned detail uses, and is right.
+
+What has drifted is that a node's identity now lives in five places and
+**nothing enumerates them together**. The evidence: `Tree::release_subtree`
+kills a node, and it is a method on `Tree`, which cannot see `World`'s tables.
+So `histories`, `clocks` and `environments` are **never pruned** — grep finds no
+`remove` or `retain` on any of them. `mixtures` has exactly one `remove`, in
+`set_mixture`, for the unrelated case of a mixture becoming empty. Every node
+that ever dies leaves its entries behind, keyed on a path that no longer exists.
+Adding a sixth table and forgetting it costs nothing today and is caught by
+nothing.
+
+**Creep — `falling` and `shaking`.** These are world state: a branch really is
+falling whether or not anyone is simulating it, which is exactly the test above,
+and it fails. They sit on the simulator as `Vec<(NodeIdx, T)>`, capped at
+twenty-four, unpersisted, and keyed by **`NodeIdx` rather than `PathKey`** while
+`release_subtree` recycles indices through `Tree::free`. A fragment that
+outlives its node would then deliver its impulses to whatever node next takes
+that slot. *Not demonstrated* — it needs a promoted node damaged, released while
+its pieces are still in the air, and its index reused inside twelve seconds —
+but the shape is wrong regardless, and it is why a fragment can only strike the
+node it fell from: its identity is a *pair* rather than a thing in the world.
+
+**What to do, in order of how much it buys.**
+
+1. **Prune on death.** Whatever else changes, a node dying must drop its side
+   entries. Easiest as a `World`-level release that calls `Tree::release_subtree`
+   and then sweeps the tables, so `Tree` keeps not knowing about them.
+2. **Enumerate the tables in one place** — a struct or a macro listing them —
+   so adding a sixth cannot silently skip the sweep.
+3. **Present them as node state.** Accessors (`World::mixture_of`,
+   `environment_of`) rather than public `HashMap` fields. The side table is a
+   memory optimisation and should read like one, not like a separate concept.
+4. **Move `falling` and `shaking` into the tree**, which is the fragment entry
+   above and wants doing with it.
+
+**Trigger:** (1) as soon as a world is long-lived enough for dead paths to
+accumulate — a persistent world, which is the stated goal. (2) and (3) whenever
+the next side table is added, which is the moment the cost is lowest.
