@@ -227,7 +227,7 @@ fn main() {
         n.matter = Matter::neutral(2.0, 0.4, 291.0, phys::morph::Program::Tree.substrate());
         n.spec.count = 6000;
     }
-    w.plant(forest, phys::morph::Program::Tree, phys::morph::Environment::default());
+    w.plant(forest, phys::morph::Program::Tree, Some(phys::morph::Environment::default()));
 
     let entropy0 = w.tree.nodes[forest.get()].matter.entropy;
     println!("  {:>6} {:>12} {:>10} {:>14} {:>14}", "year", "biomass", "height", "absorbed (J)", "total dS (J/K)");

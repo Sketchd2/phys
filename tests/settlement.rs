@@ -10,7 +10,7 @@
 use phys::engine::World;
 use phys::ids::NodeIdx;
 use phys::math::{v3, Vec3};
-use phys::morph::{Environment, Program};
+use phys::morph::Program;
 use phys::sampler::{MassSpectrum, Profile, SampleSpec};
 use phys::state::{BodyKind, Matter};
 use phys::tree::Tree;
@@ -58,7 +58,7 @@ fn a_moon_with_a_town(w: &mut World) -> (NodeIdx, NodeIdx, NodeIdx, NodeIdx) {
     let ground = w.tree.promote(moon, 0, w.tree.nodes[moon.get()].spec);
     assert!(!ground.is_none(), "the moon should yield a surface patch");
     let patch_mass = PATCH_SIDE * PATCH_SIDE * (PATCH_SIDE * 0.125) * MOON_DENSITY;
-    w.emplace(ground, Program::Terrain, patch_mass, Environment::default());
+    w.emplace(ground, Program::Terrain, patch_mass, None);
 
     // The town, standing on that patch.
     w.tree.refine(ground);
@@ -69,14 +69,14 @@ fn a_moon_with_a_town(w: &mut World) -> (NodeIdx, NodeIdx, NodeIdx, NodeIdx) {
     town_spec.count = 24;
     let town = w.tree.promote(ground, 0, town_spec);
     assert!(!town.is_none(), "the ground should yield a plot for the town");
-    w.emplace(town, Program::Settlement, TOWN_MASS, Environment::default());
+    w.emplace(town, Program::Settlement, TOWN_MASS, None);
 
     // And one building out of the town.
     w.tree.refine(town);
     let building = w.tree.promote(town, 0, w.tree.nodes[town.get()].spec);
     assert!(!building.is_none(), "the town should yield a plot");
     let plot_mass = w.tree.nodes[building.get()].matter.mass;
-    w.emplace(building, Program::Tower, plot_mass, Environment::default());
+    w.emplace(building, Program::Tower, plot_mass, None);
 
     (moon, ground, town, building)
 }

@@ -94,7 +94,7 @@ fn a_world_round_trips_through_postgres() {
     let root = w.tree.root;
     let path = w.drill_to(root, Tier::Continuum.max_radius(), &default_spec);
     let deep = *path.last().unwrap();
-    w.plant(deep, phys::morph::Program::Tree, phys::morph::Environment::default());
+    w.plant(deep, phys::morph::Program::Tree, Some(Environment::default()));
     for _ in 0..6 {
         w.step_frame(50_000.0);
     }

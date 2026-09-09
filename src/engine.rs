@@ -85,6 +85,24 @@ pub const MAX_SHAKEN: usize = 64;
 /// there is nothing meaningful left to analyse.
 pub const COLLAPSE_MASS: f64 = 1e-6;
 
+/// What one step of matter evolution did.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct MatterReport {
+    /// Nodes whose thermal account moved.
+    pub nodes: usize,
+    /// Energy radiated away, J. Leaves the world: the sky is not a node.
+    pub radiated: f64,
+    /// Energy absorbed from incident light, J.
+    pub absorbed: f64,
+    /// Energy a node was asked to radiate and did not have, J.
+    ///
+    /// Non-zero means something is being made to shine out of reserves it does
+    /// not hold — usually a node whose luminosity was authored rather than
+    /// derived. Zero for a world nobody has adjusted, which is the assertion
+    /// worth making in a test.
+    pub radiation_deficit: f64,
+}
+
 /// What one step of falling debris did.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct FallReport {
@@ -249,6 +267,14 @@ pub struct EngineStats {
     pub bubbled: usize,
     /// Nodes that are made of something, and so run chemistry each frame.
     pub reacting_nodes: usize,
+    /// Energy radiated out of the world, J, summed over nodes and frames. The
+    /// sky is not a node, so this genuinely leaves rather than moving.
+    pub radiated: f64,
+    /// Energy absorbed from incident light, J, likewise summed.
+    pub absorbed: f64,
+    /// Energy nodes were asked to radiate and did not hold. Non-zero means
+    /// something is shining out of reserves it does not have.
+    pub radiation_deficit: f64,
     /// Mass fractions moved into and out of solution, summed over nodes and
     /// frames. Not a mass — a node's fraction — so it is a measure of how much
     /// chemistry is happening rather than of how much matter there is.
@@ -457,15 +483,35 @@ impl World {
     }
 
     /// Place a structure and give it conditions to grow in.
+    /// Seed a structure on a node.
+    ///
+    /// `env` is `None` for the ordinary case: the environment is then *derived*
+    /// from physics every frame — light from what is shining on the node, water
+    /// from the liquid phase of what it is made of, temperature from its own
+    /// matter — so a tree planted in a place that later freezes stops growing
+    /// without anyone arranging it.
+    ///
+    /// `Some(env)` **pins** an authored environment for that node forever, and
+    /// is for scenarios that are placing a situation rather than simulating one
+    /// — a lit planetary surface with no star in the tree to light it. It was
+    /// once the only option, and it quietly defeated the derivation: every
+    /// planted node had an override and none of them ever felt the weather.
     pub fn plant(
         &mut self,
         idx: NodeIdx,
         program: crate::morph::Program,
-        env: crate::morph::Environment,
+        env: Option<crate::morph::Environment>,
     ) {
         let key = self.tree.nodes[idx.get()].key;
         self.tree.plant(idx, program);
-        self.environments.insert(key, env);
+        match env {
+            Some(e) => {
+                self.environments.insert(key, e);
+            }
+            None => {
+                self.environments.remove(&key);
+            }
+        }
     }
 
     /// Give a node a structure that is already there, at a stated mass. The
@@ -476,11 +522,18 @@ impl World {
         idx: NodeIdx,
         program: crate::morph::Program,
         built: f64,
-        env: crate::morph::Environment,
+        env: Option<crate::morph::Environment>,
     ) {
         let key = self.tree.nodes[idx.get()].key;
         self.tree.emplace(idx, program, built);
-        self.environments.insert(key, env);
+        match env {
+            Some(e) => {
+                self.environments.insert(key, e);
+            }
+            None => {
+                self.environments.remove(&key);
+            }
+        }
     }
 
     pub fn add_observer(&mut self, o: Observer) -> usize {
@@ -533,7 +586,17 @@ impl World {
         // influences that changed the temperatures it reads. It costs at most
         // eight comparisons per node that is made of something, and nothing at
         // all for every node that is not.
-        let chemistry = self.react_all(horizon - self.time);
+        // Matter evolution before chemistry, and the order is not arbitrary:
+        // the thermal step decides what temperature the phase step is deciding
+        // at. Warming a node and then asking whether its ice has melted is the
+        // right way round; asking first and warming after delays every thaw by
+        // a frame.
+        let span = horizon - self.time;
+        let evolution = self.evolve_matter(span);
+        self.stats.radiated += evolution.radiated;
+        self.stats.absorbed += evolution.absorbed;
+        self.stats.radiation_deficit += evolution.radiation_deficit;
+        let chemistry = self.react_all(span);
         self.time = horizon;
         self.record_histories();
 
@@ -2101,11 +2164,41 @@ impl World {
         } else {
             crate::morph::Environment::default().light_flux
         };
+        // Water availability, measured rather than declared — and measured
+        // without the engine ever being told which substance is water, which it
+        // deliberately does not know. What a growing thing needs is a *mobile
+        // solvent*, and that is the liquid phase, whatever it happens to be.
+        //
+        // This is what makes a desert a desert. Nothing anywhere tests for a
+        // biome: a patch whose mixture holds no liquid grows nothing, because
+        // `thermal_factor` and this between them leave no growth to be had. And
+        // it is why a patch freezes into one: `react_all` moves mass from
+        // liquid to solid as the temperature falls, so the same ground that
+        // supported a forest in summer supports nothing in winter, through the
+        // phase machinery that was written for salt dissolving in a beaker.
+        //
+        // A node with no mixture at all has not had its chemistry described, so
+        // there is nothing to measure and the fallback is "unlimited". That is
+        // the honest answer to no information, and it is what everything built
+        // before mixtures existed relies on.
+        let water = match self.mixtures.get(&n.key) {
+            Some(mix) if !mix.is_empty() => mix.in_phase(crate::chem::Phase::Liquid),
+            _ => 1.0,
+        };
+        // Competition for the same ground. A node already mostly structure has
+        // little room left, which is what stops a forest growing without bound
+        // and what makes a clearing fill in faster than a thicket.
+        let structural = n.morphology.as_ref().map(|m| m.built).unwrap_or(0.0);
+        let crowding = if n.matter.mass > 0.0 {
+            (structural / n.matter.mass).clamp(0.0, 1.0)
+        } else {
+            0.0
+        };
         crate::morph::Environment {
             light_flux: light,
             temperature: n.matter.temperature,
-            water: 1.0,
-            crowding: 0.0,
+            water,
+            crowding,
             // A structure can only be built out of matter that is actually
             // available: the node's *unstructured* remainder, not its total.
             // Using the total lets a node grow a structure many times its own
@@ -2545,6 +2638,104 @@ impl World {
     /// faster along with everything else about it, and on the node's mixing
     /// time, because how fast a node stirs itself is exactly what sets how fast
     /// a solute reaches the far side of it.
+    /// Advance every node's matter by the laws that need no detail.
+    ///
+    /// The counterpart to `advance_node`: that one runs a solver over bodies,
+    /// this one runs physics over [`Matter`], and like growth it does so
+    /// whether or not anything is materialised — in fact especially when
+    /// nothing is. Without it a node that nobody is looking at is frozen but
+    /// moving: `coast_to` advances its position and nothing advances its state,
+    /// so a planet left alone for a century comes back at the same temperature
+    /// it was, and every star in the world radiates into every scene while
+    /// spending nothing.
+    ///
+    /// **One law here, and it is deliberately one.** A node radiates by
+    /// Stefan-Boltzmann and absorbs what falls on it, and the difference goes
+    /// into its thermal account. That is the whole of it, and it is enough to
+    /// produce a great deal that is not written anywhere:
+    ///
+    /// * A hot thing cools, and a lit thing warms. Both directions, one
+    ///   subtraction, no branch deciding which.
+    /// * A node in shadow cools below freezing, `react_all` moves its liquid
+    ///   into the solid phase with the latent heat booked, and
+    ///   `environment_at` then measures no mobile solvent — so growth stops.
+    ///   Snow accumulating and a winter are the same event seen twice, and
+    ///   neither is written down.
+    /// * Light returns, the solid melts, the liquid is measurable again and
+    ///   growth resumes. Snowmelt, likewise unwritten.
+    ///
+    /// What it deliberately does *not* do is move anything between nodes. A
+    /// node warms its own contents and radiates into the void, not onto its
+    /// neighbour, because the engine has no notion of which nodes are adjacent
+    /// — see the audit entry in the backlog. Until it does, meltwater has
+    /// nowhere to run and a fire cannot spread to the next tree.
+    fn evolve_matter(&mut self, dt: f64) -> MatterReport {
+        let mut report = MatterReport::default();
+        if !(dt > 0.0) {
+            return report;
+        }
+        for i in 0..self.tree.nodes.len() {
+            let idx = NodeIdx(i as u32);
+            if !self.tree.nodes[i].alive {
+                continue;
+            }
+            let local = dt * self.local_rate(idx);
+            if !(local > 0.0) {
+                continue;
+            }
+            // Only where a blackbody is what the node actually is.
+            //
+            // A node's `temperature` means two different things depending on
+            // what it holds. For a planet or a rock it is a thermodynamic
+            // temperature and Stefan-Boltzmann applies. For a galaxy or a star
+            // cluster it is a *velocity dispersion* wearing the same field — a
+            // way of saying how fast the members move relative to each other —
+            // and a galaxy does not radiate as a 10^6 K blackbody the size of a
+            // galaxy. Applied to those, this law cools the whole world to
+            // nothing in a few frames, which is how the mistake was found.
+            //
+            // The tier is the honest place to draw it, because the tier is
+            // exactly the statement of which physics describes the node.
+            if self.tree.nodes[i].tier < crate::units::Tier::Planetary {
+                continue;
+            }
+            let env = self.environment_at(idx);
+            let n = &mut self.tree.nodes[i];
+            let r = n.matter.radius;
+            if !(r > 0.0) || !n.matter.is_finite() {
+                continue;
+            }
+            // Radiated from the whole surface; absorbed over the cross-section
+            // the node presents to what is illuminating it. The factor of four
+            // between the two is why a body's equilibrium temperature is what
+            // it is, and it falls out rather than being put in.
+            let area = std::f64::consts::PI * r * r;
+            let radiated = crate::state::stefan_boltzmann(r, n.matter.temperature) * local;
+            let absorbed = env.light_flux * area * local;
+            let net = absorbed - radiated;
+            if net == 0.0 {
+                continue;
+            }
+            // A node cannot radiate away more than it has. Floored rather than
+            // clamped silently: the shortfall is reported, because a world
+            // where this is large is one whose nodes are being asked to shine
+            // brighter than their own reserves.
+            let available = n.matter.internal_energy;
+            let applied = if net < 0.0 && -net > available {
+                report.radiation_deficit += -net - available;
+                -available
+            } else {
+                net
+            };
+            n.matter.add_heat(applied);
+            n.matter.luminosity = crate::state::stefan_boltzmann(r, n.matter.temperature);
+            report.radiated += radiated;
+            report.absorbed += absorbed;
+            report.nodes += 1;
+        }
+        report
+    }
+
     fn react_all(&mut self, dt: f64) -> crate::chem::ReactionReport {
         let mut total = crate::chem::ReactionReport::default();
         if !(dt > 0.0) || self.mixtures.is_empty() {

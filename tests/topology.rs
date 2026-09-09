@@ -255,7 +255,7 @@ fn damage_persists_and_conserves() {
         n.matter = Matter::neutral(900.0, 6.0, 291.0, Program::Tree.substrate());
         n.spec.count = 3000;
     }
-    w.plant(node, Program::Tree, Environment::default());
+    w.plant(node, Program::Tree, Some(Environment::default()));
     let mass0 = w.tree.nodes[node.get()].matter.mass;
     let baryon0 = w.tree.nodes[node.get()].matter.baryon_number;
     let built0 = w.tree.nodes[node.get()].morphology.as_ref().unwrap().built;
@@ -303,7 +303,7 @@ fn fire_releases_stored_energy_without_losing_mass() {
         n.matter = Matter::neutral(900.0, 6.0, 291.0, Program::Tree.substrate());
         n.spec.count = 3000;
     }
-    w.plant(node, Program::Tree, Environment::default());
+    w.plant(node, Program::Tree, Some(Environment::default()));
     let mass0 = w.tree.nodes[node.get()].matter.mass;
     let chem0 = w.tree.nodes[node.get()].matter.chemical_energy;
     let internal0 = w.tree.nodes[node.get()].matter.internal_energy;

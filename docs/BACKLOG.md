@@ -1004,3 +1004,33 @@ there is one place that decides.
 **Trigger:** the first time a structural node's tier matters to something. It
 does not today, which is exactly why it should be recorded rather than fixed on
 the spot.
+
+---
+
+## An authored environment is all-or-nothing
+
+**Noticed:** writing the biome tests, where a scenario wants to control the
+light on a node and still have its water measured from what the node is made
+of.
+**Where:** `engine.rs` — `environment_at` returns `self.environments[key]`
+wholesale when one is present.
+
+An override replaces the entire `Environment`, so authoring any one field
+silently discards the derivation of all the others. Setting `light_flux` to
+stage a lit surface also pins `water` at whatever the author happened to leave
+in the struct — usually `Default`'s `1.0` — and a patch that should have frozen
+into a desert goes on measuring as well watered forever.
+
+This was worse before `plant` and `emplace` took `Option<Environment>`: they
+inserted an override unconditionally, so *every* structure in the world had one
+and none of them ever felt the weather. That much is fixed. What remains is that
+an author cannot say "this much light, and derive the rest".
+
+**The fix** is a partial override — `Option` per field, merged over the derived
+values rather than replacing them. It touches the persisted `environments`
+table, so it is a wire-format change, and it wants doing before scenarios start
+depending on the all-or-nothing behaviour.
+
+**Trigger:** the first scenario that authors one field and is surprised by
+another. The biome tests dodged it by building a star and dimming that instead,
+which is more honest anyway — but it is a workaround, not a preference.

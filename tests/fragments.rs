@@ -150,7 +150,7 @@ fn a_falling_limb_damages_what_it_lands_on() {
         n.matter = Matter::neutral(4000.0, 6.0, 291.0, Program::Tree.substrate());
         n.spec.count = 900;
     }
-    world.plant(node, Program::Tree, Environment::default());
+    world.plant(node, Program::Tree, Some(Environment::default()));
     for _ in 0..70 {
         world.grow_node(node, YEAR);
     }

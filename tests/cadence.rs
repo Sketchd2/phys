@@ -356,10 +356,25 @@ fn a_fixed_pace_stays_fixed() {
     println!("  following gave {followed:.3e} s; fixed held {:.3e} s across 5 frames", w.pace);
     assert_eq!(w.pace, 86_400.0, "a fixed pace must survive refresh_pace");
 
-    // And going back to following takes effect at once.
+    // And going back to following takes effect at once — the pace becomes that
+    // node's cadence *now*.
+    //
+    // The tolerance is 1% rather than 1e-9, and the difference matters. Five
+    // frames at a fixed day each is five days of world time, and in five days
+    // the node radiates, cools a little, and its characteristic speed moves
+    // with it — measured, about six parts in ten thousand. Demanding the
+    // earlier number back to a part in a billion was asserting that nothing in
+    // the world had changed, which is not what this test is about and is no
+    // longer true now that matter evolves.
     w.pace_to(here);
     assert_eq!(w.pace_mode, PaceMode::Follow);
-    assert!((w.pace - followed).abs() / followed < 1e-9);
+    let drift = (w.pace - followed).abs() / followed;
+    println!("  following gave {followed:.6e} s before and {:.6e} s after — {drift:.2e} apart", w.pace);
+    assert!(
+        drift < 1e-2,
+        "following did not take effect: {:.6e} against {followed:.6e}",
+        w.pace
+    );
 
     // A nonsense span is refused rather than freezing the clock.
     w.pace_fixed(-1.0);

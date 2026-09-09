@@ -70,14 +70,14 @@ fn first_run(store: &mut FileStore, path: &std::path::Path) {
     w.plant(
         root,
         Program::Tree,
-        Environment {
+        Some(Environment {
             light_flux: 340.0,
             temperature: 291.0,
             water: 0.75,
             crowding: 0.1,
             reservoir_mass: 4.0e4,
             labour: 0.0,
-        },
+        }),
     );
     println!("  planted a tree in a 12 m patch of ground");
 

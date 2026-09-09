@@ -63,7 +63,7 @@ fn every_field_round_trips() {
     w.plant(
         deep,
         phys::morph::Program::Tree,
-        phys::morph::Environment { light_flux: 340.0, ..Default::default() },
+        Some(phys::morph::Environment { light_flux: 340.0, ..Default::default() }),
     );
     for _ in 0..6 {
         w.step_frame(50_000.0);
@@ -360,7 +360,7 @@ fn a_world_survives_a_round_trip_through_a_file() {
     let root = w.tree.root;
     let path_nodes = w.drill_to(root, Tier::Continuum.max_radius(), &default_spec);
     let deep = *path_nodes.last().unwrap();
-    w.plant(deep, phys::morph::Program::Tree, phys::morph::Environment::default());
+    w.plant(deep, phys::morph::Program::Tree, Some(phys::morph::Environment::default()));
     for _ in 0..5 {
         w.step_frame(50_000.0);
     }
@@ -527,7 +527,7 @@ fn the_format_stamp_tracks_the_format() {
     w.plant(
         child,
         phys::morph::Program::Tree,
-        phys::morph::Environment { light_flux: 340.0, ..Default::default() },
+        Some(phys::morph::Environment { light_flux: 340.0, ..Default::default() }),
     );
     w.interact(Interaction::Pin { target: child });
     w.interact(Interaction::Impulse { target: child, dp: v3(1.0, 2.0, 3.0) });

@@ -94,7 +94,7 @@ pub extern "C" fn create(seed: u32, program: u32, reservoir_kg: f32, budget: u32
         labour: if prog.is_planned() { 1.0 / (90.0 * 86400.0) } else { 0.0 },
         ..Environment::default()
     };
-    world.plant(node, prog, env);
+    world.plant(node, prog, Some(env));
     if prog.is_planned() {
         world.labour_rate = env.labour;
         if let Some(m) = world.tree.nodes[node.get()].morphology.as_mut() {
@@ -573,7 +573,7 @@ pub extern "C" fn create_forest(seed: u32, count: u32, extent: f32, budget: u32)
             n.matter = Matter::neutral(reservoir, 6.0, 291.0, Program::Tree.substrate());
             n.spec.count = per_tree;
         }
-        world.plant(node, Program::Tree, Environment::default());
+        world.plant(node, Program::Tree, Some(Environment::default()));
         trees.push(Stand {
             node,
             at,

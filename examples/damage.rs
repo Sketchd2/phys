@@ -24,7 +24,7 @@ fn plant(seed: u64, mass: f64) -> (World, phys::ids::NodeIdx) {
         n.matter = Matter::neutral(mass, 6.0, 291.0, Program::Tree.substrate());
         n.spec.count = 9000;
     }
-    w.plant(node, Program::Tree, Environment::default());
+    w.plant(node, Program::Tree, Some(Environment::default()));
     (w, node)
 }
 

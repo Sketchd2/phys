@@ -346,7 +346,7 @@ fn engine_grows_unobserved_structures() {
         let n = &mut w.tree.nodes[node.get()];
         n.matter = Matter::neutral(500.0, 8.0, 291.0, Program::Tree.substrate());
     }
-    w.plant(node, Program::Tree, Environment::default());
+    w.plant(node, Program::Tree, Some(Environment::default()));
     let start_mass = w.tree.nodes[node.get()].matter.mass;
     let seeded = w.tree.nodes[node.get()].morphology.as_ref().unwrap().built;
     // Audited on the non-rest energy: rest mass is nine orders larger and would
@@ -410,7 +410,7 @@ fn structures_round_trip_through_the_tree() {
         n.matter = Matter::neutral(1200.0, 10.0, 291.0, Program::Tree.substrate());
         n.spec.count = 1500;
     }
-    w.plant(node, Program::Tree, Environment::default());
+    w.plant(node, Program::Tree, Some(Environment::default()));
     for _ in 0..60 {
         w.grow_node(node, YEAR / 12.0);
     }

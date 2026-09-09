@@ -86,7 +86,7 @@ fn main() {
     let slow = w.tree.promote(here, 0, spec);
     let fast = w.tree.promote(here, 1, spec);
     for i in [slow, fast] {
-        w.plant(i, Program::Tree, Environment::default());
+        w.plant(i, Program::Tree, Some(Environment::default()));
     }
     // Watching a tree grow means a clock measured in days, not the
     // milliseconds a resolved continuum node's dynamics ask for.
