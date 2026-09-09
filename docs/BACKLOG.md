@@ -757,14 +757,40 @@ in a beaker". Keying by `PathKey` so they survive coarsening is the same trick
 pinned detail uses, and is right.
 
 What has drifted is that a node's identity now lives in five places and
-**nothing enumerates them together**. The evidence: `Tree::release_subtree`
-kills a node, and it is a method on `Tree`, which cannot see `World`'s tables.
-So `histories`, `clocks` and `environments` are **never pruned** — grep finds no
-`remove` or `retain` on any of them. `mixtures` has exactly one `remove`, in
-`set_mixture`, for the unrelated case of a mixture becoming empty. Every node
-that ever dies leaves its entries behind, keyed on a path that no longer exists.
-Adding a sixth table and forgetting it costs nothing today and is caught by
-nothing.
+**nothing enumerates them together**. No table is ever pruned: grep finds no
+`remove` or `retain` on `histories`, `clocks` or `environments`, and `mixtures`
+has exactly one, in `set_mixture`, for the unrelated case of a mixture emptying.
+
+**This entry first called that a leak and prescribed sweeping the tables when a
+node dies. Both halves were wrong**, and checking before implementing is what
+caught it.
+
+*There is no death path.* `release_subtree` has exactly two callers — `coarsen`,
+and its own recursion. Every release is a coarsening, and `PathKey::child` is a
+pure deterministic hash of the parent key and slot, so a re-promoted path
+recovers the same key. Surviving release is the entire point of keying by path,
+and sweeping there would destroy a coarsened node's chemistry and history the
+moment nobody was looking at it.
+
+*And the four tables are not one kind of thing.* `persist.rs` sorts them:
+
+| table | persisted | what it is |
+|---|---|---|
+| `mixtures` | yes | what a node is *made of*. Authored, durable, must survive |
+| `environments` | yes | authored per-node overrides. Same |
+| `clocks` | no | "rebuilt as the simulation runs" |
+| `histories` | no | retained observations for viewing at a distance |
+
+The two that persist are durable state, and their growing with the number of
+places the world has been given chemistry is *correct* rather than a leak. The
+two that do not persist are process state, and those are the ones with no
+eviction at all — `history_depth` bounds each `History`'s length, nothing bounds
+how many exist.
+
+So the real defect is narrower than first written: **nothing enumerates the
+tables**, so a sixth can be added and silently missed by anything that does
+need to sweep; and **`clocks` and `histories` have no eviction policy**, which
+their not being persisted is the tell for.
 
 **Creep — `falling` and `shaking`.** These are world state: a branch really is
 falling whether or not anyone is simulating it, which is exactly the test above,
@@ -777,19 +803,118 @@ its pieces are still in the air, and its index reused inside twelve seconds —
 but the shape is wrong regardless, and it is why a fragment can only strike the
 node it fell from: its identity is a *pair* rather than a thing in the world.
 
-**What to do, in order of how much it buys.**
+**What to do, corrected.**
 
-1. **Prune on death.** Whatever else changes, a node dying must drop its side
-   entries. Easiest as a `World`-level release that calls `Tree::release_subtree`
-   and then sweeps the tables, so `Tree` keeps not knowing about them.
-2. **Enumerate the tables in one place** — a struct or a macro listing them —
-   so adding a sixth cannot silently skip the sweep.
-3. **Present them as node state.** Accessors (`World::mixture_of`,
+1. **Enumerate the tables in one place** — a struct or a macro listing them — so
+   a sixth cannot be added and silently missed. This is the part that holds
+   whatever policy is chosen later, and it is cheap now.
+2. **Present them as node state.** Accessors (`World::mixture_of`,
    `environment_of`) rather than public `HashMap` fields. The side table is a
-   memory optimisation and should read like one, not like a separate concept.
+   memory optimisation and should read like one rather than like a separate
+   concept a caller has to know about.
+3. **Give `clocks` and `histories` an eviction policy.** Not the persisted two.
+   The engine already has the right idea for it — a path nobody has observed
+   for a mixing time does not need its history kept — but it is a policy
+   decision rather than an obvious default, so it wants choosing rather than
+   assuming.
 4. **Move `falling` and `shaking` into the tree**, which is the fragment entry
    above and wants doing with it.
 
-**Trigger:** (1) as soon as a world is long-lived enough for dead paths to
-accumulate — a persistent world, which is the stated goal. (2) and (3) whenever
-the next side table is added, which is the moment the cost is lowest.
+**Trigger:** (1) and (2) whenever the next side table is added, which is when
+the cost is lowest. (3) when a session runs long enough for unobserved paths to
+outnumber observed ones.
+
+---
+
+## There is no terrain, and gravity for debris is a constant
+
+**Noticed:** asked whether a falling branch can hit the ground, and whether
+terrain exists.
+**Where:** `engine.rs` — `ground_of`, `drop_fragments`. `solvers/structure.rs`
+— `G_EARTH`.
+
+**There is no terrain, no heightmap, no surface of any kind.** "The ground" is
+`ground_of`, which returns a single `z` — the lowest unsupported joint of the
+structure itself, in that structure's own frame. It exists so debris does not
+fall through the floor of a structure recentred on its own centre of mass, and
+for that it is exactly right. It is not a world feature; it is a property of one
+structure, and a falling piece can strike only that plane and members of the
+structure it came from.
+
+`DESIGN.md` states the debris half honestly — "debris collides with the
+structure it fell from and with the ground, not with other debris" — and
+`PHYSICS.md` explains why the ground is not at zero. So this is a documented
+frontier rather than drift. What is not written down is the consequence: a
+branch cannot land on the earth, on another tree, on a person, or on a vehicle,
+because none of those are things it can be tested against.
+
+**Second, smaller, and undocumented:** `drop_fragments` loads every falling
+piece with `st::G_EARTH.scale(m)`, and `G_EARTH` is the constant
+`(0, 0, -9.80665)`. Debris therefore falls at Earth gravity along its own
+structure's negative z wherever the node actually is — on a ship under thrust,
+in orbit, on a body of any other mass. The engine computes real gravitational
+fields at every other tier and then ignores them here.
+
+**What terrain should be, given the design.** Not a special case: a planetary
+surface is a `Continuum` node with a topology, which is a thing the engine can
+already build. What is missing is not terrain as a type but the ability for a
+falling piece to be tested against a node that is not its own parent — the
+adjacency relation from the audit. Terrain is the first customer for it rather
+than a separate feature.
+
+**Trigger:** the first scene where something falls onto anything other than the
+structure it came from. That is essentially the whole play space.
+
+---
+
+## Nothing can change parent
+
+**Noticed:** asked whether a branch thrown into space could leave the world and
+collide with things outside it.
+**Where:** `tree.rs` — `Node::parent` is written in exactly two places, `NONE`
+for the root and `parent: i` inside `promote`. Nothing else assigns it.
+
+**A node's place in the hierarchy is fixed at creation for life.** There is no
+re-parenting, no hand-off between frames, no transfer. There is also no
+"outside the world" to leave to — everything descends from one root — so the
+question's second half is really "can it reach a different part of the
+hierarchy", and the answer is also no, for the same reason plus the missing
+adjacency relation.
+
+So "throw a branch into space" is not expressible. As it rises it would have to
+leave the tree's frame, enter the planet's, and then the system's; each of those
+is a change of parent, and none of them can happen.
+
+**Why this was not a mistake.** The engine was built galaxy-downward, and
+galactic containment does not change on any timescale that matters: a star does
+not leave its cluster during play. Building the hierarchy static was right for
+what had been built. It stops being right at the stated play scale, where
+containment changes constantly — pick up a rock and it enters your frame, throw
+it and it enters the ground's, walk into a ship and you enter the ship's.
+
+**The four gaps found in this session are one gap.** The tree is a *static
+containment hierarchy*, and a game-engine platform needs it to be a *dynamic
+spatial index*:
+
+| gap | what it prevents |
+|---|---|
+| a promoted child never feels a force | anything moving under physics once promoted |
+| a node cannot split | making a node out of part of another |
+| no adjacency relation | finding what is next to what |
+| **nothing can change parent** | **anything moving between frames** |
+
+Re-parenting is the foundational one. It is what turns the tree from a record of
+what owns what into an index of what is where, and the other three are much
+easier to reason about once a node's parent is allowed to change.
+
+**What it needs.** Moving a node between parents is a frame change, so its
+`Motion` must be re-expressed in the new parent's frame — the engine already has
+that arithmetic in `separation`, `offset_from` and `velocity_from`, which walk
+to a common ancestor. Conservation must hold across the move: the old parent
+loses the mass and the new one gains it, which is `summarise` in both directions
+and is the guarantee `IDEMPOTENT_TOLERANCE` already covers. And the slot the
+node occupied in its old parent's body list has to be vacated rather than left
+holding a stale body.
+
+**Trigger:** the first object that moves between containers, which is the first
+object a player picks up.
