@@ -158,6 +158,22 @@ pub struct Node {
     pub last_report: SampleReport,
 }
 
+/// What a move changed, so a caller holding path-keyed data can follow it.
+///
+/// A node's [`PathKey`] *is* its path, so moving it changes the key of the node
+/// and of every descendant. Everything addressed by path key — pinned detail,
+/// the ledger, the chemistry and environment tables — has to be carried across,
+/// and this is the list to carry it by. Parents come before children, so
+/// applying it in order never orphans anything.
+#[derive(Debug, Clone)]
+pub struct Rehomed {
+    pub moved: NodeIdx,
+    pub from: NodeIdx,
+    pub to: NodeIdx,
+    /// `(old, new)` for the moved node and every node beneath it.
+    pub keys: Vec<(PathKey, PathKey)>,
+}
+
 impl Node {
     pub fn is_materialised(&self) -> bool {
         !self.bodies.is_empty()
@@ -191,6 +207,8 @@ pub struct Tree {
 pub struct TreeStats {
     pub materialisations: u64,
     pub coarsenings: u64,
+    /// Nodes moved to a different parent. Each one rekeyed a whole subtree.
+    pub reparents: u64,
     /// Coarsenings where the fine detail turned out to say nothing new, so the
     /// coarse state was left exactly as it was.
     pub idempotent_coarsenings: u64,
@@ -679,6 +697,175 @@ impl Tree {
             n.pinned = true;
             n.residency = Residency::Pinned;
             cur = n.parent;
+        }
+    }
+
+    /// Move a node under a different parent, re-expressing it in the new frame.
+    ///
+    /// This is what makes the tree a spatial index rather than a record of what
+    /// owns what. Until it existed a node's place was fixed at creation for
+    /// life, which is fine for containment that never changes — a star does not
+    /// leave its cluster — and wrong for everything at play scale, where a
+    /// thing picked up enters your frame and a thing thrown enters the ground's.
+    ///
+    /// Three things have to happen together, and doing any one without the
+    /// others corrupts the tree:
+    ///
+    /// * **The frame changes.** `motion` is relative to the parent, so it is
+    ///   recomputed against the new one — position through the common ancestor,
+    ///   velocity by the relativistic composition the rest of the engine uses.
+    ///   Computed before anything is mutated, because it reads the old chain.
+    /// * **The old slot is vacated.** A promoted body is a *stand-in*:
+    ///   `sum_conserved` counts the child and skips the body wherever a slot is
+    ///   promoted. Leave the body behind and the old parent silently reclaims
+    ///   the mass that just left it.
+    /// * **The subtree is rekeyed.** A [`PathKey`] is the path, so the node and
+    ///   everything under it get new ones, and anything addressed by key has to
+    ///   follow. The returned [`Rehomed`] is that list; `Tree` migrates the
+    ///   pinned detail it owns, and the caller migrates the rest.
+    ///
+    /// Refused, returning `None`, when the move is not a move: the root (the
+    /// universe has no outside), a node into itself, a node into its own
+    /// descendant (which would make a cycle, and every parent walk in the
+    /// engine is a `while` loop that would never end), or a node into the
+    /// parent it already has.
+    pub fn reparent(&mut self, node: NodeIdx, new_parent: NodeIdx) -> Option<Rehomed> {
+        if node.is_none() || new_parent.is_none() || node == new_parent || node == self.root {
+            return None;
+        }
+        if !self.nodes[node.get()].alive || !self.nodes[new_parent.get()].alive {
+            return None;
+        }
+        let old_parent = self.nodes[node.get()].parent;
+        if old_parent == new_parent || old_parent.is_none() {
+            return None;
+        }
+        // A cycle would not merely be wrong, it would hang: `lca`, `offset_from`
+        // and `disturb` all walk parents with `while !cur.is_none()`.
+        if self.lca(node, new_parent) == node {
+            return None;
+        }
+
+        // Read the old chain before touching anything.
+        let offset = self.separation(new_parent, Vec3::ZERO, node, Vec3::ZERO).value;
+        let anc = self.lca(node, new_parent);
+        let v_node = self.velocity_from(anc, node);
+        let v_parent = self.velocity_from(anc, new_parent);
+        // The node's velocity as the new parent sees it: boost by minus the
+        // parent's own. `velocity_add` is what composes velocities everywhere
+        // else in the engine, so the inverse uses it too rather than inventing
+        // a second convention.
+        let velocity = crate::coords::velocity_add(-v_parent, v_node);
+
+        // The new parent needs a body list to hold a slot in.
+        self.refine(new_parent);
+
+        // Vacate. Zeroing rather than removing: `children` is parallel to
+        // `bodies` and a sibling's `PathKey` is derived from its slot index, so
+        // removing an element would renumber every sibling after it and change
+        // the identity of each one.
+        let old_slot = self.nodes[node.get()].slot as usize;
+        // The kind travels with the object: it is the same thing, so whatever
+        // its stand-in was in the old parent's list is what it is in the new
+        // one. Read before the slot is cleared.
+        let kind = self
+            .nodes[old_parent.get()]
+            .bodies
+            .get(old_slot)
+            .map(|b| b.kind)
+            .unwrap_or(crate::state::BodyKind::Grain);
+        {
+            let p = &mut self.nodes[old_parent.get()];
+            if old_slot < p.bodies.len() {
+                p.bodies[old_slot] = Body::default();
+            }
+            if old_slot < p.children.len() {
+                p.children[old_slot] = NodeIdx::NONE;
+            }
+        }
+
+        // Take the new slot, with a stand-in body describing what arrived.
+        let stand_in = {
+            let n = &self.nodes[node.get()];
+            Body {
+                pos: offset,
+                vel: velocity,
+                mass: n.matter.mass,
+                radius: n.matter.radius,
+                charge: n.matter.charge,
+                internal_energy: n.matter.internal_energy,
+                spin: n.matter.spin,
+                temperature: n.matter.temperature,
+                composition: n.matter.composition,
+                kind,
+                ..Default::default()
+            }
+        };
+        let new_slot = {
+            let p = &mut self.nodes[new_parent.get()];
+            p.bodies.push(stand_in);
+            while p.children.len() < p.bodies.len() {
+                p.children.push(NodeIdx::NONE);
+            }
+            let slot = p.bodies.len() - 1;
+            p.children[slot] = node;
+            slot
+        };
+
+        let new_depth = self.nodes[new_parent.get()].depth + 1;
+        let new_key = self.nodes[new_parent.get()].key.child(new_slot as u64);
+        {
+            let n = &mut self.nodes[node.get()];
+            n.parent = new_parent;
+            n.slot = new_slot as u32;
+            n.motion.offset = offset;
+            n.motion.velocity = velocity;
+        }
+
+        let mut keys = Vec::new();
+        self.rekey_subtree(node, new_key, new_depth, &mut keys);
+
+        // Pinned detail is `Tree`'s own path-keyed table, so it moves here.
+        // Collected first and reinserted after, because an old key and a new
+        // key can belong to different nodes in the same batch.
+        let mut moved_detail: Vec<(PathKey, Vec<Body>)> = Vec::new();
+        for (old, _) in &keys {
+            if let Some(bodies) = self.persisted.remove(old) {
+                moved_detail.push((*old, bodies));
+            }
+        }
+        for ((_, new), (_, bodies)) in keys.iter().zip(moved_detail.into_iter()) {
+            self.persisted.insert(*new, bodies);
+        }
+
+        // Both ends were changed by hand, so neither is what `sample` would
+        // produce any more.
+        self.pin(old_parent);
+        self.pin(node);
+        self.stats.reparents += 1;
+        Some(Rehomed { moved: node, from: old_parent, to: new_parent, keys })
+    }
+
+    /// Give a node and everything under it keys and depths for their new place.
+    fn rekey_subtree(
+        &mut self,
+        node: NodeIdx,
+        key: PathKey,
+        depth: u32,
+        out: &mut Vec<(PathKey, PathKey)>,
+    ) {
+        let old = self.nodes[node.get()].key;
+        {
+            let n = &mut self.nodes[node.get()];
+            n.key = key;
+            n.depth = depth;
+        }
+        out.push((old, key));
+        let children = self.nodes[node.get()].children.clone();
+        for (slot, c) in children.iter().enumerate() {
+            if !c.is_none() && self.nodes[c.get()].alive {
+                self.rekey_subtree(*c, key.child(slot as u64), depth + 1, out);
+            }
         }
     }
 

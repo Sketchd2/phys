@@ -2349,6 +2349,52 @@ impl World {
         Some(reading)
     }
 
+    /// Move a node under a different parent, carrying everything keyed by its
+    /// path across with it.
+    ///
+    /// [`Tree::reparent`] does the frame change, the slot handling and the
+    /// rekeying, and migrates the pinned detail it owns. Everything else
+    /// addressed by `PathKey` lives on `World`, and this is where it follows.
+    ///
+    /// **The list below is the enumeration point.** A node's identity is spread
+    /// across several side tables — each justified individually, by memory and
+    /// by surviving a coarsen — and nothing else in the engine enumerates them
+    /// together. A sixth table added without a line here would silently be left
+    /// behind by every move, and the symptom would be a thrown object arriving
+    /// without its chemistry. Add the line with the table.
+    pub fn reparent(&mut self, node: NodeIdx, new_parent: NodeIdx) -> bool {
+        let Some(moved) = self.tree.reparent(node, new_parent) else {
+            return false;
+        };
+        // Collected then reinserted, in two passes: within one move an old key
+        // and a new key can name different nodes, so mutating in place could
+        // overwrite an entry that had not been read yet.
+        macro_rules! migrate {
+            ($table:expr) => {{
+                let mut taken = Vec::new();
+                for (old, new) in &moved.keys {
+                    if let Some(v) = $table.remove(old) {
+                        taken.push((*new, v));
+                    }
+                }
+                for (new, v) in taken {
+                    $table.insert(new, v);
+                }
+            }};
+        }
+        migrate!(self.mixtures);
+        migrate!(self.environments);
+        migrate!(self.clocks);
+        migrate!(self.histories);
+
+        // Both ends changed by hand, so both need their detail kept rather than
+        // regenerated, and their neighbours told.
+        self.disturb(moved.from);
+        self.disturb(moved.to);
+        self.disturb(moved.moved);
+        true
+    }
+
     /// Direct authoring. The one path that can violate conservation — so it
     /// records exactly how much it violated it by.
     fn author(&mut self, target: NodeIdx, property: Property, value: f64) {

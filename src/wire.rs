@@ -53,7 +53,7 @@ pub const MAGIC: [u8; 4] = *b"PHYS";
 /// this being forgotten: it holds a checksum of a fully-populated world, so a
 /// layout change with no bump fails there rather than silently misreading
 /// somebody's file later.
-pub const FORMAT_VERSION: u16 = 4;
+pub const FORMAT_VERSION: u16 = 5;
 
 /// A hard ceiling on any single length prefix, independent of the bytes
 /// available. Nothing legitimate in this engine has a billion of anything in

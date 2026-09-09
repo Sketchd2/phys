@@ -867,7 +867,7 @@ structure it came from. That is essentially the whole play space.
 
 ---
 
-## Nothing can change parent
+## ~~Nothing can change parent~~ — done, with one thing it exposed
 
 **Noticed:** asked whether a branch thrown into space could leave the world and
 collide with things outside it.
@@ -918,3 +918,54 @@ holding a stale body.
 
 **Trigger:** the first object that moves between containers, which is the first
 object a player picks up.
+
+---
+
+## A `PathKey` is doing two jobs, and re-parenting made it show
+
+**Noticed:** building `Tree::reparent`. **Where:** `ids.rs`, and every table
+keyed by `PathKey`.
+
+`PathKey`'s own doc calls it "stable identity for nodes across materialisation
+cycles", and it is — as long as nothing moves. It is a rolling hash of the
+child-index path from the root, so it answers two different questions with one
+number:
+
+* **Where is this?** It derives children, seeds the sampler, and is the address
+  a node's procedural contents are generated from.
+* **Which thing is this?** The ledger, pinned detail, chemistry and environments
+  are all filed under it.
+
+Moving a node changes the answer to the first and must not change the answer to
+the second. `reparent` handles that by rekeying the subtree and migrating every
+table, which is correct and is tested — but the identity is *reconstructed* at
+the new address rather than carried, and two consequences follow that the
+`phys-rehome` demo shows plainly:
+
+**A round trip does not return the original key.** Put an object down where it
+was picked up and it gets a new key, because it takes a new slot. Nothing
+outside the migrated tables can recognise it as the same object — an external
+reference held across a move is dangling, and there is no way to ask "is this
+the thing I was holding".
+
+**Vacated slots are permanent.** A slot cannot be reused or removed: `children`
+is parallel to `bodies`, and a sibling's key is derived from its slot index, so
+removing an element would renumber every sibling after it and change what each
+one *is*. So the vacated body is zeroed in place, and a parent that has had a
+hundred objects pass through it carries a hundred dead slots forever. Every
+solver iterates them.
+
+**The fix is to stop conflating the two jobs.** A node that has been
+individuated — pinned, authored, moved — needs an identity that is *issued*
+rather than derived, and stays with it wherever it goes. Procedural scenery
+does not: for a node nobody has touched, the address genuinely is the identity,
+which is what makes recipes work at all. That split is the same one the engine
+already draws between regenerable and pinned detail, so it has a precedent to
+follow rather than a new concept to invent.
+
+With an issued identity, vacated slots also stop being permanent, because slot
+index would no longer determine what a sibling *is*.
+
+**Trigger:** the first thing that holds a reference to an object across a move —
+an actor's inventory, a target lock, a command naming what to act on. Which is
+to say, the first thing built on top of re-parenting.

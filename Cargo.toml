@@ -48,6 +48,10 @@ inherits = "release"
 name = "phys-bubble"
 path = "src/bin/bubble.rs"
 
+[[bin]]
+name = "phys-rehome"
+path = "src/bin/rehome.rs"
+
 # The test suite is numeric, and unoptimised it took twenty minutes: one test
 # alone (`stepping_does_not_heat_a_node`, eleven scenarios by two hundred
 # solver passes each) accounted for 405 s of that. Optimised it is 123 s for

@@ -854,6 +854,7 @@ pub(crate) fn put_tree_stats(w: &mut Writer, s: &TreeStats) {
     w.u64(s.bodies_created);
     w.u64(s.bodies_discarded);
     w.u64(s.promotions);
+    w.u64(s.reparents);
     w.u64(s.persisted_bodies);
     w.f64(s.worst_conservation_error);
 }
@@ -869,6 +870,7 @@ pub(crate) fn get_tree_stats(r: &mut Reader) -> Result<TreeStats> {
         bodies_created: r.u64()?,
         bodies_discarded: r.u64()?,
         promotions: r.u64()?,
+        reparents: r.u64()?,
         persisted_bodies: r.u64()?,
         worst_conservation_error: r.f64()?,
     })
