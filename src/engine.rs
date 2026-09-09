@@ -468,6 +468,21 @@ impl World {
         self.environments.insert(key, env);
     }
 
+    /// Give a node a structure that is already there, at a stated mass. The
+    /// counterpart to [`Self::plant`] for terrain and for anything that was
+    /// standing before the world was looked at. See [`Tree::emplace`].
+    pub fn emplace(
+        &mut self,
+        idx: NodeIdx,
+        program: crate::morph::Program,
+        built: f64,
+        env: crate::morph::Environment,
+    ) {
+        let key = self.tree.nodes[idx.get()].key;
+        self.tree.emplace(idx, program, built);
+        self.environments.insert(key, env);
+    }
+
     pub fn add_observer(&mut self, o: Observer) -> usize {
         self.observers.push(o);
         self.observers.len() - 1

@@ -104,6 +104,7 @@ impl Material {
         Material::MASONRY,
         Material::STEEL,
         Material::ICE,
+        Material::BEDROCK,
     ];
 
     /// The static label matching `name`, or "custom" for a material that was
@@ -193,6 +194,24 @@ impl Material {
         resistivity: 1.0e9,
         combustible: false,
         // Brittle: masonry does not yield, it cracks.
+        ductility: 0.0,
+    };
+
+    /// Silicate bedrock. Strong in compression, feeble in tension, and stiff —
+    /// which is why terrain carries what stands on it and shatters rather than
+    /// bends when something hits it hard enough.
+    pub const BEDROCK: Material = Material {
+        name: "bedrock",
+        density: 2700.0,
+        rupture: 1.3e8,
+        tensile_ratio: 0.04,
+        stiffness: 55.0e9,
+        thermal_onset: 1200.0,
+        thermal_gone: 1700.0,
+        destruction_enthalpy: 1.2e6,
+        specific_heat: 790.0,
+        resistivity: 1.0e10,
+        combustible: false,
         ductility: 0.0,
     };
 

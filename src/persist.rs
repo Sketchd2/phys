@@ -101,7 +101,16 @@ fn get_residency(r: &mut Reader) -> Result<Residency> {
     Ok(RESIDENCIES[t as usize])
 }
 
-const PROGRAMS: [Program; 4] = [Program::Tree, Program::Coral, Program::Tower, Program::Wall];
+const PROGRAMS: [Program; 6] = [
+    Program::Tree,
+    Program::Coral,
+    Program::Tower,
+    Program::Wall,
+    // Appended, never reordered: the wire stores the *position*, so adding to
+    // the end is format-safe and rearranging silently reinterprets old saves.
+    Program::Terrain,
+    Program::Settlement,
+];
 
 fn put_program(w: &mut Writer, p: Program) {
     let t = PROGRAMS.iter().position(|&x| x == p).unwrap_or(0);

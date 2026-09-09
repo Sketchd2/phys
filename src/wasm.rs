@@ -77,6 +77,8 @@ pub extern "C" fn create(seed: u32, program: u32, reservoir_kg: f32, budget: u32
         1 => Program::Coral,
         2 => Program::Tower,
         3 => Program::Wall,
+        4 => Program::Terrain,
+        5 => Program::Settlement,
         _ => Program::Tree,
     };
     {

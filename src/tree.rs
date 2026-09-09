@@ -687,6 +687,48 @@ impl Tree {
         self.nodes[i.get()].morphology.as_mut().unwrap()
     }
 
+    /// Give a node a structure that is *already there*, at a stated mass.
+    ///
+    /// [`Self::plant`] seeds: it gives the node a thousandth of its mass and
+    /// lets the program build the rest, which is what a tree or a coral does
+    /// and what a construction site does. Terrain does neither. A hillside was
+    /// not grown and nobody built it; it is simply the shape the ground is, and
+    /// starting it as a one-kilogram seed that has to accumulate a mountain is
+    /// a description of geology nobody wants to wait for.
+    ///
+    /// So this is the other verb: the structure exists, at this mass, complete.
+    /// It is equally the right one for a town that was already standing when
+    /// the player arrived — the distinction is not living against built, it is
+    /// whether the world is watching it happen.
+    pub fn emplace(
+        &mut self,
+        i: NodeIdx,
+        program: crate::morph::Program,
+        built: f64,
+    ) -> &mut crate::morph::Morphology {
+        let key = self.nodes[i.get()].key;
+        let seed = self.world_seed;
+        let epoch = self.nodes[i.get()].epoch;
+        let mut m = crate::morph::Morphology::new(program, seed, key.0, epoch);
+        // Bounded by what is actually in the node, for the same reason planting
+        // is: a structure cannot be made of more than the matter available.
+        m.built = built.clamp(0.0, self.nodes[i.get()].matter.mass);
+        if program.is_planned() {
+            // A planned program reads `progress`, not `built`, to decide how
+            // much of itself to draw. Finished means finished.
+            m.design_mass = m.built;
+            m.progress = 1.0;
+        }
+        let n = &mut self.nodes[i.get()];
+        n.matter.radius = m.extent().max(1e-30);
+        n.matter.chemical_energy = m.stored_energy();
+        n.bodies.clear();
+        n.children.clear();
+        n.morphology = Some(m);
+        self.stats.structures += 1;
+        self.nodes[i.get()].morphology.as_mut().unwrap()
+    }
+
     /// Mark a node — and its whole ancestry — as holding non-derivable detail.
     /// Ancestors must be pinned too: a changed child means the parent's
     /// materialisation no longer matches what `sample` would produce.

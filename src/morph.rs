@@ -59,6 +59,32 @@ pub const CORAL_DENSITY: f64 = 2700.0;
 pub const CONSTRUCTION_ENERGY: f64 = 2.5e6;
 /// Bulk density of a framed building including voids, kg/m^3.
 pub const BUILDING_DENSITY: f64 = 250.0;
+/// Bulk density of silicate rock, kg/m^3. The material's own density with the
+/// pore space and fracturing a real hillside has.
+pub const ROCK_DENSITY: f64 = 2400.0;
+/// Depth of a patch of ground as a fraction of its side. Terrain is much wider
+/// than it is deep, and this is how much.
+pub const SLAB_ASPECT: f64 = 0.125;
+
+/// Mass of a settlement per square metre of the ground it covers.
+///
+/// A town is an *area*, not a volume, and this is the difference that matters.
+/// Deriving its size from its mass the way a solid body's is derived — cube
+/// root of a volume — describes a town cast as one lump of concrete, and gives
+/// a six-thousand-tonne settlement fifty metres across with fifty-metre
+/// buildings in it. What a town actually is: buildings at
+/// [`BUILDING_DENSITY`], a storey or three tall, covering something under a
+/// third of the ground, and streets and yards for the rest.
+pub const SETTLEMENT_AREAL_DENSITY: f64 = 700.0;
+
+/// How tall a settlement is, metres. A town gets wider as it grows, not taller,
+/// so this is a constant rather than a function of its mass.
+pub const SETTLEMENT_HEIGHT: f64 = 12.0;
+
+/// Fractional part, for the small deterministic hashes the flat programs use.
+fn frac(x: f64) -> f64 {
+    x - x.floor()
+}
 
 /// Effective conversion of incident radiation into stored biomass.
 ///
@@ -90,6 +116,22 @@ pub enum Program {
     Tower,
     /// Planned: a wall laid course by course.
     Wall,
+    /// A patch of ground. Columns of bedrock standing on nothing, with a
+    /// surface height that varies across the patch.
+    ///
+    /// Terrain is a program for the same reason a tree is: what a node holds is
+    /// a rule and a seed, and the geometry is derived on demand and thrown away
+    /// again. It differs from the living programs in that it does not grow —
+    /// its `advance` weathers rather than builds — and from the planned ones in
+    /// that nobody is constructing it.
+    Terrain,
+    /// A settlement. Plots on a street grid, each one a footprint that a
+    /// building can be promoted out of.
+    ///
+    /// The level *between* terrain and a building: it does not describe walls
+    /// and floors, it describes where the buildings are. Promoting one of its
+    /// plots gives a node that carries [`Program::Tower`] and builds itself.
+    Settlement,
 }
 
 impl Program {
@@ -99,6 +141,8 @@ impl Program {
             Program::Coral => "coral",
             Program::Tower => "tower",
             Program::Wall => "wall",
+            Program::Terrain => "terrain",
+            Program::Settlement => "settlement",
         }
     }
 
@@ -107,7 +151,7 @@ impl Program {
     /// state and different advance laws, and conflating them is how you end up
     /// with buildings that grow organically towards the light.
     pub fn is_planned(self) -> bool {
-        matches!(self, Program::Tower | Program::Wall)
+        matches!(self, Program::Tower | Program::Wall | Program::Settlement)
     }
 
     /// The load a structure is proportioned against when it is created.
@@ -125,6 +169,11 @@ impl Program {
             Program::Coral => (1.2, 1025.0),
             Program::Tower => (42.0, 1.225),
             Program::Wall => (34.0, 1.225),
+            // Ground is not proportioned against wind; it is proportioned
+            // against what stands on it. The flow is what erodes it.
+            Program::Terrain => (25.0, 1.225),
+            // A settlement is designed to the same gust its buildings are.
+            Program::Settlement => (42.0, 1.225),
         }
     }
 
@@ -132,7 +181,8 @@ impl Program {
         match self {
             Program::Tree => WOOD_DENSITY,
             Program::Coral => CORAL_DENSITY,
-            Program::Tower | Program::Wall => BUILDING_DENSITY,
+            Program::Tower | Program::Wall | Program::Settlement => BUILDING_DENSITY,
+            Program::Terrain => ROCK_DENSITY,
         }
     }
 
@@ -140,7 +190,10 @@ impl Program {
     pub fn energy_density(self) -> f64 {
         match self {
             Program::Tree | Program::Coral => BIOMASS_ENERGY,
-            Program::Tower | Program::Wall => CONSTRUCTION_ENERGY,
+            Program::Tower | Program::Wall | Program::Settlement => CONSTRUCTION_ENERGY,
+            // Bedrock is already at the bottom of its own energy landscape.
+            // There is no free energy stored in a hill.
+            Program::Terrain => 0.0,
         }
     }
 
@@ -161,7 +214,15 @@ impl Program {
                 c[CoarseElement::Other as usize] = 0.40;
             }
             // Concrete and steel: silicates, oxygen, iron.
-            Program::Tower | Program::Wall => {
+            // Crustal silicate rock, near enough: oxygen and silicon with iron
+            // and everything heavier lumped together.
+            Program::Terrain => {
+                c[CoarseElement::Oxygen as usize] = 0.46;
+                c[CoarseElement::Silicon as usize] = 0.28;
+                c[CoarseElement::Iron as usize] = 0.09;
+                c[CoarseElement::Other as usize] = 0.17;
+            }
+            Program::Tower | Program::Wall | Program::Settlement => {
                 c[CoarseElement::Oxygen as usize] = 0.46;
                 c[CoarseElement::Silicon as usize] = 0.27;
                 c[CoarseElement::Iron as usize] = 0.12;
@@ -179,6 +240,10 @@ impl Program {
             Program::Tree => 0.02 / YEAR,
             Program::Coral => 0.05 / YEAR,
             Program::Tower | Program::Wall => 0.005 / YEAR,
+            Program::Settlement => 0.008 / YEAR,
+            // Erosion. Slow enough that a hill outlasts everything on it, and
+            // not zero, because it is the same account as everything else.
+            Program::Terrain => 1.0e-5 / YEAR,
         }
     }
 }
@@ -280,6 +345,21 @@ impl Morphology {
             Program::Coral => {
                 let v = self.built / CORAL_DENSITY;
                 (v / 0.3).cbrt().max(1e-3)
+            }
+            // Both of the flat programs are a slab: a square of side `l` with a
+            // depth an eighth of it, so the bounding radius is the half
+            // diagonal. Deriving the side from the mass rather than storing it
+            // keeps the geometry and the matter in step the way every other
+            // program does.
+            Program::Terrain | Program::Settlement => {
+                let l = self.slab_side().max(1e-3);
+                // Ground is as deep as its own aspect; a town is only as tall
+                // as its buildings, which do not grow with the town's width.
+                let d = match self.program {
+                    Program::Settlement => SETTLEMENT_HEIGHT,
+                    _ => l * SLAB_ASPECT,
+                };
+                0.5 * (2.0 * l * l + d * d).sqrt()
             }
             Program::Tower => {
                 let (floors, side) = self.tower_design();
@@ -560,6 +640,8 @@ impl Morphology {
             Program::Coral => self.render_branching(n, 0.72, 4),
             Program::Tower => self.render_tower(n),
             Program::Wall => self.render_wall(n),
+            Program::Terrain => self.render_terrain(n),
+            Program::Settlement => self.render_settlement(n),
         }
     }
 
@@ -682,6 +764,145 @@ impl Morphology {
     /// zero-length member has no bending stiffness, and the density correction
     /// inflated its radius until the tower rendered as a smear of vertical
     /// streaks.
+    /// The side of the square this program covers, metres.
+    ///
+    /// Two different questions, because the two flat programs are different
+    /// shapes of thing. Ground is a *volume*: a slab of side `l` and depth
+    /// `l * SLAB_ASPECT`, so `l^3 * SLAB_ASPECT = V`. A settlement is an
+    /// *area*: its mass is spread over the ground it covers, so
+    /// `l^2 * SETTLEMENT_AREAL_DENSITY = m`. Using the volume form for both was
+    /// the first thing tried and it made a town the same size as one of its own
+    /// buildings — see [`SETTLEMENT_AREAL_DENSITY`].
+    pub fn slab_side(&self) -> f64 {
+        match self.program {
+            Program::Settlement => (self.built / SETTLEMENT_AREAL_DENSITY).max(0.0).sqrt(),
+            _ => {
+                let v = self.built / self.program.density();
+                (v / SLAB_ASPECT).max(0.0).cbrt()
+            }
+        }
+    }
+
+    /// A deterministic height, in normalised units, at a point on the patch.
+    ///
+    /// Not noise from a library and not a table: a short sum of sinusoids whose
+    /// frequencies and phases come from the genome, which itself comes from the
+    /// node's path key. So the same patch of ground is the same shape every
+    /// time it is regenerated, two patches differ, and nothing has to be
+    /// stored. The octaves halve in amplitude and roughly double in frequency,
+    /// which is what makes a landscape read as a landscape rather than as a
+    /// sine wave: most of the relief is in the largest feature and the rest is
+    /// detail on it.
+    pub fn surface_height(&self, x: f64, y: f64) -> f64 {
+        let relief = self.gene(0, 0.15, 0.55);
+        let tilt = self.gene(1, -0.15, 0.15);
+        let mut h = tilt * x;
+        let mut amp = relief;
+        let mut freq = self.gene(2, 1.1, 2.2);
+        for o in 0..4 {
+            let px = self.gene(3 + o % 4, 0.0, std::f64::consts::TAU);
+            let py = self.gene((5 + o) % 8, 0.0, std::f64::consts::TAU);
+            h += amp * ((freq * x + px).sin() * (freq * y + py).cos());
+            amp *= 0.5;
+            freq *= 2.07;
+        }
+        h
+    }
+
+    /// Ground: a grid of bedrock columns, each standing on nothing.
+    ///
+    /// `NO_SUPPORT` is exactly right here and is not a shortcut. It means "this
+    /// part is anchored, load stops here", which is what bedrock is — the
+    /// terrain is what everything else's load path terminates in, and
+    /// `ground_of` already reads the lowest such part as the ground height.
+    fn render_terrain(&self, budget: usize) -> Skeleton {
+        let mut sk = Skeleton::with_capacity(budget);
+        // A square grid that fits the budget, at least 2x2 so a patch has
+        // slope in both directions rather than being a strip.
+        let n = ((budget as f64).sqrt().floor() as usize).clamp(2, 64);
+        let step = 2.0 / n as f64;
+        let mut site = 0u32;
+        for i in 0..n {
+            for j in 0..n {
+                if sk.len() >= budget {
+                    break;
+                }
+                let x = -1.0 + step * (i as f64 + 0.5);
+                let y = -1.0 + step * (j as f64 + 0.5);
+                let top = self.surface_height(x, y);
+                let base = v3(x, y, -1.0);
+                let tip = v3(x, y, top);
+                // Half a cell, so neighbouring columns touch rather than
+                // overlap: the patch is a surface, not a heap of pillars.
+                let rad = step * 0.5;
+                let len = (top + 1.0).max(1e-6);
+                sk.push_segment(base, tip, rad * rad * len, rad, NO_SUPPORT, site);
+                site += 1;
+            }
+        }
+        sk
+    }
+
+    /// A settlement: plots on a street grid, each one a building footprint.
+    ///
+    /// This program deliberately does not describe walls, floors or roofs. It
+    /// describes *where the buildings are*, and each plot it emits is a body
+    /// that can be promoted into a node carrying [`Program::Tower`], which does
+    /// know about floors. That is the whole shape of world generation here: a
+    /// program's output bodies are the next level's nodes, and the ladder from
+    /// a moon to a room is programs all the way down rather than one generator
+    /// that knows about everything.
+    ///
+    /// Planned rather than grown, so `progress` is how much of the town has
+    /// been built. A settlement at a third completion is a third of its plots,
+    /// chosen from the middle outward, because towns fill in from their centre.
+    fn render_settlement(&self, budget: usize) -> Skeleton {
+        let mut sk = Skeleton::with_capacity(budget);
+        let blocks = ((budget as f64).sqrt().floor() as usize).clamp(2, 16);
+        let step = 2.0 / blocks as f64;
+        // The fraction of a block taken by the street rather than the plot.
+        let street = self.gene(0, 0.22, 0.38);
+        let plot = step * (1.0 - street) * 0.5;
+        let built = self.progress.clamp(0.0, 1.0);
+
+        // Order plots by distance from the centre, so a partly built town is a
+        // core with edges missing rather than a scatter of lone houses.
+        let mut plots: Vec<(f64, usize, usize)> = Vec::with_capacity(blocks * blocks);
+        for i in 0..blocks {
+            for j in 0..blocks {
+                let x = -1.0 + step * (i as f64 + 0.5);
+                let y = -1.0 + step * (j as f64 + 0.5);
+                plots.push((x * x + y * y, i, j));
+            }
+        }
+        plots.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
+        let wanted = ((plots.len() as f64) * built).round() as usize;
+
+        let mut site = 0u32;
+        for (_, i, j) in plots.into_iter().take(wanted.min(budget)) {
+            if sk.len() >= budget {
+                break;
+            }
+            let x = -1.0 + step * (i as f64 + 0.5);
+            let y = -1.0 + step * (j as f64 + 0.5);
+            // Heights vary per plot but are stable for it: the genome mixed
+            // with the plot's own index, so a town is not uniform and is not
+            // different every time it is drawn.
+            let vary = frac(
+                (i as f64 * 12.9898 + j as f64 * 78.233 + self.genome[1] as f64 * 43.5) .sin()
+                    * 43758.5453,
+            );
+            // Normalised: the skeleton spans [-1, 1], so a building's height
+            // is its real height as a fraction of the town's own extent.
+            let h = (SETTLEMENT_HEIGHT / self.extent().max(1e-6)) * (0.6 + 1.8 * vary);
+            let base = v3(x, y, -1.0);
+            let tip = v3(x, y, -1.0 + h);
+            sk.push_segment(base, tip, plot * plot * h, plot, NO_SUPPORT, site);
+            site += 1;
+        }
+        sk
+    }
+
     fn render_tower(&self, budget: usize) -> Skeleton {
         let (floors, side) = self.tower_design();
         let mut sk = Skeleton::with_capacity(budget);
@@ -805,6 +1026,8 @@ impl Morphology {
             Program::Coral => crate::topology::Material::ARAGONITE,
             Program::Tower => crate::topology::Material::REINFORCED_FRAME,
             Program::Wall => crate::topology::Material::MASONRY,
+            Program::Terrain => crate::topology::Material::BEDROCK,
+            Program::Settlement => crate::topology::Material::MASONRY,
         }
     }
 
@@ -813,6 +1036,7 @@ impl Morphology {
         match self.program {
             Program::Tree | Program::Coral => BodyKind::Grain,
             Program::Tower | Program::Wall => BodyKind::Grain,
+            Program::Terrain | Program::Settlement => BodyKind::Grain,
         }
     }
 

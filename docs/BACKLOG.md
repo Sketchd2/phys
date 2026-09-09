@@ -969,3 +969,38 @@ index would no longer determine what a sibling *is*.
 **Trigger:** the first thing that holds a reference to an object across a move —
 an actor's inventory, a target lock, a command naming what to act on. Which is
 to say, the first thing built on top of re-parenting.
+
+---
+
+## A node's tier is decided once and never revisited
+
+**Noticed:** the moon/town test. The terrain patch prints as `Planetary` while
+being 1.4 km across, which is `Continuum` by the table.
+**Where:** `tree.rs` — `promote` sets `tier` from the promoted body's radius and
+nothing sets it again.
+
+`Tier::containing(body.radius).max(parent_tier)` runs once, at promotion. Every
+later thing that changes a node's size leaves the tier behind: `emplace` and
+`plant` both set `matter.radius` from the program's `extent`, growth changes it
+every step, and `Morphology::extent` is explicitly the authority on how big a
+structure is. So a node can be two tiers away from what its own radius says.
+
+Measured: a surface patch promoted out of a moon inherits a body radius in the
+planetary band, is then emplaced as terrain 1.4 km across, and stays
+`Planetary`. `solvers::for_tier(Planetary)` is `GravityHydro`.
+
+This is the same shape as the nucleons-marked-`Atomic` entry above, and the
+same root: **a tier is derived from a radius at one instant and then cached**,
+so the two drift apart the moment anything changes size. The difference is that
+this one is benign so far, because a structural node's behaviour comes from its
+morphology and topology rather than from `for_tier`.
+
+**The fix is probably not to recompute it everywhere.** A tier that changed
+under a node would change its solver, its timestep and its cadence mid-flight.
+More likely: recompute it at the points that already change a node's size —
+`plant`, `emplace`, and the growth step — and make `promote` share that path so
+there is one place that decides.
+
+**Trigger:** the first time a structural node's tier matters to something. It
+does not today, which is exactly why it should be recorded rather than fixed on
+the spot.
