@@ -935,7 +935,7 @@ rather than needing a new one.
 | takes the window away | baryon and rest-mass energy both drop | **promoted to baseline** — the window stays gone |
 | breaks it, cullet on the floor | unchanged; the glass never left | droppable — re-glazed from its own cullet, and mass-neutral |
 | dismantles it brick by brick | each removal changes it | every one promoted; permanently dismantled |
-| swaps in an equal mass of sand | see below | **caught by embodied energy** |
+| swaps in an equal mass of sand | see below | **not caught today** — needs embodied energy derived rather than carried |
 
 **The clever version deserves its own paragraph**, because it is the one that
 nearly works. Match the mass. Glass is SiO₂ and sand is SiO₂, so against eight
@@ -944,18 +944,68 @@ lumped `CoarseElement` buckets their composition is very nearly identical, and
 molecular diversity. Mass matches, composition matches, so the deviation looks
 droppable and the swap is free.
 
-It is caught, and by exactly the right quantity. `Matter::chemical_energy` is
-**embodied energy** — its own doc says so: "a steel frame holds its embodied
-energy. Destroying the structure releases it." And `non_rest_energy` folds it
-into `total_energy`, which is what `Conserved::energy` reports. Vitrifying sand
-into glass costs real energy that stays in the product, so glass and sand of
-equal mass have *different total energy*, and the difference is precisely the
-work that made one of them worth stealing.
+It is *not* caught by the mechanism the first draft of this section claimed, and
+the claim was made in exactly the way this project's first trap describes:
+asserted from a plausible reading of a doc comment, and disproved by three
+minutes of grep.
 
-**The thing that makes a manufactured good valuable is the thing that makes the
-forgery detectable, and it is the same number.** You cannot fake a manufactured
-good with its raw materials, because manufacturing is an energy transaction and
-the engine books it. Nothing here knows what glass is.
+`Matter::chemical_energy` is indeed embodied energy — its own doc says "a steel
+frame holds its embodied energy. Destroying the structure releases it" — and
+`non_rest_energy` does fold it into the total that `Conserved::energy` reports.
+All true, and none of it sufficient, because of how it crosses a scale
+transition:
+
+```rust
+// state.rs, summarise()
+// Not knowable from the children alone; the caller reinstates these.
+external_potential: 0.0,
+chemical_energy: 0.0,
+```
+```rust
+// sampler.rs
+back.chemical_energy = matter.chemical_energy;
+```
+
+**Embodied energy is carried, not derived.** `summarise` zeroes it and the caller
+copies the stored value back unchanged, so it is opaque to the scale transform.
+The §5.3 criterion compares `summarise` of the edited node against `summarise` of
+the unedited one — and embodied energy is zero on both sides of that comparison.
+It cannot catch anything. The swap works, and the exploit is open.
+
+**The fix is to stop carrying it and start deriving it, for the case where it
+can be.** The comment is right that a *body list* cannot report a structure's
+embodied energy: it lives in the arrangement, not in the parts. But a structure
+does not only have a body list. It has a `topology` — members, joints, materials
+as data — and from those the embodied energy **is** derivable: it is the sum over
+members of what that material cost to form into that member.
+
+So for ordered matter, `chemical_energy` becomes a derived quantity with a stored
+shortcut, which is the third axiom exactly: derive it once from the topology,
+store it, re-derive when the topology changes. Then removing a window removes a
+member, the derived total drops by that member's share, `summarise` differs, and
+the deviation is promoted. **Nothing has to remember to debit anything**, which
+is the property worth having — the alternative is a rule that every removal path
+must observe, which is the same shape as the `reparent` side-table trap and would
+fail the same way.
+
+With that in place the substitution argument works as originally described, and
+its closure is a satisfying one: to defeat the check you would need a substitute
+matching the window in mass, in eight-bucket composition, *and* in embodied
+energy — at which point you have not forged glass, you have made some. The
+economy conserves because the physics does.
+
+**A second hole in the same place, and it is the bigger one.** All of this checks
+the node the window left. It says nothing about where the glass went. If taking
+the window appends a row to an item list, then the world lost mass, the check
+fires correctly, and the glass in the pack is matter that no node accounts for —
+conservation broken at the boundary, with every node-side test still green.
+
+So: **there is no inventory. There is matter that happens to be carried.** A
+stowed object is matter inside the actor's node; a held one is jointed to them
+(D7's grasp), so its mass is genuinely in the load path and a creature can be
+overloaded. Taking the window is then a transfer between two nodes, checked on
+both sides by machinery that already exists, and an actor's carrying capacity
+stops being a number in a design document and becomes what their body can bear.
 
 **Observation is irrelevant to this, which is what makes it un-gameable.** A
 removal is never droppable, watched or not. There is no looking away, no waiting
@@ -996,13 +1046,22 @@ reliable — `state.rs` says exactly this, about exactly this arithmetic. A
 droppability test written against `total_energy()` would find every deviation
 conservative, pass its tests, and leave the exploit wide open.
 
-**And one genuine weakness to hold onto.** The sand-for-glass case is caught by
-`chemical_energy` and by nothing else, because eight lumped elements cannot tell
-silica from silica. So the argument holds only if **every program books the
-embodied energy of what it builds**. A `Program::Tower` that raises a wall
-without recording what raising it cost leaves that wall forgeable. That is a
-testable invariant rather than a hope, and it belongs in the suite before any
-player can reach a building.
+**And the weakness to hold onto.** Eight lumped elements cannot tell silica from
+silica, so the sand-for-glass case rests on embodied energy and on nothing else.
+That means two things must both be true, and neither is true today: embodied
+energy must be **derived from the topology** rather than carried opaquely through
+the scale transform, and every program must **book what building cost** so there
+is something to derive from. A `Program::Tower` that raises a wall without
+recording what raising it cost leaves that wall forgeable no matter how good the
+check is. Both are testable invariants rather than hopes, and both belong in the
+suite before any player can reach a building.
+
+There is also a precision question, which is the same one that bites everywhere
+else in this engine: one window's embodied energy against a whole building's is a
+small number differenced from a large one. `non_rest_energy` removes the 10¹⁶ of
+rest mass, but a building's own embodied energy may still dominate a single
+member's by five or six orders. Whether the check has the digits it needs is a
+measurement, not an assumption.
 
 ---
 
@@ -1022,6 +1081,8 @@ a scratch probe that Phase 0 should commit properly rather than from arithmetic.
 | How large is the checkpoint for an interactive subtree? | D1's replay and D10's rollback both pay for it. | Measure a populated patch's snapshot through the existing `persist` path. |
 | ~~Does metre-scale bulk fluid actually hurt?~~ | Answered by §4: yes, for anything at play scale — a 5 cm channel is two orders below the floor. §3.7's option (1) is not the end of the matter, and option (2) is what Phase 3 adopts. | — |
 | Does a busy square's stored-deviation count converge, and to what? | §5.5 argues arrival rate times mean lifetime is a bound rather than a hope. If the number is millions, the decay rate is wrong or §5.6's summarising is load-bearing much earlier than expected. | Simulate arrivals at a plausible footfall against a derived sand/paving erosion rate and count what is held. |
+| Can embodied energy be derived from a topology, and does removing one member show up? | §5.8's fix depends on it entirely. Carried opaquely, as today, the check is blind. | Derive it for a walled structure, remove one member, and difference `non_rest_energy` against the unedited regeneration. |
+| Does the embodied-energy check have the digits? | One member against a whole building is a small difference on a large number — the same precision trap as rest mass. | Measure the ratio for a realistic building and compare against `f64`'s 15.95 digits. |
 | Does every program book the embodied energy of what it builds? | §5.8 rests entirely on this for manufactured goods; a program that skips it leaves its output forgeable from raw material. | Build one of each program, difference `non_rest_energy` against the same atoms unbuilt, and assert the gap is the construction cost. |
 | Does an edit list summarise into a field without losing what the damage meant? | §5.7 makes this the same guarantee `summarise` already carries for the conserved tuple. If lost section does not survive the merge, a wall repairs itself by being forgotten in the wrong sense. | Shoot a member a hundred times, summarise, and compare the member's strength against the un-summarised case. |
 | Can one erosion expression give both granite and wet sand? | §5.2's honesty test. If it needs a per-material correction it is a table, and the axiom is broken. | Derive the rate for four materials from cohesion and flux alone and compare against observed rates. |
