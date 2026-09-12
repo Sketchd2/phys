@@ -331,6 +331,73 @@ still latent.
 
 ---
 
+## A structure regrows what was removed from it
+
+**Noticed:** asked, while planning the play space, whether a window taken from a
+building stays taken when the structure is summarised and re-sampled.
+**Where:** `morph.rs` — `record`, `compact_events`, `MAX_EVENTS`,
+`render_branching`, and the four renderers that are not it.
+
+`morph::Event` is the mechanism for this and its doc is explicit: "A branch
+breaking must survive coarsening — the whole point of a structure is that its
+history is visible — so the deviations are logged and replayed rather than
+discarded." `Skeleton::site` is "a program-stable name for this part, so an event
+can refer to it and mean the same thing after the structure is regenerated."
+
+**The logging happens. The replay mostly does not.** Measured by severing sites
+one at a time and re-rendering after each:
+
+```text
+program      intact   after 64 severed   after 65   severed sites present again
+tree            512          0 parts      512 parts        33 of 65
+coral           512          0 parts      512 parts        33 of 65
+tower           296        296 parts      296 parts        64 of 64  (from the first)
+wall            504        504 parts      504 parts        64 of 64  (from the first)
+terrain         484        484 parts      484 parts        64 of 64  (from the first)
+settlement      256        256 parts      256 parts        64 of 64  (from the first)
+```
+
+**Two defects.**
+
+**1. `MAX_EVENTS` resurrects.** The cap is 64; on overflow `compact_events` drops
+the oldest half, folding only their mean magnitude into `genome[7]`. A segment is
+suppressed only while its own `Severed` event survives, so the sixty-fifth
+severance brings back everything the first thirty-two named. A tree severed at
+the trunk sits at zero parts through 64 events and returns to all 512 on the
+sixty-fifth. `built` was decremented each time, so mass is correct and geometry
+is not: the structure contradicts its own conserved state.
+
+**2. Only `render_branching` honours a severance.** The skip is written once, in
+the renderer `Tree` and `Coral` share. `render_tower`, `render_wall`,
+`render_terrain` and `render_settlement` never consult `events`, so for them a
+severance has no geometric effect at all — not after 64, but immediately. A
+demolished wall section is back on the next regeneration.
+
+**Why it has not been noticed.** Every structural test uses a tree, and every
+tree test breaks far fewer than sixty-four joints. `tests/fragments.rs` and
+`tests/topology.rs` exercise breakage against the branching renderer, where the
+skip exists and the cap is never reached; nothing anywhere severs a wall and
+re-renders it.
+
+**The fix, and it is a rule rather than a bigger number.** Ask of each event what
+`docs/PLAY.md` §5.8 asks of each deviation: did it change the conserved tuple? A
+`Severed` did — mass left the structure — so it may never be compacted away, and
+must either persist or be promoted into the program's own description so the
+program stops generating that member at all. `Damaged` and `Suppressed` did not,
+and those are the events that may legitimately merge into an aggregate. Raising
+`MAX_EVENTS` only moves the wall; nothing derives 64 and nothing would derive a
+larger number either. The second defect is simpler: the four planned renderers
+have to consult the log, and the skip wants to live somewhere all six share.
+
+Also worth cleaning up while there: `genome[7]` currently doubles as a sink for
+compacted history, so a per-instance variation slot means two things at once.
+
+**Trigger:** pulled. Any actor who can remove part of a building reaches both of
+these immediately, and the second one on the first edit. `docs/PLAY.md` §5.9
+carries the same measurement and the reasoning behind the fix.
+
+---
+
 ## A node cannot split when its contents spread out
 
 **Noticed:** chasing the overflow above, which is *not* an instance of it.
