@@ -736,6 +736,13 @@ is then **dropped**, because it is no longer a deviation at all. The river runni
 here is the new derived baseline. Permanent large-scale change, and zero
 fine-detail storage.
 
+**Say what "differs" means, because §5.8 turns on it:** the comparison is over
+the *conserved set* — energy, momentum, angular momentum, charge, baryon and
+lepton number — and then over whatever the coarse level represents beyond it.
+Stating it as "drainage and mass distribution" was an example standing in for the
+rule, and the example is what lets a reader think a deviation that walked off
+with a node's mass might be droppable. It cannot be.
+
 Two properties worth naming. The criterion is a **measurement, not a judgement** —
 nothing decides which edits are important, and no edit is tagged as significant
 when it is made. And the threshold is not free to choose: it must be the coarse
@@ -898,6 +905,107 @@ conserves the conserved tuple.
 
 ---
 
+### 5.8 Forgetting must be conservative
+
+**The exploit.** Take a window out of a building. Walk away. Nobody is watching,
+so the deviation is dropped, the wall regenerates from its program, and the
+window is back tomorrow — while the glass is still in your pack. Repeat. Free
+material, for ever.
+
+**This is not a balance problem, and treating it as one is the mistake.** It is a
+conservation bug: mass and energy appear from nowhere. The engine has the
+strongest possible machinery for that already — `summarise(sample(m)) == m` on
+the conserved set, held to 5.8 × 10⁻¹⁶ over 126 configurations — and the fix is
+to hold forgetting to the same standard that materialisation is held to.
+
+> **A deviation may be dropped only if dropping it leaves the conserved tuple
+> unchanged.** Forgetting is not permitted to be a source or a sink.
+
+§5.3 already said this and I stated it badly, by example — "drainage, mass
+distribution" — rather than as what it is. The criterion is the conserved set:
+energy, momentum, angular momentum, charge, baryon number, lepton number. Mass
+walking out of a node in somebody's pack is the most obvious possible change to
+it, which is why the exploit is caught by the rule that was already written
+rather than needing a new one.
+
+**The cases, walked through.**
+
+| what the actor did | conserved tuple | outcome |
+|---|---|---|
+| takes the window away | baryon and rest-mass energy both drop | **promoted to baseline** — the window stays gone |
+| breaks it, cullet on the floor | unchanged; the glass never left | droppable — re-glazed from its own cullet, and mass-neutral |
+| dismantles it brick by brick | each removal changes it | every one promoted; permanently dismantled |
+| swaps in an equal mass of sand | see below | **caught by embodied energy** |
+
+**The clever version deserves its own paragraph**, because it is the one that
+nearly works. Match the mass. Glass is SiO₂ and sand is SiO₂, so against eight
+lumped `CoarseElement` buckets their composition is very nearly identical, and
+`DESIGN.md` is already honest that the elemental account is too coarse for
+molecular diversity. Mass matches, composition matches, so the deviation looks
+droppable and the swap is free.
+
+It is caught, and by exactly the right quantity. `Matter::chemical_energy` is
+**embodied energy** — its own doc says so: "a steel frame holds its embodied
+energy. Destroying the structure releases it." And `non_rest_energy` folds it
+into `total_energy`, which is what `Conserved::energy` reports. Vitrifying sand
+into glass costs real energy that stays in the product, so glass and sand of
+equal mass have *different total energy*, and the difference is precisely the
+work that made one of them worth stealing.
+
+**The thing that makes a manufactured good valuable is the thing that makes the
+forgery detectable, and it is the same number.** You cannot fake a manufactured
+good with its raw materials, because manufacturing is an energy transaction and
+the engine books it. Nothing here knows what glass is.
+
+**Observation is irrelevant to this, which is what makes it un-gameable.** A
+removal is never droppable, watched or not. There is no looking away, no waiting
+for the node to coarsen, no server-restart trick — the test is on the conserved
+tuple, not on who was present.
+
+**Harvest is not theft, and the same account says why.** Fruit taken from a tree
+regrows, and that is legitimate income rather than duplication, because growth is
+a process with a real input: the sun's flux enters the energy balance and pays
+for the fruit. Regeneration-from-forgetting has no input, so it may not be a
+source. One account separates renewable resources from money-printing, and
+nobody has to write a list of which is which.
+
+**Two things that were already blocking neighbouring exploits**, worth naming so
+they are not re-solved. Re-rolling a sample by coarsening and refining until the
+contents are favourable does not work: regeneration is deterministic in
+`(matter, spec, world_seed, path_key, epoch)`, and `epoch` moves only on a
+recorded interaction. And a measured quantity is committed to the ledger and
+never re-sampled, so measuring-then-rerolling is not available either.
+
+**The cost is not a problem, because promotion is absorption rather than
+retention.** A statue that souvenir-hunters chip at for a year does not
+accumulate a year of stored chips; it becomes a smaller, more worn statue, folded
+into the baseline by §5.6's summarising. Storage tracks how much genuine
+modification happened, not how many times somebody poked it.
+
+**Why not the obvious fixes.** Ownership flags on windows, loot cooldowns, "this
+object cannot be taken twice" — each is a special case the engine has to be told,
+each is a rule an ingenious player will find the edge of, and collectively they
+are the table of melting points the axioms exist to prevent. Conservation is a
+law, it is already enforced to machine epsilon, and there is no edge to find.
+
+**One implementation trap, straight out of the code's own warning.** The
+droppability check must difference `non_rest_energy()`, **never**
+`total_energy()`. Rest mass exceeds every other term by roughly 10¹⁶, so a
+difference of totals leaves about seven significant digits and none of them
+reliable — `state.rs` says exactly this, about exactly this arithmetic. A
+droppability test written against `total_energy()` would find every deviation
+conservative, pass its tests, and leave the exploit wide open.
+
+**And one genuine weakness to hold onto.** The sand-for-glass case is caught by
+`chemical_energy` and by nothing else, because eight lumped elements cannot tell
+silica from silica. So the argument holds only if **every program books the
+embodied energy of what it builds**. A `Program::Tower` that raises a wall
+without recording what raising it cost leaves that wall forgeable. That is a
+testable invariant rather than a hope, and it belongs in the suite before any
+player can reach a building.
+
+---
+
 ## 6. What has not been measured
 
 Per `CLAUDE.md`'s first trap, these are stated as unmeasured rather than
@@ -914,6 +1022,7 @@ a scratch probe that Phase 0 should commit properly rather than from arithmetic.
 | How large is the checkpoint for an interactive subtree? | D1's replay and D10's rollback both pay for it. | Measure a populated patch's snapshot through the existing `persist` path. |
 | ~~Does metre-scale bulk fluid actually hurt?~~ | Answered by §4: yes, for anything at play scale — a 5 cm channel is two orders below the floor. §3.7's option (1) is not the end of the matter, and option (2) is what Phase 3 adopts. | — |
 | Does a busy square's stored-deviation count converge, and to what? | §5.5 argues arrival rate times mean lifetime is a bound rather than a hope. If the number is millions, the decay rate is wrong or §5.6's summarising is load-bearing much earlier than expected. | Simulate arrivals at a plausible footfall against a derived sand/paving erosion rate and count what is held. |
+| Does every program book the embodied energy of what it builds? | §5.8 rests entirely on this for manufactured goods; a program that skips it leaves its output forgeable from raw material. | Build one of each program, difference `non_rest_energy` against the same atoms unbuilt, and assert the gap is the construction cost. |
 | Does an edit list summarise into a field without losing what the damage meant? | §5.7 makes this the same guarantee `summarise` already carries for the conserved tuple. If lost section does not survive the merge, a wall repairs itself by being forgotten in the wrong sense. | Shoot a member a hundred times, summarise, and compare the member's strength against the un-summarised case. |
 | Can one erosion expression give both granite and wet sand? | §5.2's honesty test. If it needs a per-material correction it is a table, and the axiom is broken. | Derive the rate for four materials from cohesion and flux alone and compare against observed rates. |
 | Where does the §3.4 crossover fall on *terrestrial* material? | The measured table used the galaxy scenario, whose `Continuum` gas is hot and fast. A room is not that. | Re-run the same drill on a planetary-surface scenario once Phase 2 exists. |
@@ -1013,7 +1122,10 @@ engine was never told which was which; a wall shot a hundred times becomes a
 pocked wall rather than a hundred stored holes; and a market stall nobody
 watched comes back as its program describes it while an identical stall in an
 abandoned village comes back a ruin — with no labour rate, no repair process and
-no agent anywhere in the path.
+no agent anywhere in the path. **And the window cannot be farmed:** an actor who
+removes one and leaves finds it still missing, an actor who breaks one and
+leaves finds it re-glazed, and an actor who backfills the hole with an equal mass
+of sand is caught by the embodied energy that was never in the sand (§5.8).
 
 **Phase 7 — Sessions.** The server loop; two clients; prediction of one's own
 avatar only; interest management under load; hindsight replay scrubbing on top
