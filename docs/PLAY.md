@@ -657,7 +657,177 @@ point of having written it down.
 
 ---
 
-## 5. What has not been measured
+## 5. What the world keeps
+
+The beach test asks whether the channel *fills*. This asks what happens to it
+afterwards, and it turns out to be the same question as one of the engine's
+founding axioms — asked at a resolution the axiom was not written for.
+
+### 5.1 The binary that should be a rate
+
+"Detail exists where something is happening" is implemented as: most of the tree
+is deleted every frame, anything regenerable regenerates bit-identically, and
+anything *touched* is pinned and persisted instead. `mixing_time` says it
+literally —
+
+```rust
+if n.pinned || n.morphology.is_some() || n.topology.is_some() {
+    return f64::INFINITY;
+}
+```
+
+— so a user's fingerprint is exempt from forgetting **outright and forever**. At
+the scales the axiom was written for that is right: a tree that lost a branch has
+lost it, and a broken thing does not un-break. At play resolution it is wrong,
+because it makes a footprint as permanent as a felled trunk. `DESIGN.md` already
+flags the mixing time as "a discriminator, not a derivation"; this is where the
+discrimination stops being adequate.
+
+**The fix is to make the exemption a decay.** A deviation carries an amplitude,
+and the amplitude falls at a rate the physics sets. When it drops below the
+resolution anything could observe it at, the deviation is dropped and the node
+goes back to being purely regenerable. Forgetting stops being the deletion of a
+memory and becomes **the deviation reaching zero**, which is a different and much
+better-behaved thing.
+
+### 5.2 Erosion is not a mechanic, it is the deviation's own physics
+
+A footprint fills in because grains move under wind, rain, gravity and traffic.
+That rate derives from the material's cohesion, the local flux, and the feature's
+own geometry — a sharp narrow notch has a steeper gradient than a broad shallow
+dish, drives more flux, and goes faster. Nothing needs a table: wet sand at the
+tide line goes in hours, dry sand above it in days, a rut in clay in months, a
+scar in granite in millennia, and all four are the same expression with different
+material and flux.
+
+It is D7's pattern applied to terrain rather than to gaits: derive the rate once
+for a `(material, flux, geometry)` tuple, store it, re-derive when the tuple
+changes. A channel that the tide starts reaching erodes at a different rate that
+afternoon, and nobody wrote a rule about tides.
+
+**The honesty test for this, when it is built:** can one expression produce the
+granite case and the wet-sand case with only material and flux differing? If it
+needs a per-material correction, it is a table wearing a derivation's clothes and
+it has failed.
+
+### 5.3 Consequence is promotion to baseline, and the criterion is `summarise`
+
+The sharp half of the beach example is that a squiggle should vanish while a
+channel that breaks a river through should permanently change the region — and
+that even then, the *fine* geometry can still be dropped.
+
+That is not two behaviours. It is one, and the engine's central operation already
+expresses it:
+
+> **A deviation is absorbed into the baseline exactly when `summarise` of the
+> edited node differs from `summarise` of the unedited node by more than the
+> coarse level can represent. Otherwise it decays.**
+
+The squiggle does not change the patch's summarised state, so it decays. The
+breakthrough changes where the water goes — drainage, mass distribution, the
+patch's own terrain parameters — so it is promoted, and the fine channel geometry
+is then **dropped**, because it is no longer a deviation at all. The river running
+here is the new derived baseline. Permanent large-scale change, and zero
+fine-detail storage.
+
+Two properties worth naming. The criterion is a **measurement, not a judgement** —
+nothing decides which edits are important, and no edit is tagged as significant
+when it is made. And the threshold is not free to choose: it must be the coarse
+level's own representational resolution, in the shape `IDEMPOTENT_TOLERANCE`
+already has. A tuned number here is where "no special cases" would quietly die.
+
+### 5.4 A city heals because somebody is building it
+
+Repair does not need a hand-wave, and hand-waving it would cost more than
+building it, because most of it exists.
+
+`Program::is_planned` means "target known, progress-driven". `morph.rs` advances
+progress at `env.labour * dt`, limited by whichever of labour and materials runs
+out first, **whether or not the node is materialised**. `damage()` already writes
+back into the morphology, reducing built mass through `sever_many`. And
+`evolve_matter` — which landed, and runs from `step_frame` over every live node
+each frame — means a coarse node is no longer frozen while nobody looks.
+
+So the account is nearly closed already: damage lowers built mass, labour raises
+it toward the target, and both run coarse. What is missing is wiring, not
+architecture.
+
+What that buys, without a single rule about observation:
+
+- A ruin with no inhabitants **stays ruined**, because there is no labour there.
+- A busy market heals fast, because there is.
+- A damaged plant regrows, because growth is what a `Program::Tree` does.
+- Coming back after a year finds it repaired, because the program advanced while
+  the node was coarse.
+
+"Someone fixed that" turns out to be true rather than a fiction, which is the
+outcome worth having. **One thing must change to get it:** `World::labour_rate`
+is a single global. A marketplace needs its own labour, not the world's — this is
+the trigger for `BACKLOG.md`'s "`World` accumulates what could not decide whose
+property it was".
+
+### 5.5 The busy square is a budget problem, not a semantics problem
+
+The worry is that a place under constant observation never gets an unobserved
+window in which to tidy up, so damage accumulates until something forces a
+repair.
+
+**Decay and repair run on the world clock, not on the absence of an audience.**
+Wind, rain, feet and stallholders do not care whether anyone is watching. What
+observation changes is not the rate — it is whether the intermediate detail has
+to be *stored* rather than regenerated.
+
+So it is a budget question, and it has a bound. The stored deviation count in a
+busy square is arrival rate times mean lifetime: footprints arriving ten a second
+and lasting five minutes is three thousand stored, which is nothing; the same
+footprints lasting a week is six million, which is not affordable. **The decay
+rate is what bounds the memory**, it is derived rather than chosen, and whether a
+given square is affordable is a measurement rather than a hope. It converges
+instead of growing without bound, which is the property the design actually
+needed.
+
+### 5.6 When it does not converge, summarise rather than repair
+
+If arrival outruns decay, something has to give, and D1 already says what: detail
+gives way. But the right way is not deletion, and not a repair effect either —
+it is §5.3 again, with many small edits instead of one consequential one.
+
+**A thousand footprints summarise into trampled ground**: compacted, grass gone,
+different roughness, different cohesion, different erosion rate. Which is exactly
+what a desire path is. The individual prints are dropped, the coarse consequence
+is promoted to baseline, and the world keeps the information that mattered
+instead of the information that was merely recorded. It is physically right, it
+is visually right, and it is the same operation as the river.
+
+That is strictly better than popping an object back to a simplified state behind
+an effect, because nothing is lost that a person would notice was lost.
+
+**Where a visible repair is legitimate** is when a mind actually performs one. A
+stallholder mending their stall is an actor issuing acts (D8) — real, observable,
+and worth rendering because it is happening, not as cover for bookkeeping.
+
+### 5.7 A correction, and the part that is still unsettled
+
+§4.3 claimed a carve and a build log "should be one mechanism and not two". That
+was over-stated. They share a *concept* — a persisted deviation over a derived
+base, pinned because it was touched, decaying at a derived rate, promoted to
+baseline when `summarise` says so — but not a representation: a placed member is
+a discrete object with a topology, and a carve is a continuous field delta. One
+concept, two representations, both through the same decay-and-promote machinery.
+Claiming more than that would force one of them into the wrong shape.
+
+Still unsettled, and wanting a decision before Phase 2 rather than during it:
+**whether deviations compose by superposition or by merging.** A field delta
+superposes for free, which makes a thousand footprints trivial and makes storage
+scale with area rather than with edit count. An edit list is far cheaper for
+sparse edits and needs explicit merging to get §5.6. Terrain wants the first and
+structures want the second, which is consistent with there being two
+representations — but the decay machinery has to work for both, and it should be
+written once.
+
+---
+
+## 6. What has not been measured
 
 Per `CLAUDE.md`'s first trap, these are stated as unmeasured rather than
 assumed, and each has a probe in Phase 0. The substeps-per-tier question that
@@ -672,6 +842,8 @@ a scratch probe that Phase 0 should commit properly rather than from arithmetic.
 | How long does a gait optimisation take, and does it converge? | D7's shortcut is only a shortcut if deriving it is rare and bounded. | Solve one quadruped gait offline and time it. |
 | How large is the checkpoint for an interactive subtree? | D1's replay and D10's rollback both pay for it. | Measure a populated patch's snapshot through the existing `persist` path. |
 | ~~Does metre-scale bulk fluid actually hurt?~~ | Answered by §4: yes, for anything at play scale — a 5 cm channel is two orders below the floor. §3.7's option (1) is not the end of the matter, and option (2) is what Phase 3 adopts. | — |
+| Does a busy square's stored-deviation count converge, and to what? | §5.5 argues arrival rate times mean lifetime is a bound rather than a hope. If the number is millions, the decay rate is wrong or §5.6's summarising is load-bearing much earlier than expected. | Simulate arrivals at a plausible footfall against a derived sand/paving erosion rate and count what is held. |
+| Can one erosion expression give both granite and wet sand? | §5.2's honesty test. If it needs a per-material correction it is a table, and the axiom is broken. | Derive the rate for four materials from cohesion and flux alone and compare against observed rates. |
 | Where does the §3.4 crossover fall on *terrestrial* material? | The measured table used the galaxy scenario, whose `Continuum` gas is hot and fast. A room is not that. | Re-run the same drill on a planetary-surface scenario once Phase 2 exists. |
 
 Two known defects will bite during this work and are scheduled rather than
@@ -687,7 +859,7 @@ discovered:
 
 ---
 
-## 6. The order of work
+## 7. The order of work
 
 Each phase ends with a test that fails today. A phase is not done because its
 code exists.
@@ -714,12 +886,17 @@ correctly in one pass; and nothing in the existing suite regresses.
 **Phase 2 — Ground.** Cubed-sphere parameterisation, patches as `Program::Terrain`
 nodes, refinement and coarsening on approach, handoff by `reparent`, planetary
 gravity, and terrain as an **editable deviation over a derived base** (§4.3) —
-carving is the same mechanism as D9's build log, subtractive rather than
-additive, and both are settled here. The surface representation is designed with
+carving shares D9's build log's *concept* but not its representation (§5.7),
+and both are settled here — along with the decay machinery of §5: a deviation
+with an amplitude, a derived erosion rate, and promotion to baseline when
+`summarise` says the coarse level noticed. The surface representation is designed with
 Phase 3 as a named consumer, because a surface that cannot hold a puddle is one
 that gets rebuilt. *Done when:* an observer descends from orbit to a square metre of any
 planet in any scenario, travels ten kilometres across patch boundaries, and the
-terrain behind them regenerates bit-identically.
+terrain behind them regenerates bit-identically. **And:** a squiggle drawn in
+sand is gone by the next tide while a channel that redirects drainage is still
+there a year later, with neither having been tagged as important when it was
+made.
 
 **Phase 3 — Water.** The five pieces §4.3 names, in dependency order: a **free
 surface**, so a node holds an interface and not only phase fractions; a **liquid
@@ -757,9 +934,13 @@ pursues something, the engine cannot distinguish it from a player, and a
 recorded session replays bit-identically from seed plus log.
 
 **Phase 6 — Making things.** The build log as a genome; player-placed members;
-analysis without proportioning; break and repair. *Done when:* a player builds a
-bridge that holds and one that does not, and the engine was never told which was
-which.
+analysis without proportioning; break and repair. Plus §5.4's wiring: damage
+lowering a planned program's progress, labour raising it, and `labour_rate`
+moved off `World` onto the settlement that owns it. *Done when:* a player builds
+a bridge that holds and one that does not, and the engine was never told which
+was which; and a damaged market stall is mended over a week by the people who
+work there while an identical stall in an abandoned village is still broken a
+decade on.
 
 **Phase 7 — Sessions.** The server loop; two clients; prediction of one's own
 avatar only; interest management under load; hindsight replay scrubbing on top
@@ -769,7 +950,7 @@ thousandth speed without the world's clock moving.
 
 ---
 
-## 7. The axioms, re-checked
+## 8. The axioms, re-checked
 
 Nothing above is worth building if it breaks the five things `CLAUDE.md` says
 are not preferences.
