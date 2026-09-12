@@ -296,15 +296,31 @@ long-standing `DESIGN.md` limitation that *nothing builds the buildings* —
 `Program::Tower` already advances on a supplied labour rate, and a mind is what
 supplies it.
 
-**Where a mind runs is settled by a constraint, not a preference.** `Cargo.toml`
-is explicit: the core crate has no dependencies and must keep building for
-wasm32, which is why the Postgres store is an optional feature. A WebAssembly
-script host is a large dependency and cannot go in the core. It does not need
-to: a mind talks to the world through `Command`, which already encodes, decodes
-and crosses a process boundary — so **a mind is a client**, exactly like a
-player's, and the engine hosts nothing. Sandboxing, fuel and language choice
-become properties of a separate host crate, and the engine's dependency-free
-guarantee survives intact.
+**A mind is a client, and the reason is not the one it first appeared to be.**
+`Cargo.toml` says the core crate has no dependencies and must keep building for
+wasm32, and the first draft of this decision leaned on that: a script host is a
+large dependency, therefore it cannot go in the core. That constraint is not
+binding. The wasm build is real — it is what `viewer/` runs, and `src/wasm.rs`
+is the C ABI it drives — but it is one target among several, not a rule that
+forbids the core from ever taking a dependency. The reasoning has to stand on
+its own, so here it is without the crutch:
+
+A mind is an actor, an actor talks to the world through `Command`, and `Command`
+already encodes, decodes and crosses a process boundary — `phys-headless` proves
+it. Putting a mind on the far side of that boundary buys three things an
+in-process host does not. The engine genuinely cannot tell a player from a wolf,
+because both arrive the same way, so there is no second door to keep in step
+with the first. Determinism and sandboxing are enforced by a serialised
+interface rather than by trusting a guest sharing an address space. And the
+sharding unit stays a subtree, because nothing about a mind is pinned to the
+process holding the world.
+
+**An in-process host is therefore an optimisation, not the architecture.** If
+latency measurement later says a thousand wolves cannot afford a round trip, a
+host crate behind a feature flag may run their guests in the engine's process —
+but it must produce byte-identical `Command`s to the out-of-process path, and
+the out-of-process path stays the definition of correct. That ordering is what
+stops the fast path from quietly becoming a second, more privileged door.
 
 **Determinism is a constraint on that host, and it is not optional.** A mind's
 outputs enter the input log, and replay (D1) and multiplayer (D10) both require
@@ -363,10 +379,168 @@ Designed now, built after the first slice, so that nothing has to be unpicked.
 
 ---
 
-## 3. What has not been measured
+## 3. The tiers under these decisions
+
+The ladder is the part of the architecture most likely to be assumed changed by
+all of the above, so this says explicitly what happens to it. Short version:
+**the ladder does not move, the play space occupies barely any of it, and one
+clock exposes a boundary inside `Continuum` that observer-following pace was
+hiding.**
+
+### 3.1 The ladder does not move
+
+Seven tiers, same boundaries, same meaning: a tier is a physics regime, not a
+tree level, and `Tier::containing(metres)` still derives it from size. Nothing
+in D1–D10 argues for a new tier, a moved boundary, or a different solver
+assignment. A regime is a fact about physics and the decisions above are facts
+about a game.
+
+### 3.2 The play space is one tier and a bit
+
+`Continuum` runs from 10⁻⁸ m to 10⁴ m — twelve orders of magnitude — and it
+contains a grain of sand, a person, a wolf, a tree, a building, a settlement and
+a ten-kilometre terrain patch. Above it, the bottom of `Planetary` (10⁴ to 10⁹ m)
+holds the planet itself and a very large ship.
+
+So **essentially the whole game is one tier**, and almost every level-of-detail
+step in gameplay is a refinement *within* `Continuum` rather than a tier change.
+That is exactly what `units.rs` says tiers are for — "many refinements happen
+within one tier" — and it is good news: the game does not lean on the part of
+the architecture that spans thirty-eight orders of magnitude. It leans on the
+part that refines within one.
+
+### 3.3 Dispatch must read state, not only size
+
+`solvers::for_tier(Continuum)` is `Hydro`. A building, a wolf and a boulder are
+all `Continuum`, and none of them is a fluid.
+
+They escape SPH today, but implicitly: ordered matter enters through `shake` and
+`damage`, which require `morphology` and `topology` and never consult
+`for_tier`, while disordered matter enters through `advance_node`, which
+consults nothing else. Dispatch is already state-dependent — it is just split
+across two entry points that no single node can straddle.
+
+The play space is made of nodes that must straddle them. A room with furniture
+and air in it. A ship with a hull and an atmosphere. A creature standing in
+water. So the two paths become one: **the tier says which regime the disordered
+contents are in, and the node's own state says which contents are ordered**, in
+one node, in one pass. This is not a new tier and not a new solver; it is
+"measure, never be told" applied to solver selection, made explicit instead of
+emergent.
+
+### 3.4 One clock puts a resolution floor inside `Continuum`
+
+This is the consequence of D1 that the first draft of this document missed, and
+it is the most important thing in this section.
+
+`node_dt` is `min(tier.dt(), dynamical_time/50, 0.25 · h/c_signal)` with
+`h = radius / parts^(1/3)`. At one second per second and twenty updates per
+second a frame covers 50 ms of world time, and `MAX_SUBSTEPS` is 256. Measured
+by drilling the galaxy scenario from root to a half-millimetre node and reading
+`node_dt` at every step:
+
+```text
+tier             radius        parts    node_dt (s)   substeps
+galactic       4.629e20        20000       3.156e12        0.0
+planetary       3.305e4         4000       1.429e-2        3.5
+continuum       1.041e3         4000       4.785e-4      104.5
+continuum       3.279e1         8000       1.104e-5     4529.4   <- ensemble
+continuum      8.198e-1         8000       2.675e-7   186917.8   <- ensemble
+continuum      5.124e-4         8000      1.727e-10 289551456.3  <- ensemble
+```
+
+**The trajectory path runs out inside `Continuum`.** Everything coarser is free —
+the sky costs nothing, because a megayear-step regime crossing 50 ms is a coast.
+`Planetary` is comfortable at a few substeps. And then within one tier the
+requirement climbs through six orders of magnitude and falls off the end.
+
+Where exactly it falls off depends on the material, not on the tier. Rearranging
+the same expression, the finest a fluid can be resolved and still be *followed*
+is `h ≥ 4 · frame_span · c_signal / MAX_SUBSTEPS`, which at a 50 ms frame is
+`c_signal / 1280`:
+
+| medium | signal speed | finest followed |
+|---|---|---|
+| air | 340 m/s | 0.27 m |
+| water | 1500 m/s | 1.2 m |
+| rock | 5000 m/s | 3.9 m |
+
+The measured table above crosses over at a much coarser radius than the air row
+suggests, because the galaxy scenario's `Continuum` gas is hot and its signal
+speed is tens of km/s. Both say the same thing; the crossing point moves with
+the material.
+
+**Under observer-following pace none of this was visible**, because zooming in
+slowed the clock until the substeps fit. Fixing the clock is what surfaces it.
+That is not an argument against D1 — it is D1 doing what it was chosen to do,
+which is to make the cost land somewhere honest instead of in a silently slower
+world.
+
+### 3.5 Solids escape the floor, and that is most of the game
+
+`dynamics.rs` integrates structures with trapezoidal Newmark-beta, whose own
+module doc says it "removes the stability limit entirely". `shake` substeps for
+*accuracy* — the structure's own period — not for stability, capped at
+`MAX_SHAKE_STEPS = 240`.
+
+So the floor applies to **free fluid only**. Everything a player is, touches,
+builds or breaks is ordered matter on the unconditionally-stable path: a
+creature resolved to the centimetre, a building to the member, a ship to its
+frame, all stepped across a 50 ms frame without a CFL condition anywhere. The
+constraint bites on air in a room, water in a lake, smoke, and the blast from an
+explosion — bulk flow, where a quarter-metre cell is coarse but not absurd, and
+splashes and flames, where it is.
+
+### 3.6 Below `Continuum`, replay is the only access
+
+At 1 s/s a `Molecular` node needs ~5×10¹³ substeps to cross a frame, `Atomic`
+~5×10¹⁶, `Nuclear` ~5×10¹⁹. They are always crossed by their ensemble. That was
+already true and is not a regression — but with the clock fixed it becomes
+permanent, and it has a consequence for what a player can ever see:
+
+**A player cannot watch chemistry happen in real time.** They can watch its
+consequences — the mixture changes, a phase changes, something freezes — because
+those are `Continuum` facts. If they want to watch the mechanism, they use D1's
+hindsight replay, which re-runs a bounded subtree at whatever cadence it likes
+precisely because the world clock is not moving.
+
+So the replay facility is not a luxury feature bolted onto the time model. Once
+the clock is fixed, **it is the only way the fine tiers are ever directly
+observable at all**, and that is the argument for building it rather than the
+convenience of scrubbing.
+
+### 3.7 What is decided, and the one thing that is not
+
+Decided: the ladder stands; dispatch reads state as well as size; the resolution
+floor is real, is derivable, and the engine should *report* it rather than
+silently drop a node to its ensemble — the same discipline `displacement_ratio`
+already applies to the small-displacement regime.
+
+Open, and deliberately not decided here: **whether `Continuum` eventually gets
+an unconditionally-stable fluid option**, so that free fluid stops being
+CFL-bound the way solids already are not. Three ways to respond to the floor,
+in the order they should be tried:
+
+1. **Accept it.** This is D1 working as intended — detail gives way, not the
+   clock — and metre-scale bulk air may simply be adequate. Costs nothing.
+2. **Raise `MAX_SUBSTEPS` for the play space.** Available immediately and
+   directly buys resolution, but 256 is already a number nothing derives, and a
+   larger one spends frame budget on exactly the nodes with the most of it.
+3. **Give `Continuum` an implicit integrator.** The principled answer and much
+   the largest piece of work.
+
+Try them in that order, and let a measurement of whether metre-scale fluid
+actually hurts decide when to move on. Choosing (3) now would be the same
+mistake as assuming corotational elements were needed in D5.
+
+---
+
+## 4. What has not been measured
 
 Per `CLAUDE.md`'s first trap, these are stated as unmeasured rather than
-assumed, and each has a probe in Phase 0.
+assumed, and each has a probe in Phase 0. The substeps-per-tier question that
+§3.4 answers was one of these and has been measured; the numbers there are from
+a scratch probe that Phase 0 should commit properly rather than from arithmetic.
 
 | Question | Why it matters | Probe |
 |---|---|---|
@@ -375,6 +549,8 @@ assumed, and each has a probe in Phase 0.
 | Does slaving the parent body every frame preserve `summarise(sample(m)) == m`? | D4 writes into the conserved set every frame. `IDEMPOTENT_TOLERANCE` is the contract. | Promote, run, coarsen, compare against the existing consistency harness. |
 | How long does a gait optimisation take, and does it converge? | D7's shortcut is only a shortcut if deriving it is rare and bounded. | Solve one quadruped gait offline and time it. |
 | How large is the checkpoint for an interactive subtree? | D1's replay and D10's rollback both pay for it. | Measure a populated patch's snapshot through the existing `persist` path. |
+| Does metre-scale bulk fluid actually hurt? | Decides whether §3.7's option (1) is the end of the matter or the start of an implicit-solver project. | Put an observer in a room-scale node of air at the floor resolution and look at it. |
+| Where does the §3.4 crossover fall on *terrestrial* material? | The measured table used the galaxy scenario, whose `Continuum` gas is hot and fast. A room is not that. | Re-run the same drill on a planetary-surface scenario once Phase 2 exists. |
 
 Two known defects will bite during this work and are scheduled rather than
 discovered:
@@ -389,24 +565,29 @@ discovered:
 
 ---
 
-## 4. The order of work
+## 5. The order of work
 
 Each phase ends with a test that fails today. A phase is not done because its
 code exists.
 
-**Phase 0 — Probes.** The five measurements above, each as a test that
-demonstrates the thing it claims. Nothing is designed further until they are
-numbers. *Done when:* `PERFORMANCE.md` carries five new measured rows and D5 is
-either confirmed or replaced.
+**Phase 0 — Probes.** The measurements above, each as a test that demonstrates
+the thing it claims — including committing the substeps-per-tier probe that
+§3.4 reports, since it is currently a scratch run. Nothing is designed further
+until they are numbers. *Done when:* `PERFORMANCE.md` carries the new measured
+rows and D5 is either confirmed or replaced.
 
 **Phase 1 — The primitives.** `EntityId` and the side-table rekey (D2);
 `Neighbourhood`, boundary exchange and contact (D3); the promoted child made
 authoritative and force-bearing (D4); tier revisited on size change; the spread
 measurement; `PaceMode::Fixed(1.0)` as what a world is, and `G_EARTH` deleted in
-favour of derived g. *Done when:* two promoted vehicles collide and rebound with
+favour of derived g. Plus the two tier corrections from §3: solver dispatch that
+reads ordered-versus-disordered state as well as size (§3.3), and a reported
+resolution floor so a node dropping to its ensemble says so instead of doing it
+quietly (§3.7). *Done when:* two promoted vehicles collide and rebound with
 restitution derived from their materials; a hot node beside a cold one
 equilibrates without either being told the other exists; a branch lands on the
-next tree; and nothing in the existing suite regresses.
+next tree; one node holds both a structure and loose contents and steps both
+correctly in one pass; and nothing in the existing suite regresses.
 
 **Phase 2 — Ground.** Cubed-sphere parameterisation, patches as `Program::Terrain`
 nodes, refinement and coarsening on approach, handoff by `reparent`, planetary
@@ -439,7 +620,7 @@ thousandth speed without the world's clock moving.
 
 ---
 
-## 5. The axioms, re-checked
+## 6. The axioms, re-checked
 
 Nothing above is worth building if it breaks the five things `CLAUDE.md` says
 are not preferences.
