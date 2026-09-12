@@ -523,15 +523,26 @@ in the order they should be tried:
 
 1. **Accept it.** This is D1 working as intended — detail gives way, not the
    clock — and metre-scale bulk air may simply be adequate. Costs nothing.
-2. **Raise `MAX_SUBSTEPS` for the play space.** Available immediately and
+2. **Reduce the signal speed rather than the timestep.** The beach test (§4.2)
+   found this after the list was first written, and it belongs second because it
+   is far cheaper than (3) and buys most of what (3) buys. Weakly-compressible
+   SPH replaces the physical sound speed with an artificial one about ten times
+   the flow speed, chosen so density varies under a percent: for a 2 m/s wave,
+   20 m/s instead of 1500, and a scene needing 30,000 substeps needs 80. It is
+   an approximation with a known error bound rather than a fudge, and it is the
+   standard treatment for exactly the free-surface case the play space is full
+   of. It does nothing for a genuinely stiff medium.
+3. **Raise `MAX_SUBSTEPS` for the play space.** Available immediately and
    directly buys resolution, but 256 is already a number nothing derives, and a
    larger one spends frame budget on exactly the nodes with the most of it.
-3. **Give `Continuum` an implicit integrator.** The principled answer and much
+   Phase 3 expects to need 512.
+4. **Give `Continuum` an implicit integrator.** The principled answer and much
    the largest piece of work.
 
-Try them in that order, and let a measurement of whether metre-scale fluid
-actually hurts decide when to move on. Choosing (3) now would be the same
-mistake as assuming corotational elements were needed in D5.
+Try them in that order, and let a measurement decide when to move on. Choosing
+(4) now would be the same mistake as assuming corotational elements were needed
+in D5 — and note that the beach test already moved the play space past (1),
+which is what a good acceptance scenario is for.
 
 ---
 
@@ -611,9 +622,9 @@ matters, and it is a gap the audit did not name.
 
 ### 4.3 What this exposes about the plan
 
-The phases deliver solids, creatures, terrain, contact, construction and
-sessions. **Fluid at play resolution appears in none of them.** That is an
-omission rather than a deferral — "water behaves like water" is not a garnish on
+The phases as first written delivered solids, creatures, terrain, contact,
+construction and sessions, and **fluid at play resolution appeared in none of
+them.** That was an omission rather than a deferral — "water behaves like water" is not a garnish on
 the stated play space, it is most of a beach, a river, a flooded compartment, a
 wake and a rainstorm.
 
@@ -639,6 +650,11 @@ is a persisted deviation over a derived base — pinned, because it was touched.
 That is the same object as D9's build log seen from the other side, additive
 there and subtractive here, so it should be one mechanism and not two.
 
+**Both are now sequenced.** The five fluid pieces are Phase 3, immediately after
+ground and before creatures; editable terrain moves into Phase 2 alongside the
+surface it edits. The beach test is Phase 3's completion criterion, which is the
+point of having written it down.
+
 ---
 
 ## 5. What has not been measured
@@ -655,7 +671,7 @@ a scratch probe that Phase 0 should commit properly rather than from arithmetic.
 | Does slaving the parent body every frame preserve `summarise(sample(m)) == m`? | D4 writes into the conserved set every frame. `IDEMPOTENT_TOLERANCE` is the contract. | Promote, run, coarsen, compare against the existing consistency harness. |
 | How long does a gait optimisation take, and does it converge? | D7's shortcut is only a shortcut if deriving it is rare and bounded. | Solve one quadruped gait offline and time it. |
 | How large is the checkpoint for an interactive subtree? | D1's replay and D10's rollback both pay for it. | Measure a populated patch's snapshot through the existing `persist` path. |
-| Does metre-scale bulk fluid actually hurt? | Decides whether §3.7's option (1) is the end of the matter or the start of an implicit-solver project. | Put an observer in a room-scale node of air at the floor resolution and look at it. |
+| ~~Does metre-scale bulk fluid actually hurt?~~ | Answered by §4: yes, for anything at play scale — a 5 cm channel is two orders below the floor. §3.7's option (1) is not the end of the matter, and option (2) is what Phase 3 adopts. | — |
 | Where does the §3.4 crossover fall on *terrestrial* material? | The measured table used the galaxy scenario, whose `Continuum` gas is hot and fast. A room is not that. | Re-run the same drill on a planetary-surface scenario once Phase 2 exists. |
 
 Two known defects will bite during this work and are scheduled rather than
@@ -697,30 +713,57 @@ correctly in one pass; and nothing in the existing suite regresses.
 
 **Phase 2 — Ground.** Cubed-sphere parameterisation, patches as `Program::Terrain`
 nodes, refinement and coarsening on approach, handoff by `reparent`, planetary
-gravity. *Done when:* an observer descends from orbit to a square metre of any
+gravity, and terrain as an **editable deviation over a derived base** (§4.3) —
+carving is the same mechanism as D9's build log, subtractive rather than
+additive, and both are settled here. The surface representation is designed with
+Phase 3 as a named consumer, because a surface that cannot hold a puddle is one
+that gets rebuilt. *Done when:* an observer descends from orbit to a square metre of any
 planet in any scenario, travels ten kilometres across patch boundaries, and the
 terrain behind them regenerates bit-identically.
 
-**Phase 3 — Bodies.** Substructuring (D5); `Program::Creature` and its genome;
+**Phase 3 — Water.** The five pieces §4.3 names, in dependency order: a **free
+surface**, so a node holds an interface and not only phase fractions; a **liquid
+equation of state**, so `pressure()` stops returning 4×10⁸ Pa for a bucket of
+water; **weakly-compressible SPH**, which is what makes centimetre flow fit a
+frame at all; **boundary conditions against arbitrary geometry**, so water meets
+a carved channel; and **multi-resolution transport**, particles crossing between
+a coarse ocean and a fine channel through `sample` and `summarise`, which
+conserve across a scale change by construction and have simply never been asked
+to do it for a flowing fluid.
+
+It sits here, immediately after ground and before creatures, for one reason: a
+beach, a river and rain are most of what makes a planet feel like a place, and
+water is the first thing anybody tests. Designing it against a surface that
+exists — rather than retrofitting it to one built without a consumer — is the
+whole argument for the position. It is also the largest single subsystem in this
+document, and putting it third is a deliberate acceptance of that cost.
+
+*Done when:* **the beach test passes.** An actor carves a 5 cm channel in wet
+sand and the swash runs through it, at one second per second, at roughly 1 cm
+cells — which §4.2 measures as `MAX_SUBSTEPS` at 512 and about 4×10⁵ particles
+in the local patch. The ocean beyond the patch stays coarse, and nothing between
+the two loses mass.
+
+**Phase 4 — Bodies.** Substructuring (D5); `Program::Creature` and its genome;
 the actuation mechanism; derived-and-cached gait and grasp; local interaction
 resolved inside a segment. *Done when:* a quadruped and a biped grown from two
 genomes both walk, on two planets with different g, with no per-morphology code
 anywhere; shouldering a load visibly changes the gait; and scratching a paw does
 not re-analyse the animal.
 
-**Phase 4 — Minds.** The actor-client host outside the core crate; the
+**Phase 5 — Minds.** The actor-client host outside the core crate; the
 determinism constraints; checkpoints and the input log. *Done when:* a wolf
 pursues something, the engine cannot distinguish it from a player, and a
 recorded session replays bit-identically from seed plus log.
 
-**Phase 5 — Making things.** The build log as a genome; player-placed members;
+**Phase 6 — Making things.** The build log as a genome; player-placed members;
 analysis without proportioning; break and repair. *Done when:* a player builds a
 bridge that holds and one that does not, and the engine was never told which was
 which.
 
-**Phase 6 — Sessions.** The server loop; two clients; prediction of one's own
+**Phase 7 — Sessions.** The server loop; two clients; prediction of one's own
 avatar only; interest management under load; hindsight replay scrubbing on top
-of Phase 4's checkpoints. *Done when:* two people share a world, one builds
+of Phase 5's checkpoints. *Done when:* two people share a world, one builds
 while the other watches, and either can scrub back through a minute of it at a
 thousandth speed without the world's clock moving.
 
