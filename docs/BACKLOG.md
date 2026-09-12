@@ -8,6 +8,14 @@ An entry earns its place by being **specific about the trigger**: what would
 make it worth doing, or what will go wrong if it is not. "Would be nice" is not
 a trigger.
 
+Several entries below now have their trigger pulled and their direction chosen
+by `docs/PLAY.md`, which is the plan for making the world inhabitable — the
+adjacency relation, the promoted child that never feels a force, node splitting,
+the `PathKey` that does two jobs, terrain and constant-gravity debris, and
+structures that cannot span promoted children. The entries stay as written
+because what they *measured* is still the evidence; `PLAY.md` says what is being
+done about it and in what order.
+
 ---
 
 ## ~~Pace control has no honest "manual" mode~~ — done

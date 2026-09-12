@@ -214,6 +214,7 @@ ever building it, and runs a frame loop under budget.
 | | |
 |---|---|
 | [docs/DESIGN.md](docs/DESIGN.md) | The architecture, and which parts are standard versus new |
+| [docs/PLAY.md](docs/PLAY.md) | The plan for an inhabited world: actors, surfaces, contact, creatures, construction |
 | [docs/PHYSICS.md](docs/PHYSICS.md) | The scale ladder, the solvers, and their validation |
 | [docs/PERFORMANCE.md](docs/PERFORMANCE.md) | Measured costs, the RTX 2060 / Ryzen 5 3600 budget |
 | [docs/GPU.md](docs/GPU.md) | Mapping the CPU reference onto the GPU |

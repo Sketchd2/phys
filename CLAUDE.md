@@ -141,6 +141,10 @@ prose too, and expect some hits to be a different sense that must be left alone.
   architecture; most obvious gaps are already there with numbers.
 - `docs/DESIGN.md` — decisions and their reasoning.
 - `docs/PHYSICS.md` — what is modelled and how.
+- **`docs/PLAY.md`** — the plan for turning the engine into an inhabited world,
+  and the decisions behind it. Read it before proposing anything about actors,
+  surfaces, contact, creatures, construction or sessions; those arguments have
+  been had and written down.
 - `docs/PERFORMANCE.md` — the budget arithmetic.
 - `docs/NAMING.md`, `docs/GPU.md`.
 
@@ -149,15 +153,27 @@ They are load-bearing; keep them that way.
 
 ## Current frontier
 
-The tree is a **static containment hierarchy** and the play space needs a
-**dynamic spatial index**. Re-parenting landed. What remains:
+The engine models what happens *inside* a node very well and what happens
+*between* nodes barely at all. Closing that is the whole of the near-term work,
+and **`docs/PLAY.md` is the plan** — the decisions are made, the order is set,
+and the reasoning for each is recorded there. The four things everything else
+waits on:
 
 1. **The adjacency relation** — nothing knows which nodes are next to each
-   other. This single gap blocks fire spread, flooding, heat conduction, mass
-   diffusion, and debris landing on anything but its own parent. Four backlog
-   entries are one missing primitive. **Start here.**
+   other. This single gap blocks contact, fire spread, flooding, heat
+   conduction, mass diffusion, friction, and debris landing on anything but its
+   own parent. Four backlog entries are one missing primitive. **Start here.**
 2. A promoted child never feels a force — `motion.velocity` is written only at
-   promotion, so a promoted node is ballistic forever.
-3. Nodes cannot split, so contents that legitimately expand are tracked by a
-   node claiming a volume they have left.
-4. An issued identity, so an object keeps its name across a move.
+   promotion, so a promoted node is ballistic forever, and two promoted things
+   cannot affect each other at all.
+3. An issued identity, so an object keeps its name across a move — and so the
+   side tables stop needing `reparent` to move them.
+4. Nodes cannot split, so contents that legitimately expand are tracked by a
+   node claiming a volume they have left. The spread measurement it needs is the
+   same one surface handoff and detached fragments need.
+
+Two decisions in `PLAY.md` change things already written down, so do not treat
+the older text as current where they disagree: **the world runs at one second
+per second at every tier** (observer-following pace becomes a single-player
+tool, and slow motion becomes replay of a recording), and **`PathKey` stops
+being an identity**.
