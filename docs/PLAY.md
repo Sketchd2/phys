@@ -535,7 +535,113 @@ mistake as assuming corotational elements were needed in D5.
 
 ---
 
-## 4. What has not been measured
+## 4. The beach test
+
+One scene, checked link by link, because a plan that cannot be falsified by a
+concrete question is not a plan:
+
+> An actor is standing on a beach. They carve a 5 cm channel in the sand. Do the
+> waves flow through it, in real time?
+
+**As written, no.** Not because of hardware — the particle counts are
+comfortable — but because two subsystems the scene needs are absent from the
+engine and, worse, absent from every phase below. Recording it here because
+finding that out is what the question was worth.
+
+### 4.1 The chain, link by link
+
+| # | What the scene needs | Status |
+|---|---|---|
+| 1 | A planet with a beach on it | Phase 2 |
+| 2 | An actor standing on it, not falling through | Phases 1 and 3 |
+| 3 | Sand that can be **carved** and stays carved | **not designed** |
+| 4 | An ocean that has a **surface** | **absent** — see the coupling audit |
+| 5 | Waves, i.e. free-surface gravity waves with a driver | **absent**, needs 4 |
+| 6 | Water followed at ~1 cm at 1 s/s | **blocked on a scheme choice** |
+| 7 | Water meeting arbitrary 5 cm sand geometry | **not designed** |
+| 8 | Coarse ocean feeding the fine channel | **not designed** |
+
+### 4.2 The timestep, measured
+
+The interesting link is 6, and it is not the one that looked hardest.
+`node_dt`'s CFL term is `0.25 · h / c_signal`, so for a 50 ms frame:
+
+```text
+water: rho = 1000.0 kg/m^3
+  pressure()            = 4.0366e8 Pa
+  velocity_dispersion() = 635.3 m/s
+  sound_speed()         = 820.2 m/s   <- what node_dt uses
+  real water            = 1500 m/s
+
+signal speed                  h (m)      dt (s)   substeps
+engine sound_speed()         0.0500   1.524e-5     3280.9  over
+engine sound_speed()         0.0100   3.048e-6    16404.7  over
+real water 1500              0.0100   1.667e-6    30000.0  over
+WCSPH, 10x a 2 m/s wave      0.0500   6.250e-4       80.0  ok
+WCSPH, 10x a 2 m/s wave      0.0156   1.950e-4      256.4  over
+WCSPH, 10x a 2 m/s wave      0.0100   1.250e-4      400.0  over
+
+particles, 2 m x 2 m x 0.1 m sheet of swash:
+  h = 0.0500 m -> 3.200e3
+  h = 0.0100 m -> 4.000e5
+```
+
+Three things fall out.
+
+**The wall is a scheme choice, not hardware.** 4×10⁵ particles at 1 cm is inside
+the 10⁵–10⁷ band `PERFORMANCE.md` projects. What fails is the timestep, and the
+timestep is set by the signal speed the solver assumes. Weakly-compressible SPH
+— the standard treatment for free-surface flow — replaces the physical sound
+speed with an artificial one about ten times the flow speed, chosen so density
+varies by under a percent. At a 2 m/s wave that is 20 m/s instead of 1500, and
+the same scene goes from 30,000 substeps to 80.
+
+**So the answer is a near miss rather than a fantasy.** With WCSPH, 5 cm cells
+fit in 80 substeps; 1.56 cm sits exactly on the 256 cap; 1 cm needs 400. To see
+water flow *through* a 5 cm channel you want three to five cells across it, so
+~1 cm — which needs `MAX_SUBSTEPS` at 512 and about 4×10⁵ particles in the local
+patch. That is a defensible configuration, not a wish.
+
+**There is no condensed-matter equation of state.** `pressure()` returns
+4×10⁸ Pa for water at room conditions, because the equation of state is ideal
+gas everywhere; `sound_speed()` then comes out at 820 m/s rather than 1500,
+capped by `1.3 · velocity_dispersion`. `chem` tracks phase fractions, but
+nothing at the `Matter` level knows a liquid is not a gas. For a beach this
+matters, and it is a gap the audit did not name.
+
+### 4.3 What this exposes about the plan
+
+The phases deliver solids, creatures, terrain, contact, construction and
+sessions. **Fluid at play resolution appears in none of them.** That is an
+omission rather than a deferral — "water behaves like water" is not a garnish on
+the stated play space, it is most of a beach, a river, a flooded compartment, a
+wake and a rainstorm.
+
+The subsystem, stated once so it can be sequenced rather than rediscovered:
+
+1. **A free surface.** The audit's own row: a node holds one `Mixture` with
+   phase fractions, not an interface. No water level, no buoyancy, no sloshing.
+   Everything else here waits on it.
+2. **A liquid equation of state**, so pressure and sound speed stop being ideal
+   gas for condensed matter.
+3. **Weakly-compressible or projection-based SPH**, which is §3.7's open
+   question with this scene as its trigger.
+4. **Boundary conditions against arbitrary geometry**, so water meets a carved
+   channel rather than a sphere.
+5. **Multi-resolution transport** — particles crossing between a coarse ocean
+   and a fine channel. `sample` and `summarise` are exactly the right
+   abstraction, conserving across a scale change by construction; they have
+   simply never been asked to do it for a flowing fluid crossing a live
+   interface each frame.
+
+And one thing that is not fluid at all: **terrain has to be editable.** A carve
+is a persisted deviation over a derived base — pinned, because it was touched.
+That is the same object as D9's build log seen from the other side, additive
+there and subtractive here, so it should be one mechanism and not two.
+
+---
+
+## 5. What has not been measured
 
 Per `CLAUDE.md`'s first trap, these are stated as unmeasured rather than
 assumed, and each has a probe in Phase 0. The substeps-per-tier question that
@@ -565,7 +671,7 @@ discovered:
 
 ---
 
-## 5. The order of work
+## 6. The order of work
 
 Each phase ends with a test that fails today. A phase is not done because its
 code exists.
@@ -620,7 +726,7 @@ thousandth speed without the world's clock moving.
 
 ---
 
-## 6. The axioms, re-checked
+## 7. The axioms, re-checked
 
 Nothing above is worth building if it breaks the five things `CLAUDE.md` says
 are not preferences.
