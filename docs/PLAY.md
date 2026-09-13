@@ -1530,6 +1530,161 @@ a climate's clothes.
 
 ---
 
+## 5A. What a node is made of, and how that survives being summarised
+
+`Matter::composition` is eight lumped elements — an astrophysical account. It
+cannot tell brine from sodium metal, chlorine and water, and the play space is
+made of things that differ in exactly that way. `chem::Mixture` is the account
+that can, and it does not survive coarsening at all. This section is the plan
+for that.
+
+### 5A.1 A correction, and what is actually wrong
+
+An earlier note said a full `Mixture` loses mass silently. **It does not, and
+conservation is not broken.** Mass, elemental composition and chemical energy
+are scalars on `Matter`; a `Mixture` is a descriptive overlay whose fractions
+sum to `explained`, and dropping a pool lowers `explained` honestly — the node
+simply becomes less described. `Mixture::composition` already returns
+`(Composition, explained)` for exactly this reason.
+
+Three things *are* wrong, and the third is the one that matters:
+
+1. **Which description survives depends on insertion order.** `Mixture::add`
+   displaces the smallest pool when full, so two nodes with identical contents
+   entered in different orders describe themselves differently. That is an
+   artefact, not a derivation, and its `false` return — documented as telling
+   the caller "its trace species did not make the cut" — is read by nobody.
+2. **`set_mixture` is called from nowhere in `src/`.** Chemistry is entirely
+   author-supplied, which is why it currently looks sparse.
+3. **Mixtures do not aggregate.** `Composition::blend` exists for the elemental
+   account; there is no `Mixture` equivalent, and neither `summarise` nor
+   `coarsen` touches chemistry. Coarsen a wood into its trees and the trees'
+   chemistry is simply orphaned. **A forest cannot know it contains sugar**,
+   which is the requirement this section exists to meet.
+
+### 5A.2 Speciation has a resolution, like everything else
+
+The move that makes this tractable is to stop treating the mixture as a fixed
+description and treat it as a *resolution*. A tree's mixture is cellulose,
+lignin, water, sucrose, pigment. A wood's mixture is wood, water, sugar. Those
+are not the same list truncated; they are the same matter described at two
+resolutions, and the transform between them is `summarise` and `sample` — the
+pair the whole engine is built on.
+
+That is the same relationship `Composition` and `Mixture` already have, one
+level up: elements survive coarsening because a star has no use for salt.
+Speciation should coarsen the same way rather than falling off a cliff at eight
+slots.
+
+### 5A.3 The merge criterion, derived rather than chosen
+
+Blending children into a parent will overflow the slots. Which substances merge
+must be derived, or it is a table of what matters:
+
+> Two pools may merge when merging them perturbs nothing the coarse level can
+> measure, by more than that level can represent.
+
+What a coarse node measures *from* a mixture is a short list: elemental
+composition, molar mass, phase behaviour (melting and boiling points), and
+energy density. So the merge cost of a pair is their mass-weighted distance in
+those quantities, and the pass repeatedly merges the cheapest pair until the
+mixture fits.
+
+This answers the apple without anybody classifying pigments. A pigment is a
+~10⁻⁴ mass fraction whose elemental composition and phase behaviour sit on top
+of the bulk plant tissue, so merging it changes nothing measurable and it goes.
+Sucrose is a percent-level fraction with a distinct energy density and molar
+mass, so merging it *is* measurable and it survives. The forest keeps its sugar
+and forgets what makes the skins red, and the rule that decided it never
+mentions either.
+
+The elemental account is untouched throughout, because it was never derived from
+the mixture — so mass, baryon number and energy are conserved by construction
+rather than by care.
+
+**Open: what the merged pool is called.** Three candidates, and this needs a
+decision before the pass is written.
+
+- **Keep the dominant identity.** Merge the minor pool into the major one and
+  keep the major one's `SubstanceId`. Cheap, no registry growth, and it lies a
+  little: a trace of pigment becomes cellulose.
+- **Intern a blend.** Synthesise a substance with mass-weighted properties and
+  a `Provenance` saying what it came from. Honest, and it grows the registry
+  with one entry per distinct blend a world ever forms.
+- **Let it fall into the unspeciated remainder.** `explained` drops and the
+  matter is described as "not speciated", which is what
+  `SubstanceId::UNSPECIATED` already means — "not unknown; there is genuinely no
+  molecule there". Honest about ignorance, but a forest whose sugar merged away
+  would read as partly undescribed rather than as sugary.
+
+### 5A.4 Granularity: promote when the description will not fit
+
+If merging cannot bring a node inside its slots without exceeding the tolerance,
+the node is holding more than it can describe, and the answer is to subdivide
+rather than to forget. That is a *derived* granularity rule and it is not a new
+idea: `needs_refinement` already refines a node whose Jeans length is
+unresolved — "matter that has started lying". This is the same rule in the
+chemical account.
+
+A room as one node is already over: air is five substances, a wooden table
+three, a beaker of brine two. So a room is a node with promoted children, and it
+is the criterion rather than a judgement that says so.
+
+### 5A.5 What a town costs, measured
+
+`react` runs over every node carrying a mixture, every frame. Measured:
+
+| substances in the mixture | `react` per node | 10³ nodes | 10⁴ nodes |
+|---|---:|---:|---:|
+| 1 | 0.069 µs | 0.14% | 1.4% |
+| 4 | 0.481 µs | 0.96% | 9.6% |
+| 8 | 0.934 µs | 1.9% | 18.7% |
+
+as a share of a 50 ms frame, single core. And `Mixture` is 136 bytes against
+`Node`'s 576:
+
+| described nodes | mixtures | with their nodes |
+|---|---:|---:|
+| 5×10³ | 0.7 MB | 3.6 MB |
+| 10⁵ | 13.6 MB | 71 MB |
+| 10⁶ | 136 MB | 712 MB |
+
+**A town of a hundred actors' livelihoods** — say twenty described things each,
+plus buildings, so 3,000–5,000 nodes carrying chemistry — costs **5–10% of a
+frame and about 4 MB**. That is affordable, and it is the answer to the question:
+a town works.
+
+**The wall is around 10⁴ described nodes materialised at once**, where chemistry
+alone takes a fifth of the frame. Ten towns at once would not fit — and are never
+asked for, because the fourth axiom means a town nobody is in is a `Matter`, a
+genome and its events, and materialises on approach. The number worth writing
+into `PERFORMANCE.md` is that budget: **chemistry is affordable to about ten
+thousand simultaneously described nodes.**
+
+**The longer-term wall is persistence, not frame time.** Every named thing in
+every town ever visited keeps a `Mixture` and an `EntityId`: 3,000 per town over
+a thousand towns is three million mixtures, 408 MB, and it only grows. §5's
+decay is what answers that — a pot in an abandoned house eventually merges into
+the house's contents by the same criterion as everything else, because nothing
+references it any more.
+
+### 5A.6 What this changes elsewhere
+
+- **D2's economy claim weakens.** If Continuum nodes densely carry mixtures they
+  densely carry names, so "only touched things need identity" should be read as
+  "only touched things, and most of the play space". The index is ~24 bytes
+  against a 576-byte node, so this is a note rather than a problem.
+- **D11 gains a customer.** `Program::Terrain::substrate()` returns a
+  `Composition`; producing a `Mixture` would let a patch measure its own water
+  instead of falling back to `water = 1.0`, which is honest now and a quiet lie
+  once terrain generates ground that ought to be dry.
+- **§5.8's forgery check gets sharper.** It rests on knowing what a thing is
+  made of, and a mixture that coarsens by a derived criterion keeps exactly the
+  distinctions that carry energy — which are the ones a forger would have to
+  fake.
+
+---
+
 ## 6. What has not been measured
 
 Per `CLAUDE.md`'s first trap, these are stated as unmeasured rather than

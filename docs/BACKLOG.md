@@ -360,11 +360,19 @@ that return. Measured, twelve equal substances into one mixture:
       12          8         0.666667       0.333333
 ```
 
-A third of the speciated mass, gone silently. The elemental account in
-`Matter::composition` is unaffected — `react` may not move it by construction —
-so mass and baryon number stay right and only the *description* is lost. For
-§5.8's forgery check, which rests entirely on knowing what a thing is made of,
-that is the account that matters.
+A third of the *described* fraction, gone. **Corrected from this entry's first
+version, which implied conservation was broken: it is not.** Mass, elemental
+composition and chemical energy are scalars on `Matter`, and a `Mixture` is a
+descriptive overlay whose fractions sum to `explained` — so dropping a pool
+lowers `explained` honestly and the node is merely less described.
+
+What is wrong is that *which* description survives depends on insertion order,
+and that `add`'s `false` return — documented as telling the caller its trace
+species did not make the cut — is read by nobody. And underneath both:
+**mixtures do not aggregate at all.** `Composition::blend` exists for the
+elemental account; there is no `Mixture` equivalent, and neither `summarise` nor
+`coarsen` touches chemistry, so a wood cannot know its trees contain sugar.
+`docs/PLAY.md` §5A is the plan for that.
 
 A room as one node is already over: air is five substances (N₂, O₂, Ar, CO₂,
 H₂O), a wooden table three (cellulose, lignin, water), a beaker of brine two.
