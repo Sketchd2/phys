@@ -555,27 +555,68 @@ cracks and street networks. This does not delete `render_branching`; it deletes
 the *category* that `render_branching` was the first member of, which is the
 "no special cases" axiom collecting a large debt.
 
-**Three honest costs, and the second may be fatal.**
+**Derive per species, instance per individual.** This is the third axiom applied
+to morphogenesis, and it dissolves most of what follows.
 
-**Cost: it is iterative.** Growing into an occluded field is not one `render`
-call, and the current design's single biggest win is that "growth runs on the
+The growth *response* is derived once per genome — offline, over a sampled space
+of conditions — and stored. Every individual then evaluates the stored response
+at its own conditions, which is a lookup rather than a simulation. An oak and a
+birch are two genomes and therefore two response surfaces: same law, different
+physiology, different tree. The expensive derivation happens once per species,
+not once per tree and never per frame.
+
+Note what makes this axiom-compliant rather than a table with better manners.
+Axiom three's operative clause is "a tabulated constant *that was never derived*
+is the thing to avoid" — so the objection is to provenance, not to storage.
+`taper = 0.62` is forbidden because nothing produced it. A surface computed from
+Murray's law and light competition is exactly what the axiom asks for, even
+though both end up as stored numbers.
+
+It is also the third use of one pattern: D7 caches a gait per
+`(body plan, mass, gravity, medium)` and a grasp per `(manipulator, object
+shape)`, and this caches a morphology response per genome. Three independent
+arrivals at the same shape is a good sign it is the right one.
+
+**Three costs, of which the first two are now answered.**
+
+**Answered — it is iterative.** Growing into an occluded field is not one
+`render` call, and the design's single biggest win is that "growth runs on the
 aggregate, so a forest grows without any of its trees existing". A million trees
-cannot each run a light-competition simulation. The resolution is the engine's
-own trick one level up — derived morphogenesis where something is watching, cheap
-statistical growth where nothing is, the two required to agree on the conserved
-quantities — which is "detail exists where something is happening" applied to
-morphogenesis. That is coherent, and it is also two paths that must be held in
-agreement, which this project already knows is the expensive part.
+cannot each run a light-competition simulation. Under derive-once-per-species
+they do not have to: a million trees is a million evaluations of a stored
+surface. The simulation runs once, for the species, and never again.
 
-**Risk: it threatens regenerability, which is the founding invariant.** Today
-shape is pure in stored state, so a node throws its detail away and rebuilds it
-bit-identically. Tomorrow shape depends on *the environment it grew in*, which is
-a history, not a state. Either that history is summarised into the stored
-morphology — integrated light by direction, mean water, crowding, a handful of
-numbers that keep it near the current ~200 bytes — or shape stops being
-regenerable and `tests/consistency.rs` is right to fail. **This is the constraint
-the whole idea has to survive**, and it should be settled before any of it is
-built, not discovered afterwards.
+**Answered — regenerability.** The worry was that shape would depend on the
+environment a thing *grew in*, which is a history rather than a state, so a node
+could no longer throw its detail away and rebuild it bit-identically. The
+resolution is better than storing a summary of that history: **the environment
+does not need storing, because it re-derives.** In a deterministic world the
+conditions at a place are a pure function of that place and that time — the
+terrain, the latitude, the climate all descend from the world seed. The same node
+always had the same weather. So shape stays pure in `(genome, place, age)` and
+the founding invariant is untouched.
+
+The qualifier is the one that was already stated: *without significant triggering
+factors*. A bushfire is a perturbation, and a perturbation is a deviation, which
+§5 already handles as an event that either decays or is promoted. So a structure
+is `derived_baseline(genome, place, age) + events` — which is exactly the
+existing `structure = program(genome, age, events)` with `place` added and
+`program` replaced by something that was derived rather than typed.
+
+**The remaining risk, and it is now the only real one: is growth Markovian in
+its conditions?** A response surface tabulates shape against *conditions*. If
+shape instead depends on their *ordering* — a drought at age ten making a
+different tree from a drought at age fifty — then the input is a history rather
+than a point, and it does not tabulate at all. Real trees certainly record their
+history, but mostly *internally*, in rings and reaction wood and scars, rather
+than in gross form; height, spread and taper are plausibly driven by integrals.
+Plausibly is not measured, and this one decides whether the cheap version exists.
+
+Dimensionality is the second-order version of the same worry. Six conditions —
+light, water, temperature, crowding, wind, soil — at five samples an axis is
+about 15,600 growth runs per species, which is fine once and offline, and grows
+badly if the list gets longer. Which conditions actually move the shape is worth
+measuring before committing to a surface over all of them.
 
 **Bounded: it does not apply to built things.** A wall is not grown into a field;
 it is placed by an intention. D11's supplied-versus-derived split is exactly the
@@ -1391,6 +1432,8 @@ a scratch probe that Phase 0 should commit properly rather than from arithmetic.
 | ~~Does metre-scale bulk fluid actually hurt?~~ | Answered by §4: yes, for anything at play scale — a 5 cm channel is two orders below the floor. §3.7's option (1) is not the end of the matter, and option (2) is what Phase 3 adopts. | — |
 | Does a busy square's stored-deviation count converge, and to what? | §5.5 argues arrival rate times mean lifetime is a bound rather than a hope. If the number is millions, the decay rate is wrong or §5.6's summarising is load-bearing much earlier than expected. | Simulate arrivals at a plausible footfall against a derived sand/paving erosion rate and count what is held. |
 | Can one genome give a forest tree and an open-grown tree? | D12's honesty test, and the whole argument for it. Impossible today: `taper` and `splits` are constants and `render` never sees `Environment`. | Grow one genome in three light fields; compare height, spread and taper. |
+| Is growth Markovian in its conditions? | D12's one remaining real risk. If a drought at age ten makes a different tree from a drought at age fifty, the response surface is a function of a history and does not tabulate. | Grow one genome under two condition histories with identical integrals and different ordering; compare height, spread and taper. |
+| Which conditions actually move the shape? | Decides the response surface's dimensionality, and it grows badly. Six axes at five samples is ~15,600 runs per species. | Vary each condition alone and rank by how much the gross form moves. |
 | Can a grown shape stay regenerable when it depends on a history? | D12's fatal risk. If the environment history will not summarise into ~200 bytes, shape stops regenerating bit-identically and the founding invariant breaks. | Grow a tree, summarise its environment history, regrow from the summary, and diff the skeletons. |
 | Can an undesigned genome make something coherent? | D11's honesty test. If every working genome is hand-tuned, thirty coefficients have replaced six variants and nothing generalised. | Sample a hundred random genomes, render each, and count how many are ugly versus impossible. |
 | At what edit count does a structure start regrowing removed parts? | §5.9 reads `MAX_EVENTS = 64` off the source; the behaviour should be demonstrated rather than inferred from the code. | Sever 65 sites on one structure, regenerate, and count the segments that came back. |
