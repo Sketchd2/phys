@@ -157,6 +157,87 @@ fn a_move_carries_what_the_node_is_made_of() {
     );
 }
 
+/// Identity is issued, and a move does not change it.
+///
+/// This is the property the whole of D2 exists for: what a thing *is* stops
+/// being a function of where it happens to be. Before it, the node's address
+/// was also its name, so moving it renamed it and every side table keyed by
+/// the old name was left pointing at a stranger.
+#[test]
+fn a_moved_node_keeps_its_name_while_its_address_changes() {
+    let mut w = a_world();
+    let (_, a, b) = two_siblings(&mut w);
+
+    let id = w.identify(a);
+    let key_before = w.tree.nodes[a.get()].key;
+    assert!(!id.is_none(), "an identified node has a name");
+
+    assert!(w.reparent(a, b));
+
+    let key_after = w.tree.nodes[a.get()].key;
+    assert_ne!(key_before, key_after, "the address must have changed, or this proves nothing");
+    assert_eq!(
+        w.identity(a),
+        Some(id),
+        "the name must not have changed: identity is issued, not derived from position"
+    );
+}
+
+/// An identity is never handed out twice, and asking does not create one.
+#[test]
+fn identities_are_issued_once_and_never_reused() {
+    let mut w = a_world();
+    let (_, a, b) = two_siblings(&mut w);
+
+    assert_eq!(w.identity(a), None, "asking must not issue");
+    let first = w.identify(a);
+    assert_eq!(w.identify(a), first, "identifying twice gives the same name");
+
+    let other = w.identify(b);
+    assert_ne!(first, other, "two things cannot share a name");
+    assert!(w.next_entity > other.0, "the counter moves past what it issued");
+}
+
+/// The side tables stay where they are.
+///
+/// `World::reparent` used to hold the only enumeration of them, so adding a
+/// table meant remembering to add a line there. Now only the address-to-identity
+/// index moves, and this asserts the tables themselves are untouched — which is
+/// what makes a *new* side table safe by default rather than safe if somebody
+/// remembered.
+#[test]
+fn a_move_does_not_touch_the_tables_keyed_by_identity() {
+    use phys::chem::{Arrangement, Bond, Element, Lattice, Mixture, Order, Phase};
+
+    let mut w = a_world();
+    let (_, a, b) = two_siblings(&mut w);
+
+    let salt = w
+        .substances
+        .intern(Arrangement::crystal(
+            vec![Element(11), Element(17)],
+            vec![Bond::new(0, 1, Order::Ionic)],
+            Lattice::Cubic { a: 3.55e-10 },
+        ))
+        .expect("salt analyses");
+    let mut mix = Mixture::new();
+    mix.add(salt, Phase::Solid, 0.25);
+    w.set_mixture(a, mix);
+
+    let id = w.identity(a).expect("chemistry named the node");
+    let before = w.mixtures.get(&id).copied().expect("precondition");
+
+    assert!(w.reparent(a, b));
+
+    let after = w.mixtures.get(&id).copied();
+    assert_eq!(
+        after.map(|m| m.fraction_of(salt)),
+        Some(before.fraction_of(salt)),
+        "the entry should not have moved at all — it is keyed by a name, and the name did not change"
+    );
+    assert_eq!(w.identity(a), Some(id), "and the node still answers to it");
+}
+
 /// A move that is not a move is refused, and a cycle above all.
 ///
 /// A cycle would not merely be wrong. `lca`, `offset_from` and `disturb` all

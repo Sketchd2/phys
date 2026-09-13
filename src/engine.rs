@@ -18,7 +18,7 @@
 
 use crate::budget::{cost, FrameBudget, Plan, Task, TaskKind};
 use crate::causal::{CausalGate, Clock, History, Influence, InfluenceKind, Mailbox, Moment};
-use crate::ids::{NodeIdx, PathKey};
+use crate::ids::{EntityId, NodeIdx, PathKey};
 use crate::math::Vec3;
 use crate::observe::*;
 use crate::sampler::SampleSpec;
@@ -347,8 +347,20 @@ pub struct World {
     /// Retained history, only for nodes something might observe from a
     /// distance. Keeping it keyed by path rather than in the node itself means
     /// a node can be coarsened and rebuilt without losing its past.
-    pub histories: HashMap<PathKey, History>,
-    pub clocks: HashMap<PathKey, Clock>,
+    pub histories: HashMap<EntityId, History>,
+    pub clocks: HashMap<EntityId, Clock>,
+    /// Address to identity. The one index a move has to migrate.
+    ///
+    /// Every other side table is keyed by [`EntityId`], so `reparent` leaves
+    /// them alone. This one cannot be: a node discarded and rebuilt has to
+    /// recover its name, and its address is the only thing it comes back with.
+    /// See [`EntityId`] for why that is one line rather than one per table.
+    ///
+    /// Entries are issued lazily — a node that nothing has ever recorded
+    /// against has no identity and needs none.
+    pub identities: HashMap<PathKey, EntityId>,
+    /// Next identity to issue. Monotonic, never reused, persisted.
+    pub next_entity: u64,
     pub stats: EngineStats,
     /// Whether the clock follows a node or is driven by hand.
     pub pace_mode: PaceMode,
@@ -363,7 +375,7 @@ pub struct World {
     pub rejected_growth_steps: u64,
     /// Per-node environment overrides, keyed by path so they survive the node
     /// being coarsened and rebuilt.
-    pub environments: HashMap<PathKey, crate::morph::Environment>,
+    pub environments: HashMap<EntityId, crate::morph::Environment>,
     /// Every substance this world has ever analysed.
     ///
     /// World state, not scenery: a node's mixture names substances by id, so a
@@ -381,7 +393,7 @@ pub struct World {
     ///
     /// Keyed by `PathKey`, so it survives a node being coarsened away and
     /// materialised again, which is the same reason pinned detail is.
-    pub mixtures: HashMap<PathKey, crate::chem::Mixture>,
+    pub mixtures: HashMap<EntityId, crate::chem::Mixture>,
     /// The structures currently being integrated through time.
     ///
     /// A bounded set, deliberately. Dynamics is expensive and it is only worth
@@ -413,6 +425,8 @@ impl World {
             paced_to: NodeIdx::NONE,
             histories: HashMap::new(),
             clocks: HashMap::new(),
+            identities: HashMap::new(),
+            next_entity: 1,
             stats: EngineStats::default(),
             pace_mode: PaceMode::Follow,
             audit: Vec::new(),
@@ -450,6 +464,8 @@ impl World {
             labour_rate: self.labour_rate,
             rejected_growth_steps: self.rejected_growth_steps,
             environments: &self.environments,
+            identities: &self.identities,
+            next_entity: self.next_entity,
             substances: &self.substances,
             mixtures: &self.mixtures,
             audit: &self.audit,
@@ -474,6 +490,8 @@ impl World {
         w.labour_rate = s.labour_rate;
         w.rejected_growth_steps = s.rejected_growth_steps;
         w.environments = s.environments;
+        w.identities = s.identities;
+        w.next_entity = s.next_entity.max(1);
         w.substances = s.substances;
         w.mixtures = s.mixtures;
         w.audit = s.audit;
@@ -502,14 +520,14 @@ impl World {
         program: crate::morph::Program,
         env: Option<crate::morph::Environment>,
     ) {
-        let key = self.tree.nodes[idx.get()].key;
+        let id = self.identify(idx);
         self.tree.plant(idx, program);
         match env {
             Some(e) => {
-                self.environments.insert(key, e);
+                self.environments.insert(id, e);
             }
             None => {
-                self.environments.remove(&key);
+                self.environments.remove(&id);
             }
         }
     }
@@ -524,16 +542,58 @@ impl World {
         built: f64,
         env: Option<crate::morph::Environment>,
     ) {
-        let key = self.tree.nodes[idx.get()].key;
+        let id = self.identify(idx);
         self.tree.emplace(idx, program, built);
         match env {
             Some(e) => {
-                self.environments.insert(key, e);
+                self.environments.insert(id, e);
             }
             None => {
-                self.environments.remove(&key);
+                self.environments.remove(&id);
             }
         }
+    }
+
+    /// The name of whatever lives at this address, if it has been given one.
+    ///
+    /// Lookup only. A node nothing has recorded against has no identity, and
+    /// asking does not create one — which is what keeps the index the size of
+    /// the world's *history* rather than the size of its tree.
+    pub fn identity_of(&self, key: PathKey) -> Option<EntityId> {
+        self.identities.get(&key).copied()
+    }
+
+    /// The name of whatever lives at this address, issuing one if it has none.
+    ///
+    /// Called on the write path of anything that keys a side table: giving a
+    /// node chemistry, an environment, a clock or a history is the moment it
+    /// becomes a thing worth naming. Reading those tables uses
+    /// [`Self::identity_of`] instead, so a lookup never grows the index.
+    pub fn issue_identity(&mut self, key: PathKey) -> EntityId {
+        if let Some(id) = self.identities.get(&key) {
+            return *id;
+        }
+        let id = EntityId(self.next_entity);
+        self.next_entity += 1;
+        self.identities.insert(key, id);
+        id
+    }
+
+    /// The identity of a live node, issuing one if it has none.
+    pub fn identify(&mut self, idx: NodeIdx) -> EntityId {
+        if idx.is_none() || !self.tree.nodes[idx.get()].alive {
+            return EntityId::NONE;
+        }
+        let key = self.tree.nodes[idx.get()].key;
+        self.issue_identity(key)
+    }
+
+    /// The identity of a live node, without issuing one.
+    pub fn identity(&self, idx: NodeIdx) -> Option<EntityId> {
+        if idx.is_none() || !self.tree.nodes[idx.get()].alive {
+            return None;
+        }
+        self.identity_of(self.tree.nodes[idx.get()].key)
     }
 
     pub fn add_observer(&mut self, o: Observer) -> usize {
@@ -1460,7 +1520,7 @@ impl World {
             // kinematic share inside `advance`, and the node's own clock takes
             // the whole chain.
             let physical = self.time_rate_of(NodeIdx(i as u32)).physical();
-            if let Some(c) = self.clocks.get_mut(&key) {
+            if let Some(c) = self.identities.get(&key).and_then(|id| self.clocks.get_mut(id)) {
                 c.time = horizon;
                 c.proper_time += dt * physical;
             }
@@ -1611,11 +1671,13 @@ impl World {
         n.time += coordinate;
         n.steps_taken += 1;
         n.motion.advance(coordinate);
+        let node_time = n.time;
+        let id = self.issue_identity(key);
         let clock = self
             .clocks
-            .entry(key)
-            .or_insert_with(|| Clock::new(n.time, tier.dt()));
-        clock.time = n.time;
+            .entry(id)
+            .or_insert_with(|| Clock::new(node_time, tier.dt()));
+        clock.time = node_time;
         // Two proper times, deliberately. `Motion::proper_time` is the frame's
         // own kinematic share against its immediate parent, which is what makes
         // a `Motion` meaningful on its own. `Clock::proper_time` is what a clock
@@ -1624,7 +1686,7 @@ impl World {
         // physical reading and an administrator speeding a region up does not
         // change what its clocks say.
         let physical = self.time_rate_of(idx).physical();
-        if let Some(c) = self.clocks.get_mut(&key) {
+        if let Some(c) = self.clocks.get_mut(&id) {
             c.proper_time += coordinate * physical;
         }
         report
@@ -2151,7 +2213,7 @@ impl World {
     /// correct precisely because a tree in interstellar space does not grow.
     pub fn environment_at(&self, idx: NodeIdx) -> crate::morph::Environment {
         let n = &self.tree.nodes[idx.get()];
-        if let Some(env) = self.environments.get(&n.key) {
+        if let Some(env) = self.identities.get(&n.key).and_then(|id| self.environments.get(id)) {
             return *env;
         }
         // Illumination from the parent's luminosity at this node's distance —
@@ -2181,7 +2243,7 @@ impl World {
         // there is nothing to measure and the fallback is "unlimited". That is
         // the honest answer to no information, and it is what everything built
         // before mixtures existed relies on.
-        let water = match self.mixtures.get(&n.key) {
+        let water = match self.identities.get(&n.key).and_then(|id| self.mixtures.get(id)) {
             Some(mix) if !mix.is_empty() => mix.in_phase(crate::chem::Phase::Liquid),
             _ => 1.0,
         };
@@ -2276,8 +2338,9 @@ impl World {
             })
             .collect();
         for (key, snap) in entries {
+            let id = self.issue_identity(key);
             self.histories
-                .entry(key)
+                .entry(id)
                 .or_insert_with(|| History::new(depth))
                 .push(snap);
         }
@@ -2402,7 +2465,7 @@ impl World {
         let sep = self.tree.separation(obs.anchor, obs.offset, target, Vec3::ZERO);
         let d = sep.value.norm().max(1e-30);
 
-        let view = match self.histories.get(&key) {
+        let view = match self.identities.get(&key).and_then(|id| self.histories.get(id)) {
             Some(h) if !h.is_empty() => h.retarded(obs.offset, self.time),
             _ => crate::causal::RetardedView {
                 snapshot: Moment {
@@ -2474,26 +2537,27 @@ impl World {
         let Some(moved) = self.tree.reparent(node, new_parent) else {
             return false;
         };
-        // Collected then reinserted, in two passes: within one move an old key
-        // and a new key can name different nodes, so mutating in place could
-        // overwrite an entry that had not been read yet.
-        macro_rules! migrate {
-            ($table:expr) => {{
-                let mut taken = Vec::new();
-                for (old, new) in &moved.keys {
-                    if let Some(v) = $table.remove(old) {
-                        taken.push((*new, v));
-                    }
-                }
-                for (new, v) in taken {
-                    $table.insert(new, v);
-                }
-            }};
+        // One table moves, and only one: the address-to-identity index.
+        //
+        // Everything a node *is* — its chemistry, its environment, its clock,
+        // its history — is keyed by `EntityId`, which a move does not change,
+        // so none of those tables is touched here. That is the whole point of
+        // issuing identity rather than deriving it, and it is why adding a
+        // side table no longer means remembering to add a line to this
+        // function. See `EntityId` for why this one index cannot be avoided.
+        //
+        // Collected then reinserted, in two passes: within one move an old
+        // address and a new one can name different nodes, so mutating in place
+        // could overwrite an entry that had not been read yet.
+        let mut taken = Vec::new();
+        for (old, new) in &moved.keys {
+            if let Some(id) = self.identities.remove(old) {
+                taken.push((*new, id));
+            }
         }
-        migrate!(self.mixtures);
-        migrate!(self.environments);
-        migrate!(self.clocks);
-        migrate!(self.histories);
+        for (new, id) in taken {
+            self.identities.insert(new, id);
+        }
 
         // Both ends changed by hand, so both need their detail kept rather than
         // regenerated, and their neighbours told.
@@ -2601,8 +2665,9 @@ impl World {
         if idx.is_none() || idx.get() >= self.tree.nodes.len() {
             return crate::chem::Mixture::new();
         }
-        self.mixtures
+        self.identities
             .get(&self.tree.nodes[idx.get()].key)
+            .and_then(|id| self.mixtures.get(id))
             .copied()
             .unwrap_or_default()
     }
@@ -2621,9 +2686,14 @@ impl World {
         }
         let key = self.tree.nodes[idx.get()].key;
         if mix.is_empty() {
-            self.mixtures.remove(&key);
+            // Do not issue an identity to take chemistry away from a node that
+            // never had any.
+            if let Some(id) = self.identity_of(key) {
+                self.mixtures.remove(&id);
+            }
         } else {
-            self.mixtures.insert(key, mix);
+            let id = self.issue_identity(key);
+            self.mixtures.insert(id, mix);
         }
     }
 
@@ -2745,7 +2815,11 @@ impl World {
             .map(|i| NodeIdx(i as u32))
             .filter(|i| {
                 let n = &self.tree.nodes[i.get()];
-                n.alive && self.mixtures.contains_key(&n.key)
+                n.alive
+                    && self
+                        .identities
+                        .get(&n.key)
+                        .is_some_and(|id| self.mixtures.contains_key(id))
             })
             .collect();
         for idx in live {
@@ -2755,9 +2829,10 @@ impl World {
             };
             let local = dt * self.local_rate(idx);
             let tau = self.mixing_time(idx);
-            let Some(mut mix) = self.mixtures.get(&key).copied() else { continue };
+            let Some(id) = self.identity_of(key) else { continue };
+            let Some(mut mix) = self.mixtures.get(&id).copied() else { continue };
             let r = crate::chem::react(&mut mix, &self.substances, temperature, local, tau);
-            self.mixtures.insert(key, mix);
+            self.mixtures.insert(id, mix);
             if r.quiet() && r.heat == 0.0 {
                 continue;
             }
@@ -2812,7 +2887,7 @@ impl World {
             if d <= 0.0 || !obs.sees(sep.value) {
                 continue;
             }
-            let view = match self.histories.get(&key) {
+            let view = match self.identities.get(&key).and_then(|id| self.histories.get(id)) {
                 Some(h) if !h.is_empty() => h.retarded(obs.offset, self.time),
                 _ => crate::causal::RetardedView {
                     snapshot: Moment {

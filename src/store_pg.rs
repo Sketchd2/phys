@@ -69,6 +69,19 @@ fn key_bytes(k: PathKey) -> [u8; 16] {
     k.0.to_be_bytes()
 }
 
+fn id_bytes(k: crate::ids::EntityId) -> [u8; 8] {
+    k.0.to_be_bytes()
+}
+
+fn id_from(b: &[u8]) -> Result<crate::ids::EntityId> {
+    if b.len() != 8 {
+        return Err(WireError::Truncated { what: "entity id", need: 8, have: b.len() });
+    }
+    let mut x = [0u8; 8];
+    x.copy_from_slice(b);
+    Ok(crate::ids::EntityId(u64::from_be_bytes(x)))
+}
+
 fn key_from(b: &[u8]) -> Result<PathKey> {
     if b.len() != 16 {
         return Err(WireError::Truncated { what: "path key", need: 16, have: b.len() });
@@ -93,7 +106,7 @@ fn key_from(b: &[u8]) -> Result<PathKey> {
 /// Refused, not migrated. There is no migration while the project is pre-alpha
 /// and `PostgresStore::reset` is the whole answer: drop the tables and rebuild
 /// the world.
-pub const SCHEMA_VERSION: i32 = 3;
+pub const SCHEMA_VERSION: i32 = 4;
 
 pub const SCHEMA: &str = r#"
 CREATE TABLE IF NOT EXISTS schema_version (
@@ -114,6 +127,7 @@ CREATE TABLE IF NOT EXISTS world (
     pace_fixed     boolean          NOT NULL,
     labour_rate    double precision NOT NULL,
     rejected       bigint           NOT NULL,
+    next_entity    bigint           NOT NULL,
     tree_stats     bytea            NOT NULL
 );
 
@@ -170,6 +184,14 @@ CREATE TABLE IF NOT EXISTS mixture (
 CREATE TABLE IF NOT EXISTS environment (
     key  bytea PRIMARY KEY,
     data bytea NOT NULL
+);
+
+-- Address to identity, for the nodes a persisted table refers to. See
+-- `ids::EntityId`: everything else is keyed by identity so that a move does
+-- not touch it, and this is the one index a move has to migrate.
+CREATE TABLE IF NOT EXISTS identity (
+    key       bytea PRIMARY KEY,
+    entity_id bigint NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS in_flight (
@@ -279,8 +301,8 @@ impl PostgresStore {
     pub fn clear(&mut self) -> Result<()> {
         self.client
             .batch_execute(
-                "TRUNCATE node, pinned, fact, environment, audit, world, substances, mixture, ledger_counters,
-                  in_flight, mailbox_counters;",
+                "TRUNCATE node, pinned, fact, environment, identity, audit, world, substances, mixture,
+                  ledger_counters, in_flight, mailbox_counters;",
             )
             .map_err(db)
     }
@@ -301,15 +323,17 @@ impl PostgresStore {
         self.client
             .execute(
                 "INSERT INTO world (id, format, world_seed, root, instant, pace, time_rate,
-                                    time_throttle, paced_to, pace_fixed, labour_rate, rejected, tree_stats)
-                 VALUES (1, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+                                    time_throttle, paced_to, pace_fixed, labour_rate, rejected,
+                                    next_entity, tree_stats)
+                 VALUES (1, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
                  ON CONFLICT (id) DO UPDATE SET
                     format = EXCLUDED.format, world_seed = EXCLUDED.world_seed,
                     root = EXCLUDED.root, instant = EXCLUDED.instant, pace = EXCLUDED.pace,
                     time_rate = EXCLUDED.time_rate, time_throttle = EXCLUDED.time_throttle,
                     paced_to = EXCLUDED.paced_to, pace_fixed = EXCLUDED.pace_fixed,
                     labour_rate = EXCLUDED.labour_rate,
-                    rejected = EXCLUDED.rejected, tree_stats = EXCLUDED.tree_stats",
+                    rejected = EXCLUDED.rejected, next_entity = EXCLUDED.next_entity,
+                    tree_stats = EXCLUDED.tree_stats",
                 &[
                     &(crate::wire::FORMAT_VERSION as i32),
                     &v.tree.world_seed.to_be_bytes().to_vec(),
@@ -322,6 +346,7 @@ impl PostgresStore {
                     &(v.pace_mode == crate::engine::PaceMode::Fixed),
                     &v.labour_rate,
                     &(v.rejected_growth_steps as i64),
+                    &(v.next_entity as i64),
                     &stats.finish(),
                 ],
             )
@@ -425,7 +450,7 @@ impl PostgresStore {
             crate::persist::put_environment_pub(&mut w, e);
             tx.execute(
                 "INSERT INTO environment (key, data) VALUES ($1,$2)",
-                &[&key_bytes(*k).to_vec(), &w.finish()],
+                &[&id_bytes(*k).to_vec(), &w.finish()],
             )
             .map_err(db)?;
         }
@@ -450,7 +475,25 @@ impl PostgresStore {
             crate::persist::put_mixture(&mut w, m);
             tx.execute(
                 "INSERT INTO mixture (key, data) VALUES ($1,$2)",
-                &[&key_bytes(*k).to_vec(), &w.finish()],
+                &[&id_bytes(*k).to_vec(), &w.finish()],
+            )
+            .map_err(db)?;
+        }
+
+        // Pruned to the entries a persisted table refers to, exactly as the
+        // file format does: an identity issued for a clock or a history is not
+        // worth keeping, because neither of those is persisted either.
+        tx.execute("DELETE FROM identity", &[]).map_err(db)?;
+        let mut ids: Vec<_> = v
+            .identities
+            .iter()
+            .filter(|(_, id)| v.environments.contains_key(id) || v.mixtures.contains_key(id))
+            .collect();
+        ids.sort_by_key(|(k, _)| k.0);
+        for (k, id) in ids {
+            tx.execute(
+                "INSERT INTO identity (key, entity_id) VALUES ($1,$2)",
+                &[&key_bytes(*k).to_vec(), &(id.0 as i64)],
             )
             .map_err(db)?;
         }
@@ -632,7 +675,7 @@ fn load_impl(store: &mut PostgresStore) -> Result<Snapshot> {
 
     let mut environments = std::collections::HashMap::new();
     for row in store.client.query("SELECT key, data FROM environment", &[]).map_err(db)? {
-        let k = key_from(&row.get::<_, Vec<u8>>("key"))?;
+        let k = id_from(&row.get::<_, Vec<u8>>("key"))?;
         let blob: Vec<u8> = row.get("data");
         let mut r = Reader::new(&blob);
         environments.insert(k, crate::persist::get_environment_pub(&mut r)?);
@@ -652,11 +695,19 @@ fn load_impl(store: &mut PostgresStore) -> Result<Snapshot> {
     };
     let mut mixtures = std::collections::HashMap::new();
     for row in store.client.query("SELECT key, data FROM mixture", &[]).map_err(db)? {
-        let k = key_from(row.get::<_, Vec<u8>>("key").as_slice())?;
+        let k = id_from(row.get::<_, Vec<u8>>("key").as_slice())?;
         let blob: Vec<u8> = row.get("data");
         let mut r = Reader::new(&blob);
         mixtures.insert(k, crate::persist::get_mixture(&mut r)?);
     }
+
+    let mut identities = std::collections::HashMap::new();
+    for row in store.client.query("SELECT key, entity_id FROM identity", &[]).map_err(db)? {
+        let k = key_from(row.get::<_, Vec<u8>>("key").as_slice())?;
+        let id: i64 = row.get("entity_id");
+        identities.insert(k, crate::ids::EntityId(id as u64));
+    }
+    let next_entity = (world.get::<_, i64>("next_entity") as u64).max(1);
 
     let mut audit = Vec::new();
     for row in store
@@ -725,6 +776,8 @@ fn load_impl(store: &mut PostgresStore) -> Result<Snapshot> {
         environments,
         substances,
         mixtures,
+        identities,
+        next_entity,
         audit,
     };
     // Nodes skipped by an incremental write are at whatever instant they were

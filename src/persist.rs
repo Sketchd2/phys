@@ -39,7 +39,7 @@
 
 use crate::causal::{Influence, InfluenceKind, Mailbox};
 use crate::coords::Motion;
-use crate::ids::{NodeIdx, PathKey};
+use crate::ids::{EntityId, NodeIdx, PathKey};
 use crate::morph::{Environment, Event, EventKind, Morphology, Program};
 use crate::observe::{AuthorEvent, Fact, Ledger, Property, Quantity};
 use crate::sampler::{MassSpectrum, Profile, SampleReport, SampleSpec};
@@ -398,7 +398,7 @@ pub(crate) fn get_spec(r: &mut Reader) -> Result<SampleSpec> {
 // exactly that reason.
 
 const SUBSTANCE_MIN_BYTES: usize = 4 + 4 + 1 + 8 * 12 + 1 + 1;
-const MIXTURE_MIN_BYTES: usize = 16 + 4;
+const MIXTURE_MIN_BYTES: usize = 8 + 4;
 
 fn put_element(w: &mut Writer, e: crate::chem::Element) {
     w.u8(e.z());
@@ -947,9 +947,14 @@ pub struct Snapshot {
     pub pace_mode: crate::engine::PaceMode,
     pub labour_rate: f64,
     pub rejected_growth_steps: u64,
-    pub environments: HashMap<PathKey, Environment>,
+    pub environments: HashMap<EntityId, Environment>,
     pub substances: crate::chem::Registry,
-    pub mixtures: HashMap<PathKey, crate::chem::Mixture>,
+    pub mixtures: HashMap<EntityId, crate::chem::Mixture>,
+    /// Address to identity, for the nodes that have one. Only the entries a
+    /// persisted table actually refers to are written: an identity issued for
+    /// a clock or a history is not worth keeping, because neither of those is.
+    pub identities: HashMap<PathKey, EntityId>,
+    pub next_entity: u64,
     pub audit: Vec<AuthorEvent>,
     /// Influences posted and not yet arrived. Durable: an impulse in the
     /// light-delay between the act and its landing is an action somebody took,
@@ -975,9 +980,11 @@ pub struct WorldView<'a> {
     pub pace_mode: crate::engine::PaceMode,
     pub labour_rate: f64,
     pub rejected_growth_steps: u64,
-    pub environments: &'a HashMap<PathKey, Environment>,
+    pub environments: &'a HashMap<EntityId, Environment>,
     pub substances: &'a crate::chem::Registry,
-    pub mixtures: &'a HashMap<PathKey, crate::chem::Mixture>,
+    pub mixtures: &'a HashMap<EntityId, crate::chem::Mixture>,
+    pub identities: &'a HashMap<PathKey, EntityId>,
+    pub next_entity: u64,
     pub audit: &'a [AuthorEvent],
     pub mailbox: &'a Mailbox,
 }
@@ -996,6 +1003,8 @@ impl Snapshot {
             labour_rate: self.labour_rate,
             rejected_growth_steps: self.rejected_growth_steps,
             environments: &self.environments,
+            identities: &self.identities,
+            next_entity: self.next_entity,
             substances: &self.substances,
             mixtures: &self.mixtures,
             audit: &self.audit,
@@ -1053,22 +1062,39 @@ pub fn encode(s: WorldView<'_>) -> Vec<u8> {
     w.f64(s.labour_rate);
     w.u64(s.rejected_growth_steps);
 
-    let mut envs: Vec<(&PathKey, &Environment)> = s.environments.iter().collect();
+    let mut envs: Vec<(&EntityId, &Environment)> = s.environments.iter().collect();
     envs.sort_by_key(|(k, _)| k.0);
     w.seq(envs.len());
     for (k, e) in envs {
-        w.u128(k.0);
+        w.u64(k.0);
         put_environment_pub(&mut w, e);
     }
 
     put_registry(&mut w, s.substances);
-    let mut mixes: Vec<(&PathKey, &crate::chem::Mixture)> = s.mixtures.iter().collect();
+    let mut mixes: Vec<(&EntityId, &crate::chem::Mixture)> = s.mixtures.iter().collect();
     mixes.sort_by_key(|(k, _)| k.0);
     w.seq(mixes.len());
     for (k, m) in mixes {
-        w.u128(k.0);
+        w.u64(k.0);
         put_mixture(&mut w, m);
     }
+
+    // The address-to-identity index, pruned to what the tables above refer to.
+    // An identity handed out for a clock or a history is not written, because
+    // neither of those survives a save either — see the transient table in this
+    // module's own documentation.
+    let mut wanted: Vec<(&PathKey, &EntityId)> = s
+        .identities
+        .iter()
+        .filter(|(_, id)| s.environments.contains_key(id) || s.mixtures.contains_key(id))
+        .collect();
+    wanted.sort_by_key(|(k, _)| k.0);
+    w.seq(wanted.len());
+    for (k, id) in wanted {
+        w.u128(k.0);
+        w.u64(id.0);
+    }
+    w.u64(s.next_entity);
 
     w.seq(s.audit.len());
     for a in s.audit {
@@ -1102,8 +1128,10 @@ pub fn encode(s: WorldView<'_>) -> Vec<u8> {
 }
 
 const FACT_MIN_BYTES: usize = 16 + 1 + 8 + 8 + 8;
-const ENV_MIN_BYTES: usize = 16 + 8 * 6;
+const ENV_MIN_BYTES: usize = 8 + 8 * 6;
 const AUDIT_MIN_BYTES: usize = 16 + 1 + 8 + 8;
+/// A `PathKey` and the `EntityId` it names.
+const IDENTITY_MIN_BYTES: usize = 16 + 8;
 const INFLUENCE_MIN_BYTES: usize = 8 + 4 + 1 + 8 + 24 + 8;
 
 const INFLUENCE_KINDS: [InfluenceKind; 5] = [
@@ -1173,7 +1201,7 @@ pub fn decode(bytes: &[u8]) -> Result<Snapshot> {
     let n = r.seq("environments", ENV_MIN_BYTES)?;
     let mut environments = HashMap::with_capacity(n);
     for _ in 0..n {
-        let k = PathKey(r.u128()?);
+        let k = EntityId(r.u64()?);
         environments.insert(k, get_environment_pub(&mut r)?);
     }
 
@@ -1181,9 +1209,17 @@ pub fn decode(bytes: &[u8]) -> Result<Snapshot> {
     let n = r.seq("mixtures", MIXTURE_MIN_BYTES)?;
     let mut mixtures = HashMap::with_capacity(n);
     for _ in 0..n {
-        let k = PathKey(r.u128()?);
+        let k = EntityId(r.u64()?);
         mixtures.insert(k, get_mixture(&mut r)?);
     }
+
+    let n = r.seq("identities", IDENTITY_MIN_BYTES)?;
+    let mut identities = HashMap::with_capacity(n);
+    for _ in 0..n {
+        let k = PathKey(r.u128()?);
+        identities.insert(k, EntityId(r.u64()?));
+    }
+    let next_entity = r.u64()?.max(1);
 
     let n = r.seq("audit", AUDIT_MIN_BYTES)?;
     let mut audit = Vec::with_capacity(n);
@@ -1230,6 +1266,8 @@ pub fn decode(bytes: &[u8]) -> Result<Snapshot> {
         environments,
         substances,
         mixtures,
+        identities,
+        next_entity,
         audit,
     })
 }

@@ -105,15 +105,19 @@ claims to catch. Two tests in this repo passed against the very defect they were
 written for, and one went tautological when a refactor rewrote both sides of a
 comparison.
 
-**`PathKey` does two jobs** — it is both the address (derives children, seeds
-the sampler) and the identity (ledger, pinned detail, side tables). Moving a
-node changes the first while the second must survive. `reparent` handles it;
-nothing else does.
+**Identity is issued, not derived — `EntityId`, not `PathKey`.** `PathKey` is
+the *address*: it derives children and seeds the sampler, and it changes when a
+node moves. `EntityId` is the *name*: issued once, never reused, unchanged by a
+move, a coarsen or a reload. Side tables (`mixtures`, `environments`, `clocks`,
+`histories`) are keyed by name, so `reparent` does not touch them — a new side
+table is safe by default rather than safe if somebody remembered to add a line.
+Use `identify` on a write path (it issues), `identity` to read (it does not).
 
-**A node's identity is spread across side tables** on `World` — `mixtures`,
-`environments`, `clocks`, `histories`, all keyed by `PathKey`. `World::reparent`
-has the only enumeration of them. **Add a table, add a line there**, or a moved
-object silently arrives without its chemistry.
+**One index still moves:** `World::identities`, address to name. A node
+discarded and rebuilt has to recover its name from somewhere, and its address is
+all it comes back with, so `reparent` migrates that one map. Ledger and audit
+entries are still keyed by `PathKey`, deliberately — a measurement was made *of a
+place*.
 
 **Tier is cached, never revisited.** Set at promotion from the body's radius.
 `plant`, `emplace` and growth all change a node's size without updating it, so a

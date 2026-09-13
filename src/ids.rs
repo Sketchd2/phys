@@ -24,6 +24,57 @@ impl NodeIdx {
     }
 }
 
+/// An issued name for a thing, as distinct from where that thing currently is.
+///
+/// [`PathKey`] does two jobs and is good at one of them. As an *address* it is
+/// perfect: derived from the child-index path, so it survives a node being
+/// discarded and rebuilt, and it seeds the sampler. As an *identity* it fails
+/// the moment anything moves — `reparent` changes a node's address, and every
+/// side table keyed by the old one is then pointing at a stranger.
+///
+/// So identity is issued rather than derived. An `EntityId` is handed out once,
+/// never reused, and does not change for any reason: not a move, not a
+/// coarsen, not a reload. What a thing *is* stops being a function of where it
+/// happens to be.
+///
+/// # Why this is not just another key
+///
+/// The trap it removes is that a node's identity was spread across side tables
+/// on `World` — chemistry, environment, clocks, history — each keyed by address,
+/// and `World::reparent` held the only enumeration of them. Adding a table
+/// meant remembering to add a line there, and forgetting meant a moved object
+/// arrived without its chemistry, silently. Keyed by `EntityId` the tables do
+/// not move when the thing does, so there is nothing to remember.
+///
+/// One index does still have to be migrated, and it is worth being honest that
+/// this is not quite "by construction": a node discarded and rebuilt has to
+/// recover its identity from *somewhere*, and the only somewhere is a map from
+/// address to identity. `reparent` migrates that one map. The difference is
+/// that it is one line in one place for ever, rather than one line per table
+/// for ever.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct EntityId(pub u64);
+
+impl EntityId {
+    /// Not a thing. Distinct from any issued id, which start at one.
+    pub const NONE: EntityId = EntityId(0);
+
+    #[inline]
+    pub fn is_none(self) -> bool {
+        self.0 == 0
+    }
+}
+
+impl std::fmt::Display for EntityId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if self.is_none() {
+            f.write_str("@none")
+        } else {
+            write!(f, "@{}", self.0)
+        }
+    }
+}
+
 /// Persistent identity. 128 bits: with ~10^12 live nodes the collision
 /// probability over the life of a simulation is ~10^-15.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]

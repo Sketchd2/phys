@@ -150,10 +150,8 @@ fn a_node_left_in_the_dark_cools() {
     let root = w.tree.root;
     // Nothing shining on it: an unparented root gets the default flux, so make
     // the darkness explicit.
-    w.environments.insert(
-        w.tree.nodes[root.get()].key,
-        Environment { light_flux: 0.0, ..Default::default() },
-    );
+    let id = w.identify(root);
+    w.environments.insert(id, Environment { light_flux: 0.0, ..Default::default() });
 
     let before = w.tree.nodes[root.get()].matter.temperature;
     for _ in 0..50 {

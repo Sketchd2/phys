@@ -33,6 +33,7 @@
 
 use phys::engine::{default_spec, galaxy, World};
 use phys::math::v3;
+use phys::morph::Environment;
 use phys::observe::{Interaction, Quantity};
 use phys::persist::{dirty_nodes, WorldStore};
 use phys::store_pg::PostgresStore;

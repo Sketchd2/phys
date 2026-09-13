@@ -1030,7 +1030,17 @@ object a player picks up.
 
 ---
 
-## A `PathKey` is doing two jobs, and re-parenting made it show
+## ~~A `PathKey` is doing two jobs, and re-parenting made it show~~ — done
+
+**Closed** by `docs/PLAY.md` D2, in Phase 1. `ids::EntityId` is issued once and
+never reused; `mixtures`, `environments`, `clocks` and `histories` are keyed by
+it, so `World::reparent` no longer enumerates them. One index — `World::identities`,
+address to name — is migrated instead, because a node discarded and rebuilt
+recovers its name from its address and nothing else. `tests/reparent.rs` holds
+the three properties: a move changes the address and not the name, a name is
+issued once and asking does not issue, and the tables keyed by name are not
+touched by a move.
+
 
 **Noticed:** building `Tree::reparent`. **Where:** `ids.rs`, and every table
 keyed by `PathKey`.
