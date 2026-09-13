@@ -331,6 +331,62 @@ still latent.
 
 ---
 
+## Identity allocation depends on the frame budget, and reaches the save file
+
+**Noticed:** asked whether an id reallocated across a sample/summarise cycle
+would break the bit-identical regeneration rule.
+**Where:** `engine.rs` — `advance_node` calls `issue_identity` to key its clock,
+and which nodes `advance_node` runs on is chosen by the frame budget from a
+wall-clock allowance.
+
+**It does not break regeneration.** `sample` is deterministic in
+`(matter, spec, world_seed, path_key, epoch)` and takes no identity, so
+regenerated bodies are bit-identical whatever the ids are. That axiom is intact.
+
+**It breaks save determinism.** Measured, same scenario, forty frames, varying
+only the wall-clock budget:
+
+```text
+ budget us  next_entity     bytes             checksum
+     50000            2    182196     784948e4801d0fc7
+      5000            5    182196     ce4db2dd4b519220
+       200            5    182196     ce4db2dd4b519220
+         1            5    182196     ce4db2dd4b519220
+```
+
+Same length, different contents. A slower machine advances a different set of
+nodes, issues a different number of identities, and saves a different world.
+`next_entity` is persisted, so the divergence is durable.
+
+**Why it matters more than it looks.** `docs/PLAY.md` D10 makes the input log
+mandatory and states world state as `f(world_seed, ordered input log)`, and D1's
+hindsight replay rests on the same thing. The moment an input names an
+`EntityId` — "actor picks up entity 4471" — a replay on a different machine
+binds that name to a different node. The failure would be silent and would look
+like a physics bug.
+
+**The cause is one line in the wrong place.** Identity is issued on a path the
+*scheduler* drives rather than a path something *happened* on. A clock is
+bookkeeping the budget created, not a fact about the world.
+
+**Three ways out**, and they are not equivalent:
+
+1. **Issue only on paths where something happened** — chemistry set, environment
+   authored, node pinned, actor interacted. Clocks and histories stop naming
+   nodes. This is what `docs/PLAY.md` D2's economy argument already claimed was
+   true ("only pinned, structured or touched things need identity") and what the
+   code does not do. Leaves the question of what keys `clocks` and `histories`.
+2. **Derive the id from the address** — deterministic, no counter, and it
+   re-breaks the thing D2 exists to fix, because a move would rename the node.
+3. **Make the counter deterministic some other way** — for instance advancing it
+   only on `epoch` bumps. Keeps clocks named, at the cost of a second rule about
+   when ids may be handed out.
+
+**Trigger:** pulled. This is wrong now, and it is cheapest to fix before anything
+in the play space starts naming entities in an input log.
+
+---
+
 ## Nothing prunes the identity index, or the clocks and histories it names
 
 **Noticed:** reviewing the `EntityId` change, asked to justify it.
