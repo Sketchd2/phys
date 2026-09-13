@@ -420,6 +420,38 @@ fn checkpoint_size() {
 }
 
 // ---------------------------------------------------------------------------
+// D12 — what does replaying an event sequence per individual cost?
+// ---------------------------------------------------------------------------
+
+fn replay_cost() {
+    rule("D12  cost of replaying a region's event sequence per individual");
+    let mut env = Environment::default();
+    env.reservoir_mass = 1.0e9;
+
+    for events in [50usize, 200, 1000] {
+        let t0 = std::time::Instant::now();
+        let reps = 200;
+        for r in 0..reps {
+            let mut m = Morphology::new(Program::Tree, 0x5EED + r as u64, 0x1234, 0);
+            for i in 0..events {
+                env.light_flux = 200.0 + 400.0 * ((i % 7) as f64 / 7.0);
+                m.advance(YEAR * 0.5, &env);
+            }
+            std::hint::black_box(m.built);
+        }
+        let per_tree = t0.elapsed().as_secs_f64() / reps as f64;
+        println!(
+            "{:>5} events: {:>9.1} us/tree   1e4 trees {:>7.2} s   1e6 trees {:>8.1} s",
+            events, per_tree * 1e6, per_tree * 1e4, per_tree * 1e6
+        );
+    }
+    println!("\n(A region's ordered events are shared, so storage is O(events). This is");
+    println!(" the *replay* cost, which is O(events) per individual materialised — the");
+    println!(" figure that decides whether a per-species rate law replayed against a");
+    println!(" shared sequence is affordable. Only materialised individuals pay it.)");
+}
+
+// ---------------------------------------------------------------------------
 // Probes blocked on machinery the plan has not built
 // ---------------------------------------------------------------------------
 
@@ -456,6 +488,7 @@ fn main() {
     if run("markov") { growth_markovian(); }
     if run("limb") { limb_chord_rotation(); }
     if run("checkpoint") { checkpoint_size(); }
+    if run("replay") { replay_cost(); }
     if run("blocked") { blocked(); }
     println!();
 }

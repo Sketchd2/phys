@@ -555,15 +555,27 @@ cracks and street networks. This does not delete `render_branching`; it deletes
 the *category* that `render_branching` was the first member of, which is the
 "no special cases" axiom collecting a large debt.
 
-**Derive per species, instance per individual.** This is the third axiom applied
-to morphogenesis, and it dissolves most of what follows.
+**Derive the rate law per species; replay a shared event sequence per
+individual.** This is the third axiom applied to morphogenesis, and it dissolves
+most of what follows.
 
-The growth *response* is derived once per genome — offline, over a sampled space
-of conditions — and stored. Every individual then evaluates the stored response
-at its own conditions, which is a lookup rather than a simulation. An oak and a
-birch are two genomes and therefore two response surfaces: same law, different
-physiology, different tree. The expensive derivation happens once per species,
-not once per tree and never per frame.
+An earlier draft said the *outcome* was derived once per genome over a sampled
+space of conditions, and that each individual then looked its own conditions up.
+Phase 0 falsified that: growth is not Markovian in the integrated conditions, and
+ordering is worth tens of percent (§6). A surface indexed by "how much light did
+it get" cannot tell a tree shaded young from one shaded old.
+
+So what is derived once per genome is the **rate law** — how this species answers
+its conditions at its current size — and what an individual replays is the
+**ordered event sequence of its region**, which §5.10 already stores once and
+shares. An oak and a birch are two genomes and therefore two rate laws: same
+physics, different physiology, different tree. The expensive derivation still
+happens once per species, never per tree and never per frame.
+
+Note that this is what axiom three's second clause was already asking for. A
+rate law replayed against a live sequence *is* a function of its conditions; an
+outcome surface over an integral is the frozen outcome the axiom forbids. The
+axiom ruled out the first draft before the probe did.
 
 Note what makes this axiom-compliant rather than a table with better manners.
 Axiom three's operative clause is "a tabulated constant *that was never derived*
@@ -582,9 +594,17 @@ arrivals at the same shape is a good sign it is the right one.
 **Answered — it is iterative.** Growing into an occluded field is not one
 `render` call, and the design's single biggest win is that "growth runs on the
 aggregate, so a forest grows without any of its trees existing". A million trees
-cannot each run a light-competition simulation. Under derive-once-per-species
-they do not have to: a million trees is a million evaluations of a stored
-surface. The simulation runs once, for the species, and never again.
+cannot each run a light-competition simulation, and under the sequence-replay
+form they do not: the light competition is what derives the *species'* rate law,
+once, and an individual only replays its region's events through it.
+
+That replay is `O(events)` per individual rather than the `O(1)` the outcome
+surface promised, so it was measured rather than waved at. A 200-event life costs
+**15 µs**: ten thousand materialised trees is 0.15 s, paid once when they are
+materialised. A million trees would be 15 s — and is never paid, because a
+million trees are never materialised at once. The fourth axiom is what makes the
+difference between those two numbers, which is the same argument the rest of the
+engine runs on.
 
 **Answered — regenerability.** The worry was that shape would depend on the
 environment a thing *grew in*, which is a history rather than a state, so a node
@@ -1479,13 +1499,27 @@ if its accumulated integrals lived on the region node, `reparent` would silently
 rewrite its history. So integrals ride with the entity (D2), climate deviations
 ride with the region node, and `reparent` moves one and not the other.
 
-**Whether old events can be compacted is decided by D12's probe, not separately.**
-A drought can eventually be folded into the baseline — a decade that ran drier is
-a shift in the derived baseline for that decade — which preserves the integral
-and discards the ordering. That is safe *if and only if* growth is Markovian in
-the integrals, which is exactly the question §D12 already sends to a probe. One
-measurement decides both whether the response surface exists and whether regional
-history can be compacted at all.
+**Compaction was decided by D12's probe, and not the way this section first
+hoped.** The idea was that a drought could eventually be folded into the baseline
+— a decade that ran drier becomes a shift in the derived baseline for that decade
+— preserving the integral and discarding the ordering. That is safe if and only
+if growth is Markovian in the integrals, and §6 measured that it is not: same
+integral, opposite ordering, tens of percent apart in the tree you get.
+
+**So averaging a history away is exactly the wrong compaction.** It destroys the
+one thing that was worth 30%.
+
+What is safe is to coarsen the *time resolution* while keeping the order: a
+drought at year 12 becomes "a drought in the 10s", and then "a dry stretch in
+that century", rather than becoming a shift in a mean. Ordering survives at
+falling precision, which is the property replay actually consumes. That is
+§5.7's edit-list-summarises-into-a-field with the field binned in time rather
+than in space, so it is the same transform again and not a new one.
+
+The other safe compaction is outright deletion once nothing can still be derived
+from an event — when everything that lived through the drought is dead, the
+drought has no reader left. That is §5.8's "conservative in the quantity that
+matters" with the quantity being what a replay would produce.
 
 And §5.9's lesson governs the compaction when it happens: **it must be
 conservative in the quantity that matters.** There, folding severances into a
@@ -1561,8 +1595,22 @@ integral, and it is what `advance` already does. It would keep D12's economy —
 derive once per species, evaluate per individual — while dropping the part the
 probe just falsified.
 
-**That repair is not made here.** It changes a decision, and the plan says
-decisions get made before code rather than during it.
+**Resolved.** The repair taken is not the one sketched above. Rather than a rate
+law over the current state alone, D12 now derives the **rate law per species** and
+replays the **region's ordered event sequence** through it — §5.10 already stores
+that sequence once per region and shares it, so ordering is preserved rather than
+integrated away, and the thing the probe broke is fixed rather than worked
+around.
+
+The cost of that was measured rather than assumed: replay is `O(events)` per
+materialised individual, at **15 µs for a 200-event life**, so ten thousand trees
+is 0.15 s paid once at materialisation. A million trees is 15 s and is never paid,
+because a million trees are never materialised at once.
+
+It also settles §5.10's open compaction question, in the negative: averaging a
+history away destroys exactly the ordering that was worth tens of percent, so
+compaction must coarsen *time resolution* while preserving order, or delete an
+event once nothing can still be derived from it.
 
 Two known defects will bite during this work and are scheduled rather than
 discovered:

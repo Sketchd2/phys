@@ -185,8 +185,21 @@ the same integral (mean 400 W/m²) over 100 simulated years:
 | falling 720→80 | 2.648e4 kg | −26.3% |
 
 Ordering changes the outcome by tens of percent, so a per-species response
-surface over *integrated* conditions cannot reproduce a life. See
-`docs/PLAY.md` §6 for what that does to D12.
+surface over *integrated* conditions cannot reproduce a life. D12 now derives a
+rate law per species and replays the region's ordered event sequence through it
+instead.
+
+**What that replay costs** (D12). A region's events are stored once and shared,
+so storage is O(events); replay is O(events) per *materialised* individual:
+
+| events in a life | per tree | 10⁴ trees | 10⁶ trees |
+|---:|---:|---:|---:|
+| 50 | 3.9 µs | 0.04 s | 3.9 s |
+| 200 | 15.0 µs | 0.15 s | 15.0 s |
+| 1000 | 75.2 µs | 0.75 s | 75.2 s |
+
+Paid once when an individual is materialised, not per frame. The 10⁶ column is
+never paid, because a million trees are never materialised at once.
 
 ## 2. What the optimisation history cost and bought
 
