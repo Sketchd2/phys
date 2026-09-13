@@ -385,6 +385,100 @@ Designed now, built after the first slice, so that nothing has to be unpicked.
 
 ---
 
+### D11 — One deposition law; `Program` becomes a genome, not a species
+
+**`Program` is a species table, and it is the largest standing violation of the
+first axiom in the codebase.** Six variants, fourteen `match self.program` sites,
+and an `impl` carrying seven per-variant columns:
+
+```rust
+is_planned()     Tower | Wall | Settlement
+design_flow()    Tree (20.0, 1.225)  Coral (1.2, 1025.0)  Tower (42.0, 1.225) …
+density()        WOOD_DENSITY | CORAL_DENSITY | BUILDING_DENSITY | ROCK_DENSITY
+energy_density() BIOMASS_ENERGY | CONSTRUCTION_ENERGY | 0.0
+substrate()      a Composition per variant
+maintenance()    Tree 0.02/YEAR  Coral 0.05/YEAR  Tower 0.005/YEAR  Terrain 1e-5/YEAR
+```
+
+"Nothing in the engine knows what salt is, what a forest is" — but
+`Program::Tree` knows what a tree is, knows it grows in air at 1.225 kg/m³,
+knows it is made of wood, and knows it decays at 2% a year. That last row is a
+tabulated decay rate, which is precisely what §5.2 says must be derived. And D7
+was about to add a seventh row for creatures, with more columns.
+
+**Five of the seven columns are not properties of a species at all.** They are
+properties of two things the engine already measures:
+
+| column | what it actually is | where it comes from |
+|---|---|---|
+| `density` | the material | `topology.rs` already has materials as data. A wooden tower and a wooden tree have one density between them. |
+| `energy_density` | embodied energy per kg | the material again — and §5.8 needs this real anyway |
+| `substrate` | what it is made of | the material's composition |
+| `design_flow` | the fluid, and the gust to build against | **measured.** A coral is in water because its node's mixture is water; nobody tells it. The design gust is the gust the structure has met, which its own history already holds. |
+| `maintenance` | the decay rate | §5.2: cohesion, local flux, geometry |
+
+So the table is not needed, because the information is already in state. That is
+"measure, never be told" applied to the thing that was telling.
+
+The sixth, `is_planned`, is the interesting one. Physically, growth and
+construction are the same operation — **material is deposited where a field says
+to deposit it** — and they differ only in where the field comes from. A tree's
+comes from light and load; a tower's is supplied by whoever is building. So
+`is_planned` stops being a species flag and becomes a statement about the
+deposition field's *source*, which is a property of the act rather than of the
+thing.
+
+**Decay is the same law with the flux reversed.** Deposition where it pays,
+removal where it does not: a rotting log, a weathering wall, a dissolving bone
+and an eroding dune are one expression over material resistance, local flux and
+surface geometry. §5.2 already wrote it for terrain; there is no second version
+for structures.
+
+**And weather stops being a feature.** `Mechanism` is *already* the general load
+vocabulary — `BodyAcceleration`, `FlowDrag`, `SurfaceAccretion`,
+`ConductedEnergy`, `ThermalField` — and `PHYSICS.md` already says snow, wind,
+lightning and fire are constructors over them rather than named weather. What is
+missing is not generality, it is *reach*: mechanisms are handed to `shake` and
+`damage` by the caller, so weather today is a test harness rather than a thing
+the world has.
+
+D3's adjacency is what closes it. Once a structure can measure what is next to
+it, the adjacent air has a velocity, a temperature and a mixture with a water
+fraction, and `FlowDrag` is constructed from the measurement rather than passed
+in. Then **one environment measurement drives three consumers at once**: a tree
+in a gale is loaded by the wind, grows thicker because it is loaded, and weathers
+faster because of the driven rain. No weather system exists anywhere, and a storm
+is a thing the air is doing.
+
+**What this does not unify, and I will not claim it does.** The rate laws go to
+zero species knowledge. The *geometry* does not. Branching, coursed masonry and a
+subdivided street grid are genuinely different space-filling rules, and asserting
+they collapse into one would be the third over-claim in this document rather than
+the first.
+
+What they do reduce to is a small set of **habits** — branching (trees, corals,
+lungs, river deltas, lightning), coursed (walls, brickwork, strata), subdivided
+plane (settlements, cracked mud, leaf venation) — selected and parameterised by
+the genome instead of named by an enum. A creature needs a fourth, segmented and
+bilateral, and that is an honest addition rather than a per-species renderer.
+Three or four habits against six-and-climbing species is a real reduction, and it
+is where the reduction stops.
+
+**The honesty test, stated before the work rather than after.** Can a genome
+*nobody designed* produce something coherent? If every genome that works had to
+be hand-tuned into working, then thirty coefficients have replaced six enum
+variants, the special cases are still there, and they are now less legible than
+when they were honest about being a table. Sample a hundred random genomes; if
+the failures are ugly rather than impossible, it generalised.
+
+**Where it lands.** The material-and-environment collapse goes in Phase 2, because
+terrain decay needs `maintenance` derived before it can erode anything. The habit
+refactor lands before Phase 4, because creatures would otherwise arrive as a
+seventh species and make the table worse at exactly the moment it is hardest to
+undo.
+
+---
+
 ## 3. The tiers under these decisions
 
 The ladder is the part of the architecture most likely to be assumed changed by
@@ -1184,6 +1278,7 @@ a scratch probe that Phase 0 should commit properly rather than from arithmetic.
 | How large is the checkpoint for an interactive subtree? | D1's replay and D10's rollback both pay for it. | Measure a populated patch's snapshot through the existing `persist` path. |
 | ~~Does metre-scale bulk fluid actually hurt?~~ | Answered by §4: yes, for anything at play scale — a 5 cm channel is two orders below the floor. §3.7's option (1) is not the end of the matter, and option (2) is what Phase 3 adopts. | — |
 | Does a busy square's stored-deviation count converge, and to what? | §5.5 argues arrival rate times mean lifetime is a bound rather than a hope. If the number is millions, the decay rate is wrong or §5.6's summarising is load-bearing much earlier than expected. | Simulate arrivals at a plausible footfall against a derived sand/paving erosion rate and count what is held. |
+| Can an undesigned genome make something coherent? | D11's honesty test. If every working genome is hand-tuned, thirty coefficients have replaced six variants and nothing generalised. | Sample a hundred random genomes, render each, and count how many are ugly versus impossible. |
 | At what edit count does a structure start regrowing removed parts? | §5.9 reads `MAX_EVENTS = 64` off the source; the behaviour should be demonstrated rather than inferred from the code. | Sever 65 sites on one structure, regenerate, and count the segments that came back. |
 | Can embodied energy be derived from a topology, and does removing one member show up? | §5.8's fix depends on it entirely. Carried opaquely, as today, the check is blind. | Derive it for a walled structure, remove one member, and difference `non_rest_energy` against the unedited regeneration. |
 | Does the embodied-energy check have the digits? | One member against a whole building is a small difference on a large number — the same precision trap as rest mass. | Measure the ratio for a realistic building and compare against `f64`'s 15.95 digits. |
@@ -1235,7 +1330,10 @@ gravity, and terrain as an **editable deviation over a derived base** (§4.3) �
 carving shares D9's build log's *concept* but not its representation (§5.7),
 and both are settled here — along with the decay machinery of §5: a deviation
 with an amplitude, a derived erosion rate, and promotion to baseline when
-`summarise` says the coarse level noticed. The surface representation is designed with
+`summarise` says the coarse level noticed. Plus D11's first half — `density`,
+`energy_density`, `substrate`, `design_flow` and `maintenance` moved off
+`Program` onto the material and the measured environment — because a derived
+erosion rate cannot coexist with a tabulated one. The surface representation is designed with
 Phase 3 as a named consumer, because a surface that cannot hold a puddle is one
 that gets rebuilt. *Done when:* an observer descends from orbit to a square metre of any
 planet in any scenario, travels ten kilometres across patch boundaries, and the
@@ -1267,11 +1365,12 @@ cells — which §4.2 measures as `MAX_SUBSTEPS` at 512 and about 4×10⁵ parti
 in the local patch. The ocean beyond the patch stays coarse, and nothing between
 the two loses mass.
 
-**Phase 4 — Bodies.** Substructuring (D5); `Program::Creature` and its genome;
+**Phase 4 — Bodies.** D11's habit refactor first, so creatures arrive as a genome
+rather than a seventh species; substructuring (D5); the creature genome;
 the actuation mechanism; derived-and-cached gait and grasp; local interaction
 resolved inside a segment. *Done when:* a quadruped and a biped grown from two
 genomes both walk, on two planets with different g, with no per-morphology code
-anywhere; shouldering a load visibly changes the gait; and scratching a paw does
+anywhere and no enum variant naming either of them; shouldering a load visibly changes the gait; and scratching a paw does
 not re-analyse the animal.
 
 **Phase 5 — Minds.** The actor-client host outside the core crate; the

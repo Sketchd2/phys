@@ -172,6 +172,13 @@ waits on:
    node claiming a volume they have left. The spread measurement it needs is the
    same one surface handoff and detached fragments need.
 
+`PLAY.md` D11 also finds the largest standing axiom violation in the codebase:
+**`morph::Program` is a species table.** Six variants, fourteen dispatch sites,
+and seven per-variant columns including a tabulated per-species decay rate.
+Five of those columns are properties of the *material* or the *measured
+environment* rather than of a species, and belong there. Do not add a seventh
+variant — that is what D11 exists to prevent.
+
 Two decisions in `PLAY.md` change things already written down, so do not treat
 the older text as current where they disagree: **the world runs at one second
 per second at every tier** (observer-following pace becomes a single-player
