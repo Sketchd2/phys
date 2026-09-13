@@ -331,6 +331,40 @@ still latent.
 
 ---
 
+## A regenerable snapshot still grows with body count
+
+**Noticed:** measuring checkpoint size for the Phase 0 probes.
+**Where:** `persist.rs` — `put_node`, and whatever else `encode` walks.
+
+`persist.rs` is explicit that materialised bodies of unpinned nodes are
+transient, "regenerated from address and epoch, bit-for-bit", and the code
+agrees: `put_node` writes bodies only `if n.pinned`. So a snapshot of a
+regenerable world should not care how many bodies it stands for. Measured, it
+does:
+
+```text
+unrefined world, 1 live node                            736 B
+8 live nodes, spec.count 512,   28,512 bodies       118,211 B
+8 live nodes, spec.count 4096,  32,096 bodies       132,547 B
+8 live nodes, spec.count 16384, 44,384 bodies       181,699 B
+```
+
+One node costs 736 bytes; eight cost 118 KB and up, and the figure tracks the
+body count of detail that is not being written. Something on the path scales
+with what was materialised — a side table, a spec, or a per-node array — and
+it is not the bodies.
+
+**Why it may not matter yet.** 182 KB is small in absolute terms and nothing is
+wrong with the world that comes back; `tests/persistence.rs` passes. What it
+undermines is the *claim* that regenerable detail is free to store, which the
+design leans on in several places and `docs/PLAY.md` D10 leans on for sharding.
+
+**Trigger:** before anything sizes a shard or a replay buffer against "coarse
+nodes are nearly free", and before the first world large enough for 14 KB of
+overhead per drilled node to matter.
+
+---
+
 ## A structure regrows what was removed from it
 
 **Noticed:** asked, while planning the play space, whether a window taken from a

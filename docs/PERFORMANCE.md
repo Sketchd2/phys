@@ -113,6 +113,81 @@ resident** — the hard ceiling on the working set, independent of time.
 in `docs/GPU.md` splits this into a 32-byte hot record plus cold arrays, which
 raises the resident ceiling to ~110 M.
 
+### Phase 0 probes
+
+The measurements `docs/PLAY.md` §6 requires before the play-space plan goes
+further. `cargo run --release --example probe` prints all of them;
+`tests/probes.rs` pins each as an assertion.
+
+**Where one clock puts the trajectory/ensemble boundary** (§3.4). At 1 s/s and
+twenty updates a second a frame covers 50 ms, and `MAX_SUBSTEPS` is 256.
+Drilling the galaxy scenario from root to a half-millimetre node:
+
+| tier | radius | node_dt | substeps needed | |
+|---|---:|---:|---:|---|
+| galactic | 4.6e20 m | 3.2e12 s | 0.0 | coasted |
+| planetary | 3.3e4 m | 1.4e-2 s | 3.5 | followed |
+| continuum | 1.0e3 m | 4.8e-4 s | 104.5 | followed |
+| continuum | 3.3e1 m | 1.1e-5 s | 4,529 | **ensemble** |
+| continuum | 8.2e-1 m | 2.7e-7 s | 186,918 | **ensemble** |
+
+The boundary falls *inside* `Continuum`. The finest a fluid can be resolved and
+still be followed is `4 · span · c / MAX_SUBSTEPS`: **0.27 m** in air, **1.17 m**
+in water, **3.91 m** in rock. The galaxy scenario's crossover is coarser than
+the air row because its `Continuum` gas is hot and its signal speed is tens of
+km/s.
+
+**A limb cannot reach a stride by bending** (D5). Two 0.4 m green-wood segments,
+30 mm radius, hip built in, transverse load at the tip:
+
+| tip load | tip travel | travel / length | chord rotation | |
+|---:|---:|---:|---:|---|
+| 400 N | 10.7 mm | 0.013 | 0.018 | linear |
+| 700 N | — | — | — | **member ruptures** |
+
+Chord rotation never exceeds 0.019 against the 0.1 where the linear formulation
+starts to be wrong, because the member breaks first. D5 is confirmed more
+strongly than it claimed: locomotion's large rotation has nowhere to live but a
+joint between substructures, and corotational elements would permit a bend the
+material does not.
+
+**What a checkpoint costs** (D1, D10). Only pinned nodes write their bodies;
+everything else persists as the address and epoch that regenerate it.
+
+| | bytes |
+|---|---:|
+| unrefined world, one node | 736 |
+| 8 nodes, 44,384 bodies, regenerable | 181,699 |
+| the same, all pinned | 8,215,203 |
+| **marginal cost of one pinned body** | **181** |
+
+An interactive subtree is pinned by definition, so a replay or rollback
+checkpoint pays the 181 B/body figure. 10⁵ bodies is ~18 MB a checkpoint.
+
+**Embodied energy** (§5.8). Every program that builds anything books it — tree
+and coral at 1.7e7 J/kg, tower, wall and settlement at 2.5e6 J/kg. Terrain books
+zero, correctly, because rock was not manufactured. Differencing a whole
+structure to find its *smallest* member leaves **12.0 to 13.5 significant
+digits** against `f64`'s 15.95, so the precision worry §5.8 raised is retired:
+the check has an order of magnitude more headroom than the ~6 digits it needs.
+
+**Undesigned genomes** (D11). A hundred randomised genomes per program, six
+programs: **600 of 600 render finite, non-degenerate skeletons.** This tests the
+robustness of the existing genome slots, not of D11's proposed unified law.
+
+**Growth is not Markovian in its conditions** (D12). Three light histories with
+the same integral (mean 400 W/m²) over 100 simulated years:
+
+| history | final mass | against flat |
+|---|---:|---:|
+| flat 400 | 3.594e4 kg | — |
+| rising 80→720 | 4.663e4 kg | +29.7% |
+| falling 720→80 | 2.648e4 kg | −26.3% |
+
+Ordering changes the outcome by tens of percent, so a per-species response
+surface over *integrated* conditions cannot reproduce a life. See
+`docs/PLAY.md` §6 for what that does to D12.
+
 ## 2. What the optimisation history cost and bought
 
 These were found by benchmarking, not by inspection, and each was a real bug in

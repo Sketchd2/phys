@@ -1506,24 +1506,63 @@ a scratch probe that Phase 0 should commit properly rather than from arithmetic.
 | Question | Why it matters | Probe |
 |---|---|---|
 | What does a neighbour query cost at 10³–10⁵ contents? | D3 is on every frame's critical path. If it is expensive, the frame budget arithmetic in `PERFORMANCE.md` changes. | Build the index over the existing scenarios and time it. |
-| Do segments of a walking limb exceed 0.1 rad of chord rotation? | Decides whether D5's decomposition suffices or corotational elements go on the critical path. | Drive a two-segment limb through a stride and read `displacement_ratio`. |
+| ~~Do segments of a walking limb exceed 0.1 rad of chord rotation?~~ | **Answered: no, and D5 is confirmed more strongly than it claimed.** The member ruptures at 700 N having travelled 1.3% of its length, with chord rotation only 0.018. A limb has no elastic path to a stride at all, so the large rotation must live in a joint between substructures and corotational elements are *off* the critical path — they would permit a bend the material does not. | done — `tests/probes.rs` |
 | Does slaving the parent body every frame preserve `summarise(sample(m)) == m`? | D4 writes into the conserved set every frame. `IDEMPOTENT_TOLERANCE` is the contract. | Promote, run, coarsen, compare against the existing consistency harness. |
 | How long does a gait optimisation take, and does it converge? | D7's shortcut is only a shortcut if deriving it is rare and bounded. | Solve one quadruped gait offline and time it. |
-| How large is the checkpoint for an interactive subtree? | D1's replay and D10's rollback both pay for it. | Measure a populated patch's snapshot through the existing `persist` path. |
+| ~~How large is the checkpoint for an interactive subtree?~~ | **Answered: 181 bytes per pinned body.** Only pinned nodes write bodies, and an interactive subtree is pinned by definition, so 10⁵ bodies is ~18 MB a checkpoint. Regenerable detail costs 45× less. | done — `tests/probes.rs` |
 | ~~Does metre-scale bulk fluid actually hurt?~~ | Answered by §4: yes, for anything at play scale — a 5 cm channel is two orders below the floor. §3.7's option (1) is not the end of the matter, and option (2) is what Phase 3 adopts. | — |
 | Does a busy square's stored-deviation count converge, and to what? | §5.5 argues arrival rate times mean lifetime is a bound rather than a hope. If the number is millions, the decay rate is wrong or §5.6's summarising is load-bearing much earlier than expected. | Simulate arrivals at a plausible footfall against a derived sand/paving erosion rate and count what is held. |
-| Can one genome give a forest tree and an open-grown tree? | D12's honesty test, and the whole argument for it. Impossible today: `taper` and `splits` are constants and `render` never sees `Environment`. | Grow one genome in three light fields; compare height, spread and taper. |
-| Is growth Markovian in its conditions? | D12's one remaining real risk. If a drought at age ten makes a different tree from a drought at age fifty, the response surface is a function of a history and does not tabulate. | Grow one genome under two condition histories with identical integrals and different ordering; compare height, spread and taper. |
+| ~~Can one genome give a forest tree and an open-grown tree?~~ | **Answered: no, exactly as D12 predicted.** Three light fields grow masses differing 500-fold; at equal age and mass the skeletons are bit-identical. Conditions reach form only through how much mass they grew. | done — `tests/probes.rs` |
+| ~~Is growth Markovian in its conditions?~~ | **Answered: no. D12's stated mechanism does not work.** Same light integral, opposite ordering: rising +29.7%, falling −26.3% in final mass against flat. A per-species surface over *integrated* conditions cannot reproduce a life. **This needs review before Phase 4** — see the note below. | done — `tests/probes.rs` |
 | Which conditions actually move the shape? | Decides the response surface's dimensionality, and it grows badly. Six axes at five samples is ~15,600 runs per species. | Vary each condition alone and rank by how much the gross form moves. |
 | Can a grown shape stay regenerable when it depends on a history? | D12's fatal risk. If the environment history will not summarise into ~200 bytes, shape stops regenerating bit-identically and the founding invariant breaks. | Grow a tree, summarise its environment history, regrow from the summary, and diff the skeletons. |
-| Can an undesigned genome make something coherent? | D11's honesty test. If every working genome is hand-tuned, thirty coefficients have replaced six variants and nothing generalised. | Sample a hundred random genomes, render each, and count how many are ugly versus impossible. |
-| At what edit count does a structure start regrowing removed parts? | §5.9 reads `MAX_EVENTS = 64` off the source; the behaviour should be demonstrated rather than inferred from the code. | Sever 65 sites on one structure, regenerate, and count the segments that came back. |
+| ~~Can an undesigned genome make something coherent?~~ | **Answered: yes, 600 of 600.** A hundred randomised genomes per program, six programs, all finite and non-degenerate. Caveat: this tests the robustness of the *existing* genome slots, not of D11's proposed unified law. | done — `tests/probes.rs` |
+| ~~At what edit count does a structure start regrowing removed parts?~~ | **Answered: 65 for the branching programs, 1 for the other four.** Tree and coral suppress all 64 then resurrect 32 on the sixty-fifth; tower, wall, terrain and settlement never suppress a severance at all. | done — `tests/probes.rs` |
 | Can embodied energy be derived from a topology, and does removing one member show up? | §5.8's fix depends on it entirely. Carried opaquely, as today, the check is blind. | Derive it for a walled structure, remove one member, and difference `non_rest_energy` against the unedited regeneration. |
-| Does the embodied-energy check have the digits? | One member against a whole building is a small difference on a large number — the same precision trap as rest mass. | Measure the ratio for a realistic building and compare against `f64`'s 15.95 digits. |
-| Does every program book the embodied energy of what it builds? | §5.8 rests entirely on this for manufactured goods; a program that skips it leaves its output forgeable from raw material. | Build one of each program, difference `non_rest_energy` against the same atoms unbuilt, and assert the gap is the construction cost. |
+| ~~Does the embodied-energy check have the digits?~~ | **Answered: yes, comfortably — 12.0 to 13.5 digits** after differencing a whole structure to find its smallest member, against the ~6 the check needs. The precision worry is retired. | done — `tests/probes.rs` |
+| ~~Does every program book the embodied energy of what it builds?~~ | **Answered: yes.** Tree and coral 1.7e7 J/kg, tower, wall and settlement 2.5e6 J/kg. Terrain books zero, correctly — rock was not manufactured, and that contrast is what §5.8 relies on. | done — `tests/probes.rs` |
 | Does an edit list summarise into a field without losing what the damage meant? | §5.7 makes this the same guarantee `summarise` already carries for the conserved tuple. If lost section does not survive the merge, a wall repairs itself by being forgotten in the wrong sense. | Shoot a member a hundred times, summarise, and compare the member's strength against the un-summarised case. |
 | Can one erosion expression give both granite and wet sand? | §5.2's honesty test. If it needs a per-material correction it is a table, and the axiom is broken. | Derive the rate for four materials from cohesion and flux alone and compare against observed rates. |
 | Where does the §3.4 crossover fall on *terrestrial* material? | The measured table used the galaxy scenario, whose `Continuum` gas is hot and fast. A room is not that. | Re-run the same drill on a planetary-surface scenario once Phase 2 exists. |
+
+### The one Phase 0 result that changes a decision
+
+**D12's mechanism, as written, does not work, and this needs review before
+Phase 4 rather than a unilateral rewrite.**
+
+D12 says the growth response is derived once per species over a sampled space of
+conditions and stored, then evaluated per individual. The probe says the space it
+would be sampled over is the wrong one: growth is *not* Markovian in the
+integrated conditions. Same light integral, opposite ordering, over a hundred
+simulated years —
+
+```text
+history          final mass    against flat
+flat 400          3.594e4 kg        —
+rising 80->720    4.663e4 kg     +29.7%
+falling 720->80   2.648e4 kg     -26.3%
+```
+
+Ordering is not a correction here, it is a third of the answer. A surface indexed
+by "how much light did it get" cannot tell a tree that was shaded young from one
+shaded old, and those are different trees.
+
+What this does *not* kill is the axiom D12 rests on. Axiom three's second clause
+already says a stored rule "stays a function of its conditions and never a frozen
+outcome" — and an outcome surface over integrated conditions is exactly a frozen
+outcome. So the axiom forbade what the probe disproved, which is a good sign for
+the axiom and a bad one for the paragraph.
+
+The obvious repair is to store a **rate law over the current state** rather than
+an outcome over an integral: a surface mapping `(current size, current
+conditions)` to an increment, applied step by step. That is Markovian in the
+*state*, which is a different and much weaker claim than being Markovian in the
+integral, and it is what `advance` already does. It would keep D12's economy —
+derive once per species, evaluate per individual — while dropping the part the
+probe just falsified.
+
+**That repair is not made here.** It changes a decision, and the plan says
+decisions get made before code rather than during it.
 
 Two known defects will bite during this work and are scheduled rather than
 discovered:
