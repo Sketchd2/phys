@@ -347,8 +347,19 @@ pub struct World {
     /// Retained history, only for nodes something might observe from a
     /// distance. Keeping it keyed by path rather than in the node itself means
     /// a node can be coarsened and rebuilt without losing its past.
-    pub histories: HashMap<EntityId, History>,
-    pub clocks: HashMap<EntityId, Clock>,
+    /// Retained history, only for nodes something might observe from a
+    /// distance.
+    ///
+    /// Keyed by *address*, not by name, and deliberately. A history is
+    /// bookkeeping the scheduler creates — which nodes get one is decided by
+    /// the frame budget from a wall-clock allowance — so naming a node for it
+    /// would make identity depend on how fast the machine is, and
+    /// `next_entity` is persisted. Measured: a slower machine saved a
+    /// different world. See `docs/BACKLOG.md`.
+    pub histories: HashMap<PathKey, History>,
+    /// The same, for the same reason: a clock is something the budget made,
+    /// not something that happened.
+    pub clocks: HashMap<PathKey, Clock>,
     /// Address to identity. The one index a move has to migrate.
     ///
     /// Every other side table is keyed by [`EntityId`], so `reparent` leaves
@@ -1520,7 +1531,7 @@ impl World {
             // kinematic share inside `advance`, and the node's own clock takes
             // the whole chain.
             let physical = self.time_rate_of(NodeIdx(i as u32)).physical();
-            if let Some(c) = self.identities.get(&key).and_then(|id| self.clocks.get_mut(id)) {
+            if let Some(c) = self.clocks.get_mut(&key) {
                 c.time = horizon;
                 c.proper_time += dt * physical;
             }
@@ -1672,10 +1683,9 @@ impl World {
         n.steps_taken += 1;
         n.motion.advance(coordinate);
         let node_time = n.time;
-        let id = self.issue_identity(key);
         let clock = self
             .clocks
-            .entry(id)
+            .entry(key)
             .or_insert_with(|| Clock::new(node_time, tier.dt()));
         clock.time = node_time;
         // Two proper times, deliberately. `Motion::proper_time` is the frame's
@@ -1686,7 +1696,7 @@ impl World {
         // physical reading and an administrator speeding a region up does not
         // change what its clocks say.
         let physical = self.time_rate_of(idx).physical();
-        if let Some(c) = self.clocks.get_mut(&id) {
+        if let Some(c) = self.clocks.get_mut(&key) {
             c.proper_time += coordinate * physical;
         }
         report
@@ -2338,9 +2348,8 @@ impl World {
             })
             .collect();
         for (key, snap) in entries {
-            let id = self.issue_identity(key);
             self.histories
-                .entry(id)
+                .entry(key)
                 .or_insert_with(|| History::new(depth))
                 .push(snap);
         }
@@ -2465,7 +2474,7 @@ impl World {
         let sep = self.tree.separation(obs.anchor, obs.offset, target, Vec3::ZERO);
         let d = sep.value.norm().max(1e-30);
 
-        let view = match self.identities.get(&key).and_then(|id| self.histories.get(id)) {
+        let view = match self.histories.get(&key) {
             Some(h) if !h.is_empty() => h.retarded(obs.offset, self.time),
             _ => crate::causal::RetardedView {
                 snapshot: Moment {
@@ -2537,27 +2546,39 @@ impl World {
         let Some(moved) = self.tree.reparent(node, new_parent) else {
             return false;
         };
-        // One table moves, and only one: the address-to-identity index.
+        // What a node *is* — its chemistry, its environment — is keyed by
+        // `EntityId`, which a move does not change, so those tables are not
+        // touched here. That is the point of issuing identity rather than
+        // deriving it: a new side table of that kind is safe without anyone
+        // remembering to add a line to this function.
         //
-        // Everything a node *is* — its chemistry, its environment, its clock,
-        // its history — is keyed by `EntityId`, which a move does not change,
-        // so none of those tables is touched here. That is the whole point of
-        // issuing identity rather than deriving it, and it is why adding a
-        // side table no longer means remembering to add a line to this
-        // function. See `EntityId` for why this one index cannot be avoided.
+        // Three things are keyed by address and do move. The identity index,
+        // because a node discarded and rebuilt recovers its name from its
+        // address and nothing else. And the clock and the history, which are
+        // keyed by address on purpose — they are bookkeeping the frame budget
+        // created, and naming a node for one would make identity depend on how
+        // fast the machine is. Their contents still have to travel: a clock
+        // that changed rooms did not un-tick.
         //
         // Collected then reinserted, in two passes: within one move an old
         // address and a new one can name different nodes, so mutating in place
         // could overwrite an entry that had not been read yet.
-        let mut taken = Vec::new();
-        for (old, new) in &moved.keys {
-            if let Some(id) = self.identities.remove(old) {
-                taken.push((*new, id));
-            }
+        macro_rules! migrate {
+            ($table:expr) => {{
+                let mut taken = Vec::new();
+                for (old, new) in &moved.keys {
+                    if let Some(v) = $table.remove(old) {
+                        taken.push((*new, v));
+                    }
+                }
+                for (new, v) in taken {
+                    $table.insert(new, v);
+                }
+            }};
         }
-        for (new, id) in taken {
-            self.identities.insert(new, id);
-        }
+        migrate!(self.identities);
+        migrate!(self.clocks);
+        migrate!(self.histories);
 
         // Both ends changed by hand, so both need their detail kept rather than
         // regenerated, and their neighbours told.
@@ -2887,7 +2908,7 @@ impl World {
             if d <= 0.0 || !obs.sees(sep.value) {
                 continue;
             }
-            let view = match self.identities.get(&key).and_then(|id| self.histories.get(id)) {
+            let view = match self.histories.get(&key) {
                 Some(h) if !h.is_empty() => h.retarded(obs.offset, self.time),
                 _ => crate::causal::RetardedView {
                     snapshot: Moment {

@@ -238,6 +238,53 @@ fn a_move_does_not_touch_the_tables_keyed_by_identity() {
     assert_eq!(w.identity(a), Some(id), "and the node still answers to it");
 }
 
+/// Naming a node is deterministic, because only *events* name one.
+///
+/// A clock is bookkeeping the frame budget created, and which nodes the budget
+/// advances depends on a wall-clock allowance — so if a clock named its node,
+/// identity would depend on how fast the machine is. `next_entity` is
+/// persisted, so that divergence would be durable, and `docs/PLAY.md` D10 makes
+/// world state a function of the seed and the input log. An input naming an
+/// entity would then bind to a different node on replay.
+///
+/// Measured before the fix: 50,000 us of budget gave `next_entity` 2 and one
+/// checksum, 5,000 us and below gave 5 and another. Same length, different
+/// world.
+#[test]
+fn identity_does_not_depend_on_how_fast_the_machine_is() {
+    fn run(budget_us: f64) -> (u64, usize, usize) {
+        let mut w = a_world();
+        w.tree.nodes[0].spec.count = 4096;
+        let root = w.tree.root;
+        for idx in w.drill_to(root, 1.0e2, &default_spec) {
+            w.tree.refine(idx);
+        }
+        for _ in 0..40 {
+            w.step_frame(budget_us);
+        }
+        (w.next_entity, w.identities.len(), w.clocks.len())
+    }
+
+    let generous = run(50_000.0);
+    for budget in [5_000.0, 200.0, 1.0] {
+        let starved = run(budget);
+        assert_eq!(
+            starved.0, generous.0,
+            "a {budget} us budget issued a different number of names than a generous one"
+        );
+        assert_eq!(starved.1, generous.1, "and a different index");
+    }
+
+    // The control: the budget must actually have changed what the engine did,
+    // or this test is asserting nothing. Clocks are keyed by address precisely
+    // so that they may vary with the budget without naming anything.
+    let starved = run(1.0);
+    assert_ne!(
+        starved.2, generous.2,
+        "the budget did not change which nodes were advanced, so this proves nothing"
+    );
+}
+
 /// A move that is not a move is refused, and a cycle above all.
 ///
 /// A cycle would not merely be wrong. `lca`, `offset_from` and `disturb` all

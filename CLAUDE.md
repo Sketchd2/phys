@@ -108,16 +108,21 @@ comparison.
 **Identity is issued, not derived — `EntityId`, not `PathKey`.** `PathKey` is
 the *address*: it derives children and seeds the sampler, and it changes when a
 node moves. `EntityId` is the *name*: issued once, never reused, unchanged by a
-move, a coarsen or a reload. Side tables (`mixtures`, `environments`, `clocks`,
-`histories`) are keyed by name, so `reparent` does not touch them — a new side
-table is safe by default rather than safe if somebody remembered to add a line.
-Use `identify` on a write path (it issues), `identity` to read (it does not).
+move, a coarsen or a reload. `mixtures` and `environments` are keyed by name, so
+`reparent` does not touch them. Use `identify` on a write path (it issues),
+`identity` to read (it does not).
 
-**One index still moves:** `World::identities`, address to name. A node
-discarded and rebuilt has to recover its name from somewhere, and its address is
-all it comes back with, so `reparent` migrates that one map. Ledger and audit
-entries are still keyed by `PathKey`, deliberately — a measurement was made *of a
-place*.
+**Only an *event* may name a node** — chemistry set, an environment authored, a
+node pinned, an actor interacting. Never a scheduler-driven path: which nodes
+the frame budget advances depends on a wall-clock allowance, so naming a node
+for its clock made identity depend on machine speed, and `next_entity` is
+persisted. `clocks` and `histories` are therefore keyed by *address*, and
+`reparent` migrates them along with the identity index.
+
+**Three things still move in `reparent`:** `identities` (a node discarded and
+rebuilt recovers its name from its address and nothing else), plus `clocks` and
+`histories` for the reason above. Ledger and audit entries stay keyed by
+`PathKey` deliberately — a measurement was made *of a place*.
 
 **Tier is cached, never revisited.** Set at promotion from the body's radius.
 `plant`, `emplace` and growth all change a node's size without updating it, so a

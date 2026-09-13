@@ -331,7 +331,7 @@ still latent.
 
 ---
 
-## Identity allocation depends on the frame budget, and reaches the save file
+## ~~Identity allocation depends on the frame budget, and reaches the save file~~ — done
 
 **Noticed:** asked whether an id reallocated across a sample/summarise cycle
 would break the bit-identical regeneration rule.
@@ -382,8 +382,31 @@ bookkeeping the budget created, not a fact about the world.
    only on `epoch` bumps. Keeps clocks named, at the cost of a second rule about
    when ids may be handed out.
 
-**Trigger:** pulled. This is wrong now, and it is cheapest to fix before anything
-in the play space starts naming entities in an input log.
+**Fixed** in Phase 1, by (1). Identity is issued only where something happened —
+chemistry set, an environment authored, a node pinned. `clocks` and `histories`
+went back to being keyed by address, which is what they should always have been:
+both are bookkeeping the frame budget creates, and `persist.rs` already listed
+them as transient. `World::reparent` migrates those two along with the identity
+index, because a clock that changed rooms did not un-tick.
+
+Measured after: `next_entity` is 1 across a 50,000x range of budget, where it
+was 2 to 5 before. `tests/reparent.rs` asserts it, with a control that the
+budget really did change which nodes were advanced — the clock count still moves
+from 1 to 4, which is the point of keying clocks by address.
+
+**One correction to what this entry first claimed.** The save file still differs
+across budgets, and that part is *not* a defect. The residual difference is the
+world instant: 7.11e13 s against 7.63e13 s after forty frames, because a
+generous budget resolves more nodes, resolving shortens the pace, and less
+simulated time therefore passes. That is the documented pace mechanism working,
+and `time_throttle` exists to report it.
+
+It also makes an argument for `docs/PLAY.md` D1 that the plan did not make:
+**a fixed one-second-per-second clock is what makes a save reproducible across
+machines.** While pace follows what is being watched, two machines running the
+same scenario legitimately reach different instants. Once the clock is fixed,
+they do not, and the only remaining source of divergence would be a real bug.
+That is worth having as a test the moment `PaceMode::Fixed(1.0)` is the default.
 
 ---
 
