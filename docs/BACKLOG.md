@@ -331,6 +331,42 @@ still latent.
 
 ---
 
+## Nothing prunes the identity index, or the clocks and histories it names
+
+**Noticed:** reviewing the `EntityId` change, asked to justify it.
+**Where:** `engine.rs` — `identities`, `clocks`, `histories`. Grepped: the only
+`remove` on any of the three is the one `reparent` does, and it re-inserts.
+
+`clocks` gains an entry for every node that is ever advanced and `histories` for
+every node that ever reaches Causal residency. Neither is ever removed, so both
+grow with the number of nodes a world has *ever had*, not the number it has.
+A node coarsened away leaves its clock behind.
+
+That is pre-existing. What the identity change did is add a third map with the
+same shape: `identities` gains an entry whenever a clock or a history names a
+node, and is pruned only when *persisting*, never at runtime. So the leak is now
+about twice the size it was.
+
+Measured on the drilled galaxy scenario after twenty frames: 8 live nodes,
+4 clocks, 0 histories — small, because that scenario coarsens nothing. A world
+that repeatedly refines and coarsens the same region is the case that grows, and
+nothing here has measured one yet.
+
+**The fix is one rule, not three.** An entry in any of the three is worth keeping
+exactly as long as the thing it names can still come back — which is what
+`forgettable` and `mixing_time` already decide for detail. Prune on the same
+criterion, in one place, rather than three ad-hoc sweeps. Note that `identities`
+must be pruned *last*: dropping an address-to-name entry while a table still
+holds that name orphans the row, which is the exact failure the change was made
+to prevent.
+
+**Trigger:** the first long-running session, or the first world that cycles a
+region in and out repeatedly — the play space does both constantly. Measure the
+three map sizes over a few thousand frames of a region being entered and left
+before deciding how aggressive the rule needs to be.
+
+---
+
 ## A regenerable snapshot still grows with body count
 
 **Noticed:** measuring checkpoint size for the Phase 0 probes.
