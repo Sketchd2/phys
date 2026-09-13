@@ -1675,8 +1675,21 @@ Timing the passes separately, at 8,193 live nodes with no task accepted:
 | react_all | 0.0001 |
 | **total** | **3.7 ms — 7.4% of a 50 ms frame** |
 
-About 0.45 µs a node; at 1,025 nodes it is 0.37 ms, 0.7%. **The floor is fine
-and a town of a few thousand live nodes fits comfortably.**
+About 0.45 µs a node. Measured across a range, counting only frames where the
+plan accepted nothing:
+
+| live nodes | idle frame | µs/node | share of 50 ms |
+|---:|---:|---:|---:|
+| 2,049 | 0.88 ms | 0.43 | 1.8% |
+| 8,193 | 3.69 ms | 0.45 | 7.4% |
+| 32,769 | 27.1 ms | 0.83 | **54.3%** |
+| 131,073 | 144.1 ms | 1.10 | **288.3%** |
+
+**Flat to about 8k, then the per-node cost itself climbs** — n^1.32 overall. So
+a town or a city street is free, **a forest of 10⁴ individually promoted trees
+costs 9–18% of the frame doing nothing**, and 10⁵ live nodes is 288% before
+anything happens. The wall is between 10⁴ and 10⁵, and the fourth axiom is what
+is supposed to keep an interest volume below it.
 
 Two real problems came out of that diagnosis instead, and both are recorded in
 `docs/BACKLOG.md`: the frame's **cost model under-reads a large gravity step by

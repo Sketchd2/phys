@@ -331,38 +331,62 @@ still latent.
 
 ---
 
-## ~~A node doing nothing still costs the frame~~ — retracted, the measurement was wrong
+## The idle floor is fine to ~10^4 live nodes and dominates past ~3x10^4
 
-**Retracted.** The claim was that an idle node costs 5–25 us every frame and
-that the cost grows as n^1.5, so a town of a few thousand nodes could not fit.
-Both halves were an artefact of the probe.
+**Noticed:** measuring whether a town, then a city, then a forest fits.
+**Where:** `engine.rs` — `survey`, `coast_to`, `evolve_matter`,
+`record_histories`, each walking every live node every frame.
 
-**What the probe actually did.** It set the root's `spec.count` to twice the
-number of children it then promoted, so at 8,192 promotions the *root* held
-16,384 bodies. Frame time was averaged over frames that periodically included a
-Barnes-Hut gravity solve over those 16,384 bodies, and then divided by the node
-count — which manufactured a per-node cost that was really one O(n log n) solve
-amortised over frames.
+**This entry has been wrong twice and is now measured properly.** It first
+claimed 5–25 us a node growing as n^1.5, from a probe that averaged frame time
+across frames containing a Barnes-Hut solve over the root's 16,384 bodies and
+divided by node count. It was then retracted outright, which over-corrected: the
+retraction generalised one clean number at 8,193 nodes into "the floor is fine".
 
-**Timing the passes separately settles it.** At 8,193 live nodes, in the frames
-where no task is accepted:
+Measured across a range, counting **only frames where the plan accepted no
+task**, so the solve is excluded rather than averaged in:
 
 ```text
-survey 1.5-1.8 ms   plan 0.05-0.09   execute 0.0001   coast 1.0-1.1
-evolve_matter 0.40  react_all 0.0001  record_histories 0.03
+live nodes  idle frame   us / node   share of 50 ms
+       513    0.181 ms      0.3528            0.4%
+      2049    0.882 ms      0.4304            1.8%
+      8193    3.694 ms      0.4509            7.4%
+     32769   27.149 ms      0.8285           54.3%
+    131073  144.148 ms      1.0998          288.3%
 ```
 
-Total **3.7 ms, or 7.4% of a 50 ms frame, for 8,193 live nodes doing nothing**
-— about 0.45 us a node. At 1,025 nodes it is 0.37 ms, 0.7%. The floor is fine
-and a town fits comfortably. `docs/PLAY.md` §5A.5 carried the same wrong figures
-and has been corrected.
+**Flat at about 0.45 us a node to 8k, then the per-node cost itself climbs** —
+0.83 us at 32k, 1.10 us at 131k. Overall n^1.32 from 8k to 131k, not the n^1.5
+first claimed and not the linear the retraction implied.
 
-**This was the project's first trap, walked into while quoting it.** The frame
-number was measured; the *cause* was assumed. Two probes — timing the passes,
-then printing the accepted task — disproved it in a few minutes.
+**So the answer depends on the scene, and the wall sits between 10^4 and 10^5:**
 
-**Two real findings survive, and they are different problems.** See the two
-entries below.
+* A town, or a city street bounded by an interest volume — a few thousand live
+  nodes — costs under 2% and is free.
+* **A forest of 10^4 individually promoted trees costs 9–18% of the frame doing
+  nothing.** Affordable, and worth noting a forest does not normally need it:
+  growth runs on the aggregate, so a forest is one node until the trees matter
+  separately.
+* **10^5 live nodes is 288% of the frame before anything happens.** A city that
+  keeps that many nodes live is not viable, and the fourth axiom is what is
+  supposed to stop it.
+
+**What is not measured, and must not be guessed:** why the per-node cost climbs.
+`survey` dominates at 8k (1.5–1.8 ms against `coast_to`'s 1.0 and
+`evolve_matter`'s 0.4), and one candidate is memory rather than algorithm —
+131k nodes at 576 bytes is 75 MB, far past any L3 — but the parent-chain walks
+in `time_rate_of` are another and the two are distinguishable only by measuring.
+
+**The fix is the lazy-catch-up rule** `docs/PLAY.md` §5A.5a states: nothing that
+can be advanced in closed form is advanced by ticking, and the span settled is
+the node's own elapsed proper time. It takes the floor from per live node to per
+node being looked at.
+
+**Trigger:** a scene that holds more than about 10^4 live nodes at once. A
+forest with every tree promoted reaches it; a crowded city square plausibly
+does. Below that this is not urgent, and the reason to do it anyway is
+correctness rather than speed — ticking cannot cover a three-year absence
+however cheap each tick is.
 
 ---
 
