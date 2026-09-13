@@ -1415,6 +1415,87 @@ things at once. Whatever replaces compaction should leave the genome alone.
 
 ---
 
+### 5.10 How a region remembers
+
+D12 says a grown shape depends on the conditions it grew in, and asserts those
+conditions re-derive rather than needing storage. That is the load-bearing claim
+and it deserves spelling out, because "the environment it grew in" sounds like a
+time series and a time series per region would be ruinous.
+
+**A region is a node. There is no other kind of thing.** A terrain patch, a
+settlement, a continent and a planet are all nodes at different tiers, and
+`Tier::containing(metres)` already maps a size to a regime. Adding a `Region`
+type would be precisely the special case the axioms forbid, and it would
+immediately need its own persistence, its own side table and its own line in
+`reparent`.
+
+**But a node holds an instant, not a history.** `Matter` is state at a moment.
+`causal::History` does exist and must not be repurposed for this: it is a short
+fixed-capacity ring of `Moment { position, velocity, mass, luminosity,
+temperature }` whose job is retarded-light lookups into the past light cone. It
+forgets by design and it carries none of the quantities a climate needs.
+Conflating "where was this three seconds ago, for light travel" with "was there a
+drought in 1340" would wreck both.
+
+**Most of a climate needs no storage, because it re-derives.** Insolation from
+latitude, axial tilt and orbital phase. Prevailing wind from rotation and the
+equator-to-pole thermal gradient. Rainfall from orography and moisture
+advection. Each is a pure function of place and time, and place and time descend
+from the world seed — so the baseline is *computed* rather than remembered, and
+the same node always had the same weather. This is the same argument that keeps
+a regenerated terrain patch bit-identical, applied to the weather over it.
+
+**So what is stored is only what deviated from that** — which is §5's model one
+level up, and the shape proposed in the question is the right one. A drought is a
+bounded episode with a start, an end, a magnitude and an extent: an *event*. A
+slow warming is a *field*. Those are §5.7's two representations, so this is the
+same mechanism rather than a parallel one, including the transform between them:
+individual storms summarise into "that decade ran wetter than derived" exactly as
+a hundred bullet holes summarise into a pocked wall.
+
+**The event picks its own node, by extent.** Nobody declares a region. A
+disturbance has a size, and it is stored on the coarsest node whose radius covers
+it — the same move `Tier::containing` makes when it turns a size into a tier. A
+continental drought lands on a continental node; a late frost lands on one patch.
+Finer nodes read up the ancestor chain, which `environment_at` already does for a
+parent's luminosity.
+
+That is where the economy comes from: **one drought is stored once and read by a
+million trees.** Storage is O(events), not O(events × individuals).
+
+**And a tree does not need the history — it needs the integrals.** D12's response
+surface takes conditions as its input, so what a tree consumes over its life is
+integrated light, mean water, crowding, peak wind: a handful of accumulating
+numbers. Because the baseline re-derives, the baseline's integrals re-derive too,
+analytically or by cheap quadrature over a known function. Only the deviations'
+contribution has to be accumulated, and that is a sum over a short event list.
+**There is no time series anywhere in this.**
+
+**One detail that will break a transplant if it is got wrong:** the integrals
+belong to the *individual* and the climate belongs to the *region*. They must be
+two different homes. A tree moved to another continent should meet its new
+region's weather from now on while keeping the growth it has already done — and
+if its accumulated integrals lived on the region node, `reparent` would silently
+rewrite its history. So integrals ride with the entity (D2), climate deviations
+ride with the region node, and `reparent` moves one and not the other.
+
+**Whether old events can be compacted is decided by D12's probe, not separately.**
+A drought can eventually be folded into the baseline — a decade that ran drier is
+a shift in the derived baseline for that decade — which preserves the integral
+and discards the ordering. That is safe *if and only if* growth is Markovian in
+the integrals, which is exactly the question §D12 already sends to a probe. One
+measurement decides both whether the response surface exists and whether regional
+history can be compacted at all.
+
+And §5.9's lesson governs the compaction when it happens: **it must be
+conservative in the quantity that matters.** There, folding severances into a
+mean magnitude lost the fact of the severance and the structure regrew. Here the
+quantity is the integral, so the invariant is that compaction preserves it. A
+compaction that changes what a tree would have grown into is the same bug wearing
+a climate's clothes.
+
+---
+
 ## 6. What has not been measured
 
 Per `CLAUDE.md`'s first trap, these are stated as unmeasured rather than
