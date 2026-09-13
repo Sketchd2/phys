@@ -331,6 +331,55 @@ still latent.
 
 ---
 
+## A node doing nothing still costs the frame, and the cost grows superlinearly
+
+**Noticed:** measuring whether a town, then a city, fits.
+**Where:** `engine.rs` — `survey`, `coast_to`, `evolve_matter`,
+`record_histories`. Each walks every live node every frame.
+
+Measured, promoting N children out of one root and stepping with a generous
+budget, with nothing happening in any of them:
+
+```text
+live nodes     frame (ms)    us / node   share of 50 ms
+        17          0.291      17.1452             0.6%
+       129          0.627       4.8610             1.3%
+      1025          5.125       4.9996            10.2%
+      8193        112.077      13.6796           224.2%
+     32769        841.634      25.6839          1683.3%
+```
+
+**About a thousand live nodes is a tenth of the frame; two or three thousand
+saturates it.** And the per-node cost *rises* with count — 5.0 us at a thousand,
+13.7 at eight thousand, 25.7 at thirty-two thousand — so the total grows roughly
+as n^1.5 rather than linearly.
+
+**What is not measured, and must not be guessed:** which of the four passes
+dominates, and where the superlinearity comes from. A tree build, a sort, or a
+pairwise survey are all plausible and this project's most expensive habit is
+picking one of those and being confident. The probe is to time the passes
+separately.
+
+**Why it matters more than a slow frame.** It is the fourth axiom not being
+delivered. "Detail exists where something is happening" promises that a node
+nobody is near costs nothing; these numbers say it costs 5 to 25 microseconds a
+frame whatever it is doing. A town is 3,000–5,000 live nodes and does not fit. A
+city is not attemptable.
+
+**The fix is one rule, and the physics already allows it.** `react`'s own comment
+records that it is "an exponential relaxation, so the answer does not depend on
+how the span happened to be cut up" — `approach = 1 - exp(-dt/tau)`. Three years
+of a coffee going cold is one call with a three-year `dt`, not 1.9e9 frames.
+Growth and matter evolution have the same shape. So: nothing that can be advanced
+in closed form should be advanced by ticking. A node carries the instant each
+account was last brought to and catches up in one step when something needs it —
+which is what `Node::time` already does for motion and nothing does for the rest.
+
+**Trigger:** pulled. `docs/PLAY.md` §5A.5 and §5A.5a carry the reasoning, and no
+play-space scene of any size fits until this is done.
+
+---
+
 ## A node can hold eight substances, and the play space needs more
 
 **Noticed:** asked whether "a galaxy is not made of anything you could put in a

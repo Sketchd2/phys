@@ -1602,20 +1602,28 @@ The elemental account is untouched throughout, because it was never derived from
 the mixture — so mass, baryon number and energy are conserved by construction
 rather than by care.
 
-**Open: what the merged pool is called.** Three candidates, and this needs a
-decision before the pass is written.
+**Decided: the merged pool is an interned blend.** Merging two pools synthesises
+a substance with mass-weighted properties and interns it, carrying a
+`Provenance` naming what it came from. The alternatives were rejected for saying
+something untrue: keeping the dominant identity calls a trace of pigment
+"cellulose", and letting it fall into the unspeciated remainder leaves a forest
+reading as *undescribed* rather than as sugary — and a forest that knows it has
+sugar is the requirement.
 
-- **Keep the dominant identity.** Merge the minor pool into the major one and
-  keep the major one's `SubstanceId`. Cheap, no registry growth, and it lies a
-  little: a trace of pigment becomes cellulose.
-- **Intern a blend.** Synthesise a substance with mass-weighted properties and
-  a `Provenance` saying what it came from. Honest, and it grows the registry
-  with one entry per distinct blend a world ever forms.
-- **Let it fall into the unspeciated remainder.** `explained` drops and the
-  matter is described as "not speciated", which is what
-  `SubstanceId::UNSPECIATED` already means — "not unknown; there is genuinely no
-  molecule there". Honest about ignorance, but a forest whose sugar merged away
-  would read as partly undescribed rather than as sugary.
+`Provenance` already exists for this shape of problem. Its doc says it is kept
+"so that a later build which can derive something this one had to be told can
+find every substance whose value came from a table and recompute it". A blend is
+the same case: a derived substance whose derivation can be revisited.
+
+**What it costs, and the two bounds that keep it finite.** One registry entry per
+distinct blend a world ever forms, which grows without limit if nothing stops it.
+Blending is deterministic in its inputs, so the same pair at the same ratio
+interns once and is found thereafter — and `Mixture::TOLERANCE`, one part in a
+thousand, already defines when two recipes count as the same, which is exactly
+the equivalence needed here. Second, a blend nothing references is garbage in the
+same sense as an unreferenced identity, collectable by the rule §5.10 already
+needs. Neither bound is built; both are named so the growth is bounded by design
+rather than by hope.
 
 ### 5A.4 Granularity: promote when the description will not fit
 
@@ -1649,17 +1657,70 @@ as a share of a 50 ms frame, single core. And `Mixture` is 136 bytes against
 | 10⁵ | 13.6 MB | 71 MB |
 | 10⁶ | 136 MB | 712 MB |
 
-**A town of a hundred actors' livelihoods** — say twenty described things each,
-plus buildings, so 3,000–5,000 nodes carrying chemistry — costs **5–10% of a
-frame and about 4 MB**. That is affordable, and it is the answer to the question:
-a town works.
+**That is only the chemistry, and chemistry is not what limits this.** Measured
+separately: a node *doing nothing at all* still costs the frame, because
+`survey`, `coast_to`, `evolve_matter` and `record_histories` each walk every live
+node every frame.
 
-**The wall is around 10⁴ described nodes materialised at once**, where chemistry
-alone takes a fifth of the frame. Ten towns at once would not fit — and are never
-asked for, because the fourth axiom means a town nobody is in is a `Matter`, a
-genome and its events, and materialises on approach. The number worth writing
-into `PERFORMANCE.md` is that budget: **chemistry is affordable to about ten
-thousand simultaneously described nodes.**
+| live nodes | frame | per node | share of 50 ms |
+|---:|---:|---:|---:|
+| 129 | 0.63 ms | 4.9 us | 1.3% |
+| 1,025 | 5.1 ms | 5.0 us | 10.2% |
+| 8,193 | 112.1 ms | 13.7 us | **224%** |
+| 32,769 | 841.6 ms | 25.7 us | **1683%** |
+
+The per-node cost *rises* with count — roughly n^1.5 overall — so the ceiling is
+far lower than the chemistry figures suggested. **About a thousand live nodes is
+a tenth of the frame; two or three thousand saturates it.** Which of the four
+passes dominates, and where the superlinearity comes from, is not measured; that
+is a probe, not a guess.
+
+**So a town of 3,000–5,000 live nodes does not fit today** — two to five times
+over budget before any chemistry runs. An earlier draft of this section called it
+affordable, having measured the chemistry and not the floor it sits on. That was
+wrong.
+
+### 5A.5a The city, and the cup of coffee left on the counter
+
+Ten million residents is not a bigger town, and the requirement that pins it
+down is small: leave a cup of coffee on the counter, go away for years, come
+back to find it cold and mouldy.
+
+**Almost nothing in a city needs storing.** Ten million residents' homes and
+possessions are what `Program::Settlement` generates — a genome and its events,
+not nodes. What gets stored is what a *player* touched, because that is what
+stopped being regenerable, and that scales with attention history rather than
+with population. An NPC's cup is generated when someone opens the door. Yours is
+stored, because you put it there.
+
+**And almost nothing in a city needs stepping, because chemistry is already
+closed-form.** `react`'s own comment says so: "an exponential relaxation, so the
+answer does not depend on how the span happened to be cut up", with
+`approach = 1 - exp(-dt/tau)`. Three years of coffee going cold and growing
+mould is **one call with `dt` of three years**, arithmetically identical to
+1.9e9 frames of stepping it.
+
+So the cup need not be simulated while you are away. It needs *advancing when you
+come back* — brought to the instant in closed form, exactly as `coast_to` already
+brings motion to the instant. The engine has the mechanism and does not use it
+for chemistry: `react_all` ticks every mixture every frame instead.
+
+**Which makes the cup and the city the same problem.** Both are per-frame work
+proportional to live nodes, over physics that is coastable. One rule closes both:
+
+> Nothing that can be advanced in closed form is advanced by ticking. A node
+> carries the instant its chemistry, growth and matter were last brought to, and
+> catches up in one step when something needs it.
+
+That is what `Node::time` already does for motion, applied to the other three
+accounts. It takes the floor above from *per live node per frame* to *per node
+actually being looked at* — which is what the fourth axiom promised and what
+these measurements say is not yet delivered.
+
+**What still limits a city once that lands** is how many nodes an observer can
+see at once, which is the budget the frame knapsack exists to spend. That is
+bounded by the screen rather than by the city, and it is the right thing for it
+to be bounded by.
 
 **The longer-term wall is persistence, not frame time.** Every named thing in
 every town ever visited keeps a `Mixture` and an `EntityId`: 3,000 per town over
