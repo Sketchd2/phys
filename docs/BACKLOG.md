@@ -331,52 +331,100 @@ still latent.
 
 ---
 
-## A node doing nothing still costs the frame, and the cost grows superlinearly
+## ~~A node doing nothing still costs the frame~~ — retracted, the measurement was wrong
 
-**Noticed:** measuring whether a town, then a city, fits.
-**Where:** `engine.rs` — `survey`, `coast_to`, `evolve_matter`,
-`record_histories`. Each walks every live node every frame.
+**Retracted.** The claim was that an idle node costs 5–25 us every frame and
+that the cost grows as n^1.5, so a town of a few thousand nodes could not fit.
+Both halves were an artefact of the probe.
 
-Measured, promoting N children out of one root and stepping with a generous
-budget, with nothing happening in any of them:
+**What the probe actually did.** It set the root's `spec.count` to twice the
+number of children it then promoted, so at 8,192 promotions the *root* held
+16,384 bodies. Frame time was averaged over frames that periodically included a
+Barnes-Hut gravity solve over those 16,384 bodies, and then divided by the node
+count — which manufactured a per-node cost that was really one O(n log n) solve
+amortised over frames.
+
+**Timing the passes separately settles it.** At 8,193 live nodes, in the frames
+where no task is accepted:
 
 ```text
-live nodes     frame (ms)    us / node   share of 50 ms
-        17          0.291      17.1452             0.6%
-       129          0.627       4.8610             1.3%
-      1025          5.125       4.9996            10.2%
-      8193        112.077      13.6796           224.2%
-     32769        841.634      25.6839          1683.3%
+survey 1.5-1.8 ms   plan 0.05-0.09   execute 0.0001   coast 1.0-1.1
+evolve_matter 0.40  react_all 0.0001  record_histories 0.03
 ```
 
-**About a thousand live nodes is a tenth of the frame; two or three thousand
-saturates it.** And the per-node cost *rises* with count — 5.0 us at a thousand,
-13.7 at eight thousand, 25.7 at thirty-two thousand — so the total grows roughly
-as n^1.5 rather than linearly.
+Total **3.7 ms, or 7.4% of a 50 ms frame, for 8,193 live nodes doing nothing**
+— about 0.45 us a node. At 1,025 nodes it is 0.37 ms, 0.7%. The floor is fine
+and a town fits comfortably. `docs/PLAY.md` §5A.5 carried the same wrong figures
+and has been corrected.
 
-**What is not measured, and must not be guessed:** which of the four passes
-dominates, and where the superlinearity comes from. A tree build, a sort, or a
-pairwise survey are all plausible and this project's most expensive habit is
-picking one of those and being confident. The probe is to time the passes
-separately.
+**This was the project's first trap, walked into while quoting it.** The frame
+number was measured; the *cause* was assumed. Two probes — timing the passes,
+then printing the accepted task — disproved it in a few minutes.
 
-**Why it matters more than a slow frame.** It is the fourth axiom not being
-delivered. "Detail exists where something is happening" promises that a node
-nobody is near costs nothing; these numbers say it costs 5 to 25 microseconds a
-frame whatever it is doing. A town is 3,000–5,000 live nodes and does not fit. A
-city is not attemptable.
+**Two real findings survive, and they are different problems.** See the two
+entries below.
 
-**The fix is one rule, and the physics already allows it.** `react`'s own comment
-records that it is "an exponential relaxation, so the answer does not depend on
-how the span happened to be cut up" — `approach = 1 - exp(-dt/tau)`. Three years
-of a coffee going cold is one call with a three-year `dt`, not 1.9e9 frames.
-Growth and matter evolution have the same shape. So: nothing that can be advanced
-in closed form should be advanced by ticking. A node carries the instant each
-account was last brought to and catches up in one step when something needs it —
-which is what `Node::time` already does for motion and nothing does for the rest.
+---
 
-**Trigger:** pulled. `docs/PLAY.md` §5A.5 and §5A.5a carry the reasoning, and no
-play-space scene of any size fits until this is done.
+## The frame's cost model under-estimates a large gravity step, increasingly
+
+**Noticed:** diagnosing a retracted claim about per-node cost.
+**Where:** `budget.rs` — `SolverKind::cost`, `n * n.max(2.0).log2() * 1.4` for
+Gravity. `solvers/gravity.rs` for what it actually does.
+
+Measured, the one task the budget accepts on those frames:
+
+```text
+bodies    estimate      actual    ratio
+  2048   23,552 us   48,076 us     2.0x
+ 16384  188,416 us  738,559 us     3.9x
+```
+
+The model is optimistic and **the error grows with n**, so it is not a wrong
+constant — the shape is wrong, or the constant was calibrated at a body count
+far below where it is being used. `docs/PERFORMANCE.md` says the constants come
+from its own measurements, so either those were taken at small n or something
+has changed since.
+
+**Why it matters.** The budget is the engine's central promise: frame rate is
+the invariant and detail gives way. A cost model that under-reads by 4x means
+the knapsack fits work that does not fit, and the frame overruns instead of the
+detail giving way. It is the one number the whole scheduling argument rests on.
+
+**Trigger:** pulled. Re-derive the Gravity coefficient against measured
+Barnes-Hut cost across three decades of body count, and make
+`budget.observe_frame` — which already sees planned against actual — report the
+ratio so a drift like this cannot go unnoticed again.
+
+---
+
+## One task can be fifteen times the frame budget, by design
+
+**Noticed:** the same diagnosis.
+**Where:** `budget.rs` — the plan takes the best task even when it exceeds the
+whole frame. `docs/DESIGN.md` §3.7 states the rule outright: "A plan that
+accepts nothing is worse than one that runs late, so the best task is taken even
+when it costs more than the whole frame."
+
+Measured: at 8,193 live nodes the plan accepts *one* task about every fifth
+frame — a `Step` on the galactic root — and that frame takes 738 ms against a
+50 ms target. Every other frame is 3.7 ms.
+
+The rule is right for a single-observer explorer, where a long frame is a pause.
+It is wrong for the play space: at one second per second a 738 ms frame is a
+fifteen-frame hitch and the world falls 0.69 s behind real time in a single
+step, which is exactly the "staler world" `docs/PLAY.md` D1 predicts and does
+not want to arrive in lumps.
+
+**The fix is task splitting, not a smaller budget.** A Barnes-Hut step over
+16,384 bodies is divisible — half the bodies this frame, half the next — and a
+task that can be cut into frame-sized pieces never forces the choice the rule
+was written to resolve. What cannot be split (an indivisible solve) should still
+be taken, so the rule survives for the case it was written for.
+
+**Trigger:** the first play-space scene under a fixed clock, since D1 removes
+the option of absorbing the overrun by slowing time. Not before task granularity
+is decided, because splitting changes what a `Task` is.
 
 ---
 

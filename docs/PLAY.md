@@ -1657,28 +1657,34 @@ as a share of a 50 ms frame, single core. And `Mixture` is 136 bytes against
 | 10⁵ | 13.6 MB | 71 MB |
 | 10⁶ | 136 MB | 712 MB |
 
-**That is only the chemistry, and chemistry is not what limits this.** Measured
-separately: a node *doing nothing at all* still costs the frame, because
-`survey`, `coast_to`, `evolve_matter` and `record_histories` each walk every live
-node every frame.
+**That is only the chemistry. An earlier draft of this section then claimed the
+per-node frame cost made a town impossible, and that claim was wrong** — the
+measurement behind it averaged frame time across frames that periodically
+included a Barnes-Hut solve over the root's 16,384 bodies, and divided by node
+count. It manufactured a per-node cost out of one O(n log n) solve.
 
-| live nodes | frame | per node | share of 50 ms |
-|---:|---:|---:|---:|
-| 129 | 0.63 ms | 4.9 us | 1.3% |
-| 1,025 | 5.1 ms | 5.0 us | 10.2% |
-| 8,193 | 112.1 ms | 13.7 us | **224%** |
-| 32,769 | 841.6 ms | 25.7 us | **1683%** |
+Timing the passes separately, at 8,193 live nodes with no task accepted:
 
-The per-node cost *rises* with count — roughly n^1.5 overall — so the ceiling is
-far lower than the chemistry figures suggested. **About a thousand live nodes is
-a tenth of the frame; two or three thousand saturates it.** Which of the four
-passes dominates, and where the superlinearity comes from, is not measured; that
-is a probe, not a guess.
+| pass | ms |
+|---|---:|
+| survey | 1.5–1.8 |
+| coast_to | 1.0–1.1 |
+| evolve_matter | 0.40 |
+| plan | 0.05–0.09 |
+| record_histories | 0.03 |
+| react_all | 0.0001 |
+| **total** | **3.7 ms — 7.4% of a 50 ms frame** |
 
-**So a town of 3,000–5,000 live nodes does not fit today** — two to five times
-over budget before any chemistry runs. An earlier draft of this section called it
-affordable, having measured the chemistry and not the floor it sits on. That was
-wrong.
+About 0.45 µs a node; at 1,025 nodes it is 0.37 ms, 0.7%. **The floor is fine
+and a town of a few thousand live nodes fits comfortably.**
+
+Two real problems came out of that diagnosis instead, and both are recorded in
+`docs/BACKLOG.md`: the frame's **cost model under-reads a large gravity step by
+about 4×, increasingly with body count**, and **one indivisible task can be
+fifteen times the frame budget** — deliberately, per `DESIGN.md` §3.7, which is
+right for an explorer and wrong for a fixed clock, where a 738 ms frame is a
+fifteen-frame hitch. Task splitting is the fix, not a smaller budget.
+
 
 ### 5A.5a The city, and the cup of coffee left on the counter
 
@@ -1705,17 +1711,31 @@ come back* — brought to the instant in closed form, exactly as `coast_to` alre
 brings motion to the instant. The engine has the mechanism and does not use it
 for chemistry: `react_all` ticks every mixture every frame instead.
 
-**Which makes the cup and the city the same problem.** Both are per-frame work
-proportional to live nodes, over physics that is coastable. One rule closes both:
+**The rule this points at is still worth having, though the urgency was
+imagined:**
 
 > Nothing that can be advanced in closed form is advanced by ticking. A node
 > carries the instant its chemistry, growth and matter were last brought to, and
 > catches up in one step when something needs it.
 
 That is what `Node::time` already does for motion, applied to the other three
-accounts. It takes the floor above from *per live node per frame* to *per node
-actually being looked at* — which is what the fourth axiom promised and what
-these measurements say is not yet delivered.
+accounts. It is not a performance emergency — the measured floor is 0.45 µs a
+node — but it is what makes a *years-long* absence work at all, since ticking
+cannot cover three years however cheap each tick is.
+
+**And the catch-up must be in the node's own proper time, not the world's.**
+Coffee cooling in a ship at 10 km/s cools at the same rate as coffee in an
+office; what differs is the *ship's* trajectory, which needs frequent
+integration because its position is changing, while its interior does not.
+`CLAUDE.md` already states the split — "trajectory runs on coordinate time;
+interiors run on local time" — and `evolve_matter` and `react_all` already scale
+their span by `local_rate`. The catch-up has to keep that: the span settled is
+the node's own elapsed proper time, so a fast frame never ages what it carries.
+
+The clean form is that a node's local rate is constant between *events on its
+ancestors* — a ship that has not changed velocity does not change its cup's
+rate — so proper elapsed is closed-form between those events and needs no
+per-frame integration to track.
 
 **What still limits a city once that lands** is how many nodes an observer can
 see at once, which is the budget the frame knapsack exists to spend. That is
