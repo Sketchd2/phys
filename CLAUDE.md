@@ -20,8 +20,14 @@ path that sets a value by hand, and it is audited precisely because it is the
 exception.
 
 **Derived, with shortcuts stored.** Deriving from first principles every frame
-is not the goal; deriving *once* and storing the result is. A tabulated constant
-that was never derived is the thing to avoid.
+is not the goal; deriving *once* and storing the result is. A shortcut may hold
+a *rule* as well as a constant: how a kind of thing answers its conditions is
+derived once for the kind and then run for each individual of it — one
+derivation for how an oak meets light, water and wind, and a different one for a
+birch. A stored rule stays a function of its conditions and never a frozen
+outcome, so a drought still reaches every tree in the region it touches. A
+tabulated constant that was never derived is the thing to avoid, and so is a
+shortcut that no regional event can move.
 
 **Detail exists where something is happening.** Most of the tree is deleted
 every frame. Anything regenerable must regenerate bit-identically; anything

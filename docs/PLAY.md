@@ -1569,9 +1569,14 @@ are not preferences.
 - **Measure, never be told.** D8 is this axiom applied to minds: a wolf learns
   what it can lift by trying and being told the fraction that got through.
   Ground contact is measured from geometry rather than from a grounded flag.
-- **Derived, with shortcuts stored.** D7's cached gait is the clearest instance
-  in the codebase: derived once, stored, and re-derived when the tuple it was
-  derived under changes.
+- **Derived, with shortcuts stored.** This axiom was *extended* by D12 rather
+  than merely obeyed by it: a shortcut may now hold a rule and not only a
+  constant, derived once for a kind and run for each individual of it. D7's
+  cached gait, D7's cached grasp and D12's morphology response are three
+  instances of the one pattern. The second clause is the one that bites — a
+  stored rule stays a function of its conditions, so a regional drought reaches
+  every tree it touches; a response surface that a drought cannot move is a
+  snapshot, and D12's whole argument fails if it becomes one.
 - **Detail exists where something is happening.** D6 generates a planet's surface
   only where somebody is standing, and D1's replay respects the same thing —
   which is exactly why an unobserved replay is a fresh draw and an observed one
