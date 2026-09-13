@@ -13,7 +13,7 @@
 
 use crate::math::Vec3;
 use crate::rng::{Purpose, Stream};
-use crate::solvers::hydro::NeighbourGrid;
+use crate::neighbourhood::NeighbourGrid;
 use crate::solvers::SolveReport;
 use crate::state::Body;
 use crate::units::*;

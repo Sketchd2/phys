@@ -1724,8 +1724,21 @@ come back* — brought to the instant in closed form, exactly as `coast_to` alre
 brings motion to the instant. The engine has the mechanism and does not use it
 for chemistry: `react_all` ticks every mixture every frame instead.
 
-**The rule this points at is still worth having, though the urgency was
-imagined:**
+**Decided: not now, and the reason is measured.** Breaking the idle frame down
+at 8,193 nodes gives `survey` 1.5–1.8 ms and `coast_to` 1.0–1.1 ms against
+`evolve_matter`'s 0.40 and `react_all`'s 0.0001 — so the catch-up rule addresses
+about **11% of the floor** and the two passes it does not touch are **73%**.
+With the floor only biting above ~10⁴ live nodes, and nothing in Phase 1's
+done-when reaching that, both stay in `docs/BACKLOG.md` with triggers rather
+than being built speculatively. Attacking `survey` and `coast_to` would be new
+work outside this plan, and the cause of their cost is unmeasured.
+
+**And a decision the plan had left open: a reopened world resumes where it was
+saved.** The clock stopped when the process did. Nothing ages on disk, the input
+log has no gap, and replay stays exact. A single-player world behaves like a
+paused game rather than one that kept running without you.
+
+**The rule this points at is still worth having when the trigger fires:**
 
 > Nothing that can be advanced in closed form is advanced by ticking. A node
 > carries the instant its chemistry, growth and matter were last brought to, and

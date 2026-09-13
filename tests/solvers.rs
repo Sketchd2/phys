@@ -299,7 +299,7 @@ fn the_neighbour_grid_survives_a_body_it_cannot_index() {
         Body { pos: v3(f64::NAN, 0.0, 0.0), mass: 1.0, ..Default::default() },
     ];
 
-    let grid = hydro::NeighbourGrid::build(&bodies, spacing);
+    let grid = phys::neighbourhood::NeighbourGrid::build(&bodies, spacing);
     let mut nb = Vec::new();
 
     // The walk itself must not overflow, from any of them.
