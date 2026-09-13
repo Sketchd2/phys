@@ -461,8 +461,12 @@ lungs, river deltas, lightning), coursed (walls, brickwork, strata), subdivided
 plane (settlements, cracked mud, leaf venation) — selected and parameterised by
 the genome instead of named by an enum. A creature needs a fourth, segmented and
 bilateral, and that is an honest addition rather than a per-species renderer.
-Three or four habits against six-and-climbing species is a real reduction, and it
-is where the reduction stops.
+Three or four habits against six-and-climbing species is a real reduction.
+
+**D12 moves this line**, for the derived-field half: branching in particular does
+not have to be a habit, because it is what transport into an occluded field looks
+like. Coursed masonry and the planned programs stay habits, because a wall is
+placed rather than grown.
 
 **The honesty test, stated before the work rather than after.** Can a genome
 *nobody designed* produce something coherent? If every genome that works had to
@@ -476,6 +480,114 @@ terrain decay needs `maintenance` derived before it can erode anything. The habi
 refactor lands before Phase 4, because creatures would otherwise arrive as a
 seventh species and make the table worse at exactly the moment it is hardest to
 undo.
+
+---
+
+### D12 — Shape derives too, for anything grown
+
+D11 stopped at habits: branching, coursed, subdivided plane, selected by genome.
+**That line is in the wrong place, and this moves it** — for the half of D11's
+split where the deposition field is *derived* rather than supplied.
+
+**What decides a tree's shape today.**
+
+```rust
+Program::Tree  => self.render_branching(n, 0.62, 3),   // taper, splits
+Program::Coral => self.render_branching(n, 0.72, 4),
+```
+
+`taper` and `splits` are constants at the call site, per species. `lean`, `twist`
+and `spread` come from the genome, which is per-instance and right. And `render`
+is pure in `(genome, age, built, progress, events)` — **`Environment` is not one
+of its arguments.** A tree's shape cannot respond to where the light is. It
+responds to its genome and its mass, and nothing else.
+
+The tell is in the doc comment. It says the taper obeys da Vinci's rule, that
+total cross-section is preserved across a branch point — a real law, which would
+*supply* the number: `splits · taper³ = 1` gives 0.693 for three-way branching
+and 0.630 for four-way. The constants are 0.62 and 0.72, giving 0.715 and 1.493.
+One structure loses a quarter of its cross-section per level and the other gains
+half. **A law was cited and two hand-picked numbers were used instead**, and
+because both are constants nothing can notice they disagree with it.
+
+**Branching does not have to be written down, because it is what transport into
+an occluded field looks like.** Four mechanisms, all derived, all standard:
+
+1. **A resource field with occlusion.** Tips compete; a branch shades what is
+   under it; material goes where the unshaded resource is. This alone produces
+   branching — it is what Laplacian growth, viscous fingering, Lichtenberg
+   figures and river networks all are.
+2. **Transport cost.** Murray's law — minimise pumping plus the cost of
+   maintaining the conduit — *derives* the branching ratio. That is `taper`,
+   computed rather than tabulated, and it is why the exponent is somewhere
+   between the area-preserving 2 and the flow-optimal 3 rather than being
+   whichever of 0.62 or 0.72 somebody typed.
+3. **The mechanical constraint**, which the engine already has in full: the
+   fully-stressed design pass already sizes every member for the load it
+   actually takes, and already re-proportions against a load envelope.
+4. **Lateral inhibition** for spacing, which is what `twist` and `spread`
+   currently stand in for.
+
+**Two ingredients are missing, and one of them is D3 again.** The engine has (3)
+outright and has the resource field for growth *rate* but not for growth
+*direction*. It needs **occlusion** — a part shading the parts behind it, which
+is the adjacency relation applied inside a structure — and **transport cost**
+along the structure, which nothing models. That is the whole gap.
+
+**What the genome becomes, and this is the part that answers the question as
+asked.** Not shape. DNA does not encode branch angles; it encodes proteins and
+thresholds, and shape falls out of those meeting a particular patch of ground. So
+the genome becomes physiological constants: transport efficiency, the material,
+which resource is limiting, shade tolerance, the allocation between growing and
+defending. Shape is then an *outcome* of those constants meeting a light field,
+in the same sense that it is in a real tree.
+
+**The consequence that makes it worth doing, and it is falsifiable.** The same
+genome grown in a forest comes out tall and thin; grown in the open it comes out
+short and spreading. That is what real trees do, and it is **impossible today** —
+`taper` and `splits` are constants and `render` never sees the environment, so
+the only way to get two shapes is two genomes or two species. If the derived
+version cannot produce that difference without changing the genome, it did not
+derive anything.
+
+And the same law is the branching in river deltas, lightning, veins, lungs,
+cracks and street networks. This does not delete `render_branching`; it deletes
+the *category* that `render_branching` was the first member of, which is the
+"no special cases" axiom collecting a large debt.
+
+**Three honest costs, and the second may be fatal.**
+
+**Cost: it is iterative.** Growing into an occluded field is not one `render`
+call, and the current design's single biggest win is that "growth runs on the
+aggregate, so a forest grows without any of its trees existing". A million trees
+cannot each run a light-competition simulation. The resolution is the engine's
+own trick one level up — derived morphogenesis where something is watching, cheap
+statistical growth where nothing is, the two required to agree on the conserved
+quantities — which is "detail exists where something is happening" applied to
+morphogenesis. That is coherent, and it is also two paths that must be held in
+agreement, which this project already knows is the expensive part.
+
+**Risk: it threatens regenerability, which is the founding invariant.** Today
+shape is pure in stored state, so a node throws its detail away and rebuilds it
+bit-identically. Tomorrow shape depends on *the environment it grew in*, which is
+a history, not a state. Either that history is summarised into the stored
+morphology — integrated light by direction, mean water, crowding, a handful of
+numbers that keep it near the current ~200 bytes — or shape stops being
+regenerable and `tests/consistency.rs` is right to fail. **This is the constraint
+the whole idea has to survive**, and it should be settled before any of it is
+built, not discovered afterwards.
+
+**Bounded: it does not apply to built things.** A wall is not grown into a field;
+it is placed by an intention. D11's supplied-versus-derived split is exactly the
+right boundary and it is not a species boundary — it is whether something meant
+it. Coursed masonry stays a habit. A street grid is interestingly *both*, since
+real street networks do follow transport optimisation, and the split is per
+structure rather than per kind.
+
+**The honesty test.** Grow one genome in three light fields and get three shapes
+a botanist would call the same species in three situations. Grow two genomes in
+one field and get two species. If the forest-versus-open difference needs a
+genome change, nothing derived and the constants merely moved.
 
 ---
 
@@ -1278,6 +1390,8 @@ a scratch probe that Phase 0 should commit properly rather than from arithmetic.
 | How large is the checkpoint for an interactive subtree? | D1's replay and D10's rollback both pay for it. | Measure a populated patch's snapshot through the existing `persist` path. |
 | ~~Does metre-scale bulk fluid actually hurt?~~ | Answered by §4: yes, for anything at play scale — a 5 cm channel is two orders below the floor. §3.7's option (1) is not the end of the matter, and option (2) is what Phase 3 adopts. | — |
 | Does a busy square's stored-deviation count converge, and to what? | §5.5 argues arrival rate times mean lifetime is a bound rather than a hope. If the number is millions, the decay rate is wrong or §5.6's summarising is load-bearing much earlier than expected. | Simulate arrivals at a plausible footfall against a derived sand/paving erosion rate and count what is held. |
+| Can one genome give a forest tree and an open-grown tree? | D12's honesty test, and the whole argument for it. Impossible today: `taper` and `splits` are constants and `render` never sees `Environment`. | Grow one genome in three light fields; compare height, spread and taper. |
+| Can a grown shape stay regenerable when it depends on a history? | D12's fatal risk. If the environment history will not summarise into ~200 bytes, shape stops regenerating bit-identically and the founding invariant breaks. | Grow a tree, summarise its environment history, regrow from the summary, and diff the skeletons. |
 | Can an undesigned genome make something coherent? | D11's honesty test. If every working genome is hand-tuned, thirty coefficients have replaced six variants and nothing generalised. | Sample a hundred random genomes, render each, and count how many are ugly versus impossible. |
 | At what edit count does a structure start regrowing removed parts? | §5.9 reads `MAX_EVENTS = 64` off the source; the behaviour should be demonstrated rather than inferred from the code. | Sever 65 sites on one structure, regenerate, and count the segments that came back. |
 | Can embodied energy be derived from a topology, and does removing one member show up? | §5.8's fix depends on it entirely. Carried opaquely, as today, the check is blind. | Derive it for a walled structure, remove one member, and difference `non_rest_energy` against the unedited regeneration. |
