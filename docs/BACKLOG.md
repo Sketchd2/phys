@@ -331,6 +331,79 @@ still latent.
 
 ---
 
+## A node can hold eight substances, and the play space needs more
+
+**Noticed:** asked whether "a galaxy is not made of anything you could put in a
+beaker" — the comment justifying chemistry as a sparse side table — survives
+contact with the play space.
+**Where:** `chem/registry.rs` — `MIXTURE_SLOTS`, `Mixture::add`. `engine.rs` —
+`environment_at`, `set_mixture`.
+
+**It does not, and the justification is currently self-fulfilling.** Grepped:
+`set_mixture` is called from **nowhere in `src/`** — only from tests. Chemistry
+is entirely author-supplied, so it is rare because nothing makes it, not because
+matter is rarely made of anything. In a galaxy-shaped node population the
+sparsity claim is true; in a Continuum-shaped one almost every node of note is a
+specific substance, and the claim inverts.
+
+**Three consequences, one of them measured.**
+
+**1. The slot count is a hard ceiling on what a node may contain.**
+`MIXTURE_SLOTS` is 8, and `Mixture::add` displaces the smallest pool when full,
+or returns `false` if the newcomer is smaller. Nothing at the call sites checks
+that return. Measured, twelve equal substances into one mixture:
+
+```text
+   added   accepted   total fraction           lost
+       8          8         0.666667       0.000000
+       9          8         0.666667       0.083333
+      12          8         0.666667       0.333333
+```
+
+A third of the speciated mass, gone silently. The elemental account in
+`Matter::composition` is unaffected — `react` may not move it by construction —
+so mass and baryon number stay right and only the *description* is lost. For
+§5.8's forgery check, which rests entirely on knowing what a thing is made of,
+that is the account that matters.
+
+A room as one node is already over: air is five substances (N₂, O₂, Ar, CO₂,
+H₂O), a wooden table three (cellulose, lignin, water), a beaker of brine two.
+
+**2. At Continuum, the `Mixture` is what the matter is, and `Composition` is its
+summary — which is the wrong way round today.** Eight lumped elements cannot
+tell brine from sodium metal plus chlorine plus water. Speciation is the fine
+account and the elemental one is what survives coarsening, which is exactly
+`sample` and `summarise` — a star has no use for salt. The engine already gates
+a `Matter` field's meaning on tier for the same kind of reason (`evolve_matter`
+does it for temperature), so this is an existing pattern applied to an account
+that does not yet use it, not a new mechanism.
+
+**3. `water = 1.0` is honest now and a lie later.** `environment_at` falls back
+to unlimited water for a node with no mixture, and says so plainly: "there is
+nothing to measure and the fallback is unlimited". Correct while chemistry is
+author-only. The moment terrain generates patches that ought to be dry, every
+undescribed node silently reads as infinitely wet, and "measure, never be told"
+fails quietly. `Program::Terrain::substrate()` already returns a `Composition`;
+producing a `Mixture` instead would let a patch measure its own water. That is
+the direction D11 points anyway.
+
+**The decision this forces, and it is not made here.** Either `MIXTURE_SLOTS`
+grows to whatever a play-space node needs, or node granularity is constrained by
+what a node can describe. The second is more interesting and more in keeping:
+the engine already refines a node whose *gravity* has stopped being
+representable (`needs_refinement`, on the Jeans length), and "refine when the
+representation can no longer describe the contents" is the same rule in a
+different account. It would make chemistry a driver of subdivision rather than a
+passenger.
+
+At minimum, `Mixture::add` must stop losing mass silently — a full mixture is
+the signal to split the node, not to quietly forget the smallest thing in it.
+
+**Trigger:** pulled for the silent loss, which is wrong now. The granularity rule
+is Phase 2, when terrain starts generating nodes that are made of something.
+
+---
+
 ## ~~Identity allocation depends on the frame budget, and reaches the save file~~ — done
 
 **Noticed:** asked whether an id reallocated across a sample/summarise cycle
