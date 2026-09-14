@@ -581,6 +581,19 @@ impl Matter {
         1.5 * self.particle_count() * K_B * self.temperature
     }
 
+    /// Joules per kelvin. The derivative of [`Self::thermal_energy`] with
+    /// respect to temperature, and derived rather than tabulated for the
+    /// obvious reason: a specific heat looked up per material is a table of
+    /// answers, and equipartition is the law underneath it.
+    ///
+    /// It is the quantity [`crate::neighbourhood::exchange`] needs to know how
+    /// far two things can move each other before they meet in the middle. Note
+    /// that it depends on temperature through the ionisation in
+    /// `mean_molecular_mass`, which is correct and is why it is a method.
+    pub fn heat_capacity(&self) -> f64 {
+        1.5 * self.particle_count() * K_B
+    }
+
     pub fn volume(&self) -> f64 {
         (4.0 / 3.0) * std::f64::consts::PI * self.radius.powi(3)
     }
@@ -978,6 +991,46 @@ impl Body {
 
     pub fn angular_momentum(&self) -> Vec3 {
         self.pos.cross(self.momentum()) + self.spin
+    }
+
+    /// Constituent particle count, by the same route [`Matter::particle_count`]
+    /// takes. One derivation, used at both resolutions: a body and the matter
+    /// it summarises into must agree about how many things they are made of, or
+    /// `summarise(sample(m)) == m` would not hold on energy.
+    pub fn particle_count(&self) -> f64 {
+        let mu = self.composition.mean_molecular_mass(self.temperature);
+        if mu > 0.0 {
+            self.mass / mu
+        } else {
+            0.0
+        }
+    }
+
+    /// Joules per kelvin. See [`Matter::heat_capacity`].
+    pub fn heat_capacity(&self) -> f64 {
+        1.5 * self.particle_count() * crate::units::K_B
+    }
+
+    /// Put heat into this body, moving its temperature with it.
+    ///
+    /// The same law as [`Matter::add_heat`], written once for each resolution
+    /// because the two hold their state in different structs and not because
+    /// the physics differs. Negative joules take heat out, which is half of
+    /// what any exchange needs.
+    ///
+    /// The 2.725 K floor is the microwave background: nothing in the universe
+    /// is colder, and an exchange that ran a body below it would be taking heat
+    /// from somewhere that has none to give. `internal_energy` is *not* floored
+    /// with it — the joules are the conserved quantity and they are recorded
+    /// exactly, so the pair stays auditable at the point where the floor bites.
+    pub fn add_heat(&mut self, joules: f64) -> f64 {
+        let n = self.particle_count();
+        self.internal_energy += joules;
+        if n > 0.0 {
+            let dt = joules / (1.5 * n * crate::units::K_B);
+            self.temperature = (self.temperature + dt).max(2.725);
+        }
+        self.temperature
     }
 }
 

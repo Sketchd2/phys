@@ -164,6 +164,37 @@ uniformly. Built lazily, cached, invalidated when the node's epoch moves.
   their `Mixture`s. Conduction, diffusion and radiative exchange are three calls
   to it with different coefficients. Delivery goes through `causal::Influence`,
   which is already a causally-ordered cross-node event.
+
+  *Built, with the radiative coefficient only.* `neighbourhood::exchange` is the
+  function; it takes two `Reservoir`s — a potential and a capacity, so heat sees
+  a temperature and a heat capacity and diffusing mass will see a concentration
+  and a volume — and returns what crossed. It solves the pair rather than
+  multiplying `G·Δ·dt`, because the engine's steps are seconds long and two
+  small things in contact equilibrate in microseconds; the explicit form
+  overshoots and oscillates. The exact two-body solution costs one `exp` and
+  cannot overshoot.
+
+  Radiation was taken first because it is the coefficient that is already
+  derivable: `σ·A·(T⁴−T⁴)` factors exactly into a conductance, and the
+  reciprocal exchange area comes from the two radii and their separation.
+  **Conduction's coefficient does not exist yet and is a real gap** — there is
+  no thermal conductivity anywhere in the codebase, `topology.rs::Material`
+  carries a specific heat and an *electrical* resistivity but no thermal one,
+  and `chem::analyse::Properties` has no transport quantities at all. Choosing
+  that law is a `PHYSICS.md`-weight decision and is not made here. Diffusion's
+  is in the same position.
+
+  What is written is gated to `Tier::Planetary` and finer, on exactly the
+  argument `evolve_matter` already makes: a galaxy's `temperature` is a velocity
+  dispersion and two star clusters do not radiate at each other as blackbodies.
+
+  Delivery does go through `causal::Influence`, as a new `InfluenceKind`. The
+  new kind is not cosmetic: every existing kind pins the node it lands on,
+  because a blast or a user's impulse is information from outside that no
+  re-sampling reproduces. An exchange is ordinary physics between two things the
+  engine already knows, and pinning on it would pin every node with a warm
+  neighbour — and its whole ancestry, permanently, since `Tree::pin` is one-way.
+  That is axiom four exactly inverted.
 - **Contact is the impulsive one.** Overlap resolves as an impulse pair through
   the existing path, with restitution and friction derived from the materials
   `topology.rs` already carries as data. This is where friction — currently
@@ -1884,6 +1915,14 @@ discovered:
 - **A node cannot split when its contents spread out.** The spread measurement it
   needs is the same one D6 needs for patch handoff and `BACKLOG.md`'s fragment
   entry needs for promote-on-leaving. Build it once.
+- **The sampler inflates anything bound by chemistry by 4.3×10⁵.** Found while
+  building D3's exchange pass, and it is a third defect in the same family:
+  `sampler::sample`'s relaxation loop fixes an over-bound configuration by
+  making it bigger, which releases a *gravitational* binding and does nothing at
+  all to a cohesive one. For a granite block it runs all 32 iterations, gives
+  up, and leaves the inflation in place. Nothing geometric works at Continuum
+  tier until this is fixed, which is why the exchange pass is demonstrated at
+  Planetary. Measured, with the options, in `BACKLOG.md`.
 
 ---
 

@@ -296,3 +296,340 @@ fn degenerate_geometry_is_survived() {
         "a body with no position is nobody's neighbour"
     );
 }
+
+// ---------------------------------------------------------------------------
+// Exchange: the transport half of D3.
+// ---------------------------------------------------------------------------
+
+use phys::neighbourhood::{exchange, radiative_area, radiative_conductance, Reservoir};
+
+/// Heat moves the way it is asked to, and the two sides never cross.
+///
+/// The crossing is the whole reason `exchange` solves the pair rather than
+/// multiplying `G * delta * dt`: the engine's steps are seconds long and two
+/// small things in contact equilibrate in microseconds, so the explicit form
+/// overshoots and then oscillates with growing amplitude.
+#[test]
+fn an_exchange_never_carries_the_two_sides_past_each_other() {
+    let (ca, cb) = (10.0, 4.0);
+    // A conductance and a span whose product dwarfs both capacities: the
+    // explicit form would move about 30,000 times the whole difference.
+    for dt in [1e-6, 1e-3, 1.0, 1e3, 1e9] {
+        let a = Reservoir::new(1000.0, ca);
+        let b = Reservoir::new(100.0, cb);
+        let q = exchange(a, b, 1e5, dt);
+        let (ta, tb) = (a.potential - q / ca, b.potential + q / cb);
+        assert!(
+            ta >= tb - 1e-9,
+            "dt={dt}: the sides crossed — a ended at {ta} and b at {tb}, \
+             so {q} J moved where at most the difference should have"
+        );
+        assert!(ta <= 1000.0 + 1e-9 && tb >= 100.0 - 1e-9, "dt={dt}: {ta} {tb}");
+    }
+}
+
+/// Given long enough, they meet at the capacity-weighted mean, which is where
+/// energy conservation says they have to.
+#[test]
+fn an_exchange_settles_at_the_weighted_mean() {
+    let (ca, cb) = (10.0, 4.0);
+    let a = Reservoir::new(1000.0, ca);
+    let b = Reservoir::new(100.0, cb);
+    let q = exchange(a, b, 1e5, 1e9);
+    let (ta, tb) = (a.potential - q / ca, b.potential + q / cb);
+    let mean = (1000.0 * ca + 100.0 * cb) / (ca + cb);
+    assert!((ta - mean).abs() < 1e-6, "a settled at {ta}, not {mean}");
+    assert!((tb - mean).abs() < 1e-6, "b settled at {tb}, not {mean}");
+}
+
+/// For a short step it *is* `G * delta * dt`. The exact solution has to agree
+/// with the law it solves in the limit where the law is unambiguous.
+#[test]
+fn a_short_exchange_is_the_explicit_rate() {
+    let a = Reservoir::new(400.0, 1e6);
+    let b = Reservoir::new(300.0, 1e6);
+    let (g, dt) = (2.0, 1e-3);
+    let q = exchange(a, b, g, dt);
+    let explicit = g * (a.potential - b.potential) * dt;
+    let rel = (q - explicit).abs() / explicit.abs();
+    assert!(rel < 1e-6, "short-step exchange moved {q} J, explicit says {explicit}");
+}
+
+/// A bath is a reservoir the exchange cannot move, and the pair law has to
+/// degrade to the one-body law rather than to zero or to a division by
+/// infinity.
+#[test]
+fn a_bath_does_not_move() {
+    let a = Reservoir::new(400.0, 100.0);
+    let sky = Reservoir::bath(2.725);
+    let q = exchange(a, sky, 1.0, 10.0);
+    let one_body = 100.0 * (400.0 - 2.725) * (1.0 - (-1.0 * 10.0 / 100.0f64).exp());
+    assert!(q > 0.0, "nothing left the warm side towards a cold bath");
+    assert!(
+        (q - one_body).abs() / one_body < 1e-9,
+        "a bath exchange moved {q} J, the one-body law says {one_body}"
+    );
+}
+
+/// Whichever way round the pair is named, the same heat crosses the same
+/// boundary. A boundary that answered differently depending on which side
+/// asked would create or destroy energy the moment both sides asked.
+#[test]
+fn an_exchange_is_the_same_boundary_from_either_side() {
+    let a = Reservoir::new(700.0, 3.0);
+    let b = Reservoir::new(120.0, 11.0);
+    let there = exchange(a, b, 0.5, 20.0);
+    let back = exchange(b, a, 0.5, 20.0);
+    assert!(
+        (there + back).abs() < 1e-12 * there.abs().max(1.0),
+        "a->b moved {there} J but b->a moved {back} J"
+    );
+    assert!(radiative_area(3.0, 7.0, 40.0) == radiative_area(7.0, 3.0, 40.0));
+}
+
+/// The radiative conductance is Stefan-Boltzmann exactly, not linearised about
+/// a mean. `T^4 - T^4` factors, so there is no reason to approximate it.
+#[test]
+fn the_radiative_conductance_reproduces_stefan_boltzmann() {
+    for (ta, tb) in [(300.0, 290.0), (6000.0, 3.0), (3.0, 6000.0), (1e4, 1.0)] {
+        let area = 2.5;
+        let g: f64 = radiative_conductance(ta, tb, area);
+        let linear = g * (ta - tb);
+        let quartic: f64 =
+            phys::units::SIGMA_SB * area * (ta.powi(4) - tb.powi(4));
+        let rel = (linear - quartic).abs() / quartic.abs().max(1e-300);
+        assert!(
+            rel < 1e-12,
+            "at {ta} K against {tb} K the conductance gives {linear} W where \
+             Stefan-Boltzmann gives {quartic} W"
+        );
+    }
+}
+
+/// The exchange area is the *reciprocal* one, and reciprocity is what makes
+/// the transfer conserve: `A_a F_ab` has to equal `A_b F_ba` or the two sides
+/// disagree about how big their shared boundary is.
+#[test]
+fn the_radiative_area_falls_off_as_the_inverse_square() {
+    let (ra, rb) = (0.3, 0.7);
+    let near = radiative_area(ra, rb, 10.0);
+    let far = radiative_area(ra, rb, 20.0);
+    assert!(
+        (near / far - 4.0).abs() < 1e-9,
+        "doubling the distance changed the area by {}x, not 4x",
+        near / far
+    );
+    // And it is bounded: two spheres in contact cannot see more of each other
+    // than a hemisphere of the smaller.
+    let touching = radiative_area(ra, rb, ra + rb);
+    assert!(
+        touching <= 2.0 * std::f64::consts::PI * ra * ra + 1e-12,
+        "touching spheres exchange over {touching} m^2, more than the smaller has"
+    );
+    assert!(touching > 0.0);
+}
+
+/// A rocky planet refined once, with two of its bodies promoted, the second
+/// placed 2.2 radii from the first, and each given a temperature.
+///
+/// Planetary rather than Continuum deliberately. A Continuum node whose matter
+/// carries a chemical cohesive energy has its sampled geometry inflated by
+/// about 4.3e5 before `sampler::sample` gives up relaxing it — see the note in
+/// `docs/BACKLOG.md` — so nothing at that tier is currently next to anything.
+/// This is the finest tier where the geometry is trustworthy today.
+fn adjacent_pair(
+    ta: f64,
+    tb: f64,
+) -> (phys::engine::World, phys::ids::NodeIdx, phys::ids::NodeIdx) {
+    use phys::engine::{default_spec, World};
+    let sc = phys::scenario::ALL
+        .iter()
+        .find(|s| s.name == "Rocky planet")
+        .expect("the scenario shelf has a rocky planet");
+    let mut w = World::new(sc.build(0xC0FFEE), 1.0);
+    let root = w.tree.root;
+    w.tree.nodes[0].spec.count = 64;
+    w.tree.refine(root);
+    let tier = w.tree.nodes[root.get()].tier;
+    let a = w.tree.promote(root, 0, default_spec(tier.finer()));
+    let b = w.tree.promote(root, 1, default_spec(tier.finer()));
+    assert!(!a.is_none() && !b.is_none(), "both promotions should succeed");
+    let ra = w.tree.nodes[a.get()].matter.radius;
+    let at = w.tree.nodes[a.get()].motion.offset;
+    w.tree.nodes[b.get()].motion.offset = at + phys::math::v3(2.2 * ra, 0.0, 0.0);
+    w.tree.nodes[a.get()].matter.temperature = ta;
+    w.tree.nodes[b.get()].matter.temperature = tb;
+    w.tree.pin(a);
+    w.tree.pin(b);
+    (w, a, b)
+}
+
+fn settled(ta: f64, tb: f64) -> (f64, f64) {
+    let (mut w, a, b) = adjacent_pair(ta, tb);
+    for _ in 0..60 {
+        w.step_frame(50_000.0);
+    }
+    (
+        w.tree.nodes[a.get()].matter.temperature,
+        w.tree.nodes[b.get()].matter.temperature,
+    )
+}
+
+/// The Phase 1 headline: a hot node beside a cold one equilibrates without
+/// either being told the other exists.
+///
+/// Measured against a control, and the *choice* of control is the whole design
+/// of this test. Both nodes also run `evolve_matter`, which radiates to the sky
+/// and absorbs the parent's light, so "the cold one got warmer" would have
+/// passed with no coupling at all. The first control tried here moved the
+/// partner out of range instead — which also moved it to a different distance
+/// from the parent, changed its illumination, and reproduced the exact
+/// signature the exchange was supposed to produce. That version passed with
+/// `exchange` stubbed to return zero, which is how it was caught.
+///
+/// So the control holds the geometry fixed to the last bit and varies only the
+/// partner's temperature. Everything positional — illumination, the solver, the
+/// sampler's streams — is then identical between the two runs by construction,
+/// and the only thing that can separate them is heat crossing the boundary.
+#[test]
+fn a_hot_node_beside_a_cold_one_equilibrates() {
+    // The cold node, beside a hot partner and beside a cold one.
+    let (_, warmed) = settled(6000.0, 50.0);
+    let (_, alone) = settled(50.0, 50.0);
+    // And the assertion is on the *ratio*, not on the sign of the difference,
+    // because the control is not perfectly clean and saying so is cheaper than
+    // pretending. Raising the partner to 6000 K also changes what the partner
+    // hands its parent, so `environment_at` gives this node marginally more
+    // light in one run than in the other, and that leak has the same sign as
+    // the effect being measured. With `exchange` stubbed to return zero it is
+    // worth 2.4e-8 K against the exchange's 2.5e-3 K — five orders of magnitude
+    // down, but strictly positive, so `warmed > alone` passed with no coupling
+    // at all. This test was written that way first, and that is how it was
+    // caught.
+    //
+    // Against the background warming both runs get from the parent, the
+    // measured separation is 4.95x with the exchange and 1.07x without it.
+    let (gained, background) = (warmed - 50.0, alone - 50.0);
+    let ratio = gained / background.max(1e-300);
+    assert!(
+        ratio > 2.0,
+        "a 50 K node warmed by {gained} K beside a 6000 K neighbour and by \
+         {background} K beside a 50 K one, a factor of {ratio} — where the same \
+         pair with no coupling at all comes out at 1.07x. Nothing crossed."
+    );
+
+    // The hot side is deliberately *not* tested by the mirror of this control.
+    // Raising the partner from 50 K to 6000 K does not hold the rest of the
+    // system fixed: a 6000 K node radiates through `evolve_matter` into
+    // everything around it, and the parent's state comes back changed. The run
+    // was measured and the hot node cooled *more* beside a hot partner than
+    // beside a cold one — a real effect of that feedback, and nothing to do
+    // with the boundary being tested. What leaves the hot side is measured
+    // directly instead, in `heat_crosses_a_boundary_and_the_books_close`, where
+    // there is no second mechanism in the way.
+}
+
+/// Heat leaves one side, arrives at the other, and the sum does not move.
+///
+/// Between two *bodies* in one node rather than two promoted children, which is
+/// what makes it a clean measurement: `evolve_matter` acts on a node's matter
+/// and not on the bodies inside it, so there is no second path by which energy
+/// can enter or leave the list being summed. Whatever the two temperatures do
+/// to each other, they did to each other.
+///
+/// The conservation bound is the real assertion here. An exchange that moved
+/// heat in the right direction while quietly minting or losing some of it would
+/// satisfy every other test in this file.
+#[test]
+fn heat_crosses_a_boundary_and_the_books_close() {
+    use phys::engine::World;
+    let sc = phys::scenario::ALL
+        .iter()
+        .find(|s| s.name == "Rocky planet")
+        .expect("the scenario shelf has a rocky planet");
+    let mut w = World::new(sc.build(0xC0FFEE), 1.0);
+    let root = w.tree.root;
+    w.tree.nodes[0].spec.count = 64;
+    w.tree.refine(root);
+    // Without a pin the bodies are discarded the moment nobody is looking, and
+    // there is nothing left to measure.
+    w.tree.pin(root);
+
+    let nb = w.tree.neighbourhood(root);
+    let pairs = nb
+        .pairs(nb.resolution())
+        .expect("the node's own resolution is within its index's reach");
+    assert!(!pairs.is_empty(), "a refined planet's bodies are next to nothing");
+    let (i, j) = pairs[0];
+
+    {
+        let b = &mut w.tree.nodes[root.get()].bodies;
+        b[i].temperature = 9000.0;
+        b[j].temperature = 30.0;
+    }
+    let before: f64 = w.tree.nodes[root.get()].bodies.iter().map(|b| b.internal_energy).sum();
+
+    for _ in 0..5 {
+        w.step_frame(50_000.0);
+    }
+
+    let b = &w.tree.nodes[root.get()].bodies;
+    assert_eq!(b.len(), 64, "the pinned node lost its detail");
+    let (hot, cold) = (b[i].temperature, b[j].temperature);
+    assert!(hot < 9000.0, "the hot body never cooled: still {hot} K");
+    assert!(cold > 30.0, "the cold body never warmed: still {cold} K");
+    assert!(hot > cold, "the pair crossed: {hot} K against {cold} K");
+
+    let after: f64 = b.iter().map(|b| b.internal_energy).sum();
+    let drift = (after - before).abs() / before.abs();
+    assert!(
+        drift < 1e-12,
+        "the exchange moved heat but the books did not close: total internal          energy went from {before} J to {after} J, a relative drift of {drift}"
+    );
+}
+
+/// An exchange does not pin the node it lands on.
+///
+/// `Tree::pin` is one-way and pins the whole ancestry, so pinning on ordinary
+/// transport would pin every node with a warm neighbour, permanently. That is
+/// axiom four — detail exists where something is happening — exactly inverted.
+#[test]
+fn an_exchange_does_not_pin_what_it_touches() {
+    use phys::causal::InfluenceKind;
+    use phys::engine::{default_spec, World};
+    use phys::math::Vec3;
+    let sc = phys::scenario::ALL
+        .iter()
+        .find(|s| s.name == "Rocky planet")
+        .expect("the scenario shelf has a rocky planet");
+    let mut w = World::new(sc.build(0xBEEF), 1.0);
+    let root = w.tree.root;
+    w.tree.nodes[0].spec.count = 64;
+    w.tree.refine(root);
+    let tier = w.tree.nodes[root.get()].tier;
+    let child = w.tree.promote(root, 0, default_spec(tier.finer()));
+    assert!(!w.tree.nodes[child.get()].pinned, "a fresh promotion should not be pinned");
+
+    let before = w.tree.nodes[child.get()].matter.internal_energy;
+    w.mailbox
+        .post(child, w.time, 0.0, InfluenceKind::Exchange, 1.0e20, Vec3::ZERO);
+    w.step_frame(50_000.0);
+    assert!(
+        w.tree.nodes[child.get()].matter.internal_energy > before,
+        "the exchange was never delivered"
+    );
+    assert!(
+        !w.tree.nodes[child.get()].pinned,
+        "an exchange pinned the node it landed on"
+    );
+
+    // The contrast, and the reason the kind is separate: a user's impulse is
+    // information from outside that no re-sampling reproduces, and it does pin.
+    w.mailbox
+        .post(child, w.time, 0.0, InfluenceKind::UserImpulse, 1.0, Vec3::ZERO);
+    w.step_frame(50_000.0);
+    assert!(
+        w.tree.nodes[child.get()].pinned,
+        "a user impulse should still pin, and now does not"
+    );
+}

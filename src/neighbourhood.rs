@@ -187,6 +187,10 @@ pub struct Neighbourhood {
     occupants: Vec<Occupant>,
     positions: Vec<Vec3>,
     radii: Vec<f64>,
+    /// The length below which the node has no structure. Kept because callers
+    /// need it and deriving it a second time from the node is how two
+    /// definitions of one length drift apart.
+    resolution: f64,
     /// The node epoch this was built against. A node whose epoch has moved has
     /// different contents, and a neighbourhood built before it is stale.
     epoch: u32,
@@ -235,7 +239,7 @@ impl Neighbourhood {
         let widest = radii.iter().copied().fold(0.0f64, f64::max);
         let spacing = resolution.max(2.0 * widest).max(1e-30);
         let grid = NeighbourGrid::of_points(positions.iter().copied(), spacing);
-        Neighbourhood { grid, occupants, positions, radii, epoch }
+        Neighbourhood { grid, occupants, positions, radii, resolution, epoch }
     }
 
     /// Whether this was built against a node in its present state.
@@ -256,6 +260,18 @@ impl Neighbourhood {
     /// quietly given a short answer.
     pub fn reach(&self) -> f64 {
         self.grid.spacing()
+    }
+
+    /// The node's own resolution — the length below which it has no structure.
+    ///
+    /// Distinct from [`Self::reach`], and the distinction matters to anything
+    /// choosing a cutoff. `reach` is how far the *index* can see, which one
+    /// oversized occupant can inflate until every pair is a candidate and the
+    /// query is O(n^2). `resolution` is how far it is *meaningful* to look:
+    /// below it the node has nothing to say, and above it the structure being
+    /// described belongs to the parent.
+    pub fn resolution(&self) -> f64 {
+        self.resolution
     }
 
     /// Everything whose *surface* lies within `within` of `point`.
@@ -317,4 +333,196 @@ impl Neighbourhood {
     pub fn occupants(&self) -> &[Occupant] {
         &self.occupants
     }
+
+    /// The occupant at an index, with where it is and how big it is.
+    ///
+    /// The index is into this neighbourhood, not into the node's bodies or its
+    /// children — [`Occupant`] carries which of those it is. Keeping the two
+    /// apart is what lets a promoted child and a plain body be handled by one
+    /// piece of code.
+    pub fn at(&self, i: usize) -> Option<(Occupant, Vec3, f64)> {
+        Some((*self.occupants.get(i)?, self.positions[i], self.radii[i]))
+    }
+
+    /// Every pair whose surfaces lie within `within` of each other, each pair
+    /// once, in a fixed order.
+    ///
+    /// The caller wants pairs, not a neighbour list per occupant: an exchange
+    /// across a boundary has to be applied once or it moves twice as much of
+    /// the quantity as it should, and deduplicating a per-occupant list at the
+    /// call site is the kind of thing that is got right in one of the six
+    /// callers D3 exists to unify.
+    ///
+    /// Ordered by `(i, j)` with `i < j`, which is deterministic without a sort
+    /// for the same reason [`NeighbourGrid::neighbours`] is. Returns `None` if
+    /// the query is wider than [`Self::reach`], on the same grounds as
+    /// [`Self::near`].
+    pub fn pairs(&self, within: f64) -> Option<Vec<(usize, usize)>> {
+        if within > self.grid.spacing() {
+            return None;
+        }
+        let mut out = Vec::new();
+        let mut candidates = Vec::new();
+        for i in 0..self.occupants.len() {
+            self.grid.neighbours(self.positions[i], &mut candidates);
+            for j in candidates.iter().map(|c| *c as usize) {
+                if j <= i {
+                    continue;
+                }
+                let gap =
+                    (self.positions[j] - self.positions[i]).norm() - self.radii[i] - self.radii[j];
+                if gap <= within {
+                    out.push((i, j));
+                }
+            }
+        }
+        Some(out)
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Exchange
+// ---------------------------------------------------------------------------
+
+/// One side of a shared boundary.
+///
+/// Deliberately not a `Body`, a `Matter` or a `Node`. Exchange does not care
+/// what is on either side of the boundary — it cares how hard the quantity is
+/// being pushed and how much of it one unit of push is worth. Heat sees a
+/// temperature and a heat capacity; diffusing mass sees a concentration and a
+/// volume; charge sees a voltage and a capacitance. Writing the transport three
+/// times, once per caller, is exactly what `docs/BACKLOG.md`'s coupling audit
+/// warned would produce three incompatible answers.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Reservoir {
+    /// What drives the flow: temperature, concentration, potential.
+    pub potential: f64,
+    /// How much of the conserved quantity one unit of potential buys — heat
+    /// capacity in J/K, volume for a concentration. `f64::INFINITY` is legal
+    /// and means a bath: something whose potential the exchange cannot move.
+    pub capacity: f64,
+}
+
+impl Reservoir {
+    pub fn new(potential: f64, capacity: f64) -> Reservoir {
+        Reservoir { potential, capacity }
+    }
+
+    /// A reservoir so large the exchange cannot move it — the sky, the ground,
+    /// the cosmic microwave background.
+    pub fn bath(potential: f64) -> Reservoir {
+        Reservoir { potential, capacity: f64::INFINITY }
+    }
+}
+
+/// Move a conserved quantity across a boundary. This is the one function.
+///
+/// Returns how much went **from `a` to `b`** over `dt`, positive when `a` was
+/// the hotter/fuller side. Conduction, diffusion and radiative exchange are
+/// three calls to it with different conductances; nothing else about them
+/// differs, which is the whole claim of `docs/PLAY.md` D3.
+///
+/// # Why this is not `conductance * delta * dt`
+///
+/// That is the same expression, and it is what this returns in the limit of a
+/// short step. But the engine's steps are not short by construction: a frame
+/// covers a second, and two small things in good thermal contact equilibrate in
+/// microseconds. The explicit form then moves more than the whole difference,
+/// overshoots, and oscillates with growing amplitude — the classic stiff
+/// failure, and it would have arrived as "a coffee cup on a table heats the
+/// table to 900 K and then freezes it".
+///
+/// So the exact solution of the two-body problem is used instead. Two lumped
+/// capacities coupled by a conductance obey `d(delta)/dt = -delta / tau` with
+/// `tau = C_h / G` and `C_h = C_a C_b / (C_a + C_b)`, so the amount that
+/// actually crosses in a span is `C_h * delta * (1 - exp(-dt / tau))`. That is
+/// not a clamp bolted onto an unstable scheme: it is unconditionally stable
+/// because it is *correct*, it conserves the quantity identically (what leaves
+/// one side is what arrives at the other, by construction of a single scalar),
+/// it can never carry the two sides past each other, and for small `dt` it
+/// reduces to `G * delta * dt` exactly.
+///
+/// An infinite capacity on one side degrades gracefully to the one-body law
+/// `C * delta * (1 - exp(-G dt / C))`, which is how a bath is written.
+pub fn exchange(a: Reservoir, b: Reservoir, conductance: f64, dt: f64) -> f64 {
+    let delta = a.potential - b.potential;
+    if !(conductance > 0.0) || !(dt > 0.0) || !delta.is_finite() || delta == 0.0 {
+        return 0.0;
+    }
+    // Harmonic mean of the two capacities: the quantity that can cross before
+    // the potentials meet. Zero on either side means one of them cannot hold
+    // any of the quantity, so nothing can cross.
+    let (ca, cb) = (a.capacity, b.capacity);
+    if !(ca > 0.0) || !(cb > 0.0) {
+        return 0.0;
+    }
+    let harmonic = if ca.is_infinite() {
+        cb
+    } else if cb.is_infinite() {
+        ca
+    } else {
+        ca * cb / (ca + cb)
+    };
+    if !harmonic.is_finite() || harmonic <= 0.0 {
+        return 0.0;
+    }
+    // `-expm1(-x)` rather than `1 - exp(-x)`: for the small `x` of a brief step
+    // between weakly coupled things the subtraction loses every significant
+    // digit, and the transport silently stops happening at the point where it
+    // is slowest — which is exactly where a slow leak matters.
+    let reached = -(-(conductance * dt / harmonic)).exp_m1();
+    harmonic * delta * reached
+}
+
+/// The area two spheres exchange radiation across, square metres.
+///
+/// Not a shared surface — nothing is shared, they are not touching. It is the
+/// reciprocal area `A_a F_ab = A_b F_ba` that makes the grey-body law come out
+/// symmetric, which is the thing that has to hold if the exchange is to
+/// conserve energy: `pi r_a^2 r_b^2 / d^2`, the far-field limit of the
+/// sphere-to-sphere view factor. Symmetric by construction rather than by
+/// arithmetic luck, so neither side can be given a different answer than the
+/// other about the same boundary.
+///
+/// The cap is the geometric bound for two spheres that do not interpenetrate:
+/// at their closest the smaller one can present no more than a hemisphere to
+/// the larger. It is almost never the binding term — equal spheres in contact
+/// come out at an eighth of it — and that it is loose is the point. A cap that
+/// bound often would be a fudge factor wearing a bound's clothes.
+pub fn radiative_area(r_a: f64, r_b: f64, distance: f64) -> f64 {
+    let d = distance.max(r_a + r_b).max(1e-300);
+    // `(r_a r_b)^2` and not `r_a r_a r_b r_b`. The two are the same number in
+    // exact arithmetic and *not* the same `f64`: the second rounds four times
+    // in an order that depends on which side was named first, so a boundary
+    // asked about from `a` and from `b` came back with areas differing in the
+    // last bits. One conserved quantity crossing one boundary cannot have two
+    // sizes, however small the difference — and a test asserting the two are
+    // equal is what found this. A single product is commutative exactly,
+    // because IEEE multiplication is, so squaring it is symmetric by
+    // construction rather than by hoping the rounding cancels.
+    let rr = r_a * r_b;
+    let far = std::f64::consts::PI * rr * rr / (d * d);
+    let cap = 2.0 * std::f64::consts::PI * r_a.min(r_b).powi(2);
+    far.min(cap)
+}
+
+/// The conductance of a radiative boundary, watts per kelvin.
+///
+/// Stefan-Boltzmann is a fourth-power law and [`exchange`] wants a linear one,
+/// so the usual move is to linearise about a mean temperature and accept the
+/// error. There is no need: `T_a^4 - T_b^4` factors exactly as
+/// `(T_a + T_b)(T_a^2 + T_b^2)(T_a - T_b)`, so dividing out the difference
+/// leaves a conductance that reproduces the fourth-power law with no
+/// approximation at all at the start of the step.
+///
+/// Emissivity is one, which is the same black body `state::stefan_boltzmann`
+/// already assumes. A grey-body emissivity would have to come from somewhere,
+/// and the only honest somewheres are a measurement or a table; the table is
+/// forbidden and the measurement does not exist yet.
+pub fn radiative_conductance(t_a: f64, t_b: f64, area: f64) -> f64 {
+    if !(area > 0.0) || !t_a.is_finite() || !t_b.is_finite() {
+        return 0.0;
+    }
+    let (a, b) = (t_a.max(0.0), t_b.max(0.0));
+    crate::units::SIGMA_SB * area * (a + b) * (a * a + b * b)
 }

@@ -279,6 +279,20 @@ pub enum InfluenceKind {
     Impact,
     Probe,
     UserImpulse,
+    /// A conserved quantity crossing a boundary between two adjacent things.
+    /// Heat conducted or radiated between neighbours, mass diffusing, charge
+    /// equalising. See `crate::neighbourhood::exchange` and `docs/PLAY.md` D3.
+    ///
+    /// Carried as a separate kind from [`Self::Radiation`] for one reason, and
+    /// it is not cosmetic: the others all pin the node they land on, because a
+    /// blast or a user's impulse is information from outside that the node's
+    /// procedural detail cannot be asked to reproduce. An exchange is ordinary
+    /// physics between two things the engine already knows the state of, it is
+    /// replayable from the same seeds, and pinning on it would pin every node
+    /// with a warm neighbour and its whole ancestry — permanently, since
+    /// `Tree::pin` is one-way. That is axiom four inverted: detail would exist
+    /// wherever *nothing* was happening.
+    Exchange,
 }
 
 /// Min-heap ordering on arrival time.

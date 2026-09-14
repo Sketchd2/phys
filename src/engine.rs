@@ -18,6 +18,7 @@
 
 use crate::budget::{cost, FrameBudget, Plan, Task, TaskKind};
 use crate::causal::{CausalGate, Clock, History, Influence, InfluenceKind, Mailbox, Moment};
+use crate::neighbourhood::{Occupant, Reservoir};
 use crate::ids::{EntityId, NodeIdx, PathKey};
 use crate::math::Vec3;
 use crate::observe::*;
@@ -282,6 +283,11 @@ pub struct EngineStats {
     pub precipitated: f64,
     /// Melting, freezing, boiling and condensing, likewise.
     pub phase_changed: f64,
+    /// Boundaries heat actually crossed, summed over nodes and frames. Counts
+    /// transfers, not joules: it answers "is anything talking to its
+    /// neighbours at all", which is the question a coupling that silently does
+    /// nothing would otherwise pass every test on.
+    pub exchange_crossings: u64,
 }
 
 /// Where the world clock's span per frame comes from.
@@ -1689,6 +1695,12 @@ impl World {
         } else {
             dt
         };
+        // Heat crosses the boundaries between the things this node holds, on
+        // the same span the solver just integrated. After the solve rather than
+        // before it: the solver moves them, and what is next to what is a
+        // question about where they ended up.
+        self.exchange_within(idx, dt);
+
         // Back to coordinate time for everything the *parent* observes.
         let coordinate = dt / rate;
         let physical_rate = self.time_rate_of(idx).physical();
@@ -1715,6 +1727,153 @@ impl World {
             c.proper_time += coordinate * physical;
         }
         report
+    }
+
+    /// Move heat between the things inside one node that are next to each
+    /// other. `docs/PLAY.md` D3, the transport half.
+    ///
+    /// This is what "a hot node beside a cold one equilibrates without either
+    /// being told the other exists" is made of, and the striking thing about it
+    /// is how little of it is here: the adjacency comes from
+    /// [`Neighbourhood`](crate::neighbourhood::Neighbourhood), the transport
+    /// from [`exchange`](crate::neighbourhood::exchange), the coefficient from
+    /// [`radiative_conductance`](crate::neighbourhood::radiative_conductance),
+    /// and what is left is bookkeeping. Conduction and diffusion will be two
+    /// more coefficients and no more code than that, which is the whole claim
+    /// D3 was making.
+    ///
+    /// # Bodies and children are not two cases
+    ///
+    /// An occupant is a materialised body or a promoted child, and the physics
+    /// does not distinguish them — but where the answer has to be *written*
+    /// does. A body is inside this node and inside its clock, so it is written
+    /// directly. A child is a node of its own with its own clock and its own
+    /// rate, and writing into another node's matter behind its clock is exactly
+    /// the bug `causal::Mailbox` exists to prevent, so a child's share is
+    /// posted as an [`InfluenceKind::Exchange`] and arrives when *its* clock
+    /// reaches it.
+    ///
+    /// Both spellings conserve, and they conserve for the same reason rather
+    /// than by separate arrangement. A promoted child's stand-in body carries a
+    /// copy of the child's `internal_energy`, refreshed by `sync_children` at
+    /// the top of every solve, so energy handed to the child reappears in this
+    /// node's own body list next frame — and energy taken out of a plain body
+    /// here and given to a child leaves the body list by one route and comes
+    /// back by the other. The sum over this node's bodies is unchanged either
+    /// way.
+    ///
+    /// # Why the potentials are updated as the walk goes
+    ///
+    /// One occupant can have twenty neighbours, and reading every temperature
+    /// once and applying every transfer against those stale readings — Jacobi —
+    /// lets a cold thing with twenty hot neighbours be given twenty separate
+    /// shares of "the whole way to equilibrium" and end up hotter than any of
+    /// them. Updating in place as each pair is settled costs nothing, cannot
+    /// overshoot because each transfer is individually bounded by that pair's
+    /// own equilibrium, and is deterministic because `pairs` is. Energy is
+    /// conserved under either, but only one of them is *right*.
+    fn exchange_within(&mut self, idx: NodeIdx, dt: f64) -> u64 {
+        if !(dt > 0.0) || !dt.is_finite() {
+            return 0;
+        }
+        // Only where a blackbody is what the node's contents actually are.
+        // Identical gate, and identical reason, to `evolve_matter`: a galactic
+        // node's `temperature` is a velocity dispersion, and two star clusters
+        // do not radiate at each other as blackbodies the size of star
+        // clusters. The tier is the statement of which physics applies.
+        if self.tree.nodes[idx.get()].tier < crate::units::Tier::Planetary {
+            return 0;
+        }
+        let nb = self.tree.neighbourhood(idx);
+        if nb.len() < 2 {
+            return 0;
+        }
+        // The node's own resolution, not the index's reach: see
+        // `Neighbourhood::resolution`. Above this length the structure belongs
+        // to the parent, and the parent's luminosity field — `environment_at`
+        // — is already carrying it.
+        let Some(pairs) = nb.pairs(nb.resolution()) else {
+            return 0;
+        };
+        if pairs.is_empty() {
+            return 0;
+        }
+
+        // Read every potential once, then let the walk move them.
+        let mut side: Vec<Reservoir> = Vec::with_capacity(nb.len());
+        for i in 0..nb.len() {
+            let (occ, _, _) = nb.at(i).expect("index is in range");
+            side.push(match occ {
+                Occupant::Body(k) => {
+                    let b = &self.tree.nodes[idx.get()].bodies[k as usize];
+                    Reservoir::new(b.temperature, b.heat_capacity())
+                }
+                Occupant::Child(c) => {
+                    let m = &self.tree.nodes[c.get()].matter;
+                    Reservoir::new(m.temperature, m.heat_capacity())
+                }
+            });
+        }
+        let mut moved = vec![0.0f64; nb.len()];
+
+        let mut crossings = 0u64;
+        for (i, j) in pairs {
+            let (_, pi, ri) = nb.at(i).expect("pair index is in range");
+            let (_, pj, rj) = nb.at(j).expect("pair index is in range");
+            let d = (pj - pi).norm();
+            let area = crate::neighbourhood::radiative_area(ri, rj, d);
+            let g = crate::neighbourhood::radiative_conductance(
+                side[i].potential,
+                side[j].potential,
+                area,
+            );
+            let q = crate::neighbourhood::exchange(side[i], side[j], g, dt);
+            if !q.is_finite() || q == 0.0 {
+                continue;
+            }
+            // Move the potentials with the heat, so the next pair sees the
+            // state this one left behind.
+            if side[i].capacity.is_finite() && side[i].capacity > 0.0 {
+                side[i].potential -= q / side[i].capacity;
+            }
+            if side[j].capacity.is_finite() && side[j].capacity > 0.0 {
+                side[j].potential += q / side[j].capacity;
+            }
+            moved[i] -= q;
+            moved[j] += q;
+            crossings += 1;
+        }
+
+        let now = self.time;
+        for i in 0..nb.len() {
+            if moved[i] == 0.0 || !moved[i].is_finite() {
+                continue;
+            }
+            let (occ, pos, _) = nb.at(i).expect("index is in range");
+            match occ {
+                Occupant::Body(k) => {
+                    if let Some(b) = self.tree.nodes[idx.get()].bodies.get_mut(k as usize) {
+                        b.add_heat(moved[i]);
+                    }
+                }
+                Occupant::Child(c) => {
+                    // The separation from the node's centre is the light delay
+                    // that applies; within a node it is far below a frame, and
+                    // it stops being so exactly when the node is large enough
+                    // that it should be.
+                    self.mailbox.post(
+                        c,
+                        now,
+                        pos.norm(),
+                        InfluenceKind::Exchange,
+                        moved[i],
+                        Vec3::ZERO,
+                    );
+                }
+            }
+        }
+        self.stats.exchange_crossings += crossings;
+        crossings
     }
 
     /// The nuclear tier does not integrate trajectories; it samples events.
@@ -2320,11 +2479,23 @@ impl World {
                 n.matter.add_heat(inf.energy);
             }
             InfluenceKind::Probe => {}
+            InfluenceKind::Exchange => {
+                n.matter.add_heat(inf.energy);
+                n.matter.momentum += inf.momentum;
+            }
         }
-        // The node's procedural detail no longer represents its matter.
+        // An exchange with a neighbour is ordinary physics between two things
+        // the engine already knows, replayable from the same seeds, so it does
+        // not pin. Everything else here is information from outside that no
+        // amount of re-sampling would reproduce, and pinning is how the node
+        // says so. Pinning on an exchange would pin every node with a warm
+        // neighbour, and its whole ancestry, permanently — `Tree::pin` is
+        // one-way — which is axiom four exactly inverted.
         let idx = inf.target;
-        self.tree.pin(idx);
-        self.disturb(idx);
+        if inf.kind != InfluenceKind::Exchange {
+            self.tree.pin(idx);
+            self.disturb(idx);
+        }
         if !self.tree.nodes[idx.get()].bodies.is_empty() {
             // Distribute the impulse over the existing bodies rather than
             // discarding them — throwing away detail a user is looking at, in
@@ -2336,7 +2507,11 @@ impl World {
                 if b.mass > 0.0 {
                     b.vel += inf.momentum.scale(f / b.mass);
                 }
-                b.internal_energy += inf.energy * f;
+                // `add_heat` rather than a bare `internal_energy +=`: the
+                // matter's temperature moved on the line above, and a body list
+                // whose temperatures did not follow is a materialisation that
+                // no longer summarises to its own matter.
+                b.add_heat(inf.energy * f);
             }
         }
     }

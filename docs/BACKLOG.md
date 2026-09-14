@@ -331,6 +331,93 @@ still latent.
 
 ---
 
+## The sampler inflates anything bound by chemistry by 4.3x10^5
+
+**Noticed:** building D3's exchange pass. `Neighbourhood::pairs` returned zero
+for a refined granite block, which should be the easiest case in the engine.
+**Where:** `sampler.rs` lines 246-259, the relaxation loop.
+
+A second, unrelated cause of the same symptom as *"A node whose bodies are
+10^20 radii outside it"* above — that one is an MD detonation during
+integration, this one happens at sample time, before anything is integrated.
+
+**Measured**, `sampler::sample` on each scenario at `count = 512`:
+
+```text
+  scenario          tier        R          U_int      E_bind      relax  max|pos|/R
+  Spiral galaxy     Galactic    4.629e20   +1.086e48  -2.896e47   0      3.109e0
+  Molecular cloud   Stellar     6.171e17   +2.138e42  -2.566e42   0      3.569e0
+  The Sun           Planetary   6.957e8    +1.138e41  -2.276e41   0      3.512e0
+  Rocky planet      Planetary   6.371e6    +2.242e31  -2.242e32   0      3.512e0
+  Granite block     Continuum   8.660e-1   +4.154e8   -6.392e10   33     4.396e5
+  Water vapour      Molecular   3.000e-9   +1.279e-17 -7.891e-16  33     4.592e5
+  Carbon atom       Atomic      7.000e-11  +8.251e-17 -1.650e-16  33     5.158e5
+  Iron nucleus      Nuclear     4.591e-15  +1.776e-10 -7.887e-11  0      1.224e0
+```
+
+`1.5^32 = 4.3x10^5`, which is the whole of the discrepancy.
+
+**The cause.** The loop exists for a real case: a configuration too tightly
+bound to hold the energy it claims must be bigger, so it is scaled up by 1.5
+until `internal_energy + binding_energy - phi` turns positive, up to 32 times.
+That is right for anything **self-gravitating**, because spreading it out is
+exactly what releases the binding — `phi` is the gravitational potential, and it
+is the only term the scaling moves.
+
+It is wrong for anything bound by **chemistry**. A granite block's
+`binding_energy` is a silicate cohesive energy, `-5 eV` per atom; its `phi` is
+about `1e-4 J` and utterly negligible at that size. Scaling the geometry cannot
+make the budget positive because it does not touch the term that is negative.
+So the loop runs all 32 iterations, fails, falls through to the
+`random_ke_target = internal_energy.abs()` branch — **and leaves the 4.3x10^5
+inflation in place.** Nothing undoes it.
+
+The nucleus is the control: its binding is nuclear, equally non-gravitational,
+and it never triggers because its Fermi energy exceeds it.
+
+**Why nothing caught it.** The conserved-set tests check that the books close,
+and they close either way — the energy budget absorbs whatever `phi` comes out
+to, which is the sampler's design and is correct. Nothing had asked a
+*geometric* question of a Continuum node until adjacency existed. `sample`
+reports it honestly in `report.radius_overridden` and `report.relaxations`;
+no caller reads either.
+
+**Blast radius, today and tomorrow.** Today it is the three scenarios that set
+a real chemical binding — granite, vapour, carbon. A node reached by descending
+the galaxy ladder has `binding_energy == 0` from the second level down, so the
+demo path never triggers it. Tomorrow it is everything: the trigger is
+`internal_energy + binding_energy < 0`, which is every solid and every liquid
+with a real cohesive energy, and §5A of `PLAY.md` is about making matter carry
+exactly that. The Continuum tier is the whole play space.
+
+Nothing geometric works on an affected node: adjacency, contact, the exchange
+pass, and hydro's own neighbour finding all see contents scattered 4.3x10^5
+radii from a node they are supposed to be inside.
+
+**Not yet fixed, because the fix is a physics decision rather than a patch.**
+The loop needs to know which part of `binding_energy` is gravitational — only
+that part is released by expansion. The engine does not currently separate
+them; `binding_energy` is one number and `scenario.rs` puts gravitational,
+cohesive, covalent, electronic and nuclear binding into it. Options, none of
+them chosen:
+
+- **Split the field.** `binding_energy` becomes gravitational-only and a second
+  carries the rest. Most honest, touches the conserved set and the wire format.
+- **Compare against `phi` before relaxing.** If `phi` is negligible against the
+  deficit, expansion cannot fix it, so do not try — recognise the budget as
+  non-gravitational and take the fallback branch immediately, *without* the
+  inflation. Smallest change, and it makes the loop's own precondition explicit
+  rather than assumed.
+- **Undo the scaling when the loop fails.** Narrowest of all, and it leaves the
+  loop still wrong about what it is doing for 32 iterations.
+
+**Trigger:** before anything at Continuum tier is asked a question about where
+its contents are — which is D3's contact half, the beach test, and every
+structure that has to sit on a surface. The exchange pass is written and tested
+at Planetary tier for exactly this reason.
+
+---
+
 ## The idle floor is fine to ~10^4 live nodes and dominates past ~3x10^4
 
 **Noticed:** measuring whether a town, then a city, then a forest fits.

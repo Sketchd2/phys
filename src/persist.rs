@@ -1134,12 +1134,14 @@ const AUDIT_MIN_BYTES: usize = 16 + 1 + 8 + 8;
 const IDENTITY_MIN_BYTES: usize = 16 + 8;
 const INFLUENCE_MIN_BYTES: usize = 8 + 4 + 1 + 8 + 24 + 8;
 
-const INFLUENCE_KINDS: [InfluenceKind; 5] = [
+const INFLUENCE_KINDS: [InfluenceKind; 6] = [
     InfluenceKind::Radiation,
     InfluenceKind::Blast,
     InfluenceKind::Impact,
     InfluenceKind::Probe,
     InfluenceKind::UserImpulse,
+    // Appended, never inserted: the tag is the position. See `wire.rs`.
+    InfluenceKind::Exchange,
 ];
 
 pub(crate) fn influence_kind_tag(k: InfluenceKind) -> u8 {
