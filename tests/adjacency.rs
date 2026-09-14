@@ -805,12 +805,22 @@ fn friction_is_bounded_by_the_normal_impulse() {
 /// `Tier::Galactic` at ten metres, deliberately. A tier is a physics regime and
 /// not a size, so a small node can carry the collisionless gravity solver — and
 /// a hundred kilograms two metres apart pull on each other at 10^-9 m/s^2,
-/// which leaves the contact as the only thing in the measurement. The
-/// alternatives were both measured and both unusable: `Tier::Continuum` runs
-/// SPH, and eight particles in a ten-metre ball reach 10^6 m/s within a frame
-/// whether or not anything collides; and the same test written at galactic
-/// *distances* silently placed both children at the same point, because 50 m
-/// added to 2x10^20 m is below what an `f64` can represent.
+/// which leaves the contact as the only thing in the measurement.
+///
+/// **`Tier::Continuum` is where a metre-scale solid belongs and it cannot be
+/// used yet**, which is `PLAY.md` §3.3 rather than anything about this test:
+/// "`solvers::for_tier(Continuum)` is `Hydro`. A building, a wolf and a boulder
+/// are all `Continuum`, and none of them is a fluid." SPH reads `Matter` through
+/// a gas equation of state, and applied to condensed matter it answers with
+/// pressures nothing can hold — measured, 1.0x10^8 Pa for this box and
+/// 1.7x10^9 Pa for a bucket of water, against a tensile strength of 4.5x10^7 Pa
+/// for green wood. The box bursts from its own equation of state before
+/// anything touches it. §3.3's state-aware dispatch is the fix and is a Phase 1
+/// item that has not been built.
+///
+/// The other alternative — the same test at galactic *distances* — silently
+/// placed both children at the same point, because 50 m added to 2x10^20 m is
+/// below what an `f64` can represent.
 fn colliding_pair(approaching: bool) -> (phys::engine::World, phys::ids::NodeIdx, phys::ids::NodeIdx) {
     use phys::engine::{default_spec, World};
     use phys::morph::Program;
@@ -1086,8 +1096,15 @@ fn a_ball_loose_in_a_box_conserves_momentum_and_angular_momentum() {
     let np = centres.len();
 
     // `Tier::Galactic` is the collisionless-gravity regime, and a tier is a
-    // physics regime rather than a size. Two tonnes spread over six metres pull
-    // on each other at about 10^-8 m/s^2, which is what deep space is.
+    // physics regime rather than a size. Forty-eight tonnes spread over six
+    // metres pull on each other at about 10^-8 m/s^2, which is what deep space
+    // is.
+    //
+    // Continuum is where this box belongs and is unusable until `PLAY.md` §3.3
+    // lands: it dispatches to SPH on size alone, and SPH reads a solid through
+    // a gas equation of state. Measured, this box's `pressure()` at Continuum is
+    // 1.0x10^8 Pa — twice green wood's tensile strength — so it bursts before
+    // the ball has moved. See `colliding_pair` above.
     let total = PANEL_MASS * np as f64 + BALL_MASS;
     let spec = SampleSpec::new(np + 1, Profile::Uniform, MassSpectrum::Equal, BodyKind::Grain);
     let matter = Matter::neutral(total, 2.0 * L, 290.0, Composition::primordial());

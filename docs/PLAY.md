@@ -760,6 +760,14 @@ part that refines within one.
 `solvers::for_tier(Continuum)` is `Hydro`. A building, a wolf and a boulder are
 all `Continuum`, and none of them is a fluid.
 
+Measured, since this section asserted it without a number: SPH reads `Matter`
+through a gas-plus-radiation equation of state, and asked about condensed matter
+it answers with pressures nothing can hold — 1.0x10^8 Pa for a six-metre box of
+timber, 1.7x10^9 Pa for a bucket of water, against green wood's tensile strength
+of 4.5x10^7 Pa. A solid handed to that solver bursts from its own equation of
+state before anything else happens to it. (The water figure is the same defect
+Phase 3's "liquid equation of state" names; the timber one is this section's.)
+
 They escape SPH today, but implicitly: ordered matter enters through `shake` and
 `damage`, which require `morphology` and `topology` and never consult
 `for_tier`, while disordered matter enters through `advance_node`, which
