@@ -1170,6 +1170,95 @@ pub fn stefan_boltzmann(radius: f64, temperature: f64) -> f64 {
 }
 
 /// Inertia tensor of a materialised set about `centre`.
+/// How far a set of contents actually extends from its own centre.
+///
+/// A node's radius is fixed when the node is created and nothing has ever
+/// checked that it still describes what the node holds. Contents with a
+/// positive velocity divergence — a dispersing cloud, debris, an explosion —
+/// either outgrow it or leave it, and every consumer of node radius is then
+/// wrong by the same factor: SPH's smoothing length `radius / count^(1/3)`,
+/// the gravity softening, the LOD's angular size, the volume query's node
+/// selection, the neighbour grid's spacing. None of them fail loudly. They all
+/// quietly describe a neighbourhood that has stopped existing.
+///
+/// This is the measurement that notices. `docs/PLAY.md` Phase 1 asks for it on
+/// its own — three separate things need it and it is to be built once: node
+/// splitting, D6's patch handoff, and promoting a fragment that has left its
+/// parent. It is also the detector `BACKLOG.md` wanted for the class of fault
+/// where a solver flings a node's bodies across twenty orders of magnitude: it
+/// fires on the first frame, in the node that caused it, rather than twenty
+/// tiers away inside a hash function.
+///
+/// # What is measured, and what is not
+///
+/// Mass-weighted RMS distance and the furthest surface. **Not** the principal
+/// axes of the second moment, which `BACKLOG.md` offers as the alternative.
+/// The axes are what *splitting* needs — they say which way to cut — and
+/// splitting is not in Phase 1; none of the three consumers above can use them.
+/// Writing a symmetric eigensolver for a caller that does not exist is the
+/// thing this project's backlog discipline exists to prevent, so the axes go
+/// with the split that wants them.
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+pub struct Spread {
+    /// Centre of mass of the contents, in the node's own frame. Not assumed to
+    /// be the origin: a node whose contents have drifted off-centre is exactly
+    /// one of the states worth noticing.
+    pub centre: Vec3,
+    /// Mass-weighted RMS distance from `centre`. The characteristic size of the
+    /// contents, and robust to one outlier in a way `furthest` is not.
+    pub rms: f64,
+    /// Distance from `centre` to the furthest occupant's *surface*, not its
+    /// centre. A body is not inside a volume its own bulk sticks out of.
+    pub furthest: f64,
+    pub count: usize,
+}
+
+impl Spread {
+    /// How much of what the node claims its contents actually occupy.
+    ///
+    /// One means they exactly fill it. Below one they rattle around inside it.
+    /// Above one they have outgrown it, and every length derived from the
+    /// radius is wrong by this factor.
+    pub fn occupancy(&self, radius: f64) -> f64 {
+        if radius > 0.0 && self.furthest.is_finite() {
+            self.furthest / radius
+        } else {
+            0.0
+        }
+    }
+
+    /// Measure a set of positions carrying a mass and a size each.
+    ///
+    /// Taken as an iterator rather than a `&[Body]` because a node's contents
+    /// are its bodies *and* its promoted children, and those are the same thing
+    /// at two resolutions. `Tree::spread` supplies both through one call.
+    pub fn of(parts: impl IntoIterator<Item = (Vec3, f64, f64)>) -> Spread {
+        let parts: Vec<(Vec3, f64, f64)> = parts.into_iter().collect();
+        let count = parts.len();
+        if count == 0 {
+            return Spread::default();
+        }
+        let mass = crate::math::det_sum_by(count, &|i| parts[i].1);
+        let centre = if mass > 0.0 {
+            crate::math::det_sum_v3_by(count, &|i| parts[i].0.scale(parts[i].1)).scale(1.0 / mass)
+        } else {
+            // Massless contents still have a geometry, and answering with the
+            // origin would report a spread about a point nothing is near.
+            crate::math::det_sum_v3_by(count, &|i| parts[i].0).scale(1.0 / count as f64)
+        };
+        let rms = if mass > 0.0 {
+            (crate::math::det_sum_by(count, &|i| parts[i].1 * (parts[i].0 - centre).norm2()) / mass).max(0.0).sqrt()
+        } else {
+            (crate::math::det_sum_by(count, &|i| (parts[i].0 - centre).norm2()) / count as f64).max(0.0).sqrt()
+        };
+        let mut furthest = 0.0f64;
+        for (p, _, r) in &parts {
+            furthest = furthest.max((*p - centre).norm() + r.max(0.0));
+        }
+        Spread { centre, rms, furthest, count }
+    }
+}
+
 pub fn inertia_tensor(bodies: &[Body], centre: Vec3) -> Mat3 {
     let mut m = Mat3::zero();
     for b in bodies {

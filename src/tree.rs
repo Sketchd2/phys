@@ -781,6 +781,44 @@ impl Tree {
         Some(was)
     }
 
+    /// How far this node's contents actually extend from their own centre.
+    ///
+    /// Bodies **and** promoted children, the same union
+    /// [`crate::neighbourhood::Neighbourhood`] indexes, because a promoted
+    /// child is contents at a finer resolution rather than a different kind of
+    /// thing — and a child that has drifted out of its parent is exactly the
+    /// case `docs/BACKLOG.md`'s fragment entry is about. A promoted child
+    /// stands in for the body in its slot, so that slot is counted once.
+    ///
+    /// Returns an empty [`Spread`] for a node with no contents, which is
+    /// honest: nothing has no extent.
+    pub fn spread(&self, i: NodeIdx) -> crate::state::Spread {
+        if i.is_none() || !self.nodes[i.get()].alive {
+            return crate::state::Spread::default();
+        }
+        let n = &self.nodes[i.get()];
+        let slots = n.bodies.len().max(n.children.len());
+        let mut parts = Vec::with_capacity(slots);
+        for slot in 0..slots {
+            let promoted = n
+                .children
+                .get(slot)
+                .copied()
+                .filter(|c| !c.is_none())
+                .and_then(|c| self.nodes.get(c.get()))
+                .filter(|c| c.alive);
+            match promoted {
+                Some(c) => parts.push((c.motion.offset, c.matter.mass, c.matter.radius)),
+                None => {
+                    if let Some(b) = n.bodies.get(slot) {
+                        parts.push((b.pos, b.mass, b.radius));
+                    }
+                }
+            }
+        }
+        crate::state::Spread::of(parts)
+    }
+
     /// What is next to what, inside this node.
     ///
     /// Built on demand rather than cached. Whether it should be cached is a

@@ -1188,6 +1188,29 @@ nodes, each with its own centre, radius and body list, and `summarise` the pair
 back to the parent so the conserved quantities still add up. The inverse merge
 belongs with it, or two clumps that fall back together stay two nodes forever.
 
+**The measurement now exists.** `state::Spread` and `Tree::spread`, built for
+Phase 1 on its own, since three separate things want it and it is to be written
+once. Centre of mass, mass-weighted RMS, and the furthest occupant *surface*,
+over bodies and promoted children together; `Spread::occupancy` is the ratio to
+what the node claims. `World::advance_node` measures it on the node it has just
+touched — the same cadence, and a cache line that is already warm — and reports
+the worst in `Stats::worst_occupancy`, with the `PathKey` it was seen at.
+
+The **principal axes are deliberately not built**. They are what *splitting*
+needs, to say which way to cut, and none of the three Phase 1 consumers can use
+them; a symmetric eigensolver written for a caller that does not exist is what
+this list is for avoiding. They go with the split.
+
+**A baseline, for whoever later wants a threshold.** A healthy node does *not*
+come out at or below one. A Plummer sphere's tail legitimately reaches three to
+four radii and the scenario shelf measures 1.5 to 4.0, so "outgrew its radius"
+is not the fault signal — orders of magnitude are. The two faults already on
+this list read 4.5x10^5 (the sampler's chemical-binding inflation) and
+4.2x10^11 (the ladder flinging a node's bodies out), which is the separation to
+design against.
+
+**Still to build:** the three outcomes above, and the merge.
+
 **It does not fix the overflow entry above.** That was checked. The bodies there
 are flung across twenty orders of magnitude *inside one* `advance_node` call, so
 a split evaluated afterwards would faithfully split corrupt state into two nodes

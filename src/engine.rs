@@ -283,6 +283,18 @@ pub struct EngineStats {
     pub precipitated: f64,
     /// Melting, freezing, boiling and condensing, likewise.
     pub phase_changed: f64,
+    /// The worst ratio of a node's actual extent to the radius it claims, over
+    /// every node the frame advanced. One means the contents exactly fill what
+    /// the node says it is; above one they have outgrown it, and every length
+    /// derived from that radius — SPH's smoothing length, the gravity
+    /// softening, the LOD's angular size, the neighbour grid's spacing — is
+    /// wrong by this factor. See `state::Spread`.
+    pub worst_occupancy: f64,
+    /// The node it was measured on, so a number worth chasing says where to
+    /// look. `PathKey` and not `EntityId`: this is a measurement of a place.
+    /// `None` until a frame has advanced something, which is not the same as
+    /// zero and should not be spelled like it.
+    pub worst_occupancy_at: Option<PathKey>,
     /// Overlaps resolved into an impulse pair, summed over nodes and frames.
     /// Counts contacts, not newton-seconds, for the same reason
     /// `exchange_crossings` counts crossings: a coupling that silently stops
@@ -1700,6 +1712,19 @@ impl World {
         } else {
             dt
         };
+        // What the node holds may no longer be what the node says it is. Cheap
+        // here and nowhere else: this pass has just touched every one of those
+        // bodies, so the measurement rides a cache line that is already warm,
+        // and it is on the node's own cadence — which is what
+        // `BACKLOG.md` asks for, since a node nobody is advancing is not
+        // spreading either.
+        let spread = self.tree.spread(idx);
+        let occupancy = spread.occupancy(self.tree.nodes[idx.get()].matter.radius);
+        if occupancy > self.stats.worst_occupancy {
+            self.stats.worst_occupancy = occupancy;
+            self.stats.worst_occupancy_at = Some(key);
+        }
+
         // Whatever the solver has just driven into whatever else. Before the
         // exchange, so the heat a collision makes is there to be conducted
         // away in the same pass rather than a frame later.
