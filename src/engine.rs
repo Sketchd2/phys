@@ -1601,6 +1601,13 @@ impl World {
         let rate = self.local_rate(idx);
         let dt = dt * rate;
         let seed = self.tree.world_seed;
+
+        // The child is the real thing and its body is a stand-in, so the solver
+        // has to see where the child actually is before it computes anything.
+        // See `Tree::sync_children`.
+        let promoted = self.tree.sync_children(idx);
+        let before = self.tree.stand_in_velocities(idx, &promoted);
+
         let bodies = &mut self.tree.nodes[idx.get()].bodies;
 
         let report = match solvers::for_tier(tier) {
@@ -1662,6 +1669,14 @@ impl World {
             }
             SolverKind::Statistical => self.advance_statistical(idx, dt),
         };
+
+        // ... and the force it computed on each stand-in is handed to the
+        // child it stands for. Without this the force lands on the body and is
+        // discarded by the next sync, which is why two promoted things could
+        // not affect each other at all.
+        if !before.is_empty() {
+            self.tree.apply_body_forces(idx, &before);
+        }
 
         self.stats.bodies_stepped += count as u64;
         // A solver that could not cover the whole span says so in `dt_used`.

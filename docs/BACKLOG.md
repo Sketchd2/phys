@@ -937,7 +937,7 @@ into an error rather than a wait.
 
 ---
 
-## A promoted child never feels a force
+## ~~A promoted child never feels a force~~ — done
 
 **Noticed:** auditing what the engine does and does not couple, after the
 neutron-bombardment question.
@@ -986,9 +986,22 @@ else — the child is the real thing, the body is the stand-in — and it is wha
 makes the parent's solver see the child's evolved position, which is what
 sibling interaction needs.
 
-**Trigger:** the first time two promoted things are meant to affect each other.
-That is most of the stated play space, so this is nearer than its position in
-this file suggests.
+**Done** in Phase 1, taking the second direction: the child is the authority and
+the parent's body is slaved to it. `Tree::sync_children` runs at the top of
+`advance_node` so the solver sees where the child actually is, and
+`Tree::apply_body_forces` hands each child the velocity change its stand-in just
+received — the half that did not exist at all.
+
+Position is deliberately not copied back, because the child owns where it is.
+So the two differ between syncs by the solver's own second-order term: leapfrog
+integrates `x + v·dt + ½a·dt²` and the child coasts linearly. Measured over four
+hundred frames that oscillates between 0.13 and 0.29 of the child's radius and
+does not climb, where the old behaviour passed 0.79 in forty frames and kept
+going. Bounded and reset rather than accumulated is the whole of the fix.
+
+`tests/promoted.rs` holds it, each assertion verified against a mutation:
+removing the force transfer, or removing the sync, fails the tests that name
+them.
 
 ---
 

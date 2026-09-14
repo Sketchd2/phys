@@ -661,6 +661,84 @@ impl Tree {
         }
     }
 
+    /// Pull every promoted child's evolved state into the body that stands
+    /// for it.
+    ///
+    /// `children` runs parallel to `bodies`, and a promoted child is the real
+    /// thing while its body is a stand-in. Until this ran every frame the two
+    /// diverged silently: `promote` set the child's `Motion` from the body and
+    /// nothing ever wrote `motion.velocity` again, so a promoted node moved
+    /// ballistically in its parent's frame for the rest of its life while the
+    /// parent's solver went on integrating the body it came from. Measured, in
+    /// `docs/BACKLOG.md`: 0.79 of the child's own radius after forty frames.
+    ///
+    /// Returns the slots that hold a promoted child, so a caller that is about
+    /// to run a solver knows which bodies are stand-ins.
+    pub fn sync_children(&mut self, parent: NodeIdx) -> Vec<usize> {
+        let children = self.nodes[parent.get()].children.clone();
+        let mut slots = Vec::new();
+        for (slot, c) in children.iter().enumerate() {
+            if c.is_none() || !self.nodes[c.get()].alive {
+                continue;
+            }
+            self.sync_from_child(parent, slot, *c);
+            slots.push(slot);
+        }
+        slots
+    }
+
+    /// Hand each promoted child the velocity its body was just given.
+    ///
+    /// This is the half that did not exist at all. The parent's solver computes
+    /// a force on every body it holds, including the stand-ins; without this
+    /// the force lands on the stand-in and is thrown away on the next
+    /// [`Self::sync_children`], so two promoted things in one frame could not
+    /// attract, collide or perturb each other. With it, the *change* the solver
+    /// made is the force, and the child integrates it through its own `Motion`.
+    ///
+    /// Position is deliberately not copied back. The child owns where it is —
+    /// that is what "the child is the real thing" means — and its offset is
+    /// carried forward by `Motion::advance` on the world's own clock. Taking
+    /// the solver's position too would integrate the same motion twice.
+    ///
+    /// So the two do not agree exactly between syncs, and that is expected
+    /// rather than a leftover of the old defect. The parent's solver integrates
+    /// with leapfrog — `x + v·dt + ½a·dt²` — and the child coasts linearly, so
+    /// they differ by the acceleration term until the next
+    /// [`Self::sync_children`] puts the stand-in back where the child is. What
+    /// changed is that the difference is now *reset* rather than accumulated:
+    /// measured over four hundred frames it oscillates between 0.13 and 0.29 of
+    /// the child's radius, where before it passed 0.79 in forty and kept
+    /// climbing.
+    pub fn apply_body_forces(&mut self, parent: NodeIdx, before: &[(usize, crate::math::Vec3)]) {
+        for (slot, was) in before {
+            let Some(child) = self.nodes[parent.get()].children.get(*slot).copied() else {
+                continue;
+            };
+            if child.is_none() || !self.nodes[child.get()].alive {
+                continue;
+            }
+            let Some(now) = self.nodes[parent.get()].bodies.get(*slot).map(|b| b.vel) else {
+                continue;
+            };
+            let dv = now - *was;
+            if !dv.is_finite() {
+                continue;
+            }
+            self.nodes[child.get()].motion.velocity = self.nodes[child.get()].motion.velocity + dv;
+        }
+    }
+
+    /// The velocities of the bodies standing in for promoted children, so the
+    /// change across a solve can be measured.
+    pub fn stand_in_velocities(&self, parent: NodeIdx, slots: &[usize]) -> Vec<(usize, crate::math::Vec3)> {
+        let n = &self.nodes[parent.get()];
+        slots
+            .iter()
+            .filter_map(|s| n.bodies.get(*s).map(|b| (*s, b.vel)))
+            .collect()
+    }
+
     /// What is next to what, inside this node.
     ///
     /// Built on demand rather than cached. Whether it should be cached is a
