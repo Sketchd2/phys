@@ -331,6 +331,113 @@ still latent.
 
 ---
 
+## A struck structure is not rigid: contact lands on one member, not the body
+
+**Noticed:** writing `a_ball_loose_in_a_box_conserves_momentum_and_angular_momentum`.
+**Where:** `engine.rs::apply_contact`.
+
+A wooden ball rattling around inside a wooden box conserves momentum and
+angular momentum exactly — measured over 1500 frames and eight collisions, at
+8x10^-7 and 5x10^-7 of what the assembly carries. What it does not do is bounce
+off a *box*.
+
+`apply_contact` puts the impulse straight onto the struck body's `vel`. A
+structure's members are bodies, and nothing in that path knows they are joined,
+so each panel takes its own impulse and drifts off with it. The ball therefore
+rebounds from one 500 kg panel rather than from the two-tonne box the panel is
+part of, and the box slowly comes apart:
+
+```text
+    panel distance from box centre, 96 panels, 1500 frames, 8 strikes
+      start   3.00 .. 3.90 m
+      end     3.18 .. 5.05 m        (+ ~30% on the struck faces)
+```
+
+**The machinery for the rigid answer already exists and contact does not call
+it.** `solvers::structure` takes a `Mechanism::PointImpulse` and `World::damage`
+resolves it against the whole frame — load paths, joint stresses, what breaks.
+`drop_fragments` uses exactly that for a limb landing on a tree. So the two
+halves of "something hit a structure" are written and not connected: the
+adjacency half finds the contact, the structural half knows what a structure
+does about it.
+
+**Why it was not simply wired up.** `damage` regenerates the structure and
+renumbers its members, which is why `drop_fragments` batches every impulse in a
+step into one call and says so at length. Contact would have to batch the same
+way. More importantly the composition is a design question rather than a
+plumbing one: an impulse that a structure absorbs rigidly, one that breaks a
+joint, and one that knocks a loose member off are three outcomes of the same
+event, and which of them the contact path should produce — and what it does
+when the struck node is a structure whose members are *also* colliding with
+things — is not decided anywhere.
+
+**What is not affected.** Two promoted nodes colliding is right as it stands:
+each is a whole object with one velocity, which is what `Motion::velocity`
+means. The gap is only where the struck thing is a *member* of something.
+
+**Trigger:** the first time anything is supposed to bounce off a built thing and
+have the built thing respond as a whole — a ball against a wall, a vehicle into
+a building, an actor against a floor. That is Phase 1's own "a branch lands on
+the next tree" if the tree is expected to sway rather than have one branch fly
+off, and it is unavoidable by Phase 6.
+
+---
+
+## Exchange has a radiative coefficient and no conductive one
+
+**Noticed:** building D3's transport half.
+**Where:** `neighbourhood::radiative_conductance` is the only coefficient there is.
+
+`exchange` takes a conductance and moves a conserved quantity across a boundary
+at that rate. `PLAY.md` D3 says "conduction, diffusion and radiative exchange
+are three calls to it with different coefficients", and one of the three exists.
+
+**Radiation was taken first because it is the one that is derivable with what is
+already here.** `sigma A (T_a^4 - T_b^4)` factors exactly into a conductance —
+`(T_a + T_b)(T_a^2 + T_b^2)` — so it needs no linearisation and no new
+property, and the exchange area comes from the two radii and their separation.
+
+**Conduction has no coefficient anywhere in the codebase.** Checked:
+
+- `topology::Material` carries `specific_heat`, `thermal_onset`, `thermal_gone`,
+  `destruction_enthalpy` and an **electrical** `resistivity` — "ohm-metres,
+  sets how a conducted discharge distributes its energy between members". No
+  thermal conductivity.
+- `chem::analyse::Properties` carries `unit_mass`, `molar_mass`,
+  `cohesive_energy`, `ionicity`, `polarity`, `dipole`, `hydrogen_bonds`,
+  `lattice_binding_ev`, `density`, `melting_point`, `boiling_point`. No
+  transport quantity of any kind.
+- `solvers::structure`'s `Mechanism::ThermalField` takes a **convective**
+  coefficient `h` as authored data — a number the caller supplies for a fire or
+  an immersion, not a property of the material.
+
+**What the axioms will and will not allow.** A table of conductivities per
+material is what axiom one forbids. The derivable candidate is the
+Einstein-Cahill-Pohl minimum conductivity, `k_min ~ (pi/6)^(1/3) k_B n^(2/3)
+v_s`, which needs a number density and a sound speed — and `Matter` already has
+both, `number_density()` and `sound_speed()`, so it needs no new stored
+property at all. It is a *lower bound* on a real crystal's conductivity, right
+to within a factor of a few for a disordered solid or a liquid and an order or
+more low for a good crystal or a metal, where electrons carry most of the heat.
+
+Whether that bound is the right answer, whether an electronic term should be
+derived alongside it from `resistivity` through Wiedemann-Franz, or whether
+something else entirely, is a `PHYSICS.md`-weight decision and is not made.
+
+**What this blocks.** Two things touching do not conduct, only radiate, which
+is wrong by orders of magnitude for anything in contact: a hand on cold metal,
+a pan on a hob, heat spreading through a wall. Radiation is the correct and
+dominant mechanism across a gap, so nothing is wrong for things that are merely
+near each other. Diffusion is in the same position and is wanted by Phase 3's
+water rather than by anything now.
+
+**Trigger:** the first scenario where two touching things have to reach the same
+temperature — which is contact heating, cooking, or anything a hand rests on.
+Phase 3 at the latest, since a free surface exchanging with what it sits on is
+the same function.
+
+---
+
 ## Only a built thing has a surface, so only a built thing collides
 
 **Noticed:** building D3's contact half.

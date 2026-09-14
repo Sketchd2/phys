@@ -1008,3 +1008,247 @@ fn the_bodies_of_one_node_do_not_collide_with_each_other() {
          collisions; a tree would come apart on the frame it was materialised"
     );
 }
+
+// ---------------------------------------------------------------------------
+// A ball in a box
+// ---------------------------------------------------------------------------
+
+/// A wooden ball loose inside a wooden box, in deep space.
+///
+/// This is the contact half asked the question it is actually for: not one
+/// impulse in isolation but a thing rattling around inside another thing, over
+/// a thousand frames and eight collisions, with nothing else acting on either.
+/// Deep space is not decoration — with no planetary gravity the momentum and
+/// angular momentum of the whole assembly are *exactly* conserved quantities,
+/// so any leak in the contact path has nowhere to hide.
+///
+/// # The box is a shell of panels, because a node's contents are spheres
+///
+/// Six spheres cannot enclose a volume: the first version of this used one per
+/// face and the ball left through a corner on its second bounce, which is not a
+/// defect in anything but the arrangement. So the box is a 4x4 grid of panels
+/// per face — 96 of them, each a sphere wide enough that the grid has no holes.
+/// That is the honest representation of a container in an engine whose contact
+/// primitive is sphere-to-sphere, and it is worth knowing that it is what a box
+/// costs.
+///
+/// # What this does not show, and it matters
+///
+/// **The box is not rigid.** Nothing in the contact path holds a structure's
+/// members together: each panel takes its own impulse onto its own velocity and
+/// drifts off with it, so the ball does not bounce off a two-tonne box, it
+/// bounces off one 500 kg panel. Measured over 1500 frames, the panels start
+/// 3.00 to 3.90 m from the centre and end 3.18 to 5.05 — the box grows by about
+/// a third while being knocked around inside. `solvers::structure` has the
+/// machinery for a rigid response and `drop_fragments` already uses it, through
+/// `Mechanism::PointImpulse` and `damage`; contact does not call it. That gap
+/// is in `docs/BACKLOG.md`.
+///
+/// So what is asserted here is conservation and response — the box does take up
+/// the ball's momentum, and off-centre hits do spin it — and not rigidity,
+/// which the engine does not yet have.
+#[test]
+fn a_ball_loose_in_a_box_conserves_momentum_and_angular_momentum() {
+    use phys::engine::World;
+    use phys::math::Vec3;
+    use phys::sampler::{MassSpectrum, Profile, SampleSpec};
+    use phys::state::{BodyKind, Composition, Matter};
+    use phys::topology::{Material, Topology};
+    use phys::tree::Tree;
+
+    const L: f64 = 3.0; // half-width of the box, m
+    const K: usize = 4; // panels per edge
+    const PANEL_MASS: f64 = 500.0;
+    const BALL_MASS: f64 = 10.0;
+    const R_BALL: f64 = 0.4;
+    const DT: f64 = 0.01;
+    const FRAMES: usize = 1500;
+
+    // A cubic shell of panel centres, and the radius that leaves no gap: a
+    // square grid at `step` is covered by discs of `step / sqrt(2)`.
+    let step = 2.0 * L / K as f64;
+    let at = |i: usize| -L + step * (i as f64 + 0.5);
+    let mut centres = Vec::new();
+    for axis in 0..3 {
+        for sign in [1.0f64, -1.0] {
+            for i in 0..K {
+                for j in 0..K {
+                    centres.push(match axis {
+                        0 => v3(sign * L, at(i), at(j)),
+                        1 => v3(at(i), sign * L, at(j)),
+                        _ => v3(at(i), at(j), sign * L),
+                    });
+                }
+            }
+        }
+    }
+    let r_panel = step * 0.75;
+    let np = centres.len();
+
+    // `Tier::Galactic` is the collisionless-gravity regime, and a tier is a
+    // physics regime rather than a size. Two tonnes spread over six metres pull
+    // on each other at about 10^-8 m/s^2, which is what deep space is.
+    let total = PANEL_MASS * np as f64 + BALL_MASS;
+    let spec = SampleSpec::new(np + 1, Profile::Uniform, MassSpectrum::Equal, BodyKind::Grain);
+    let matter = Matter::neutral(total, 2.0 * L, 290.0, Composition::primordial());
+    let mut w = World::new(Tree::new(0xB0FFED, matter, Tier::Galactic, spec), 1.0);
+    let root = w.tree.root;
+    w.tree.refine(root);
+    {
+        let n = &mut w.tree.nodes[root.get()];
+        for (i, c) in centres.iter().enumerate() {
+            let b = &mut n.bodies[i];
+            b.pos = *c;
+            b.vel = Vec3::ZERO;
+            b.spin = Vec3::ZERO;
+            b.radius = r_panel;
+            b.mass = PANEL_MASS;
+        }
+        let b = &mut n.bodies[np];
+        b.pos = Vec3::ZERO;
+        b.vel = Vec3::ZERO;
+        b.spin = Vec3::ZERO;
+        b.radius = R_BALL;
+        b.mass = BALL_MASS;
+        // Wood, for every body in it. A surface is what a material is for.
+        n.topology = Some(Topology { material: Material::GREEN_WOOD, ..Default::default() });
+    }
+    // A small spec deliberately: the ball needs contents only because
+    // `advance_node` will not advance the motion of a node that has none, and
+    // `default_spec` at this tier would give it twenty thousand bodies and
+    // fifty times the runtime.
+    let ball_spec = SampleSpec::new(8, Profile::Uniform, MassSpectrum::Equal, BodyKind::Grain);
+    let ball = w.tree.promote(root, np, ball_spec);
+    w.tree.refine(ball);
+    {
+        let n = &mut w.tree.nodes[ball.get()];
+        n.matter.radius = R_BALL;
+        n.matter.mass = BALL_MASS;
+        n.motion.offset = Vec3::ZERO;
+        // Off every axis, so it reaches several faces and strikes them
+        // off-centre. A head-on bounce would never test the friction couple.
+        n.motion.velocity = v3(5.0, 1.7, 0.9);
+        n.matter.spin = Vec3::ZERO;
+        n.topology = Some(Topology { material: Material::GREEN_WOOD, ..Default::default() });
+    }
+    w.tree.pin(root);
+    w.tree.pin(ball);
+
+    // Momentum and angular momentum of everything: the panels as bodies of the
+    // node, the ball as the node it was promoted into. The ball's stand-in body
+    // is skipped, or it would be counted twice.
+    let totals = |w: &World| {
+        let (mut p, mut l) = (Vec3::ZERO, Vec3::ZERO);
+        let (mut box_p, mut box_l) = (Vec3::ZERO, Vec3::ZERO);
+        for (i, b) in w.tree.nodes[root.get()].bodies.iter().enumerate() {
+            if i == np {
+                continue;
+            }
+            let q = b.vel.scale(b.mass);
+            let m = b.pos.cross(q) + b.spin;
+            p += q;
+            box_p += q;
+            l += m;
+            box_l += m;
+        }
+        let n = &w.tree.nodes[ball.get()];
+        let q = n.motion.velocity.scale(n.matter.mass);
+        let m = n.motion.offset.cross(q) + n.matter.spin;
+        p += q;
+        l += m;
+        (p, l, box_p, box_l)
+    };
+
+    let (p0, l0, _, _) = totals(&w);
+    // A fixed denominator, and it has to be fixed. Summing the angular momentum
+    // actually present collapses to nothing on the first frame — the ball is at
+    // the origin, where `r x p` is zero, and the panels are at rest — so any
+    // last-bit noise divided by it reads as a catastrophic leak. The
+    // characteristic scale of this assembly is what the ball can carry about
+    // the box's own half-width, and it does not move.
+    let l_scale = p0.norm() * L;
+    let ke0 = 0.5 * BALL_MASS * w.tree.nodes[ball.get()].motion.velocity.norm2();
+    let mut worst_p: f64 = 0.0;
+    let mut worst_l: f64 = 0.0;
+    let mut escaped = false;
+    for _ in 0..FRAMES {
+        w.advance_node(root, DT);
+        w.advance_node(ball, DT);
+        let (p, l, _, _) = totals(&w);
+        worst_p = worst_p.max((p - p0).norm() / p0.norm());
+        worst_l = worst_l.max((l - l0).norm() / l_scale);
+        let at = w.tree.nodes[ball.get()].motion.offset;
+        escaped |= at.x.abs() > L || at.y.abs() > L || at.z.abs() > L;
+    }
+    let (_, _, box_p, box_l) = totals(&w);
+    let hits = w.stats.contacts_resolved;
+
+    // It has to have actually bounced around, or the rest proves nothing about
+    // contact: a ball that never touched anything conserves everything.
+    assert!(
+        hits >= 5,
+        "the ball struck the box {hits} times in {FRAMES} frames, which is too \
+         few for this to be measuring collisions at all"
+    );
+    assert!(!escaped, "the ball left the box, so it stopped being a box");
+
+    // The whole point. Nothing acts on this assembly from outside.
+    assert!(
+        worst_p < 1e-5,
+        "{hits} collisions moved the assembly's momentum by {worst_p} of itself"
+    );
+    assert!(
+        worst_l < 1e-5,
+        "{hits} collisions moved the assembly's angular momentum by {worst_l} \
+         of what the assembly can carry — the friction couple is unbalanced"
+    );
+
+    // And the box responded rather than absorbing the ball silently: it took up
+    // the momentum, and the off-centre strikes spun it.
+    assert!(
+        box_p.norm() > 0.5 * p0.norm(),
+        "the box ended with {} of the {} kg m/s the ball arrived with",
+        box_p.norm(),
+        p0.norm()
+    );
+    assert!(
+        box_l.norm() > 0.0,
+        "the box was struck off-centre eight times and never started turning"
+    );
+
+    // An off-centre strike turns what it hits. Asserted on the panels rather
+    // than on the ball because the ball is always the second of each pair, and
+    // a couple taken about one side's centre instead of the shared contact
+    // point still conserves — it just puts all of the spin on one side. Zeroing
+    // the ball's share leaves this at exactly zero and every conservation
+    // assertion above still passing, which is how it would be missed.
+    let panel_spin: f64 = w.tree.nodes[root.get()].bodies[..np]
+        .iter()
+        .map(|b| b.spin.norm())
+        .sum();
+    assert!(
+        panel_spin > 0.0,
+        "the box was struck off-centre {hits} times and no panel is turning"
+    );
+
+    // Wood does not bounce, and this is the derived restitution doing it rather
+    // than a damping term anywhere. The whole assembly's kinetic energy is what
+    // is measured, not the ball's: the ball slows partly by handing momentum to
+    // a panel, which is not a loss. Measured, over eight impacts: 3.0% of the
+    // energy is left. With restitution forced to 1 the same run leaves 23.5%,
+    // which is what sets the bound between them.
+    //
+    // The restitution itself is pinned by `restitution_falls_with_the_speed_of_
+    // the_impact` and by `two_promoted_things_collide_and_rebound`, which checks
+    // the measured rebound against what the materials say. This is the
+    // system-level consequence of it.
+    let mut ke = 0.5 * BALL_MASS * w.tree.nodes[ball.get()].motion.velocity.norm2();
+    for b in &w.tree.nodes[root.get()].bodies[..np] {
+        ke += 0.5 * b.mass * b.vel.norm2();
+    }
+    assert!(
+        ke < ke0 * 0.1,
+        "the assembly still has {ke} J of the {ke0} J it started with, after \
+         {hits} collisions between two pieces of green wood"
+    );
+}
