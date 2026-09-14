@@ -329,12 +329,24 @@ impl Recipe {
         let mut r = Reader::new(&self.blob);
         let matter = crate::persist::get_matter(&mut r)?;
         let spec = crate::persist::get_spec(&mut r)?;
-        let morph = if r.bool()? { Some(crate::persist::get_morphology(&mut r)?) } else { None };
+        let (morph, gravity) = if r.bool()? {
+            let m = crate::persist::get_morphology(&mut r)?;
+            let g = r.vec3()?;
+            (Some(m), g)
+        } else {
+            (None, crate::math::Vec3::ZERO)
+        };
         r.finish()?;
 
         let bodies = match &morph {
             Some(m) => {
-                crate::sampler::sample_structured(&matter, m, spec.count, self.seed, self.key.0, self.epoch).0
+                // The field the server proportioned it in, not one worked out
+                // here: a client holds part of a tree and would derive a
+                // different number, and the member radii depend on it.
+                crate::sampler::sample_structured(
+                    &matter, m, spec.count, self.seed, self.key.0, self.epoch, gravity,
+                )
+                .0
             }
             None => crate::sampler::sample(&matter, spec, self.seed, self.key.0, self.epoch).0,
         };
@@ -1426,6 +1438,15 @@ impl Recipe {
             Some(m) => {
                 w.bool(true);
                 crate::persist::put_morphology(&mut w, m);
+                // The field the structure was proportioned in. A recipe is
+                // everything the client needs to reproduce what the server
+                // produced, and since `PLAY.md` D6 made gravity derived, this
+                // is one of those things: a structure carries its own weight,
+                // so its members' radii depend on it, and a client working the
+                // field out from the part of the tree it holds would build a
+                // different structure. Only for a structure, because only a
+                // structure is proportioned.
+                w.vec3(n.gravity);
             }
             None => w.bool(false),
         }

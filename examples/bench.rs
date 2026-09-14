@@ -7,6 +7,12 @@ use phys::state::*;
 use phys::units::*;
 use std::time::Instant;
 
+/// Earth's surface gravity, stated rather than assumed. `docs/PLAY.md` D6
+/// retired the constant that used to supply it; this probe is about structure
+/// generation rather than about gravity, so it names a field and holds it fixed.
+const SURFACE_G: phys::math::Vec3 = phys::math::Vec3 { x: 0.0, y: 0.0, z: -9.80665 };
+
+
 fn bodies(n: usize, profile: Profile, kind: BodyKind, matter: &Matter) -> Vec<Body> {
     let spec = SampleSpec::new(n, profile, MassSpectrum::Equal, kind);
     sample(matter, spec, 1, 0x1234, 0).0
@@ -120,10 +126,10 @@ fn main() {
             let prog = if planned { Program::Tower } else { Program::Tree };
             let matter = Matter::neutral(mass, m.extent(), 291.0, prog.substrate());
             for n in [500usize, 2000, 8000] {
-                let (b, topo, _) = sample_structured(&matter, &m, n, 7, 0x1234, 0);
+                let (b, topo, _) = sample_structured(&matter, &m, n, 7, 0x1234, 0, SURFACE_G);
                 let mut field = st::LoadField::new(b.len(), 291.0);
                 field.apply(&st::weather::wind(25.0, v3(1.0, 0.0, 0.0)), &b, &topo);
-                field.apply(&st::weather::gravity(), &b, &topo);
+                field.apply(&st::weather::gravity(SURFACE_G), &b, &topo);
                 let members = b.len();
 
                 let us = time(3, || {

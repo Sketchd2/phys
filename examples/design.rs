@@ -4,6 +4,12 @@ use phys::sampler::sample_structured;
 use phys::state::Matter;
 use phys::units::YEAR;
 
+/// Earth's surface gravity, stated rather than assumed. `docs/PLAY.md` D6
+/// retired the constant that used to supply it; this probe is about structure
+/// generation rather than about gravity, so it names a field and holds it fixed.
+const SURFACE_G: phys::math::Vec3 = phys::math::Vec3 { x: 0.0, y: 0.0, z: -9.80665 };
+
+
 fn main() {
     for (label, prog, mass, budget) in [
         ("tree, 900 kg", Program::Tree, 900.0, 400usize),
@@ -22,7 +28,7 @@ fn main() {
         };
         m.built = mass;
         let matter = Matter::neutral(mass, m.extent(), 291.0, prog.substrate());
-        let (_, _, report) = sample_structured(&matter, &m, budget, 7, 0x1234, 0);
+        let (_, _, report) = sample_structured(&matter, &m, budget, 7, 0x1234, 0, SURFACE_G);
         let d = report.design;
         println!(
             "{label:<20} peak {:.3} -> {:.3}   spread {:.3} -> {:.3}   {} passes   \

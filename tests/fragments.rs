@@ -11,9 +11,61 @@ use phys::morph::{Environment, Program, NO_SUPPORT};
 use phys::engine::default_spec;
 use phys::sampler::sample_structured;
 use phys::solvers::structure::*;
-use phys::state::Matter;
+use phys::state::{Composition, Matter};
 use phys::topology::{Material, Member, Topology};
 use phys::units::{Tier, YEAR};
+
+/// A node on the surface of an Earth, ready to have something planted in it.
+///
+/// `docs/PLAY.md` D6 made gravity derived, and that changed what these tests
+/// have to set up. A node promoted straight out of a galaxy root feels the
+/// galaxy's field — about 10^-13 m/s^2 — so nothing falls, no snow load breaks
+/// anything, and a gale takes limbs off that then hang in the air. That is
+/// correct: there is nothing underneath it. It used to feel Earth's surface
+/// gravity wherever it was, because the load came from
+/// `solvers::structure::G_EARTH` rather than from anything the scene contained.
+///
+/// So the scene contains a planet. `Tree::gravity_at` derives 9.82 m/s^2 from
+/// its mass and radius, with no mention of Earth anywhere.
+///
+/// Placed on the **+z axis** deliberately. The derived field points at the
+/// planet's centre, and a structure's own geometry is generated with `+z` up,
+/// so putting the node anywhere else would load a tree sideways — `Motion`
+/// carries an orientation and `gravity_at` does not yet compose it. See the
+/// note on `Tree::gravity_at`.
+fn on_an_earth(seed: u64, mass: f64, radius: f64, count: usize) -> (World, phys::ids::NodeIdx) {
+    const EARTH_MASS: f64 = 5.972e24;
+    const EARTH_RADIUS: f64 = 6.371e6;
+    let mut w = World::new(galaxy(seed, 1e9), 20.0);
+    let root = w.tree.root;
+    w.tree.refine(root);
+    let planet = w.tree.promote(root, 7, phys::engine::default_spec(Tier::Planetary));
+    {
+        let n = &mut w.tree.nodes[planet.get()];
+        n.matter = Matter::neutral(EARTH_MASS, EARTH_RADIUS, 290.0, Composition::primordial());
+        n.spec.count = 8;
+    }
+    w.tree.refine(planet);
+    let node = w.tree.promote(planet, 0, phys::engine::default_spec(Tier::Continuum));
+    {
+        let n = &mut w.tree.nodes[node.get()];
+        n.matter = Matter::neutral(mass, radius, 291.0, Program::Tree.substrate());
+        n.spec.count = count;
+        n.motion.offset = v3(0.0, 0.0, EARTH_RADIUS);
+    }
+    (w, node)
+}
+
+
+/// Earth's surface gravity, stated rather than assumed.
+///
+/// `docs/PLAY.md` D6 retired `solvers::structure::G_EARTH`: a structure is now
+/// proportioned and loaded in the field it is actually in, derived by
+/// `Tree::gravity_at` from whatever it sits inside. These tests are about
+/// structure generation rather than about gravity, so they name a field and
+/// hold it fixed — which is what the constant was doing for them, said out loud.
+const SURFACE_G: phys::math::Vec3 = phys::math::Vec3 { x: 0.0, y: 0.0, z: -9.80665 };
+
 
 fn tree(mass: f64, budget: usize) -> (Vec<phys::state::Body>, Topology) {
     let mut m = phys::morph::Morphology::new(Program::Tree, 0xACE, 0x1234, 0);
@@ -21,7 +73,7 @@ fn tree(mass: f64, budget: usize) -> (Vec<phys::state::Body>, Topology) {
     m.age = 45.0 * YEAR;
     let mut matter = Matter::neutral(mass, m.extent(), 291.0, Program::Tree.substrate());
     matter.chemical_energy = m.stored_energy();
-    let (b, t, _) = sample_structured(&matter, &m, budget, 7, 0x1234, 0);
+    let (b, t, _) = sample_structured(&matter, &m, budget, 7, 0x1234, 0, SURFACE_G);
     (b, t)
 }
 
@@ -70,7 +122,7 @@ fn a_severed_piece_is_re_rooted() {
     assert!(piece.is_determinate(), "a cut branch is still a tree");
     // And it can be analysed on its own terms, which is the point.
     let mut field = LoadField::new(piece_bodies.len(), 290.0);
-    field.apply(&weather::gravity(), &piece_bodies, &piece);
+    field.apply(&weather::gravity(SURFACE_G), &piece_bodies, &piece);
     let loads = analyse(&piece_bodies, &piece, &field);
     println!(
         "  the piece analysed alone: root carries {:.1} kg, tip carries {:.1} kg",
@@ -93,7 +145,7 @@ fn breaking_a_tree_produces_falling_pieces() {
     let (bodies, mut topo) = tree(900.0, 1500);
     let mut field = LoadField::new(bodies.len(), 290.0);
     field.apply(&weather::wind(48.0, v3(1.0, 0.0, 0.0)), &bodies, &topo);
-    field.apply(&weather::gravity(), &bodies, &topo);
+    field.apply(&weather::gravity(SURFACE_G), &bodies, &topo);
     let loads = analyse(&bodies, &topo, &field);
     let failures = apply_failures(&bodies, &mut topo, &loads, &field);
     assert!(
@@ -141,15 +193,7 @@ fn breaking_a_tree_produces_falling_pieces() {
 /// hits has to answer for it.
 #[test]
 fn a_falling_limb_damages_what_it_lands_on() {
-    let mut world = World::new(galaxy(0x5EED, 1e9), 20.0);
-    let root = world.tree.root;
-    world.tree.refine(root);
-    let node = world.tree.promote(root, 3, default_spec(Tier::Stellar));
-    {
-        let n = &mut world.tree.nodes[node.get()];
-        n.matter = Matter::neutral(4000.0, 6.0, 291.0, Program::Tree.substrate());
-        n.spec.count = 900;
-    }
+    let (mut world, node) = on_an_earth(0x5EED, 4000.0, 6.0, 900);
     world.plant(node, Program::Tree, Some(Environment::default()));
     for _ in 0..70 {
         world.grow_node(node, YEAR);
@@ -229,7 +273,7 @@ fn debris_comes_to_rest() {
     let (bodies, mut topo) = tree(900.0, 800);
     let mut field = LoadField::new(bodies.len(), 290.0);
     field.apply(&weather::wind(55.0, v3(1.0, 0.0, 0.0)), &bodies, &topo);
-    field.apply(&weather::gravity(), &bodies, &topo);
+    field.apply(&weather::gravity(SURFACE_G), &bodies, &topo);
     let loads = analyse(&bodies, &topo, &field);
     let failures = apply_failures(&bodies, &mut topo, &loads, &field);
     let cut = detach(&topo, &failures.broken_members);
@@ -252,7 +296,7 @@ fn debris_comes_to_rest() {
         let mut load = vec![Dof::default(); n];
         for i in 0..n {
             let m = frag.dynamics.dynamics.frame.lumped[i].t.z;
-            load[i].t = G_EARTH.scale(m);
+            load[i].t = SURFACE_G.scale(m);
         }
         frag.dynamics.dynamics.step(&load, 0.01);
         steps += 1;

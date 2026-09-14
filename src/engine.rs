@@ -2248,7 +2248,11 @@ impl World {
         // Gravity last, and once. It acts on the accreted mass as well as the
         // structure's own, so it has to follow anything that adds mass — and
         // applying it on both sides of that would weigh the structure twice.
-        field.apply(&st::weather::gravity(), &bodies, &topo);
+        //
+        // In the field the node is actually in, derived from what it is inside.
+        // A structure on a moon carries a sixth of the weight it would on Earth
+        // and fails under a sixth of the snow.
+        field.apply(&st::weather::gravity(self.tree.gravity_at(idx)), &bodies, &topo);
 
         let (loads, indeterminate, iters) = st::analyse_with(&bodies, &topo, &field);
         let failures = st::apply_failures(&bodies, &mut topo, &loads, &field);
@@ -2408,7 +2412,7 @@ impl World {
         for m in mechanisms {
             field.apply(m, &bodies, &topo);
         }
-        field.apply(&st::weather::gravity(), &bodies, &topo);
+        field.apply(&st::weather::gravity(self.tree.gravity_at(idx)), &bodies, &topo);
 
         // Substep to whatever the structure's own period demands. A sway with
         // a two-second period is resolved by a twentieth of a second; a steel
@@ -2539,11 +2543,17 @@ impl World {
         };
         let mut struck: HashMap<usize, (Vec<crate::state::Body>, crate::topology::Topology)> =
             HashMap::new();
+        // The field each of them is actually falling in, derived from what they
+        // are inside rather than assumed. `PLAY.md` D6: the constant goes, and g
+        // comes from the mass and radius of the thing underneath. Gathered here
+        // because the loop below holds `self.falling` mutably.
+        let mut field: HashMap<usize, crate::math::Vec3> = HashMap::new();
         for node in nodes {
             let bodies = self.tree.refine(node).to_vec();
             if let Some(topo) = self.tree.nodes[node.get()].topology.clone() {
                 struck.insert(node.get(), (bodies, topo));
             }
+            field.insert(node.get(), self.tree.gravity_at(node));
         }
 
         let mut strikes: Vec<(NodeIdx, u32, crate::math::Vec3)> = Vec::new();
@@ -2551,9 +2561,14 @@ impl World {
             frag.age += dt;
             let n = frag.dynamics.dynamics.frame.joints.len();
             let mut load = vec![Dof::default(); n];
+            // A piece falls in the field of whatever it is inside: Earth's
+            // surface on Earth, a sixth of it on a moon, and essentially nothing
+            // adrift between stars. It used to be 9.80665 m/s^2 down the
+            // structure's own negative z, everywhere.
+            let g = field.get(&node.get()).copied().unwrap_or(crate::math::Vec3::ZERO);
             for i in 0..n {
                 let m = frag.dynamics.dynamics.frame.lumped[i].t.z;
-                load[i].t = st::G_EARTH.scale(m);
+                load[i].t = g.scale(m);
             }
             let rep = frag.dynamics.dynamics.step(&load, dt);
             report.broken_while_falling += rep.broken.len();

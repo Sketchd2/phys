@@ -111,7 +111,11 @@ fn first_run(store: &mut FileStore, path: &std::path::Path) {
     println!("  that is {} of geometry, resident", bytes(live_detail));
 
     let gale = weather::wind(38.0, v3(1.0, 0.0, 0.15));
-    let out = w.damage(root, &[weather::gravity(), gale]);
+    // Gravity is not in the list. `World::damage` applies it last and once, in
+    // the field the node is actually in — passing it here as well weighed the
+    // structure twice, which this did until `weather::gravity` started needing
+    // a field and the redundancy showed.
+    let out = w.damage(root, &[gale]);
     println!(
         "\n  a 38 m/s gale: {} joints broken, {} pieces came away, {:.2} kg of it",
         out.broken_joints, out.detached_pieces, out.detached_mass

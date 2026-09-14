@@ -37,9 +37,6 @@ use crate::morph::NO_SUPPORT;
 use crate::state::Body;
 use crate::topology::Topology;
 
-/// Standard gravity, pointing down the z axis.
-pub const G_EARTH: Vec3 = Vec3 { x: 0.0, y: 0.0, z: -9.80665 };
-
 /// Everything acting on a structure, per part.
 ///
 /// Mechanisms write into this; the solver reads it. Keeping them separate is
@@ -884,9 +881,16 @@ pub mod weather {
         }
     }
 
-    /// Gravity.
-    pub fn gravity() -> Mechanism {
-        Mechanism::BodyAcceleration(G_EARTH)
+    /// Gravity, in whatever field the thing is actually standing in.
+    ///
+    /// Takes the field rather than assuming one. It used to be
+    /// `BodyAcceleration(G_EARTH)`, a constant `(0, 0, -9.80665)` — so a
+    /// structure carried its own weight at Earth's surface gravity on a moon,
+    /// on a ship under thrust, and in orbit, while the engine computed real
+    /// gravitational fields at every other tier and ignored them here.
+    /// `Tree::gravity_at` derives it; `docs/PLAY.md` D6 retires the constant.
+    pub fn gravity(field: Vec3) -> Mechanism {
+        Mechanism::BodyAcceleration(field)
     }
 }
 

@@ -8,6 +8,16 @@ use phys::sampler::*;
 use phys::state::*;
 use phys::units::*;
 
+/// Earth's surface gravity, stated rather than assumed.
+///
+/// `docs/PLAY.md` D6 retired `solvers::structure::G_EARTH`: a structure is now
+/// proportioned and loaded in the field it is actually in, derived by
+/// `Tree::gravity_at` from whatever it sits inside. These tests are about
+/// structure generation rather than about gravity, so they name a field and
+/// hold it fixed — which is what the constant was doing for them, said out loud.
+const SURFACE_G: phys::math::Vec3 = phys::math::Vec3 { x: 0.0, y: 0.0, z: -9.80665 };
+
+
 fn oak(mass: f64) -> (Matter, Morphology) {
     let mut m = Morphology::new(Program::Tree, 0xACE, 0x1234, 0);
     m.built = mass;
@@ -36,7 +46,7 @@ fn structures_conserve_like_everything_else() {
             matter.spin = v3(0.0, 0.0, mass * 1e-2);
 
             for budget in [16usize, 256, 4096] {
-                let (bodies, _topo, r) = sample_structured(&matter, &m, budget, 7, 0x99, 0);
+                let (bodies, _topo, r) = sample_structured(&matter, &m, budget, 7, 0x99, 0, SURFACE_G);
                 assert!(!bodies.is_empty(), "{:?} produced no geometry", program);
                 let mut back = summarise(&bodies, r.potential);
                 back.chemical_energy = matter.chemical_energy;
@@ -62,8 +72,8 @@ fn structures_conserve_like_everything_else() {
 #[test]
 fn the_same_tree_comes_back() {
     let (matter, m) = oak(900.0);
-    let a = sample_structured(&matter, &m, 2000, 7, 0x1234, 0).0;
-    let b = sample_structured(&matter, &m, 2000, 7, 0x1234, 0).0;
+    let a = sample_structured(&matter, &m, 2000, 7, 0x1234, 0, SURFACE_G).0;
+    let b = sample_structured(&matter, &m, 2000, 7, 0x1234, 0, SURFACE_G).0;
     assert_eq!(a.len(), b.len());
     for (x, y) in a.iter().zip(&b) {
         assert_eq!(x.pos, y.pos, "the tree regrew differently");
@@ -74,7 +84,7 @@ fn the_same_tree_comes_back() {
     let mut other = Morphology::new(Program::Tree, 0xACE, 0x5678, 0);
     other.built = m.built;
     other.age = m.age;
-    let c = sample_structured(&matter, &other, 2000, 7, 0x5678, 0).0;
+    let c = sample_structured(&matter, &other, 2000, 7, 0x5678, 0, SURFACE_G).0;
     let differing = a.iter().zip(&c).filter(|(p, q)| p.pos != q.pos).count();
     assert!(
         differing > a.len() / 2,
@@ -86,7 +96,7 @@ fn the_same_tree_comes_back() {
 #[test]
 fn developmental_state_is_small() {
     let (matter, m) = oak(900.0);
-    let bodies = sample_structured(&matter, &m, 20_000, 7, 0x1234, 0).0;
+    let bodies = sample_structured(&matter, &m, 20_000, 7, 0x1234, 0, SURFACE_G).0;
     let rendered = bodies.len() * std::mem::size_of::<Body>();
     let state = m.state_bytes();
     println!(
@@ -260,7 +270,7 @@ fn damage_persists_through_regeneration() {
     let (matter, mut m) = oak(900.0);
     // A budget large enough that the whole tree fits, so the count is the
     // structure's own size rather than the budget's.
-    let before = sample_structured(&matter, &m, 20_000, 7, 0x1234, 0).0;
+    let before = sample_structured(&matter, &m, 20_000, 7, 0x1234, 0, SURFACE_G).0;
     let mass_before: f64 = before.iter().map(|b| b.mass).sum();
 
     let built_before = m.built;
@@ -269,7 +279,7 @@ fn damage_persists_through_regeneration() {
         291.0,
     );
     txn.validate().expect("severing must balance");
-    let after = sample_structured(&matter, &m, 20_000, 7, 0x1234, 0).0;
+    let after = sample_structured(&matter, &m, 20_000, 7, 0x1234, 0, SURFACE_G).0;
 
     // The structure lost both geometry and mass...
     assert!(m.built < built_before, "severing removed no mass from the structure");
@@ -297,7 +307,7 @@ fn damage_persists_through_regeneration() {
     assert!(structural < mass_before * 0.9, "structure did not get lighter");
 
     // And it is still deterministic afterwards.
-    let again = sample_structured(&matter, &m, 20_000, 7, 0x1234, 0).0;
+    let again = sample_structured(&matter, &m, 20_000, 7, 0x1234, 0, SURFACE_G).0;
     for (x, y) in after.iter().zip(&again) {
         assert_eq!(x.pos, y.pos);
     }

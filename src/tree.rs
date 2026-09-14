@@ -84,6 +84,19 @@ pub struct Node {
     /// Self-potential the materialisation was built against. Summarising must
     /// use this same number (see `SampleReport::potential`).
     pub potential: f64,
+    /// The gravitational field this node sits in, in its own frame.
+    ///
+    /// Derived by [`Tree::gravity_at`] from what the node is inside, and stored
+    /// for the same reason `potential` is: a structure is *proportioned*
+    /// against its own weight, so its member radii depend on this number, and a
+    /// client regenerating the structure has to use the one the geometry was
+    /// built with rather than whatever it would work out for itself. It travels
+    /// in the node's wire payload with `matter` and `spec` because it is an
+    /// input to regeneration exactly as they are.
+    ///
+    /// Refreshed where a node is materialised, which is where it matters. A
+    /// node that has not been sampled has no geometry for it to be wrong about.
+    pub gravity: Vec3,
     /// Children promoted from `bodies`; `NodeIdx::NONE` where not promoted.
     /// Parallel to `bodies`, and empty when nothing is promoted.
     pub children: Vec<NodeIdx>,
@@ -254,6 +267,7 @@ impl Tree {
             },
             bodies: Vec::new(),
             potential: root_agg.binding_energy,
+            gravity: Vec3::ZERO,
             children: Vec::new(),
             spec,
             epoch: 0,
@@ -365,6 +379,12 @@ impl Tree {
             return &self.nodes[i.get()].bodies;
         }
 
+        // The field the structure is proportioned in, derived here and stored,
+        // so that the geometry and the number it was built with travel
+        // together. A client regenerating this node reads the stored value
+        // rather than working one out from a tree it only has part of.
+        let gravity = self.gravity_at(i);
+        self.nodes[i.get()].gravity = gravity;
         let (matter, spec, epoch, morph) = {
             let n = &self.nodes[i.get()];
             (n.matter, n.spec, n.epoch, n.morphology.clone())
@@ -378,6 +398,7 @@ impl Tree {
                     self.world_seed,
                     key.0,
                     epoch,
+                    gravity,
                 );
                 (b, Some(t), r)
             }
@@ -472,6 +493,7 @@ impl Tree {
             },
             bodies: Vec::new(),
             potential: 0.0,
+            gravity: Vec3::ZERO,
             children: Vec::new(),
             spec,
             epoch: 0,
@@ -779,6 +801,74 @@ impl Tree {
         n.spec = spec;
         self.stats.retiers += 1;
         Some(was)
+    }
+
+    /// The gravitational field a node actually sits in, in its own frame.
+    ///
+    /// Derived, from the masses and radii of the things it is inside. Nothing
+    /// here knows what a planet is: it walks the ancestor chain and adds what
+    /// each one pulls with, which gives a surface `g` on a rocky planet, a
+    /// different one on a moon, and very nearly nothing in interstellar space,
+    /// for the same reason and by the same arithmetic.
+    ///
+    /// It replaces `solvers::structure::G_EARTH` on the path that decides how
+    /// debris falls — `docs/PLAY.md` D6, and a `BACKLOG.md` entry that read
+    /// "debris therefore falls at Earth gravity along its own structure's
+    /// negative z wherever the node actually is — on a ship under thrust, in
+    /// orbit, on a body of any other mass. The engine computes real
+    /// gravitational fields at every other tier and then ignores them here."
+    ///
+    /// # The shell term, which is not a guard
+    ///
+    /// An ancestor pulls with its whole mass only from outside it. A node
+    /// *within* one feels the mass enclosed below it, which for a uniform
+    /// sphere is `M (d/R)^3` and gives `g = G M d / R^3` — linear in `d`, and
+    /// zero at the centre. That is Newton's shell theorem rather than a
+    /// singularity guard, and it is why this needs no epsilon: the field falls
+    /// to nothing where the naive inverse square would blow up.
+    ///
+    /// An ancestor's mass includes this node's own, because a promoted child's
+    /// stand-in body stays in its parent's list. It is subtracted: a thing does
+    /// not pull on itself, and for a node that is most of what contains it the
+    /// difference is the whole answer.
+    ///
+    /// # What it does not do yet: orientation
+    ///
+    /// The answer is in the node's *frame axes*, which today are its parent's,
+    /// because [`Tree::offset_from`] composes offsets and not rotations. A
+    /// `Motion` carries an `orientation` and this does not consult it. So a node
+    /// on the `+x` side of a planet is told gravity points along `-x`, which is
+    /// true in the parent's axes and is not what a structure generated with
+    /// `+z` up expects to carry its weight along.
+    ///
+    /// It does not bite yet because nothing orients a node against the body it
+    /// sits on — there is no terrain, which is the same `PLAY.md` D6 work this
+    /// field was built for. It will the moment there is: a patch on a sphere is
+    /// oriented by definition. Recorded in `BACKLOG.md`.
+    pub fn gravity_at(&self, idx: NodeIdx) -> Vec3 {
+        if idx.is_none() || !self.nodes[idx.get()].alive {
+            return Vec3::ZERO;
+        }
+        let own = self.nodes[idx.get()].matter.mass.max(0.0);
+        let mut g = Vec3::ZERO;
+        let mut anc = self.nodes[idx.get()].parent;
+        while !anc.is_none() {
+            let a = &self.nodes[anc.get()];
+            let r = self.offset_from(anc, idx, Vec3::ZERO).value;
+            let d = r.norm();
+            let (m, radius) = (a.matter.mass.max(0.0), a.matter.radius);
+            if d > 0.0 && radius > 0.0 && m > own {
+                let source = m - own;
+                let enclosed = if d >= radius {
+                    source
+                } else {
+                    source * (d / radius).powi(3)
+                };
+                g += r.scale(-crate::units::G * enclosed / (d * d * d));
+            }
+            anc = a.parent;
+        }
+        g
     }
 
     /// How far this node's contents actually extend from their own centre.

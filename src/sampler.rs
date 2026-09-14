@@ -913,6 +913,7 @@ pub fn sample_structured(
     world_seed: u64,
     path_key: u128,
     epoch: u32,
+    gravity: crate::math::Vec3,
 ) -> (Vec<Body>, crate::topology::Topology, SampleReport) {
     let mut report = SampleReport {
         count: budget,
@@ -1083,12 +1084,12 @@ pub fn sample_structured(
     // first time anybody looked away.
     let mut bodies = bodies;
     let (cases, passes) = if topo.is_determinate() {
-        (design_cases(morph, &bodies, &topo, 3), crate::solvers::structure::DESIGN_PASSES)
+        (design_cases(morph, &bodies, &topo, 3, gravity), crate::solvers::structure::DESIGN_PASSES)
     } else {
         // A redundant structure costs a conjugate-gradient solve per case per
         // pass, and the frame budget has to survive the observer looking at a
         // city. Two directions and two passes is what fits.
-        (design_cases(morph, &bodies, &topo, 2), 2)
+        (design_cases(morph, &bodies, &topo, 2, gravity), 2)
     };
     report.design = crate::solvers::structure::optimise(&mut bodies, &mut topo, &cases, passes);
     (bodies, topo, report)
@@ -1107,20 +1108,25 @@ fn design_cases(
     bodies: &[Body],
     topo: &crate::topology::Topology,
     directions: usize,
+    gravity: crate::math::Vec3,
 ) -> Vec<crate::solvers::structure::LoadField> {
     use crate::solvers::structure as st;
     let ambient = 290.0;
     let mut cases = Vec::with_capacity(directions + 1);
 
     // Vertical overload. Not a weather preset — a body-force field at two and a
-    // half gravities, which is what any load that settles on a structure looks
-    // like to the members carrying it: snow on a crown, a fruit crop, a floor's
-    // contents. Four gravities was tried and is worse: the vertical case then
+    // half *local* gravities, which is what any load that settles on a structure
+    // looks like to the members carrying it: snow on a crown, a fruit crop, a
+    // floor's contents. Four was tried and is worse: the vertical case then
     // dominates the envelope and the structure is starved of what it needs to
     // stand up in a wind.
+    //
+    // Local, because the multiple is the design margin and the field is the
+    // physics. A lunar building carries lunar snow, and proportioning it against
+    // 2.5 Earth gravities would size every member for a load it will never see.
     let mut heavy = st::LoadField::new(bodies.len(), ambient);
     heavy.apply(
-        &st::Mechanism::BodyAcceleration(st::G_EARTH.scale(2.5)),
+        &st::Mechanism::BodyAcceleration(gravity.scale(2.5)),
         bodies,
         topo,
     );
@@ -1141,7 +1147,7 @@ fn design_cases(
                 topo,
             );
         }
-        field.apply(&st::weather::gravity(), bodies, topo);
+        field.apply(&st::weather::gravity(gravity), bodies, topo);
         cases.push(field);
     }
     cases

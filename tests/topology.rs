@@ -10,6 +10,58 @@ use phys::morph::NO_SUPPORT;
 use phys::topology::*;
 use phys::units::*;
 
+/// A node on the surface of an Earth, ready to have something planted in it.
+///
+/// `docs/PLAY.md` D6 made gravity derived, and that changed what these tests
+/// have to set up. A node promoted straight out of a galaxy root feels the
+/// galaxy's field — about 10^-13 m/s^2 — so nothing falls, no snow load breaks
+/// anything, and a gale takes limbs off that then hang in the air. That is
+/// correct: there is nothing underneath it. It used to feel Earth's surface
+/// gravity wherever it was, because the load came from
+/// `solvers::structure::G_EARTH` rather than from anything the scene contained.
+///
+/// So the scene contains a planet. `Tree::gravity_at` derives 9.82 m/s^2 from
+/// its mass and radius, with no mention of Earth anywhere.
+///
+/// Placed on the **+z axis** deliberately. The derived field points at the
+/// planet's centre, and a structure's own geometry is generated with `+z` up,
+/// so putting the node anywhere else would load a tree sideways — `Motion`
+/// carries an orientation and `gravity_at` does not yet compose it. See the
+/// note on `Tree::gravity_at`.
+fn on_an_earth(seed: u64, mass: f64, radius: f64, count: usize) -> (World, phys::ids::NodeIdx) {
+    const EARTH_MASS: f64 = 5.972e24;
+    const EARTH_RADIUS: f64 = 6.371e6;
+    let mut w = World::new(galaxy(seed, 1e9), 20.0);
+    let root = w.tree.root;
+    w.tree.refine(root);
+    let planet = w.tree.promote(root, 7, phys::engine::default_spec(Tier::Planetary));
+    {
+        let n = &mut w.tree.nodes[planet.get()];
+        n.matter = Matter::neutral(EARTH_MASS, EARTH_RADIUS, 290.0, Composition::primordial());
+        n.spec.count = 8;
+    }
+    w.tree.refine(planet);
+    let node = w.tree.promote(planet, 0, phys::engine::default_spec(Tier::Continuum));
+    {
+        let n = &mut w.tree.nodes[node.get()];
+        n.matter = Matter::neutral(mass, radius, 291.0, Program::Tree.substrate());
+        n.spec.count = count;
+        n.motion.offset = v3(0.0, 0.0, EARTH_RADIUS);
+    }
+    (w, node)
+}
+
+
+/// Earth's surface gravity, stated rather than assumed.
+///
+/// `docs/PLAY.md` D6 retired `solvers::structure::G_EARTH`: a structure is now
+/// proportioned and loaded in the field it is actually in, derived by
+/// `Tree::gravity_at` from whatever it sits inside. These tests are about
+/// structure generation rather than about gravity, so they name a field and
+/// hold it fixed — which is what the constant was doing for them, said out loud.
+const SURFACE_G: phys::math::Vec3 = phys::math::Vec3 { x: 0.0, y: 0.0, z: -9.80665 };
+
+
 fn tree(mass: f64) -> (Matter, Morphology) {
     let mut m = Morphology::new(Program::Tree, 0xACE, 0x1234, 0);
     m.built = mass;
@@ -20,7 +72,7 @@ fn tree(mass: f64) -> (Matter, Morphology) {
 }
 
 fn load(matter: &Matter, m: &Morphology, budget: usize) -> (Vec<Body>, Topology) {
-    let (b, t, _) = sample_structured(matter, m, budget, 7, 0x1234, 0);
+    let (b, t, _) = sample_structured(matter, m, budget, 7, 0x1234, 0, SURFACE_G);
     (b, t)
 }
 
@@ -34,7 +86,7 @@ fn the_support_graph_is_a_well_formed_tree() {
         m.design_mass = 5000.0;
         m.progress = 1.0;
         let matter = Matter::neutral(5000.0, m.extent(), 290.0, program.substrate());
-        let (bodies, topo, report) = sample_structured(&matter, &m, 3000, 7, 0x2, 0);
+        let (bodies, topo, report) = sample_structured(&matter, &m, 3000, 7, 0x2, 0, SURFACE_G);
         assert!(!topo.is_empty(), "{program:?} produced no joints");
 
         let n = report.structural_parts;
@@ -74,7 +126,7 @@ fn a_tree_stands_up() {
     let (matter, m) = tree(900.0);
     let (bodies, topo) = load(&matter, &m, 4000);
     let mut field = LoadField::new(bodies.len(), 291.0);
-    field.apply(&weather::gravity(), &bodies, &topo);
+    field.apply(&weather::gravity(SURFACE_G), &bodies, &topo);
     let loads = analyse(&bodies, &topo, &field);
     let peak = loads.iter().fold(0.0f64, |a, l| a.max(l.utilisation));
     println!(
@@ -99,7 +151,7 @@ fn a_tree_stands_up() {
 #[test]
 fn member_geometry_matches_its_mass() {
     let (matter, m) = tree(900.0);
-    let (bodies, topo, report) = sample_structured(&matter, &m, 4000, 7, 0x1234, 0);
+    let (bodies, topo, report) = sample_structured(&matter, &m, 4000, 7, 0x1234, 0, SURFACE_G);
     let mut volume = 0.0;
     for i in 0..report.structural_parts {
         let len = (topo.tip[i] - topo.base[i]).norm();
@@ -131,7 +183,7 @@ fn wind_damage_scales_with_speed() {
         let (bodies, mut topo) = load(&matter, &m, 4000);
         let mut field = LoadField::new(bodies.len(), 291.0);
         field.apply(&weather::wind(speed, v3(1.0, 0.0, 0.0)), &bodies, &topo);
-        field.apply(&weather::gravity(), &bodies, &topo);
+        field.apply(&weather::gravity(SURFACE_G), &bodies, &topo);
         let loads = analyse(&bodies, &topo, &field);
         let r = apply_failures(&bodies, &mut topo, &loads, &field);
         println!(
@@ -157,7 +209,7 @@ fn only_wet_snow_breaks_branches() {
         let (bodies, mut topo) = load(&matter, &m, 4000);
         let mut field = LoadField::new(bodies.len(), 271.0);
         field.apply(&weather::snow(depth, density, m.capture_area()), &bodies, &topo);
-        field.apply(&weather::gravity(), &bodies, &topo);
+        field.apply(&weather::gravity(SURFACE_G), &bodies, &topo);
         let loads = analyse(&bodies, &topo, &field);
         let r = apply_failures(&bodies, &mut topo, &loads, &field);
         (r.peak_utilisation, r.detached_mass)
@@ -198,7 +250,7 @@ fn lightning_destroys_along_its_path() {
         let entry = (bodies.len() / 2) as u32;
         let mut field = LoadField::new(bodies.len(), 291.0);
         field.apply(&weather::lightning(joules, entry), &bodies, &topo);
-        field.apply(&weather::gravity(), &bodies, &topo);
+        field.apply(&weather::gravity(SURFACE_G), &bodies, &topo);
         let destroyed = field.destroyed.iter().filter(|d| **d).count();
         let loads = analyse(&bodies, &topo, &field);
         let r = apply_failures(&bodies, &mut topo, &loads, &field);
@@ -223,7 +275,7 @@ fn fire_consumes_fine_fuel_first() {
         let (bodies, mut topo) = load(&matter, &m, 4000);
         let mut field = LoadField::new(bodies.len(), 291.0);
         field.apply(&weather::fire(temperature, height, duration), &bodies, &topo);
-        field.apply(&weather::gravity(), &bodies, &topo);
+        field.apply(&weather::gravity(SURFACE_G), &bodies, &topo);
         let hottest = field.temperature.iter().cloned().fold(0.0f64, f64::max);
         let trunk = field.temperature[0];
         let loads = analyse(&bodies, &topo, &field);
@@ -246,15 +298,7 @@ fn fire_consumes_fine_fuel_first() {
 /// what it must.
 #[test]
 fn damage_persists_and_conserves() {
-    let mut w = World::new(galaxy(0x3333, 1e9), 20.0);
-    let root = w.tree.root;
-    w.tree.refine(root);
-    let node = w.tree.promote(root, 7, phys::engine::default_spec(Tier::Stellar));
-    {
-        let n = &mut w.tree.nodes[node.get()];
-        n.matter = Matter::neutral(900.0, 6.0, 291.0, Program::Tree.substrate());
-        n.spec.count = 3000;
-    }
+    let (mut w, node) = on_an_earth(0x3333, 900.0, 6.0, 3000);
     w.plant(node, Program::Tree, Some(Environment::default()));
     let mass0 = w.tree.nodes[node.get()].matter.mass;
     let baryon0 = w.tree.nodes[node.get()].matter.baryon_number;
@@ -325,7 +369,7 @@ fn fire_releases_stored_energy_without_losing_mass() {
 #[test]
 fn topology_is_cheap() {
     let (matter, m) = tree(900.0);
-    let (bodies, topo, _) = sample_structured(&matter, &m, 8000, 7, 0x1234, 0);
+    let (bodies, topo, _) = sample_structured(&matter, &m, 8000, 7, 0x1234, 0, SURFACE_G);
     let geometry = bodies.len() * std::mem::size_of::<Body>();
     let cohesion = topo.bytes();
     println!(
@@ -499,13 +543,13 @@ fn bracing_relieves_the_primary_path() {
     m.progress = 1.0;
     m.built = 3.0e6;
     let matter = Matter::neutral(3.0e6, m.extent(), 290.0, Program::Tower.substrate());
-    let (bodies, topo, _) = sample_structured(&matter, &m, 2000, 7, 0x77, 0);
+    let (bodies, topo, _) = sample_structured(&matter, &m, 2000, 7, 0x77, 0, SURFACE_G);
     assert!(!topo.ties.is_empty(), "a framed tower should be braced");
     assert!(!topo.is_determinate());
 
     let mut field = LoadField::new(bodies.len(), 290.0);
     field.apply(&weather::wind(35.0, v3(1.0, 0.0, 0.0)), &bodies, &topo);
-    field.apply(&weather::gravity(), &bodies, &topo);
+    field.apply(&weather::gravity(SURFACE_G), &bodies, &topo);
 
     let (braced, indeterminate, iters) = analyse_with(&bodies, &topo, &field);
     assert!(indeterminate && iters > 0, "the redundant solver did not run");
@@ -551,7 +595,7 @@ fn mechanisms_are_not_weather_specific() {
     let peak = |mech: Mechanism| {
         let mut field = LoadField::new(bodies.len(), 280.0);
         field.apply(&mech, &bodies, &topo);
-        field.apply(&weather::gravity(), &bodies, &topo);
+        field.apply(&weather::gravity(SURFACE_G), &bodies, &topo);
         let loads = analyse(&bodies, &topo, &field);
         loads.iter().fold(0.0f64, |a, l| a.max(l.utilisation))
     };
@@ -595,7 +639,7 @@ fn materials_are_interchangeable_data() {
         topo.material = mat;
         let mut field = LoadField::new(bodies.len(), 290.0);
         field.apply(&weather::wind(35.0, v3(1.0, 0.0, 0.0)), &bodies, &topo);
-        field.apply(&weather::gravity(), &bodies, &topo);
+        field.apply(&weather::gravity(SURFACE_G), &bodies, &topo);
         let loads = analyse(&bodies, &topo, &field);
         loads.iter().fold(0.0f64, |a, l| a.max(l.utilisation))
     };
@@ -631,7 +675,7 @@ fn the_two_solvers_agree_on_determinate_structures() {
     // and which is the whole reason ductility is worth modelling. At 30 m/s
     // twenty-two members yield and the paths differ by 2%, correctly.
     field.apply(&weather::wind(12.0, v3(0.7, 0.7, 0.0)), &bodies, &topo);
-    field.apply(&weather::gravity(), &bodies, &topo);
+    field.apply(&weather::gravity(SURFACE_G), &bodies, &topo);
 
     let (exact, indeterminate, _) = analyse_with(&bodies, &topo, &field);
     assert!(!indeterminate, "a tree should be determinate");
@@ -681,7 +725,7 @@ fn the_two_solvers_agree_on_determinate_structures() {
 fn a_structure_is_proportioned_for_its_loads_when_it_is_built() {
     for (label, mass, budget) in [("900 kg", 900.0, 1200usize), ("6 t", 6000.0, 400)] {
         let (matter, m) = tree(mass);
-        let (_, _, report) = sample_structured(&matter, &m, budget, 7, 0x1234, 0);
+        let (_, _, report) = sample_structured(&matter, &m, budget, 7, 0x1234, 0, SURFACE_G);
         let d = report.design;
         println!(
             "  {label:>6}: peak {:.3} -> {:.3}, spread {:.3} -> {:.3} over {} passes, \
@@ -728,7 +772,7 @@ fn the_design_pass_does_not_overfit_its_own_load_cases() {
         let a = degrees.to_radians();
         let mut field = LoadField::new(bodies.len(), 290.0);
         field.apply(&weather::wind(22.0, v3(a.cos(), a.sin(), 0.0)), &bodies, &topo);
-        field.apply(&weather::gravity(), &bodies, &topo);
+        field.apply(&weather::gravity(SURFACE_G), &bodies, &topo);
         let loads = analyse(&bodies, &topo, &field);
         let peak = loads.iter().map(|l| l.utilisation).fold(0.0f64, f64::max);
         worst = worst.max(peak);

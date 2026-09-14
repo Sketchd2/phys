@@ -331,6 +331,45 @@ still latent.
 
 ---
 
+## Derived gravity is in the parent's axes, because nothing composes orientation
+
+**Noticed:** building `Tree::gravity_at` for `PLAY.md` Phase 1's "`G_EARTH`
+deleted in favour of derived g".
+**Where:** `tree.rs` — `gravity_at`, and `offset_from` underneath it.
+
+`gravity_at` walks the ancestor chain and adds what each one pulls with, which
+gives 9.82 m/s^2 on an Earth-mass, Earth-radius body and 10^-13 in a galaxy. The
+*direction* is right in the parent's axes and is not necessarily right in the
+node's own: `offset_from` composes offsets and not rotations, and `Motion`
+carries an `orientation` that nothing consults.
+
+So a node on the `+x` side of a planet is told gravity points along `-x`. A
+structure is generated with `+z` up — `ground_of` returns a `z` — so such a node
+would carry its weight sideways through its own geometry.
+
+**Why it does not bite yet.** Nothing orients a node against the body it is on.
+There is no terrain, no surface, and no reason for a node's frame to be anything
+but its parent's. Both tests that needed a planet were placed on its `+z` axis,
+where the question does not arise, and they say so.
+
+**Why it will.** A cubed-sphere terrain patch is oriented by construction: that
+is what a patch *is*, a square of surface with a local up. `PLAY.md` Phase 2
+builds them, and the first structure emplaced on one at any latitude but the
+pole reads its own weight in the wrong direction. Actors standing on a planet
+are the same problem one level down.
+
+**What it needs.** `offset_from` to compose orientation as well as offset, or a
+`gravity_at` that rotates the accumulated field into the node's frame on the way
+out. The second is smaller and is probably wrong: the same gap affects any
+vector carried across frames — a velocity, a wind direction, an impulse — so the
+fix belongs where frames are composed rather than at one consumer. `coords.rs`
+already carries the error-bound argument for offsets and would be the place.
+
+**Trigger:** the first oriented node, which is Phase 2's first terrain patch.
+Before that there is nothing to get wrong.
+
+---
+
 ## The ball-in-box test runs at the wrong tier, and should be moved when §3.3 lands
 
 **Noticed:** asked why a metre-scale wooden box was built at `Tier::Galactic`.

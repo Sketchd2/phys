@@ -350,6 +350,16 @@ use phys::sampler::sample_structured;
 use phys::solvers::structure::*;
 use phys::state::Matter;
 
+/// Earth's surface gravity, stated rather than assumed.
+///
+/// `docs/PLAY.md` D6 retired `solvers::structure::G_EARTH`: a structure is now
+/// proportioned and loaded in the field it is actually in, derived by
+/// `Tree::gravity_at` from whatever it sits inside. These tests are about
+/// structure generation rather than about gravity, so they name a field and
+/// hold it fixed — which is what the constant was doing for them, said out loud.
+const SURFACE_G: phys::math::Vec3 = phys::math::Vec3 { x: 0.0, y: 0.0, z: -9.80665 };
+
+
 /// The two solvers must agree.
 ///
 /// Hold a load steady for long enough and the dynamics has to settle to exactly
@@ -362,11 +372,11 @@ fn a_held_load_settles_to_the_static_answer() {
     m.progress = 1.0;
     m.built = 3.0e6;
     let matter = Matter::neutral(3.0e6, m.extent(), 290.0, Program::Tower.substrate());
-    let (bodies, topo, _) = sample_structured(&matter, &m, 600, 7, 0x77, 0);
+    let (bodies, topo, _) = sample_structured(&matter, &m, 600, 7, 0x77, 0, SURFACE_G);
 
     let mut field = LoadField::new(bodies.len(), 290.0);
     field.apply(&weather::wind(22.0, v3(1.0, 0.0, 0.0)), &bodies, &topo);
-    field.apply(&weather::gravity(), &bodies, &topo);
+    field.apply(&weather::gravity(SURFACE_G), &bodies, &topo);
 
     // Static answer.
     let built = build_frame(&topo, bodies.len());
@@ -420,7 +430,7 @@ fn a_tree_sways_and_rings_down() {
     m.age = 40.0 * phys::units::YEAR;
     let mut matter = Matter::neutral(900.0, m.extent(), 291.0, Program::Tree.substrate());
     matter.chemical_energy = m.stored_energy();
-    let (bodies, topo, _) = sample_structured(&matter, &m, 400, 7, 0x1234, 0);
+    let (bodies, topo, _) = sample_structured(&matter, &m, 400, 7, 0x1234, 0, SURFACE_G);
 
     let mut ds = dynamic_structure(&bodies, &topo).expect("a tree has members");
     let tip = (0..ds.dynamics.frame.joints.len())
