@@ -331,6 +331,113 @@ still latent.
 
 ---
 
+## Collision geometry is a sphere, and a beam is 200 times longer than one
+
+**Noticed:** asked directly whether mesh collision is handled. It is not, in any
+form, and nothing in `docs/PLAY.md` plans it.
+**Where:** `neighbourhood::contact` and `neighbourhood::Neighbourhood`.
+
+### What exists
+
+Three collision geometries, none of them a surface:
+
+1. **Sphere against sphere**, in `neighbourhood::contact`. This is the general
+   path — everything a node holds goes through it, promoted children and bodies
+   alike — and it knows a thing only by a centre and a radius.
+2. **Capsule against capsule**, in `structure::contacts`: segment-to-segment
+   closest approach with a radius on each, which is the correct test for two
+   beams. It is reachable from exactly one place, `drop_fragments`, for a torn
+   limb landing on the structure it came off.
+3. **A horizontal half-plane**, in the same function, for the ground.
+
+So the engine already knows how to collide the shape its structures are
+actually made of, and the general path does not use it.
+
+### The measurement
+
+A structural member carries its length in `Topology::base`/`tip` and its
+*cross-section* radius in `joints[i].radius`, and `bodies[i].radius` is the same
+number. That cross-section sphere is what contact sees:
+
+```text
+  program       members   median length   collision sphere   ratio   worst
+  Tower            58        3.11 m          0.068 m          46x    1441x
+  Tree             64        2.15 m          0.063 m          34x      35x
+  Wall             55        0.93 m          0.385 m         2.4x     3.1x
+  Settlement       59       16.02 m          0.098 m         164x     197x
+```
+
+A 26 m beam of a settlement presents a 13.5 cm bead at its midpoint. A ball
+thrown at a timber frame passes through it unless it happens to hit a bead.
+
+**And the renderer draws the beam.** `render.rs` draws each member as a tube
+from `base` to `tip` at `joints[i].radius` — the full capsule — while contact
+tests the sphere. What is seen and what is solid are different objects, which
+is the worst version of this to ship: it is invisible until someone walks
+through a wall.
+
+`Program::Wall` is the one that nearly works, at 2.4x, because coursed masonry
+is made of blocks rather than beams. That is luck rather than design.
+
+### What it blocks
+
+- **Standing on anything.** `PLAY.md` Phase 4 says "standing is contact against
+  D3's adjacency relation". A foot on a floor is a contact against a *surface*;
+  against a sphere it is a contact against a marble.
+- **Walking into a wall**, driving into a building, a projectile stopping.
+- **Water meeting geometry.** Phase 3's fourth piece is "boundary conditions
+  against arbitrary geometry, so water meets a carved channel", and §4.1's audit
+  row 7 — "water meeting arbitrary 5 cm sand geometry" — is already marked *not
+  designed*. That is this gap seen from the fluid side.
+- **Terrain.** Phase 2 makes terrain "an editable deviation over a derived
+  base". Nothing yet says what a contact against that deviation is.
+
+### Why "add a mesh" is not obviously the answer
+
+The engine has no authored geometry and is not supposed to. Structures are
+*generated* by `morph::Program`, terrain is planned as a field over a
+cubed-sphere, and bulk matter is sampled as spheres — three generators, three
+natural shapes, none of them a triangle soup. A mesh baked from a program and
+cached is legitimate under axiom three, which explicitly allows a derived
+shortcut to be stored; a mesh that is the *source* of the geometry is not.
+
+So the real question is whether contact should take a shape per generator —
+capsule for a member, field query for terrain, sphere for a parcel — or one
+intermediate representation everything converts into. The first reuses the
+capsule test that already exists and adds no storage; the second is one narrow
+phase instead of N-squared of them, at the cost of a representation the axioms
+have to be argued with.
+
+Options, none chosen:
+
+- **Give `Occupant` a shape.** Sphere, capsule, or a handle to a field. The
+  broad phase (`Neighbourhood`) is already shape-agnostic — it indexes points
+  with radii, which is a correct *bounding* volume for a capsule too — so only
+  the narrow phase changes. Smallest change that fixes the measured defect,
+  and it makes `structure::contacts` the shared narrow phase rather than a
+  private one.
+- **A signed-distance query per generator.** Uniform, and it is what the
+  terrain field wants anyway; it makes the contact normal and depth fall out of
+  one interface. Larger, and needs a derivative for the normal.
+- **Baked convex hulls per structure, cached like any derived shortcut.**
+  Conventional, and the one that most resembles a physics engine. It also stores
+  the most and is the hardest to keep in step with a structure that grows.
+
+### Cost, unmeasured
+
+Not quantified, and it should be before choosing. The broad phase is a 27-cell
+grid walk per occupant and does not change. What changes is the narrow phase,
+which is currently a subtraction of two radii. Capsule-capsule is a
+segment-segment closest approach — tens of flops, already written and already
+measured in `drop_fragments` — and anything richer is unmeasured.
+`PERFORMANCE.md` has no row for contact at all.
+
+**Trigger:** before anything stands on, walks into, or rests against a built
+thing — which is Phase 4's first step and arguably Phase 2's, since terrain is
+the first surface anything touches. This is upstream of both.
+
+---
+
 ## A struck structure is not rigid: contact lands on one member, not the body
 
 **Noticed:** writing `a_ball_loose_in_a_box_conserves_momentum_and_angular_momentum`.
