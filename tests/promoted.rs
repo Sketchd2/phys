@@ -21,6 +21,9 @@ fn with_promoted(slots: &[usize]) -> (World, Vec<NodeIdx>) {
     let mut w = World::new(galaxy(0x9A11, 1e9), 20.0);
     w.tree.nodes[0].spec.count = 256;
     let root = w.tree.root;
+    // Paced to its subject explicitly. A world runs at one second per second
+    // (`PLAY.md` D1), and a galaxy's gravity does nothing visible in a second.
+    w.pace_to(root);
     w.tree.refine(root);
     let tier = w.tree.nodes[root.get()].tier;
     let children: Vec<NodeIdx> = slots

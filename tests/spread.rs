@@ -185,6 +185,10 @@ fn it_finds_the_two_defects_already_on_the_list() {
     //    on the frame it happened, rather than twenty tiers away inside a hash.
     let mut w = World::new(galaxy(0xABCD, 1e9), 20.0);
     let root = w.tree.root;
+    // Paced to its subject. A world runs at one second per second (`PLAY.md`
+    // D1), and the fault being detected is a solver flinging bodies out over a
+    // span only a galactic pace supplies.
+    w.pace_to(root);
     let path = w.drill_to(root, Tier::Continuum.max_radius(), &default_spec);
     assert!(path.len() >= 6, "expected a deep ladder, got {}", path.len());
     for _ in 0..20 {

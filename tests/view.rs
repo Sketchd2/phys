@@ -461,6 +461,9 @@ fn an_unchanged_node_costs_almost_nothing() {
 fn a_resolved_node_still_sends() {
     let mut w = a_world();
     let root = w.tree.root;
+    // Paced to its subject: a world runs at one second per second (`PLAY.md`
+    // D1), and this waits for a galactic node to come due.
+    w.pace_to(root);
     w.tree.refine(root);
     let mark = w.time;
     // Step until the node actually comes due and is solved.

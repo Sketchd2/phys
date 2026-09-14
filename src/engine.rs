@@ -318,11 +318,17 @@ pub struct EngineStats {
 /// made explicit.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum PaceMode {
-    /// Follow `paced_to`'s own timescale. The default, and the reason
-    /// resolution and time rate stay coupled.
-    #[default]
+    /// Follow `paced_to`'s own timescale, coupling resolution and time rate.
+    ///
+    /// Was the default. `docs/PLAY.md` D1 retired it as one: a shared world runs
+    /// at one second per second, and a clock dragged slower by whoever is
+    /// looking most closely is a single-observer answer to a shared question.
+    /// Reached now only through an explicit [`World::pace_to`], which is what
+    /// it is for — and [`World::time_throttle`] belongs to this mode with it.
     Follow,
-    /// A fixed span per frame, set by the caller and left alone.
+    /// A fixed span per frame, set by the caller and left alone. What a world
+    /// is, at `1.0`.
+    #[default]
     Fixed,
 }
 
@@ -343,10 +349,15 @@ pub struct World {
     pub time: f64,
     /// Simulated seconds the world advances per frame at a time rate of one.
     ///
-    /// Set from what is being watched rather than from any solver's stability
-    /// limit. One frame covers about one characteristic time of the node the
-    /// view is paced to, so a galaxy advances millennia per frame and a carbon
-    /// atom femtoseconds, and both are watchable. See [`World::pace_to`].
+    /// **One, unless something asked otherwise.** A world runs at one second per
+    /// second — `docs/PLAY.md` D1 — and that is what a `World` is built with.
+    ///
+    /// It can still be taken from whatever is being watched, through
+    /// [`World::pace_to`], and a frame then covers about one characteristic time
+    /// of that node: a galaxy advances millennia, a carbon atom femtoseconds.
+    /// That is a fine answer to a single observer's question and the wrong one
+    /// to a shared question, so it survives as a tool for single-player
+    /// exploration and offline study rather than as what a world does.
     pub pace: f64,
     /// Multiplier on `pace`. The user's time control.
     pub time_rate: f64,
@@ -358,6 +369,21 @@ pub struct World {
     /// under load and a world that stops: at the pace of a galaxy nothing's
     /// trajectory can be integrated at all, and an engine without this number
     /// answers by deferring every solve and standing still.
+    ///
+    /// **It belongs to [`PaceMode::Follow`] and applies only there.**
+    /// `docs/PLAY.md` D1 says overload must show up as a *staler* world rather
+    /// than a slower one, and this is the second mechanism that slows one —
+    /// the clock would still drag under load however the pace was set. So it
+    /// goes where its own justification goes: the paragraph above is an
+    /// argument about a galactic pace, and a galactic pace is now something a
+    /// single observer asks for. A world at one second per second gets staler
+    /// under load instead, in `worst_lateness` and detail debt.
+    ///
+    /// D1 also notes what that leaves open, and it is not built: the knapsack
+    /// wants a lateness ceiling for anything an actor is interacting with, with
+    /// resolution surrendered to hold it. Until then a fixed-pace world under
+    /// sustained overload gets arbitrarily stale rather than arbitrarily slow,
+    /// which is the trade D1 chooses.
     pub time_throttle: f64,
     /// The node the pace is taken from, re-read at the start of every frame.
     ///
@@ -462,7 +488,7 @@ impl World {
             identities: HashMap::new(),
             next_entity: 1,
             stats: EngineStats::default(),
-            pace_mode: PaceMode::Follow,
+            pace_mode: PaceMode::Fixed,
             audit: Vec::new(),
             gpu: false,
             labour_rate: 0.0,
@@ -474,10 +500,18 @@ impl World {
             falling: Vec::new(),
             history_depth: 64,
         };
-        // Start paced to the root, so a world is watchable the moment it is
-        // built without anybody having to know what timescale it lives on.
-        let root = w.tree.root;
-        w.pace_to(root);
+        // A world runs at one second per second. `docs/PLAY.md` D1: that is
+        // what a shared world *is*, and the clock must not be dragged slower by
+        // whoever is looking most closely — a player inspecting a rifle bolt
+        // must not slow down the war.
+        //
+        // This used to call `pace_to(root)`, so a world was watchable the moment
+        // it was built without anybody having to know what timescale it lived
+        // on. That is still worth having and is still one call away; it is a
+        // single-player convenience rather than what a world is. `paced_to` is
+        // pointed at the root regardless, so `pace_to` has a subject to return
+        // to and a viewer has something sensible to offer.
+        w.paced_to = w.tree.root;
         w
     }
 
@@ -733,7 +767,7 @@ impl World {
     /// The one hard cap left is causality: no node may be advanced past the
     /// arrival of an influence, or the influence would land in its past.
     pub fn frame_dt(&self) -> f64 {
-        let mut dt = self.pace * self.time_rate * self.time_throttle;
+        let mut dt = self.pace * self.time_rate * self.applied_throttle();
         if !(dt > 0.0) || !dt.is_finite() {
             dt = 1e-30;
         }
@@ -762,7 +796,26 @@ impl World {
     /// Bounded below, because a world that has slowed by a factor of a million
     /// has said everything it can say by slowing further, and "frozen" is a
     /// worse answer than "slow, with some of it stale".
+    /// The throttle as it actually bears on the clock.
+    ///
+    /// One in [`PaceMode::Fixed`], whatever the stored value is: a world runs at
+    /// one second per second and overload makes it staler rather than slower.
+    /// The stored value is left alone rather than reset, so a session that
+    /// switches to `pace_to` and back does not lose what it had learned.
+    fn applied_throttle(&self) -> f64 {
+        match self.pace_mode {
+            PaceMode::Fixed => 1.0,
+            PaceMode::Follow => self.time_throttle,
+        }
+    }
+
     fn retime(&mut self, achieved: f64) {
+        // Nothing to learn in `Fixed`: the number would decay against a clock it
+        // is not allowed to move, and then bite the moment somebody paced to a
+        // node.
+        if self.pace_mode == PaceMode::Fixed {
+            return;
+        }
         if achieved < 0.95 {
             self.time_throttle =
                 (self.time_throttle * achieved.clamp(0.05, 1.0)).max(MIN_TIME_THROTTLE);

@@ -427,13 +427,15 @@ fn committed_facts_survive() {
 ///
 /// This is not a defect, but it is surprising enough to be worth pinning down.
 /// The file stores no unpinned bodies, so a reloaded node is matter alone; and
-/// `node_cadence` reads body speeds when a node is materialised and the
-/// matter's own characteristic speed when it is not. The pace follows the
-/// cadence of whatever is being watched, so a coarse world runs at a coarser
-/// pace — correctly, because there is nothing resolved that needs finer steps.
-///
-/// The state is identical eitherway. What differs is the resolution, and
+/// The state is identical either way. What differs is the resolution, and
 /// resolution is recovered on demand.
+///
+/// This used to also assert that the reloaded world ran at a *coarser pace*,
+/// because the pace followed the cadence of whatever was being watched and
+/// there is nothing resolved in a coarse world that needs finer steps. That is
+/// no longer what a world does: `docs/PLAY.md` D1 makes a world run at one
+/// second per second whatever its resolution, and `pace_to` is the tool that
+/// couples the two. The assertion went with the property.
 #[test]
 fn an_unpinned_reload_comes_back_coarse() {
     let mut w = a_world();
@@ -441,7 +443,6 @@ fn an_unpinned_reload_comes_back_coarse() {
     w.tree.refine(root);
     w.step_frame(50_000.0);
 
-    let fine_pace = w.pace;
     let fine_bodies = w.tree.nodes[root.get()].bodies.len();
     assert!(fine_bodies > 0);
 
@@ -450,25 +451,15 @@ fn an_unpinned_reload_comes_back_coarse() {
     assert!(back.tree.nodes[root.get()].bodies.is_empty(), "detail should not be in the file");
 
     back.step_frame(50_000.0);
-    let coarse_pace = back.pace;
-    println!(
-        "  resolved: {fine_bodies} bodies at {fine_pace:.3e} s per frame; \
-         reloaded coarse: {coarse_pace:.3e} s per frame"
-    );
-    assert!(coarse_pace > fine_pace, "a coarse world should run at a coarser pace");
+    println!("  resolved: {fine_bodies} bodies; reloaded coarse: 0");
 
-    // And asking for the detail back restores both.
+    // And asking for the detail back restores it.
     back.tree.refine(root);
     back.step_frame(50_000.0);
     assert_eq!(
         back.tree.nodes[root.get()].bodies.len(),
         fine_bodies,
         "re-materialising gave a different number of bodies"
-    );
-    assert!(
-        (back.pace - fine_pace).abs() <= fine_pace * 1e-9,
-        "the pace did not come back with the resolution: {:.3e} against {fine_pace:.3e}",
-        back.pace
     );
 }
 

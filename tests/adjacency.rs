@@ -449,6 +449,10 @@ fn adjacent_pair(
     let mut w = World::new(sc.build(0xC0FFEE), 1.0);
     let root = w.tree.root;
     w.tree.nodes[0].spec.count = 64;
+    // Paced to its subject. A world runs at one second per second (`PLAY.md`
+    // D1) and two planet-sized chunks take centuries to equilibrate radiatively
+    // — the conductance is right, the span is what has to be large.
+    w.pace_to(root);
     w.tree.refine(root);
     let tier = w.tree.nodes[root.get()].tier;
     let a = w.tree.promote(root, 0, default_spec(tier.finer()));
@@ -550,6 +554,9 @@ fn heat_crosses_a_boundary_and_the_books_close() {
     let mut w = World::new(sc.build(0xC0FFEE), 1.0);
     let root = w.tree.root;
     w.tree.nodes[0].spec.count = 64;
+    // Paced to its subject, as above: a second of radiative exchange between
+    // planet-sized bodies moves nothing measurable.
+    w.pace_to(root);
     w.tree.refine(root);
     // Without a pin the bodies are discarded the moment nobody is looking, and
     // there is nothing left to measure.

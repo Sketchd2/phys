@@ -567,7 +567,7 @@ engine depends on.
 | **Inject** | Adds matter with a composition; rebalances baryon and lepton number. |
 | **Pin** | Marks detail as non-regenerable, so it is stored rather than re-drawn. |
 | **Author** | Sets a matter property directly. The one path that can break conservation — so it records exactly how much it broke it by, in an audit log. |
-| **Time control** | `time_rate` scales simulated seconds per wall second, on top of a pace taken from whatever is being watched (`pace_to`). Zooming into a nucleus does not slow the frame rate — it slows *time*, and that is now arithmetic rather than policy, because materialising a node shortens its characteristic time and the pace is re-read every frame. |
+| **Time control** | `time_rate` scales simulated seconds per wall second, on top of a pace that is **one second per second unless something asked otherwise** (`PLAY.md` D1). `pace_to` still takes the pace from whatever is being watched, and zooming into a nucleus then slows *time* rather than the frame rate — arithmetic rather than policy, because materialising a node shortens its characteristic time and the pace is re-read every frame. That is a single-observer answer, so it is a tool rather than the default: a player inspecting a rifle bolt must not slow down the war. `time_throttle` belongs to that mode with it; a fixed-pace world under load gets staler, not slower. |
 
 ## 6. Honest limitations
 

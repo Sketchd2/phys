@@ -354,6 +354,24 @@ impl PostgresStore {
         Ok(())
     }
 
+    /// Which arena slots already have a row.
+    fn written_slots(&mut self) -> Result<std::collections::HashSet<usize>> {
+        let rows = self.client.query("SELECT idx FROM node", &[]).map_err(db)?;
+        Ok(rows.iter().map(|r| r.get::<_, i32>("idx") as usize).collect())
+    }
+
+    /// Remove rows for slots the arena no longer has.
+    ///
+    /// The arena only grows today, so this is a guard rather than a live path —
+    /// but the loader's contiguity check turns a stale high row into a refusal
+    /// to load, which is a bad way to find out that it started shrinking.
+    fn drop_slots_beyond(&mut self, total: usize) -> Result<()> {
+        self.client
+            .execute("DELETE FROM node WHERE idx >= $1", &[&(total as i32)])
+            .map_err(db)?;
+        Ok(())
+    }
+
     fn write_nodes(&mut self, v: &WorldView<'_>, which: &[usize]) -> Result<()> {
         let mut tx = self.client.transaction().map_err(db)?;
         let stmt = tx
@@ -564,10 +582,33 @@ impl WorldStore for PostgresStore {
     }
 
     fn save_since(&mut self, view: WorldView<'_>, since: f64) -> Result<Flushed> {
-        let which = dirty_nodes(view.tree, since);
+        let mut which = dirty_nodes(view.tree, since);
         let total = view.tree.nodes.len();
+        // A node this store has never written cannot be *skipped*, whatever
+        // the clocks say. `dirty_nodes` asks whether anything happened to a node
+        // since a mark, which is the right question for a node that is already
+        // on disk and the wrong one for a node that is not: a slot created
+        // after the last write and quiet ever since has nothing to carry
+        // forward from.
+        //
+        // The loader requires `idx` to be contiguous, so the symptom was not a
+        // missing node but a refusal to load at all — "node arena has a hole:
+        // expected slot 3, found 7". It surfaced when the world clock stopped
+        // advancing galactic spans per frame: `promote` stamps a new node's
+        // `last_disturbed` from its *parent's* clock, and a parent whose clock
+        // lags the world's then produces a node that looks older than the mark
+        // it was created after. The clocks were never the right thing to ask.
+        let present = self.written_slots()?;
+        for i in 0..total {
+            if !present.contains(&i) && !which.contains(&i) {
+                which.push(i);
+            }
+        }
+        which.sort_unstable();
+        which.dedup();
         self.write_world_row(&view)?;
         self.write_nodes(&view, &which)?;
+        self.drop_slots_beyond(total)?;
         self.write_side_tables(&view)?;
         Ok(Flushed {
             nodes_written: which.len(),

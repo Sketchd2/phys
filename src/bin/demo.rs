@@ -31,6 +31,12 @@ fn main() {
     println!("  simulate the galaxy, but to be indistinguishable from one.");
 
     let mut w = World::new(galaxy(seed, stars), 20.0);
+    // A viewer, so it asks for the observer-following clock by name. A world
+    // runs at one second per second (`docs/PLAY.md` D1), which is right for a
+    // shared world and useless for a ladder demo: a galaxy advancing one second
+    // per frame shows nothing. This is what D1 means by `pace_to` surviving as
+    // a tool for single-player exploration.
+    w.pace_to(w.tree.root);
     // The cost model is told the truth about what it is running on. This demo
     // executes the CPU reference implementation, so it budgets for one Ryzen
     // core; the RTX 2060 projection is reported separately rather than assumed.

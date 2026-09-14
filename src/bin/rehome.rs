@@ -51,8 +51,13 @@ fn describe(w: &World, label: &str, n: NodeIdx) {
 
 fn main() {
     let mut w = World::new(galaxy(0x9E77, 1e9), 20.0);
+    // A viewer, and so it asks for the observer-following clock by name — see
+    // the note in `demo.rs`. A world runs at one second per second
+    // (`docs/PLAY.md` D1); this needs galactic spans for anything to move
+    // between frames.
     w.tree.nodes[0].spec.count = 400;
     let root = w.tree.root;
+    w.pace_to(root);
     w.tree.refine(root);
     let tier = w.tree.nodes[root.get()].tier;
 

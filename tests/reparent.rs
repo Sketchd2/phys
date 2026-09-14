@@ -256,6 +256,10 @@ fn identity_does_not_depend_on_how_fast_the_machine_is() {
         let mut w = a_world();
         w.tree.nodes[0].spec.count = 4096;
         let root = w.tree.root;
+        // Paced to its subject, which is what makes this a test about the
+        // *budget*: a world runs at one second per second (`PLAY.md` D1), and a
+        // fixed span would hide the starvation this is looking for.
+        w.pace_to(root);
         for idx in w.drill_to(root, 1.0e2, &default_spec) {
             w.tree.refine(idx);
         }

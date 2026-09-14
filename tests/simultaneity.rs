@@ -142,6 +142,11 @@ fn nothing_is_starved() {
     let mut w = World::new(tree, 20.0);
     w.time_rate = 0.05;
     let root = w.tree.root;
+    // Paced to its subject. A world runs at one second per second (`PLAY.md`
+    // D1), and what is under examination here is which nodes come due — which
+    // is a question about their own cadences against the clock, so the clock
+    // has to move at their scale.
+    w.pace_to(root);
     w.drill_to(root, Tier::Stellar.max_radius(), &default_spec);
     // Nobody is looking at anything. Under the old rule that meant no work at
     // all: every materialised node was coarsened on the frame it appeared.

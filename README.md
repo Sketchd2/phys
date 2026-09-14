@@ -144,10 +144,20 @@ lateness × causal urgency × the error of leaving the node coarse. Frame rate i
 the invariant; what gives way is first *how much simulated time passes* and
 then how much of the world is resolved.
 
-Both directions are the same statement. Zooming into a nucleus does not slow
-the frame rate, it slows time — arithmetic, not policy, because the pace is one
-characteristic time of whatever is being watched and materialising a galaxy
-into its stars shortens that by two orders of magnitude. Ask for more detail
+Both directions are the same statement *when the pace is taken from what is
+being watched*: zooming into a nucleus then does not slow the frame rate, it
+slows time — arithmetic, not policy, because the pace is one characteristic time
+of the subject and materialising a galaxy into its stars shortens that by two
+orders of magnitude.
+
+That is a fine answer to a single observer's question and the wrong answer to a
+shared one: a player inspecting a rifle bolt must not slow down the war. So
+`docs/PLAY.md` D1 retires it as the *default*. A world runs at one second per
+second; `pace_to` survives as a tool for single-player exploration and offline
+study; what gives way under load is staleness rather than the clock; and slow
+motion becomes a replay of a recording rather than a change to the world's pace.
+
+Ask for more detail
 than can be simulated and you get a visible detail-debt readout and a
 worst-lateness number that says, scale-free, how stale the stalest thing in the
 world is. A plan that accepts nothing is worse than one that runs late, so the
