@@ -526,3 +526,291 @@ pub fn radiative_conductance(t_a: f64, t_b: f64, area: f64) -> f64 {
     let (a, b) = (t_a.max(0.0), t_b.max(0.0));
     crate::units::SIGMA_SB * area * (a + b) * (a * a + b * b)
 }
+
+// ---------------------------------------------------------------------------
+// Contact
+// ---------------------------------------------------------------------------
+
+/// What a thing's surface has to say for a collision to be resolvable.
+///
+/// Four numbers, and every one of them is already on `topology::Material` —
+/// which is what `docs/PLAY.md` D3 means by "derived from the materials
+/// `topology.rs` already carries as data". Nothing here is a coefficient of
+/// restitution or a coefficient of friction: those are *results*, computed
+/// below from these and from how fast the two things are closing.
+///
+/// That distinction is the whole point. A tabulated restitution is a frozen
+/// answer to a question whose answer depends on the impact speed — the same
+/// two blocks bounce at a walking pace and do not bounce when dropped from a
+/// roof — so a table gets one of those two right and the rest of the range
+/// wrong. `drop_fragments` carried `0.15` with the comment "Wood on wood: it
+/// does not bounce", which was a reasonable guess for the one speed it was
+/// tuned at.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Surface {
+    /// kg/m^3.
+    pub density: f64,
+    /// Young's modulus, Pa.
+    pub stiffness: f64,
+    /// The stress at which the contact stops returning what is put into it,
+    /// Pa. Yield for a material that yields; rupture for one that fractures
+    /// instead, because that is where a brittle contact stops being elastic.
+    pub strength: f64,
+}
+
+impl Surface {
+    /// Read a surface off a structural material.
+    ///
+    /// `ductility` is documented as "yield strength as a fraction of `rupture`,
+    /// or zero for a brittle material that fractures instead of yielding", so a
+    /// zero is not a material with no strength — it is a material whose elastic
+    /// range ends at `rupture`.
+    pub fn of(m: &crate::topology::Material) -> Surface {
+        let strength = if m.ductility > 0.0 {
+            m.rupture * m.ductility
+        } else {
+            m.rupture
+        };
+        Surface {
+            density: m.density.max(0.0),
+            stiffness: m.stiffness.max(0.0),
+            strength: strength.max(0.0),
+        }
+    }
+
+    fn is_usable(&self) -> bool {
+        self.density > 0.0 && self.stiffness > 0.0 && self.strength > 0.0
+    }
+}
+
+/// The closing speed above which a contact stops being elastic, m/s.
+///
+/// Derived rather than cited, because the cited constants disagree and the
+/// derivation is short. Two spheres in Hertzian contact at approach `d` carry
+/// `F = (4/3) E* sqrt(R*) d^(3/2)` over a circle of radius `sqrt(R* d)`, so the
+/// mean contact pressure is `(4 E* / 3pi) sqrt(d / R*)`. Yield begins when that
+/// reaches about `1.1 Y` — Johnson's result, the maximum shear under a Hertzian
+/// circle being at `p_0 = 1.6 Y` and the mean being two thirds of the peak — so
+///
+/// ```text
+///     d_y / R* = k^2,       k = (3 pi / 4) * 1.1 * (Y / E*) = 2.592 Y / E*
+/// ```
+///
+/// The work stored up to that point is `(8/15) E* sqrt(R*) d_y^(5/2)`, which is
+/// `(8/15) E* R*^3 k^5`. Setting it equal to `(1/2) m* v^2` for two equal
+/// spheres — where `R* = R/2` and `m* = (2/3) pi R^3 rho` — the `R^3` cancels
+/// on both sides, which is the interesting part: **the yield velocity does not
+/// depend on how big the things are.** What is left is
+///
+/// ```text
+///     v_y = 2.73 * sqrt( Y^5 / (E*^4 rho) )
+/// ```
+///
+/// Checked against what it should reproduce: hardened steel comes out at
+/// 0.22 m/s against a literature 0.1-0.2, and green wood on green wood at
+/// 0.014 m/s, which puts a 5 m/s branch-fall at a restitution of 0.23 where the
+/// hand-tuned constant it replaces was 0.15.
+///
+/// The `2.73` is for two equal spheres and is a scale rather than a precision
+/// constant; the `(1 - nu^2)` plane-strain correction is left out because
+/// `Material` carries no Poisson's ratio and it is worth about 10% per side.
+pub fn yield_velocity(a: &Surface, b: &Surface) -> f64 {
+    if !a.is_usable() || !b.is_usable() {
+        return 0.0;
+    }
+    // Series stiffness: the softer side does most of the deflecting, which is
+    // also why the softer side is the one that yields first.
+    let e_star = 1.0 / (1.0 / a.stiffness + 1.0 / b.stiffness);
+    // And the weaker side is the one that decides when the contact stops
+    // returning energy, for the same reason.
+    let y = a.strength.min(b.strength);
+    let rho = 0.5 * (a.density + b.density);
+    let ratio = y.powi(5) / (e_star.powi(4) * rho);
+    if !ratio.is_finite() || ratio <= 0.0 {
+        return 0.0;
+    }
+    2.73 * ratio.sqrt()
+}
+
+/// How much of the closing speed comes back, for this pair at this speed.
+///
+/// Elastic below the yield velocity and `(v_y / v)^(1/4)` above it — Johnson's
+/// elastic-plastic result, and the exponent is the one thing here worth
+/// remembering: restitution falls off *slowly*, so a contact that is 10,000
+/// times past yield still returns a tenth of what it was given.
+///
+/// Speed-dependent by construction, which no tabulated coefficient can be.
+pub fn restitution(a: &Surface, b: &Surface, closing: f64) -> f64 {
+    let v_y = yield_velocity(a, b);
+    let v = closing.abs();
+    if !(v > 0.0) || !(v_y > 0.0) || v <= v_y {
+        return 1.0;
+    }
+    (v_y / v).powf(0.25).clamp(0.0, 1.0)
+}
+
+/// Coulomb friction for a pair of surfaces.
+///
+/// Bowden and Tabor's adhesion account, and it is worth following because the
+/// answer it gives is a *result* rather than a number: the real area of contact
+/// is the load over the softer side's hardness, `A = W / H`; the junctions
+/// formed there shear at that same side's shear strength; so
+///
+/// ```text
+///     mu = tau A / W = tau / H = (Y / sqrt(3)) / (3 Y) = 1 / (3 sqrt(3)) = 0.192
+/// ```
+///
+/// using von Mises for the shear yield and the standard `H ~ 3Y` for indentation
+/// hardness. **The strength cancels.** Both terms come from the softer of the
+/// two materials — it is the one that flows to make the junction and the one
+/// that shears to break it — so the material drops out entirely, and that is
+/// not a simplification made here but the reason most dry coefficients between
+/// unlubricated solids sit between 0.2 and 0.5 whatever they are made of.
+///
+/// What the engine cannot see is what *does* vary: surface films, roughness,
+/// and the melt layer that makes ice 0.05 rather than 0.2. None of those are
+/// represented, so none of them are guessed at. The signature still takes both
+/// surfaces, because the day one of those is measurable this is where it goes.
+pub fn friction(_a: &Surface, _b: &Surface) -> f64 {
+    1.0 / (3.0 * 3.0f64.sqrt())
+}
+
+/// One side of a contact, at the moment of it.
+#[derive(Debug, Clone, Copy)]
+pub struct Side {
+    pub pos: Vec3,
+    pub velocity: Vec3,
+    pub mass: f64,
+    pub radius: f64,
+    /// J/K, for the heat the contact makes. See `state::Matter::heat_capacity`.
+    pub heat_capacity: f64,
+    pub surface: Surface,
+}
+
+/// What a contact does to the pair.
+///
+/// Expressed as what happens to **b**; `a` gets the negative of each impulse,
+/// which is what makes momentum conservation structural rather than something
+/// to be checked afterwards.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Collision {
+    /// N s, along the line of centres.
+    pub normal: Vec3,
+    /// N s, across it.
+    pub friction: Vec3,
+    /// Angular momentum the friction couple puts into each side.
+    pub spin_a: Vec3,
+    pub spin_b: Vec3,
+    /// J. The kinetic energy the contact did not give back, split so that both
+    /// sides rise by the same temperature.
+    pub heat_a: f64,
+    pub heat_b: f64,
+}
+
+/// Resolve an overlap into an impulse pair.
+///
+/// Returns `None` when there is nothing to resolve: the two are separating
+/// already, either side has no mass, or either side has no surface to collide
+/// with. The last is not a failure — a gas parcel and a star cluster are things
+/// a node holds that have no surface, and giving them one would be the engine
+/// being *told* they are solid rather than measuring it.
+///
+/// # What is conserved, and how
+///
+/// Momentum: exactly, because one impulse is applied with both signs.
+///
+/// Angular momentum: exactly, and this is the part that is easy to drop.
+/// Friction acts at the contact point and not at either centre, so it is a
+/// couple as well as a force. Applying only the linear part changes
+/// `sum r x p` without changing any spin, which loses angular momentum every
+/// time anything slides. Applying the torque about each centre restores it
+/// identically — `(c - p_a) x (-J) + (c - p_b) x J` is exactly the `(p_a - p_b) x J`
+/// that the linear terms gained.
+///
+/// Energy: what the restitution did not return is not discarded, it is heat,
+/// and it goes back into the two sides. Split by heat capacity rather than by
+/// mass, because the heat is made at the interface and an interface has one
+/// temperature; the exchange pass then moves it from there like any other heat.
+pub fn contact(a: &Side, b: &Side) -> Option<Collision> {
+    if !(a.mass > 0.0) || !(b.mass > 0.0) {
+        return None;
+    }
+    if !a.surface.is_usable() || !b.surface.is_usable() {
+        return None;
+    }
+    let d = b.pos - a.pos;
+    let dist = d.norm();
+    if !(dist > 0.0) || !dist.is_finite() {
+        return None;
+    }
+    let n = d.scale(1.0 / dist);
+    let rel = b.velocity - a.velocity;
+    let closing = rel.dot(n);
+    // Positive means b is moving away from a. Nothing to resolve, and resolving
+    // it anyway is how two overlapping things get stuck vibrating against each
+    // other for the rest of their lives.
+    if closing >= 0.0 {
+        return None;
+    }
+    let reduced = 1.0 / (1.0 / a.mass + 1.0 / b.mass);
+    let e = restitution(&a.surface, &b.surface, closing);
+    let jn = -(1.0 + e) * closing * reduced;
+    if !jn.is_finite() || jn <= 0.0 {
+        return None;
+    }
+
+    // Tangential: arrest the sliding if friction can afford to, and slide at
+    // the Coulomb limit if it cannot.
+    let tangent_v = rel - n.scale(closing);
+    let slide = tangent_v.norm();
+    let (friction_impulse, jt) = if slide > 0.0 {
+        let t = tangent_v.scale(1.0 / slide);
+        let mu = friction(&a.surface, &b.surface);
+        let jt = (slide * reduced).min(mu * jn);
+        (t.scale(-jt), jt)
+    } else {
+        (Vec3::ZERO, 0.0)
+    };
+
+    // The couple, about **one** contact point used by both sides.
+    //
+    // The obvious spelling — a's radius out from a, b's radius back from b — is
+    // wrong, and wrong in a way that only shows up once the two are actually
+    // interpenetrating. Those are two different points whenever `dist` is not
+    // exactly `r_a + r_b`, and the total angular momentum then comes out as
+    // `(dist - r_a - r_b) (n x J)` instead of zero: a 1.3% leak at a tenth of a
+    // radius of overlap, which is what the test measured before this was fixed.
+    //
+    // With a single point anywhere on the line of centres the spins contribute
+    // `-dist (n x J)` and the orbital terms `+dist (n x J)`, identically, for
+    // any choice of it. The choice made here is where the two surfaces would
+    // meet if the overlap were shared out in proportion to the radii, which is
+    // the touching point when they are just touching.
+    let lever = dist * a.radius / (a.radius + b.radius).max(1e-300);
+    let spin_a = n.scale(lever).cross(friction_impulse.scale(-1.0));
+    let spin_b = n.scale(lever - dist).cross(friction_impulse);
+
+    // Energy not returned. The normal direction loses `(1 - e^2)` of the
+    // approach energy; the tangential direction loses whatever the friction
+    // impulse took out of the sliding.
+    let normal_loss = 0.5 * reduced * closing * closing * (1.0 - e * e);
+    let slide_after = (slide - jt / reduced).max(0.0);
+    let tangent_loss = 0.5 * reduced * (slide * slide - slide_after * slide_after);
+    let heat = (normal_loss + tangent_loss).max(0.0);
+    let (ca, cb) = (a.heat_capacity.max(0.0), b.heat_capacity.max(0.0));
+    let total = ca + cb;
+    let (heat_a, heat_b) = if total > 0.0 {
+        (heat * ca / total, heat * cb / total)
+    } else {
+        (0.0, 0.0)
+    };
+
+    Some(Collision {
+        normal: n.scale(jn),
+        friction: friction_impulse,
+        spin_a,
+        spin_b,
+        heat_a,
+        heat_b,
+    })
+}

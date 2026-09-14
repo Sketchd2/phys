@@ -633,3 +633,378 @@ fn an_exchange_does_not_pin_what_it_touches() {
         "a user impulse should still pin, and now does not"
     );
 }
+
+// ---------------------------------------------------------------------------
+// Contact: the impulsive half of D3.
+// ---------------------------------------------------------------------------
+
+use phys::neighbourhood::{contact, restitution, yield_velocity, Side, Surface};
+use phys::topology::Material;
+
+fn side(x: f64, vx: f64, m: f64, r: f64, mat: &Material) -> Side {
+    Side {
+        pos: v3(x, 0.0, 0.0),
+        velocity: v3(vx, 0.0, 0.0),
+        mass: m,
+        radius: r,
+        heat_capacity: 1000.0,
+        surface: Surface::of(mat),
+    }
+}
+
+/// Restitution is a function of the impact, not a property of the material.
+///
+/// This is the whole reason D3 asks for it to be derived. A tabulated
+/// coefficient is right at one speed; the same pair of surfaces returns a third
+/// of a slow approach and a seventh of a fast one, and no single number is both.
+#[test]
+fn restitution_falls_with_the_speed_of_the_impact() {
+    let wood = Surface::of(&Material::GREEN_WOOD);
+    let slow = restitution(&wood, &wood, 1.0);
+    let fast = restitution(&wood, &wood, 20.0);
+    assert!(
+        slow > fast,
+        "wood returned {slow} of a 1 m/s approach and {fast} of a 20 m/s one"
+    );
+    assert!((0.0..=1.0).contains(&slow) && (0.0..=1.0).contains(&fast));
+    // Below the yield velocity nothing is lost, because nothing has yielded.
+    let v_y = yield_velocity(&wood, &wood);
+    assert!(v_y > 0.0, "wood has no yield velocity at all");
+    assert_eq!(restitution(&wood, &wood, v_y * 0.5), 1.0);
+}
+
+/// Masonry does not bounce and a steel frame does, at the same speed, without
+/// either having been told so.
+#[test]
+fn a_stiff_strong_surface_returns_more_than_a_weak_one() {
+    let frame = Surface::of(&Material::REINFORCED_FRAME);
+    let masonry = Surface::of(&Material::MASONRY);
+    let (a, b) = (
+        restitution(&frame, &frame, 5.0),
+        restitution(&masonry, &masonry, 5.0),
+    );
+    assert!(
+        a > 4.0 * b,
+        "a reinforced frame returned {a} and masonry {b} at the same 5 m/s"
+    );
+}
+
+/// Nothing without a surface collides with anything.
+///
+/// A gas parcel and a star cluster are things a node holds, and giving them a
+/// surface so that the collision code has something to read would be the engine
+/// being *told* they are solid.
+#[test]
+fn a_thing_with_no_surface_does_not_collide() {
+    let steel = Material::STEEL;
+    let mut ghost = side(1.9, -3.0, 125.0, 1.0, &steel);
+    ghost.surface = Surface { density: 0.0, stiffness: 0.0, strength: 0.0 };
+    assert!(contact(&side(0.0, 3.0, 125.0, 1.0, &steel), &ghost).is_none());
+    // And a pair already separating is left alone, or two overlapping things
+    // buzz against each other forever.
+    assert!(contact(
+        &side(0.0, -3.0, 125.0, 1.0, &steel),
+        &side(1.9, 3.0, 125.0, 1.0, &steel)
+    )
+    .is_none());
+}
+
+/// The contact conserves momentum and energy, and the energy it does not
+/// return is accounted for as heat rather than dropped.
+#[test]
+fn a_contact_closes_its_books() {
+    let m = Material::STEEL;
+    let (a, b) = (side(0.0, 3.0, 125.0, 1.0, &m), side(1.9, -3.0, 200.0, 1.0, &m));
+    let c = contact(&a, &b).expect("an approaching overlap is a contact");
+
+    // One impulse, applied with both signs.
+    let total = c.normal + c.friction;
+    let (va, vb) = (
+        a.velocity - total.scale(1.0 / a.mass),
+        b.velocity + total.scale(1.0 / b.mass),
+    );
+    let before = a.velocity.scale(a.mass) + b.velocity.scale(b.mass);
+    let after = va.scale(a.mass) + vb.scale(b.mass);
+    assert!(
+        (after - before).norm() < 1e-9,
+        "momentum went from {before:?} to {after:?}"
+    );
+
+    let ke_before = 0.5 * a.mass * a.velocity.norm2() + 0.5 * b.mass * b.velocity.norm2();
+    let ke_after = 0.5 * a.mass * va.norm2() + 0.5 * b.mass * vb.norm2();
+    assert!(
+        ke_after <= ke_before + 1e-9,
+        "the contact created energy: {ke_before} J became {ke_after} J"
+    );
+    let lost = ke_before - ke_after;
+    let heat = c.heat_a + c.heat_b;
+    assert!(
+        (heat - lost).abs() / lost.max(1e-30) < 1e-9,
+        "{lost} J left the motion and {heat} J arrived as heat"
+    );
+    // Split so both sides rise by the same temperature: equal capacities here,
+    // so equal shares.
+    assert!((c.heat_a - c.heat_b).abs() < 1e-9);
+}
+
+/// The friction couple conserves angular momentum about any point.
+///
+/// The obvious spelling of it does not, and only stops doing so once the two
+/// are interpenetrating rather than just touching — which is the only state the
+/// engine ever actually sees. Measured at a 1.3% leak per contact before the
+/// contact point was made a single point shared by both sides.
+#[test]
+fn the_friction_couple_conserves_angular_momentum() {
+    let m = Material::STEEL;
+    let mut a = side(0.0, 3.0, 125.0, 1.0, &m);
+    let mut b = side(1.9, -3.0, 125.0, 1.0, &m);
+    // Sliding as well as closing, or there is no friction to test.
+    a.velocity = v3(3.0, 2.0, 0.0);
+    b.velocity = v3(-3.0, -1.0, 0.0);
+    let c = contact(&a, &b).expect("an approaching overlap is a contact");
+    assert!(c.friction.norm() > 0.0, "no friction acted, so nothing is under test");
+
+    let total = c.normal + c.friction;
+    let l_before = a.pos.cross(a.velocity.scale(a.mass)) + b.pos.cross(b.velocity.scale(b.mass));
+    let va = a.velocity - total.scale(1.0 / a.mass);
+    let vb = b.velocity + total.scale(1.0 / b.mass);
+    let l_after = a.pos.cross(va.scale(a.mass))
+        + b.pos.cross(vb.scale(b.mass))
+        + c.spin_a
+        + c.spin_b;
+    let scale = l_before.norm().max(l_after.norm()).max(1e-30);
+    assert!(
+        (l_after - l_before).norm() / scale < 1e-12,
+        "angular momentum went from {l_before:?} to {l_after:?}"
+    );
+}
+
+/// Friction cannot exceed the Coulomb limit, and stops the slide when it can
+/// afford to.
+#[test]
+fn friction_is_bounded_by_the_normal_impulse() {
+    let m = Material::STEEL;
+    let mu = phys::neighbourhood::friction(&Surface::of(&m), &Surface::of(&m));
+    // Sliding far faster than it is closing: friction saturates.
+    let mut a = side(0.0, 0.2, 125.0, 1.0, &m);
+    let mut b = side(1.9, -0.2, 125.0, 1.0, &m);
+    a.velocity = v3(0.2, 50.0, 0.0);
+    b.velocity = v3(-0.2, -50.0, 0.0);
+    let c = contact(&a, &b).expect("an approaching overlap is a contact");
+    let ratio = c.friction.norm() / c.normal.norm();
+    assert!(
+        ratio <= mu + 1e-12,
+        "friction reached {ratio} of the normal impulse, above the limit of {mu}"
+    );
+    assert!(ratio > mu * 0.999, "friction should have saturated, and reached {ratio}");
+}
+
+/// Two promoted things with materials, overlapping and closing, in a node whose
+/// own solver is quiet enough that what happens is the contact.
+///
+/// `Tier::Galactic` at ten metres, deliberately. A tier is a physics regime and
+/// not a size, so a small node can carry the collisionless gravity solver — and
+/// a hundred kilograms two metres apart pull on each other at 10^-9 m/s^2,
+/// which leaves the contact as the only thing in the measurement. The
+/// alternatives were both measured and both unusable: `Tier::Continuum` runs
+/// SPH, and eight particles in a ten-metre ball reach 10^6 m/s within a frame
+/// whether or not anything collides; and the same test written at galactic
+/// *distances* silently placed both children at the same point, because 50 m
+/// added to 2x10^20 m is below what an `f64` can represent.
+fn colliding_pair(approaching: bool) -> (phys::engine::World, phys::ids::NodeIdx, phys::ids::NodeIdx) {
+    use phys::engine::{default_spec, World};
+    use phys::morph::Program;
+    use phys::sampler::{MassSpectrum, Profile, SampleSpec};
+    use phys::state::{BodyKind, Composition, Matter};
+    use phys::tree::Tree;
+
+    let matter = Matter::neutral(1000.0, 10.0, 290.0, Composition::primordial());
+    let spec = SampleSpec::new(8, Profile::Uniform, MassSpectrum::Equal, BodyKind::Grain);
+    let mut w = World::new(Tree::new(0xC07AC7, matter, Tier::Galactic, spec), 1.0);
+    let root = w.tree.root;
+    w.tree.refine(root);
+    let tier = w.tree.nodes[root.get()].tier;
+    let a = w.tree.promote(root, 0, default_spec(tier.finer()));
+    let b = w.tree.promote(root, 1, default_spec(tier.finer()));
+    // A structure is what has a material, and a material is what has a surface.
+    w.emplace(a, Program::Tower, 1.0, None);
+    w.emplace(b, Program::Tower, 1.0, None);
+    // Sized by hand. A promoted child that comes out larger than the parent it
+    // was promoted from is a separate defect and not what this measures.
+    w.tree.nodes[a.get()].matter.radius = 1.0;
+    w.tree.nodes[b.get()].matter.radius = 1.0;
+    let at = w.tree.nodes[a.get()].motion.offset;
+    w.tree.nodes[b.get()].motion.offset = at + v3(1.9, 0.0, 0.0);
+    let s = if approaching { 1.0 } else { -1.0 };
+    w.tree.nodes[a.get()].motion.velocity = v3(3.0 * s, 0.0, 1.0);
+    w.tree.nodes[b.get()].motion.velocity = v3(-3.0 * s, 0.0, 0.0);
+    w.tree.pin(a);
+    w.tree.pin(b);
+    (w, a, b)
+}
+
+/// The Phase 1 headline: two promoted things collide and rebound at a
+/// restitution derived from what they are made of.
+#[test]
+fn two_promoted_things_collide_and_rebound() {
+    let (mut w, a, b) = colliding_pair(true);
+    let (ma, mb) = (
+        w.tree.nodes[a.get()].matter.mass,
+        w.tree.nodes[b.get()].matter.mass,
+    );
+    let closing_before = (w.tree.nodes[b.get()].motion.velocity
+        - w.tree.nodes[a.get()].motion.velocity)
+        .x;
+    assert!(closing_before < 0.0, "the pair should start out approaching");
+
+    w.advance_node(w.tree.root, 1.0);
+
+    assert_eq!(w.stats.contacts_resolved, 1, "the overlap was never resolved");
+    let closing_after = (w.tree.nodes[b.get()].motion.velocity
+        - w.tree.nodes[a.get()].motion.velocity)
+        .x;
+    assert!(
+        closing_after > 0.0,
+        "they were closing at {closing_before} m/s and are still closing at \
+         {closing_after} m/s"
+    );
+    assert!(
+        closing_after < -closing_before,
+        "they separated at {closing_after} m/s having approached at \
+         {closing_before} m/s, which is more than was put in"
+    );
+
+    // And the rebound is the one the materials say, not a number picked to make
+    // this pass. Both are reinforced frame; the separation ratio is the
+    // restitution at the speed they met at.
+    let surface = Surface::of(&Material::REINFORCED_FRAME);
+    let expected = restitution(&surface, &surface, closing_before);
+    let measured = closing_after / -closing_before;
+    assert!(
+        (measured - expected).abs() < 1e-3,
+        "they rebounded at {measured} of the approach where the materials say \
+         {expected}"
+    );
+    let _ = (ma, mb);
+}
+
+/// And the contact conserves what a contact has to conserve, measured against
+/// the same pair passing without touching.
+///
+/// The control is the same geometry with both velocities reversed, so the
+/// solver sees identical masses at identical positions and its own residual —
+/// which is not zero — appears in both runs. Whatever separates them is the
+/// contact.
+#[test]
+fn a_collision_in_a_running_world_conserves_momentum_and_spin() {
+    let mut momenta = Vec::new();
+    let mut angular = Vec::new();
+    for approaching in [true, false] {
+        let (mut w, a, b) = colliding_pair(approaching);
+        let total = |w: &phys::engine::World| {
+            let (na, nb) = (&w.tree.nodes[a.get()], &w.tree.nodes[b.get()]);
+            let pa = na.motion.velocity.scale(na.matter.mass);
+            let pb = nb.motion.velocity.scale(nb.matter.mass);
+            (
+                pa + pb,
+                na.motion.offset.cross(pa)
+                    + na.matter.spin
+                    + nb.motion.offset.cross(pb)
+                    + nb.matter.spin,
+            )
+        };
+        let (p0, l0) = total(&w);
+        w.advance_node(w.tree.root, 1.0);
+        let (p1, l1) = total(&w);
+        assert_eq!(
+            w.stats.contacts_resolved,
+            u64::from(approaching),
+            "a pair moving apart must not be resolved as a contact"
+        );
+        momenta.push((p1 - p0).norm() / p0.norm());
+        angular.push((l1 - l0).norm() / l0.norm().max(1e-300));
+    }
+    // The contact's own contribution to either is nothing: the run that had one
+    // drifts no more than the run that did not.
+    assert!(
+        momenta[0] < momenta[1] * 2.0 + 1e-12,
+        "the collision moved the pair's momentum by {} against {} for the same \
+         pair passing untouched",
+        momenta[0],
+        momenta[1]
+    );
+    assert!(
+        angular[0] < angular[1] * 2.0 + 1e-12,
+        "the collision moved the pair's angular momentum by {} against {} for \
+         the same pair passing untouched — the friction couple is unbalanced",
+        angular[0],
+        angular[1]
+    );
+}
+
+/// Two bodies of the same node are not in contact, they are in it together.
+///
+/// The hazard is real and was measured rather than assumed — and it is not
+/// universal, which is why it is worth pinning. A materialised `Wall` has 527
+/// overlapping pairs among 55 members, because a wall is courses of blocks
+/// packed against each other; a `Tower`, a `Tree` and a `Settlement` have none,
+/// because their members are long and thin and sit a member-length apart.
+/// Resolving a wall's courses as collisions would blow it apart on the frame it
+/// was materialised.
+///
+/// The rule is broader than that case, though. A node's own bodies are already
+/// coupled by whatever the node is — the structure solver for members of a
+/// structure, the tier's solver for parcels of a continuum — so contact is for
+/// what that coupling does not reach: a promoted child against another, or
+/// against the bodies of the node it is sitting in.
+#[test]
+fn the_bodies_of_one_node_do_not_collide_with_each_other() {
+    use phys::engine::World;
+    use phys::morph::Program;
+    use phys::sampler::{MassSpectrum, Profile, SampleSpec};
+    use phys::state::{BodyKind, Composition, Matter};
+    use phys::tree::Tree;
+
+    let matter = Matter::neutral(1.0e5, 10.0, 290.0, Composition::primordial());
+    let spec = SampleSpec::new(64, Profile::Uniform, MassSpectrum::Equal, BodyKind::Grain);
+    let mut w = World::new(Tree::new(0x571FF, matter, Tier::Galactic, spec), 1.0);
+    let root = w.tree.root;
+    // A material for every body in it, which is the condition contact needs.
+    // A wall, specifically: it is the program whose members actually overlap.
+    w.emplace(root, Program::Wall, 1.0e4, None);
+    w.tree.refine(root);
+    let n = w.tree.nodes[root.get()].bodies.len();
+    assert!(n > 4, "the structure should have members to test, and has {n}");
+
+    let nb = w.tree.neighbourhood(root);
+    let pairs = nb.pairs(0.0).expect("zero is within any reach");
+    let overlaps = pairs.len();
+    assert!(
+        overlaps > 0,
+        "a wall's courses should overlap each other and none of them do — this \
+         test would then prove nothing"
+    );
+
+    // And they have to be *moving into* each other, or nothing is under test.
+    // A materialised structure sits still, so every pair of its members is
+    // refused by `contact` for having no closing speed at all — which is how
+    // the first version of this test passed with the rule it exists to check
+    // deleted outright.
+    {
+        let bodies = &mut w.tree.nodes[root.get()].bodies;
+        for &(i, j) in pairs.iter() {
+            let toward = (bodies[j].pos - bodies[i].pos).unit();
+            bodies[i].vel = toward.scale(5.0);
+            bodies[j].vel = toward.scale(-5.0);
+        }
+    }
+
+    for _ in 0..3 {
+        w.advance_node(root, 1.0);
+    }
+    assert_eq!(
+        w.stats.contacts_resolved, 0,
+        "{overlaps} overlapping pairs inside one structure were resolved as \
+         collisions; a tree would come apart on the frame it was materialised"
+    );
+}

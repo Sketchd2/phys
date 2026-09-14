@@ -283,6 +283,11 @@ pub struct EngineStats {
     pub precipitated: f64,
     /// Melting, freezing, boiling and condensing, likewise.
     pub phase_changed: f64,
+    /// Overlaps resolved into an impulse pair, summed over nodes and frames.
+    /// Counts contacts, not newton-seconds, for the same reason
+    /// `exchange_crossings` counts crossings: a coupling that silently stops
+    /// happening looks identical to one that has nothing to do.
+    pub contacts_resolved: u64,
     /// Boundaries heat actually crossed, summed over nodes and frames. Counts
     /// transfers, not joules: it answers "is anything talking to its
     /// neighbours at all", which is the question a coupling that silently does
@@ -1695,6 +1700,11 @@ impl World {
         } else {
             dt
         };
+        // Whatever the solver has just driven into whatever else. Before the
+        // exchange, so the heat a collision makes is there to be conducted
+        // away in the same pass rather than a frame later.
+        self.contact_within(idx);
+
         // Heat crosses the boundaries between the things this node holds, on
         // the same span the solver just integrated. After the solve rather than
         // before it: the solver moves them, and what is next to what is a
@@ -1727,6 +1737,145 @@ impl World {
             c.proper_time += coordinate * physical;
         }
         report
+    }
+
+    /// The material a node presents to something that runs into it, if it
+    /// presents one at all.
+    ///
+    /// Two sources and no third. A materialised structure carries its material
+    /// on its `Topology`; an unmaterialised one carries its program, and
+    /// `Morphology::material` answers from that. A node that is neither — a gas
+    /// parcel, a star cluster, a ball of undifferentiated matter — has no
+    /// surface, and that is measured rather than assumed: nothing here invents
+    /// one from a tier or a body kind.
+    ///
+    /// `Morphology::material` is itself a per-species table and one of the
+    /// columns `PLAY.md` D11 exists to move onto the material. Reading it here
+    /// adds no new dispatch site, and when D11 lands this reads whatever
+    /// replaces it.
+    fn surface_of(&self, idx: NodeIdx) -> Option<crate::neighbourhood::Surface> {
+        let n = &self.tree.nodes[idx.get()];
+        let m = match &n.topology {
+            Some(t) => t.material,
+            None => n.morphology.as_ref()?.material(),
+        };
+        Some(crate::neighbourhood::Surface::of(&m))
+    }
+
+    /// Resolve the overlaps inside one node. `docs/PLAY.md` D3, the impulsive
+    /// half.
+    ///
+    /// Overlap is `pairs(0.0)` — the gap a pair is separated by, at or below
+    /// zero — so the same index that says what is *near* what says what is
+    /// *inside* what, with no second traversal and no second notion of
+    /// adjacency. That was the point of building one primitive.
+    ///
+    /// # Where velocity is written, and why not through the mailbox
+    ///
+    /// The impulse goes straight onto `Motion::velocity` for a promoted child,
+    /// which is the same path D4 established for the force its parent's solver
+    /// computes, and the only field that means "how fast this node is moving in
+    /// its parent's frame". Posting it as momentum through `causal::Influence`
+    /// would land on `matter.momentum` — the node's *internal* momentum, the
+    /// motion of its contents about their own centre — which is a different
+    /// quantity that happens to have a similar name.
+    ///
+    /// The heat does go through the mailbox, as an `Exchange`, because heat is
+    /// energy arriving in another node's books and that is exactly what the
+    /// mailbox is for. Velocity is not: the parent already owns where its
+    /// children are going, and everything in this pass is inside one node,
+    /// which is one causal cell by construction.
+    ///
+    /// # What it does not do
+    ///
+    /// It does not push interpenetrating things apart. A contact that is
+    /// already separating is left alone — resolving it again is how two
+    /// overlapping things end up vibrating against each other forever — but
+    /// nothing here removes an existing overlap either. Positional correction
+    /// is a solver concern and `PLAY.md` does not call for one.
+    fn contact_within(&mut self, idx: NodeIdx) -> u64 {
+        use crate::neighbourhood::{contact, Side};
+        let nb = self.tree.neighbourhood(idx);
+        if nb.len() < 2 {
+            return 0;
+        }
+        let Some(overlaps) = nb.pairs(0.0) else { return 0 };
+        if overlaps.is_empty() {
+            return 0;
+        }
+        // The material a plain body presents is its own node's: a structure's
+        // members are made of what the structure is made of.
+        let mine = self.surface_of(idx);
+
+        let side_of = |w: &World, i: usize| -> Option<(Occupant, Side)> {
+            let (occ, pos, radius) = nb.at(i)?;
+            let side = match occ {
+                Occupant::Body(k) => {
+                    let b = w.tree.nodes[idx.get()].bodies.get(k as usize)?;
+                    Side {
+                        pos,
+                        velocity: b.vel,
+                        mass: b.mass,
+                        radius,
+                        heat_capacity: b.heat_capacity(),
+                        surface: mine?,
+                    }
+                }
+                Occupant::Child(c) => {
+                    let n = &w.tree.nodes[c.get()];
+                    Side {
+                        pos,
+                        velocity: n.motion.velocity,
+                        mass: n.matter.mass,
+                        radius,
+                        heat_capacity: n.matter.heat_capacity(),
+                        surface: w.surface_of(c)?,
+                    }
+                }
+            };
+            Some((occ, side))
+        };
+
+        let mut resolved = 0u64;
+        let now = self.time;
+        for (i, j) in overlaps {
+            let (Some((oa, a)), Some((ob, b))) = (side_of(self, i), side_of(self, j)) else {
+                continue;
+            };
+            // Two bodies of the same node are not in contact, they are in it
+            // *together*, and whatever couples them is already running: the
+            // structure solver if the node is a structure, the tier's own
+            // solver if it is a continuum. Contact is for what that coupling
+            // does not reach — a promoted child against another, or against the
+            // bodies of the node it is sitting in. That is the same line
+            // `drop_fragments` already draws for a limb landing on a tree,
+            // arrived at from the other direction.
+            //
+            // Without this a structure would take its own joints as collisions.
+            // Measured, on materialised programs: a `Wall` has 527 overlapping
+            // pairs among 55 members, because a wall is courses of blocks
+            // packed against each other, and it would come apart on the frame
+            // it was materialised. A `Tower`, a `Tree` and a `Settlement` have
+            // none — their members are long and thin and sit a member-length
+            // apart — so the hazard is real without being universal, which is
+            // exactly the kind that gets shipped.
+            if matches!((oa, ob), (Occupant::Body(_), Occupant::Body(_))) {
+                continue;
+            }
+            let Some(c) = contact(&a, &b) else { continue };
+            let total = c.normal + c.friction;
+            if !total.is_finite() {
+                continue;
+            }
+            // `a` takes the negative of every impulse `b` takes. Written this
+            // way round so momentum conservation is a property of the code
+            // rather than something a test has to keep watch on.
+            apply_contact(self, idx, oa, total.scale(-1.0), c.spin_a, c.heat_a, now);
+            apply_contact(self, idx, ob, total, c.spin_b, c.heat_b, now);
+            resolved += 1;
+        }
+        self.stats.contacts_resolved += resolved;
+        resolved
     }
 
     /// Move heat between the things inside one node that are next to each
@@ -2329,8 +2478,27 @@ impl World {
                 None => frag.contacts(&[], &crate::topology::Topology::default(), 0.0),
             };
             report.contacts += contacts.len();
-            // Wood on wood: it does not bounce.
-            for (member, impulse) in frag.resolve(&contacts, 0.15) {
+            // Derived, not chosen. This was `0.15` with the comment "Wood on
+            // wood: it does not bounce", which is true at the speed it was
+            // tuned at and less true at every other one — the same two pieces
+            // of timber return a third of the approach at a walking pace and a
+            // seventh of it at twenty metres a second. `docs/PLAY.md` D3 is
+            // partly about this constant.
+            //
+            // The speed is the fastest of the contacts rather than the mean:
+            // `resolve` takes one restitution for the whole set, and it is the
+            // hardest contact that decides whether the piece bounces or stays.
+            let closing = contacts
+                .iter()
+                .map(|c| c.closing.abs())
+                .fold(0.0f64, f64::max);
+            let mine = crate::neighbourhood::Surface::of(&frag.topo.material);
+            let theirs = struck
+                .get(&node.get())
+                .map(|(_, t)| crate::neighbourhood::Surface::of(&t.material))
+                .unwrap_or(mine);
+            let e = crate::neighbourhood::restitution(&mine, &theirs, closing);
+            for (member, impulse) in frag.resolve(&contacts, e) {
                 strikes.push((*node, member, impulse));
             }
         }
@@ -3316,3 +3484,50 @@ pub fn galaxy(world_seed: u64, stars: f64) -> Tree {
 /// policy meant for a different scale. The tier has to be able to reach for its
 /// own policy, and the tier is decided below this module.
 pub use crate::sampler::{budgeted_spec, default_spec};
+
+/// Give one side of a contact its impulse, its couple and its share of the heat.
+///
+/// A free function rather than a method because `contact_within` is holding a
+/// borrow of the node's neighbourhood while it works, and the two halves of a
+/// contact have to be applied to different places — a body in this node, or a
+/// node of its own one level down.
+fn apply_contact(
+    w: &mut World,
+    parent: NodeIdx,
+    who: crate::neighbourhood::Occupant,
+    impulse: Vec3,
+    spin: Vec3,
+    heat: f64,
+    now: f64,
+) {
+    match who {
+        crate::neighbourhood::Occupant::Body(k) => {
+            if let Some(b) = w.tree.nodes[parent.get()].bodies.get_mut(k as usize) {
+                if b.mass > 0.0 {
+                    b.vel += impulse.scale(1.0 / b.mass);
+                }
+                b.spin += spin;
+                if heat != 0.0 {
+                    b.add_heat(heat);
+                }
+            }
+        }
+        crate::neighbourhood::Occupant::Child(c) => {
+            if c.is_none() || !w.tree.nodes[c.get()].alive {
+                return;
+            }
+            let n = &mut w.tree.nodes[c.get()];
+            if n.matter.mass > 0.0 {
+                n.motion.velocity = n.motion.velocity + impulse.scale(1.0 / n.matter.mass);
+            }
+            n.matter.spin += spin;
+            if heat != 0.0 {
+                // Through the mailbox, like every other joule crossing into
+                // another node's books. See `World::exchange_within`.
+                let d = n.motion.offset.norm();
+                w.mailbox
+                    .post(c, now, d, InfluenceKind::Exchange, heat, Vec3::ZERO);
+            }
+        }
+    }
+}

@@ -200,6 +200,48 @@ uniformly. Built lazily, cached, invalidated when the node's epoch moves.
   `topology.rs` already carries as data. This is where friction — currently
   absent above the Langevin thermostat — enters the engine.
 
+  *Built.* Overlap is `pairs(0.0)` on the same index — the gap at or below zero
+  — so what is *near* what and what is *inside* what are one traversal. The
+  impulse conserves momentum structurally (one impulse, both signs), angular
+  momentum through the friction couple, and energy by putting what the
+  restitution did not return back as heat.
+
+  **Restitution is derived and is not a constant.** `Material` already carries
+  Young's modulus, a rupture stress, a ductility that turns it into a yield
+  stress, and a density, which is exactly what elastic-plastic impact needs:
+  Hertzian contact first yields at a closing speed
+  `v_y = 2.73 sqrt(Y^5 / (E*^4 rho))` — size-independent, the `R^3` cancelling
+  on both sides — and above it `e = (v_y/v)^(1/4)`. So the same two surfaces
+  return a third of a walking-pace approach and a seventh of a fast one, which
+  no tabulated coefficient can do. It reproduces what it should: hardened steel
+  yields at 0.22 m/s against a literature 0.1-0.2, and green wood on green wood
+  at 5 m/s comes out at 0.23 where `drop_fragments` carried a hand-tuned 0.15.
+  That constant is now derived at the speed of the actual impact.
+
+  **Friction is derived and comes out material-independent**, which is a result
+  rather than a shortcut. Bowden and Tabor's account gives `mu = tau/H`, and
+  both terms belong to the softer of the two materials — it is the one that
+  flows to make the junction and the one that shears to break it — so the
+  strength cancels and `mu = 1/(3 sqrt 3) = 0.192`. That is why most dry
+  coefficients sit between 0.2 and 0.5 whatever they are made of. What actually
+  varies is roughness, surface films, and the melt layer that makes ice 0.05;
+  none of those are measurable here, so none are guessed at.
+
+  **Contact is for what the node's own solver does not couple.** Two bodies of
+  one node are already related — by the structure solver if the node is a
+  structure, by the tier's solver if it is a continuum — so only a promoted
+  child against another, or against the bodies it is sitting in, is resolved.
+  Without that a `Wall` takes its own courses as collisions: measured at 527
+  overlapping pairs among 55 members, where a `Tower`, a `Tree` and a
+  `Settlement` have none.
+
+  **A thing with no material does not collide**, and that is the open question
+  rather than a decision made here. A surface is read from a node's `Topology`
+  or, unmaterialised, from its `Morphology` — so a built thing has one and a
+  rock, a gas parcel and a star cluster do not. Giving them one would mean
+  telling the engine they are solid. What a plain lump of matter should present
+  to something that runs into it is not settled by this document.
+
 ### D4 — The promoted child is the authority
 
 Of the two directions `BACKLOG.md` lays out, take the second: the child node is
