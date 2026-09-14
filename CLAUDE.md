@@ -2,6 +2,34 @@
 
 `README.md` says what this project is and why. This says how to work on it.
 
+## Whose decision it is
+
+**Do not make assumptions on the owner's behalf that deviate from planned
+decisions. When a question comes up that the plan does not answer, stop and
+ask.**
+
+The plan is `docs/PLAY.md` and the decisions in it are settled — follow them
+without relitigating. Routine judgement *inside* a planned item is not a
+deviation: choose, say what you chose, and carry on. What needs asking is the
+question the plan did not foresee, and those are recognisable:
+
+- **A law the plan names but does not specify.** D3 says exchange moves a
+  conserved quantity "at a rate set by a transport coefficient derived from
+  their `Mixture`s". No thermal conductivity exists anywhere in the codebase.
+  Picking one is a `PHYSICS.md`-weight decision wearing an implementation
+  detail's clothes.
+- **An item that turns out to be wider than it reads.** "`PaceMode::Fixed(1.0)`
+  as what a world is" looks like a changed default. It is two mechanisms, and
+  retiring the second one needs a scheduler rule D1 explicitly says does not
+  exist yet. How far to go was not the plan's to decide silently.
+- **A scope boundary the plan draws without saying which side something is
+  on.** Contact is specified for things with materials. Whether a rock — which
+  has none — should collide is a question about the play space, not about code.
+
+The cost of asking is one round trip. The cost of not asking is a decision
+buried in a commit, defended by a doc comment, and found six weeks later by
+somebody reading it as settled.
+
 ## The axioms
 
 These are not preferences. Code that breaks one of them is wrong even if it

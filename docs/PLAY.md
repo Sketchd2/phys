@@ -10,6 +10,15 @@ a later reader can tell a choice from an accident.
 
 Nothing here is built yet. Everything here is decided.
 
+**How this document is to be used.** The decisions here are settled and are to
+be followed rather than relitigated. Where the work reaches a question this
+document does not answer — a law it names without specifying, an item that turns
+out to be wider than it reads, a boundary it draws without saying which side
+something falls on — **that is a question for the owner, not an assumption to
+make on their behalf.** Ask, and record the answer here. Routine judgement
+inside a decision already taken is not a deviation; state what was chosen and
+carry on. `CLAUDE.md` carries the same rule with worked examples of each kind.
+
 ---
 
 ## 1. What was actually missing
