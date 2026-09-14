@@ -661,6 +661,40 @@ impl Tree {
         }
     }
 
+    /// What is next to what, inside this node.
+    ///
+    /// Built on demand rather than cached. Whether it should be cached is a
+    /// question for a measurement rather than a guess: the build is O(n) over
+    /// the node's contents, and until something asks for it often enough to
+    /// matter, a cache is a second thing that can go stale. `Neighbourhood`
+    /// carries the epoch it was built at so that a caller who does keep one can
+    /// tell.
+    ///
+    /// Returns an empty neighbourhood for a node that is not materialised,
+    /// which is honest: a node with no contents has nothing next to anything.
+    pub fn neighbourhood(&self, i: crate::ids::NodeIdx) -> crate::neighbourhood::Neighbourhood {
+        let n = &self.nodes[i.get()];
+        let parts = n.bodies.len();
+        // The node's own resolution, and deliberately the same expression
+        // `World::node_resolution` and `Matter::signal_crossing` use. Three
+        // definitions of one length is how they drift apart.
+        let resolution = if parts > 1 {
+            n.matter.radius / (parts as f64).cbrt()
+        } else {
+            n.matter.radius
+        };
+        crate::neighbourhood::Neighbourhood::build(
+            &n.bodies,
+            &n.children,
+            resolution,
+            n.epoch,
+            |c| {
+                let child = self.nodes.get(c.get())?;
+                child.alive.then(|| (child.motion.offset, child.matter.radius))
+            },
+        )
+    }
+
     /// Give a node a developmental state, turning it from a statistical
     /// population into a structure with a history.
     ///

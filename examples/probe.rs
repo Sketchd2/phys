@@ -452,13 +452,48 @@ fn replay_cost() {
 }
 
 // ---------------------------------------------------------------------------
+// D3 — what does a neighbour query cost?
+// ---------------------------------------------------------------------------
+
+fn neighbour_cost() {
+    rule("D3  building and querying a node's neighbourhood");
+    println!("{:>10} {:>13} {:>13} {:>12} {:>16}",
+             "contents", "build (us)", "query (us)", "cells", "all-pairs / frame");
+    for n in [1_000usize, 10_000, 100_000] {
+        let mut w = World::new(galaxy(0xADDA, 1e9), 20.0);
+        w.tree.nodes[0].spec.count = n;
+        let root = w.tree.root;
+        w.tree.refine(root);
+        let count = w.tree.nodes[root.get()].bodies.len();
+
+        let reps = if n > 50_000 { 20 } else { 200 };
+        let t = std::time::Instant::now();
+        for _ in 0..reps { std::hint::black_box(w.tree.neighbourhood(root)); }
+        let build = t.elapsed().as_secs_f64() / reps as f64;
+
+        let hood = w.tree.neighbourhood(root);
+        let pts: Vec<_> = w.tree.nodes[root.get()].bodies.iter().map(|b| b.pos).collect();
+        let qreps = 20_000.min(pts.len());
+        let t = std::time::Instant::now();
+        for i in 0..qreps { std::hint::black_box(hood.near(pts[i], hood.reach() * 0.5)); }
+        let query = t.elapsed().as_secs_f64() / qreps as f64;
+
+        println!("{:>10} {:>13.1} {:>13.4} {:>12} {:>15.1}%",
+                 count, build * 1e6, query * 1e6, hood.cells(),
+                 (build + query * count as f64) / 0.05 * 100.0);
+    }
+    println!("\n(`all-pairs / frame` is building the index once and asking every");
+    println!(" occupant for its neighbours, as a share of a 50 ms frame -- the");
+    println!(" shape a conduction or contact pass would have.)");
+}
+
+// ---------------------------------------------------------------------------
 // Probes blocked on machinery the plan has not built
 // ---------------------------------------------------------------------------
 
 fn blocked() {
     rule("not runnable yet, and why");
     let rows = [
-        ("neighbour query cost", "D3's index does not exist; a prototype is Phase 1 work"),
 
         ("promoted-sibling conservation", "needs D4's per-frame sync to measure against"),
         ("gait optimisation time", "no gait solver exists; D7 is Phase 4"),
@@ -489,6 +524,7 @@ fn main() {
     if run("limb") { limb_chord_rotation(); }
     if run("checkpoint") { checkpoint_size(); }
     if run("replay") { replay_cost(); }
+    if run("neighbours") { neighbour_cost(); }
     if run("blocked") { blocked(); }
     println!();
 }

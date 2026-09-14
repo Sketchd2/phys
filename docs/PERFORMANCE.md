@@ -137,6 +137,21 @@ in water, **3.91 m** in rock. The galaxy scenario's crossover is coarser than
 the air row because its `Continuum` gas is hot and its signal speed is tens of
 km/s.
 
+**What a neighbour query costs** (D3). Building a node's `Neighbourhood` over
+its contents, and asking one occupant for what is near it:
+
+| contents | build | one query | cells | build + all-pairs, per frame |
+|---:|---:|---:|---:|---:|
+| 1,000 | 114 µs | 1.58 µs | 545 | 3.4% |
+| 10,000 | 1.16 ms | 2.24 µs | 5,068 | **47.1%** |
+| 100,000 | 16.8 ms | 4.46 µs | 49,831 | **925%** |
+
+The last column is the shape a conduction or contact pass has: build once, then
+ask every occupant. **Affordable to about 10⁴ contents in a node**, which is the
+same ceiling the idle-frame floor has, so the two agree on where the play space
+sits. Past that a pass over every pair has to be budgeted like any other task
+rather than run unconditionally.
+
 **A limb cannot reach a stride by bending** (D5). Two 0.4 m green-wood segments,
 30 mm radius, hip built in, transverse load at the tip:
 

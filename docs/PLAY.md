@@ -1801,7 +1801,7 @@ a scratch probe that Phase 0 should commit properly rather than from arithmetic.
 
 | Question | Why it matters | Probe |
 |---|---|---|
-| What does a neighbour query cost at 10³–10⁵ contents? | D3 is on every frame's critical path. If it is expensive, the frame budget arithmetic in `PERFORMANCE.md` changes. | Build the index over the existing scenarios and time it. |
+| ~~What does a neighbour query cost at 10³–10⁵ contents?~~ | **Answered: affordable to ~10⁴ contents.** Build 114 µs at 10³, 1.16 ms at 10⁴, 16.8 ms at 10⁵; one query 1.6–4.5 µs. Build-plus-all-pairs is 3.4%, 47.1% and 925% of a frame. Same ceiling as the idle floor, so the two agree. | done — `examples/probe.rs`, `tests/adjacency.rs` |
 | ~~Do segments of a walking limb exceed 0.1 rad of chord rotation?~~ | **Answered: no, and D5 is confirmed more strongly than it claimed.** The member ruptures at 700 N having travelled 1.3% of its length, with chord rotation only 0.018. A limb has no elastic path to a stride at all, so the large rotation must live in a joint between substructures and corotational elements are *off* the critical path — they would permit a bend the material does not. | done — `tests/probes.rs` |
 | Does slaving the parent body every frame preserve `summarise(sample(m)) == m`? | D4 writes into the conserved set every frame. `IDEMPOTENT_TOLERANCE` is the contract. | Promote, run, coarsen, compare against the existing consistency harness. |
 | How long does a gait optimisation take, and does it converge? | D7's shortcut is only a shortcut if deriving it is rare and bounded. | Solve one quadruped gait offline and time it. |

@@ -122,3 +122,199 @@ fn axis_key(x: f64, s: f64) -> i64 {
 fn key_of(p: Vec3, s: f64) -> (i64, i64, i64) {
     (axis_key(p.x, s), axis_key(p.y, s), axis_key(p.z, s))
 }
+
+// ---------------------------------------------------------------------------
+// what a node holds
+// ---------------------------------------------------------------------------
+
+/// One thing a node contains, at the finest resolution the node has for it.
+///
+/// A node's `children` runs parallel to its `bodies`: a promoted child *is* one
+/// of those bodies, seen one level down. So a slot is one occupant, never two —
+/// indexing both would make a thing its own neighbour and double every mass
+/// that crossed a boundary.
+///
+/// Which of the two represents the slot is settled by the same rule promotion
+/// is: the child is the real thing and the body is its stand-in, so where a
+/// child exists it is what the neighbourhood holds.
+/// Ordered so that a caller who needs a stable order can sort for one. The
+/// query does not: `NeighbourGrid` visits its 27 cells in a fixed order and
+/// each cell's contents are already in increasing index, so the result is
+/// deterministic without sorting — and sorting it once measured 60% of the
+/// molecular dynamics runtime, which is why it is the caller's choice.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum Occupant {
+    /// Index into the node's `bodies`.
+    Body(u32),
+    /// A promoted child, standing for the body in the same slot.
+    Child(crate::ids::NodeIdx),
+}
+
+impl Occupant {
+    /// The slot this occupant sits in, which is its index in either list.
+    pub fn slot(self, children: &[crate::ids::NodeIdx]) -> Option<usize> {
+        match self {
+            Occupant::Body(i) => Some(i as usize),
+            Occupant::Child(c) => children.iter().position(|x| *x == c),
+        }
+    }
+}
+
+/// What is next to what, inside one node.
+///
+/// Positions are in the node's own frame and distances in its own units, which
+/// is what makes this scale-free: the same code indexes a galaxy's arms and a
+/// nucleus's nucleons, because the numbers it sees are of order one either way.
+/// There is no per-tier variant and there must not be one.
+///
+/// # The spacing, and why it is not simply the resolution
+///
+/// The grid's 27-cell walk finds everything within one cell of a point and
+/// nothing beyond it, so the spacing has to be at least the largest distance
+/// any query will ask about. A node's own resolution — its radius over the cube
+/// root of its count, the same length SPH uses for a smoothing length — is the
+/// natural scale, but an occupant larger than that would have its overlaps
+/// missed. So the spacing is the greater of the resolution and twice the
+/// largest occupant radius, which is the smallest spacing at which two touching
+/// things are guaranteed to share or neighbour a cell.
+///
+/// The degenerate case is real and worth knowing: one occupant nearly as large
+/// as the node forces a spacing that puts everything in a handful of cells, and
+/// the query goes back to O(n). That is correct, merely slow, and it is what a
+/// node holding one enormous thing and a thousand small ones actually deserves.
+pub struct Neighbourhood {
+    grid: NeighbourGrid,
+    occupants: Vec<Occupant>,
+    positions: Vec<Vec3>,
+    radii: Vec<f64>,
+    /// The node epoch this was built against. A node whose epoch has moved has
+    /// different contents, and a neighbourhood built before it is stale.
+    epoch: u32,
+}
+
+impl Neighbourhood {
+    /// Build over a node's contents.
+    ///
+    /// `resolution` is the node's own, and `child_at(slot)` supplies the
+    /// position and radius of the promoted child in that slot if there is one.
+    /// Taking it as a closure keeps this module free of the tree: adjacency is
+    /// about geometry, and which arena a child lives in is not its business.
+    pub fn build(
+        bodies: &[Body],
+        children: &[crate::ids::NodeIdx],
+        resolution: f64,
+        epoch: u32,
+        mut child_at: impl FnMut(crate::ids::NodeIdx) -> Option<(Vec3, f64)>,
+    ) -> Neighbourhood {
+        let n = bodies.len().max(children.len());
+        let mut occupants = Vec::with_capacity(n);
+        let mut positions = Vec::with_capacity(n);
+        let mut radii = Vec::with_capacity(n);
+
+        for slot in 0..n {
+            let promoted = children
+                .get(slot)
+                .copied()
+                .filter(|c| !c.is_none())
+                .and_then(|c| child_at(c).map(|(p, r)| (c, p, r)));
+            match promoted {
+                Some((c, p, r)) => {
+                    occupants.push(Occupant::Child(c));
+                    positions.push(p);
+                    radii.push(r.max(0.0));
+                }
+                None => {
+                    let Some(b) = bodies.get(slot) else { continue };
+                    occupants.push(Occupant::Body(slot as u32));
+                    positions.push(b.pos);
+                    radii.push(b.radius.max(0.0));
+                }
+            }
+        }
+
+        let widest = radii.iter().copied().fold(0.0f64, f64::max);
+        let spacing = resolution.max(2.0 * widest).max(1e-30);
+        let grid = NeighbourGrid::of_points(positions.iter().copied(), spacing);
+        Neighbourhood { grid, occupants, positions, radii, epoch }
+    }
+
+    /// Whether this was built against a node in its present state.
+    pub fn is_current(&self, epoch: u32) -> bool {
+        self.epoch == epoch
+    }
+
+    pub fn len(&self) -> usize {
+        self.occupants.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.occupants.is_empty()
+    }
+
+    /// The widest query this index can answer. Beyond it the 27-cell walk
+    /// would miss neighbours, so a caller asking for more is told rather than
+    /// quietly given a short answer.
+    pub fn reach(&self) -> f64 {
+        self.grid.spacing()
+    }
+
+    /// Everything whose *surface* lies within `within` of `point`.
+    ///
+    /// Radii are taken into account on the occupant's side, so a large thing is
+    /// found by a query that would have missed its centre. Returns `None` if
+    /// the query is wider than [`Self::reach`], because a short answer to a
+    /// question the index cannot answer is worse than no answer.
+    pub fn near(&self, point: Vec3, within: f64) -> Option<Vec<Occupant>> {
+        if within > self.grid.spacing() {
+            return None;
+        }
+        let mut candidates = Vec::new();
+        self.grid.neighbours(point, &mut candidates);
+        let mut out = Vec::new();
+        for i in candidates {
+            let i = i as usize;
+            let gap = (self.positions[i] - point).norm() - self.radii[i];
+            if gap <= within {
+                out.push(self.occupants[i]);
+            }
+        }
+        Some(out)
+    }
+
+    /// Everything overlapping the occupant at `index` — the impulsive case,
+    /// where two things are not merely near but interpenetrating.
+    pub fn touching(&self, index: usize) -> Vec<Occupant> {
+        let Some(&me) = self.occupants.get(index) else { return Vec::new() };
+        let (p, r) = (self.positions[index], self.radii[index]);
+        let mut candidates = Vec::new();
+        self.grid.neighbours(p, &mut candidates);
+        let mut out = Vec::new();
+        for j in candidates {
+            let j = j as usize;
+            if self.occupants[j] == me {
+                continue;
+            }
+            if (self.positions[j] - p).norm() < r + self.radii[j] {
+                out.push(self.occupants[j]);
+            }
+        }
+        out
+    }
+
+    /// How many cells the contents actually landed in.
+    ///
+    /// The grid is a performance structure, not a correctness one: `near`
+    /// filters by true distance afterwards, so a badly chosen spacing gives the
+    /// right answer slowly rather than the wrong answer. That makes the failure
+    /// invisible to a test that only checks results, which is why this is
+    /// exposed — a spacing with a length baked into it collapses everything
+    /// into one cell at some scales, and that is the symptom to assert on.
+    pub fn cells(&self) -> usize {
+        self.grid.occupied_cells()
+    }
+
+    /// The occupants, in slot order.
+    pub fn occupants(&self) -> &[Occupant] {
+        &self.occupants
+    }
+}
