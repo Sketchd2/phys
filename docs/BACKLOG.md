@@ -331,6 +331,62 @@ still latent.
 
 ---
 
+## The ball-in-box test runs at the wrong tier, and should be moved when §3.3 lands
+
+**Noticed:** asked why a metre-scale wooden box was built at `Tier::Galactic`.
+**Where:** `tests/adjacency.rs::a_ball_loose_in_a_box_conserves_momentum_and_angular_momentum`,
+and `colliding_pair` in the same file.
+
+Both tests build metre-scale solids at `Tier::Galactic`, which is the
+collisionless-gravity regime. That is not a statement about scale — a tier is a
+physics regime and a small node may carry any solver — but it is not where a
+wooden box belongs either. `Tier::Continuum` is, by the size table and by what
+the thing is.
+
+It cannot be used yet, for the reason `PLAY.md` §3.3 gives: `for_tier(Continuum)`
+is `Hydro`, dispatched on size alone, and SPH reads `Matter` through a
+gas-plus-radiation equation of state. Measured:
+
+```text
+    a six-metre box of timber      pressure() = 1.0e8 Pa
+    a bucket of water              pressure() = 1.7e9 Pa
+    green wood, tensile strength                4.5e7 Pa
+```
+
+The box bursts from its own equation of state at twice its tensile strength,
+before anything touches it. Galactic was chosen because collisionless gravity is
+the nearest solver that leaves a solid alone — at forty-eight tonnes over six
+metres it pulls at 10^-8 m/s^2, which is what deep space is.
+
+**What the tests do and do not prove in the meantime.** The contact arithmetic
+is tier-independent by construction: `neighbourhood::contact` reads a position,
+a velocity, a mass, a radius and a surface, and `for_tier` never enters it. So
+the conservation results — momentum to 8e-7 and angular momentum to 5e-7 of
+what the assembly carries, over eight collisions — hold for any tier. What is
+*not* exercised is contact composing with the solver a solid will actually run
+under, which is the thing §3.3 changes.
+
+**What to do when §3.3 lands.** Rebuild both at `Tier::Continuum` with the same
+geometry and masses and re-measure. Specifically:
+
+- The conservation bounds should hold unchanged, or the new dispatch is
+  injecting momentum. They are the regression signal.
+- `a_ball_loose_in_a_box...` should no longer need its hand-set
+  `matter.radius`, nor `colliding_pair` its hand-set radii, if the Continuum
+  path sizes a promoted solid sensibly.
+- The eight-collision count and the 3.0%-energy-remaining figure will move,
+  because the ball will no longer be swimming through an SPH pressure field of
+  any kind. Both are recorded here so the change is visible rather than
+  silently absorbed.
+- If the box can then be given a real structural topology instead of loose
+  panels, this test becomes the natural place to check the rigid response that
+  "A struck structure is not rigid" is about.
+
+**Trigger:** immediately after §3.3's state-aware dispatch. These tests are the
+first consumer of it and the cheapest check that it did what it claims.
+
+---
+
 ## Collision geometry is a sphere, and a beam is 200 times longer than one
 
 **Noticed:** asked directly whether mesh collision is handled. It is not, in any

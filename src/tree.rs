@@ -226,6 +226,9 @@ pub struct TreeStats {
     pub bodies_created: u64,
     pub bodies_discarded: u64,
     pub promotions: u64,
+    /// Nodes whose tier was re-derived after their size changed, and moved.
+    /// Non-zero means something grew or was built across a regime boundary.
+    pub retiers: u64,
     pub persisted_bodies: u64,
     /// Worst conservation error seen across every scale transition so far.
     pub worst_conservation_error: f64,
@@ -422,7 +425,7 @@ impl Tree {
         // The child's tier follows from its size, not from its depth. A cloud
         // that splits into clumps is still `Stellar`; only when the pieces get
         // small enough that a different physics applies does the tier change.
-        let tier = Tier::containing(body.radius).max(parent_tier);
+        let tier = tier_for(body.radius, parent_tier);
 
         // The policy has to match the tier, and the caller cannot know the tier
         // until the radius is in hand. A caller extrapolating from the parent —
@@ -438,11 +441,7 @@ impl Tree {
         // a budget. A spec meant for a finer one is kept: asking to split an
         // atom into nucleons is a deliberate step down and not a mistake, and
         // overriding it would leave the ladder unable to reach its own bottom.
-        let spec = if crate::sampler::tier_of(spec.kind) >= tier {
-            spec
-        } else {
-            crate::sampler::budgeted_spec(tier, spec.count)
-        };
+        let spec = spec_for(tier, spec);
 
         let mut matter = Matter::neutral(body.mass, body.radius.max(1e-30), body.temperature, body.composition);
         matter.charge = body.charge;
@@ -739,6 +738,49 @@ impl Tree {
             .collect()
     }
 
+    /// Re-derive a node's tier from the size it is *now*, and its refinement
+    /// policy with it. Returns the tier it left, if it moved.
+    ///
+    /// Called wherever a node's size changes — `plant`, `emplace`, the growth
+    /// step, a severing, and an authored radius. Deliberately *not* called from
+    /// `coarsen`: there the radius is being restored rather than changed, and a
+    /// node's tier, spec and identity are preserved across a round trip on
+    /// purpose.
+    ///
+    /// # Why this is not simply done everywhere, every frame
+    ///
+    /// A tier is a physics regime. Changing one changes the node's solver, its
+    /// timestep and its scheduling cadence, so a node re-tiered continuously
+    /// could chatter across a boundary and take its solver with it. Tying it to
+    /// the operations that change size means it moves when something *happened*
+    /// rather than whenever a radius drifts, and those operations are exactly
+    /// the ones the tier was wrong after.
+    pub fn retier(&mut self, i: NodeIdx) -> Option<Tier> {
+        if i.is_none() || !self.nodes[i.get()].alive {
+            return None;
+        }
+        let parent_tier = {
+            let p = self.nodes[i.get()].parent;
+            if p.is_none() {
+                Tier::Galactic
+            } else {
+                self.nodes[p.get()].tier
+            }
+        };
+        let n = &self.nodes[i.get()];
+        let want = tier_for(n.matter.radius, parent_tier);
+        if want == n.tier {
+            return None;
+        }
+        let was = n.tier;
+        let spec = spec_for(want, n.spec);
+        let n = &mut self.nodes[i.get()];
+        n.tier = want;
+        n.spec = spec;
+        self.stats.retiers += 1;
+        Some(was)
+    }
+
     /// What is next to what, inside this node.
     ///
     /// Built on demand rather than cached. Whether it should be cached is a
@@ -796,6 +838,9 @@ impl Tree {
         n.children.clear();
         n.morphology = Some(m);
         self.stats.structures += 1;
+        // A structure takes its size from its program the instant it has one,
+        // and a seed is not the size of the tree it becomes.
+        self.retier(i);
         self.nodes[i.get()].morphology.as_mut().unwrap()
     }
 
@@ -838,6 +883,9 @@ impl Tree {
         n.children.clear();
         n.morphology = Some(m);
         self.stats.structures += 1;
+        // A structure takes its size from its program the instant it has one,
+        // and a seed is not the size of the tree it becomes.
+        self.retier(i);
         self.nodes[i.get()].morphology.as_mut().unwrap()
     }
 
@@ -1198,5 +1246,48 @@ impl Tree {
         }
         total.energy += n.potential;
         total
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Tier, and keeping it true
+// ---------------------------------------------------------------------------
+
+/// The tier something of this size belongs to, inside a parent at `parent_tier`.
+///
+/// One rule with two callers, and having had only one of them is the whole of
+/// `docs/BACKLOG.md`'s "a node's tier is decided once and never revisited":
+/// [`Tree::promote`] asks it of a body it is about to turn into a node, and
+/// [`Tree::retier`] asks it of a node whose size has changed since. Before
+/// `retier` existed a terrain patch promoted out of a moon inherited a body
+/// radius in the planetary band, was emplaced 1.4 km across, and stayed
+/// `Planetary` — two tiers from what its own radius said.
+///
+/// The clamp against the parent is structural rather than physical: a node is
+/// inside its parent, so it cannot be larger than one, and a rounding that said
+/// otherwise would put a child on a coarser solver than the thing containing
+/// it.
+pub fn tier_for(radius: f64, parent_tier: Tier) -> Tier {
+    Tier::containing(radius).max(parent_tier)
+}
+
+/// Reconcile a refinement policy with the tier it is about to be used at.
+///
+/// A spec meant for a *coarser* scale than the node turned out to be is
+/// replaced by the tier's own policy, with the caller's count read as a budget.
+/// A spec meant for a finer one is kept: asking to split an atom into nucleons
+/// is a deliberate step down and not a mistake, and overriding it would leave
+/// the ladder unable to reach its own bottom.
+///
+/// This travels with [`tier_for`] and is not optional alongside it. A tier that
+/// moves without its spec is the failure `promote` documents at length —
+/// materialising under a policy meant for a different scale, which is how eight
+/// thousand molecules ended up inside a node the size of an atom — and moving
+/// the tier at a *later* point than promotion reopens exactly that hole.
+pub fn spec_for(tier: Tier, spec: SampleSpec) -> SampleSpec {
+    if crate::sampler::tier_of(spec.kind) >= tier {
+        spec
+    } else {
+        crate::sampler::budgeted_spec(tier, spec.count)
     }
 }

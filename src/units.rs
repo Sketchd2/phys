@@ -63,20 +63,26 @@ pub const LAMBDA_COMPTON_E: f64 = 2.426_310_238_67e-12;
 /// exactly.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(u8)]
+/// The ranges below are `floor()` to the next tier's `floor()`, and they are the
+/// code's, not an approximation of it. They disagreed for a long time — every
+/// one of these but `Nuclear` named a band that `Tier::containing` does not
+/// use, `Continuum` by five orders of magnitude — which matters because the
+/// boundaries are exactly what anyone reads these comments to find out.
 pub enum Tier {
-    /// 10^19 – 10^21 m. Collisionless N-body + dark matter halo. Myr steps.
+    /// Above 10^18 m. Collisionless N-body + dark matter halo. Myr steps.
     Galactic = 0,
-    /// 10^13 – 10^19 m. GMCs, star clusters, ISM hydrodynamics. kyr steps.
+    /// 10^12 – 10^18 m. GMCs, star clusters, ISM hydrodynamics. kyr steps.
     Stellar = 1,
-    /// 10^6 – 10^13 m. Stars, planets, orbits, stellar structure. s–hr steps.
+    /// 10^4 – 10^12 m. Stars, planets, orbits, stellar structure. s–hr steps.
     Planetary = 2,
-    /// 10^-3 – 10^6 m. Continuum: solids, fluids, thermodynamics. ms steps.
+    /// 10^-8 – 10^4 m. Continuum: solids, fluids, thermodynamics. ms steps.
+    /// Twelve orders of magnitude, and very nearly the whole play space.
     Continuum = 3,
-    /// 10^-9 – 10^-3 m. Molecular dynamics, force fields. fs steps.
+    /// 3x10^-10 – 10^-8 m. Molecular dynamics, force fields. fs steps.
     Molecular = 4,
-    /// 10^-11 – 10^-9 m. Atomic/electronic structure. as steps.
+    /// 10^-14 – 3x10^-10 m. Atomic/electronic structure. as steps.
     Atomic = 5,
-    /// < 10^-14 m. Nuclear and subatomic. Statistical, not trajectorial. zs.
+    /// Below 10^-14 m. Nuclear and subatomic. Statistical, not trajectorial. zs.
     Nuclear = 6,
 }
 

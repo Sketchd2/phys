@@ -866,6 +866,8 @@ pub(crate) fn put_tree_stats(w: &mut Writer, s: &TreeStats) {
     w.u64(s.reparents);
     w.u64(s.persisted_bodies);
     w.f64(s.worst_conservation_error);
+    // Appended, never inserted: the position is the tag. See `wire.rs`.
+    w.u64(s.retiers);
 }
 pub(crate) fn get_tree_stats(r: &mut Reader) -> Result<TreeStats> {
     Ok(TreeStats {
@@ -882,6 +884,7 @@ pub(crate) fn get_tree_stats(r: &mut Reader) -> Result<TreeStats> {
         reparents: r.u64()?,
         persisted_bodies: r.u64()?,
         worst_conservation_error: r.f64()?,
+        retiers: r.u64()?,
     })
 }
 

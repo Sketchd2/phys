@@ -2103,6 +2103,9 @@ impl World {
         node.bodies.clear();
         node.children.clear();
 
+        // It grew, so it may not be the size of thing it was. See
+        // `Tree::retier`.
+        self.tree.retier(idx);
         self.tree.stats.growth_steps += 1;
         self.tree.stats.external_energy_absorbed += txn.net_boundary_flux();
         Some(txn)
@@ -2257,6 +2260,8 @@ impl World {
         node.bodies.clear();
         node.topology = None;
         node.children.clear();
+        // What is left of it may be a different size of thing.
+        self.tree.retier(idx);
         self.tree.stats.damage_events += 1;
         out
     }
@@ -2415,6 +2420,8 @@ impl World {
         node.topology = None;
         node.children.clear();
         self.shaking.retain(|(n, _)| *n != idx);
+        // Likewise: a structure that has shed members is smaller than it was.
+        self.tree.retier(idx);
         self.tree.stats.damage_events += 1;
         out
     }
@@ -2982,6 +2989,12 @@ impl World {
             delta_energy: after - before,
             time: self.time,
         });
+        if property == Property::Radius {
+            // An authored size is still a size. `Interaction::Author` is the one
+            // path that sets a value by hand and it is audited for exactly that
+            // reason, but the tier is derived from the radius either way.
+            self.tree.retier(target);
+        }
         self.tree.pin(target);
         self.tree.bump_epoch(target);
         self.disturb(target);
