@@ -2754,6 +2754,59 @@ impl World {
             field.insert(node.get(), self.tree.gravity_at(node));
         }
 
+        // What else a piece falling out of each node could reach. `docs/PLAY.md`
+        // Phase 1 asks for "a branch lands on the next tree", and until this a
+        // piece could strike only the structure it came off: `struck` was keyed
+        // by the falling piece's own node and nothing else was tested. Measured,
+        // on two trees 8 m apart whose crowns overlap by two metres — radius
+        // 10.4 and 10.5 — nine limbs came off one in a gale, made 225 contacts
+        // and struck 160 members, every one of them in the tree they fell from.
+        //
+        // The candidates are the node's siblings, which is where D3's adjacency
+        // index earns its place: the parent already knows what is next to what,
+        // and a sibling with a topology is a thing that can be landed on. Each
+        // carries the offset into the falling piece's frame, so the geometry is
+        // compared in one frame rather than two.
+        //
+        // Index 0 is always the node itself, which is what makes the ground
+        // test — a property of one structure — stay attached to the right one.
+        let mut targets: HashMap<usize, Vec<(NodeIdx, crate::math::Vec3)>> = HashMap::new();
+        for node in self.falling.iter().map(|(n, _)| *n).collect::<Vec<_>>() {
+            if targets.contains_key(&node.get()) {
+                continue;
+            }
+            let mut list = vec![(node, crate::math::Vec3::ZERO)];
+            let parent = self.tree.nodes[node.get()].parent;
+            if !parent.is_none() {
+                let nb = self.tree.neighbourhood(parent);
+                let reach = nb.reach();
+                if let Some(near) = nb.near(self.tree.nodes[node.get()].motion.offset, reach) {
+                    for occ in near {
+                        let crate::neighbourhood::Occupant::Child(c) = occ else { continue };
+                        if c == node || c.is_none() || !self.tree.nodes[c.get()].alive {
+                            continue;
+                        }
+                        if self.tree.nodes[c.get()].topology.is_none()
+                            && self.tree.nodes[c.get()].morphology.is_none()
+                        {
+                            continue;
+                        }
+                        // Where the neighbour sits, seen from the falling
+                        // piece's frame.
+                        let offset = self.tree.separation(node, crate::math::Vec3::ZERO, c, crate::math::Vec3::ZERO);
+                        list.push((c, offset.value));
+                    }
+                }
+            }
+            for (c, _) in list.iter().skip(1).map(|(c, o)| (*c, *o)).collect::<Vec<_>>() {
+                let bodies = self.tree.refine(c).to_vec();
+                if let Some(topo) = self.tree.nodes[c.get()].topology.clone() {
+                    struck.insert(c.get(), (bodies, topo));
+                }
+            }
+            targets.insert(node.get(), list);
+        }
+
         let mut strikes: Vec<(NodeIdx, u32, crate::math::Vec3)> = Vec::new();
         for (node, frag) in self.falling.iter_mut() {
             frag.age += dt;
@@ -2771,10 +2824,27 @@ impl World {
             let rep = frag.dynamics.dynamics.step(&load, dt);
             report.broken_while_falling += rep.broken.len();
 
-            let contacts = match struck.get(&node.get()) {
-                Some((bodies, topo)) => frag.contacts(bodies, topo, ground_of(topo)),
-                None => frag.contacts(&[], &crate::topology::Topology::default(), 0.0),
-            };
+            let candidates = targets.get(&node.get()).cloned().unwrap_or_default();
+            let mut contacts = Vec::new();
+            for (k, (target, offset)) in candidates.iter().enumerate() {
+                match struck.get(&target.get()) {
+                    Some((bodies, topo)) => contacts.extend(frag.contacts_on(
+                        bodies,
+                        topo,
+                        ground_of(topo),
+                        k as u32,
+                        *offset,
+                    )),
+                    None if k == 0 => contacts.extend(frag.contacts_on(
+                        &[],
+                        &crate::topology::Topology::default(),
+                        0.0,
+                        0,
+                        crate::math::Vec3::ZERO,
+                    )),
+                    None => {}
+                }
+            }
             report.contacts += contacts.len();
             // Derived, not chosen. This was `0.15` with the comment "Wood on
             // wood: it does not bounce", which is true at the speed it was
@@ -2796,8 +2866,12 @@ impl World {
                 .map(|(_, t)| crate::neighbourhood::Surface::of(&t.material))
                 .unwrap_or(mine);
             let e = crate::neighbourhood::restitution(&mine, &theirs, closing);
-            for (member, impulse) in frag.resolve(&contacts, e) {
-                strikes.push((*node, member, impulse));
+            for (target, member, impulse) in frag.resolve(&contacts, e) {
+                let hit = candidates
+                    .get(target as usize)
+                    .map(|(n, _)| *n)
+                    .unwrap_or(*node);
+                strikes.push((hit, member, impulse));
             }
         }
 

@@ -168,6 +168,24 @@ uniformly. Built lazily, cached, invalidated when the node's epoch moves.
   argument `coords::Located` makes, and the work is bounded by the causal gate,
   because things too far apart to interact within a frame need not be
   enumerated.
+
+  *Built for the sibling case, which is what Phase 1's "a branch lands on the
+  next tree" needed.* `drop_fragments` asks the parent's `Neighbourhood` what is
+  near the node a piece is falling out of, and tests the piece against each
+  neighbour that has a structure, with `Tree::separation` supplying the offset
+  into the falling piece's frame so the two geometries are compared in one frame
+  rather than two. `Contact` carries which candidate it hit, since before this a
+  contact said which *member* without saying whose.
+
+  Measured, on two trees 8 m apart grown to 10.4 m radius so their crowns
+  overlap: nine limbs came off one in a gale, made 225 contacts and struck 160
+  members, **every one of them in the tree they fell from**. With the sibling
+  query the second tree loses 415 kg of structure to them.
+
+  The general descent — an arbitrary pair resolved at their lowest common
+  ancestor — is **not** built. Siblings under one parent is the case the play
+  space has today, since nothing is nested more deeply than that yet, and the
+  LCA walk becomes necessary when terrain patches hold what stands on them.
 - **Exchange is one function.** Given two adjacent things and a shared area, move
   a conserved quantity at a rate set by a transport coefficient derived from
   their `Mixture`s. Conduction, diffusion and radiative exchange are three calls

@@ -1530,6 +1530,15 @@ impl Fragment {
 pub struct Contact {
     /// Member of the falling piece.
     pub falling: u32,
+    /// *Which* structure it hit, as an index into whatever list of candidates
+    /// the caller passed. Opaque here: this module knows about geometry and
+    /// nothing about a tree, so the caller keeps the mapping.
+    ///
+    /// It exists because a falling piece can reach more than the structure it
+    /// came off. `docs/PLAY.md` Phase 1 wants "a branch lands on the next
+    /// tree", and before this a `Contact` said which *member* was hit without
+    /// saying whose.
+    pub target: u32,
     /// Member of the structure it hit, or `NO_SUPPORT` for the ground.
     pub struck: u32,
     /// Where, in world coordinates.
@@ -1569,11 +1578,30 @@ impl Fragment {
     /// The search is bounded by a grid over the struck structure, because a
     /// falling limb near a thousand-member crown must not cost a thousand
     /// tests per step.
-    pub fn contacts(
+    /// What this piece is touching, in the structure it came off.
+    pub fn contacts(&self, struck_bodies: &[Body], struck: &Topology, ground: f64) -> Vec<Contact> {
+        self.contacts_on(struck_bodies, struck, ground, 0, Vec3::ZERO)
+    }
+
+    /// What this piece is touching, among one candidate structure.
+    ///
+    /// `target` is the caller's own index for that candidate and is copied onto
+    /// every `Contact` produced. `offset` moves the struck geometry into this
+    /// piece's frame — zero for the structure the piece came off, and the
+    /// separation between the two nodes for anything else, which is how a limb
+    /// reaches the next tree.
+    ///
+    /// The ground is only tested for `target == 0`. It is a property of one
+    /// structure — `ground_of` returns the lowest unsupported joint of the
+    /// structure itself, in that structure's frame — so asking a neighbour for
+    /// it would land the piece on a floor belonging to somewhere else.
+    pub fn contacts_on(
         &self,
         struck_bodies: &[Body],
         struck: &Topology,
         ground: f64,
+        target: u32,
+        offset: Vec3,
     ) -> Vec<Contact> {
         let mine = self.dynamics.deformed_members();
         let vel = &self.dynamics.dynamics.velocity;
@@ -1601,11 +1629,12 @@ impl Fragment {
 
             // The ground first: it is what most of a fallen limb ends up on.
             let low = a0.z.min(a1.z);
-            if low - ra <= ground {
+            if target == 0 && low - ra <= ground {
                 if v.z < 0.0 {
                     let at = if a0.z < a1.z { a0 } else { a1 };
                     out.push(Contact {
                         falling: i as u32,
+                        target,
                         struck: NO_SUPPORT,
                         at,
                         normal: Vec3 { x: 0.0, y: 0.0, z: 1.0 },
@@ -1623,7 +1652,7 @@ impl Fragment {
                 if rb <= 0.0 || struck.joints[j].integrity <= 0.0 {
                     continue;
                 }
-                let (b0, b1) = (struck.base[j], struck.tip[j]);
+                let (b0, b1) = (struck.base[j] + offset, struck.tip[j] + offset);
                 // Cheap rejection on the segment midpoints before the real test.
                 let reach = ra + rb + (a1 - a0).norm() * 0.5 + (b1 - b0).norm() * 0.5;
                 if ((a0 + a1).scale(0.5) - (b0 + b1).scale(0.5)).norm2() > reach * reach {
@@ -1644,6 +1673,7 @@ impl Fragment {
                 }
                 out.push(Contact {
                     falling: i as u32,
+                    target,
                     struck: j as u32,
                     at: pb,
                     normal,
@@ -1664,8 +1694,8 @@ impl Fragment {
     /// impulse is delivered through the ordinary mechanism vocabulary rather
     /// than applied to the geometry directly. What happens next is the same
     /// stress calculation that decides everything else.
-    pub fn resolve(&mut self, contacts: &[Contact], restitution: f64) -> Vec<(u32, Vec3)> {
-        let mut delivered: Vec<(u32, Vec3)> = Vec::new();
+    pub fn resolve(&mut self, contacts: &[Contact], restitution: f64) -> Vec<(u32, u32, Vec3)> {
+        let mut delivered: Vec<(u32, u32, Vec3)> = Vec::new();
         if contacts.is_empty() {
             return delivered;
         }
@@ -1688,7 +1718,7 @@ impl Fragment {
             let impulse = c.normal.scale(j);
             change += impulse.scale(1.0 / mass);
             if c.struck != NO_SUPPORT {
-                delivered.push((c.struck, impulse.scale(-1.0)));
+                delivered.push((c.target, c.struck, impulse.scale(-1.0)));
             } else {
                 self.grounded = true;
             }

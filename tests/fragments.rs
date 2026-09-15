@@ -321,3 +321,101 @@ fn debris_comes_to_rest() {
         "fell for {took:.2} s; free fall from {start:.2} m is {expected:.2} s"
     );
 }
+
+/// A branch lands on the next tree.
+///
+/// Phase 1's last done-when, and the one that needed the adjacency relation
+/// rather than another mechanism. Until this, a falling piece could strike only
+/// the structure it came off: `drop_fragments` keyed its candidates by the
+/// piece's own node and tested nothing else, so a limb passed through a
+/// neighbouring tree as though it were not there.
+///
+/// Measured before the fix, on exactly this arrangement — two trees 8 m apart,
+/// each grown to a 10.4 m radius, so the crowns overlap by two metres: nine
+/// limbs came off one in a gale, made 225 contacts and struck 160 members,
+/// every one of them in the tree they fell from.
+#[test]
+fn a_branch_lands_on_the_next_tree() {
+    let (mut w, a) = on_an_earth(0x5EED, 4000.0, 6.0, 900);
+    w.plant(a, Program::Tree, Some(Environment::default()));
+    for _ in 0..70 {
+        w.grow_node(a, YEAR);
+    }
+
+    // A second tree beside the first, close enough that their crowns overlap.
+    let planet = w.tree.nodes[a.get()].parent;
+    let b = w.tree.promote(planet, 1, default_spec(Tier::Continuum));
+    assert!(!b.is_none(), "the planet should have another body to promote");
+    let beside = w.tree.nodes[a.get()].motion.offset + v3(8.0, 0.0, 0.0);
+    {
+        let n = &mut w.tree.nodes[b.get()];
+        n.matter = Matter::neutral(4000.0, 6.0, 291.0, Program::Tree.substrate());
+        n.spec.count = 900;
+        n.motion.offset = beside;
+    }
+    w.plant(b, Program::Tree, Some(Environment::default()));
+    for _ in 0..70 {
+        w.grow_node(b, YEAR);
+    }
+    w.tree.refine(b);
+
+    let (ra, rb) = (
+        w.tree.nodes[a.get()].matter.radius,
+        w.tree.nodes[b.get()].matter.radius,
+    );
+    assert!(
+        ra + rb > 8.0,
+        "the crowns have to overlap for this to be a test: {ra} and {rb} at 8 m"
+    );
+
+    // And a third, far enough away that nothing should reach it. This is the
+    // control, and it is what makes the *offset* part of the test: a neighbour
+    // whose geometry is read without being moved into the falling piece's frame
+    // sits on top of the piece instead of beside it, so it gets hit harder
+    // rather than not at all. Asserting only that something was struck passed
+    // with the offset deleted.
+    let far = w.tree.promote(planet, 2, default_spec(Tier::Continuum));
+    assert!(!far.is_none());
+    let away = w.tree.nodes[a.get()].motion.offset + v3(60.0, 0.0, 0.0);
+    {
+        let n = &mut w.tree.nodes[far.get()];
+        n.matter = Matter::neutral(4000.0, 6.0, 291.0, Program::Tree.substrate());
+        n.spec.count = 900;
+        n.motion.offset = away;
+    }
+    w.plant(far, Program::Tree, Some(Environment::default()));
+    for _ in 0..70 {
+        w.grow_node(far, YEAR);
+    }
+    w.tree.refine(far);
+    assert!(
+        w.tree.nodes[far.get()].matter.radius * 2.0 < 60.0,
+        "the far tree has to be out of reach for this to be a control"
+    );
+
+    let out = w.damage(a, &[weather::wind(38.0, v3(1.0, 0.0, 0.15))]);
+    assert!(out.detached_pieces > 0, "the gale took nothing off the first tree");
+    let before = w.tree.nodes[b.get()].morphology.as_ref().unwrap().built;
+    let before_far = w.tree.nodes[far.get()].morphology.as_ref().unwrap().built;
+
+    for _ in 0..200 {
+        w.drop_fragments(0.05);
+        if w.falling().is_empty() {
+            break;
+        }
+    }
+
+    let after = w.tree.nodes[b.get()].morphology.as_ref().unwrap().built;
+    assert!(
+        after < before,
+        "{} limbs fell through a tree whose crown they were inside: the second \
+         tree still has all {before} kg of it",
+        out.detached_pieces
+    );
+    let after_far = w.tree.nodes[far.get()].morphology.as_ref().unwrap().built;
+    assert_eq!(
+        after_far, before_far,
+        "a tree sixty metres away lost {} kg to limbs falling off another one",
+        before_far - after_far
+    );
+}
