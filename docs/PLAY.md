@@ -791,6 +791,39 @@ one node, in one pass. This is not a new tier and not a new solver; it is
 "measure, never be told" applied to solver selection, made explicit instead of
 emergent.
 
+*Built.* `Node::structural_mask` answers which contents are ordered, from the
+topology's joint radii rather than from `SampleReport::structural_parts` — the
+report is a diagnostic of the last materialisation and is deliberately not
+persisted, so reading it would have made dispatch change across a save.
+`advance_node` then hands the tier solver the disordered contents only, and
+leaves the members where they are, which is what a standing structure does.
+
+What moves the members is still the structural path: `damage` asks whether a
+structure stands up under a load and `shake` asks what it does while the load is
+on it, and both are driven by a caller with mechanisms in hand. **Putting those
+on the frame loop is a scheduling question and is not done** — `step_frame`
+drives neither today.
+
+Measured before the fix, on a forty-year-old tree standing on a planet and
+advanced for one twentieth of a second: its members reached 1.9×10⁸ m/s — 64% of
+the speed of light — and travelled 9.6×10⁶ m, in a tree 6.3 m across.
+
+One thing had to come with it, or "steps both correctly" is not true of the
+other half. **`hydro` had a `courant_dt` and nothing called it.** The loose
+contents of that same tree wanted a step of 1.7×10⁻⁵ s and the frame asked for
+0.05 — three thousand times over — so they left at 4×10⁷ m/s. It now substeps
+exactly as molecular dynamics already did three lines away, covering the span it
+can integrate stably and reporting the shortfall in `dt_used` so it becomes
+lateness the scheduler can see.
+
+That leaves one thing it does *not* fix, measured and in `BACKLOG.md`: those
+parcels are still born fast. A grown tree's `internal_energy` is 231× its
+thermal energy — growth adds heat that nothing sheds, because `evolve_matter`
+reads `temperature` and growth does not move it — and the sampler faithfully
+turns that into 14 km/s. Dispatch keeps the members out of it and substepping
+stops the parcels being accelerated further; neither changes the speed they
+start at.
+
 ### 3.4 One clock puts a resolution floor inside `Continuum`
 
 This is the consequence of D1 that the first draft of this document missed, and

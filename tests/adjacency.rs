@@ -1079,7 +1079,15 @@ fn a_ball_loose_in_a_box_conserves_momentum_and_angular_momentum() {
     const BALL_MASS: f64 = 10.0;
     const R_BALL: f64 = 0.4;
     const DT: f64 = 0.01;
-    const FRAMES: usize = 1500;
+    // 4800 rather than 1500, and the reason is the engine working: the ball is
+    // promoted at 0.4 m, which `tier_for` puts in `Continuum`, so its own eight
+    // parcels are integrated by `hydro` — and since `PLAY.md` §3.3 that solver
+    // substeps to its Courant limit rather than taking whatever span it is
+    // handed. Measured: it covers 33.2% of a 0.01 s call, capped at 256
+    // substeps, so the ball's clock advances at about a third the rate and it
+    // crosses the box in about three times as many frames. Collisions depend on
+    // world time, not on frame count, so more frames is the whole fix.
+    const FRAMES: usize = 4800;
 
     // A cubic shell of panel centres, and the radius that leaves no gap: a
     // square grid at `step` is covered by discs of `step / sqrt(2)`.

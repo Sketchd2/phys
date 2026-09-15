@@ -1684,7 +1684,58 @@ impl World {
         let promoted = self.tree.sync_children(idx);
         let before = self.tree.stand_in_velocities(idx, &promoted);
 
+        // What is ordered is not the tier solver's business. `docs/PLAY.md`
+        // §3.3: **the tier says which regime the disordered contents are in,
+        // and the node's own state says which contents are ordered.**
+        //
+        // A node holds both. `sample_structured` lays a structure's members out
+        // first and then "the unstructured remainder: litter, air, rubble" —
+        // one node, two kinds of thing — and until this, `for_tier` was handed
+        // the lot. A building, a wolf and a boulder are all `Continuum`, and
+        // `for_tier(Continuum)` is `Hydro`.
+        //
+        // Measured, on a forty-year-old tree standing on a planet, advanced for
+        // one twentieth of a second: its members reached 1.9x10^8 m/s — 64% of
+        // the speed of light — and travelled 9.6x10^6 m. The tree is 6.3 m
+        // across. SPH reads `Matter` through a gas equation of state, so a
+        // solid handed to it bursts from its own pressure before anything else
+        // happens; and the same shape of error is waiting in every other tier's
+        // solver, which would integrate a joined member as a free particle.
+        //
+        // The members are left where they are, which is what a standing
+        // structure does. What *moves* them is the structural path — `damage`
+        // asks whether it stands up under a load, `shake` asks what it does
+        // while the load is on it — and those are driven by a caller with
+        // mechanisms in hand rather than by the scheduler. Putting them on the
+        // frame loop is a scheduling question and is not this.
+        let ordered = self.tree.nodes[idx.get()].structural_mask();
+
         let bodies = &mut self.tree.nodes[idx.get()].bodies;
+        // Solve the disordered contents in place where there are no ordered
+        // ones, which is every node that is not a structure and costs nothing.
+        let mut loose: Vec<crate::state::Body> = Vec::new();
+        let mut loose_of: Vec<usize> = Vec::new();
+        if let Some(mask) = &ordered {
+            for (i, b) in bodies.iter().enumerate() {
+                if !mask.get(i).copied().unwrap_or(false) {
+                    loose.push(*b);
+                    loose_of.push(i);
+                }
+            }
+        }
+        let partitioned = ordered.is_some();
+        let bodies: &mut Vec<crate::state::Body> = if partitioned {
+            &mut loose
+        } else {
+            &mut self.tree.nodes[idx.get()].bodies
+        };
+        let count = bodies.len();
+        if count == 0 {
+            // A structure with no loose contents at all. Nothing for the tier
+            // solver to do, and its members are not its to move.
+            self.tree.nodes[idx.get()].steps_taken += 1;
+            return solvers::SolveReport::default();
+        }
 
         let report = match solvers::for_tier(tier) {
             SolverKind::Gravity | SolverKind::GravityHydro => {
@@ -1704,7 +1755,41 @@ impl World {
                     h: radius / (count as f64).cbrt() * 1.2,
                     ..Default::default()
                 };
-                solvers::hydro::step(bodies, dt, params)
+                // Substep to what the Courant condition allows, for the same
+                // reason molecular dynamics does below and with the same words:
+                // the scheduler's timestep answers to causality and to the
+                // tier; a pressure wave answers to neither, and a fluid handed
+                // a step longer than its own signal crossing time does not
+                // integrate inaccurately, it detonates.
+                //
+                // `hydro::courant_dt` has been here the whole time and nothing
+                // called it. Measured, on the loose contents of a tree standing
+                // on a planet: the stable step is 1.7x10^-5 s and the frame
+                // asked for 0.05 — **three thousand times over** — and the
+                // parcels left at 4x10^7 m/s.
+                //
+                // The cap is a budget and not a licence, again as below: a node
+                // that cannot afford the whole span covers the part it can
+                // integrate stably, reports it in `dt_used`, and lets the
+                // shortfall become lateness the scheduler can see.
+                let stable = solvers::hydro::courant_dt(bodies, params, 0.3).max(1e-30);
+                let wanted = (dt / stable).ceil();
+                let substeps = (wanted.clamp(1.0, MAX_SUBSTEPS as f64) as u32).max(1);
+                let h = (dt / substeps as f64).min(stable);
+                let mut total = solvers::SolveReport::default();
+                for k in 0..substeps {
+                    let r = solvers::hydro::step(bodies, h, params);
+                    if k == 0 {
+                        total = r;
+                    } else {
+                        total.after = r.after;
+                        total.steps += r.steps;
+                        total.interactions += r.interactions;
+                        total.non_mechanical_energy += r.non_mechanical_energy;
+                    }
+                }
+                total.dt_used = h * substeps as f64;
+                total
             }
             SolverKind::MolecularDynamics => {
                 let params = solvers::md::MdParams::default();
@@ -1745,6 +1830,16 @@ impl World {
             }
             SolverKind::Statistical => self.advance_statistical(idx, dt),
         };
+
+        // The disordered contents were solved in a buffer; put them back.
+        if partitioned {
+            let n = &mut self.tree.nodes[idx.get()];
+            for (k, &i) in loose_of.iter().enumerate() {
+                if let (Some(dst), Some(src)) = (n.bodies.get_mut(i), loose.get(k)) {
+                    *dst = *src;
+                }
+            }
+        }
 
         // ... and the force it computed on each stand-in is handed to the
         // child it stands for. Without this the force lands on the body and is

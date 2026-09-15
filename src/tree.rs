@@ -192,6 +192,31 @@ impl Node {
         !self.bodies.is_empty()
     }
 
+    /// Which of this node's bodies are parts of a structure, parallel to
+    /// `bodies`. `None` when the node holds no ordered matter at all.
+    ///
+    /// The discriminator is the joint's radius, not `SampleReport`'s
+    /// `structural_parts`: the report is a diagnostic of the last
+    /// materialisation and is deliberately not persisted, while the topology
+    /// is. A node reloaded from a file has to give the same answer as the one
+    /// that wrote it, or `docs/PLAY.md` §3.3's dispatch changes across a save.
+    ///
+    /// Measured on a materialised tree: 510 joints carry a radius and 90 do
+    /// not, against a reported `structural_parts` of 510 — the same split, from
+    /// the half that survives a round trip.
+    pub fn structural_mask(&self) -> Option<Vec<bool>> {
+        let t = self.topology.as_ref()?;
+        let mut any = false;
+        let mask: Vec<bool> = (0..self.bodies.len())
+            .map(|i| {
+                let ordered = t.joints.get(i).map(|j| j.radius > 0.0).unwrap_or(false);
+                any |= ordered;
+                ordered
+            })
+            .collect();
+        any.then_some(mask)
+    }
+
     pub fn child_of(&self, slot: usize) -> NodeIdx {
         self.children.get(slot).copied().unwrap_or(NodeIdx::NONE)
     }

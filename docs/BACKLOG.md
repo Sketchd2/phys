@@ -331,6 +331,59 @@ still latent.
 
 ---
 
+## Growth accumulates internal energy that nothing sheds
+
+**Noticed:** measuring why the loose contents of a grown tree leave it at
+14 km/s, while implementing `PLAY.md` §3.3.
+**Where:** `engine.rs` — the growth transaction, `node.matter.internal_energy
++= txn.heat_released`.
+
+Measured, on a 900 kg tree planted at 291 K and grown a year at a time:
+
+```text
+    after plant     U = 4.1782e8 J      thermal at 291 K = 4.1782e8   (exact)
+    after  1 year   U = 6.0499e8 J      mass 900.0 kg, built   2.2 kg
+    after 10 years  U = 7.4845e9 J      mass 900.0 kg, built  47.7 kg
+    after 40 years  U = 9.6555e10 J     mass 900.0 kg, built 528.8 kg
+```
+
+231 times its own thermal energy, at unchanged mass. Read back as a
+temperature that is about 67,000 K — while `matter.temperature` still says 291,
+because growth adds to `internal_energy` and never touches the field the rest of
+the engine reads.
+
+**The intent is already written down and is not what happens.** The line
+carries the comment "Only the thermalised share stays. What was re-radiated has
+left the node, and adding it here would cook a forest in a season." It is
+cooking the forest; it is taking forty years rather than one.
+
+**Why it had not been seen.** `evolve_matter` is what sheds heat and it works
+from `matter.temperature`, which growth leaves alone — so the one mechanism that
+would have caught it is looking at the wrong field. And nothing asked the node
+for its energy: a grown tree is normally *damaged* or *shaken*, paths that read
+the topology and the morphology, never the thermal state.
+
+**What it breaks now.** `sample_structured` converts `internal_energy` into the
+parts' kinetic energy, faithfully, so a forty-year-old tree materialises with
+its branches and its litter moving at 14 km/s. §3.3's dispatch keeps the members
+out of the tier solver and the Courant substepping stops the parcels being
+accelerated further, but neither addresses the speed they are *born* at. A tree
+should materialise still.
+
+**Candidate causes, not yet separated.** Either the growth transaction is
+thermalising a share it should be re-radiating, or the share is right and
+nothing is radiating it afterwards because `evolve_matter` cannot see it. The
+second is the more likely and the cheaper test: make growth move `temperature`
+with `internal_energy` and see whether `evolve_matter` then carries it away.
+That is one probe and it has not been run.
+
+**Trigger:** before anything materialises a grown structure and expects it to be
+still — which is the first time an observer looks at a tree. It is also a
+prerequisite for the ball-in-box test moving to Continuum, since that test is
+about things that are and are not moving.
+
+---
+
 ## Derived gravity is in the parent's axes, because nothing composes orientation
 
 **Noticed:** building `Tree::gravity_at` for `PLAY.md` Phase 1's "`G_EARTH`
