@@ -255,13 +255,25 @@ fn the_dirty_set_is_derived_not_tracked() {
         "an influence marked nodes dirty before it arrived"
     );
 
-    for _ in 0..4 {
+    // Stepped until the thing under test has happened, rather than for a fixed
+    // count. Two spans are involved and neither is this test's business: the
+    // light delay before the influence is delivered, and then however long
+    // before the scheduler next solves the node it landed on — `disturb` stamps
+    // `last_disturbed` with the clock as it was *before* the frame advanced, so
+    // a node touched at the mark is not past it until something re-solves it.
+    // A fixed count encoded both, and broke when the world's pace became one
+    // second per second rather than one second per frame.
+    let mut frames = 0;
+    let touched = loop {
         w.step_frame(50_000.0);
-    }
-    let touched = dirty_nodes(&w.tree, mark);
+        frames += 1;
+        let touched = dirty_nodes(&w.tree, mark);
+        if !touched.is_empty() || frames >= 500 {
+            break touched;
+        }
+    };
     println!(
-        "  impulse landed after {} frames; {} of {} nodes dirty",
-        4,
+        "  impulse landed after {frames} frames; {} of {} nodes dirty",
         touched.len(),
         w.tree.nodes.len()
     );

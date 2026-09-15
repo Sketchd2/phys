@@ -912,6 +912,26 @@ floor is real, is derivable, and the engine should *report* it rather than
 silently drop a node to its ensemble — the same discipline `displacement_ratio`
 already applies to the small-displacement regime.
 
+*Built.* `World::resolution_floor(c_signal)` is the derivation above, and
+`resolution_floor_of(node)` asks it of a node's own contents, since the floor is
+a property of the material. `Stats::worst_substeps` reports what the worst node
+asked for, **uncapped** and with the `PathKey` that asked — 289 million and 257
+are both "capped" and are not the same situation — and `Stats::ensembled` counts
+the nodes actually crossed by their ensemble. That last was the silent one:
+`unreachable` already counted the nodes that could *not* be dropped, and the
+ones that *were* went unrecorded, which is the wrong way round, since falling
+behind shows up in lateness anyway and being replaced by a draw from your own
+equilibrium shows up in nothing.
+
+**Writing it found that D1 had been built wrong.** The floor came out at 5.3 m
+for air against §3.4's stated 0.27 — exactly twenty times coarser — and the
+formula was right: the pace had been left at one second *per frame*, which at
+twenty updates a second is twenty times real time. §3.4's own arithmetic is the
+statement of it ("at one second per second and twenty updates per second a frame
+covers 50 ms of world time"), and `World::pace_realtime` now derives the span
+from the frame rate. With it corrected the floor reproduces the table exactly:
+0.266, 1.172, 3.906 m against 0.27, 1.2, 3.9.
+
 Open, and deliberately not decided here: **whether `Continuum` eventually gets
 an unconditionally-stable fluid option**, so that free fluid stops being
 CFL-bound the way solids already are not. Three ways to respond to the floor,

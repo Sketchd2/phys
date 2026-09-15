@@ -18,18 +18,37 @@
 use phys::engine::{default_spec, galaxy, PaceMode, World};
 use phys::units::{Tier, YEAR};
 
+/// One second of world time per second of *wall* time, which is the only
+/// reading of D1 that is worth anything — and not one second per *frame*, which
+/// at twenty updates a second is twenty times real time.
+///
+/// It was built the second way first. The `pace` field is initialised to `1.0`
+/// and, once `Fixed` became the default, that value started being the world's
+/// actual pace. `World::resolution_floor` is what caught it: §3.4's table says
+/// the finest followable air is 0.27 m and the engine reported 5.3, exactly
+/// twenty times coarser, and the floor formula was right.
 #[test]
 fn a_fresh_world_runs_at_one_second_per_second() {
-    let mut w = World::new(galaxy(0x15EC, 1e9), 20.0);
+    const UPS: f64 = 20.0;
+    let mut w = World::new(galaxy(0x15EC, 1e9), UPS);
     assert_eq!(w.pace_mode, PaceMode::Fixed, "a world is a fixed-pace world");
-    assert_eq!(w.pace, 1.0);
+    assert!(
+        (w.pace - 1.0 / UPS).abs() < 1e-12,
+        "at {UPS} updates a second a frame covers {} s, not {}",
+        1.0 / UPS,
+        w.pace
+    );
 
+    // The claim, stated the way it is meant: one wall second of frames advances
+    // the world one second.
     let before = w.time;
-    w.step_frame(50_000.0);
+    for _ in 0..UPS as usize {
+        w.step_frame(50_000.0);
+    }
     let span = w.time - before;
     assert!(
         (span - 1.0).abs() < 1e-9,
-        "one frame of a galaxy advanced {span} s of world time, not 1 s"
+        "{UPS} frames — one second of wall time — advanced the world {span} s"
     );
 }
 
@@ -79,14 +98,18 @@ fn a_starved_world_keeps_its_clock_and_falls_behind_instead() {
     let path = w.drill_to(root, Tier::Nuclear.max_radius(), &default_spec);
     assert!(path.len() >= 6, "expected a deep ladder, got {}", path.len());
 
+    let expected = w.pace;
     for _ in 0..10 {
         let before = w.time;
-        // A budget far too small for the work, which is the point.
+        // A budget far too small for the work, which is the point. The budget
+        // is what a frame gets to work *in*; it is deliberately not what sets
+        // the clock, or a busy world would quietly slow down again.
         w.step_frame(200.0);
         let span = w.time - before;
         assert!(
-            (span - 1.0).abs() < 1e-9,
-            "a starved frame advanced {span} s instead of holding the clock at 1 s"
+            (span - expected).abs() < 1e-9,
+            "a starved frame advanced {span} s instead of holding the clock at \
+             {expected}"
         );
     }
     assert_eq!(w.time_throttle, 1.0, "the throttle must not move in Fixed");

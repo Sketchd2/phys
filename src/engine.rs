@@ -295,6 +295,28 @@ pub struct EngineStats {
     /// `None` until a frame has advanced something, which is not the same as
     /// zero and should not be spelled like it.
     pub worst_occupancy_at: Option<PathKey>,
+    /// Nodes crossed by their **ensemble** rather than followed, summed over
+    /// frames. `docs/PLAY.md` §3.7: the resolution floor is real and derivable,
+    /// and the engine should *report* reaching it rather than silently dropping
+    /// a node to its equilibrium — the discipline `displacement_ratio` already
+    /// applies to the small-displacement regime.
+    ///
+    /// Distinct from [`Self::unreachable`], which counts the nodes that could
+    /// *not* be dropped: pinned, bubbled, or with something built on them, so
+    /// somebody is deliberately watching them run. Those fall behind instead.
+    /// Between them the two account for every node the floor caught.
+    pub ensembled: u64,
+    /// The most substeps any node asked for, **uncapped**, over frames.
+    ///
+    /// The number to compare against `MAX_SUBSTEPS`: at or below it the node is
+    /// followed, above it the trajectory is not merely expensive but the wrong
+    /// answer. Reported rather than clamped, because a node wanting 289 million
+    /// substeps and a node wanting 257 are both "capped" and are not the same
+    /// situation.
+    pub worst_substeps: f64,
+    /// The node that asked. A `PathKey`, because this is a measurement of a
+    /// place; `None` until some node has been surveyed.
+    pub worst_substeps_at: Option<PathKey>,
     /// Overlaps resolved into an impulse pair, summed over nodes and frames.
     /// Counts contacts, not newton-seconds, for the same reason
     /// `exchange_crossings` counts crossings: a coupling that silently stops
@@ -512,6 +534,7 @@ impl World {
         // pointed at the root regardless, so `pace_to` has a subject to return
         // to and a viewer has something sensible to offer.
         w.paced_to = w.tree.root;
+        w.pace_realtime();
         w
     }
 
@@ -842,6 +865,31 @@ impl World {
         self.refresh_pace();
     }
 
+    /// One second of world time per second of wall time, which is what a world
+    /// is. `docs/PLAY.md` D1.
+    ///
+    /// The span a frame covers is therefore the frame's own length: at twenty
+    /// updates a second, fifty milliseconds — which is the arithmetic §3.4
+    /// states and the number its resolution-floor table is computed at.
+    ///
+    /// This was got wrong when D1 was first built: the pace was left at the
+    /// `1.0` the field is initialised with, which is one second *per frame* and
+    /// so twenty times real time at twenty updates a second. It read as "one
+    /// second per second" and was not. `World::resolution_floor` is what caught
+    /// it — the floor came out twenty times coarser than §3.4's table, and the
+    /// formula was right.
+    ///
+    /// It reads the frame rate once. A caller that changes it — `step_frame`
+    /// takes a wall budget every call — asks again, and the budget being spent
+    /// on one frame is deliberately *not* what sets the clock: a frame that is
+    /// given less time to work in advances the same span and gets staler, which
+    /// is the trade D1 makes.
+    pub fn pace_realtime(&mut self) {
+        self.pace_mode = PaceMode::Fixed;
+        let span = self.budget.target_us * 1e-6;
+        self.pace = if span > 0.0 && span.is_finite() { span } else { 1.0 };
+    }
+
     /// Drive the clock by hand: `span` seconds of world time per frame,
     /// regardless of what anything is doing.
     ///
@@ -1052,6 +1100,48 @@ impl World {
         }
         let span = self.frame_dt();
         ((span / h).ceil().clamp(1.0, MAX_SUBSTEPS as f64)) as u32
+    }
+
+    /// The finest a node of this signal speed can be resolved and still be
+    /// *followed*, at the pace the world is currently running. Metres.
+    ///
+    /// `docs/PLAY.md` §3.4 derives it by rearranging `node_dt`: a node is
+    /// followed while `frame_span <= node_dt * MAX_SUBSTEPS`, and the term that
+    /// binds inside `Continuum` is `0.25 * h / c_signal`, so
+    ///
+    /// ```text
+    ///     h >= 4 * frame_span * c_signal / MAX_SUBSTEPS
+    /// ```
+    ///
+    /// At the 50 ms frame a world runs at, that is `c_signal / 1280`:
+    ///
+    /// ```text
+    ///     air    340 m/s     0.27 m
+    ///     water 1500 m/s     1.2 m
+    ///     rock  5000 m/s     3.9 m
+    /// ```
+    ///
+    /// The floor is a property of the *material* rather than of the tier, which
+    /// is why it is asked this way round. It also only became visible when the
+    /// clock stopped following the observer: zooming in used to slow time until
+    /// the substeps fit, which is D1 doing what it was chosen to do — landing
+    /// the cost somewhere honest instead of in a silently slower world.
+    pub fn resolution_floor(&self, signal_speed: f64) -> f64 {
+        if !(signal_speed > 0.0) || !signal_speed.is_finite() {
+            return 0.0;
+        }
+        4.0 * self.frame_dt() * signal_speed / MAX_SUBSTEPS as f64
+    }
+
+    /// The floor for what a particular node is made of, measured from its own
+    /// contents rather than assumed.
+    pub fn resolution_floor_of(&self, idx: NodeIdx) -> f64 {
+        if idx.is_none() || !self.tree.nodes[idx.get()].alive {
+            return 0.0;
+        }
+        let n = &self.tree.nodes[idx.get()];
+        let flow = n.bodies.iter().map(|b| b.vel.norm()).fold(0.0f64, f64::max);
+        self.resolution_floor(n.matter.sound_speed().max(flow))
     }
 
     /// May this node be resolved at the pace the world is currently running?
@@ -1416,7 +1506,19 @@ impl World {
         // bubble, and it is paid in the scheduler rather than hidden.
         let rate = self.local_rate(idx);
         let h0 = self.node_dt(idx) / rate;
+        // What this node would need to be *followed*, before any cap. See
+        // `Stats::worst_substeps`: reported rather than clamped, because the
+        // engine dropping a node to its ensemble is a decision and should read
+        // as one.
+        if h0 > 0.0 && h0.is_finite() {
+            let wanted = span / h0;
+            if wanted > self.stats.worst_substeps {
+                self.stats.worst_substeps = wanted;
+                self.stats.worst_substeps_at = Some(self.tree.nodes[idx.get()].key);
+            }
+        }
         if h0 > 0.0 && h0.is_finite() && span / h0 > MAX_SUBSTEPS as f64 && self.forgettable(idx) {
+            self.stats.ensembled += 1;
             self.thermalise(idx, horizon);
             return;
         }
@@ -1452,6 +1554,7 @@ impl World {
             let achieved = (self.tree.nodes[idx.get()].time - started_at) / steps as f64;
             if !(achieved > 0.0) || span / achieved > MAX_SUBSTEPS as f64 {
                 if self.forgettable(idx) {
+                    self.stats.ensembled += 1;
                     self.thermalise(idx, horizon);
                     return;
                 }
