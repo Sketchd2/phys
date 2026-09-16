@@ -55,9 +55,9 @@ is topology: no joints, no members. A client draws points.
 **1. A node with no topology draws nothing at all.** `draw_structure` iterates
 `bodies.len().min(topo.base.len())`, so a node whose contents are loose produces
 an empty sky — `show_litter` included, because the litter branch is inside that
-same loop. Everything Phase 1 built is in this class: the ball and the forty-
-eight panels of `a_ball_loose_in_a_box`, a node's hydro parcels, an exchanging
-pair, a fragment in flight. The one drawable thing in the engine today is a
+same loop. Everything Phase 1 built is in this class: the ball and the
+ninety-six panels of `a_ball_loose_in_a_box`, a node's hydro parcels, an
+exchanging pair, a fragment in flight. The one drawable thing in the engine today is a
 built structure standing still.
 
 **2. One frame only.** Every position handed to the renderer is in one node's

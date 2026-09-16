@@ -2080,6 +2080,14 @@ equilibrates without either being told the other exists; a branch lands on the
 next tree; one node holds both a structure and loose contents and steps both
 correctly in one pass; and nothing in the existing suite regresses.
 
+**Done.** All five, as `two_promoted_things_collide_and_rebound`,
+`a_hot_node_beside_a_cold_one_equilibrates`, `a_branch_lands_on_the_next_tree`,
+`a_node_holds_ordered_and_disordered_contents_at_once`, and a suite of 349
+passing with 1 ignored. `CLAUDE.md`'s "Current frontier" lists what each item
+delivered and what was deliberately left for Phase 2 to meet first — starting
+with the ball-in-box test, which this phase's own backlog entry says to rebuild
+at `Continuum` now that §3.3 has landed, and which is still at `Galactic`.
+
 **Phase 2 — Ground.** Cubed-sphere parameterisation, patches as `Program::Terrain`
 nodes, refinement and coarsening on approach, handoff by `reparent`, planetary
 gravity, and terrain as an **editable deviation over a derived base** (§4.3) —

@@ -109,6 +109,7 @@ cargo run --release --bin phys-demo       # the ladder, galaxy to nucleus
 cargo run --release --bin phys-rehome     # re-parenting, frame to frame
 cargo run --release --bin phys-bubble     # admin time dilation
 cargo run --release --bin phys-headless   # render from a byte stream only
+cargo check --target wasm32-unknown-unknown --lib   # 2 s; nothing else builds it
 ```
 
 `[profile.test]` is optimised **with `overflow-checks` and `debug-assertions`
@@ -119,6 +120,12 @@ off by default, and this project depends on integer overflow panicking in tests.
 `step_frame(wall_us)` takes a **wall-clock budget in microseconds**, not a span.
 How much world time a frame covers is the *pace*. To simulate a season, use
 `World::pace_fixed(seconds_per_frame)`.
+
+A world runs at **one second per second**: `World::new` calls `pace_realtime`,
+which is `PaceMode::Fixed` at `budget.target_us` — one over the update rate, so
+0.05 s per frame at 20 ups, not 1.0. A hand-set fixed pace of `1.0` is twenty
+times real time, and the way that was caught is worth keeping: `resolution_floor`
+reported 5.3 m for air where §3.4 says 0.27, exactly twenty times too coarse.
 
 ## Traps
 
@@ -152,9 +159,38 @@ rebuilt recovers its name from its address and nothing else), plus `clocks` and
 `histories` for the reason above. Ledger and audit entries stay keyed by
 `PathKey` deliberately — a measurement was made *of a place*.
 
-**Tier is cached, never revisited.** Set at promotion from the body's radius.
-`plant`, `emplace` and growth all change a node's size without updating it, so a
-node can be two tiers from what its radius says. Known; in the backlog.
+**The spec travels with the tier, and `retier` is what reconciles them.** A
+tier is derived from a radius by `tier_for`, and `spec_for` comes with it —
+because a node materialising under a policy meant for another scale is how eight
+thousand molecules once ended up inside a node the size of an atom. One rule,
+two callers: `promote` (a body becoming a node) and `retier` (a node whose size
+changed), the latter called from `plant`, `emplace`, growth, damage, severing
+and an authored radius. **Deliberately not from `coarsen`**, where a radius is
+being restored rather than changed. Do not add a third path that sets `tier`.
+
+**`coarsen` has an idempotent early return.** A node that has not been disturbed
+takes it and never reaches the branch that rewrites the matter. Two tests passed
+against a defect because a round trip through the early return is unchanged
+either way; if you are testing `coarsen`, disturb the node first.
+
+**A solver may cover a third of the span it was handed.** `hydro` and `md` both
+substep to their own stability limit, capped at `MAX_SUBSTEPS`, and report what
+they actually covered in `SolveReport::dt_used` — the cap is a budget, not a
+licence. So a node's clock can advance more slowly than the frame while nothing
+is wrong, and a test that counts *frames* rather than world time will drift.
+`a_ball_loose_in_a_box` needs 4800 frames for what used to take 1500, for
+exactly this reason.
+
+**A whole module never gets compiled.** `src/wasm.rs` is
+`#![cfg(target_arch = "wasm32")]`, so neither `cargo test` nor `cargo check`
+touches it, and a signature change can leave it broken for as long as nobody
+looks. It has been. The check is in the command list above and takes two
+seconds.
+
+**`forgettable` requires no promoted children.** A node with any is `unreachable`
+rather than forgettable, so a test that asserts on the ensemble-crossing counter
+by building a ladder measures nothing. Give it one small node with a floor above
+its own radius instead.
 
 **Wire format encodes enum *positions*.** Renaming a variant is safe; reordering
 or inserting silently reinterprets old saves. Append only. `FORMAT_VERSION` in
@@ -197,34 +233,86 @@ They are load-bearing; keep them that way.
 
 ## Current frontier
 
-The engine models what happens *inside* a node very well and what happens
-*between* nodes barely at all. Closing that is the whole of the near-term work,
-and **`docs/PLAY.md` is the plan** — the decisions are made, the order is set,
-and the reasoning for each is recorded there. The four things everything else
-waits on:
+**Phase 1 of `docs/PLAY.md` §7 is done.** The engine used to model what happens
+*inside* a node very well and what happens *between* nodes barely at all; that
+is what Phase 1 closed. Phase 2 is next and nothing in it has started.
 
-1. **The adjacency relation** — nothing knows which nodes are next to each
-   other. This single gap blocks contact, fire spread, flooding, heat
-   conduction, mass diffusion, friction, and debris landing on anything but its
-   own parent. Four backlog entries are one missing primitive. **Start here.**
-2. A promoted child never feels a force — `motion.velocity` is written only at
-   promotion, so a promoted node is ballistic forever, and two promoted things
-   cannot affect each other at all.
-3. An issued identity, so an object keeps its name across a move — and so the
-   side tables stop needing `reparent` to move them.
-4. Nodes cannot split, so contents that legitimately expand are tracked by a
-   node claiming a volume they have left. The spread measurement it needs is the
-   same one surface handoff and detached fragments need.
+What landed, in the order it was built — each of these has its own commit with
+the measurement in the message:
+
+1. **D3, adjacency.** `src/neighbourhood.rs` is the one primitive: a spatial
+   hash over a node's occupants (bodies *and* promoted children, in one index),
+   `pairs(within)`, and two laws over a pair — `exchange` for a conserved
+   quantity crossing a boundary, `contact` for an overlap resolving as an
+   impulse. Both are exact two-body solutions rather than `rate × dt`, and both
+   are symmetric to the bit from either side. `engine.rs` calls them as
+   `exchange_within` (Planetary and finer) and `contact_within`.
+2. **D4, the promoted child.** It feels the force its parent's solver computed,
+   through the mailbox, instead of being ballistic from the moment it was
+   promoted.
+3. **Tier follows size** — `retier`, and the spec that travels with it. See the
+   trap above.
+4. **The spread measurement.** `Spread::of(parts)` — centre, rms, furthest,
+   count — and `occupancy(radius)`, which is what a node splitting will need and
+   what `worst_occupancy` already reports.
+5. **One second per second.** `pace_realtime`, `PaceMode::Fixed` as what a world
+   *is*, and the throttle that no longer applies in it. See the trap above.
+6. **`G_EARTH` deleted.** Gravity is `Tree::gravity_at` — shell theorem over
+   what a node is inside, with its own mass subtracted — cached on the node,
+   persisted, and carried in the recipe blob so a client regenerates the same
+   structure. Three consumers, all structural; see the leaf entry in the backlog
+   for the fourth that does not exist yet.
+7. **§3.3, dispatch reads state.** `Node::structural_mask` partitions a node's
+   contents from its topology's joint radii, and the tier solver is handed the
+   disordered remainder only. A building, a wolf and a boulder are all
+   `Continuum` and none of them is a fluid. Hydro also substeps to its Courant
+   limit now, which it never had.
+8. **§3.7, the resolution floor is reported.** `resolution_floor(signal_speed)`
+   and `resolution_floor_of(node)`, and a node crossed by its ensemble says so
+   in `Stats::ensembled` instead of doing it quietly.
+
+Phase 1's done-when list, all four, are tests:
+`two_promoted_things_collide_and_rebound`,
+`a_hot_node_beside_a_cold_one_equilibrates`, `a_branch_lands_on_the_next_tree`,
+and `a_node_holds_ordered_and_disordered_contents_at_once`. Suite at the end of
+Phase 1: **349 passed, 1 ignored** (`no_node_flings_its_bodies_out_of_itself`),
+plus 6 Postgres, and five demos run.
+
+### What Phase 2 will meet first
+
+Left deliberately undone, each with a measurement and a trigger in
+`docs/BACKLOG.md`. Read those entries before touching any of it:
+
+- **The ball-in-box test still runs at `Tier::Galactic`.** Its entry says to
+  rebuild it at `Continuum` "immediately after §3.3's state-aware dispatch",
+  which has now landed. That is the first thing outstanding, and the cheapest
+  check that §3.3 did what it claims.
+- **Derived gravity is in the parent's axes**, because nothing composes
+  orientation anywhere in the tree. Terrain on a sphere is the scenario that
+  makes it bite.
+- **Exchange has a radiative coefficient and no conductive one.** D3 names the
+  law and does not specify it; heat conduction through ground or water needs it,
+  and picking a thermal conductivity is a `PHYSICS.md`-weight decision.
+- **Only a built thing has a surface**, so only a built thing collides. A rock
+  has no material and cannot be landed on.
+- **Growth accumulates internal energy nothing sheds** — 231× thermal after
+  forty years, reading back as 67,000 K while `temperature` says 291.
+- **The sampler inflates anything bound by chemistry by 4.3×10⁵.**
+- **Collision geometry is a sphere**, and a beam is 200 times longer than one.
+  Recorded as a major bottleneck; nothing in `PLAY.md` plans a mesh.
+- **A node cannot split.** Phase 1 built the measurement it needs; the splitting
+  itself is untouched.
 
 `PLAY.md` D11 also finds the largest standing axiom violation in the codebase:
 **`morph::Program` is a species table.** Six variants, fourteen dispatch sites,
 and seven per-variant columns including a tabulated per-species decay rate.
 Five of those columns are properties of the *material* or the *measured
 environment* rather than of a species, and belong there. Do not add a seventh
-variant — that is what D11 exists to prevent.
+variant — that is what D11 exists to prevent. Phase 2 moves the first five
+columns off it, because a derived erosion rate cannot coexist with a tabulated
+one.
 
-Two decisions in `PLAY.md` change things already written down, so do not treat
-the older text as current where they disagree: **the world runs at one second
-per second at every tier** (observer-following pace becomes a single-player
-tool, and slow motion becomes replay of a recording), and **`PathKey` stops
-being an identity**.
+One decision in `PLAY.md` still changes text written down elsewhere, so do not
+treat the older text as current where they disagree: **`PathKey` stops being an
+identity.** The other — one second per second at every tier — is no longer a
+plan; it is what `World::new` does.

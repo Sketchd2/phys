@@ -1790,7 +1790,18 @@ outnumber observed ones.
 
 ---
 
-## There is no terrain, and gravity for debris is a constant
+## There is no terrain — and gravity for debris was a constant, which is now fixed
+
+**Since Phase 1**, two of the three things below have moved and the entry is
+kept because the first has not. `G_EARTH` is deleted: `drop_fragments` derives
+the field from `Tree::gravity_at` on the node the piece is falling inside, so
+debris weighs what the place says. And a falling piece is no longer restricted
+to the structure it came off — D3's adjacency index gives the parent's siblings
+as candidates, each with its offset, which is what makes
+`a_branch_lands_on_the_next_tree` pass. **What is unchanged is the first
+paragraph: there is still no ground.** Everything a piece can land on is a
+structure with a topology, and a planet's surface is not one yet. That is
+Phase 2.
 
 **Noticed:** asked whether a falling branch can hit the ground, and whether
 terrain exists.
@@ -1812,8 +1823,9 @@ frontier rather than drift. What is not written down is the consequence: a
 branch cannot land on the earth, on another tree, on a person, or on a vehicle,
 because none of those are things it can be tested against.
 
-**Second, smaller, and undocumented:** `drop_fragments` loads every falling
-piece with `st::G_EARTH.scale(m)`, and `G_EARTH` is the constant
+**Second, smaller, and undocumented — and since fixed, see the note at the top
+of this entry:** `drop_fragments` loaded every falling
+piece with `st::G_EARTH.scale(m)`, and `G_EARTH` was the constant
 `(0, 0, -9.80665)`. Debris therefore falls at Earth gravity along its own
 structure's negative z wherever the node actually is — on a ship under thrust,
 in orbit, on a body of any other mass. The engine computes real gravitational
