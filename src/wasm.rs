@@ -258,7 +258,14 @@ fn refresh(s: &mut Session) {
             &topo,
         );
     }
-    field.apply(&st::weather::gravity(), &bodies, &topo);
+    // Derived from what the node is inside, not a constant. `PLAY.md` D6
+    // retired `G_EARTH`, and this call site is invisible to `cargo test`
+    // because the module is `#![cfg(target_arch = "wasm32")]`.
+    field.apply(
+        &st::weather::gravity(s.world.tree.gravity_at(node)),
+        &bodies,
+        &topo,
+    );
     let (loads, indeterminate, iters) = st::analyse_with(&bodies, &topo, &field);
 
     s.geometry.clear();
@@ -746,7 +753,11 @@ fn refresh_forest(f: &mut Forest) {
         if speed > 0.0 {
             field.apply(&st::weather::wind(speed, f.wind_dir), &bodies, &topo);
         }
-        field.apply(&st::weather::gravity(), &bodies, &topo);
+        field.apply(
+            &st::weather::gravity(f.world.tree.gravity_at(node)),
+            &bodies,
+            &topo,
+        );
         let loads = st::analyse(&bodies, &topo, &field);
 
         let start = f.geometry.len();
