@@ -2008,3 +2008,78 @@ depending on the all-or-nothing behaviour.
 **Trigger:** the first scenario that authors one field and is surprised by
 another. The biome tests dodged it by building a star and dimming that instead,
 which is more honest anyway — but it is a workaround, not a preference.
+
+---
+
+## A leaf cannot fall: nothing sheds one, nothing slows one, and nothing is under it
+
+**Noticed:** asked directly for a test of a leaf falling and hitting the ground.
+**Where:** `engine.rs` — `drop_fragments` and `ground_of`; `morph.rs`, where a
+leaf is an area rather than a part; `solvers/structure.rs` — `Mechanism::FlowDrag`.
+
+The scenario is one sentence — a leaf comes off a tree, flutters down, lands,
+stays — and four separate things are missing. Recording which, because three of
+them are wanted by far more than this and only one is Phase 2's by name.
+
+**1. A leaf is not a thing.** Leaves enter the engine as `capture_area` and as a
+line in the light budget; they are never parts. What a tree's body list holds is
+members with joint radii, and then `sample_structured`'s "unstructured
+remainder: litter, air, rubble" — a mass fraction of loose bodies with no shape
+and nothing attaching them. So nothing can shed a leaf, because nothing has one.
+What *does* come off a tree is a fragment: a detached run of members, produced
+by `damage` or `shake` and tracked in `World::falling`.
+
+**2. Loose contents feel no gravity.** The derived field —
+`Tree::gravity_at`, cached as `Node.gravity` since D6 — has exactly three
+consumers: `damage` (`engine.rs:2453`), `shake` (`2613`) and `drop_fragments`
+(`2754`). All three are structural. A node's *loose* bodies are handed to the
+tier solver instead, and `hydro` and `gravity` give them only their mutual
+attraction, which across a six-metre node is 10^-8 m/s^2. A leaf modelled as a
+loose body would hang in the air. Making it fall is a fourth consumer of a field
+that already exists, and it is the same gap a dropped tool, a thrown stone and
+settling dust all have.
+
+**3. A falling thing feels no drag.** `drop_fragments` builds its load as `g·m`
+per joint and nothing else. `Mechanism::FlowDrag` exists, takes the fluid's
+density and a drag coefficient so nothing in it is specific to air — and is
+applied only by the standing-load paths, never to a piece in flight. For a limb
+that is nearly right. For a leaf it is the entire physics. The arithmetic, for a
+0.3 g leaf of 30 cm^2 at `Cd` 1.2 in air at 1.2 kg/m^3 — terminal velocity
+1.17 m/s:
+
+```text
+    fall      arrives (drag)   arrives (as coded)   too fast by   energy
+    10 m      1.17 m/s, 8.7 s   14.0 m/s, 1.4 s         12x         144x
+    30 m      1.17 m/s, 25.8 s  24.3 m/s, 2.5 s         21x         432x
+```
+
+`MAX_FALL_SECONDS` is 12, so the 30 m case is written off as litter in mid-air,
+about 14 m up. A limb from the same branch arrives in 2.5 seconds and is fine.
+
+**4. There is nothing under it.** `ground_of` returns the lowest unsupported
+joint of *the structure being struck*, in that structure's own frame, and says
+why: "what anchors a structure is what it is standing on". There is no world
+surface anywhere in the engine. A leaf that misses the tree it came off has
+nothing beneath it at all, and `MAX_FALL_SECONDS` is what catches it. This is
+the debris end of "There is no terrain, and gravity for debris is a constant" —
+whose second half is now done and whose first half is Phase 2.
+
+**What the test should assert, once it can run.** Written down now, while the
+reasons are fresh:
+
+- It arrives at roughly terminal velocity rather than at `sqrt(2gh)`. That ratio
+  is the whole point; everything else about the scenario is scenery.
+- It lands on the terrain, not on the foundation plane of whatever structure
+  happens to be nearest, and it stays there.
+- The mass arrives: what left the tree is what reached the ground.
+- A second leaf released from a different height reaches the *same* speed. That
+  is the signature of a terminal velocity and it cannot be faked by a tuned
+  constant, which is what makes it the assertion worth having.
+- One control, or the test proves nothing: the same leaf with drag suppressed
+  must arrive about twelve times faster. A landing test that still passes
+  without `FlowDrag` is a test of gravity.
+
+**Trigger:** Phase 2's terrain, for the ground to exist. Items 2 and 3 come due
+earlier and for more callers — the first dropped or thrown object needs the
+derived field on loose contents, and the first object whose shape matters more
+than its mass needs drag in flight.
