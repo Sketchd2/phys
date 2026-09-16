@@ -10,6 +10,12 @@
 //! The real-time path described in `docs/GPU.md` is a different program. This
 //! one deliberately trades every scrap of speed for having no dependencies and
 //! no window.
+//!
+//! `docs/VIEWING.md` is the plan for pointing this at the test suite, so a
+//! scenario can be watched unfolding rather than only asserted about. It also
+//! records what is missing for that, measured — the first being that a node
+//! with no topology draws nothing at all, because the loop below is bounded by
+//! `topo.base.len()`.
 
 use crate::math::{v3, Vec3};
 use crate::state::Body;

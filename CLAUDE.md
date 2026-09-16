@@ -189,6 +189,7 @@ prose too, and expect some hits to be a different sense that must be left alone.
   surfaces, contact, creatures, construction or sessions; those arguments have
   been had and written down.
 - `docs/PERFORMANCE.md` — the budget arithmetic.
+- `docs/VIEWING.md` — the plan for showing a test rather than asserting it.
 - `docs/NAMING.md`, `docs/GPU.md`.
 
 Doc comments carry the *why*, at length, including what was tried and rejected.
