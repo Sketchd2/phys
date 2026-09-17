@@ -56,6 +56,7 @@ pub mod neighbourhood;
 pub mod observe;
 pub mod persist;
 pub mod sampler;
+pub mod shape;
 pub mod render;
 pub mod scenario;
 pub mod rng;
