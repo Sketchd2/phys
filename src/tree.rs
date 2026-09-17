@@ -217,6 +217,60 @@ impl Node {
         any.then_some(mask)
     }
 
+    /// What this node presents to a contact, in its own frame.
+    ///
+    /// A node is the engine's rigid body — it has one velocity and one spin,
+    /// and `apply_contact` has always put an impulse straight onto them. What
+    /// it did not have was a *shape*: it presented `matter.radius`, so a
+    /// timber-framed building and a boulder of the same size were the same
+    /// marble to anything that hit them.
+    ///
+    /// The partition is §3.3's, and deliberately the same one the solver
+    /// dispatch uses rather than a second opinion about what a node is:
+    ///
+    /// - **Ordered contents have a shape.** Each structural member is a capsule
+    ///   from `base` to `tip` at the joint's cross-section radius — three
+    ///   numbers `Topology` has carried all along while contact measured the
+    ///   midpoint bead instead.
+    /// - **Disordered contents do not.** A parcel of gas, a cloud of rubble or
+    ///   a star cluster has no surface to speak of, and the node falls back to
+    ///   the sphere of its own radius. That is not a special case for
+    ///   unstructured matter; it is the honest shape of a thing whose contents
+    ///   are a distribution.
+    ///
+    /// Returns pieces that are each convex. A structure is many of them — a box
+    /// is six walls around a cavity, and one hull over the whole thing would
+    /// enclose its own contents.
+    pub fn collision_shape(&self) -> Vec<crate::shape::Hull> {
+        let Some(mask) = self.structural_mask() else {
+            return vec![crate::shape::Hull::sphere(Vec3::ZERO, self.matter.radius)];
+        };
+        let Some(t) = self.topology.as_ref() else {
+            return vec![crate::shape::Hull::sphere(Vec3::ZERO, self.matter.radius)];
+        };
+        let mut out = Vec::new();
+        for (i, ordered) in mask.iter().enumerate() {
+            if !ordered {
+                continue;
+            }
+            let radius = t.joints.get(i).map(|j| j.radius).unwrap_or(0.0);
+            let base = t.base.get(i).copied().unwrap_or(Vec3::ZERO);
+            let tip = t.tip.get(i).copied().unwrap_or(Vec3::ZERO);
+            // A member with no length is a block rather than a beam — coursed
+            // masonry is the case — and its own body's sphere is the right
+            // shape for it.
+            if (tip - base).norm2() > 0.0 {
+                out.push(crate::shape::Hull::capsule(base, tip, radius));
+            } else if let Some(b) = self.bodies.get(i) {
+                out.push(crate::shape::Hull::sphere(b.pos, b.radius.max(radius)));
+            }
+        }
+        if out.is_empty() {
+            out.push(crate::shape::Hull::sphere(Vec3::ZERO, self.matter.radius));
+        }
+        out
+    }
+
     pub fn child_of(&self, slot: usize) -> NodeIdx {
         self.children.get(slot).copied().unwrap_or(NodeIdx::NONE)
     }

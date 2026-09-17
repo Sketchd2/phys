@@ -676,15 +676,68 @@ pub fn friction(_a: &Surface, _b: &Surface) -> f64 {
 }
 
 /// One side of a contact, at the moment of it.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct Side {
+    /// Where this side's mass is. The lever arms of the contact couple are
+    /// measured from here, so it is the centre of mass and not the centre of
+    /// the shape — for a single sphere those coincide and for a wall of panels
+    /// they need not.
     pub pos: Vec3,
     pub velocity: Vec3,
     pub mass: f64,
+    /// Bounding radius about `pos`. The broad phase indexes this; the narrow
+    /// phase does not use it, because `shape` says where the surface actually
+    /// is.
     pub radius: f64,
     /// J/K, for the heat the contact makes. See `state::Matter::heat_capacity`.
     pub heat_capacity: f64,
     pub surface: Surface,
+    /// What this side actually *is*, geometrically, as one or more convex
+    /// pieces. A lone body presents one sphere and gets exactly the arithmetic
+    /// it always got; a structure presents a capsule per member and stops being
+    /// a row of beads.
+    pub shape: Vec<crate::shape::Hull>,
+}
+
+impl Side {
+    /// The sphere case, which is every plain body and every promoted child.
+    pub fn sphere(
+        pos: Vec3,
+        velocity: Vec3,
+        mass: f64,
+        radius: f64,
+        heat_capacity: f64,
+        surface: Surface,
+    ) -> Side {
+        Side {
+            pos,
+            velocity,
+            mass,
+            radius,
+            heat_capacity,
+            surface,
+            shape: vec![crate::shape::Hull::sphere(pos, radius)],
+        }
+    }
+
+    /// A side whose geometry is a hull rather than its bounding sphere.
+    ///
+    /// `pos` stays the centre of mass: the hull says where the surfaces meet,
+    /// and the couple is still taken about the mass.
+    pub fn shaped(
+        pos: Vec3,
+        velocity: Vec3,
+        mass: f64,
+        heat_capacity: f64,
+        surface: Surface,
+        shape: Vec<crate::shape::Hull>,
+    ) -> Side {
+        let radius = shape
+            .iter()
+            .map(|h| (h.centre() - pos).norm() + h.bound())
+            .fold(0.0f64, f64::max);
+        Side { pos, velocity, mass, radius, heat_capacity, surface, shape }
+    }
 }
 
 /// What a contact does to the pair.
@@ -738,12 +791,29 @@ pub fn contact(a: &Side, b: &Side) -> Option<Collision> {
     if !a.surface.is_usable() || !b.surface.is_usable() {
         return None;
     }
-    let d = b.pos - a.pos;
-    let dist = d.norm();
-    if !(dist > 0.0) || !dist.is_finite() {
+    // Where the two surfaces actually meet. For a pair of spheres this is the
+    // line of centres and the arithmetic below is unchanged; for anything else
+    // it is the difference between hitting a wall and hitting whichever of its
+    // panels happened to be nearest.
+    let Some(near) = crate::shape::closest_of(&a.shape, &b.shape) else { return None };
+    // The broad phase screens on bounding radii, which for a hull is a sphere
+    // around the whole thing. Two walls whose bounds overlap and whose surfaces
+    // do not are not in contact, and only the narrow phase knows.
+    if near.gap > 0.0 {
         return None;
     }
-    let n = d.scale(1.0 / dist);
+    let n = near.normal;
+    if !n.is_finite() {
+        return None;
+    }
+    // One point, used by both sides. The midpoint of the two witness points is
+    // the touching point exactly when the surfaces are just touching, and stays
+    // on the overlap when they are not. Which point is chosen does not affect
+    // conservation — the orbital and spin terms cancel for any of them, as
+    // below — but it has to be the *same* point for both sides, which is the
+    // thing the sphere path documents at length and the reason this is computed
+    // once here.
+    let point = (near.on_a + near.on_b).scale(0.5);
     let rel = b.velocity - a.velocity;
     let closing = rel.dot(n);
     // Positive means b is moving away from a. Nothing to resolve, and resolving
@@ -772,23 +842,32 @@ pub fn contact(a: &Side, b: &Side) -> Option<Collision> {
         (Vec3::ZERO, 0.0)
     };
 
-    // The couple, about **one** contact point used by both sides.
+    let total_impulse = n.scale(jn) + friction_impulse;
+
+    // The couple, about the one contact point both sides share.
     //
     // The obvious spelling — a's radius out from a, b's radius back from b — is
     // wrong, and wrong in a way that only shows up once the two are actually
-    // interpenetrating. Those are two different points whenever `dist` is not
-    // exactly `r_a + r_b`, and the total angular momentum then comes out as
+    // interpenetrating. Those are two different points whenever the surfaces
+    // overlap, and the total angular momentum then comes out as
     // `(dist - r_a - r_b) (n x J)` instead of zero: a 1.3% leak at a tenth of a
     // radius of overlap, which is what the test measured before this was fixed.
     //
-    // With a single point anywhere on the line of centres the spins contribute
-    // `-dist (n x J)` and the orbital terms `+dist (n x J)`, identically, for
-    // any choice of it. The choice made here is where the two surfaces would
-    // meet if the overlap were shared out in proportion to the radii, which is
-    // the touching point when they are just touching.
-    let lever = dist * a.radius / (a.radius + b.radius).max(1e-300);
-    let spin_a = n.scale(lever).cross(friction_impulse.scale(-1.0));
-    let spin_b = n.scale(lever - dist).cross(friction_impulse);
+    // With one point the spin terms contribute `(r_b - r_a) x J` and the
+    // orbital terms `(b.pos - a.pos) x J`, and those are exact negatives for
+    // *any* choice of point, so conservation does not depend on picking well.
+    //
+    // The **whole** impulse enters the couple, not only the friction part. For
+    // two spheres the contact point lies on the line of centres, the normal
+    // impulse is parallel to its own lever arm, and its cross product is
+    // identically zero — which is why the sphere path could leave it out and
+    // stay exact. Off the line of centres, which is where a hull puts a glancing
+    // blow on a wall, the normal impulse turns what it hits, and omitting it
+    // would lose that torque rather than cancel it.
+    let ra = point - a.pos;
+    let rb = point - b.pos;
+    let spin_a = ra.cross(total_impulse.scale(-1.0));
+    let spin_b = rb.cross(total_impulse);
 
     // Energy not returned. The normal direction loses `(1 - e^2)` of the
     // approach energy; the tangential direction loses whatever the friction

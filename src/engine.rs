@@ -1833,14 +1833,28 @@ impl World {
             &mut self.tree.nodes[idx.get()].bodies
         };
         let count = bodies.len();
-        if count == 0 {
-            // A structure with no loose contents at all. Nothing for the tier
-            // solver to do, and its members are not its to move.
-            self.tree.nodes[idx.get()].steps_taken += 1;
-            return solvers::SolveReport::default();
-        }
-
-        let report = match solvers::for_tier(tier) {
+        // A structure with no loose contents at all — a solid object, whose
+        // every body is a member. There is nothing for the tier solver to do,
+        // and its members are not its to move.
+        //
+        // This used to `return` here, and that was wrong in a way nothing
+        // caught, because everything below runs on the *node* rather than on
+        // its contents: the node's own clock, its motion, the contacts it is in
+        // and the heat crossing its boundaries. Skipping the solver skipped
+        // those too, so a node made entirely of ordered matter never moved,
+        // never aged, never collided and never exchanged — a solid rock adrift
+        // in space, frozen, while a rock with a single speck of dust in it
+        // behaved perfectly.
+        //
+        // Measured, on a 48-tonne box given 1 m/s for one second of frames:
+        // it moved 0.000000 m and its clock read 0.0 s after a hundred steps.
+        // The same box with one loose body added moved 1.000000 m. A structure
+        // whose members are not the solver's to move is not the same statement
+        // as a node that is not there.
+        let report = if count == 0 {
+            solvers::SolveReport::default()
+        } else {
+            match solvers::for_tier(tier) {
             SolverKind::Gravity | SolverKind::GravityHydro => {
                 let params = solvers::gravity::GravityParams {
                     theta: 0.5,
@@ -1932,6 +1946,7 @@ impl World {
                 total
             }
             SolverKind::Statistical => self.advance_statistical(idx, dt),
+            }
         };
 
         // The disordered contents were solved in a buffer; put them back.
@@ -2087,26 +2102,50 @@ impl World {
             let (occ, pos, radius) = nb.at(i)?;
             let side = match occ {
                 Occupant::Body(k) => {
-                    let b = w.tree.nodes[idx.get()].bodies.get(k as usize)?;
-                    Side {
-                        pos,
-                        velocity: b.vel,
-                        mass: b.mass,
-                        radius,
-                        heat_capacity: b.heat_capacity(),
-                        surface: mine?,
+                    let n = &w.tree.nodes[idx.get()];
+                    let b = n.bodies.get(k as usize)?;
+                    // A member of this node is a capsule, for the same reason a
+                    // promoted child's members are: `Topology` carries `base`,
+                    // `tip` and a cross-section radius, and the sphere at the
+                    // midpoint is 164x shorter than the beam the renderer draws.
+                    // This is the side a limb landing on a tree strikes.
+                    let member = n.topology.as_ref().and_then(|t| {
+                        let i = k as usize;
+                        let r = t.joints.get(i)?.radius;
+                        let (base, tip) = (*t.base.get(i)?, *t.tip.get(i)?);
+                        (r > 0.0 && (tip - base).norm2() > 0.0)
+                            .then(|| crate::shape::Hull::capsule(base, tip, r))
+                    });
+                    match member {
+                        Some(h) => Side::shaped(
+                            pos,
+                            b.vel,
+                            b.mass,
+                            b.heat_capacity(),
+                            mine?,
+                            vec![h],
+                        ),
+                        None => Side::sphere(pos, b.vel, b.mass, radius, b.heat_capacity(), mine?),
                     }
                 }
                 Occupant::Child(c) => {
                     let n = &w.tree.nodes[c.get()];
-                    Side {
+                    // A promoted child is the engine's rigid body: one
+                    // velocity, one spin, and `apply_contact` has always put an
+                    // impulse straight onto them. What it lacked was a shape.
+                    // `collision_shape` is in the child's own frame, so it
+                    // moves to where the child is.
+                    let shape: Vec<crate::shape::Hull> =
+                        n.collision_shape().iter().map(|h| h.translated(pos)).collect();
+                    let _ = radius;
+                    Side::shaped(
                         pos,
-                        velocity: n.motion.velocity,
-                        mass: n.matter.mass,
-                        radius,
-                        heat_capacity: n.matter.heat_capacity(),
-                        surface: w.surface_of(c)?,
-                    }
+                        n.motion.velocity,
+                        n.matter.mass,
+                        n.matter.heat_capacity(),
+                        w.surface_of(c)?,
+                        shape,
+                    )
                 }
             };
             Some((occ, side))

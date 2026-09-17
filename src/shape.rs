@@ -575,3 +575,33 @@ fn project_origin(points: &[Vec3], idx: &[usize]) -> Option<Vec<f64>> {
     }
     Some(w)
 }
+
+/// Closest approach of two *compound* shapes — the nearest pair of convex
+/// pieces.
+///
+/// A structure is many convex pieces, and a contact between two of them is a
+/// contact between one piece of each. Taking the minimum-gap pair resolves one
+/// contact per pair of things per frame, which is the right answer for a ball
+/// bouncing around inside a box and an approximation for a ball wedged into a
+/// corner: the second wall is resolved on the following frame, by which time
+/// the first has already turned the ball away from it.
+///
+/// Resolving *every* overlapping pair at once is the alternative, and it is not
+/// obviously better — two normal impulses applied independently in one step
+/// over-correct, which is the standard reason a solver iterates instead. That
+/// is a scheduling question of the same kind §3.3 left open, and this does not
+/// pre-empt it.
+pub fn closest_of(a: &[Hull], b: &[Hull]) -> Option<Closest> {
+    let mut best: Option<Closest> = None;
+    for ha in a {
+        for hb in b {
+            let Some(c) = closest(ha, hb) else { continue };
+            // Strictly less, so the first piece wins a tie and the answer does
+            // not depend on how the pieces happen to be ordered.
+            if best.map_or(true, |x| c.gap < x.gap) {
+                best = Some(c);
+            }
+        }
+    }
+    best
+}
