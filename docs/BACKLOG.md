@@ -696,53 +696,85 @@ the same function.
 ## Only a built thing has a surface, so only a built thing collides
 
 **Noticed:** building D3's contact half.
+**Re-opened:** the owner, asking why a wooden ball is not a "built" thing, and
+observing that "grown" and "built" are themselves two special cases where the
+axioms allow only one kind of thing.
 **Where:** `engine.rs::World::surface_of`.
 
-Contact needs four numbers — density, Young's modulus, a strength and, through
-it, a yield velocity — and they come from `topology::Material`. A node has one
-if it has a `Topology` (materialised structure) or a `Morphology` (a structure
-that has not been materialised yet). Everything else has none, and
-`neighbourhood::contact` returns `None` rather than inventing one.
+Contact needs three numbers — density, Young's modulus and a strength — and they
+come from `topology::Material`. `surface_of` reads `topology.material` for a
+materialised structure or `morphology.material()` for one not yet materialised,
+and returns `None` for everything else, so `neighbourhood::contact` refuses the
+pair.
 
-That is the right default and it is deliberately conservative: giving a gas
-parcel or a star cluster a surface would be the engine being *told* they are
-solid rather than measuring it, and `PLAY.md` D3 says restitution and friction
-come from "the materials `topology.rs` already carries as data". Phase 1's
-done-when is "two promoted **vehicles** collide", and a vehicle is a built
-thing.
+**That is a provenance test standing in for a state measurement**, which is how
+this entry should have read and did not. The engine has already made the same
+decision correctly once: `PLAY.md` §3.3's `Node::structural_mask` partitions a
+node's contents by the *measured* joint radii it carries, not by whether it has
+a `Program`. A building, a wolf and a boulder are all `Continuum` and the
+dispatcher decides from state. One layer over, contact decides from a birth
+certificate. The question a surface answers is not "was this built" but "does
+this hold together", and that is measurable.
 
-**But the hole is real and it is in the play space.** A rock, a boulder, a
-detached fragment that is not a structure, a promoted node of plain matter — none
-of them collide with anything. An avatar walking into a cliff face made of
-`Program::Terrain` works; the same avatar kicking a stone does not.
+**What the ball-in-box test does about it is the tell.** `tests/adjacency.rs`
+hand-authors `Topology { material: GREEN_WOOD, ..Default::default() }` onto both
+the ball and the box, with no joints, for no reason except to make `surface_of`
+return something. A hand-set value on a path that exists to measure is what
+`Interaction::Author` is audited for, and here it is load-bearing for the test to
+run at all.
 
-**What is derivable today, measured rather than assumed:**
+**The derivation this entry used to record does not work, measured.** It said
+Young's modulus falls out exactly, because "the longitudinal wave speed of a
+solid *is* `sqrt(E/rho)`" and `Matter::sound_speed()` already exists. Both halves
+fail:
 
-- **Density**: yes, `Matter::density()`.
-- **Young's modulus**: yes, and exactly rather than approximately — the
-  longitudinal wave speed of a solid *is* `sqrt(E/rho)`, and `Matter` already
-  computes `sound_speed()`. `E = rho c^2` needs no table at all.
-- **Strength**: no. Theoretical strength is about `E/10` for a perfect crystal
-  and real materials are one to three orders below that because of dislocations,
-  which is not something the engine represents. The nearest honest route is a
-  cohesive energy density — `chem::analyse::Properties` carries
-  `cohesive_energy` and `lattice_binding_ev` — but those are reachable only for
-  a node with a registered `Mixture`, not from a bare `Composition`.
+- `Matter::sound_speed()` is **the gas formula** — `sqrt(gamma n k T / rho)`,
+  capped by `velocity_dispersion` — and not an elastic wave speed at all. It is
+  the same equation-of-state mismatch that makes SPH burst a solid.
+- `Matter::density()` is the **bulk** density of a node, and a surface is a
+  property of the material at the point of contact. A hollow box is mostly air.
 
-So two of the three fall out of laws already in the codebase and the third does
-not, which is the same shape as the thermal-conductivity gap in D3's transport
-half.
+Measured on the ball-in-box assembly, against what green wood actually is
+(600 kg/m^3, 1.0x10^10 Pa):
 
-**Related, and the reason this is not simply "add a material field":**
-`Morphology::material` is a `match` on `Program` — `Tree => GREEN_WOOD`,
-`Wall => MASONRY`, six arms. That is one of the per-species columns `PLAY.md`
-D11 exists to move off `Program` and onto the material. Whatever answers "what
-is this made of" for a plain node should probably be the same thing that answers
-it for a structure, and D11 is where that gets decided.
+```text
+                    density()              E = rho c^2
+  box node      5.31e1   11.3x low      1.73e8   57.7x low
+  ball node     3.73e1   16.1x low      1.22e8   82.1x low
+```
 
-**Trigger:** when anything that is not a built structure has to be collided
-with — the first loose object an actor can pick up, kick or trip over. Not
-before D11, unless something needs it sooner.
+So **none of the three numbers is currently derivable from a node's own
+`Matter`**, which is a stronger statement than this entry made before. Density
+and stiffness are not missing laws; they are being asked of the wrong object.
+They are properties of *what the matter is made of*, and the place that knows is
+`chem::analyse::Properties` — `density`, `cohesive_energy`, `lattice_binding_ev`
+— which is reachable for a node with a registered `Mixture` and not from a bare
+`Composition`.
+
+**Strength is the one with no law at all.** Theoretical strength is about `E/10`
+for a perfect crystal and real materials are one to three orders below that
+because of dislocations, which the engine does not represent. The derivable
+candidate is a cohesive energy density — `cohesive_energy` over a formula unit's
+volume, in Pa — an honest *upper* bound of the same shape as the
+Einstein-Cahill-Pohl minimum conductivity this file proposes for the thermal gap.
+**Deliberately not chosen**, and deferred to D11 with the owner asked again
+there.
+
+**The owner's wider point, recorded rather than resolved.** "There should only be
+'things' that everything is" — and grown versus built is the same provenance
+split one level up. `PLAY.md` D11 already goes most of the way: growth and
+construction "are the same operation — material is deposited where a field says
+to deposit it — and they differ only in where the field comes from", and five of
+`Program`'s seven columns move onto the material and the measured environment.
+But D11 explicitly stops short of unifying geometry: "Branching, coursed masonry
+and a subdivided street grid are genuinely different space-filling rules, and
+asserting they collapse into one would be the third over-claim in this document."
+Whether the *habits* are themselves a species table in disguise is the owner's
+question and is not settled here.
+
+**Trigger:** when anything that is not a built structure has to be collided with
+— the first loose object an actor can pick up, kick or trip over. Not before D11,
+unless something needs it sooner.
 
 ---
 
