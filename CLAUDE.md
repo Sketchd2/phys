@@ -233,9 +233,21 @@ They are load-bearing; keep them that way.
 
 ## Current frontier
 
-**Phase 1 of `docs/PLAY.md` §7 is done.** The engine used to model what happens
-*inside* a node very well and what happens *between* nodes barely at all; that
-is what Phase 1 closed. Phase 2 is next and nothing in it has started.
+**Phase 1 of `docs/PLAY.md` §7 is done, and §7 has been reordered.** The engine
+used to model what happens *inside* a node very well and what happens *between*
+nodes barely at all; that is what Phase 1 closed.
+
+**Read `PLAY.md` §2A before anything else.** It records Issue 1 — *the engine has
+no representation for the shape of a solid, at any scale* — and D13 to D16
+follow from it. Two phases were inserted ahead of Ground as a result, so the
+numbering below the insertion has moved: **Things**, **Crossings**, then Ground,
+Water, Bodies, Minds, Making, Sessions. Nothing below Ground changed relative to
+anything else.
+
+**Phase 2 is Things** and nothing in it has started. Its done-when is a wooden
+box that is *one node* with a recipe describing six walls, which responds as one
+box, loses a single wall to a hard enough strike, and returns to ~100 bytes when
+nobody is watching — plus a rock that no `Program` made bouncing off a boulder.
 
 What landed, in the order it was built — each of these has its own commit with
 the measurement in the message:

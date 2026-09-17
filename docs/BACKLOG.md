@@ -474,6 +474,40 @@ The box velocity is the rigidity check and it is arithmetic: the ball carries
 
 ---
 
+## A struck node banks angular momentum and never turns
+
+**Noticed:** answering what a node's velocity and spin actually are, while
+scoping `PLAY.md` §2A.
+**Where:** `coords::Motion::spin_rate` against `state::Matter::spin`.
+
+A node carries two spin quantities and nothing keeps them in step:
+
+```text
+    matter.spin        angular momentum      kg m^2/s
+    motion.spin_rate   angular velocity      rad/s
+```
+
+`spin_rate` is derived from `matter.spin` at **node construction and nowhere
+else** — two sites, both creation paths. A collision adds to `matter.spin`
+through `apply_contact` and `spin_rate` never hears about it, so the node's
+`orientation` never moves. The ball-in-box test measures a box accumulating
+`matter.spin` of 7.4865 over five off-centre strikes while remaining, as far as
+`motion` is concerned, perfectly still.
+
+This is the concrete mechanism behind "nothing composes orientation anywhere in
+the tree", which until now was recorded only as a consequence for derived
+gravity's axes.
+
+**Second defect, same area.** `Node::collision_shape` translates a child's
+pieces to where the child is and never rotates them by `motion.orientation`. So
+even with the above fixed, a spinning box's walls would stay where they were
+built. Both are `PLAY.md` Phase 2 item 1, and neither is more than a few lines.
+
+**Trigger:** immediately, as the first item of Phase 2 — the rigid-body claim
+that `a_ball_loose_in_a_box...` rests on is not true until both are done.
+
+---
+
 ## A Continuum node whose bodies are all stand-ins detonates
 
 **Noticed:** building the ball-in-box scene, where a root holds two promoted

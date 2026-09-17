@@ -752,6 +752,249 @@ genome change, nothing derived and the constants merely moved.
 
 ---
 
+## 2A. Issue 1 — a thing has no shape
+
+Everything in §2 was written before anybody asked what a solid *is*, and the
+answer turns out to be: nothing. This section is the finding, and D13 to D16 are
+what follows from it. It reorders §7.
+
+**The engine has no representation for the shape of a solid, at any scale.**
+Checked rather than assumed — `mesh`, `triangle`, `facet`, `vertex` and
+`boundary` appear nowhere in `src/` except in prose describing what is being
+*avoided*. What exists is:
+
+| thing | its entire geometry |
+|---|---|
+| `Body` | a point and a radius — a sphere |
+| `Matter` | `radius`. One scalar, for a whole node |
+| a structural member | a segment with a thickness |
+| everything else | nothing |
+
+The member list is a *structural analysis* artefact: it exists so the stress
+solver knows where bending peaks. Collision was improvised out of it because the
+alternative — a cloud of balls — is worse. Neither was ever the boundary of
+anything. Even the renderer has no mesh; it rasterises each member as a tube by
+distance-to-segment, which is why "what is seen and what is solid are different
+objects" has been a live backlog entry.
+
+**Three consequences, each measured.**
+
+1. **Only a built thing collides.** `surface_of` reads `topology.material` or
+   `morphology.material()` and returns `None` for everything else, so a rock, a
+   boulder and a ball of wood have no surface. This is a *provenance test
+   standing in for a state measurement*, and §3.3 already made the same call
+   correctly one layer down: `structural_mask` asks what a node's joints
+   measure, not what generated it.
+
+2. **The recorded fix does not work.** `BACKLOG.md` said Young's modulus falls
+   out exactly from `E = rho c^2` because `Matter::sound_speed()` exists. It is
+   the *gas* formula capped by velocity dispersion, not an elastic wave speed,
+   and `density()` is bulk while a surface is a property of the material at the
+   point of contact — a hollow box is mostly air. Measured against green wood's
+   600 kg/m^3 and 1.0x10^10 Pa:
+
+   ```text
+                       density()              E = rho c^2
+     box node      5.31e1   11.3x low      1.73e8   57.7x low
+     ball node     3.73e1   16.1x low      1.22e8   82.1x low
+   ```
+
+   So none of the three numbers a `Surface` needs is derivable from a node's own
+   `Matter`. Density and stiffness are not missing laws; they are being asked of
+   the wrong object.
+
+3. **Shape is derived without being stored.** `Node::collision_shape` rebuilds a
+   proxy from the member list every frame and persists nothing — a derivation
+   with no shortcut, which is the half of axiom three that saves nothing.
+
+**And a node has no boundary, so three separate questions have no answer.** When
+does detail get generated? When does a node change parent? Which parent does it
+move to? A node carries one geometric number and it answers none of them.
+
+**Two defects surfaced by the same investigation**, both cheap and both making
+the rigid-body story untrue:
+
+- `motion.spin_rate` is derived from `matter.spin` only at node construction —
+  two sites, both creation paths — and never again. A collision adds angular
+  momentum and the node never turns.
+- `collision_shape` translates to where a node is and never rotates by
+  `motion.orientation`, so a spinning box's walls stay put.
+
+---
+
+### D13 — A thing has a shape, and it is measured rather than inherited
+
+**A node's boundary is derived from the arrangement of its matter, stored, and
+invalidated when that arrangement changes.** It is not derived from what
+generated the node, and a node does not need a `Program` to have one.
+
+The discriminator is **solidity, measured** — does this arrangement hold
+together — and not provenance. That is the same move §3.3 made for dispatch, and
+the disagreement between the two layers is what made a wooden ball uncollidable
+while a wooden wall was not. A cloud of gas still has no boundary, because it
+measures as not holding together, which is the honest answer rather than a
+special case for unstructured matter.
+
+**The surface carries material per region, not per node.** `Topology` holds one
+material for a whole structure, and a house is stone walls, a wooden door and
+glass windows. Material attaches to parts of the surface. Contact then reads the
+material *at the point of impact*, which is also what damage and the renderer
+need.
+
+**It is stored.** Derived once, kept, regenerated when `epoch` moves. This is
+axiom three read literally — "deriving *once* and storing the result" — applied
+to shape, which is the one place the engine never applied it. An undisturbed
+tree computes its boundary once and reuses it for a thousand frames; a felled
+one recomputes because its arrangement changed.
+
+**What survives from the interim work.** The GJK distance query and the
+sphere-set hull in `src/shape.rs` are the narrow phase either way, and the
+measurement that motivated them stands: every structural member now presents its
+capsule rather than a midpoint bead — Tower 248/248, Tree 3400/3400, Wall
+704/704, Settlement 256/256. What is replaced is the per-frame rebuild and the
+assumption that a shape comes from a member list.
+
+---
+
+### D14 — Strength is theoretical strength cut by one flaw size
+
+**Decided: Griffith.** `strength = sqrt(2 E gamma / (pi a))`, where `gamma` is
+surface energy and `a` is a characteristic flaw size in metres.
+
+The problem this solves is not which formula to use. Theoretical strength is
+about `E/10` — how far atomic bonds stretch before letting go is a roughly fixed
+fraction of how stiff they are — and **real materials are one to three orders
+weaker**, because they fail at defects rather than everywhere at once. A crack
+tip concentrates stress; a dislocation lets one plane slide past another in
+sequence. The engine models chemistry in depth and models defects not at all.
+
+So: **strength is not a property of what a thing is made of. It is a property of
+how well it was made.** Chemistry cannot answer it and history can.
+
+Three candidates were considered and two rejected:
+
+- **Cohesive energy density alone** is fully derived and needs no table, and
+  makes everything 10 to 1000 times too strong. A wooden box as strong as a
+  flawless wood crystal never breaks when it should. Honest as an upper bound,
+  useless as a value.
+- **Keeping `Material`'s tabulated `rupture`** and auditing it as the exception
+  is cheapest and leaves a table of eight arbitrary stresses that nothing
+  derived.
+- **Griffith** leaves exactly one stored number, and it is a *length with
+  physical meaning* rather than a stress somebody chose. `gamma` derives from
+  cohesive energy, `E` derives from the material.
+
+**Why this fits here specifically.** Flaw size is set by how a thing was made —
+a tree grown in wind carries different defects from one grown sheltered, a
+forged bar differs from a cast one — and this engine *records how things were
+made*. The growth model and D9's build log are where that history already lives,
+so `a` starts as one number per material with a real route to being derived from
+an object's own history. A tabulated rupture stress has no such route; it can
+only ever be looked up. That is the difference between a shortcut and a table,
+and axiom three permits the first.
+
+**It pays for itself immediately.** Strength becomes *size-dependent*: a thin
+fibre is genuinely stronger than a thick bar of the same material, because a
+small piece cannot contain a large flaw. That is real, measurable, currently
+inexpressible, and free — every member already carries a radius.
+
+---
+
+### D15 — Joining and breaking are one scale transform on structure
+
+**A composite thing is one node with a recipe, not a pile of promoted nodes.**
+
+§5.7 already decided that an edit list and a field delta are "the fine and
+coarse ends of one scale transform" — `summarise` and `sample` applied to
+deviations instead of bodies. D15 is that same transform applied to *structure*
+rather than to damage, which §5.7 did not reach.
+
+A composite sits in one of three states, and the engine already has the verbs:
+
+| state | what exists | when |
+|---|---|---|
+| **described** | one node, a recipe: "box, six walls, oak" | at rest, which is nearly always |
+| **materialised** | its walls as *bodies* inside that one node | something needs to interact |
+| **promoted** | one wall as a node of its own | something happened to *that wall* |
+
+**Half of this already works and is worth not rebuilding.** `coarsen` takes a
+node's bodies, summarises them, and never touches `morphology`; `refine`
+regenerates the members from it. A generated tree genuinely is ~100 bytes at
+rest. What is missing is that **coarsening collapses to *matter*, not to
+*description***: `summarise` turns a promoted part into mass, momentum and
+composition, which is exactly right for a cloud of gas and throws away the thing
+that made a door a door. So a changed part can only be kept by storing its raw
+bodies.
+
+**Therefore joining is an act, not a structure.** Weld, glue and grown-together
+are not three features and not a permanent inter-node bond: they are the forward
+direction of this transform, differing only in what the join is made of and
+therefore in its strength under D14. Two beams welded become **one node with one
+recipe**; break it and the recipe samples back out into pieces, one of which
+becomes a node again.
+
+**The cost this is really about.** A `Node` is 576 bytes before its topology, its
+clock, its scheduler entry and its slot in the neighbourhood index.
+
+| | as promoted nodes | as one node and a recipe |
+|---|---|---|
+| a house of ~50 parts | ~29 KB, 50 scheduler entries | under 1 KB, one entry |
+| a town of 500 houses | **25,000 nodes** | **500 nodes** |
+
+§5A.5 measures 10^4 live nodes at 18.7% of a frame for chemistry alone. A town
+is affordable in one representation and not in the other, so this is not
+tidiness.
+
+**Deliberately unresolved.** Things attached but independently meaningful — a
+crate roped to a cart, an axle, a hinge between two separately owned objects —
+may need a runtime relationship rather than absorption. Where the line falls
+between "join and absorb" and "attach and keep separate" is not decided here,
+and the first articulated thing is what should decide it.
+
+---
+
+### D16 — A boundary crossing is the event
+
+One mechanism answers the three questions D13 observed have no answer:
+
+| crossing | what happens |
+|---|---|
+| **inward** | generate the detail about to be interacted with |
+| **outward** | re-home to the node above |
+| **into a sibling** | re-home sideways; the parent arbitrates |
+
+D6 already says "walking off the edge of a patch is a `reparent`, triggered by
+leaving the patch's volume. **That trigger does not exist**". D16 is that
+trigger, generalised — and the same "have my contents outgrown me" measurement
+drives **node splitting**, which Phase 1 built the measurement for and connected
+to nothing.
+
+**The parent arbitrates but is not necessarily the destination**, and that
+distinction is what keeps this one mechanism rather than two. A creature walking
+from forest to desert lands inside a sibling and should never become a direct
+child of the planet — it would be rekeyed twice, and for one frame its
+neighbours would be *other regions* rather than the ground under its feet. A
+rocket climbing out of the forest lands inside no sibling and genuinely belongs
+to the planet. The rule is "re-home to whatever now contains you"; the parent's
+adjacency index, which holds its bodies *and its promoted children in one
+index*, is what answers it.
+
+**Measured, on the case that shows why this is not optional.** At escape
+velocity a rocket leaves a 1 km forest node in under a tenth of a second, and
+nothing notices: `reparent` is only ever called from `Interaction::Rehome`, and
+there is no escape check anywhere in `src/`. Gravity survives — it walks the
+whole ancestry and applies the shell theorem per step, which is a genuinely good
+piece of design — but the spatial index clamps far-away occupants into corner
+cells, so the rocket quietly stops being able to collide with or exchange heat
+with anything.
+
+**Sideways handoff needs regions that share borders**, and spheres do not tile a
+surface: two adjacent regions as spheres either overlap or leave a gap, so there
+is no edge to walk off. That is why sideways lands in Ground and outward does
+not.
+
+---
+
 ## 3. The tiers under these decisions
 
 The ladder is the part of the architecture most likely to be assumed changed by
@@ -2061,107 +2304,113 @@ discovered:
 Each phase ends with a test that fails today. A phase is not done because its
 code exists.
 
-**Phase 0 — Probes.** The measurements above, each as a test that demonstrates
-the thing it claims — including committing the substeps-per-tier probe that
-§3.4 reports, since it is currently a scratch run. Nothing is designed further
-until they are numbers. *Done when:* `PERFORMANCE.md` carries the new measured
-rows and D5 is either confirmed or replaced.
+**Reordered by §2A.** Two phases are inserted, and everything below them keeps
+its order and its content. The reason is dependency rather than preference: a
+node boundary is what Ground tiles and hands off at, what Water needs for
+"boundary conditions against arbitrary geometry", what Bodies stands on, and
+what Making builds against. It was scheduled nowhere.
 
-**Phase 1 — The primitives.** `EntityId` and the side-table rekey (D2);
+**Phase 0 — Probes.** *Done.*
+
+**Phase 1 — The primitives.** *Done.* `EntityId` and the side-table rekey (D2);
 `Neighbourhood`, boundary exchange and contact (D3); the promoted child made
 authoritative and force-bearing (D4); tier revisited on size change; the spread
-measurement; `PaceMode::Fixed(1.0)` as what a world is, and `G_EARTH` deleted in
-favour of derived g. Plus the two tier corrections from §3: solver dispatch that
-reads ordered-versus-disordered state as well as size (§3.3), and a reported
-resolution floor so a node dropping to its ensemble says so instead of doing it
-quietly (§3.7). *Done when:* two promoted vehicles collide and rebound with
-restitution derived from their materials; a hot node beside a cold one
-equilibrates without either being told the other exists; a branch lands on the
-next tree; one node holds both a structure and loose contents and steps both
-correctly in one pass; and nothing in the existing suite regresses.
-
-**Done.** All five, as `two_promoted_things_collide_and_rebound`,
-`a_hot_node_beside_a_cold_one_equilibrates`, `a_branch_lands_on_the_next_tree`,
-`a_node_holds_ordered_and_disordered_contents_at_once`, and a suite of 349
-passing with 1 ignored. `CLAUDE.md`'s "Current frontier" lists what each item
-delivered and what was deliberately left for Phase 2 to meet first — starting
-with the ball-in-box test, which this phase's own backlog entry says to rebuild
-at `Continuum` now that §3.3 has landed, and which is still at `Galactic`.
-
-**Phase 2 — Ground.** Cubed-sphere parameterisation, patches as `Program::Terrain`
-nodes, refinement and coarsening on approach, handoff by `reparent`, planetary
-gravity, and terrain as an **editable deviation over a derived base** (§4.3) —
-carving shares D9's build log's *concept* but not its representation (§5.7),
-and both are settled here — along with the decay machinery of §5: a deviation
-with an amplitude, a derived erosion rate, and promotion to baseline when
-`summarise` says the coarse level noticed. Plus D11's first half — `density`,
-`energy_density`, `substrate`, `design_flow` and `maintenance` moved off
-`Program` onto the material and the measured environment — because a derived
-erosion rate cannot coexist with a tabulated one. The surface representation is designed with
-Phase 3 as a named consumer, because a surface that cannot hold a puddle is one
-that gets rebuilt. *Done when:* an observer descends from orbit to a square metre of any
-planet in any scenario, travels ten kilometres across patch boundaries, and the
-terrain behind them regenerates bit-identically. **And:** a squiggle drawn in
-sand is gone by the next tide while a channel that redirects drainage is still
-there a year later, with neither having been tagged as important when it was
-made.
-
-**Phase 3 — Water.** The five pieces §4.3 names, in dependency order: a **free
-surface**, so a node holds an interface and not only phase fractions; a **liquid
-equation of state**, so `pressure()` stops returning 4×10⁸ Pa for a bucket of
-water; **weakly-compressible SPH**, which is what makes centimetre flow fit a
-frame at all; **boundary conditions against arbitrary geometry**, so water meets
-a carved channel; and **multi-resolution transport**, particles crossing between
-a coarse ocean and a fine channel through `sample` and `summarise`, which
-conserve across a scale change by construction and have simply never been asked
-to do it for a flowing fluid.
-
-It sits here, immediately after ground and before creatures, for one reason: a
-beach, a river and rain are most of what makes a planet feel like a place, and
-water is the first thing anybody tests. Designing it against a surface that
-exists — rather than retrofitting it to one built without a consumer — is the
-whole argument for the position. It is also the largest single subsystem in this
-document, and putting it third is a deliberate acceptance of that cost.
-
-*Done when:* **the beach test passes.** An actor carves a 5 cm channel in wet
-sand and the swash runs through it, at one second per second, at roughly 1 cm
-cells — which §4.2 measures as `MAX_SUBSTEPS` at 512 and about 4×10⁵ particles
-in the local patch. The ocean beyond the patch stays coarse, and nothing between
-the two loses mass.
-
-**Phase 4 — Bodies.** D11's habit refactor first, so creatures arrive as a genome
-rather than a seventh species; substructuring (D5); the creature genome;
-the actuation mechanism; derived-and-cached gait and grasp; local interaction
-resolved inside a segment. *Done when:* a quadruped and a biped grown from two
-genomes both walk, on two planets with different g, with no per-morphology code
-anywhere and no enum variant naming either of them; shouldering a load visibly changes the gait; and scratching a paw does
-not re-analyse the animal.
-
-**Phase 5 — Minds.** The actor-client host outside the core crate; the
-determinism constraints; checkpoints and the input log. *Done when:* a wolf
-pursues something, the engine cannot distinguish it from a player, and a
-recorded session replays bit-identically from seed plus log.
-
-**Phase 6 — Making things.** The build log as a genome; player-placed members;
-analysis without proportioning; break and repair. Plus §5's deviation machinery at the structure end
-(§5.7): the edit list, and its summarising into a member's surface condition.
-*Done when:* a player builds a bridge that holds and one that does not, and the
-engine was never told which was which; a wall shot a hundred times becomes a
-pocked wall rather than a hundred stored holes; and a market stall nobody
-watched comes back as its program describes it while an identical stall in an
-abandoned village comes back a ruin — with no labour rate, no repair process and
-no agent anywhere in the path. **And the window cannot be farmed:** an actor who
-removes one and leaves finds it still missing, an actor who breaks one and
-leaves finds it re-glazed, and an actor who backfills the hole with an equal mass
-of sand is caught by the embodied energy that was never in the sand (§5.8).
-
-**Phase 7 — Sessions.** The server loop; two clients; prediction of one's own
-avatar only; interest management under load; hindsight replay scrubbing on top
-of Phase 5's checkpoints. *Done when:* two people share a world, one builds
-while the other watches, and either can scrub back through a minute of it at a
-thousandth speed without the world's clock moving.
+measurement; `PaceMode::Fixed` as what a world is; `G_EARTH` deleted; §3.3's
+state-aware dispatch and §3.7's reported resolution floor. Its done-when list is
+five tests and a suite of 349 passing.
 
 ---
+
+**Phase 2 — Things.** *A thing has a shape and is made of something, and neither
+answer depends on how it was made.* D13, D14, D15.
+
+1. **The two rigid-body defects** of §2A: `spin_rate` re-derived from
+   `matter.spin` after a solve rather than only at birth, and shape composed
+   with `motion.orientation`. Cheap, and the rigid-body story is untrue until
+   they are done.
+2. **Solidity measured**, so "does this have a boundary" stops being "was this
+   built".
+3. **Material measured**, per surface region rather than per node — D11's
+   material columns, pulled forward from Ground because a rock needs a material
+   as much as a wall does — with strength by D14's Griffith law.
+4. **The recipe emits a surface**, derived once from the arrangement and
+   *stored*, invalidated on `epoch`. Not a post-processing pass over a member
+   list.
+5. **Joining and breaking as one transform** (D15): a composite is one node with
+   a recipe, promotion happens to a part only when something happens to that
+   part, and the part collapses back into the recipe afterwards.
+6. **Collision runs against the surface**, at the level of detail the distance
+   deserves.
+
+*Done when:* **a wooden box is one node** whose recipe describes six walls of
+stated materials. Struck, it responds as one box. Struck hard enough, one wall
+comes away and becomes a node *at that moment*, and the recipe now describes
+five walls plus the break. With nothing watching it returns to ~100 bytes and
+regenerates identically. **And** a rock that no `Program` made falls and bounces
+off a boulder, with the restitution coming from what they are made of.
+
+---
+
+**Phase 3 — Crossings.** *A boundary is an event.* D16.
+
+Inward, a crossing generates the detail about to be met. Outward, it re-homes to
+the node above. Into a sibling, it re-homes sideways with the parent arbitrating.
+The same measurement drives **node splitting**, which Phase 1 measured and never
+connected.
+
+*Done when:* the rocket. It leaves the forest, re-homes itself to the planet and
+then to the star, and keeps correct gravity and correct neighbours throughout —
+where today it leaves a 1 km node in under a tenth of a second and nothing
+notices.
+
+---
+
+**Phase 4 — Ground.** *Was Phase 2.* Cubed-sphere parameterisation, patches as
+`Program::Terrain` nodes, refinement and coarsening on approach, **sideways**
+handoff by `reparent` (the trigger now being Phase 3's), planetary gravity, and
+terrain as an editable deviation over a derived base (§4.3) along with §5's decay
+machinery. D11's remaining columns land here, because a derived erosion rate
+cannot coexist with a tabulated one.
+
+*Done when:* an observer descends from orbit to a square metre of any planet in
+any scenario, travels ten kilometres across patch boundaries, and the terrain
+behind them regenerates bit-identically. **And:** a squiggle drawn in sand is
+gone by the next tide while a channel that redirects drainage is still there a
+year later, with neither having been tagged as important when it was made.
+
+**Phase 5 — Water.** *Was Phase 3.* The five pieces §4.3 names, in dependency
+order: a free surface; a liquid equation of state, so `pressure()` stops
+returning 4x10^8 Pa for a bucket of water; weakly-compressible SPH; boundary
+conditions against arbitrary geometry — **much cheaper now that geometry
+exists**; and multi-resolution transport.
+
+*Done when:* **the beach test passes.**
+
+**Phase 6 — Bodies.** *Was Phase 4.* D11's habit refactor; substructuring (D5);
+the creature genome; the actuation mechanism; derived-and-cached gait and grasp.
+Standing is contact against a surface that now exists.
+
+*Done when:* a quadruped and a biped grown from two genomes both walk, on two
+planets with different g, with no per-morphology code and no enum variant naming
+either of them.
+
+**Phase 7 — Minds.** *Was Phase 5.* Unchanged.
+
+**Phase 8 — Making things.** *Was Phase 6.* Unchanged in content, and now
+standing on D15: a player-built thing is a recipe that grows as it is built,
+rather than a pile of placed nodes.
+
+**Phase 9 — Sessions.** *Was Phase 7.* Unchanged.
+
+---
+
+### What was deliberately not reordered
+
+Water stays ahead of Bodies for the reason Phase 3 originally gave — a beach, a
+river and rain are most of what makes a planet feel like a place, and designing
+water against a surface that exists is the whole argument for the position.
+Nothing below Ground moved relative to anything else; the insertions are at the
+top because that is where the dependency is.
 
 ## 8. The axioms, re-checked
 
@@ -2192,3 +2441,31 @@ are not preferences.
   diffusion, radiation and debris landing become one primitive rather than five.
   If a later change needs a sixth mechanism to make one of them work, that is
   the signal the primitive was wrong.
+
+### And re-checked again, for D13 to D16
+
+§2A found the engine failing three of the five, so this is not a formality.
+
+- **Only physical law is axiom-side.** D14 is the test. Strength could have been
+  a table of eight numbers somebody chose, and Griffith reduces it to one
+  *length* with physical meaning, from which strength derives. It is not zero
+  stored data and does not pretend to be — what matters is that `a` is a
+  measurable property with a route to being derived from an object's history,
+  where a tabulated rupture stress has none.
+- **Measure, never be told.** D13 is this axiom applied to the thing that was
+  telling: `surface_of` asked *what made this* where it should have asked *what
+  is this*. The measured question is solidity, and a gas parcel answering "no"
+  is the law working rather than a special case.
+- **Derived, with shortcuts stored.** D13's second half. The engine applies this
+  axiom enthusiastically to developmental state — a 160-year-old tree in ~100
+  bytes — and had never applied it to shape at all. A boundary derived every
+  frame and stored nowhere is the derivation without the shortcut.
+- **Detail exists where something is happening.** D15 is the sharpest statement
+  of it yet: a part is promoted when something happens *to that part*, and
+  collapses back into the recipe when it stops. A house is one node until a door
+  comes off, and one node again once it is rehung. D16 supplies the trigger in
+  both directions.
+- **No special cases.** D15 is the load-bearing one here, in D3's manner: weld,
+  glue and grown-together are not three mechanisms but one transform at three
+  strengths. If an articulated join later needs a fourth, that is the signal —
+  and D15 says so in advance rather than being surprised by it.
