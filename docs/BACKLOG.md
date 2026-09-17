@@ -423,218 +423,192 @@ Before that there is nothing to get wrong.
 
 ---
 
-## The ball-in-box test runs at the wrong tier, and should be moved when §3.3 lands
+## ~~The ball-in-box test runs at the wrong tier~~ — done, and it found three things
 
-**Noticed:** asked why a metre-scale wooden box was built at `Tier::Galactic`.
-**Where:** `tests/adjacency.rs::a_ball_loose_in_a_box_conserves_momentum_and_angular_momentum`,
-and `colliding_pair` in the same file.
+**Was:** both tests built metre-scale solids at `Tier::Galactic`, the
+collisionless-gravity regime, because `for_tier(Continuum)` is SPH and SPH reads
+a solid through a gas equation of state. Measured then: this box's `pressure()`
+was 1.0x10^8 Pa against green wood's 4.5x10^7 tensile strength, so it burst from
+its own equation of state before anything touched it.
 
-Both tests build metre-scale solids at `Tier::Galactic`, which is the
-collisionless-gravity regime. That is not a statement about scale — a tier is a
-physics regime and a small node may carry any solver — but it is not where a
-wooden box belongs either. `Tier::Continuum` is, by the size table and by what
-the thing is.
+**Confirmed still true before the rebuild**, since the entry was a year of
+commits old: 1.04x10^8 Pa, and a box at `Continuum` with the old arrangement
+reached 1159..2857 m from a 3 m box in 100 frames at 2.86x10^3 m/s.
 
-It cannot be used yet, for the reason `PLAY.md` §3.3 gives: `for_tier(Continuum)`
-is `Hydro`, dispatched on size alone, and SPH reads `Matter` through a
-gas-plus-radiation equation of state. Measured:
+**What the rebuild actually was.** Not a tier swap. The box is now a *node*,
+because a node is already what this engine means by a rigid body — one velocity,
+one spin, and `apply_contact` has always written to both. What a node lacked was
+a **shape**, so `Node::collision_shape` gives it one: a capsule per structural
+member, partitioned by §3.3's own `structural_mask` rather than by a second
+opinion about what a node is. The root stays `Galactic` because the root is deep
+space; the *solids* are what moved to `Continuum`, and `tier_for` puts them there
+from their own radii without being asked.
 
 ```text
-    a six-metre box of timber      pressure() = 1.0e8 Pa
-    a bucket of water              pressure() = 1.7e9 Pa
-    green wood, tensile strength                4.5e7 Pa
+                       before (96 panels, Galactic)      now
+    momentum drift           8e-7                      1.0055e-14
+    angular momentum         5e-7                      7.3675e-10
+    box response        one 500 kg panel at 0.128    48 t at 1.1468e-3 m/s
+    box afterwards      grew by ~6 m                 still a box
+    parts                   96 spheres                48 capsules
 ```
 
-The box bursts from its own equation of state at twice its tensile strength,
-before anything touches it. Galactic was chosen because collisionless gravity is
-the nearest solver that leaves a solid alone — at forty-eight tonnes over six
-metres it pulls at 10^-8 m/s^2, which is what deep space is.
+The box velocity is the rigidity check and it is arithmetic: the ball carries
+53.5724 kg m/s, so a rigid 48-tonne box takes 1.1161e-3 m/s. Measured 1.1468e-3,
+2.8% over because the ball ends travelling slowly backwards.
 
-**What the tests do and do not prove in the meantime.** The contact arithmetic
-is tier-independent by construction: `neighbourhood::contact` reads a position,
-a velocity, a mass, a radius and a surface, and `for_tier` never enters it. So
-the conservation results — momentum to 8e-7 and angular momentum to 5e-7 of
-what the assembly carries, over eight collisions — hold for any tier. What is
-*not* exercised is contact composing with the solver a solid will actually run
-under, which is the thing §3.3 changes.
+**Three things it found on the way, which is why the entry is worth keeping.**
 
-**What to do when §3.3 lands.** Rebuild both at `Tier::Continuum` with the same
-geometry and masses and re-measure. Specifically:
+1. **A node made entirely of ordered matter never moved.** The `count == 0`
+   early return in `advance_node` sat *before* the node's own clock, motion,
+   contact and exchange, so a solid object — every body a member, nothing loose
+   — was frozen in space. Measured: a 48-tonne box given 1 m/s for one second of
+   frames moved 0.000000 m with its clock reading 0.0 s after a hundred steps;
+   the same box with a single loose body added moved 1.000000 m. **Fixed** —
+   skipping the solver is not the same statement as skipping the node.
 
-- The conservation bounds should hold unchanged, or the new dispatch is
-  injecting momentum. They are the regression signal.
-- `a_ball_loose_in_a_box...` should no longer need its hand-set
-  `matter.radius`, nor `colliding_pair` its hand-set radii, if the Continuum
-  path sizes a promoted solid sensibly.
-- The eight-collision count and the 3.0%-energy-remaining figure will move,
-  because the ball will no longer be swimming through an SPH pressure field of
-  any kind. Both are recorded here so the change is visible rather than
-  silently absorbed.
-- If the box can then be given a real structural topology instead of loose
-  panels, this test becomes the natural place to check the rigid response that
-  "A struck structure is not rigid" is about.
+2. **A `Continuum` node whose bodies are all stand-ins detonates.** See the new
+   entry below. Not fixed.
 
-**Trigger:** immediately after §3.3's state-aware dispatch. These tests are the
-first consumer of it and the cheapest check that it did what it claims.
+3. **`E = rho c^2` does not give a surface.** See the surface entry. Not fixed.
 
 ---
 
-## Collision geometry is a sphere, and a beam is 200 times longer than one
+## A Continuum node whose bodies are all stand-ins detonates
 
-**Noticed:** asked directly whether mesh collision is handled. It is not, in any
-form, and nothing in `docs/PLAY.md` plans it.
-**Where:** `neighbourhood::contact` and `neighbourhood::Neighbourhood`.
+**Noticed:** building the ball-in-box scene, where a root holds two promoted
+children and nothing else.
+**Where:** `engine.rs::advance_node`, `state::Matter::pressure`.
 
-### What exists
+A node whose every body is the stand-in for a promoted child has no ordered
+contents of its own, so `structural_mask` returns `None` and the whole lot goes
+to the tier solver. At `Continuum` that is SPH, and SPH prices the node's
+`Matter` through the gas-plus-radiation equation of state — which, for a node
+that is mostly vacuum with two solid objects in it, is nonsense. The force lands
+on the stand-ins and D4 hands it straight to the children.
 
-Three collision geometries, none of them a surface:
-
-1. **Sphere against sphere**, in `neighbourhood::contact`. This is the general
-   path — everything a node holds goes through it, promoted children and bodies
-   alike — and it knows a thing only by a centre and a radius.
-2. **Capsule against capsule**, in `structure::contacts`: segment-to-segment
-   closest approach with a radius on each, which is the correct test for two
-   beams. It is reachable from exactly one place, `drop_fragments`, for a torn
-   limb landing on the structure it came off.
-3. **A horizontal half-plane**, in the same function, for the ground.
-
-So the engine already knows how to collide the shape its structures are
-actually made of, and the general path does not use it.
-
-### The measurement
-
-A structural member carries its length in `Topology::base`/`tip` and its
-*cross-section* radius in `joints[i].radius`, and `bodies[i].radius` is the same
-number. That cross-section sphere is what contact sees:
+Measured, on a 12 m root at `Continuum` holding a 48-tonne box and a 10 kg ball,
+with **zero collisions** in the run:
 
 ```text
-  program       members   median length   collision sphere   ratio   worst
-  Tower            58        3.11 m          0.068 m          46x    1441x
-  Tree             64        2.15 m          0.063 m          34x      35x
-  Wall             55        0.93 m          0.385 m         2.4x     3.1x
-  Settlement       59       16.02 m          0.098 m         164x     197x
+    ball speed, m/s      5.36 -> 7.96 -> 20.9 -> 63.3 -> 194 -> 566 -> ...
+                         (roughly x3 per frame, geometric)
+    with the root not advanced:  5.3572 every frame, exactly
 ```
 
-A 26 m beam of a settlement presents a 13.5 cm bead at its midpoint. A ball
-thrown at a timber frame passes through it unless it happens to hit a bead.
+The control is the point: the blow-up is the parent's own solver, not contact.
 
-**And the renderer draws the beam.** `render.rs` draws each member as a tube
-from `base` to `tip` at `joints[i].radius` — the full capsule — while contact
-tests the sphere. What is seen and what is solid are different objects, which
-is the worst version of this to ship: it is invisible until someone walks
-through a wall.
+**Why the obvious fix is wrong.** Excluding stand-ins from the solver would
+break D4 outright — `stand_in_velocities` before and `apply_body_forces` after
+are *how* a promoted child feels its parent's forces, so a stand-in that is not
+integrated is a child that feels nothing. The stand-in has to be solved; what is
+wrong is the equation of state it is solved under.
 
-`Program::Wall` is the one that nearly works, at 2.4x, because coursed masonry
-is made of blocks rather than beams. That is luck rather than design.
+**So this is the liquid-EOS gap seen from the parent's side**, and `PLAY.md`
+Phase 3's second piece names it: "a liquid equation of state, so `pressure()`
+stops returning 4x10^8 Pa for a bucket of water". There is no EOS anywhere for a
+node that is mostly empty space.
 
-### What it blocks
+**Worked around, not fixed**, in `a_ball_loose_in_a_box...`: the root is
+`Galactic`, which is what deep space is, and the solids are `Continuum` on their
+own radii. That is honest for a scene in space and is no help at all to a room
+with furniture in it.
 
-- **Standing on anything.** `PLAY.md` Phase 4 says "standing is contact against
-  D3's adjacency relation". A foot on a floor is a contact against a *surface*;
-  against a sphere it is a contact against a marble.
-- **Walking into a wall**, driving into a building, a projectile stopping.
-- **Water meeting geometry.** Phase 3's fourth piece is "boundary conditions
-  against arbitrary geometry, so water meets a carved channel", and §4.1's audit
-  row 7 — "water meeting arbitrary 5 cm sand geometry" — is already marked *not
-  designed*. That is this gap seen from the fluid side.
-- **Terrain.** Phase 2 makes terrain "an editable deviation over a derived
-  base". Nothing yet says what a contact against that deviation is.
-
-### Why "add a mesh" is not obviously the answer
-
-The engine has no authored geometry and is not supposed to. Structures are
-*generated* by `morph::Program`, terrain is planned as a field over a
-cubed-sphere, and bulk matter is sampled as spheres — three generators, three
-natural shapes, none of them a triangle soup. A mesh baked from a program and
-cached is legitimate under axiom three, which explicitly allows a derived
-shortcut to be stored; a mesh that is the *source* of the geometry is not.
-
-So the real question is whether contact should take a shape per generator —
-capsule for a member, field query for terrain, sphere for a parcel — or one
-intermediate representation everything converts into. The first reuses the
-capsule test that already exists and adds no storage; the second is one narrow
-phase instead of N-squared of them, at the cost of a representation the axioms
-have to be argued with.
-
-Options, none chosen:
-
-- **Give `Occupant` a shape.** Sphere, capsule, or a handle to a field. The
-  broad phase (`Neighbourhood`) is already shape-agnostic — it indexes points
-  with radii, which is a correct *bounding* volume for a capsule too — so only
-  the narrow phase changes. Smallest change that fixes the measured defect,
-  and it makes `structure::contacts` the shared narrow phase rather than a
-  private one.
-- **A signed-distance query per generator.** Uniform, and it is what the
-  terrain field wants anyway; it makes the contact normal and depth fall out of
-  one interface. Larger, and needs a derivative for the normal.
-- **Baked convex hulls per structure, cached like any derived shortcut.**
-  Conventional, and the one that most resembles a physics engine. It also stores
-  the most and is the hardest to keep in step with a structure that grows.
-
-### Cost, unmeasured
-
-Not quantified, and it should be before choosing. The broad phase is a 27-cell
-grid walk per occupant and does not change. What changes is the narrow phase,
-which is currently a subtraction of two radii. Capsule-capsule is a
-segment-segment closest approach — tens of flops, already written and already
-measured in `drop_fragments` — and anything richer is unmeasured.
-`PERFORMANCE.md` has no row for contact at all.
-
-**Trigger:** before anything stands on, walks into, or rests against a built
-thing — which is Phase 4's first step and arguably Phase 2's, since terrain is
-the first surface anything touches. This is upstream of both.
+**Trigger:** the first `Continuum` node that contains promoted children and is
+not empty space — a room, a vehicle interior, a crate of objects. Phase 3 at the
+latest.
 
 ---
 
-## A struck structure is not rigid: contact lands on one member, not the body
+## ~~Collision geometry is a sphere~~ — mostly done; the residual is flatness
+
+**Was:** the general contact path knew a thing by a centre and a radius, so a
+26 m settlement beam presented a 13.5 cm bead at its midpoint and a ball thrown
+at a timber frame passed through it unless it happened to hit one.
+
+**What landed.** `src/shape.rs`: a `Hull` over a *set of spheres*, chosen
+because a sphere is what the engine already holds everywhere — a sampled body, a
+member's two ends, a fluid parcel. So the hull of two spheres **is** a capsule
+rather than a faceted stand-in for one, and nothing is stored that was not
+already there. The narrow phase is GJK on the hulls' cores with the radii
+restored at the witness points, and there is deliberately no EPA: `contact`
+resolves from a normal, a contact point, two masses and a closing velocity, and
+never reads a penetration depth.
+
+Of the three options this entry listed, it is the first — **a shape per
+occupant** — arrived at from the third. Both sides of a contact now carry
+geometry:
+
+- A **promoted child** presents `Node::collision_shape`: a capsule per
+  structural member, or the sphere of its own radius when its contents are
+  disordered. Partitioned by §3.3's `structural_mask`, so it is the same
+  ordered-versus-disordered question the solver dispatch already asks.
+- A **body of the node** presents its member capsule too, which is the side a
+  limb landing on a tree strikes.
+
+Measured on materialised programs: every structural member now presents a
+capsule — Tower 248/248, Tree 3400/3400, Wall 704/704, Settlement 256/256.
+
+**What is left, and it is real.**
+
+- **A wall is scalloped, not flat.** A row of capsules is not a plane. Measured
+  on the ball-in-box walls, on axis: the inner face sits at 2.500 m where a real
+  wall would be at 3.000 m, against 1.875 m for the ninety-six-sphere version —
+  the error halves, 1.125 m to 0.500 m — and the scallop between neighbouring
+  capsules falls from 0.287 m to 0.169 m. Flat needs either a hull *grouping*
+  rule (which members share one convex piece) or a genuinely planar primitive,
+  and **neither is decided**. Grouping is the harder half: a support subtree is
+  not convex for a tree, and `site` names a failure rather than a convex piece.
+- **Terrain is untouched.** The signed-distance option this entry lists is still
+  what a cubed-sphere field wants, and Phase 2 will meet it first.
+- **One contact per pair per frame.** `closest_of` takes the minimum-gap pair of
+  pieces, so a ball wedged into a corner resolves one wall this frame and the
+  other next. Resolving both at once over-corrects, which is the standard reason
+  a solver iterates; that is a scheduling question of the kind §3.3 left open.
+- **Cost is still unmeasured.** `PERFORMANCE.md` has no row for contact. The
+  narrow phase went from subtracting two radii to a GJK over small point sets,
+  and nobody has priced it.
+
+**Trigger for the remainder:** flatness, when something has to rest or stand on
+a built surface rather than bounce off it — Phase 4, or Phase 2 for terrain.
+
+---
+
+## A struck structure is not rigid — resolved for a node, open for a member
 
 **Noticed:** writing `a_ball_loose_in_a_box_conserves_momentum_and_angular_momentum`.
 **Where:** `engine.rs::apply_contact`.
 
-A wooden ball rattling around inside a wooden box conserves momentum and
-angular momentum exactly — measured over 1500 frames and eight collisions, at
-8x10^-7 and 5x10^-7 of what the assembly carries. What it does not do is bounce
-off a *box*.
+**The half that is closed.** A ball no longer rebounds from one 500 kg panel of
+a two-tonne box. The answer was not a rigid-body group bolted onto contact: a
+`Node` is *already* the rigid body — one velocity, one spin, and `apply_contact`
+has always written to both — so what was missing was a shape for it to present,
+which `Node::collision_shape` now supplies. Measured: a 48-tonne box takes a
+10 kg ball's 53.5724 kg m/s and moves at 1.1468e-3 m/s against an arithmetic
+1.1161e-3, with momentum conserved to 1.0e-14 and angular momentum to 7.4e-10.
 
-`apply_contact` puts the impulse straight onto the struck body's `vel`. A
-structure's members are bodies, and nothing in that path knows they are joined,
-so each panel takes its own impulse and drifts off with it. The ball therefore
-rebounds from one 500 kg panel rather than from the two-tonne box the panel is
-part of, and the box slowly comes apart:
+This also means §3.3 needed no revisiting. "The members are left where they are"
+is right, because a struck box's motion belongs to the *node* and not to its
+panels — which is exactly why the frozen-member problem never appears once the
+box is a node rather than a heap of bodies in the root.
 
-```text
-    panel distance from box centre, 96 panels, 1500 frames, 8 strikes
-      start   3.00 .. 3.90 m
-      end     3.18 .. 5.05 m        (+ ~30% on the struck faces)
-```
+**The half that is open.** Where the struck thing is a **member of the node
+doing the striking** — a limb landing on the tree it fell off — the impulse
+still lands on `bodies[k].vel` and that member alone. The member now presents
+its capsule, so the *geometry* is right and the *response* is not.
 
-**The machinery for the rigid answer already exists and contact does not call
-it.** `solvers::structure` takes a `Mechanism::PointImpulse` and `World::damage`
-resolves it against the whole frame — load paths, joint stresses, what breaks.
-`drop_fragments` uses exactly that for a limb landing on a tree. So the two
-halves of "something hit a structure" are written and not connected: the
-adjacency half finds the contact, the structural half knows what a structure
-does about it.
+`solvers::structure` still has the machinery and contact still does not call it:
+`Mechanism::PointImpulse` and `World::damage` resolve an impulse against the
+whole frame, and `drop_fragments` uses exactly that. The reasons it was not
+wired up are unchanged and are design rather than plumbing — `damage`
+regenerates the structure and renumbers its members, so contact would have to
+batch as `drop_fragments` does, and **which of three outcomes the contact path
+should produce** (absorbed rigidly, a joint broken, a loose member knocked off)
+is still not decided anywhere.
 
-**Why it was not simply wired up.** `damage` regenerates the structure and
-renumbers its members, which is why `drop_fragments` batches every impulse in a
-step into one call and says so at length. Contact would have to batch the same
-way. More importantly the composition is a design question rather than a
-plumbing one: an impulse that a structure absorbs rigidly, one that breaks a
-joint, and one that knocks a loose member off are three outcomes of the same
-event, and which of them the contact path should produce — and what it does
-when the struck node is a structure whose members are *also* colliding with
-things — is not decided anywhere.
-
-**What is not affected.** Two promoted nodes colliding is right as it stands:
-each is a whole object with one velocity, which is what `Motion::velocity`
-means. The gap is only where the struck thing is a *member* of something.
-
-**Trigger:** the first time anything is supposed to bounce off a built thing and
-have the built thing respond as a whole — a ball against a wall, a vehicle into
-a building, an actor against a floor. That is Phase 1's own "a branch lands on
-the next tree" if the tree is expected to sway rather than have one branch fly
-off, and it is unavoidable by Phase 6.
+**Trigger:** the first time a *member* of a node has to respond as part of its
+structure rather than on its own — a branch that should sway the tree instead of
+flying off. Unavoidable by Phase 6.
 
 ---
 

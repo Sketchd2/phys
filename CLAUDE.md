@@ -283,23 +283,34 @@ plus 6 Postgres, and five demos run.
 Left deliberately undone, each with a measurement and a trigger in
 `docs/BACKLOG.md`. Read those entries before touching any of it:
 
-- **The ball-in-box test still runs at `Tier::Galactic`.** Its entry says to
-  rebuild it at `Continuum` "immediately after §3.3's state-aware dispatch",
-  which has now landed. That is the first thing outstanding, and the cheapest
-  check that §3.3 did what it claims.
+- ~~**The ball-in-box test still runs at `Tier::Galactic`.**~~ **Done**, and it
+  was not a tier swap. A `Node` is already what this engine means by a rigid
+  body — one velocity, one spin, and `apply_contact` has always written to both
+  — so what was missing was a *shape* for it to present. `src/shape.rs` and
+  `Node::collision_shape` supply one, partitioned by §3.3's own
+  `structural_mask`. The box is now a node with capsule walls and takes a ball's
+  momentum as 48 tonnes rather than as one 500 kg panel. It found three things
+  on the way; see its backlog entry, which is kept for them.
 - **Derived gravity is in the parent's axes**, because nothing composes
   orientation anywhere in the tree. Terrain on a sphere is the scenario that
   makes it bite.
 - **Exchange has a radiative coefficient and no conductive one.** D3 names the
   law and does not specify it; heat conduction through ground or water needs it,
   and picking a thermal conductivity is a `PHYSICS.md`-weight decision.
-- **Only a built thing has a surface**, so only a built thing collides. A rock
-  has no material and cannot be landed on.
+- **Only a built thing has a surface**, so only a built thing collides. This is
+  a *provenance test standing in for a state measurement*, and §3.3 already made
+  the same call correctly one layer down. The derivation the backlog recorded
+  does not work: `sound_speed()` is the gas formula, not an elastic wave speed,
+  and `density()` is bulk, so `E = rho c^2` comes out 58-82x low. Strength has
+  no law at all. Deferred to D11.
 - **Growth accumulates internal energy nothing sheds** — 231× thermal after
   forty years, reading back as 67,000 K while `temperature` says 291.
 - **The sampler inflates anything bound by chemistry by 4.3×10⁵.**
-- **Collision geometry is a sphere**, and a beam is 200 times longer than one.
-  Recorded as a major bottleneck; nothing in `PLAY.md` plans a mesh.
+- **Collision geometry is a sphere** — *mostly closed*. Both sides of a contact
+  now carry a hull baked from spheres, so a member is the capsule its `base`,
+  `tip` and joint radius always described. What is left is **flatness**: a row
+  of capsules is not a plane, and making one needs either a rule for which
+  members share a convex piece or a planar primitive. Neither is decided.
 - **A node cannot split.** Phase 1 built the measurement it needs; the splitting
   itself is untouched.
 
