@@ -430,6 +430,36 @@ measurement rather than papered over. `tests/material.rs` holds the ordering,
 and holds bedrock's position in the direction it actually comes out, so that
 closing the gap *fails* the test and gets read.
 
+### What a solid presents
+
+`PLAY.md` D18. A solid's boundary is a **union of solid convex primitives**,
+each carrying its own material, emitted by whatever generated it.
+
+**A primitive is always a filled solid. Never a shell, never hollow.** That rule
+is what makes the vocabulary unambiguous, and it is the general statement of a
+measured failure: one convex hull over a box encloses its own cavity, so
+anything inside reads as deeply interpenetrating on every frame. A hollow box is
+six solid slabs generated together, and a void is not represented at all — it is
+simply where no primitive is.
+
+**The generator emits the pieces; nothing infers a decomposition.** That is what
+keeps convex decomposition — normally the hard, unsolved half of this problem —
+from arising. A wall with a doorway emits four boxes around the opening, because
+the recipe is what put the opening there. There are two generators and no third:
+a structure states its members, and unstructured solid matter states one piece,
+because a rock is one filled solid with no cavity in it.
+
+The surface is **derived once and stored**, and regenerated when the node's
+`epoch` moves — which is precisely the definition of when its arrangement
+changed. An undisturbed tree computes its boundary once and reuses it for a
+thousand frames.
+
+**Its materials are a partition of the node's solid pools**, checked at bake
+time rather than documented. A node whose mixture is all water while its
+primitives present steel would be telling a contact something its own bulk
+contradicts, which is the second axiom failing by way of having two answers to
+one question. `Stats::surface_mismatches` reports it.
+
 ## 3.6 Structural failure
 
 Joints carry a cross-section, a material and a remaining integrity. Loads

@@ -645,7 +645,7 @@ fn an_exchange_does_not_pin_what_it_touches() {
 // Contact: the impulsive half of D3.
 // ---------------------------------------------------------------------------
 
-use phys::neighbourhood::{contact, restitution, yield_velocity, Side, Surface};
+use phys::neighbourhood::{contact, restitution, yield_velocity, Side, Resilience};
 use phys::topology::Material;
 
 fn side(x: f64, vx: f64, m: f64, r: f64, mat: &Material) -> Side {
@@ -655,7 +655,7 @@ fn side(x: f64, vx: f64, m: f64, r: f64, mat: &Material) -> Side {
         m,
         r,
         1000.0,
-        Surface::of(mat),
+        Resilience::of(mat),
     )
 }
 
@@ -666,7 +666,7 @@ fn side(x: f64, vx: f64, m: f64, r: f64, mat: &Material) -> Side {
 /// of a slow approach and a seventh of a fast one, and no single number is both.
 #[test]
 fn restitution_falls_with_the_speed_of_the_impact() {
-    let wood = Surface::of(&Material::green_wood());
+    let wood = Resilience::of(&Material::green_wood());
     let slow = restitution(&wood, &wood, 1.0);
     let fast = restitution(&wood, &wood, 20.0);
     assert!(
@@ -686,7 +686,7 @@ fn restitution_falls_with_the_speed_of_the_impact() {
 /// **The pair changed with `docs/PLAY.md` D14**, and why is worth keeping. It
 /// used to be a reinforced frame against masonry, which separated by 90x while
 /// the strengths were tabulated — 180 MPa against 2 MPa. Derived, the gap is
-/// 6.6x and points the other way once `Surface::of` applies ductility: a frame
+/// 6.6x and points the other way once `Resilience::of` applies ductility: a frame
 /// derives as 10% ductile because it is a sixth iron, so its *elastic* range
 /// ends at a tenth of its fracture stress, and masonry's brittle one does not.
 ///
@@ -703,8 +703,8 @@ fn restitution_falls_with_the_speed_of_the_impact() {
 /// gives 2.3x. Asserting the old margin would be asserting the old table.
 #[test]
 fn a_stiff_strong_surface_returns_more_than_a_weak_one() {
-    let coral = Surface::of(&Material::aragonite());
-    let masonry = Surface::of(&Material::masonry());
+    let coral = Resilience::of(&Material::aragonite());
+    let masonry = Resilience::of(&Material::masonry());
     assert_eq!(
         Material::aragonite().ductility,
         0.0,
@@ -730,7 +730,7 @@ fn a_stiff_strong_surface_returns_more_than_a_weak_one() {
 fn a_thing_with_no_surface_does_not_collide() {
     let steel = Material::steel();
     let mut ghost = side(1.9, -3.0, 125.0, 1.0, &steel);
-    ghost.surface = Surface { density: 0.0, stiffness: 0.0, strength: 0.0 };
+    ghost.resilience = Resilience { density: 0.0, stiffness: 0.0, strength: 0.0 };
     assert!(contact(&side(0.0, 3.0, 125.0, 1.0, &steel), &ghost).is_none());
     // And a pair already separating is left alone, or two overlapping things
     // buzz against each other forever.
@@ -816,7 +816,7 @@ fn the_friction_couple_conserves_angular_momentum() {
 #[test]
 fn friction_is_bounded_by_the_normal_impulse() {
     let m = Material::steel();
-    let mu = phys::neighbourhood::friction(&Surface::of(&m), &Surface::of(&m));
+    let mu = phys::neighbourhood::friction(&Resilience::of(&m), &Resilience::of(&m));
     // Sliding far faster than it is closing: friction saturates.
     let mut a = side(0.0, 0.2, 125.0, 1.0, &m);
     let mut b = side(1.9, -0.2, 125.0, 1.0, &m);
@@ -922,8 +922,8 @@ fn two_promoted_things_collide_and_rebound() {
     // And the rebound is the one the materials say, not a number picked to make
     // this pass. Both are reinforced frame; the separation ratio is the
     // restitution at the speed they met at.
-    let surface = Surface::of(&Material::reinforced_frame());
-    let expected = restitution(&surface, &surface, closing_before);
+    let resilience = Resilience::of(&Material::reinforced_frame());
+    let expected = restitution(&resilience, &resilience, closing_before);
     let measured = closing_after / -closing_before;
     assert!(
         (measured - expected).abs() < 1e-3,

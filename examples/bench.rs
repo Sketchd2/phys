@@ -177,12 +177,12 @@ fn main() {
     println!("\n## narrow phase (GJK distance query, and one whole contact)");
     {
         use phys::math::v3;
-        use phys::neighbourhood::{contact, Side, Surface};
+        use phys::neighbourhood::{contact, Side, Resilience};
         use phys::shape::Hull;
 
         // The two surfaces are the same on both sides, so what is being timed
         // is geometry and not a material lookup.
-        let wood = Surface { density: 600.0, stiffness: 1.0e10, strength: 45.0e6 };
+        let wood = Resilience { density: 600.0, stiffness: 1.0e10, strength: 45.0e6 };
 
         // Separated by a hair, so every query runs the whole descent rather
         // than bailing out of a trivial rejection. A pair far apart is the

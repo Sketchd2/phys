@@ -134,6 +134,27 @@ impl Hull {
             .filter(|s| s.centre.is_finite() && s.radius.is_finite() && s.radius >= 0.0)
             .collect();
 
+        // The swallow scan below is O(n^2), and it is an *optimisation*: an
+        // interior sphere can never answer a support query, so dropping it
+        // saves one comparison per query and keeping it costs nothing but that.
+        // Paying n^2 to save n per query stops being worth it quickly, and
+        // measured it was catastrophic — a node of 4,000 sampled bodies took
+        // 16 million distance computations to bake, and the frame went from
+        // 25 ms to 121 ms.
+        //
+        // So above a threshold the scan is skipped and everything is kept.
+        // Nothing downstream can tell the difference except in time.
+        const SCAN_LIMIT: usize = 64;
+        if all.len() > SCAN_LIMIT {
+            let n = all.len();
+            let centre = det_sum_v3_by(n, &|i| all[i].centre).scale(1.0 / n as f64);
+            let bound = all
+                .iter()
+                .map(|s| (s.centre - centre).norm() + s.radius)
+                .fold(0.0f64, f64::max);
+            return Hull { spheres: all, centre, bound };
+        }
+
         let mut kept: Vec<Sphere> = Vec::with_capacity(all.len());
         for (i, s) in all.iter().enumerate() {
             let swallowed = all.iter().enumerate().any(|(j, o)| {
@@ -628,4 +649,194 @@ pub fn closest_of(a: &[Hull], b: &[Hull]) -> Option<Closest> {
         }
     }
     best
+}
+
+// ---------------------------------------------------------------------------
+// what a solid presents — PLAY.md D18
+// ---------------------------------------------------------------------------
+
+/// One convex piece of a solid's boundary, with what it is made of.
+///
+/// **A primitive is always a filled solid. Never a shell, never hollow.**
+/// `docs/PLAY.md` D18 states that first and without qualification, because the
+/// rest of the decision rests on it: a hollow wooden box is not one primitive,
+/// it is six solid slabs generated together, and a void is not represented at
+/// all — it is simply where no primitive is.
+///
+/// That rule is the general statement of a failure this module already
+/// measured. One convex hull over a box *encloses its own cavity*, so anything
+/// inside reads as deeply interpenetrating on every frame. A shape language
+/// that can express "hollow" invites exactly that mistake; one that cannot,
+/// cannot.
+///
+/// # Material per piece, not per node
+///
+/// A house is stone walls, an oak door and glass panes, and a contact has to
+/// read the material of the piece it actually struck. `Topology` carries one
+/// material for a whole structure, which was enough while a structure was one
+/// substance and is not enough for anything built.
+///
+/// The `substance` is carried alongside so the bake can check what D18 calls an
+/// invariant rather than a convention: **a node's surface materials are a
+/// partition of its solid pools.** See [`Surface::reconcile`].
+#[derive(Debug, Clone, PartialEq)]
+pub struct Piece {
+    /// The convex solid, in the node's own frame.
+    pub hull: Hull,
+    /// What this piece is made of, for the contact that strikes it.
+    pub material: crate::material::Material,
+    /// Which substance that material was measured from, or
+    /// `SubstanceId::UNSPECIATED` for a piece nobody has speciated.
+    pub substance: crate::chem::SubstanceId,
+    /// How much of the node's mass this piece accounts for, kg.
+    ///
+    /// Not used by the narrow phase, which only needs the geometry. It is what
+    /// makes the partition checkable: a surface whose pieces claim more steel
+    /// than the node has is describing something the node is not made of.
+    pub mass: f64,
+}
+
+/// What a solid presents to the world: a union of solid convex primitives.
+///
+/// `docs/PLAY.md` D18. **The generator emits the pieces; nothing infers a
+/// decomposition.** That is the part which makes convex decomposition — the
+/// hard, unsolved half of this problem everywhere else — not arise at all.
+/// Inferring convex pieces from arbitrary geometry is difficult; a generator
+/// never infers, because it *knows*. A wall with a doorway emits four boxes
+/// around the opening, because the recipe is what put the opening there. A tree
+/// emits capsules. A rock emits hulls over its sampled bodies.
+///
+/// # Derived once and stored
+///
+/// D13 read literally: "deriving *once* and storing the result", applied to
+/// shape, which is the one place the engine never applied it.
+/// `Node::collision_shape` rebuilt a proxy from the member list every frame and
+/// persisted nothing — a derivation with no shortcut, which is the half of the
+/// third axiom that saves nothing. A `Surface` is baked when it is first asked
+/// for and kept until the node's `epoch` moves, which is precisely when its
+/// arrangement changed.
+///
+/// # What was rejected
+///
+/// A **baked triangle mesh**: storage grows with visual complexity, and D15's
+/// whole argument is that a house is hundreds of bytes. A **CSG tree with
+/// subtraction**: expressive, but it needs a second narrow phase —
+/// sphere-tracing rather than GJK, iterative where GJK is exact — and the
+/// solid-primitive rule removes the need, because a generator that knows where
+/// the door goes emits the pieces around it instead of subtracting one.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct Surface {
+    pieces: Vec<Piece>,
+}
+
+/// Why a surface did not reconcile with the matter it belongs to.
+///
+/// D18: "a node whose mixture is all water by mass while its primitives present
+/// steel would be *telling* a contact something its own bulk contradicts. That
+/// is the second axiom failing by way of having two answers to one question."
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Mismatch {
+    /// A piece names a substance the node has no solid pool of.
+    NotHeld { substance: crate::chem::SubstanceId },
+    /// The pieces of one substance claim more mass than the node holds of it.
+    OverClaimed { substance: crate::chem::SubstanceId, claimed: f64, held: f64 },
+}
+
+impl Surface {
+    pub fn new(pieces: Vec<Piece>) -> Surface {
+        Surface { pieces }
+    }
+
+    pub fn pieces(&self) -> &[Piece] {
+        &self.pieces
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.pieces.is_empty()
+    }
+
+    pub fn len(&self) -> usize {
+        self.pieces.len()
+    }
+
+    /// The geometry alone, which is what the narrow phase consumes.
+    pub fn hulls(&self) -> impl Iterator<Item = &Hull> {
+        self.pieces.iter().map(|p| &p.hull)
+    }
+
+    /// Bytes this surface costs, for the detail budget.
+    pub fn bytes(&self) -> usize {
+        self.pieces.iter().map(|p| std::mem::size_of::<Piece>() + p.hull.len() * std::mem::size_of::<Sphere>()).sum()
+    }
+
+    /// Check the surface against the matter it belongs to. **D18's invariant.**
+    ///
+    /// A node's surface materials must be a *partition of its solid pools*: a
+    /// cup that is 60% ceramic may present ceramic surfaces and may not present
+    /// steel ones, and the mass its ceramic primitives carry has to reconcile
+    /// against its ceramic pool.
+    ///
+    /// This is a conservation statement about material, in the same family as
+    /// `summarise(sample(m)) == m`, and D18 asks for it to be asserted rather
+    /// than documented — it is cheap to check at bake time and unpleasant to
+    /// retrofit once both representations exist and have drifted.
+    ///
+    /// A piece whose substance is `UNSPECIATED` is exempt: it is a piece nobody
+    /// has said anything about, which is a *missing* answer rather than a
+    /// contradicting one. `tolerance` is a fraction of the node's mass.
+    pub fn reconcile(
+        &self,
+        mixture: &crate::chem::Mixture,
+        mass: f64,
+        tolerance: f64,
+    ) -> Result<(), Mismatch> {
+        use crate::chem::{Phase, SubstanceId};
+        let mut claimed: Vec<(SubstanceId, f64)> = Vec::new();
+        for p in &self.pieces {
+            if p.substance == SubstanceId::UNSPECIATED {
+                continue;
+            }
+            match claimed.iter_mut().find(|(s, _)| *s == p.substance) {
+                Some((_, m)) => *m += p.mass.max(0.0),
+                None => claimed.push((p.substance, p.mass.max(0.0))),
+            }
+        }
+        let slack = tolerance * mass.abs().max(1e-30);
+        for (substance, want) in claimed {
+            let held = mixture.pool(substance, Phase::Solid) * mass;
+            if held <= 0.0 {
+                return Err(Mismatch::NotHeld { substance });
+            }
+            if want > held + slack {
+                return Err(Mismatch::OverClaimed { substance, claimed: want, held });
+            }
+        }
+        Ok(())
+    }
+
+    /// The same surface expressed in the parent's frame: turned by the node's
+    /// orientation, then moved to where the node is.
+    ///
+    /// The composition is [`Hull::placed`]'s and is the order a body-fixed
+    /// point is placed in. A surface is stored in the node's own frame, because
+    /// one with a position baked into it would be wrong on the next frame.
+    pub fn placed(&self, orientation: crate::math::Quat, offset: Vec3) -> Vec<Hull> {
+        self.pieces.iter().map(|p| p.hull.placed(orientation, offset)).collect()
+    }
+
+    /// The material of the piece nearest a point, which is what a contact at
+    /// that point struck.
+    ///
+    /// D13: "Contact then reads the material *at the point of impact*, which is
+    /// also what damage and the renderer need."
+    pub fn material_at(&self, point: Vec3) -> Option<&crate::material::Material> {
+        let mut best: Option<(f64, &Piece)> = None;
+        for p in &self.pieces {
+            let d = (p.hull.centre() - point).norm() - p.hull.bound();
+            if best.is_none_or(|(b, _)| d < b) {
+                best = Some((d, p));
+            }
+        }
+        best.map(|(_, p)| &p.material)
+    }
 }

@@ -168,6 +168,27 @@ pub struct Node {
     /// Number of solver steps this node has taken. Part of the address for any
     /// per-step randomness (see `rng::Stream::split`).
     pub steps_taken: u64,
+    /// The boundary this node presents, baked once and kept. `docs/PLAY.md`
+    /// D13 and D18.
+    ///
+    /// **Derived, with the shortcut stored** — the third axiom read literally,
+    /// applied to shape, which is the one place the engine never applied it.
+    /// `collision_shape` rebuilt a proxy from the member list on every frame
+    /// and kept nothing, which is a derivation with no shortcut. An undisturbed
+    /// tree now computes its boundary once and reuses it for a thousand frames;
+    /// a felled one recomputes, because its arrangement changed.
+    ///
+    /// Not persisted and not part of the wire format: it is regenerable from
+    /// the node's own contents, which is the same reason `last_report` is not.
+    pub surface: Option<crate::shape::Surface>,
+    /// The `epoch` the surface above was baked at. A different one means the
+    /// arrangement moved and the surface is stale.
+    ///
+    /// `epoch` is exactly the right trigger and not an approximation of one:
+    /// it is "bumped whenever a recorded interaction changes the node's
+    /// contents", which is the definition of when a boundary stops being the
+    /// boundary.
+    pub surface_epoch: u32,
     pub last_report: SampleReport,
 }
 
@@ -273,6 +294,12 @@ impl Node {
     /// the order `Motion::body_to_parent` places a body-fixed point in. The
     /// contact path used to translate without rotating, and a spinning box's
     /// walls stayed in the axes they were built in.
+    /// **Superseded by `World::surface_of_node`**, which is `docs/PLAY.md`
+    /// D18's stored union of solid convex primitives. This is the per-frame
+    /// rebuild D13 retires: it has no material per piece, no reconciliation
+    /// against the node's own pools, and no cache. It survives because the
+    /// renderer and the fragment path still read a bare hull list and because a
+    /// `Tree` has no access to the substance registry a measured material needs.
     pub fn collision_shape(&self) -> Vec<crate::shape::Hull> {
         let Some(mask) = self.structural_mask() else {
             return vec![crate::shape::Hull::sphere(Vec3::ZERO, self.matter.radius)];
@@ -403,6 +430,8 @@ impl Tree {
             morphology: None,
             topology: None,
             steps_taken: 0,
+            surface: None,
+            surface_epoch: u32::MAX,
             last_report: SampleReport::default(),
         };
         Tree {
@@ -639,6 +668,8 @@ impl Tree {
             morphology: None,
             topology: None,
             steps_taken: 0,
+            surface: None,
+            surface_epoch: u32::MAX,
             last_report: SampleReport::default(),
         };
         let idx = self.alloc(child);

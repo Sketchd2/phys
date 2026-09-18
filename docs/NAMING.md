@@ -254,3 +254,22 @@ That is not the retired sense: an observer asking how bound a node is has one
 question, and the split is about what the sampler may do with the answer rather
 than about what the answer is. The two are in different modules and nothing
 reads across.
+
+## `Surface` freed for what D18 means by it
+
+`neighbourhood::Surface` held three numbers — density, stiffness, strength —
+that a contact reads off a material to decide how much of an impact comes back.
+`docs/PLAY.md` D18 then gave "surface" a different and more obvious meaning: the
+**geometry** a solid presents, a union of solid convex primitives each carrying
+its own material.
+
+| was | is | means |
+|---|---|---|
+| `neighbourhood::Surface` | `neighbourhood::Resilience` | how much of an impact a material gives back |
+| — | `shape::Surface` | the boundary a solid presents, as convex pieces |
+
+Two things cannot share the name, and of the two the geometric sense is the one
+a stranger reaches for: "the surface of a box" is its faces, not its coefficient
+of restitution. *Resilience* is the materials-science word for the energy a
+material returns rather than keeps, which is exactly what the three numbers are
+for — `restitution` and `yield_velocity` are the only things that read them.

@@ -274,7 +274,7 @@ impl Neighbourhood {
         self.resolution
     }
 
-    /// Everything whose *surface* lies within `within` of `point`.
+    /// Everything whose *resilience* lies within `within` of `point`.
     ///
     /// Radii are taken into account on the occupant's side, so a large thing is
     /// found by a query that would have missed its centre. Returns `None` if
@@ -476,7 +476,7 @@ pub fn exchange(a: Reservoir, b: Reservoir, conductance: f64, dt: f64) -> f64 {
 
 /// The area two spheres exchange radiation across, square metres.
 ///
-/// Not a shared surface — nothing is shared, they are not touching. It is the
+/// Not a shared resilience — nothing is shared, they are not touching. It is the
 /// reciprocal area `A_a F_ab = A_b F_ba` that makes the grey-body law come out
 /// symmetric, which is the thing that has to hold if the exchange is to
 /// conserve energy: `pi r_a^2 r_b^2 / d^2`, the far-field limit of the
@@ -531,13 +531,22 @@ pub fn radiative_conductance(t_a: f64, t_b: f64, area: f64) -> f64 {
 // Contact
 // ---------------------------------------------------------------------------
 
-/// What a thing's surface has to say for a collision to be resolvable.
+/// How much of an impact a material gives back, and what it takes to stop it
+/// giving any back at all.
 ///
-/// Four numbers, and every one of them is already on `topology::Material` —
-/// which is what `docs/PLAY.md` D3 means by "derived from the materials
-/// `topology.rs` already carries as data". Nothing here is a coefficient of
-/// restitution or a coefficient of friction: those are *results*, computed
-/// below from these and from how fast the two things are closing.
+/// Three numbers, all of them on `Material` — which is what `docs/PLAY.md` D3
+/// means by "derived from the materials `topology.rs` already carries as data",
+/// and which D14 then made derived rather than tabulated. Nothing here is a
+/// coefficient of restitution or a coefficient of friction: those are
+/// *results*, computed below from these and from how fast the two things are
+/// closing.
+///
+/// **This was called `Surface`.** D18 gives that word to the thing a solid
+/// presents geometrically — a union of solid convex primitives, each with its
+/// own material — and no two things may share a name. This is not that: it is
+/// the three numbers a *contact* needs from whichever primitive was struck, and
+/// resilience is what a materials engineer calls the energy a material returns
+/// rather than keeps.
 ///
 /// That distinction is the whole point. A tabulated restitution is a frozen
 /// answer to a question whose answer depends on the impact speed — the same
@@ -547,7 +556,7 @@ pub fn radiative_conductance(t_a: f64, t_b: f64, area: f64) -> f64 {
 /// does not bounce", which was a reasonable guess for the one speed it was
 /// tuned at.
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub struct Surface {
+pub struct Resilience {
     /// kg/m^3.
     pub density: f64,
     /// Young's modulus, Pa.
@@ -558,20 +567,20 @@ pub struct Surface {
     pub strength: f64,
 }
 
-impl Surface {
-    /// Read a surface off a structural material.
+impl Resilience {
+    /// Read a resilience off a structural material.
     ///
     /// `ductility` is documented as "yield strength as a fraction of
     /// `strength()`, or zero for a brittle material that fractures instead of
     /// yielding", so a zero is not a material with no strength — it is a
     /// material whose elastic range ends at fracture.
-    pub fn of(m: &crate::topology::Material) -> Surface {
+    pub fn of(m: &crate::topology::Material) -> Resilience {
         let strength = if m.ductility > 0.0 {
             m.strength() * m.ductility
         } else {
             m.strength()
         };
-        Surface {
+        Resilience {
             density: m.density.max(0.0),
             stiffness: m.stiffness.max(0.0),
             strength: strength.max(0.0),
@@ -614,7 +623,7 @@ impl Surface {
 /// The `2.73` is for two equal spheres and is a scale rather than a precision
 /// constant; the `(1 - nu^2)` plane-strain correction is left out because
 /// `Material` carries no Poisson's ratio and it is worth about 10% per side.
-pub fn yield_velocity(a: &Surface, b: &Surface) -> f64 {
+pub fn yield_velocity(a: &Resilience, b: &Resilience) -> f64 {
     if !a.is_usable() || !b.is_usable() {
         return 0.0;
     }
@@ -640,7 +649,7 @@ pub fn yield_velocity(a: &Surface, b: &Surface) -> f64 {
 /// times past yield still returns a tenth of what it was given.
 ///
 /// Speed-dependent by construction, which no tabulated coefficient can be.
-pub fn restitution(a: &Surface, b: &Surface, closing: f64) -> f64 {
+pub fn restitution(a: &Resilience, b: &Resilience, closing: f64) -> f64 {
     let v_y = yield_velocity(a, b);
     let v = closing.abs();
     if !(v > 0.0) || !(v_y > 0.0) || v <= v_y {
@@ -667,11 +676,11 @@ pub fn restitution(a: &Surface, b: &Surface, closing: f64) -> f64 {
 /// not a simplification made here but the reason most dry coefficients between
 /// unlubricated solids sit between 0.2 and 0.5 whatever they are made of.
 ///
-/// What the engine cannot see is what *does* vary: surface films, roughness,
+/// What the engine cannot see is what *does* vary: resilience films, roughness,
 /// and the melt layer that makes ice 0.05 rather than 0.2. None of those are
 /// represented, so none of them are guessed at. The signature still takes both
 /// surfaces, because the day one of those is measurable this is where it goes.
-pub fn friction(_a: &Surface, _b: &Surface) -> f64 {
+pub fn friction(_a: &Resilience, _b: &Resilience) -> f64 {
     1.0 / (3.0 * 3.0f64.sqrt())
 }
 
@@ -686,12 +695,12 @@ pub struct Side {
     pub velocity: Vec3,
     pub mass: f64,
     /// Bounding radius about `pos`. The broad phase indexes this; the narrow
-    /// phase does not use it, because `shape` says where the surface actually
+    /// phase does not use it, because `shape` says where the resilience actually
     /// is.
     pub radius: f64,
     /// J/K, for the heat the contact makes. See `state::Matter::heat_capacity`.
     pub heat_capacity: f64,
-    pub surface: Surface,
+    pub resilience: Resilience,
     /// What this side actually *is*, geometrically, as one or more convex
     /// pieces. A lone body presents one sphere and gets exactly the arithmetic
     /// it always got; a structure presents a capsule per member and stops being
@@ -707,7 +716,7 @@ impl Side {
         mass: f64,
         radius: f64,
         heat_capacity: f64,
-        surface: Surface,
+        resilience: Resilience,
     ) -> Side {
         Side {
             pos,
@@ -715,7 +724,7 @@ impl Side {
             mass,
             radius,
             heat_capacity,
-            surface,
+            resilience,
             shape: vec![crate::shape::Hull::sphere(pos, radius)],
         }
     }
@@ -729,14 +738,14 @@ impl Side {
         velocity: Vec3,
         mass: f64,
         heat_capacity: f64,
-        surface: Surface,
+        resilience: Resilience,
         shape: Vec<crate::shape::Hull>,
     ) -> Side {
         let radius = shape
             .iter()
             .map(|h| (h.centre() - pos).norm() + h.bound())
             .fold(0.0f64, f64::max);
-        Side { pos, velocity, mass, radius, heat_capacity, surface, shape }
+        Side { pos, velocity, mass, radius, heat_capacity, resilience, shape }
     }
 }
 
@@ -763,9 +772,9 @@ pub struct Collision {
 /// Resolve an overlap into an impulse pair.
 ///
 /// Returns `None` when there is nothing to resolve: the two are separating
-/// already, either side has no mass, or either side has no surface to collide
+/// already, either side has no mass, or either side has no resilience to collide
 /// with. The last is not a failure — a gas parcel and a star cluster are things
-/// a node holds that have no surface, and giving them one would be the engine
+/// a node holds that have no resilience, and giving them one would be the engine
 /// being *told* they are solid rather than measuring it.
 ///
 /// # What is conserved, and how
@@ -788,7 +797,7 @@ pub fn contact(a: &Side, b: &Side) -> Option<Collision> {
     if !(a.mass > 0.0) || !(b.mass > 0.0) {
         return None;
     }
-    if !a.surface.is_usable() || !b.surface.is_usable() {
+    if !a.resilience.is_usable() || !b.resilience.is_usable() {
         return None;
     }
     // Where the two surfaces actually meet. For a pair of spheres this is the
@@ -823,7 +832,7 @@ pub fn contact(a: &Side, b: &Side) -> Option<Collision> {
         return None;
     }
     let reduced = 1.0 / (1.0 / a.mass + 1.0 / b.mass);
-    let e = restitution(&a.surface, &b.surface, closing);
+    let e = restitution(&a.resilience, &b.resilience, closing);
     let jn = -(1.0 + e) * closing * reduced;
     if !jn.is_finite() || jn <= 0.0 {
         return None;
@@ -835,7 +844,7 @@ pub fn contact(a: &Side, b: &Side) -> Option<Collision> {
     let slide = tangent_v.norm();
     let (friction_impulse, jt) = if slide > 0.0 {
         let t = tangent_v.scale(1.0 / slide);
-        let mu = friction(&a.surface, &b.surface);
+        let mu = friction(&a.resilience, &b.resilience);
         let jt = (slide * reduced).min(mu * jn);
         (t.scale(-jt), jt)
     } else {

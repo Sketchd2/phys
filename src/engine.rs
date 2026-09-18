@@ -322,6 +322,15 @@ pub struct EngineStats {
     /// `exchange_crossings` counts crossings: a coupling that silently stops
     /// happening looks identical to one that has nothing to do.
     pub contacts_resolved: u64,
+    /// Surfaces baked. `PLAY.md` D13 stores a boundary and regenerates it when
+    /// `epoch` moves, so this counts arrangements that changed, not frames.
+    pub surfaces_baked: u64,
+    /// Surfaces whose materials did not reconcile with the node's own solid
+    /// pools. `PLAY.md` D18's invariant; non-zero means a node is presenting
+    /// something its bulk contradicts.
+    pub surface_mismatches: u64,
+    /// The last such disagreement, so a number worth chasing says where to look.
+    pub worst_surface_mismatch: Option<crate::shape::Mismatch>,
     /// Boundaries heat actually crossed, summed over nodes and frames. Counts
     /// transfers, not joules: it answers "is anything talking to its
     /// neighbours at all", which is the question a coupling that silently does
@@ -2052,16 +2061,202 @@ impl World {
     /// 3. **Nothing.** A gas parcel or a star cluster has no surface, and that
     ///    is now measured rather than assumed: an undescribed node, or one
     ///    whose mixture holds no solid pool at all, gets `None`.
-    fn surface_of(&self, idx: NodeIdx) -> Option<crate::neighbourhood::Surface> {
-        let n = &self.tree.nodes[idx.get()];
-        if let Some(m) = self.material_of(idx) {
-            return Some(crate::neighbourhood::Surface::of(&m));
+    fn surface_of(&self, idx: NodeIdx) -> Option<crate::neighbourhood::Resilience> {
+        Some(crate::neighbourhood::Resilience::of(&self.contact_material(idx)?))
+    }
+
+    /// The material a contact with this node reads, **without measuring it
+    /// again**.
+    ///
+    /// The baked surface already carries the material of every piece, and
+    /// measuring one is not cheap: `grain_scale` marches a thousand steps of a
+    /// nucleation integral, and `Material::measured` blends over every solid
+    /// pool. Doing that per contact per frame took the steady-state frame from
+    /// 25 ms to 121 ms — measured, on `frames_stay_within_budget`.
+    ///
+    /// So the surface is the cache, which is what `PLAY.md` D13 means by
+    /// "derived once and stored": a caller that has baked a surface reads the
+    /// answer off it, and one that has not falls back to what built the node.
+    fn contact_material(&self, idx: NodeIdx) -> Option<crate::material::Material> {
+        if idx.is_none() || idx.get() >= self.tree.nodes.len() {
+            return None;
         }
-        let m = match &n.topology {
-            Some(t) => t.material,
-            None => n.morphology.as_ref()?.material(),
+        let n = &self.tree.nodes[idx.get()];
+        if let Some(s) = &n.surface {
+            if n.surface_epoch == n.epoch {
+                return s.pieces().first().map(|p| p.material);
+            }
+        }
+        match &n.topology {
+            Some(t) => Some(t.material),
+            None => n.morphology.as_ref().map(|m| m.material()),
+        }
+    }
+
+    /// The boundary this node presents, baked if it is stale. `PLAY.md` D18.
+    ///
+    /// **The generator emits the pieces; nothing infers a decomposition.** That
+    /// is the clause that keeps convex decomposition — normally the hard,
+    /// unsolved half of this problem — from arising at all. There are two
+    /// generators and no third:
+    ///
+    /// - **A structure states its members.** `Topology` carries `base`, `tip`
+    ///   and a cross-section radius per member, which *are* a capsule, and the
+    ///   recipe is what put them there. A wall with a doorway emits the pieces
+    ///   around the opening because the recipe put the opening there.
+    /// - **Unstructured solid matter states one piece.** A rock is one filled
+    ///   solid with no cavity in it, so it presents one hull over its bodies —
+    ///   or, unmaterialised, the sphere of its own radius. Emitting one piece
+    ///   per body would be emitting four thousand of them, and
+    ///   `PERFORMANCE.md`'s narrow-phase row prices that at 1.2 ms for a single
+    ///   contact.
+    ///
+    /// **A node that is not solid gets an empty surface**, which is D13's own
+    /// line rather than a fallback: a liquid's surface is a property of its
+    /// container and the field it is in, and a cloud of gas has none for the
+    /// same reason it has no shape.
+    ///
+    /// The result is stored on the node and kept until its `epoch` moves. See
+    /// `Node::surface`.
+    pub fn surface_of_node(&mut self, idx: NodeIdx) -> &crate::shape::Surface {
+        if idx.is_none() || idx.get() >= self.tree.nodes.len() {
+            return Self::nothing();
+        }
+        let stale = {
+            let n = &self.tree.nodes[idx.get()];
+            n.surface.is_none() || n.surface_epoch != n.epoch
         };
-        Some(crate::neighbourhood::Surface::of(&m))
+        if stale {
+            self.stats.surfaces_baked += 1;
+            let baked = self.bake_surface(idx);
+            // **D18's invariant, checked at bake time.** A node's surface
+            // materials are a partition of its solid pools, and nothing in D17
+            // or D18 alone stops the two drifting: a node whose mixture is all
+            // water by mass while its primitives present steel would be
+            // *telling* a contact something its own bulk contradicts, which is
+            // the second axiom failing by way of having two answers to one
+            // question.
+            //
+            // It is cheap here and unpleasant to retrofit once both
+            // representations exist and have drifted, which is why D18 asks for
+            // it asserted rather than documented. Reported rather than
+            // panicking, on §3.7's precedent: a node that cannot describe
+            // itself says so.
+            let n = &self.tree.nodes[idx.get()];
+            if let Err(why) = baked.reconcile(&n.matter.mixture, n.matter.mass, 1e-6) {
+                self.stats.surface_mismatches += 1;
+                self.stats.worst_surface_mismatch = Some(why);
+            }
+            let epoch = self.tree.nodes[idx.get()].epoch;
+            let n = &mut self.tree.nodes[idx.get()];
+            n.surface_epoch = epoch;
+            n.surface = Some(baked);
+        }
+        self.tree.nodes[idx.get()]
+            .surface
+            .as_ref()
+            .unwrap_or_else(|| Self::nothing())
+    }
+
+    /// The empty surface, for a node that presents none.
+    fn nothing() -> &'static crate::shape::Surface {
+        static EMPTY: std::sync::OnceLock<crate::shape::Surface> = std::sync::OnceLock::new();
+        EMPTY.get_or_init(crate::shape::Surface::default)
+    }
+
+    /// Emit the pieces. See [`World::surface_of_node`] for what decides which.
+    fn bake_surface(&self, idx: NodeIdx) -> crate::shape::Surface {
+        use crate::chem::{Phase, SubstanceId};
+        use crate::shape::{Hull, Piece, Surface};
+
+        let n = &self.tree.nodes[idx.get()];
+        // What it is made of, and which substance that came from, so the bake
+        // can be checked against the node's own pools.
+        let measured = self.material_of(idx);
+        let substance = n
+            .matter
+            .mixture
+            .entries()
+            .iter()
+            .filter(|p| p.phase == Phase::Solid && p.fraction > 0.0)
+            .max_by(|a, b| a.fraction.total_cmp(&b.fraction))
+            .map(|p| p.substance)
+            .unwrap_or(SubstanceId::UNSPECIATED);
+        let material = match measured {
+            Some(m) => m,
+            // A node nobody has described falls back to what built it, exactly
+            // as `surface_of` does — and to nothing at all if nothing built it,
+            // because an undescribed cloud has no boundary to present.
+            None => match (&n.topology, &n.morphology) {
+                (Some(t), _) => t.material,
+                (None, Some(m)) => m.material(),
+                (None, None) => return Surface::default(),
+            },
+        };
+        let solid_mass = if n.matter.is_described() {
+            n.matter.mass * n.matter.solid_fraction()
+        } else {
+            n.matter.mass
+        };
+
+        // A structure states its members.
+        if let (Some(mask), Some(t)) = (n.structural_mask(), n.topology.as_ref()) {
+            let members = mask.iter().filter(|o| **o).count();
+            if members > 0 {
+                let share = solid_mass / members as f64;
+                let mut pieces = Vec::with_capacity(members);
+                for (i, ordered) in mask.iter().enumerate() {
+                    if !ordered {
+                        continue;
+                    }
+                    let radius = t.joints.get(i).map(|j| j.radius).unwrap_or(0.0);
+                    let base = t.base.get(i).copied().unwrap_or(Vec3::ZERO);
+                    let tip = t.tip.get(i).copied().unwrap_or(Vec3::ZERO);
+                    // A member with no length is a block rather than a beam —
+                    // coursed masonry is the case — and its own body's sphere
+                    // is the right shape for it.
+                    let hull = if (tip - base).norm2() > 0.0 {
+                        Hull::capsule(base, tip, radius)
+                    } else if let Some(b) = n.bodies.get(i) {
+                        Hull::sphere(b.pos, b.radius.max(radius))
+                    } else {
+                        continue;
+                    };
+                    let mass = n.bodies.get(i).map(|b| b.mass).unwrap_or(share);
+                    pieces.push(Piece { hull, material, substance, mass });
+                }
+                if !pieces.is_empty() {
+                    return Surface::new(pieces);
+                }
+            }
+        }
+
+        // Unstructured matter: solid or nothing.
+        if n.matter.is_described() && n.matter.solid_fraction() <= 0.0 {
+            return Surface::default();
+        }
+        // **One piece, and it is a sphere.** A rock is one filled solid with no
+        // cavity, so a single primitive is the honest description of it — and
+        // the alternative is expensive twice over: hulling four thousand
+        // sampled bodies costs an O(n^2) bake, and the hull it produces then
+        // costs a four-thousand-sphere support query on every contact.
+        // `PERFORMANCE.md`'s narrow-phase row prices that at 1.2 ms for one
+        // pair.
+        //
+        // Materialised, the radius is *measured* rather than assumed: `Spread`
+        // is Phase 1's own measurement of where a node's contents actually are,
+        // and its furthest reach is the smallest sphere that contains them.
+        // Unmaterialised, the node's own radius is all there is, and it is
+        // exactly what the matter claims.
+        let hull = if n.bodies.is_empty() {
+            Hull::sphere(Vec3::ZERO, n.matter.radius)
+        } else {
+            let spread = crate::state::Spread::of(
+                n.bodies.iter().map(|b| (b.pos, b.mass, b.radius)),
+            );
+            Hull::sphere(spread.centre, spread.furthest.max(1e-30))
+        };
+        Surface::new(vec![Piece { hull, material, substance, mass: solid_mass }])
     }
 
     /// What a node is made of, measured from its own matter. `PLAY.md` D13.
@@ -2124,6 +2319,21 @@ impl World {
     /// is a solver concern and `PLAY.md` does not call for one.
     fn contact_within(&mut self, idx: NodeIdx) -> u64 {
         use crate::neighbourhood::{contact, Side};
+        // Bake every promoted child's surface *before* the index is built.
+        // Baking writes to the node and the index borrows the tree, and the
+        // alternative — rebuilding a proxy inside the loop — is the per-frame
+        // derivation `PLAY.md` D13 retires.
+        let children: Vec<NodeIdx> = self.tree.nodes[idx.get()]
+            .children
+            .iter()
+            .copied()
+            .filter(|c| !c.is_none())
+            .collect();
+        for c in children {
+            self.surface_of_node(c);
+        }
+        // And this node's own, which is what its loose bodies present.
+        self.surface_of_node(idx);
         let nb = self.tree.neighbourhood(idx);
         if nb.len() < 2 {
             return 0;
@@ -2171,17 +2381,19 @@ impl World {
                     // A promoted child is the engine's rigid body: one
                     // velocity, one spin, and `apply_contact` has always put an
                     // impulse straight onto them. What it lacked was a shape.
-                    // `collision_shape` is in the child's own frame, so it is
-                    // turned by the child's orientation and *then* moved to
-                    // where the child is — the same composition
+                    //
+                    // **The stored one**, baked above. It is in the child's own
+                    // frame, so it is turned by the child's orientation and
+                    // *then* moved to where the child is — the same composition
                     // `Motion::body_to_parent` uses for a body-fixed point.
                     // Translating alone left a spinning box's walls in the axes
                     // they were built in.
-                    let shape: Vec<crate::shape::Hull> = n
-                        .collision_shape()
-                        .iter()
-                        .map(|h| h.placed(n.motion.orientation, pos))
-                        .collect();
+                    let shape: Vec<crate::shape::Hull> = match &n.surface {
+                        Some(s) if !s.is_empty() => s.placed(n.motion.orientation, pos),
+                        // A node that presents no surface is not collidable,
+                        // which is D13's own line for a liquid or a gas.
+                        _ => return None,
+                    };
                     let _ = radius;
                     Side::shaped(
                         pos,
@@ -2944,10 +3156,10 @@ impl World {
                 .iter()
                 .map(|c| c.closing.abs())
                 .fold(0.0f64, f64::max);
-            let mine = crate::neighbourhood::Surface::of(&frag.topo.material);
+            let mine = crate::neighbourhood::Resilience::of(&frag.topo.material);
             let theirs = struck
                 .get(&node.get())
-                .map(|(_, t)| crate::neighbourhood::Surface::of(&t.material))
+                .map(|(_, t)| crate::neighbourhood::Resilience::of(&t.material))
                 .unwrap_or(mine);
             let e = crate::neighbourhood::restitution(&mine, &theirs, closing);
             for (target, member, impulse) in frag.resolve(&contacts, e) {

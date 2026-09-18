@@ -603,6 +603,47 @@ latest.
 
 ---
 
+## The narrow phase runs against every piece a recipe emits
+
+**Noticed:** taking Phase 2's entry baseline, and again wiring D18's stored
+surface into contact.
+**Where:** `shape::closest_of`, `engine::contact_within`.
+
+`closest_of` is N x M over the pieces two sides present, and the cost is flat
+per piece, so it is linear in the piece count. Measured, in `PERFORMANCE.md`:
+
+```text
+  pieces on one side   closest_of   per piece   whole contact
+                   1      0.31 us     0.31 us         0.40 us
+                   6      1.94 us     0.32 us         2.04 us
+                  64     20.1  us     0.31 us        20.2  us
+                 512    161    us     0.31 us       162    us
+```
+
+A wooden box of six walls is 2 us a contact. **A generated tree is 3,400
+members**, which at the same rate is 1.1 ms for one pair — a fiftieth of a
+frame, for one tree touching one thing.
+
+D18 is explicit that the generator states the pieces and nothing infers a
+decomposition, so the count is the recipe's to choose. What is missing is the
+other half: `PLAY.md` §7's item 8, "collision runs against the surface **at the
+level of detail the distance deserves**". A tree a hundred metres away does not
+need its twigs, and the broad phase already knows the distance.
+
+**Not done, and deliberately separated from the bake.** The bake is what D18
+asks for and it is correct; picking a level of detail is a second decision with
+its own measurement, and doing both at once would have made it impossible to
+tell which one moved the numbers.
+
+**Measured cost of the bake itself**, which is the part that is done: four
+surfaces over a twenty-five-frame run of `frames_stay_within_budget`, because
+`epoch` is what invalidates one and an undisturbed node never moves it.
+
+**Trigger:** the first scene where a tree or a settlement is close enough to be
+collided with. `PLAY.md` §7 item 8.
+
+---
+
 ## ~~Collision geometry is a sphere~~ — mostly done; the residual is flatness
 
 **Was:** the general contact path knew a thing by a centre and a radius, so a
