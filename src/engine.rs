@@ -2009,6 +2009,11 @@ impl World {
         let n = &mut self.tree.nodes[idx.get()];
         n.time += coordinate;
         n.steps_taken += 1;
+        // The solve may have moved the angular momentum, the mass or the
+        // radius, and the angular velocity is derived from all three. Re-derive
+        // before carrying the frame forward, so the orientation this span
+        // advances by is the one the node's contents actually imply.
+        n.sync_spin_rate();
         n.motion.advance(coordinate);
         let node_time = n.time;
         let clock = self
@@ -2133,10 +2138,17 @@ impl World {
                     // A promoted child is the engine's rigid body: one
                     // velocity, one spin, and `apply_contact` has always put an
                     // impulse straight onto them. What it lacked was a shape.
-                    // `collision_shape` is in the child's own frame, so it
-                    // moves to where the child is.
-                    let shape: Vec<crate::shape::Hull> =
-                        n.collision_shape().iter().map(|h| h.translated(pos)).collect();
+                    // `collision_shape` is in the child's own frame, so it is
+                    // turned by the child's orientation and *then* moved to
+                    // where the child is — the same composition
+                    // `Motion::body_to_parent` uses for a body-fixed point.
+                    // Translating alone left a spinning box's walls in the axes
+                    // they were built in.
+                    let shape: Vec<crate::shape::Hull> = n
+                        .collision_shape()
+                        .iter()
+                        .map(|h| h.placed(n.motion.orientation, pos))
+                        .collect();
                     let _ = radius;
                     Side::shaped(
                         pos,
@@ -3938,6 +3950,10 @@ fn apply_contact(
                 n.motion.velocity = n.motion.velocity + impulse.scale(1.0 / n.matter.mass);
             }
             n.matter.spin += spin;
+            // Angular momentum arrived, so the angular velocity it implies has
+            // changed. Without this line the node banks the momentum and never
+            // turns, which is what `PLAY.md` §2A measured.
+            n.sync_spin_rate();
             if heat != 0.0 {
                 // Through the mailbox, like every other joule crossing into
                 // another node's books. See `World::exchange_within`.

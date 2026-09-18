@@ -178,6 +178,30 @@ impl Hull {
         }
     }
 
+    /// Turn the whole hull about its own frame's origin, then move it.
+    ///
+    /// The composition matters and is the order a node's frame is defined in:
+    /// `Node::collision_shape` is expressed about the node's own origin, and
+    /// `Motion::body_to_parent` places a body-fixed point at
+    /// `offset + orientation * local`. Translating without rotating is what
+    /// `contact_within` used to do, and it left a spinning box's walls in the
+    /// axes they were built in while the box's `orientation` turned — the
+    /// second of the two rigid-body defects `PLAY.md` §2A found.
+    ///
+    /// A rotation is rigid, so the bound about the centre is unchanged and the
+    /// spheres that survived the bake still survive it.
+    pub fn placed(&self, orientation: crate::math::Quat, offset: Vec3) -> Hull {
+        Hull {
+            spheres: self
+                .spheres
+                .iter()
+                .map(|s| Sphere::new(orientation.rotate(s.centre) + offset, s.radius))
+                .collect(),
+            centre: orientation.rotate(self.centre) + offset,
+            bound: self.bound,
+        }
+    }
+
     pub fn spheres(&self) -> &[Sphere] {
         &self.spheres
     }

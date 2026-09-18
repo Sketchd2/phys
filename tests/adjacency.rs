@@ -1089,11 +1089,18 @@ fn the_bodies_of_one_node_do_not_collide_with_each_other() {
 ///
 /// # What this still does not show
 ///
-/// **The box does not turn.** It takes up angular momentum — `matter.spin`
-/// moves, and the conservation figures above depend on it — but nothing in the
-/// tree composes orientation, so its members stay in the axes they were built
-/// in. That is the same gap `docs/BACKLOG.md` records for derived gravity, and
-/// it is why this asserts on the spin rather than on where a wall has got to.
+/// **The box now turns**, which it did not when this was written. `PLAY.md`
+/// §7's first Phase 2 item re-derives `motion.spin_rate` from `matter.spin`
+/// wherever the momentum can have moved, and rotates a child's
+/// `collision_shape` by its orientation before placing it — so the walls go
+/// where the box has turned them. `a_plank_struck_off_centre_turns...` and
+/// `a_turned_plank_is_struck_where_its_wall_now_is` are what hold those two to
+/// it; this test still asserts on the spin, because what it is *for* is the
+/// conservation of the assembly and not the kinematics of one side.
+///
+/// The related gap that is still open is derived **gravity** being expressed in
+/// the parent's axes, because `Tree::offset_from` composes offsets and not
+/// rotations. That is a different composition and `docs/BACKLOG.md` keeps it.
 ///
 /// **The walls are scalloped, not flat.** A row of capsules is an improvement
 /// on a grid of spheres and is not a plane. Measured on the inner face, on
@@ -1337,3 +1344,331 @@ fn a_ball_loose_in_a_box_conserves_momentum_and_angular_momentum() {
     );
 }
 
+
+// ---------------------------------------------------------------------------
+// The two rigid-body defects of PLAY.md §2A
+// ---------------------------------------------------------------------------
+
+/// A plank struck off-centre turns, and its surface turns with it.
+///
+/// `docs/PLAY.md` §7 item 1 and the `docs/BACKLOG.md` entry "A struck node
+/// banks angular momentum and never turns". Two defects, one scene, because
+/// each hides the other: a node whose `spin_rate` never updates has an
+/// orientation that never moves, so a shape that is never rotated looks
+/// correct.
+///
+/// - `motion.spin_rate` is angular velocity and `matter.spin` is angular
+///   momentum. The second was written by every off-centre contact and the
+///   first was derived at construction and never again.
+/// - `collision_shape` is expressed in the node's own frame and was translated
+///   to where the node is without ever being turned by its orientation.
+///
+/// The scene is the smallest one that can show both: one capsule, long and
+/// thin, struck near one end by a ball moving across it. A plank hit off its
+/// centre of mass must acquire angular momentum, therefore angular velocity,
+/// therefore a changing orientation — and the capsule it presents must end up
+/// somewhere its unrotated self is not.
+///
+/// Measured against the code this test was written for: the plank banks
+/// 835.2953 kg m^2/s of angular momentum, which is 0.23203 rad/s about z given
+/// what it weighs and how big it is, and reports a spin rate of exactly zero —
+/// so its orientation never moves either.
+#[test]
+fn a_plank_struck_off_centre_turns_and_its_surface_turns_with_it() {
+    use phys::engine::World;
+    use phys::math::Vec3;
+    use phys::morph::NO_SUPPORT;
+    use phys::sampler::{MassSpectrum, Profile, SampleSpec};
+    use phys::state::{BodyKind, Matter};
+    use phys::topology::{Joint, Material, Topology};
+    use phys::tree::Tree;
+
+    const HALF: f64 = 3.0; // the plank runs from -3 to +3 along x
+    const R_MEMBER: f64 = 0.3;
+    const PLANK_MASS: f64 = 1_000.0;
+    const BALL_MASS: f64 = 50.0;
+    const R_BALL: f64 = 0.4;
+    const DT: f64 = 0.005;
+
+    let spec = SampleSpec::new(2, Profile::Uniform, MassSpectrum::Equal, BodyKind::Grain);
+    let matter = Matter::neutral(PLANK_MASS + BALL_MASS, 12.0, 290.0, Composition::primordial());
+    let mut w = World::new(Tree::new(0x51A8, matter, Tier::Galactic, spec), 1.0);
+    let root = w.tree.root;
+    w.tree.refine(root);
+    {
+        let nd = &mut w.tree.nodes[root.get()];
+        nd.bodies[0].pos = Vec3::ZERO;
+        nd.bodies[0].vel = Vec3::ZERO;
+        nd.bodies[0].radius = HALF;
+        nd.bodies[0].mass = PLANK_MASS;
+        // Struck near the far end, and travelling across the plank rather than
+        // into it, so the impulse has a lever arm about the plank's centre.
+        nd.bodies[1].pos = v3(2.4, -1.2, 0.0);
+        nd.bodies[1].vel = v3(0.0, 6.0, 0.0);
+        nd.bodies[1].radius = R_BALL;
+        nd.bodies[1].mass = BALL_MASS;
+    }
+
+    let plank_spec = SampleSpec::new(1, Profile::Uniform, MassSpectrum::Equal, BodyKind::Grain);
+    let plank = w.tree.promote(root, 0, plank_spec);
+    w.tree.refine(plank);
+    {
+        let nd = &mut w.tree.nodes[plank.get()];
+        nd.matter.radius = HALF;
+        nd.matter.mass = PLANK_MASS;
+        nd.matter.spin = Vec3::ZERO;
+        // Both spin quantities, because setting one and not the other is the
+        // defect under test and a test must not supply it itself.
+        nd.motion.spin_rate = Vec3::ZERO;
+        nd.motion.offset = Vec3::ZERO;
+        nd.motion.velocity = Vec3::ZERO;
+        let (base, tip) = (v3(-HALF, 0.0, 0.0), v3(HALF, 0.0, 0.0));
+        if let Some(b) = nd.bodies.get_mut(0) {
+            b.pos = Vec3::ZERO;
+            b.vel = Vec3::ZERO;
+            b.radius = R_MEMBER;
+            b.mass = PLANK_MASS;
+        }
+        nd.topology = Some(Topology {
+            joints: vec![Joint {
+                child: 0,
+                parent: NO_SUPPORT,
+                at: base,
+                radius: R_MEMBER,
+                integrity: 1.0,
+            }],
+            support: vec![NO_SUPPORT],
+            site: vec![0],
+            base: vec![base],
+            tip: vec![tip],
+            material: Material::GREEN_WOOD,
+            ties: Vec::new(),
+        });
+    }
+
+    let ball_spec = SampleSpec::new(4, Profile::Uniform, MassSpectrum::Equal, BodyKind::Grain);
+    let ball = w.tree.promote(root, 1, ball_spec);
+    w.tree.refine(ball);
+    {
+        let nd = &mut w.tree.nodes[ball.get()];
+        nd.matter.radius = R_BALL;
+        nd.matter.mass = BALL_MASS;
+        nd.motion.offset = v3(2.4, -1.2, 0.0);
+        nd.motion.velocity = v3(0.0, 6.0, 0.0);
+        nd.matter.spin = Vec3::ZERO;
+        nd.motion.spin_rate = Vec3::ZERO;
+        nd.topology = Some(Topology { material: Material::GREEN_WOOD, ..Default::default() });
+    }
+    w.tree.pin(root);
+    w.tree.pin(plank);
+    w.tree.pin(ball);
+
+    // The capsule the plank presents before anything happens, so "it moved"
+    // is measured against where it actually was rather than against an
+    // assumption about where it was built.
+    let before = w.tree.nodes[plank.get()].collision_shape();
+    assert_eq!(before.len(), 1, "the plank is one member and so one capsule");
+    let tip_before = before[0].support(v3(1.0, 0.0, 0.0));
+
+    for _ in 0..400 {
+        w.advance_node(root, DT);
+        w.advance_node(plank, DT);
+        w.advance_node(ball, DT);
+    }
+
+    assert!(
+        w.stats.contacts_resolved > 0,
+        "the ball never reached the plank, so nothing here is under test"
+    );
+
+    let n = &w.tree.nodes[plank.get()];
+    let l = n.matter.spin.norm();
+    assert!(
+        l > 0.0,
+        "an off-centre strike put no angular momentum into the plank"
+    );
+
+    // Defect one: the angular velocity has to follow the angular momentum.
+    // `L = I omega` exactly, and `moment_of_inertia` is the uniform sphere the
+    // node reports — the check is that the two agree, not that either is a
+    // particular number.
+    let implied = n.matter.angular_velocity();
+    assert!(
+        (n.motion.spin_rate - implied).norm() <= 1e-12 * implied.norm().max(1e-30),
+        "the plank holds {l} kg m^2/s of angular momentum, which is {implied:?} \
+         rad/s, and reports a spin rate of {:?}",
+        n.motion.spin_rate
+    );
+    assert!(
+        n.motion.spin_rate.norm() > 0.0,
+        "the plank banked angular momentum and its angular velocity is still zero"
+    );
+
+    // And the orientation has to have followed the angular velocity.
+    let turned = n.motion.orientation.angle();
+    assert!(
+        turned > 1e-6,
+        "the plank has been turning at {:?} rad/s and its orientation has moved \
+         by {turned} rad",
+        n.motion.spin_rate
+    );
+
+    // Defect two: the surface it presents is in its own frame, so a turned
+    // plank presents a turned capsule. `placed` is what a contact applies, and
+    // the end of the capsule must have moved by about `turned * HALF`.
+    let after = n.collision_shape();
+    let placed = after[0].placed(n.motion.orientation, Vec3::ZERO);
+    let tip_after = placed.support(v3(1.0, 0.0, 0.0));
+    let moved = (tip_after - tip_before).norm();
+    // The far end of the capsule sits at `HALF` along x from the centre of
+    // rotation, plus its own cross-section radius along the support direction
+    // — and the radius term is carried *with* the support direction rather
+    // than with the point, so it is the same before and after and cancels. A
+    // point at radius `HALF` turned through `turned` moves by the chord,
+    // `2 HALF sin(turned/2)`.
+    let expected = 2.0 * HALF * (0.5 * turned).sin();
+    assert!(
+        moved > 0.0,
+        "the plank turned by {turned} rad and the capsule it presents did not move"
+    );
+    assert!(
+        (moved - expected).abs() < 0.05 * expected.max(1e-12),
+        "the plank turned by {turned} rad, so its far end should have swung \
+         {expected} m and it swung {moved} m"
+    );
+}
+
+/// A turned plank is struck where its wall now is, and not where it was built.
+///
+/// The companion to the test above, and the one that holds the *engine* to the
+/// second defect rather than holding `Hull::placed` to it. `contact_within`
+/// takes a promoted child's `collision_shape` — expressed in the child's own
+/// frame — and puts it where the child is. It used to translate and never
+/// rotate, which is invisible in any scene where nothing has turned.
+///
+/// So here the plank is turned a quarter turn before anything happens, and the
+/// ball is aimed at where the plank *now* is. In the frame the plank was built
+/// in there is nothing there at all: the capsule runs along x and the ball
+/// crosses at y = 2.4, two and a half metres off the end of it.
+///
+/// Measured against a `contact_within` that translates without rotating: zero
+/// contacts in 400 frames, and the ball sails through the plank and out the
+/// other side.
+#[test]
+fn a_turned_plank_is_struck_where_its_wall_now_is() {
+    use phys::engine::World;
+    use phys::math::{Quat, Vec3};
+    use phys::morph::NO_SUPPORT;
+    use phys::sampler::{MassSpectrum, Profile, SampleSpec};
+    use phys::state::{BodyKind, Matter};
+    use phys::topology::{Joint, Material, Topology};
+    use phys::tree::Tree;
+
+    const HALF: f64 = 3.0;
+    const R_MEMBER: f64 = 0.3;
+    const PLANK_MASS: f64 = 1_000.0;
+    const BALL_MASS: f64 = 50.0;
+    const R_BALL: f64 = 0.4;
+    const DT: f64 = 0.005;
+    // Well down the plank's length, and well off the end of where it would be
+    // if nothing had turned it.
+    const ALONG: f64 = 2.4;
+
+    let spec = SampleSpec::new(2, Profile::Uniform, MassSpectrum::Equal, BodyKind::Grain);
+    let matter = Matter::neutral(PLANK_MASS + BALL_MASS, 12.0, 290.0, Composition::primordial());
+    let mut w = World::new(Tree::new(0x7_4A_11, matter, Tier::Galactic, spec), 1.0);
+    let root = w.tree.root;
+    w.tree.refine(root);
+    {
+        let nd = &mut w.tree.nodes[root.get()];
+        nd.bodies[0].pos = Vec3::ZERO;
+        nd.bodies[0].vel = Vec3::ZERO;
+        nd.bodies[0].radius = HALF;
+        nd.bodies[0].mass = PLANK_MASS;
+        nd.bodies[1].pos = v3(0.0, ALONG, -1.2);
+        nd.bodies[1].vel = v3(0.0, 0.0, 6.0);
+        nd.bodies[1].radius = R_BALL;
+        nd.bodies[1].mass = BALL_MASS;
+    }
+
+    let plank_spec = SampleSpec::new(1, Profile::Uniform, MassSpectrum::Equal, BodyKind::Grain);
+    let plank = w.tree.promote(root, 0, plank_spec);
+    w.tree.refine(plank);
+    {
+        let nd = &mut w.tree.nodes[plank.get()];
+        nd.matter.radius = HALF;
+        nd.matter.mass = PLANK_MASS;
+        nd.matter.spin = Vec3::ZERO;
+        nd.motion.spin_rate = Vec3::ZERO;
+        nd.motion.offset = Vec3::ZERO;
+        nd.motion.velocity = Vec3::ZERO;
+        // A quarter turn about z: the capsule that was built along x now lies
+        // along y, and nothing but the orientation says so.
+        nd.motion.orientation = Quat::from_axis_angle(v3(0.0, 0.0, 1.0), std::f64::consts::FRAC_PI_2);
+        let (base, tip) = (v3(-HALF, 0.0, 0.0), v3(HALF, 0.0, 0.0));
+        if let Some(b) = nd.bodies.get_mut(0) {
+            b.pos = Vec3::ZERO;
+            b.vel = Vec3::ZERO;
+            b.radius = R_MEMBER;
+            b.mass = PLANK_MASS;
+        }
+        nd.topology = Some(Topology {
+            joints: vec![Joint {
+                child: 0,
+                parent: NO_SUPPORT,
+                at: base,
+                radius: R_MEMBER,
+                integrity: 1.0,
+            }],
+            support: vec![NO_SUPPORT],
+            site: vec![0],
+            base: vec![base],
+            tip: vec![tip],
+            material: Material::GREEN_WOOD,
+            ties: Vec::new(),
+        });
+    }
+
+    let ball_spec = SampleSpec::new(4, Profile::Uniform, MassSpectrum::Equal, BodyKind::Grain);
+    let ball = w.tree.promote(root, 1, ball_spec);
+    w.tree.refine(ball);
+    {
+        let nd = &mut w.tree.nodes[ball.get()];
+        nd.matter.radius = R_BALL;
+        nd.matter.mass = BALL_MASS;
+        nd.motion.offset = v3(0.0, ALONG, -1.2);
+        nd.motion.velocity = v3(0.0, 0.0, 6.0);
+        nd.matter.spin = Vec3::ZERO;
+        nd.motion.spin_rate = Vec3::ZERO;
+        nd.topology = Some(Topology { material: Material::GREEN_WOOD, ..Default::default() });
+    }
+    w.tree.pin(root);
+    w.tree.pin(plank);
+    w.tree.pin(ball);
+
+    // Where the unrotated capsule reaches along y, which is the check that the
+    // scene is actually a discriminator: the ball crosses well outside it.
+    let unrotated = w.tree.nodes[plank.get()].collision_shape();
+    let reach = unrotated[0].support(v3(0.0, 1.0, 0.0)).y;
+    assert!(
+        reach < ALONG - R_BALL,
+        "the capsule reaches {reach} m along y before it is turned, and the \
+         ball crosses at {ALONG} — this scene cannot tell the two apart"
+    );
+
+    for _ in 0..400 {
+        w.advance_node(root, DT);
+        w.advance_node(plank, DT);
+        w.advance_node(ball, DT);
+    }
+
+    assert!(
+        w.stats.contacts_resolved > 0,
+        "the ball passed through a plank that was turned to meet it: the \
+         contact path is using the shape in the frame it was built in"
+    );
+    assert!(
+        w.tree.nodes[ball.get()].motion.velocity.z < 6.0,
+        "the ball was not slowed by the plank it struck"
+    );
+}

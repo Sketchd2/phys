@@ -474,7 +474,7 @@ The box velocity is the rigidity check and it is arithmetic: the ball carries
 
 ---
 
-## A struck node banks angular momentum and never turns
+## ~~A struck node banks angular momentum and never turns~~ — done
 
 **Noticed:** answering what a node's velocity and spin actually are, while
 scoping `PLAY.md` §2A.
@@ -505,6 +505,39 @@ built. Both are `PLAY.md` Phase 2 item 1, and neither is more than a few lines.
 
 **Trigger:** immediately, as the first item of Phase 2 — the rigid-body claim
 that `a_ball_loose_in_a_box...` rests on is not true until both are done.
+
+**Done**, as Phase 2's first item, and both halves are held by a test that was
+checked against the defect it claims to catch.
+
+`Node::sync_spin_rate` re-derives the angular velocity from the angular
+momentum, and is called from the three places where the momentum, the mass or
+the radius can have moved — after a solve, after a contact, and after a
+coarsen folds a node's own detail back into it. Deliberately *not* from
+coasting, which asserts that nothing changed. `Hull::placed` turns a hull by an
+orientation and then moves it, and `contact_within` uses it for a promoted
+child, which is the same composition `Motion::body_to_parent` uses.
+
+Measured on `a_plank_struck_off_centre_turns_and_its_surface_turns_with_it`, a
+1-tonne plank struck near one end by a 50 kg ball:
+
+```text
+                        before              after
+  matter.spin           835.2953 kg m^2/s   835.2953 kg m^2/s
+  motion.spin_rate      0 rad/s             0.23203 rad/s about z
+  orientation.angle()   0 rad               0.44317 rad
+  far end of the capsule moved                1.3187 m
+```
+
+The angular momentum was always right; nothing read it. The chord a point at
+3 m swings through 0.44317 rad is `2 * 3 * sin(0.44317/2) = 1.31866`, which is
+the measured figure to seven digits, so the shape really is turning with the
+node and not merely translating somewhere new.
+
+`a_turned_plank_is_struck_where_its_wall_now_is` is the second half on its own:
+a plank turned a quarter turn before anything happens, struck 2.4 m along where
+its unturned self does not reach. Against a `contact_within` that translates
+without rotating, the ball passes straight through and the run records zero
+contacts.
 
 ---
 

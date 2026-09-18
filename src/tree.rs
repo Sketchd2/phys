@@ -217,6 +217,30 @@ impl Node {
         any.then_some(mask)
     }
 
+    /// Re-derive the angular *velocity* from the angular *momentum* the node
+    /// actually holds.
+    ///
+    /// A node carries two spin quantities and they are not the same thing:
+    /// `matter.spin` is angular momentum in kg m^2/s and `motion.spin_rate` is
+    /// angular velocity in rad/s, related by the moment of inertia. Until this
+    /// existed, `spin_rate` was derived at node *construction* and nowhere
+    /// else — two creation paths, and then never again — so a collision added
+    /// to `matter.spin` through `apply_contact` and the node's `orientation`
+    /// never heard about it.
+    ///
+    /// Measured before the fix, on `a_ball_loose_in_a_box...`: the box banks
+    /// `matter.spin` of 7.4865 kg m^2/s over five off-centre strikes while
+    /// remaining, as far as `motion` is concerned, perfectly still.
+    ///
+    /// Called from where the momentum, the mass or the radius can have moved
+    /// — the two of those are `Matter::moment_of_inertia`'s inputs — which is
+    /// after a solve, after a contact, and after a child's evolved state is
+    /// folded back. Not from coasting: coasting asserts that nothing changed,
+    /// and re-deriving there would be either a no-op or a lie about which.
+    pub fn sync_spin_rate(&mut self) {
+        self.motion.spin_rate = self.matter.angular_velocity();
+    }
+
     /// What this node presents to a contact, in its own frame.
     ///
     /// A node is the engine's rigid body — it has one velocity and one spin,
@@ -241,6 +265,14 @@ impl Node {
     /// Returns pieces that are each convex. A structure is many of them — a box
     /// is six walls around a cavity, and one hull over the whole thing would
     /// enclose its own contents.
+    ///
+    /// **In the node's own frame**, which is where a shape belongs: a shape
+    /// that had the node's position and orientation baked into it would be
+    /// wrong on the next frame. A caller places it with [`crate::shape::Hull::placed`],
+    /// giving the node's orientation and where it is — in that order, which is
+    /// the order `Motion::body_to_parent` places a body-fixed point in. The
+    /// contact path used to translate without rotating, and a spinning box's
+    /// walls stayed in the axes they were built in.
     pub fn collision_shape(&self) -> Vec<crate::shape::Hull> {
         let Some(mask) = self.structural_mask() else {
             return vec![crate::shape::Hull::sphere(Vec3::ZERO, self.matter.radius)];
@@ -698,6 +730,10 @@ impl Tree {
             n.matter.radius = m.extent().max(1e-30);
         }
         n.children.clear();
+        // The matter this node holds has just been rewritten from its own
+        // detail — spin, mass and radius all — so the angular velocity derived
+        // from them is stale. See `Node::sync_spin_rate`.
+        n.sync_spin_rate();
         self.stats.coarsenings += 1;
         self.stats.worst_conservation_error = self.stats.worst_conservation_error.max(err);
         err
