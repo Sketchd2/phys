@@ -703,6 +703,31 @@ impl Matter {
         gas + rad
     }
 
+    /// Whether [`Matter::pressure`] describes this matter at all.
+    ///
+    /// `docs/PLAY.md` §7's ninth Phase 2 item, and §3.7's own precedent: a node
+    /// crossed by its ensemble reports it rather than doing it quietly.
+    ///
+    /// `pressure` is an **ideal gas plus radiation**, and there is no other
+    /// equation of state in the engine. Handed something condensed it is not
+    /// merely inaccurate — a bucket of water prices at 4x10^8 Pa and a solid
+    /// handed to SPH bursts from its own pressure before anything else happens.
+    /// Measured, on a forty-year-old tree advanced for a twentieth of a second
+    /// before §3.3's dispatch kept its members away from the fluid solver: they
+    /// reached 1.9x10^8 m/s, 64% of light, across a tree 6.3 m wide.
+    ///
+    /// D17 is what makes this answerable rather than a guess: a node carrying a
+    /// mixture knows its own phase. **Matter nobody has described is not
+    /// reported**, because "no information" is not the same answer as "measured
+    /// and wrong", and almost every node in a galaxy genuinely is a gas.
+    ///
+    /// Phase 2 makes it visible. **Water** fixes it, with a liquid and a solid
+    /// equation of state — which is `PLAY.md` Phase 5's second piece, named
+    /// there in as many words.
+    pub fn gas_law_applies(&self) -> bool {
+        !self.is_described() || self.mixture.in_phase(crate::chem::Phase::Gas) >= 0.5
+    }
+
     /// Speed at which a disturbance crosses this node's contents, m/s.
     ///
     /// The gas formula, capped by what the internal energy can actually

@@ -557,7 +557,7 @@ contacts.
 
 ---
 
-## A Continuum node whose bodies are all stand-ins detonates
+## A Continuum node whose bodies are all stand-ins detonates — visible now, fixed in Water
 
 **Noticed:** building the ball-in-box scene, where a root holds two promoted
 children and nothing else.
@@ -600,6 +600,28 @@ with furniture in it.
 **Trigger:** the first `Continuum` node that contains promoted children and is
 not empty space — a room, a vehicle interior, a crate of objects. Phase 3 at the
 latest.
+
+**Made visible**, as Phase 2's ninth item, and deliberately not fixed:
+correcting it needs a liquid and a solid equation of state, which is `PLAY.md`
+Phase 5's second piece and is named there in as many words.
+
+`Matter::gas_law_applies` is the reading, and D17 is what made it possible — a
+node carrying a mixture knows its own phase, so "is this matter a gas" stopped
+being a guess. `Stats::eos_outside_validity` counts the node-steps where the
+fluid solver priced matter the gas law does not describe, and
+`eos_outside_validity_at` says which node, on §3.7's precedent.
+
+Two ways to be outside it, and both are reported:
+
+- **The matter is not a gas.** A bucket of water prices at 4x10^8 Pa.
+- **The node is mostly vacuum with solids in it**, which is this entry's own
+  case: every body a stand-in for a promoted child, so there are no contents of
+  its own for a fluid solver to be about.
+
+**Matter nobody has described is deliberately not reported.** "No information"
+is not the same answer as "measured and wrong", and almost every node in a
+galaxy genuinely is a gas — `a_gas_law_asked_about_a_solid_says_so` in
+`tests/dispatch.rs` holds all three cases, including that one.
 
 ---
 

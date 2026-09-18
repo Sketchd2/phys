@@ -215,3 +215,114 @@ fn a_fluid_is_substepped_to_its_courant_limit() {
         "the clock ran past what was actually integrated"
     );
 }
+
+/// The equation of state says when it is being asked about something it does
+/// not describe.
+///
+/// `docs/PLAY.md` §7's ninth Phase 2 item, on §3.7's own precedent: a node
+/// crossed by its ensemble reports it rather than doing it quietly.
+///
+/// `Matter::pressure` is an ideal gas plus radiation and is the only equation
+/// of state the engine has. There are two ways to be outside it. A node that
+/// **is not a gas** — which D17 made answerable, because a node carrying a
+/// mixture knows its own phase — and a node that is **mostly vacuum with solids
+/// in it**, whose every body is the stand-in for a promoted child. The second
+/// is what `docs/BACKLOG.md` measured detonating: a 12 m root holding a
+/// 48-tonne box and a 10 kg ball, with zero collisions, took the ball from
+/// 5.36 m/s to 566 over six frames.
+///
+/// This is Phase 2 making it **visible**. Water fixes it, with the liquid and
+/// solid equation of state its second piece names.
+#[test]
+fn a_gas_law_asked_about_a_solid_says_so() {
+    use phys::chem::{Mixture, Phase};
+    use phys::engine::World;
+    use phys::sampler::{MassSpectrum, Profile, SampleSpec};
+    use phys::state::{BodyKind, Composition, Matter};
+    use phys::tree::Tree;
+    use phys::units::Tier;
+
+    let build = |described: bool| {
+        let spec = SampleSpec::new(32, Profile::Uniform, MassSpectrum::Equal, BodyKind::Grain);
+        let matter = Matter::neutral(2650.0, 0.5, 290.0, Composition::primordial());
+        let mut w = World::new(Tree::new(0xE05, matter, Tier::Continuum, spec), 20.0);
+        let root = w.tree.root;
+        if described {
+            let silica = w
+                .substances
+                .intern(phys::material::substances::silica_arrangement())
+                .expect("silica analyses");
+            let mut mix = Mixture::new();
+            mix.add(silica, Phase::Solid, 1.0);
+            w.set_mixture(root, mix);
+        }
+        w.tree.refine(root);
+        (w, root)
+    };
+
+    // Undescribed matter is *not* reported, and that is deliberate: "no
+    // information" is not the same answer as "measured and wrong", and almost
+    // every node in a galaxy genuinely is a gas.
+    let (mut quiet, root) = build(false);
+    for _ in 0..4 {
+        quiet.advance_node(root, 1.0e-4);
+    }
+    println!("  undescribed: {} reports", quiet.stats.eos_outside_validity);
+    assert_eq!(
+        quiet.stats.eos_outside_validity, 0,
+        "matter nobody has described must not be accused of being the wrong phase"
+    );
+
+    // The same node, told what it is made of. Nothing else changes.
+    let (mut loud, root) = build(true);
+    assert!(
+        !loud.tree.nodes[root.get()].matter.gas_law_applies(),
+        "a node of solid silicate is not a gas"
+    );
+    for _ in 0..4 {
+        loud.advance_node(root, 1.0e-4);
+    }
+    println!(
+        "  described as solid silicate: {} reports, at {:?}",
+        loud.stats.eos_outside_validity, loud.stats.eos_outside_validity_at
+    );
+    assert!(
+        loud.stats.eos_outside_validity > 0,
+        "a solid priced through the gas law has to say so"
+    );
+    assert!(
+        loud.stats.eos_outside_validity_at.is_some(),
+        "a number worth chasing has to say where to look"
+    );
+
+    // And the other way to be outside it: a node that is **mostly vacuum with
+    // solids in it**. Nothing here is described at all, so the phase reading
+    // says nothing; what says something is that every body in the node is the
+    // stand-in for a promoted child, so there are no contents of its own for a
+    // fluid solver to be about.
+    let spec = SampleSpec::new(2, Profile::Uniform, MassSpectrum::Equal, BodyKind::Grain);
+    let matter = Matter::neutral(48_010.0, 12.0, 290.0, Composition::primordial());
+    let mut w = World::new(Tree::new(0xB0F, matter, Tier::Continuum, spec), 20.0);
+    let root = w.tree.root;
+    w.tree.refine(root);
+    let small = SampleSpec::new(2, Profile::Uniform, MassSpectrum::Equal, BodyKind::Grain);
+    w.tree.promote(root, 0, small);
+    w.tree.promote(root, 1, small);
+    assert!(
+        w.tree.nodes[root.get()].matter.gas_law_applies(),
+        "nothing has described it, so the phase reading has nothing to say"
+    );
+    let before = w.stats.eos_outside_validity;
+    for _ in 0..4 {
+        w.advance_node(root, 1.0e-4);
+    }
+    println!(
+        "  every body a stand-in: {} reports",
+        w.stats.eos_outside_validity - before
+    );
+    assert!(
+        w.stats.eos_outside_validity > before,
+        "a Continuum node that is two promoted solids and vacuum is being priced \
+         as a hot dense gas, and has to say so"
+    );
+}

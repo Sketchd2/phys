@@ -331,6 +331,11 @@ pub struct EngineStats {
     pub surface_mismatches: u64,
     /// The last such disagreement, so a number worth chasing says where to look.
     pub worst_surface_mismatch: Option<crate::shape::Mismatch>,
+    /// Node-steps where the fluid solver priced matter the gas law does not
+    /// describe. `PLAY.md` §7's ninth Phase 2 item; **Water** is what fixes it.
+    pub eos_outside_validity: u64,
+    /// Where, so a number worth chasing says where to look.
+    pub eos_outside_validity_at: Option<crate::ids::PathKey>,
     /// Boundaries heat actually crossed, summed over nodes and frames. Counts
     /// transfers, not joules: it answers "is anything talking to its
     /// neighbours at all", which is the question a coupling that silently does
@@ -1811,6 +1816,16 @@ impl World {
         // frame loop is a scheduling question and is not this.
         let ordered = self.tree.nodes[idx.get()].structural_mask();
 
+        // Read before the bodies are borrowed, because the report below cannot
+        // reach the node once they are. See the `SolverKind::Hydro` arm.
+        let gas_law = self.tree.nodes[idx.get()].matter.gas_law_applies();
+        let stand_ins = self.tree.nodes[idx.get()]
+            .children
+            .iter()
+            .filter(|c| !c.is_none())
+            .count();
+        let mut eos_suspect = false;
+
         let bodies = &mut self.tree.nodes[idx.get()].bodies;
         // Solve the disordered contents in place where there are no ordered
         // ones, which is every node that is not a structure and costs nothing.
@@ -1866,6 +1881,32 @@ impl World {
                 solvers::gravity::step_leapfrog(bodies, dt, params)
             }
             SolverKind::Hydro => {
+                // **The equation of state, applied outside its validity, says
+                // so.** `PLAY.md` §7's ninth Phase 2 item, on §3.7's precedent
+                // that a node crossed by its ensemble reports it rather than
+                // doing it quietly.
+                //
+                // SPH prices a node's `Matter` through `pressure`, which is an
+                // ideal gas plus radiation and the only equation of state the
+                // engine has. There are two ways to be outside it and both are
+                // now measurable:
+                //
+                // - **The matter is not a gas.** D17 put a mixture on every
+                //   `Matter`, so a node that has been described knows its own
+                //   phase. A bucket of water prices at 4x10^8 Pa.
+                // - **The node is mostly vacuum with solids in it.** A
+                //   `Continuum` node whose every body is the stand-in for a
+                //   promoted child has no contents of its own, and pricing that
+                //   as a hot dense gas detonates it: measured, on a 12 m root
+                //   holding a 48-tonne box and a 10 kg ball with **zero
+                //   collisions**, the ball's speed goes 5.36 -> 7.96 -> 20.9 ->
+                //   63.3 -> 194 -> 566 m/s, roughly threefold a frame, against
+                //   a control of exactly 5.3572 every frame with the root not
+                //   advanced.
+                //
+                // Reported and not corrected. Correcting it needs a liquid and
+                // a solid equation of state, which is Water's second piece.
+                eos_suspect = !gas_law || (count > 0 && stand_ins >= count);
                 let params = solvers::hydro::HydroParams {
                     h: radius / (count as f64).cbrt() * 1.2,
                     ..Default::default()
@@ -1946,6 +1987,14 @@ impl World {
             SolverKind::Statistical => self.advance_statistical(idx, dt),
             }
         };
+
+        // Reported once the solver has let go of the bodies. See the
+        // `SolverKind::Hydro` arm for what this means and why it is reported
+        // rather than corrected.
+        if eos_suspect {
+            self.stats.eos_outside_validity += 1;
+            self.stats.eos_outside_validity_at = Some(self.tree.nodes[idx.get()].key);
+        }
 
         // The disordered contents were solved in a buffer; put them back.
         if partitioned {
