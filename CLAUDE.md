@@ -238,8 +238,12 @@ used to model what happens *inside* a node very well and what happens *between*
 nodes barely at all; that is what Phase 1 closed.
 
 **Read `PLAY.md` §2A before anything else.** It records Issue 1 — *the engine has
-no representation for the shape of a solid, at any scale* — and D13 to D16
-follow from it. Two phases were inserted ahead of Ground as a result, so the
+no representation for the shape of a solid, at any scale* — and D13 to D18
+follow from it. Two rules from those are worth knowing before reading any of it:
+**a surface primitive is always a filled solid, never hollow** (a box is six
+slabs, and a hull over the whole box would enclose its own cavity), and **a
+node's mixture is part of its matter**, which is what lets any node say what it
+is made of and therefore whether it is solid at all. Two phases were inserted ahead of Ground as a result, so the
 numbering below the insertion has moved: **Things**, **Crossings**, then Ground,
 Water, Bodies, Minds, Making, Sessions. Nothing below Ground changed relative to
 anything else.

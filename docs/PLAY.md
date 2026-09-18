@@ -829,7 +829,11 @@ invalidated when that arrangement changes.** It is not derived from what
 generated the node, and a node does not need a `Program` to have one.
 
 The discriminator is **solidity, measured** — does this arrangement hold
-together — and not provenance. That is the same move §3.3 made for dispatch, and
+together — and not provenance. **D17 specifies it**: a node carrying its own
+mixture can read a solid mass fraction from phase against melting point, so the
+discriminator is a reading rather than a law still to be written. **D18
+specifies what a surface is**: a union of solid convex primitives, emitted by
+whatever generated the thing. That is the same move §3.3 made for dispatch, and
 the disagreement between the two layers is what made a wooden ball uncollidable
 while a wooden wall was not. A cloud of gas still has no boundary, because it
 measures as not holding together, which is the honest answer rather than a
@@ -945,6 +949,17 @@ clock, its scheduler entry and its slot in the neighbourhood index.
 is affordable in one representation and not in the other, so this is not
 tidiness.
 
+**Promotion is for *detached* parts, and that is a constraint rather than an
+oversight.** A wall knocked off a box becomes a node; a door being leaned on
+stays a body in the house's list. The reason is structural: a part promoted
+while still attached puts the load path across a node boundary, and
+`solvers::structure` takes one node's body list and cannot see across one.
+`BACKLOG.md` calls that gap — "Structures cannot span promoted children" — "the
+one item in the review that is a genuine architectural gap rather than unwritten
+code", and its fix is D5's substructuring, which stays in **Bodies**. Writing the
+constraint down here is cheap; discovering it in Phase 2 with a door half
+promoted is not.
+
 **Deliberately unresolved.** Things attached but independently meaningful — a
 crate roped to a cart, an axle, a hinge between two separately owned objects —
 may need a runtime relationship rather than absorption. Where the line falls
@@ -992,6 +1007,132 @@ with anything.
 surface: two adjacent regions as spheres either overlap or leave a gap, so there
 is no edge to walk off. That is why sideways lands in Ground and outward does
 not.
+
+---
+
+### D17 — A node's mixture is part of its matter
+
+**Decided: `Mixture` moves onto `Matter`, and `sample` and `summarise` carry it
+like every other conserved quantity.**
+
+D13 says material is measured and D14 needs a cohesive energy, and both assume
+something that is not true of most nodes: that the engine can say what a node is
+made of. Checked — it cannot. `Registry::intern` takes an **`Arrangement`**,
+actual atoms and bonds, and `analyse` works only from one. A `Composition` is
+eight mass fractions of coarse element buckets. **There is no path between
+them**, and there is no honest way to build one: wood and coal have nearly the
+same composition, and no amount of carbon-hydrogen-oxygen arithmetic yields
+"oak".
+
+**So this is not a missing derivation. `Composition` is the wrong resolution to
+carry substance identity, and `Mixture` is the right one — it is simply kept in
+a side table for a privileged few nodes.**
+
+That reframing is what makes this axiom-consistent rather than a lookup. *Which
+substance something is* **is state**. Put it on `Matter` and nothing is told
+anything: `summarise` blends mixtures when detail collapses, `sample`
+distributes them when it regenerates, and the answer travels down from wherever
+the matter came from by the same transform that carries mass and energy.
+`SubstanceId::UNSPECIATED` stays a real answer rather than a failure — matter at
+ten million kelvin genuinely has no molecular identity, which is what the
+variant already means.
+
+**This settles solidity, which D13 named and did not specify.** Once a node
+carries a mixture, phase is already a law the engine has — derived from
+temperature against a melting point `chem::analyse` computes — and
+`Mixture::in_phase(Phase::Solid)` is the solid mass fraction. D13's "measured
+solidity" stops being an unspecified law and becomes a reading.
+
+**What was rejected.**
+
+- *Give every node a `Mixture` at creation.* Solves reachability and says
+  nothing about *which* mixture a sampled node gets, so it moves the question
+  down one level rather than answering it.
+- *Derive an `Arrangement` from composition, temperature and pressure.* Real
+  chemistry, and the engine has `arrange` and `react` — but mineralogy from bulk
+  composition is **non-unique**: the same composition is basalt or granite
+  depending on cooling history. The answer is historical, which is the same
+  shape as D14's flaw size and the same reason neither can come from chemistry
+  alone.
+- *Carry the material on whatever placed the matter.* This is D17 with the
+  framing that makes it look like being told. It is not told; it is state under
+  a transform.
+
+**Cost, from §5A.5's own measurements.** `Mixture` is 136 bytes against `Node`'s
+576, about +24%. At 10^5 described nodes that is 13.6 MB against 71 MB. `react`
+runs at 0.069 µs per node for one substance and 0.934 µs for eight — 1.4% to
+18.7% of a frame at 10^4 nodes — so it should be gated on a mixture that is
+actually non-trivial rather than run over `UNSPECIATED`.
+
+**Two consequences to handle rather than discover.** The wire format changes, so
+`FORMAT_VERSION` moves and the append-only rule applies. And a side table keyed
+by `EntityId` goes away: `mixtures` survived `reparent` *because* it was keyed
+by name, and matter that carries its own mixture does not need that protection —
+which removes one of the side tables `BACKLOG.md` complains `World` has
+accumulated, rather than adding one.
+
+**Flag:** `MIXTURE_SLOTS` is 8, and the backlog entry saying the play space needs
+more becomes load-bearing the moment every node has one.
+
+---
+
+### D18 — A surface is a union of solid convex primitives
+
+**Decided: a solid presents its boundary as a set of convex primitives, each one
+carrying its own material, emitted by the thing that generated it.**
+
+**A primitive is always a filled solid. Never a shell, never hollow.** This is
+the rule the rest of the decision rests on, so it is stated first and without
+qualification. A hollow wooden box is **not one primitive**; it is six solid
+slabs generated together. A void is not represented at all — it is simply where
+no primitive is.
+
+That rule is what makes the whole approach unambiguous, and it is the general
+statement of a failure already measured: one convex hull over a box *encloses
+its own cavity*, so anything inside reads as deeply interpenetrating on every
+frame. A shape language that can express "hollow" invites exactly that mistake;
+one that cannot, cannot.
+
+**The generator emits the pieces. Nothing infers a decomposition.** This is the
+part that makes convex decomposition — normally the hard, unsolved half of this
+problem — not arise at all. Inferring convex pieces from arbitrary geometry is
+difficult; a generator never infers, because it *knows*. A wall with a doorway
+emits four boxes around the opening, because the recipe is what put the opening
+there. A tree emits capsules. A rock emits hulls over its sampled bodies. The
+thing that knows the shape states it.
+
+**Material attaches per primitive**, which is D13's multi-material requirement
+satisfied directly: a house is stone walls, an oak door and glass panes, and
+contact reads the material of the piece it actually struck.
+
+**The narrow phase is already built.** Convex against convex is GJK, which
+landed with the interim shape work and is tested against distances that can be
+written down without running the engine — point-to-segment, face-to-face, the
+parallel axis theorem, and bit-exact symmetry from either side.
+
+**What was rejected.**
+
+- *A baked triangle mesh.* Storage grows with visual complexity, and D15's whole
+  argument is that a house is hundreds of bytes: a few thousand triangles is
+  tens of KB, and "a town is 500 nodes rather than 25,000" stops being true. It
+  also does nothing for terrain.
+- *A CSG tree with subtraction.* Expressive and attractive — "a stone box minus a
+  door-shaped hole" — but it needs a second narrow phase, sphere-tracing rather
+  than GJK, iterative where GJK is exact. And the solid-primitive rule removes
+  the need: a generator that knows where the door goes emits the pieces around
+  it instead of subtracting one.
+
+**This is a shape vocabulary, not a species table, and the distinction is worth
+stating because D11 exists.** `Box` is not a kind of thing in the world; it is a
+geometric primitive, in the same way `Mechanism`'s `FlowDrag` and `ThermalField`
+are a load vocabulary rather than named weather. The test is whether a new
+*scenario* forces a new variant, and it does not — a cathedral and a crate are
+both boxes.
+
+**Terrain joins this later as another primitive kind**, a field query rather than
+an analytic solid, in Phase 4. It is deliberately a kind within one vocabulary
+and not a parallel system, because the alternative is the N-squared narrow phase
+`BACKLOG.md` warned about.
 
 ---
 
@@ -2322,23 +2463,27 @@ five tests and a suite of 349 passing.
 ---
 
 **Phase 2 — Things.** *A thing has a shape and is made of something, and neither
-answer depends on how it was made.* D13, D14, D15.
+answer depends on how it was made.* D13, D14, D15, D17, D18.
 
 1. **The two rigid-body defects** of §2A: `spin_rate` re-derived from
    `matter.spin` after a solve rather than only at birth, and shape composed
    with `motion.orientation`. Cheap, and the rigid-body story is untrue until
    they are done.
-2. **Solidity measured**, so "does this have a boundary" stops being "was this
-   built".
-3. **Material measured**, per surface region rather than per node — D11's
+2. **`Mixture` onto `Matter`** (D17), carried by `sample` and `summarise`. This
+   comes first of the substantive items because D13's material and D14's
+   cohesive energy both stand on it, and because **solidity falls out of it** —
+   phase against melting point, read rather than invented. `FORMAT_VERSION`
+   moves; the `mixtures` side table goes away.
+3. **Material measured**, per surface primitive rather than per node — D11's
    material columns, pulled forward from Ground because a rock needs a material
    as much as a wall does — with strength by D14's Griffith law.
-4. **The recipe emits a surface**, derived once from the arrangement and
-   *stored*, invalidated on `epoch`. Not a post-processing pass over a member
-   list.
+4. **The recipe emits a surface** (D18): a union of **solid** convex primitives,
+   never a shell, derived once and *stored*, invalidated on `epoch`. Not a
+   post-processing pass over a member list. GJK is the narrow phase and is
+   already built.
 5. **Joining and breaking as one transform** (D15): a composite is one node with
-   a recipe, promotion happens to a part only when something happens to that
-   part, and the part collapses back into the recipe afterwards.
+   a recipe, a part is promoted only when it **detaches**, and it collapses back
+   into the recipe afterwards. Substructuring stays in Bodies.
 6. **Collision runs against the surface**, at the level of detail the distance
    deserves.
 
