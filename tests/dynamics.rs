@@ -49,7 +49,7 @@ fn analytic_period(m: Material, length: f64, radius: f64) -> f64 {
 #[test]
 fn the_natural_period_matches_beam_theory() {
     let (l, r, n) = (10.0, 0.15, 16);
-    let m = Material::STEEL;
+    let m = Material::steel();
     let mut d = cantilever(m, l, r, n);
     undamped(&mut d);
 
@@ -86,7 +86,7 @@ fn the_natural_period_matches_beam_theory() {
 #[test]
 fn a_released_cantilever_oscillates_at_its_natural_period() {
     let (l, r, n) = (10.0, 0.15, 12);
-    let m = Material::STEEL;
+    let m = Material::steel();
     let expect = analytic_period(m, l, r);
     let mut d = cantilever(m, l, r, n);
     undamped(&mut d);
@@ -153,7 +153,7 @@ fn a_released_cantilever_oscillates_at_its_natural_period() {
 #[test]
 fn a_suddenly_applied_load_doubles_the_deflection() {
     let (l, r, n) = (10.0, 0.12, 12);
-    let m = Material::STEEL;
+    let m = Material::steel();
     let mut d = cantilever(m, l, r, n);
     undamped(&mut d);
 
@@ -187,11 +187,16 @@ fn a_suddenly_applied_load_doubles_the_deflection() {
 #[test]
 fn damping_removes_energy_and_the_report_accounts_for_it() {
     let (l, r, n) = (8.0, 0.1, 10);
-    let m = Material::STEEL;
+    let m = Material::steel();
     let period = analytic_period(m, l, r);
 
     for (label, mass_damping, stiff_damping) in
-        [("mass", 1.5, 0.0), ("stiffness", 0.0, 2.0e-3), ("none", 0.0, 0.0)]
+        // Stiffness-proportional damping is a *time*, and the damping ratio it
+        // produces is `beta omega / 2` — so the coefficient that removes half
+        // the energy in four cycles depends on the material's own frequency.
+        // Steel's stiffness is now measured rather than tabulated and comes out
+        // 2.7x lower, so the period is 1.6x longer and this is scaled to match.
+        [("mass", 1.5, 0.0), ("stiffness", 0.0, 4.0e-3), ("none", 0.0, 0.0)]
     {
         let mut d = cantilever(m, l, r, n);
         d.mass_damping = mass_damping;
@@ -245,7 +250,7 @@ fn damping_removes_energy_and_the_report_accounts_for_it() {
 #[test]
 fn breaking_a_member_moves_the_rest() {
     let (l, r, n) = (6.0, 0.02, 8);
-    let m = Material::DRY_TIMBER;
+    let m = Material::dry_timber();
     let mut d = cantilever(m, l, r, n);
 
     // A distributed load, ramped in over a couple of seconds so the failure is
@@ -303,7 +308,7 @@ fn breaking_a_member_moves_the_rest() {
 /// — the classic way an assembled operator goes wrong without any test noticing.
 #[test]
 fn a_free_structure_drifts_without_straining() {
-    let mut frame = Framework::new(Material::STEEL);
+    let mut frame = Framework::new(Material::steel());
     let a = frame.add_node(v3(0.0, 0.0, 0.0), false);
     let b = frame.add_node(v3(2.0, 0.0, 0.0), false);
     let c = frame.add_node(v3(2.0, 2.0, 0.0), false);
@@ -446,9 +451,14 @@ fn a_tree_sways_and_rings_down() {
     };
     let calm = LoadField::new(bodies.len(), 291.0);
 
-    let h = 0.02;
+    // Measured green wood is 3.2x stiffer than the tabulated value this test
+    // was written against — `Material::of` derives 3.23e10 Pa where the table
+    // held 1.0e10 — so the tree's natural period is 1.8x shorter and the step
+    // that resolved it no longer does. A quarter of the step, four times the
+    // frames, so the gust still lasts a second and the calm still lasts four.
+    let h = 0.005;
     let mut peak: f64 = 0.0;
-    for _ in 0..50 {
+    for _ in 0..200 {
         let rep = ds.advance(&gust, h);
         assert!(rep.converged);
         peak = peak.max(ds.dynamics.displacement[tip].t.x);
@@ -460,7 +470,7 @@ fn a_tree_sways_and_rings_down() {
     let mut crossed = 0;
     let mut previous = ds.dynamics.displacement[tip].t.x;
     let mut swing_back: f64 = 0.0;
-    for _ in 0..200 {
+    for _ in 0..800 {
         let rep = ds.advance(&calm, h);
         assert!(rep.converged);
         let x = ds.dynamics.displacement[tip].t.x;

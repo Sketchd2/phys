@@ -373,6 +373,63 @@ Growth also responds to conditions without anything being arranged: a structure
 held below freezing loses mass to maintenance, and one in drought or shade grows
 slowly. That is what makes tree rings.
 
+## 3.5A What a thing is made of
+
+`PLAY.md` D13 and D14. A material used to be thirteen numbers somebody typed,
+reached by asking what *generated* a node; §2A measured what that cost, which
+was that a boulder had no surface and could not collide. Every number is now
+derived from `chem::Properties`, which is derived from atoms and bonds.
+
+| property | law |
+|---|---|
+| density | the substance's own, times how much of the volume the process filled |
+| stiffness `E` | cohesive energy density, `3U/Ω`, times the packing squared (Gibson–Ashby) |
+| surface energy `γ` | a quarter of an atom's cohesive energy over the area it presents |
+| strength | Griffith for a brittle solid, Hall–Petch for a metal, weighted by how metallic it is |
+| flaw scale `a` | **the formation history** — a grain if it froze, a layer if it was laid down |
+| specific heat | Dulong and Petit, `3R` per mole of atoms |
+| thermal limits | `0.4 T_m` to `T_m`, the homologous-temperature rule |
+| ductility | metallic from electronegativity, polymeric from molecule size |
+| tensile ratio | whether the solid has cleavage planes to open and close |
+| resistivity, combustibility | **no law**; stated, and said to be stated |
+
+### Strength is a property of how well a thing was made
+
+Theoretical strength is about `E/10` and real materials are one to three orders
+weaker, because they fail at defects rather than everywhere at once. Chemistry
+cannot answer that and history can, which is why the one stored number is a
+*length with physical meaning* rather than a stress somebody chose.
+
+A solid that **froze** has grains, and the grain size comes out of the
+competition between nucleation and growth. The undercooling is solved for rather
+than stated — a melt cools past its freezing point, nuclei accumulate, and the
+transformation runs away when the latent heat the growing grains release
+overtakes the heat being extracted. Turnbull's relation supplies the
+solid–liquid interface energy from Richard's rule, and reproduces iron's
+0.20 J/m² without being shown it.
+
+A solid that was **laid down** has no grains. Its flaw is the increment — a
+growth ring's cells, a course of blocks, a deposited layer — and the generator
+knows it, because the generator is what laid it. A tree lays down thirty-micron
+cells, and Griffith on thirty microns gives green wood 5.16 × 10⁷ Pa against the
+4.5 × 10⁷ the retired table held.
+
+**Two substances, four materials.** Masonry and bedrock are both silicate;
+green wood and dry timber are both cellulose. A per-material stress could only
+ever record those as four materials, and a formation history tells them apart:
+a brick is fired and laid in courses, a pluton crystallises over a geological
+age, a fast summer ring has wide cells and a slow one has fine ones.
+
+### What it reproduces, and the one it does not
+
+Seven of eight land within a factor of 2.3, and the ordering is the retired
+table's own except that bedrock comes out last where the table put it third.
+That is the intragranular-crack gap — a granite at 130 MPa implies a 34 µm
+crack against its 21 cm grain — and it is recorded in `BACKLOG.md` with the
+measurement rather than papered over. `tests/material.rs` holds the ordering,
+and holds bedrock's position in the direction it actually comes out, so that
+closing the gap *fails* the test and gets read.
+
 ## 3.6 Structural failure
 
 Joints carry a cross-section, a material and a remaining integrity. Loads

@@ -319,7 +319,7 @@ fn limb_chord_rotation() {
             Member { a: 1, b: 2, radius: 0.03, truss: false, integrity: 1.0 },
         ],
         fixed: vec![true, false, false],
-        material: Material::GREEN_WOOD,
+        material: Material::green_wood(),
         lumped: Vec::new(),
         mass_scale: 0.0,
         stiff_scale: 1.0,

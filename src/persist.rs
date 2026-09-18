@@ -406,7 +406,7 @@ pub(crate) fn get_spec(r: &mut Reader) -> Result<SampleSpec> {
 // written in *is* the identity. It is written as a list rather than a map for
 // exactly that reason.
 
-const SUBSTANCE_MIN_BYTES: usize = 4 + 4 + 1 + 8 * 12 + 1 + 1;
+const SUBSTANCE_MIN_BYTES: usize = 4 + 4 + 1 + 8 * 12 + 1 + 1 + 4;
 
 fn put_element(w: &mut Writer, e: crate::chem::Element) {
     w.u8(e.z());
@@ -504,6 +504,10 @@ fn put_properties(w: &mut Writer, p: &crate::chem::Properties) {
     }
     w.u8(p.hydrogen_bonds);
     w.u8(CONFIDENCES.iter().position(|c| *c == p.confidence).unwrap_or(3) as u8);
+    // Appended: the position is the tag. See `wire.rs`.
+    w.u32(p.atoms_per_unit);
+    w.f64(p.electronegativity);
+    w.bool(p.crystalline);
 }
 
 fn get_properties(r: &mut Reader) -> Result<crate::chem::Properties> {
@@ -521,6 +525,9 @@ fn get_properties(r: &mut Reader) -> Result<crate::chem::Properties> {
         water_solubility: r.f64()?,
         hydrogen_bonds: r.u8()?,
         confidence: CONFIDENCES[r.tag("confidence", 4)? as usize],
+        atoms_per_unit: r.u32()?,
+        electronegativity: r.f64()?,
+        crystalline: r.bool()?,
     })
 }
 
@@ -654,7 +661,8 @@ pub(crate) fn get_morphology(r: &mut Reader) -> Result<Morphology> {
 fn put_material(w: &mut Writer, m: &Material) {
     w.str(m.name);
     w.f64(m.density);
-    w.f64(m.rupture);
+    w.f64(m.surface_energy);
+    w.f64(m.flaw_size);
     w.f64(m.tensile_ratio);
     w.f64(m.stiffness);
     w.f64(m.thermal_onset);
@@ -664,6 +672,8 @@ fn put_material(w: &mut Writer, m: &Material) {
     w.f64(m.resistivity);
     w.bool(m.combustible);
     w.f64(m.ductility);
+    // Appended: the position is the tag. See `wire.rs`.
+    w.f64(m.metallic);
 }
 fn get_material(r: &mut Reader) -> Result<Material> {
     // The name is the one field that cannot come back from bytes: it is a
@@ -673,7 +683,8 @@ fn get_material(r: &mut Reader) -> Result<Material> {
     Ok(Material {
         name,
         density: r.f64()?,
-        rupture: r.f64()?,
+        surface_energy: r.f64()?,
+        flaw_size: r.f64()?,
         tensile_ratio: r.f64()?,
         stiffness: r.f64()?,
         thermal_onset: r.f64()?,
@@ -683,6 +694,7 @@ fn get_material(r: &mut Reader) -> Result<Material> {
         resistivity: r.f64()?,
         combustible: r.bool()?,
         ductility: r.f64()?,
+        metallic: r.f64()?,
     })
 }
 

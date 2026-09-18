@@ -123,7 +123,7 @@ pub struct MemberForces {
     /// Peak fibre stress from bending plus axial, Pa.
     pub stress: f64,
     /// Compressive load as a fraction of the Euler critical load. At or above 1
-    /// the member buckles, however far its stress is from rupture.
+    /// the member buckles, however far its stress is from fracture.
     pub buckling: f64,
 }
 
@@ -394,7 +394,7 @@ impl Framework {
                 let mut yielded = 0;
                 let mut changed = false;
                 for (i, f) in forces.iter().enumerate() {
-                    let cap = self.material.rupture
+                    let cap = self.material.strength()
                         * self.material.ductility
                         * self.members[i].integrity;
                     if cap > 0.0 && f.stress > cap {

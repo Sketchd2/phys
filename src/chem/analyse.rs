@@ -125,6 +125,14 @@ pub struct BondFacts {
 pub struct Properties {
     /// Mass of one formula unit, kg. Exact.
     pub unit_mass: f64,
+    /// Atoms in one formula unit. Exact.
+    ///
+    /// Carried because several derivations are *per atom* rather than per
+    /// formula unit and cannot recover the count from a mass: Richard's rule
+    /// puts an entropy of fusion of about `R` on each mole of atoms, and a
+    /// cohesive energy divided by the wrong count is an order out for anything
+    /// bigger than a diatomic.
+    pub atoms_per_unit: u32,
     /// Molar mass, kg/mol. Exact.
     pub molar_mass: f64,
     /// Energy to take one formula unit apart, joules. Positive.
@@ -158,6 +166,26 @@ pub struct Properties {
     /// a molecular substance, which has no lattice to break before it
     /// dissolves.
     pub lattice_binding_ev: f64,
+    /// Whether this substance is a repeating lattice rather than a finite
+    /// molecule.
+    ///
+    /// Carried because it is what decides whether a solid has **cleavage
+    /// planes**. An ionic or covalent crystal parts along a plane of its own
+    /// lattice and closes that parting again under compression, which is the
+    /// whole of why masonry topples rather than snapping; a molecular or
+    /// fibrous solid has no such plane and carries tension as well as it
+    /// carries compression, which is why wood does not.
+    pub crystalline: bool,
+    /// Mean Pauling electronegativity over the atoms, or zero where none of
+    /// them has one.
+    ///
+    /// Carried because it is the only thing in this account that separates a
+    /// *metal* from a covalent or ionic solid, and that distinction decides
+    /// whether a material yields or fractures. Everything else here — cohesive
+    /// energy, density, melting point — is much the same for iron and for
+    /// quartz; what differs is that iron's electrons are shared by everybody,
+    /// which is what low electronegativity across the board means.
+    pub electronegativity: f64,
     /// Estimated density, kg/m^3.
     pub density: f64,
     /// Estimated melting point, K.
@@ -397,8 +425,25 @@ pub fn analyse(arr: &Arrangement) -> Result<Properties, Illegal> {
 
     // A lattice's "dipole" is an artefact of picking one formula unit out of an
     // infinite alternating solid; what makes it polar is that it is ionic.
+    let electronegativity = {
+        let mut sum = 0.0;
+        let mut n = 0.0;
+        for e in &arr.atoms {
+            if let Some(x) = e.electronegativity() {
+                if x > 0.0 {
+                    sum += x;
+                    n += 1.0;
+                }
+            }
+        }
+        if n > 0.0 { sum / n } else { 0.0 }
+    };
+
     Ok(Properties {
         unit_mass,
+        atoms_per_unit: arr.atoms.len() as u32,
+        electronegativity,
+        crystalline: arr.lattice != Lattice::Molecular,
         polarity,
         hydrogen_bonds: hydrogen_bond_donors(arr).min(255) as u8,
         lattice_binding_ev,

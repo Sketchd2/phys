@@ -50,6 +50,7 @@ pub mod coords;
 pub mod dilation;
 pub mod engine;
 pub mod ids;
+pub mod material;
 pub mod math;
 pub mod morph;
 pub mod neighbourhood;

@@ -221,8 +221,14 @@ segments, and that takes a second simplex.
 
 | tip load | tip travel | travel / length | chord rotation | |
 |---:|---:|---:|---:|---|
-| 400 N | 10.7 mm | 0.013 | 0.018 | linear |
-| 700 N | — | — | — | **member ruptures** |
+| 1,000 N | 8.3 mm | 0.010 | 0.014 | linear |
+| 1,500 N | — | — | — | **member ruptures** |
+
+Re-measured after `PLAY.md` D14 made the material derived rather than
+tabulated: green wood comes out at 3.23 × 10¹⁰ Pa against the 1.0 × 10¹⁰ the
+table held, so the same limb is stiffer and carries more before it goes. The
+conclusion is **stronger**, not weaker — the limb now reaches one per cent of
+its own length rather than 1.3%.
 
 Chord rotation never exceeds 0.019 against the 0.1 where the linear formulation
 starts to be wrong, because the member breaks first. D5 is confirmed more

@@ -247,25 +247,44 @@ fn a_patch_freezes_when_the_light_goes_and_thaws_when_it_returns() {
     // about 1.4 kW/m^2 on the patch and settles it near 280 K — above the
     // 241.9 K this chemistry derives for water's melting point.
     let bright = 5800.0;
+
+    // **Run to equilibrium rather than for a fixed number of frames.**
+    // `step_frame` takes a wall-clock budget, so how much world time a fixed
+    // count of frames covers depends on how busy the machine is — and this test
+    // used to fail only when the rest of the suite was running beside it,
+    // reaching 235.4 K in a season that settles at 280 K when run alone. A
+    // season is "until it stops changing", which is what this waits for.
+    let settle = |w: &mut World, cap: usize| {
+        let mut last = temp(w);
+        let mut steady = 0;
+        for _ in 0..cap {
+            w.step_frame(50_000.0);
+            let now = temp(w);
+            if (now - last).abs() < 1e-3 * last.max(1.0) {
+                steady += 1;
+                if steady >= 20 {
+                    return;
+                }
+            } else {
+                steady = 0;
+            }
+            last = now;
+        }
+    };
+
     sun(&mut w, bright);
-    for _ in 0..120 {
-        w.step_frame(50_000.0);
-    }
+    settle(&mut w, 2000);
     let summer = (temp(&w), liquid(&w), solid(&w), w.environment_at(patch).water);
 
     // Winter: the star dims. Nothing else is touched.
     // Cool enough that almost nothing reaches the patch.
     sun(&mut w, 1500.0);
-    for _ in 0..120 {
-        w.step_frame(50_000.0);
-    }
+    settle(&mut w, 2000);
     let winter = (temp(&w), liquid(&w), solid(&w), w.environment_at(patch).water);
 
     // Spring: it brightens again.
     sun(&mut w, bright);
-    for _ in 0..240 {
-        w.step_frame(50_000.0);
-    }
+    settle(&mut w, 4000);
     let spring = (temp(&w), liquid(&w), solid(&w), w.environment_at(patch).water);
 
     for (label, s) in [("summer", summer), ("winter", winter), ("spring", spring)] {

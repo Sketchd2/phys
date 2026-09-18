@@ -177,16 +177,35 @@ impl Program {
         }
     }
 
+    /// How heavy a cubic metre of the structure is, kg/m^3.
+    ///
+    /// **Read off the material, not off the program.** `docs/PLAY.md` D11: a
+    /// wooden tower and a wooden tree have one density between them, and the
+    /// place that knows is the material. This stays a method on `Program` only
+    /// because a program is still what picks the material — which is D11's
+    /// remaining work, not this — and it is now one line rather than a column.
     pub fn density(self) -> f64 {
-        match self {
-            Program::Tree => WOOD_DENSITY,
-            Program::Coral => CORAL_DENSITY,
-            Program::Tower | Program::Wall | Program::Settlement => BUILDING_DENSITY,
-            Program::Terrain => ROCK_DENSITY,
-        }
+        self.material().density
     }
 
-    /// Free energy stored per kilogram of structure.
+    /// Free energy stored per kilogram of structure, J/kg.
+    ///
+    /// **Deliberately still a column**, and `docs/PLAY.md` D11 lists it as a
+    /// material property. It is not one, and trying to retire it here is what
+    /// showed why: run off `destruction_enthalpy`, terrain came out holding
+    /// 8.2 MJ/kg of free energy, which is 820 J in a small hill that nothing
+    /// put there.
+    ///
+    /// What this measures is not how tightly the material is bound but **how
+    /// far uphill the making pushed it**, and that is a difference between the
+    /// substance and the feedstock it was made from. A tree fixes cellulose out
+    /// of carbon dioxide and water, which is a long way uphill; a hill's
+    /// silicate came from silicate and is exactly where it started. The engine
+    /// has cohesive energies and no formation enthalpies, so the comparison
+    /// cannot be made yet.
+    ///
+    /// D11 puts the rest of its columns in **Ground**, where a derived erosion
+    /// rate cannot coexist with a tabulated one; this belongs with them.
     pub fn energy_density(self) -> f64 {
         match self {
             Program::Tree | Program::Coral => BIOMASS_ENERGY,
@@ -194,6 +213,24 @@ impl Program {
             // Bedrock is already at the bottom of its own energy landscape.
             // There is no free energy stored in a hill.
             Program::Terrain => 0.0,
+        }
+    }
+
+    /// What this program builds out of, as a material.
+    ///
+    /// D11's remaining species column, and the one this does not close: a
+    /// program still names a material. What has changed is that the material it
+    /// names is *derived* rather than tabulated — see `material.rs` — so the
+    /// table is one of substances and histories rather than of thirteen numbers
+    /// each. The column goes away when a generator seeds its node's mixture and
+    /// the material is measured from that, which is Ground's work.
+    pub fn material(self) -> crate::material::Material {
+        match self {
+            Program::Tree => crate::material::Material::green_wood(),
+            Program::Coral => crate::material::Material::aragonite(),
+            Program::Tower => crate::material::Material::reinforced_frame(),
+            Program::Wall | Program::Settlement => crate::material::Material::masonry(),
+            Program::Terrain => crate::material::Material::bedrock(),
         }
     }
 
@@ -1020,15 +1057,12 @@ impl Morphology {
     }
 
     /// What the structure is physically made of, for the failure analysis.
-    pub fn material(&self) -> crate::topology::Material {
-        match self.program {
-            Program::Tree => crate::topology::Material::GREEN_WOOD,
-            Program::Coral => crate::topology::Material::ARAGONITE,
-            Program::Tower => crate::topology::Material::REINFORCED_FRAME,
-            Program::Wall => crate::topology::Material::MASONRY,
-            Program::Terrain => crate::topology::Material::BEDROCK,
-            Program::Settlement => crate::topology::Material::MASONRY,
-        }
+    ///
+    /// One dispatch site fewer than it looks: it is the program's, and the
+    /// program's is one line per variant naming a *substance and a history*
+    /// rather than thirteen numbers. See `Program::material`.
+    pub fn material(&self) -> crate::material::Material {
+        self.program.material()
     }
 
     /// The body kind the structure's parts should be tagged with.

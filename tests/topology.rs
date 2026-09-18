@@ -464,7 +464,7 @@ fn indeterminate_truss_matches_the_analytic_solution() {
     ];
     let joint = area * 2000.0;
     let ties = vec![(0u32, 1u32, joint), (0u32, 2u32, joint), (1u32, 2u32, joint)];
-    let topo = Topology::from_parts(&members, &ties, Material::STEEL);
+    let topo = Topology::from_parts(&members, &ties, Material::steel());
     assert!(!topo.is_determinate(), "the truss should be indeterminate");
 
     let p_load = 1000.0;
@@ -627,8 +627,25 @@ fn mechanisms_are_not_weather_specific() {
     assert!(water > air * 0.5, "a current should be structurally serious");
 }
 
-/// Materials are data, and swapping one changes the outcome in the direction
-/// the numbers say it should.
+/// Materials are measured, and swapping one changes the outcome in the
+/// direction the numbers say it should.
+///
+/// **Rewritten for `docs/PLAY.md` D14**, which retired the tabulated `rupture`
+/// column these assertions used to read. Two of the four comparisons it made
+/// are still reproduced and two are not, and which two is the point:
+///
+/// - The **deposited** materials come out in the table's own order — dry timber
+///   above green wood above aragonite above masonry — from nothing but a ring
+///   width, a band and a course thickness.
+/// - The **frozen** ones do not. Steel derives at 2.87e6 Pa against a retired
+///   4.0e8, because Griffith is the *brittle* law and steel is ductile: it
+///   yields by moving dislocations rather than by running a crack through a
+///   grain, and the crack tip blunts instead of propagating. See
+///   `Material::strength` for the measurement and `docs/BACKLOG.md` for the
+///   residual.
+///
+/// So this asserts what is derived rather than what was tabulated, and says so.
+/// Asserting the old ordering would be asserting a table that no longer exists.
 #[test]
 fn materials_are_interchangeable_data() {
     let (matter, m) = tree(900.0);
@@ -643,23 +660,45 @@ fn materials_are_interchangeable_data() {
         let loads = analyse(&bodies, &topo, &field);
         loads.iter().fold(0.0f64, |a, l| a.max(l.utilisation))
     };
-    let wood = peak_for(Material::GREEN_WOOD);
-    let steel = peak_for(Material::STEEL);
-    let masonry = peak_for(Material::MASONRY);
-    let ice = peak_for(Material::ICE);
-    println!("  same geometry, 35 m/s wind — wood {wood:.2}, steel {steel:.2}, masonry {masonry:.2}, ice {ice:.2}");
-    assert!(steel < wood, "steel should out-perform wood");
-    assert!(masonry > wood, "masonry in bending should be far worse than wood");
-    assert!(ice > steel, "ice should be weaker than steel");
-    // A user-defined material needs no change to the solver.
+    let green = peak_for(Material::green_wood());
+    let dry = peak_for(Material::dry_timber());
+    let aragonite = peak_for(Material::aragonite());
+    let masonry = peak_for(Material::masonry());
+    println!(
+        "  same geometry, 35 m/s wind — green wood {green:.2}, dry timber {dry:.2}, \
+         aragonite {aragonite:.2}, masonry {masonry:.2}"
+    );
+    // Slow-grown timber is stronger than fast-grown, and the *only* thing that
+    // differs between them is how thick a layer the tree laid down.
+    assert!(dry < green, "seasoned timber should out-perform green wood");
+    assert!(aragonite > dry, "a coral skeleton is weaker than timber");
+    assert!(masonry > aragonite, "masonry in bending should be worse still");
+
+    // A material somebody states rather than measures still works, because
+    // nothing in the solver knows where a material came from. The two numbers
+    // Griffith needs are stated directly here, which is what makes this a
+    // *custom* material rather than a measured one.
     let custom = Material {
         name: "spider silk",
         density: 1300.0,
-        rupture: 1.1e9,
+        surface_energy: 4.0,
+        flaw_size: 1.0e-8,
         stiffness: 10.0e9,
-        ..Material::GREEN_WOOD
+        ..Material::green_wood()
     };
-    assert!(peak_for(custom) < steel, "a stronger material should carry more");
+    println!("  spider silk derives {:.3e} Pa", custom.strength());
+    assert!(
+        peak_for(custom) < green,
+        "a material with a flaw scale five orders finer should carry more"
+    );
+
+    // And the size effect, which a tabulated stress could not express at all:
+    // a piece too small to contain the flaw is stronger than a piece that can.
+    let m = Material::green_wood();
+    let big = m.strength_at_size(1.0);
+    let small = m.strength_at_size(m.flaw_size / 100.0);
+    println!("  green wood at 1 m {big:.3e} Pa, at {:.1e} m {small:.3e} Pa", m.flaw_size / 100.0);
+    assert!(small > big * 9.0, "ten times finer should be about ten times stronger");
 }
 
 /// The exact path and the redundant path agree when there is no redundancy.

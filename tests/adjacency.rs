@@ -666,7 +666,7 @@ fn side(x: f64, vx: f64, m: f64, r: f64, mat: &Material) -> Side {
 /// of a slow approach and a seventh of a fast one, and no single number is both.
 #[test]
 fn restitution_falls_with_the_speed_of_the_impact() {
-    let wood = Surface::of(&Material::GREEN_WOOD);
+    let wood = Surface::of(&Material::green_wood());
     let slow = restitution(&wood, &wood, 1.0);
     let fast = restitution(&wood, &wood, 20.0);
     assert!(
@@ -680,19 +680,44 @@ fn restitution_falls_with_the_speed_of_the_impact() {
     assert_eq!(restitution(&wood, &wood, v_y * 0.5), 1.0);
 }
 
-/// Masonry does not bounce and a steel frame does, at the same speed, without
-/// either having been told so.
+/// Masonry does not bounce and a coral skeleton does, at the same speed,
+/// without either having been told so.
+///
+/// **The pair changed with `docs/PLAY.md` D14**, and why is worth keeping. It
+/// used to be a reinforced frame against masonry, which separated by 90x while
+/// the strengths were tabulated — 180 MPa against 2 MPa. Derived, the gap is
+/// 6.6x and points the other way once `Surface::of` applies ductility: a frame
+/// derives as 10% ductile because it is a sixth iron, so its *elastic* range
+/// ends at a tenth of its fracture stress, and masonry's brittle one does not.
+///
+/// So the pair is now two **brittle** materials, which is what the claim was
+/// always about — stiffness and strength against stiffness and weakness, with
+/// no ductility term confusing it. A coral skeleton derives at 1.35e7 Pa and
+/// masonry at 2.07e6, a clean factor of six, and neither was told anything:
+/// both are what calcium carbonate and silicate come out at when they are laid
+/// down the way a coral and a bricklayer lay them down.
+///
+/// The *margin* moved with them, and deliberately so. Restitution goes as
+/// `(v_y/v)^(1/4)` and the yield velocity as `Y^2.5`, so a strength ratio of
+/// `r` shows up as `r^0.625`: the tabulated 90x gave 4x and the derived 6.5x
+/// gives 2.3x. Asserting the old margin would be asserting the old table.
 #[test]
 fn a_stiff_strong_surface_returns_more_than_a_weak_one() {
-    let frame = Surface::of(&Material::REINFORCED_FRAME);
-    let masonry = Surface::of(&Material::MASONRY);
+    let coral = Surface::of(&Material::aragonite());
+    let masonry = Surface::of(&Material::masonry());
+    assert_eq!(
+        Material::aragonite().ductility,
+        0.0,
+        "the pair has to be brittle on both sides or this measures ductility"
+    );
+    assert_eq!(Material::masonry().ductility, 0.0);
     let (a, b) = (
-        restitution(&frame, &frame, 5.0),
+        restitution(&coral, &coral, 5.0),
         restitution(&masonry, &masonry, 5.0),
     );
     assert!(
-        a > 4.0 * b,
-        "a reinforced frame returned {a} and masonry {b} at the same 5 m/s"
+        a > 2.0 * b,
+        "a coral skeleton returned {a} and masonry {b} at the same 5 m/s"
     );
 }
 
@@ -703,7 +728,7 @@ fn a_stiff_strong_surface_returns_more_than_a_weak_one() {
 /// being *told* they are solid.
 #[test]
 fn a_thing_with_no_surface_does_not_collide() {
-    let steel = Material::STEEL;
+    let steel = Material::steel();
     let mut ghost = side(1.9, -3.0, 125.0, 1.0, &steel);
     ghost.surface = Surface { density: 0.0, stiffness: 0.0, strength: 0.0 };
     assert!(contact(&side(0.0, 3.0, 125.0, 1.0, &steel), &ghost).is_none());
@@ -720,7 +745,7 @@ fn a_thing_with_no_surface_does_not_collide() {
 /// return is accounted for as heat rather than dropped.
 #[test]
 fn a_contact_closes_its_books() {
-    let m = Material::STEEL;
+    let m = Material::steel();
     let (a, b) = (side(0.0, 3.0, 125.0, 1.0, &m), side(1.9, -3.0, 200.0, 1.0, &m));
     let c = contact(&a, &b).expect("an approaching overlap is a contact");
 
@@ -762,7 +787,7 @@ fn a_contact_closes_its_books() {
 /// contact point was made a single point shared by both sides.
 #[test]
 fn the_friction_couple_conserves_angular_momentum() {
-    let m = Material::STEEL;
+    let m = Material::steel();
     let mut a = side(0.0, 3.0, 125.0, 1.0, &m);
     let mut b = side(1.9, -3.0, 125.0, 1.0, &m);
     // Sliding as well as closing, or there is no friction to test.
@@ -790,7 +815,7 @@ fn the_friction_couple_conserves_angular_momentum() {
 /// afford to.
 #[test]
 fn friction_is_bounded_by_the_normal_impulse() {
-    let m = Material::STEEL;
+    let m = Material::steel();
     let mu = phys::neighbourhood::friction(&Surface::of(&m), &Surface::of(&m));
     // Sliding far faster than it is closing: friction saturates.
     let mut a = side(0.0, 0.2, 125.0, 1.0, &m);
@@ -897,7 +922,7 @@ fn two_promoted_things_collide_and_rebound() {
     // And the rebound is the one the materials say, not a number picked to make
     // this pass. Both are reinforced frame; the separation ratio is the
     // restitution at the speed they met at.
-    let surface = Surface::of(&Material::REINFORCED_FRAME);
+    let surface = Surface::of(&Material::reinforced_frame());
     let expected = restitution(&surface, &surface, closing_before);
     let measured = closing_after / -closing_before;
     assert!(
@@ -1159,6 +1184,23 @@ fn a_ball_loose_in_a_box_conserves_momentum_and_angular_momentum() {
     let matter = Matter::neutral(total, 12.0, 290.0, Composition::primordial());
     let mut w = World::new(Tree::new(0xB0FFED, matter, Tier::Galactic, spec), 1.0);
     let root = w.tree.root;
+
+    // Both things are made of wood, and that is *all* that is said about them.
+    // The old version hand-authored `Topology { material: GREEN_WOOD }` onto
+    // both with no joints, for no reason except to make `surface_of` return
+    // something — which `docs/BACKLOG.md` called out as a hand-set value on a
+    // path that exists to measure. D13 removes the need: a node that carries a
+    // mixture can be asked what it is made of.
+    let cellulose = w
+        .substances
+        .intern(phys::material::substances::cellulose_arrangement())
+        .expect("cellulose analyses");
+    let wooden = {
+        let mut m = phys::chem::Mixture::new();
+        m.add(cellulose, phys::chem::Phase::Solid, 1.0);
+        m
+    };
+
     w.tree.refine(root);
     {
         let nd = &mut w.tree.nodes[root.get()];
@@ -1212,9 +1254,16 @@ fn a_ball_loose_in_a_box_conserves_momentum_and_angular_momentum() {
             site: (0..n as u32).collect(),
             base,
             tip,
-            material: Material::GREEN_WOOD,
+            material: Material::green_wood(),
             ties: Vec::new(),
         });
+        // **What it is made of, rather than what it was declared to be.**
+        // `docs/PLAY.md` D13: the material follows from the matter. The
+        // `Topology::material` above is now inert on the contact path — it is
+        // left because the *structure* solver still reads it — and the surface
+        // this box presents is measured from the cellulose below, through
+        // `World::material_of`.
+        nd.matter.mixture = wooden;
     }
 
     // A small spec deliberately: the ball needs contents only because
@@ -1232,7 +1281,8 @@ fn a_ball_loose_in_a_box_conserves_momentum_and_angular_momentum() {
         // off-centre. A head-on bounce would never test the friction couple.
         nd.motion.velocity = v3(5.0, 1.7, 0.9);
         nd.matter.spin = Vec3::ZERO;
-        nd.topology = Some(Topology { material: Material::GREEN_WOOD, ..Default::default() });
+        nd.topology = Some(Topology { material: Material::green_wood(), ..Default::default() });
+        nd.matter.mixture = wooden;
     }
     w.tree.pin(root);
     w.tree.pin(the_box);
@@ -1441,7 +1491,7 @@ fn a_plank_struck_off_centre_turns_and_its_surface_turns_with_it() {
             site: vec![0],
             base: vec![base],
             tip: vec![tip],
-            material: Material::GREEN_WOOD,
+            material: Material::green_wood(),
             ties: Vec::new(),
         });
     }
@@ -1457,7 +1507,7 @@ fn a_plank_struck_off_centre_turns_and_its_surface_turns_with_it() {
         nd.motion.velocity = v3(0.0, 6.0, 0.0);
         nd.matter.spin = Vec3::ZERO;
         nd.motion.spin_rate = Vec3::ZERO;
-        nd.topology = Some(Topology { material: Material::GREEN_WOOD, ..Default::default() });
+        nd.topology = Some(Topology { material: Material::green_wood(), ..Default::default() });
     }
     w.tree.pin(root);
     w.tree.pin(plank);
@@ -1624,7 +1674,7 @@ fn a_turned_plank_is_struck_where_its_wall_now_is() {
             site: vec![0],
             base: vec![base],
             tip: vec![tip],
-            material: Material::GREEN_WOOD,
+            material: Material::green_wood(),
             ties: Vec::new(),
         });
     }
@@ -1640,7 +1690,7 @@ fn a_turned_plank_is_struck_where_its_wall_now_is() {
         nd.motion.velocity = v3(0.0, 0.0, 6.0);
         nd.matter.spin = Vec3::ZERO;
         nd.motion.spin_rate = Vec3::ZERO;
-        nd.topology = Some(Topology { material: Material::GREEN_WOOD, ..Default::default() });
+        nd.topology = Some(Topology { material: Material::green_wood(), ..Default::default() });
     }
     w.tree.pin(root);
     w.tree.pin(plank);

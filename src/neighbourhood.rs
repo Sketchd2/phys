@@ -553,7 +553,7 @@ pub struct Surface {
     /// Young's modulus, Pa.
     pub stiffness: f64,
     /// The stress at which the contact stops returning what is put into it,
-    /// Pa. Yield for a material that yields; rupture for one that fractures
+    /// Pa. Yield for a material that yields; fracture for one that breaks
     /// instead, because that is where a brittle contact stops being elastic.
     pub strength: f64,
 }
@@ -561,15 +561,15 @@ pub struct Surface {
 impl Surface {
     /// Read a surface off a structural material.
     ///
-    /// `ductility` is documented as "yield strength as a fraction of `rupture`,
-    /// or zero for a brittle material that fractures instead of yielding", so a
-    /// zero is not a material with no strength — it is a material whose elastic
-    /// range ends at `rupture`.
+    /// `ductility` is documented as "yield strength as a fraction of
+    /// `strength()`, or zero for a brittle material that fractures instead of
+    /// yielding", so a zero is not a material with no strength — it is a
+    /// material whose elastic range ends at fracture.
     pub fn of(m: &crate::topology::Material) -> Surface {
         let strength = if m.ductility > 0.0 {
-            m.rupture * m.ductility
+            m.strength() * m.ductility
         } else {
-            m.rupture
+            m.strength()
         };
         Surface {
             density: m.density.max(0.0),

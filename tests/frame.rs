@@ -9,7 +9,7 @@ use phys::topology::Material;
 
 /// A steel bar, 100 mm radius unless a test says otherwise.
 fn steel() -> Material {
-    Material::STEEL
+    Material::steel()
 }
 
 fn load_at(n: usize, node: u32, force: Vec3) -> Vec<Dof> {
@@ -145,7 +145,7 @@ fn euler_buckling_is_detected() {
     let i = std::f64::consts::PI * r.powi(4) / 4.0;
     let area = std::f64::consts::PI * r * r;
     let p_cr = std::f64::consts::PI.powi(2) * mat.stiffness * i / (l * l);
-    let p_squash = mat.rupture * area;
+    let p_squash = mat.strength() * area;
     println!("  critical load {p_cr:.0} N, squash load {p_squash:.0} N — buckling first by {:.0}x",
         p_squash / p_cr);
     assert!(p_cr < p_squash, "this strut is not slender enough to test buckling");
@@ -169,7 +169,7 @@ fn euler_buckling_is_detected() {
 
     // The stress check alone would see nothing wrong at the critical load.
     let sol = f.solve_with(&load_at(2, b, v3(0.0, 0.0, -p_cr)), false);
-    let stress_utilisation = sol.forces[0].stress / mat.rupture;
+    let stress_utilisation = sol.forces[0].stress / mat.strength();
     println!("  at P_cr the stress check reports {stress_utilisation:.4} utilised");
     assert!(
         stress_utilisation < 0.05,
@@ -199,9 +199,9 @@ fn ductile_materials_redistribute_and_brittle_ones_do_not() {
     };
     let load = |n: usize| load_at(n, 0, v3(0.0, 0.0, -60000.0));
 
-    let ductile = build(Material::STEEL);
+    let ductile = build(Material::steel());
     let d_sol = ductile.solve(&load(4));
-    let brittle = build(Material { ductility: 0.0, ..Material::STEEL });
+    let brittle = build(Material { ductility: 0.0, ..Material::steel() });
     let b_sol = brittle.solve(&load(4));
 
     let spread = |s: &FrameSolution| {
@@ -328,7 +328,7 @@ fn redundant_truss_matches_the_analytic_split() {
     let t: f64 = std::f64::consts::FRAC_PI_4;
     let radius = 0.01;
 
-    let mut frame = Framework::new(Material::STEEL);
+    let mut frame = Framework::new(Material::steel());
     let apex = frame.add_node(v3(0.0, 0.0, 0.0), false);
     let bars: Vec<usize> = [0.0, -h * t.tan(), h * t.tan()]
         .iter()

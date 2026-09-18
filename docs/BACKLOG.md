@@ -757,7 +757,7 @@ the same function.
 
 ---
 
-## Only a built thing has a surface, so only a built thing collides
+## ~~Only a built thing has a surface, so only a built thing collides~~ — done
 
 **Noticed:** building D3's contact half.
 **Re-opened:** the owner, asking why a wooden ball is not a "built" thing, and
@@ -839,6 +839,76 @@ question and is not settled here.
 **Trigger:** when anything that is not a built structure has to be collided with
 — the first loose object an actor can pick up, kick or trip over. Not before D11,
 unless something needs it sooner.
+
+**Done**, as Phase 2's fourth item, and the entry's own diagnosis was right:
+none of the three numbers is derivable from a node's own `Matter`, because they
+are properties of *what the matter is made of*. D17 put a `Mixture` there, and
+`Material::measured` reads the solid pools of it.
+
+`World::surface_of` now measures first and inherits second: a node that carries
+a mixture answers from it whatever made it, and `Morphology::material` is the
+fallback for a node whose chemistry nobody has stated. A node with no solid pool
+gets `None`, which is D13's own line — a liquid's surface belongs to its
+container and a gas has none.
+
+The hand-authored `Topology { material: GREEN_WOOD }` this entry complained
+about is gone from `a_ball_loose_in_a_box...`: the box and the ball are given a
+cellulose mixture and the material is measured.
+
+**And the strength gap this entry left open is closed**, by `PLAY.md` D14's
+Griffith law rather than by the cohesive-energy-density upper bound it was
+deferring to. See the new entry below for what that reproduces and what it does
+not.
+
+---
+
+## Griffith on a grain is not Griffith on the worst flaw — bedrock is 77x low
+
+**Noticed:** building `PLAY.md` D14, measuring the derived strengths against the
+`rupture` column they replace.
+**Where:** `material.rs` — `Material::strength`, `grain_scale`.
+
+Seven of the eight presets land within a factor of 2.3 of the retired table, and
+the ordering is the table's own except for two positions. The measurements, none
+of which the derivation was shown:
+
+```text
+  material           a            derived     retired    ratio
+  green wood       3.0e-5 m       5.16e7      4.5e7      1.15
+  dry timber       1.2e-5         6.52e7      7.0e7      0.93
+  aragonite        3.0e-3         1.35e7      1.2e7      1.13
+  masonry          7.0e-2         2.07e6      2.0e6      1.04
+  ice              3.8e-2         3.85e6      1.7e6      2.27
+  steel            8.2e-3         1.94e8      4.0e8      0.49
+  reinforced       1.3e-3         7.90e7      1.8e8      0.44
+  bedrock          2.1e-1         1.66e6      1.3e8      0.013
+```
+
+**Bedrock is the one real miss**, and the reason is measurable rather than
+mysterious: a granite at 130 MPa with the stiffness and surface energy this
+derives implies a **34 µm** crack, against the **21 cm** grain the nucleation
+solve gives it. The cracks that matter in rock are *inside* the grains, not
+around them — D14 says as much in a line ("a grain is also not the same as the
+worst flaw") and does not say what the intragranular scale is.
+
+**The frozen branch's grain sizes are plausible and the nucleation solve is not
+the problem.** Measured: steel 8.2 mm (a slowly cooled ingot), ice 3.8 cm (lake
+ice is centimetre-grained), bedrock 21 cm (coarse, and plutonic grains do reach
+centimetres). What is missing is the step from a grain to the worst crack in it.
+
+**Two further approximations are recorded here rather than hidden.** A metal's
+cohesive energy comes out about 2.3x low, because iron really has eight nearest
+neighbours and the valence model allows three — so steel's stiffness derives at
+7.5e10 against 2.0e11, and its yield at 1.94e8 against 4.0e8, both low by the
+same root cause. And ice's density derives at 1653 kg/m^3 against 917, because
+`analyse`'s van der Waals packing estimate is a correlation rather than a
+structure.
+
+**Trigger:** when something brittle and crystalline has to break *correctly*
+rather than merely break — a rock face that spalls, a stone wall that a siege
+engine has to beat down. Until then the direction of the error is the safe one:
+bedrock is weaker than it should be, so anything standing on it is
+conservatively judged.
 
 ---
 

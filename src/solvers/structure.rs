@@ -343,7 +343,7 @@ pub struct JointLoad {
     /// Peak fibre stress at the joint, Pa.
     pub stress: f64,
     /// Compressive load as a fraction of the Euler critical load. At or above 1
-    /// the member buckles, however far its stress is from rupture.
+    /// the member buckles, however far its stress is from fracture.
     pub buckling: f64,
     /// Stress over the strength the joint still has. At or above 1 it fails.
     pub utilisation: f64,
@@ -489,7 +489,7 @@ fn accumulate(
         // decides whether masonry topples or merely settles.
         let tensile = axial > 0.0;
         let ratio = if tensile { topo.material.tensile_ratio } else { 1.0 };
-        let strength = topo.material.rupture * topo.material.strength_at(t) * integrity * ratio;
+        let strength = topo.material.strength() * topo.material.strength_at(t) * integrity * ratio;
         let by_stress = if strength > 0.0 {
             stress / strength
         } else if stress > 0.0 {
@@ -678,7 +678,7 @@ fn frame_analyse(
         let integrity = topo.joints[i].integrity;
         let tensile = axial > 0.0;
         let ratio = if tensile { topo.material.tensile_ratio } else { 1.0 };
-        let strength = topo.material.rupture * topo.material.strength_at(t) * integrity * ratio;
+        let strength = topo.material.strength() * topo.material.strength_at(t) * integrity * ratio;
         let by_stress = if strength > 0.0 {
             stress / strength
         } else if stress > 0.0 {

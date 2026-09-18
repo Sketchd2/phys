@@ -2027,24 +2027,68 @@ impl World {
     /// The material a node presents to something that runs into it, if it
     /// presents one at all.
     ///
-    /// Two sources and no third. A materialised structure carries its material
-    /// on its `Topology`; an unmaterialised one carries its program, and
-    /// `Morphology::material` answers from that. A node that is neither — a gas
-    /// parcel, a star cluster, a ball of undifferentiated matter — has no
-    /// surface, and that is measured rather than assumed: nothing here invents
-    /// one from a tier or a body kind.
+    /// **Measured first, and only then inherited.** `docs/PLAY.md` D13: a
+    /// node's material follows from what it *is*, not from what generated it.
+    /// §2A measured what the old rule cost — this read `topology.material` or
+    /// `morphology.material()` and returned `None` for everything else, so a
+    /// rock, a boulder and a ball of wood had no surface and could not collide.
+    /// That is a *provenance test standing in for a state measurement*, and
+    /// §3.3 had already made the same call correctly one layer down:
+    /// `structural_mask` asks what a node's joints measure, not what generated
+    /// it.
     ///
-    /// `Morphology::material` is itself a per-species table and one of the
-    /// columns `PLAY.md` D11 exists to move onto the material. Reading it here
-    /// adds no new dispatch site, and when D11 lands this reads whatever
-    /// replaces it.
+    /// So the order is:
+    ///
+    /// 1. **What the matter is made of**, through `Material::measured` over the
+    ///    node's own mixture, which D17 put on `Matter` for exactly this. Only
+    ///    the *solid* pools count, and the formation conditions come from the
+    ///    node's own radiative balance — see `Formation::of_matter`. A node
+    ///    that has been described answers from its description, whatever made
+    ///    it.
+    /// 2. **What a structure was built out of**, for a node whose chemistry
+    ///    nobody has stated. `Morphology::material` is itself a per-species
+    ///    table and one of the columns D11 exists to move off `Program`; it
+    ///    stays as the fallback until every generator seeds a mixture.
+    /// 3. **Nothing.** A gas parcel or a star cluster has no surface, and that
+    ///    is now measured rather than assumed: an undescribed node, or one
+    ///    whose mixture holds no solid pool at all, gets `None`.
     fn surface_of(&self, idx: NodeIdx) -> Option<crate::neighbourhood::Surface> {
         let n = &self.tree.nodes[idx.get()];
+        if let Some(m) = self.material_of(idx) {
+            return Some(crate::neighbourhood::Surface::of(&m));
+        }
         let m = match &n.topology {
             Some(t) => t.material,
             None => n.morphology.as_ref()?.material(),
         };
         Some(crate::neighbourhood::Surface::of(&m))
+    }
+
+    /// What a node is made of, measured from its own matter. `PLAY.md` D13.
+    ///
+    /// `None` for matter nobody has described and for matter that is described
+    /// and holds no solid — a cup of water has a ceramic material and the water
+    /// in it has none, which is D13's own worked case.
+    pub fn material_of(&self, idx: NodeIdx) -> Option<crate::material::Material> {
+        if idx.is_none() || idx.get() >= self.tree.nodes.len() {
+            return None;
+        }
+        let n = &self.tree.nodes[idx.get()];
+        let mixture = n.matter.mixture;
+        if mixture.is_empty() {
+            return None;
+        }
+        // The formation conditions of the first solid pool stand for the node's
+        // — they are a property of the *node's* history rather than of one
+        // substance in it, and `Material::measured` applies them to each pool
+        // in turn.
+        let solid = mixture
+            .entries()
+            .iter()
+            .find(|p| p.phase == crate::chem::Phase::Solid && p.fraction > 0.0)?;
+        let props = self.substances.get(solid.substance)?.props;
+        let formation = crate::material::Formation::of_matter(&n.matter, &props);
+        crate::material::Material::measured(&mixture, &self.substances, formation)
     }
 
     /// Resolve the overlaps inside one node. `docs/PLAY.md` D3, the impulsive

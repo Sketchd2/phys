@@ -347,7 +347,7 @@ fn a_limb_ruptures_long_before_it_leaves_the_linear_regime() {
             Member { a: 1, b: 2, radius: 0.03, truss: false, integrity: 1.0 },
         ],
         fixed: vec![true, false, false],
-        material: Material::GREEN_WOOD,
+        material: Material::green_wood(),
         lumped: Vec::new(),
         mass_scale: 0.0,
         stiff_scale: 1.0,
@@ -357,7 +357,7 @@ fn a_limb_ruptures_long_before_it_leaves_the_linear_regime() {
     let mut best_travel = 0.0f64;
     let mut worst_ratio = 0.0f64;
     let mut broke_at = None;
-    for force in [1.0, 5.0, 20.0, 60.0, 150.0, 400.0, 700.0, 1000.0] {
+    for force in [1.0, 5.0, 20.0, 60.0, 150.0, 400.0, 700.0, 1000.0, 1500.0, 2000.0, 3000.0] {
         let mut d = Dynamics::new(build());
         let mut load = vec![Dof::default(); 3];
         load[2].t = v3(force, 0.0, 0.0);
@@ -380,6 +380,8 @@ fn a_limb_ruptures_long_before_it_leaves_the_linear_regime() {
     }
 
     let broke_at = broke_at.expect("the limb should fail somewhere in this sweep");
+    println!("  the limb failed at {broke_at} N, having travelled {:.4} m ({:.4} of its length)",
+        best_travel, best_travel / 0.8);
     assert!(
         best_travel / 0.8 < 0.05,
         "the limb reached {:.3} of its own length before failing at {broke_at} N — \

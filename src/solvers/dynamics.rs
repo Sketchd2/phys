@@ -316,7 +316,7 @@ impl Dynamics {
         let e = &self.frame.members[i];
         let m = self.frame.material;
         let ratio = if f.axial > 0.0 { m.tensile_ratio } else { 1.0 };
-        let strength = m.rupture * e.integrity * ratio;
+        let strength = m.strength() * e.integrity * ratio;
         (strength > 0.0 && f.stress > strength) || f.buckling >= 1.0
     }
 
