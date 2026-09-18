@@ -3,6 +3,7 @@
 
 use phys::sampler::*;
 use phys::solvers::*;
+use phys::math::Vec3;
 use phys::state::*;
 use phys::units::*;
 use std::time::Instant;
@@ -29,8 +30,16 @@ fn time<F: FnMut()>(reps: usize, mut f: F) -> f64 {
 fn main() {
     println!("# measured on this machine, single core, release build\n");
 
-    println!("## materialisation (sample)");
+    // A section filter, so a single row can be re-measured without paying for
+    // the other eight. `cargo run --release --example bench -- narrow` prints
+    // only the narrow phase; no argument prints everything, as it always did.
+    let only = std::env::args().nth(1).unwrap_or_default();
+    let want = |name: &str| only.is_empty() || name.contains(&only);
+
+
     let matter = Matter::neutral(1e5 * M_SUN, PARSEC, 30.0, Composition::solar());
+    if want("materialisation") {
+    println!("## materialisation (sample)");
     for n in [1_000usize, 10_000, 100_000, 500_000] {
         let spec = SampleSpec::new(n, Profile::Plummer, MassSpectrum::Equal, BodyKind::Star);
         let us = time(2, || {
@@ -39,7 +48,9 @@ fn main() {
         println!("  n={n:>9}  {us:>10.0} us   {:>7.3} us/body   {:>8.1} M bodies/s",
             us / n as f64, n as f64 / us);
     }
+    }
 
+    if want("gravity") {
     println!("\n## gravity (Barnes-Hut, theta=0.5, one leapfrog step)");
     for n in [1_000usize, 10_000, 50_000] {
         let b0 = bodies(n, Profile::Plummer, BodyKind::Star, &matter);
@@ -68,7 +79,9 @@ fn main() {
         });
         println!("  {name:<28} {us:>9.0} us   {:>6.3} us/body", us / 50_000.0);
     }
+    }
 
+    if want("hydrodynamics") {
     println!("\n## hydrodynamics (SPH, ~50 neighbours)");
     let gas = Matter::neutral(1e30, 1e12, 1e4, Composition::solar());
     for n in [1_000usize, 10_000, 50_000] {
@@ -81,7 +94,9 @@ fn main() {
         println!("  n={n:>9}  {us:>10.0} us   {:>7.3} us/body   {:>8.2} M bodies/s",
             us / n as f64, n as f64 / us);
     }
+    }
 
+    if want("molecular") {
     println!("\n## molecular dynamics (LJ, cell lists)");
     for n in [1_000usize, 10_000, 100_000] {
         let side = 4e-9 * (n as f64 / 4096.0).cbrt();
@@ -94,7 +109,9 @@ fn main() {
         println!("  n={n:>9}  {us:>10.0} us   {:>7.3} us/body   {:>8.2} M bodies/s",
             us / n as f64, n as f64 / us);
     }
+    }
 
+    if want("summarising") {
     println!("\n## summarising (coarsen)");
     for n in [10_000usize, 100_000, 500_000] {
         let b = bodies(n, Profile::Plummer, BodyKind::Star, &matter);
@@ -103,7 +120,9 @@ fn main() {
         });
         println!("  n={n:>9}  {us:>10.0} us   {:>7.3} us/body", us / n as f64);
     }
+    }
 
+    if want("structural") {
     println!("\n## structural analysis and dynamics");
     {
         use phys::morph::{Morphology, Program};
@@ -152,6 +171,74 @@ fn main() {
         }
     }
 
+    }
+
+    if want("narrow") {
+    println!("\n## narrow phase (GJK distance query, and one whole contact)");
+    {
+        use phys::math::v3;
+        use phys::neighbourhood::{contact, Side, Surface};
+        use phys::shape::Hull;
+
+        // The two surfaces are the same on both sides, so what is being timed
+        // is geometry and not a material lookup.
+        let wood = Surface { density: 600.0, stiffness: 1.0e10, strength: 45.0e6 };
+
+        // Separated by a hair, so every query runs the whole descent rather
+        // than bailing out of a trivial rejection. A pair far apart is the
+        // cheap case and does not bound anything.
+        let pairs: Vec<(&str, Hull, Hull)> = vec![
+            ("sphere / sphere", Hull::sphere(Vec3::ZERO, 0.5), Hull::sphere(v3(1.01, 0.0, 0.0), 0.5)),
+            (
+                "capsule / capsule",
+                Hull::capsule(v3(-2.0, 0.0, 0.0), v3(2.0, 0.0, 0.0), 0.2),
+                Hull::capsule(v3(0.0, -2.0, 0.41), v3(0.0, 2.0, 0.41), 0.2),
+            ),
+            (
+                "slab / slab (16 spheres each)",
+                Hull::of_spheres((0..16).map(|i| phys::shape::Sphere::new(
+                    v3((i % 4) as f64 * 0.5, (i / 4) as f64 * 0.5, 0.0), 0.26))),
+                Hull::of_spheres((0..16).map(|i| phys::shape::Sphere::new(
+                    v3((i % 4) as f64 * 0.5, (i / 4) as f64 * 0.5, 0.53), 0.26))),
+            ),
+        ];
+        for (name, a, b) in &pairs {
+            let us = time(20_000, || {
+                std::hint::black_box(phys::shape::closest(a, b));
+            });
+            let gap = phys::shape::closest(a, b).map(|c| c.gap).unwrap_or(f64::NAN);
+            println!("  {name:<30} {us:>8.3} us   gap {gap:>9.2e} m");
+        }
+
+        // What a node actually presents: many convex pieces against one, which
+        // is `closest_of`'s N x M and the cost contact really pays.
+        for pieces in [1usize, 6, 64, 512] {
+            let many: Vec<Hull> = (0..pieces)
+                .map(|i| {
+                    let t = i as f64 * 0.37;
+                    Hull::capsule(v3(t, 0.0, 0.0), v3(t, 1.0, 0.0), 0.1)
+                })
+                .collect();
+            let one = vec![Hull::sphere(v3(0.0, 0.5, 0.19), 0.1)];
+            let us = time(2_000, || {
+                std::hint::black_box(phys::shape::closest_of(&many, &one));
+            });
+            println!("  closest_of, {pieces:>4} pieces x 1      {us:>8.3} us   {:>7.3} us/piece",
+                us / pieces as f64);
+
+            let a = Side::shaped(Vec3::ZERO, v3(0.0, 0.0, 0.0), 48_000.0, 1.0e7, wood, many.clone());
+            let b = Side::shaped(v3(0.0, 0.5, 0.19), v3(0.0, 0.0, -5.0), 10.0, 1.7e4, wood, one.clone());
+            let us = time(2_000, || {
+                std::hint::black_box(contact(&a, &b));
+            });
+            let hit = contact(&a, &b).is_some();
+            println!("  contact(),  {pieces:>4} pieces x 1      {us:>8.3} us   resolved {hit}");
+        }
+    }
+
+    }
+
+    if want("memory") {
     println!("\n## memory");
     println!("  Body           {:>4} bytes", std::mem::size_of::<Body>());
     println!("  Matter      {:>4} bytes", std::mem::size_of::<Matter>());
@@ -160,4 +247,5 @@ fn main() {
     let per_gb = 1e9 / std::mem::size_of::<Body>() as f64;
     println!("  bodies per GB  {:>4.1} M", per_gb / 1e6);
     println!("  6 GB card, 60% for bodies: {:.1} M bodies resident", 6.0 * 0.6 * per_gb / 1e6);
+    }
 }

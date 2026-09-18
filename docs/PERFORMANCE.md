@@ -103,8 +103,15 @@ analysis going from 12 ms to 23 ms before the threshold was added.
 |---|---:|
 | `Body` | 184 |
 | `Matter` | 248 |
-| `Node` | 576 |
+| `Node` | 1,136 |
 | `Snapshot` (history) | 80 |
+
+**`Node` was 576 and is 1,136**, re-measured taking Phase 2's entry baseline.
+`PLAY.md` D15 and §5A.5 both reason from 576, and the direction of the error is
+the safe one: a house of ~50 parts held as promoted nodes is 57 KB rather than
+29 KB, and a town of 500 houses is 28 MB rather than 14 MB, so D15's argument
+for one node and a recipe is twice as strong as it was written to be. The
+figures in `PLAY.md` are left as they were measured; this is the current number.
 
 5.4 M bodies per GB. On a 6 GB card with 60% given to bodies: **19.6 M bodies
 resident** — the hard ceiling on the working set, independent of time.
@@ -151,6 +158,50 @@ ask every occupant. **Affordable to about 10⁴ contents in a node**, which is t
 same ceiling the idle-frame floor has, so the two agree on where the play space
 sits. Past that a pass over every pair has to be budgeted like any other task
 rather than run unconditionally.
+
+**What the narrow phase costs** (D3, D18). The baseline `PLAY.md` §7 asks for
+before D18 changes the shape a node presents. `shape::closest` is one GJK
+descent between two convex hulls; `closest_of` is the N x M over the pieces a
+side actually has; `contact` is `closest_of` plus the whole impulse, restitution
+and friction arithmetic. Every pair below is separated by 1 cm, so the query
+runs its full descent rather than falling out of a trivial rejection:
+
+| query | µs |
+|---|---:|
+| sphere / sphere | 0.106 |
+| capsule / capsule | 0.322 |
+| 16-sphere slab / 16-sphere slab | 0.132 |
+
+| pieces on one side | `closest_of` | per piece | whole `contact` |
+|---:|---:|---:|---:|
+| 1 | 0.31 µs | 0.31 µs | 0.40 µs |
+| 6 | 1.94 µs | 0.32 µs | 2.04 µs |
+| 64 | 20.1 µs | 0.31 µs | 20.2 µs |
+| 512 | 161 µs | 0.31 µs | 162 µs |
+
+**Per piece is flat at 0.31 µs and the total is linear in the piece count**,
+which is the number D18 has to be read against: a surface of six solid slabs is
+2 µs a contact and a surface of five hundred capsules is 162 µs — a third of a
+50 ms frame for *one pair*. So "the recipe emits a surface" is also a statement
+about how many pieces a recipe may emit, and the level-of-detail clause in §7's
+item 8 is load-bearing rather than an optimisation.
+
+A sphere against a sphere is three times cheaper than a capsule against a
+capsule, and a sixteen-sphere slab costs about the same as the sphere pair
+despite holding sixteen times the geometry. **It is the iteration count that
+sets the cost, not the sphere count** — measured, on these three pairs:
+
+| pair | spheres kept by the bake | GJK iterations |
+|---|---:|---:|
+| sphere / sphere | 1 / 1 | 1 |
+| capsule / capsule, crossed | 2 / 2 | 2 |
+| 16-sphere slab / slab, face to face | 16 / 16 | 1 |
+
+The bake drops nothing in the slab case — all sixteen spheres reach the surface
+— so the support scan is sixteen times longer and the descent still terminates
+in one step, because two flat faces separate along an axis the first direction
+already found. Two crossed capsules do not: the closest feature spans both
+segments, and that takes a second simplex.
 
 **A limb cannot reach a stride by bending** (D5). Two 0.4 m green-wood segments,
 30 mm radius, hip built in, transverse load at the tip:
