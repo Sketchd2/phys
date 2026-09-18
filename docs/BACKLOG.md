@@ -694,9 +694,16 @@ dominant mechanism across a gap, so nothing is wrong for things that are merely
 near each other. Diffusion is in the same position and is wanted by Phase 3's
 water rather than by anything now.
 
+**D17 unblocks the choice, and `PLAY.md` §7 schedules it in Water.** The
+Einstein-Cahill-Pohl bound needs a number density and a sound speed, both of
+which `Matter` has; the objection was that picking it is `PHYSICS.md`-weight.
+With a mixture on every node there is also a real *phase*, so the coefficient can
+differ for solid, liquid and gas rather than being one bound stretched across all
+three — which is most of what made the single number hard to defend.
+
 **Trigger:** the first scenario where two touching things have to reach the same
 temperature — which is contact heating, cooking, or anything a hand rests on.
-Phase 3 at the latest, since a free surface exchanging with what it sits on is
+**Water** at the latest, since a free surface exchanging with what it sits on is
 the same function.
 
 ---
@@ -866,10 +873,18 @@ them chosen:
 - **Undo the scaling when the loop fails.** Narrowest of all, and it leaves the
   loop still wrong about what it is doing for 32 iterations.
 
-**Trigger:** before anything at Continuum tier is asked a question about where
-its contents are — which is D3's contact half, the beach test, and every
-structure that has to sit on a surface. The exchange pass is written and tested
-at Planetary tier for exactly this reason.
+**Now chosen, and promoted to a Phase 2 blocker.** `PLAY.md` D17 puts a
+`Mixture` on every `Matter`, which is exactly what gives every solid a real
+cohesive energy — so the "tomorrow it is everything" above is what D17 causes.
+**Option one is taken: split the field.** It was the most honest and was held
+back for touching the conserved set and the wire format, and D17 moves
+`FORMAT_VERSION` regardless, so the two ride one migration instead of two.
+
+**Trigger:** *now* — before D17, and therefore before anything else substantive
+in Phase 2. Phase 2's own done-when is a rock bouncing off a boulder, and the
+rock is this granite block. Previously: before anything at Continuum tier is
+asked a question about where its contents are, which is D3's contact half, the
+beach test, and every structure that has to sit on a surface.
 
 ---
 
@@ -1218,9 +1233,15 @@ wrong with the world that comes back; `tests/persistence.rs` passes. What it
 undermines is the *claim* that regenerable detail is free to store, which the
 design leans on in several places and `docs/PLAY.md` D10 leans on for sharding.
 
+**And now `PLAY.md` D15 leans on it too.** D15's argument for a composite being
+one node with a recipe is a storage one — a house of ~50 parts at under 1 KB
+rather than ~29 KB, a town at 500 nodes rather than 25,000 — and that argument
+assumes regenerable detail is nearly free to store. These numbers say it is not.
+Re-measuring is part of validating D15 rather than a separate errand.
+
 **Trigger:** before anything sizes a shard or a replay buffer against "coarse
 nodes are nearly free", and before the first world large enough for 14 KB of
-overhead per drilled node to matter.
+overhead per drilled node to matter. Sooner if D15's cost case is to be trusted.
 
 ---
 

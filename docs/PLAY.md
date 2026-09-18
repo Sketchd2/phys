@@ -902,6 +902,62 @@ fibre is genuinely stronger than a thick bar of the same material, because a
 small piece cannot contain a large flaw. That is real, measurable, currently
 inexpressible, and free — every member already carries a radius.
 
+#### Where `a` comes from, and why it is not eight stored numbers
+
+An earlier draft proposed calibrating `a` per material against the `rupture`
+values already tabulated. **That is rejected**, and the reason is worth keeping:
+it would have replaced a table of eight stresses with a table of eight lengths.
+A number reverse-engineered from the table it replaces is a frozen outcome that
+nothing derived, which is precisely what axiom three forbids — and worse, no
+regional event could move it.
+
+**`a` is derived from the conditions the material formed under, by a rule
+derived once per material.** That is the axiom's own second clause: a shortcut
+may hold a *rule* rather than a constant, derived once for the kind and run for
+each individual of it.
+
+The rule is classical nucleation theory, and it needs nothing new. A solid's
+flaw scale follows its **grain** scale, and grain size is set by the competition
+between how fast nuclei appear and how fast they grow while the material is
+forming:
+
+- **Nucleation rate** depends on the undercooling below the melting point and on
+  the surface energy `gamma`. `chem::analyse` already computes a melting point
+  per substance, and `gamma` is the same one Griffith needs, from cohesive
+  energy over the area per atom that `number_density` gives.
+- **Growth rate** depends on how fast material was laid down or heat was taken
+  away — a *rate*, carried by the process that formed the thing.
+
+So the stored thing per material is the rule; the value is per object, from its
+own formation conditions. **A regional event moves it**, which is the clause that
+matters: material quenched fast has fine grains, slowly cooled has coarse ones,
+and a tree that laid down a drought year's ring did so under different conditions
+from the ring above it.
+
+This is also what the old table was secretly encoding. Cast iron against forged,
+green wood against dry timber, annealed against work-hardened — those pairs are
+the *same substance* at different formation histories, and a per-species stress
+could only ever record the difference as two species.
+
+**Where the conditions come from.** For anything grown or built, the growth model
+and D9's build log already carry a deposition rate and a temperature. For matter
+that was sampled rather than made — a rock that simply exists in a scenario —
+the sampler draws formation conditions from the equilibrium the node is in, on
+the same maximum-entropy grounds it draws everything else, so nothing is
+authored and nothing is looked up.
+
+**What this deliberately does not model**, because the engine has no
+representation for it: work hardening, inclusions, and manufacturing defects.
+Dislocations both weaken a material (they start cracks) and strengthen it (they
+pin each other), and only the first is captured here. A grain is also not the
+same as the worst flaw, so this is a scale rather than a precise length.
+
+**The honest test, and it is not calibration.** The derivation must reproduce the
+*ordering* and the *order of magnitude* of the eight materials the table
+currently holds — steel above masonry above green wood — without ever being shown
+their `rupture` values. Reproducing the numbers exactly would mean it had been
+fitted to them. `rupture` is then deleted rather than kept as a reference.
+
 ---
 
 ### D15 — Joining and breaking are one scale transform on structure
@@ -1074,6 +1130,28 @@ accumulated, rather than adding one.
 **Flag:** `MIXTURE_SLOTS` is 8, and the backlog entry saying the play space needs
 more becomes load-bearing the moment every node has one.
 
+**D17 cannot ship before `binding_energy` is split, and it is D17 that makes
+that urgent.** The sampler inflates anything whose
+`internal_energy + binding_energy` is negative by up to `1.5^32 = 4.3x10^5`,
+because its relaxation loop expands a configuration to release binding that only
+*gravity* releases. Measured: a granite block's contents sample 4.396x10^5 radii
+outside the node they are inside, against 3.1 for a spiral galaxy. The backlog
+entry says the blast radius today is three scenarios and that "tomorrow it is
+everything… every solid and every liquid with a real cohesive energy" — and D17
+is what makes tomorrow arrive, because giving every node a mixture is exactly
+what gives every solid a real cohesive energy.
+
+Of that entry's three options, take the one it calls most honest: **split
+`binding_energy` into a gravitational term and a non-gravitational one**, so the
+loop can tell which part expansion actually releases. It was rejected before for
+touching the conserved set and the wire format — and D17 moves `FORMAT_VERSION`
+anyway, so doing both in one migration costs one and not two. The cheaper option,
+checking `phi` before relaxing, leaves the loop still wrong about what it is
+doing for thirty-two iterations.
+
+Phase 2's own done-when depends on this: the rock that bounces off a boulder is
+the granite block.
+
 ---
 
 ### D18 — A surface is a union of solid convex primitives
@@ -1133,6 +1211,47 @@ both boxes.
 an analytic solid, in Phase 4. It is deliberately a kind within one vocabulary
 and not a parallel system, because the alternative is the N-squared narrow phase
 `BACKLOG.md` warned about.
+
+---
+
+### D19 — A change is an edit to the recipe, not a pile of stored bodies
+
+**Decided: a node whose change its recipe can express collapses to recipe plus
+edits. Only a change the recipe cannot express falls back to stored bodies.**
+
+D15 says a composite is one node with a recipe and that a part collapses back
+into the recipe once it stops being disturbed. The storage path contradicts it.
+`pin` marks a node as holding detail nothing can regenerate, and `coarsen` on a
+pinned node **persists its raw body list**. So a box that lost a wall becomes a
+stored body list rather than a recipe describing five walls and a break, and
+Phase 2's done-when — "returns to ~100 bytes when nobody is watching" — cannot be
+met.
+
+**The representation already exists and is already argued.** §5.7 decided that an
+edit list and a field delta are the fine and coarse ends of one scale transform,
+`summarise` and `sample` applied to deviations. It was scheduled in **Making**,
+because that is where damage accumulates. **Its structure end moves to Phase 2**,
+because D15 cannot work without it; its field end — a hundred bullet holes
+summarising into pocking — stays in Making, where it belongs.
+
+**Pinning stops being a boolean.** Today it means one thing and is used for two:
+
+| the change | today | under D19 |
+|---|---|---|
+| the recipe can express it | pinned, raw bodies stored | **recipe + edit**, still collapsible |
+| the recipe cannot | pinned, raw bodies stored | pinned, unchanged |
+
+And the ancestry walk marks ancestors as *containing an edit* rather than
+*holding non-derivable detail*, which is both true and materially different:
+`pin` is one-way and walks to the root, and the scheduler refuses to coarsen a
+pinned node at all, so **felling one tree currently makes a whole planet
+permanently un-coarsenable**. An ancestor that merely contains an edit can still
+collapse, because its recipe plus its descendants' edits is all it needs.
+
+**What this does not change.** A change that genuinely cannot be described — a
+node shattered into fragments whose arrangement no recipe generates — still pins
+and still stores bodies. That path is correct and stays. D19 narrows when it is
+reached, rather than removing it.
 
 ---
 
@@ -2463,29 +2582,54 @@ five tests and a suite of 349 passing.
 ---
 
 **Phase 2 — Things.** *A thing has a shape and is made of something, and neither
-answer depends on how it was made.* D13, D14, D15, D17, D18.
+answer depends on how it was made.* D13, D14, D15, D17, D18, D19.
+
+**Entry criterion, before any of it:** a measured narrow-phase row in
+`PERFORMANCE.md`, which has no row for contact at all. The narrow phase has
+already changed once from subtracting two radii to a GJK over small point sets,
+and D18 changes it again; a baseline taken afterwards is not a baseline.
 
 1. **The two rigid-body defects** of §2A: `spin_rate` re-derived from
    `matter.spin` after a solve rather than only at birth, and shape composed
    with `motion.orientation`. Cheap, and the rigid-body story is untrue until
    they are done.
-2. **`Mixture` onto `Matter`** (D17), carried by `sample` and `summarise`. This
-   comes first of the substantive items because D13's material and D14's
+2. **Split `binding_energy`** into gravitational and non-gravitational, before
+   D17 and not after. The sampler's relaxation loop inflates anything bound by
+   chemistry by up to 4.3x10^5 — measured, a granite block's contents land at
+   4.396x10^5 radii — and D17 is what turns that from three scenarios into every
+   solid in the world. Rides the same format change.
+3. **`Mixture` onto `Matter`** (D17), carried by `sample` and `summarise`. This
+   comes first of the representational items because D13's material and D14's
    cohesive energy both stand on it, and because **solidity falls out of it** —
    phase against melting point, read rather than invented. `FORMAT_VERSION`
-   moves; the `mixtures` side table goes away.
-3. **Material measured**, per surface primitive rather than per node — D11's
+   moves; the `mixtures` side table goes away; `MIXTURE_SLOTS` is sized, because
+   eight substances stops being an opt-in the moment every node has a mixture.
+4. **Material measured**, per surface primitive rather than per node — D11's
    material columns, pulled forward from Ground because a rock needs a material
-   as much as a wall does — with strength by D14's Griffith law.
-4. **The recipe emits a surface** (D18): a union of **solid** convex primitives,
+   as much as a wall does — with strength by D14's Griffith law, whose flaw scale
+   is *derived from formation conditions* and never tabulated. `rupture` is
+   deleted rather than kept as a reference, and the test is that the ordering of
+   the eight materials survives without their old values ever being shown to it.
+5. **The recipe emits a surface** (D18): a union of **solid** convex primitives,
    never a shell, derived once and *stored*, invalidated on `epoch`. Not a
    post-processing pass over a member list. GJK is the narrow phase and is
    already built.
-5. **Joining and breaking as one transform** (D15): a composite is one node with
+6. **Joining and breaking as one transform** (D15): a composite is one node with
    a recipe, a part is promoted only when it **detaches**, and it collapses back
    into the recipe afterwards. Substructuring stays in Bodies.
-6. **Collision runs against the surface**, at the level of detail the distance
+7. **A change is an edit** (D19): §5.7's structure end, pulled forward from
+   Making, and pinning split into recipe-expressible and not. Without it the
+   struck box persists a body list and the done-when's "~100 bytes" is
+   unreachable.
+8. **Collision runs against the surface**, at the level of detail the distance
    deserves.
+9. **An equation of state applied outside its validity says so**, in `Stats`,
+   following §3.7's precedent that a node crossed by its ensemble reports it
+   rather than doing it quietly. A `Continuum` node whose bodies are all stand-ins
+   for promoted children is priced as a hot dense gas and detonates — measured at
+   roughly x3 per frame with zero collisions, against a control of exactly
+   5.3572 m/s with the root not advanced. Phase 2 makes it visible; **Water**
+   fixes it with a real liquid and solid equation of state.
 
 *Done when:* **a wooden box is one node** whose recipe describes six walls of
 stated materials. Struck, it responds as one box. Struck hard enough, one wall
@@ -2528,6 +2672,14 @@ order: a free surface; a liquid equation of state, so `pressure()` stops
 returning 4x10^8 Pa for a bucket of water; weakly-compressible SPH; boundary
 conditions against arbitrary geometry — **much cheaper now that geometry
 exists**; and multi-resolution transport.
+
+**Thermal conductivity lands here too.** D3 names the law and supplies no
+coefficient, and its trigger — two touching things reaching the same temperature
+— is this phase's free surface. D17 unblocks the choice: the
+Einstein-Cahill-Pohl minimum conductivity needs a number density and a sound
+speed, which `Matter` already has, and with a mixture on every node the
+coefficient can differ by *phase* rather than being one guess across solid,
+liquid and gas.
 
 *Done when:* **the beach test passes.**
 

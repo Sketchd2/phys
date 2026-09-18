@@ -239,7 +239,8 @@ nodes barely at all; that is what Phase 1 closed.
 
 **Read `PLAY.md` §2A before anything else.** It records Issue 1 — *the engine has
 no representation for the shape of a solid, at any scale* — and D13 to D18
-follow from it. Two rules from those are worth knowing before reading any of it:
+follow from it, with D19 on how a change is stored. Two rules from those are
+worth knowing before reading any of it:
 **a surface primitive is always a filled solid, never hollow** (a box is six
 slabs, and a hull over the whole box would enclose its own cavity), and **a
 node's mixture is part of its matter**, which is what lets any node say what it
@@ -248,7 +249,12 @@ numbering below the insertion has moved: **Things**, **Crossings**, then Ground,
 Water, Bodies, Minds, Making, Sessions. Nothing below Ground changed relative to
 anything else.
 
-**Phase 2 is Things** and nothing in it has started. Its done-when is a wooden
+**Phase 2 is Things** and nothing in it has started. Two items in it are
+*corrections* rather than additions, and the phase cannot meet its own done-when
+without them: `binding_energy` splits before D17, because D17 is what turns the
+sampler's 4.3x10^5 inflation from three scenarios into every solid; and D19
+pulls §5.7's edit list forward from Making, because otherwise a struck box
+persists a body list instead of collapsing to a recipe. Its done-when is a wooden
 box that is *one node* with a recipe describing six walls, which responds as one
 box, loses a single wall to a hard enough strike, and returns to ~100 bytes when
 nobody is watching — plus a rock that no `Program` made bouncing off a boulder.
