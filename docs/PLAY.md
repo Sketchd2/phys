@@ -1031,6 +1031,16 @@ code", and its fix is D5's substructuring, which stays in **Bodies**. Writing th
 constraint down here is cheap; discovering it in Phase 2 with a door half
 promoted is not.
 
+**And D15 governs *ordered* contents only, which is worth saying because the
+mistake is a natural one.** Pouring water out of a cup looks like a piece of a
+thing leaving it, and it is not this mechanism. A part under D15 is something
+the recipe describes, held by a join, which **detaches** as a piece; water has no
+parts to detach and leaves by flowing. The line is §3.3's own, already drawn and
+already load-bearing: ordered contents are D15's, disordered ones are transport's
+— Phase 5's multi-resolution transport, where mass crossing a scale boundary is
+`sample` and `summarise` doing what they already do. Nobody should promote a
+splash.
+
 **Deliberately unresolved.** Things attached but independently meaningful — a
 crate roped to a cart, an axle, a hinge between two separately owned objects —
 may need a runtime relationship rather than absorption. Where the line falls
