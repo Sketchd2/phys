@@ -271,3 +271,76 @@ fn mass_properties_refuse_a_list_that_does_not_match() {
     assert!(h.mass_properties(&[1.0]).is_none(), "two spheres, one mass");
     assert!(h.mass_properties(&[0.0, 0.0]).is_none(), "no mass at all");
 }
+
+/// Out of reach, the query answers from the bounds and says less than it knows.
+///
+/// `PLAY.md` §7 item 8. `closest_of` skips any piece that cannot be the nearest
+/// pair, which is exact — a hull's bound contains it — and when *nothing* can
+/// touch it answers from the two bounding spheres without descending at all.
+///
+/// The gap it then returns is a **lower bound** on the true separation rather
+/// than the separation itself, which is worth pinning: every caller in the
+/// engine uses it to decide whether a pair is in contact, and a lower bound is
+/// sound for that. A caller that wanted the true distance between two far-apart
+/// structures would need the descent, and would have to ask for it.
+#[test]
+fn pieces_out_of_reach_are_not_tested_and_the_gap_is_a_lower_bound() {
+    use phys::math::v3;
+    use phys::shape::{closest, closest_of, Hull};
+
+    // A long capsule and a small sphere well off the end of it. The capsule's
+    // bounding sphere is much fatter than the capsule, so the two answers
+    // differ by a knowable amount.
+    let capsule = Hull::capsule(v3(-5.0, 0.0, 0.0), v3(5.0, 0.0, 0.0), 0.1);
+    let ball = Hull::sphere(v3(0.0, 40.0, 0.0), 0.5);
+
+    let exact = closest(&capsule, &ball).expect("two non-empty hulls");
+    let bounded = closest_of(std::slice::from_ref(&capsule), std::slice::from_ref(&ball))
+        .expect("two non-empty sides");
+    println!(
+        "  capsule to ball: exact gap {:.4} m, from the bounds {:.4} m",
+        exact.gap, bounded.gap
+    );
+    assert!(exact.gap > 0.0, "they are not touching, or this measures nothing");
+    assert!(
+        bounded.gap > 0.0,
+        "a lower bound on a positive gap must still be positive, or contact \
+         would be reported where there is none"
+    );
+    assert!(
+        bounded.gap <= exact.gap + 1e-9,
+        "the bound must not over-state the separation: {} against {}",
+        bounded.gap,
+        exact.gap
+    );
+
+    // And within reach it is the exact answer again, piece by piece.
+    let near = Hull::sphere(v3(0.0, 0.7, 0.0), 0.5);
+    let exact = closest(&capsule, &near).expect("two non-empty hulls");
+    let through = closest_of(std::slice::from_ref(&capsule), std::slice::from_ref(&near))
+        .expect("two non-empty sides");
+    assert!(
+        (through.gap - exact.gap).abs() < 1e-12,
+        "within reach the answer must be the descent's: {} against {}",
+        through.gap,
+        exact.gap
+    );
+
+    // Many pieces, one of which is the answer: the rest are skipped and the
+    // answer is unchanged.
+    let many: Vec<Hull> = (0..64)
+        .map(|i| Hull::capsule(v3(i as f64 * 3.0, 0.0, 0.0), v3(i as f64 * 3.0, 1.0, 0.0), 0.1))
+        .collect();
+    let one = [Hull::sphere(v3(0.0, 0.5, 0.8), 0.2)];
+    let best = closest_of(&many, &one).expect("non-empty");
+    let brute = many
+        .iter()
+        .filter_map(|h| closest(h, &one[0]))
+        .map(|c| c.gap)
+        .fold(f64::MAX, f64::min);
+    println!("  64 pieces: skipping gave {:.6} m, testing all gave {:.6} m", best.gap, brute);
+    assert!(
+        (best.gap - brute).abs() < 1e-12,
+        "skipping a piece that cannot win must not change the answer"
+    );
+}

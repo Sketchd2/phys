@@ -700,7 +700,23 @@ pub struct Side {
     pub radius: f64,
     /// J/K, for the heat the contact makes. See `state::Matter::heat_capacity`.
     pub heat_capacity: f64,
+    /// What the side is made of where nothing finer is known, and the fallback
+    /// when `per_piece` is empty.
     pub resilience: Resilience,
+    /// What each piece is made of, parallel to `shape`, or empty.
+    ///
+    /// `docs/PLAY.md` D18 puts the material on the *primitive*: "a house is
+    /// stone walls, an oak door and glass panes, and contact reads the material
+    /// of the piece it actually struck." D13 says the same thing from the other
+    /// side — the material at the point of impact is also what damage and the
+    /// renderer need.
+    ///
+    /// Empty for a side that is one substance throughout, which is every side
+    /// the engine builds today: a node's mixture describes the whole node, so
+    /// every piece it bakes carries the same material. It stops being empty the
+    /// moment a recipe emits pieces of two materials, and the narrow phase
+    /// already returns which piece won.
+    pub per_piece: Vec<Resilience>,
     /// What this side actually *is*, geometrically, as one or more convex
     /// pieces. A lone body presents one sphere and gets exactly the arithmetic
     /// it always got; a structure presents a capsule per member and stops being
@@ -725,6 +741,7 @@ impl Side {
             radius,
             heat_capacity,
             resilience,
+            per_piece: Vec::new(),
             shape: vec![crate::shape::Hull::sphere(pos, radius)],
         }
     }
@@ -745,7 +762,7 @@ impl Side {
             .iter()
             .map(|h| (h.centre() - pos).norm() + h.bound())
             .fold(0.0f64, f64::max);
-        Side { pos, velocity, mass, radius, heat_capacity, resilience, shape }
+        Side { pos, velocity, mass, radius, heat_capacity, resilience, per_piece: Vec::new(), shape }
     }
 }
 
@@ -804,7 +821,9 @@ pub fn contact(a: &Side, b: &Side) -> Option<Collision> {
     // line of centres and the arithmetic below is unchanged; for anything else
     // it is the difference between hitting a wall and hitting whichever of its
     // panels happened to be nearest.
-    let Some(near) = crate::shape::closest_of(&a.shape, &b.shape) else { return None };
+    let Some((near, ia, ib)) = crate::shape::nearest_of(&a.shape, &b.shape) else {
+        return None;
+    };
     // The broad phase screens on bounding radii, which for a hull is a sphere
     // around the whole thing. Two walls whose bounds overlap and whose surfaces
     // do not are not in contact, and only the narrow phase knows.
@@ -813,6 +832,16 @@ pub fn contact(a: &Side, b: &Side) -> Option<Collision> {
     }
     let n = near.normal;
     if !n.is_finite() {
+        return None;
+    }
+    // **The material of the piece that was actually struck.** D18 puts a
+    // material on each primitive, and a house is stone walls, an oak door and
+    // glass panes: a ball that hits the door should bounce off oak. Falls back
+    // to the side's own where a side is one substance throughout, which is
+    // every side the engine builds today.
+    let ra = a.per_piece.get(ia).copied().unwrap_or(a.resilience);
+    let rb = b.per_piece.get(ib).copied().unwrap_or(b.resilience);
+    if !ra.is_usable() || !rb.is_usable() {
         return None;
     }
     // One point, used by both sides. The midpoint of the two witness points is
@@ -832,7 +861,7 @@ pub fn contact(a: &Side, b: &Side) -> Option<Collision> {
         return None;
     }
     let reduced = 1.0 / (1.0 / a.mass + 1.0 / b.mass);
-    let e = restitution(&a.resilience, &b.resilience, closing);
+    let e = restitution(&ra, &rb, closing);
     let jn = -(1.0 + e) * closing * reduced;
     if !jn.is_finite() || jn <= 0.0 {
         return None;
@@ -844,7 +873,7 @@ pub fn contact(a: &Side, b: &Side) -> Option<Collision> {
     let slide = tangent_v.norm();
     let (friction_impulse, jt) = if slide > 0.0 {
         let t = tangent_v.scale(1.0 / slide);
-        let mu = friction(&a.resilience, &b.resilience);
+        let mu = friction(&ra, &rb);
         let jt = (slide * reduced).min(mu * jn);
         (t.scale(-jt), jt)
     } else {

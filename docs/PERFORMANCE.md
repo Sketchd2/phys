@@ -192,12 +192,40 @@ runs its full descent rather than falling out of a trivial rejection:
 | 64 | 20.1 µs | 0.31 µs | 20.2 µs |
 | 512 | 161 µs | 0.31 µs | 162 µs |
 
-**Per piece is flat at 0.31 µs and the total is linear in the piece count**,
-which is the number D18 has to be read against: a surface of six solid slabs is
-2 µs a contact and a surface of five hundred capsules is 162 µs — a third of a
-50 ms frame for *one pair*. So "the recipe emits a surface" is also a statement
-about how many pieces a recipe may emit, and the level-of-detail clause in §7's
-item 8 is load-bearing rather than an optimisation.
+**Per piece was flat at 0.31 µs and the total linear in the piece count**, which
+is the number D18 had to be read against: a surface of six solid slabs was 2 µs
+a contact and a surface of five hundred capsules was 162 µs — a third of a 50 ms
+frame for *one pair*. So "the recipe emits a surface" was also a statement about
+how many pieces a recipe may emit, and the level-of-detail clause in §7's item 8
+was load-bearing rather than an optimisation.
+
+### After item 8: the level of detail the distance deserves
+
+A hull's `bound` contains it, so a piece further from the other side's bounding
+sphere than the two bounds together **cannot** be the nearest pair. Skipping it
+changes no answer, which is what makes this a level of detail rather than an
+approximation. Re-measured on a slower moment of the same container — the
+sphere-against-sphere row moved from 0.106 µs to 0.174, so the machine is about
+1.6× down and the comparison is between columns rather than against the table
+above:
+
+| pieces on one side | touching | out of reach | reaching a few |
+|---:|---:|---:|---:|
+| 1 | 0.56 µs | 0.03 µs | 0.56 µs |
+| 6 | 1.20 µs | 0.09 µs | 1.89 µs |
+| 64 | 1.63 µs | 0.40 µs | 2.21 µs |
+| 512 | 5.15 µs | 2.99 µs | 6.32 µs |
+
+**512 pieces went from 161 µs to 5.15 µs**, about fifty times once the machine
+is accounted for, and per piece is no longer flat: it falls from 0.56 µs at one
+piece to 0.010 at five hundred, because the count of pieces actually *tested*
+stops growing. A generated tree of 3,400 members touching one thing is no longer
+a fiftieth of a frame.
+
+What is left is O(n) rather than O(1) — the bounding sphere over a side is
+recomputed per query, which is the 2.99 µs in the middle column — and it could
+be cached on the surface alongside the pieces. Not done, because nothing
+measured yet needs it.
 
 A sphere against a sphere is three times cheaper than a capsule against a
 capsule, and a sixteen-sphere slab costs about the same as the sphere pair

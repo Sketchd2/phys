@@ -2388,21 +2388,30 @@ impl World {
                     // `Motion::body_to_parent` uses for a body-fixed point.
                     // Translating alone left a spinning box's walls in the axes
                     // they were built in.
-                    let shape: Vec<crate::shape::Hull> = match &n.surface {
-                        Some(s) if !s.is_empty() => s.placed(n.motion.orientation, pos),
+                    let baked = match &n.surface {
+                        Some(s) if !s.is_empty() => s,
                         // A node that presents no surface is not collidable,
                         // which is D13's own line for a liquid or a gas.
                         _ => return None,
                     };
+                    let shape = baked.placed(n.motion.orientation, pos);
                     let _ = radius;
-                    Side::shaped(
+                    let mut side = Side::shaped(
                         pos,
                         n.motion.velocity,
                         n.matter.mass,
                         n.matter.heat_capacity(),
                         w.surface_of(c)?,
                         shape,
-                    )
+                    );
+                    // D18 puts the material on the piece, so the contact reads
+                    // the one it struck rather than an average of the house.
+                    side.per_piece = baked
+                        .pieces()
+                        .iter()
+                        .map(|p| crate::neighbourhood::Resilience::of(&p.material))
+                        .collect();
+                    side
                 }
             };
             Some((occ, side))

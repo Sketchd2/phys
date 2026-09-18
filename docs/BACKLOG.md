@@ -603,7 +603,7 @@ latest.
 
 ---
 
-## The narrow phase runs against every piece a recipe emits
+## ~~The narrow phase runs against every piece a recipe emits~~ — done
 
 **Noticed:** taking Phase 2's entry baseline, and again wiring D18's stored
 surface into contact.
@@ -641,6 +641,40 @@ surfaces over a twenty-five-frame run of `frames_stay_within_budget`, because
 
 **Trigger:** the first scene where a tree or a settlement is close enough to be
 collided with. `PLAY.md` §7 item 8.
+
+**Done**, and the saving is **exact rather than approximate**, which is what
+makes it a level of detail rather than a fudge: a hull's `bound` contains it, so
+a piece further from the other side's bounding sphere than the two bounds
+together cannot be the nearest pair, and skipping it changes no answer.
+
+Re-measured on a slower moment of the same container — the sphere-against-sphere
+row moved from 0.106 µs to 0.174, so the comparison is between columns:
+
+```text
+  pieces on one side   touching   out of reach   reaching a few
+                   1    0.56 us        0.03 us          0.56 us
+                   6    1.20 us        0.09 us          1.89 us
+                  64    1.63 us        0.40 us          2.21 us
+                 512    5.15 us        2.99 us          6.32 us
+```
+
+**512 pieces went from 161 µs to 5.15 µs**, about fifty times once the machine
+is accounted for, and per piece is no longer flat — it falls from 0.56 µs at one
+piece to 0.010 at five hundred, because the count actually *tested* stops
+growing.
+
+`pieces_out_of_reach_are_not_tested_and_the_gap_is_a_lower_bound` in
+`tests/shape.rs` pins the one semantic change: when nothing can touch, the query
+answers from the bounds and returns a gap that is a **lower bound** on the true
+separation rather than the separation itself. Measured, a capsule against a ball
+40 m off its end: 34.4 m from the bounds against an exact 39.4. Every caller in
+the engine uses it to decide whether a pair is in contact, and a lower bound is
+sound for that; one that wanted the true distance would have to ask for the
+descent.
+
+**What is left is O(n) rather than O(1):** the bounding sphere over a side is
+recomputed per query, which is the 2.99 µs in the middle column, and it could be
+cached on the surface alongside the pieces. Nothing measured needs it yet.
 
 ---
 

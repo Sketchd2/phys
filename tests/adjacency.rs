@@ -1722,3 +1722,93 @@ fn a_turned_plank_is_struck_where_its_wall_now_is() {
         "the ball was not slowed by the plank it struck"
     );
 }
+
+/// A contact reads the material of the piece it struck, not an average.
+///
+/// `docs/PLAY.md` D18: "Material attaches per primitive, which is D13's
+/// multi-material requirement satisfied directly: a house is stone walls, an
+/// oak door and glass panes, and contact reads the material of the piece it
+/// actually struck."
+///
+/// Two pieces side by side, one masonry and one aragonite — a clean factor of
+/// six in strength, both brittle, so nothing else differs. The same ball at the
+/// same speed hits each, and what comes back is different.
+#[test]
+fn a_contact_reads_the_material_of_the_piece_it_hit() {
+    use phys::material::Material;
+    use phys::math::Vec3;
+    use phys::neighbourhood::{contact, Resilience, Side};
+    use phys::shape::Hull;
+
+    let masonry = Resilience::of(&Material::masonry());
+    let coral = Resilience::of(&Material::aragonite());
+    // A wall of two panels: masonry on the left, a coral skeleton on the right.
+    let wall = vec![
+        Hull::sphere(v3(-1.0, 0.0, 0.0), 0.5),
+        Hull::sphere(v3(1.0, 0.0, 0.0), 0.5),
+    ];
+    let side = |at: f64| {
+        let mut s = Side::shaped(
+            Vec3::ZERO,
+            Vec3::ZERO,
+            10_000.0,
+            1.0e6,
+            masonry,
+            wall.clone(),
+        );
+        s.per_piece = vec![masonry, coral];
+        let ball = Side::sphere(
+            v3(at, 0.6, 0.0),
+            v3(0.0, -5.0, 0.0),
+            1.0,
+            0.2,
+            1.0e3,
+            coral,
+        );
+        (s, ball)
+    };
+
+    let (w1, b1) = side(-1.0);
+    let (w2, b2) = side(1.0);
+    let left = contact(&w1, &b1).expect("the ball reaches the masonry panel");
+    let right = contact(&w2, &b2).expect("the ball reaches the coral panel");
+    // The impulse is `(1 + e) * closing * reduced mass`, so what the material
+    // changes is the `(1 + e)`. At 5 m/s both of these brittle surfaces are
+    // well past yield and return a few per cent, so the difference is a few per
+    // cent — and it is the *right* few per cent, which is what is asserted:
+    // the ratio of the two impulses is the ratio of their `(1 + e)`, computed
+    // here from the surfaces directly.
+    let e_masonry = restitution(&masonry, &coral, -5.0);
+    let e_coral = restitution(&coral, &coral, -5.0);
+    let want = (1.0 + e_coral) / (1.0 + e_masonry);
+    let got = right.normal.norm() / left.normal.norm();
+    println!(
+        "  the same ball at the same speed: masonry returned {:.4} N s (e {:.4}), \
+         coral {:.4} N s (e {:.4}); ratio {got:.6} against {want:.6}",
+        left.normal.norm(),
+        e_masonry,
+        right.normal.norm(),
+        e_coral
+    );
+    assert!(e_coral > e_masonry, "the stronger surface has to be the springier one");
+    assert!(
+        right.normal.norm() > left.normal.norm(),
+        "the stronger panel should return more of the same impact"
+    );
+    assert!(
+        (got - want).abs() < 1e-9,
+        "the difference has to be the restitution of the piece that was struck, \
+         and came out {got} against {want}"
+    );
+
+    // And with the per-piece list absent it falls back to the side's own, which
+    // is what every side the engine builds today does.
+    let mut plain = w1.clone();
+    plain.per_piece.clear();
+    let fallback = contact(&plain, &b1).expect("still a contact");
+    assert_eq!(
+        fallback.normal.norm(),
+        left.normal.norm(),
+        "the masonry panel and the masonry fallback must agree"
+    );
+}

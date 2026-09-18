@@ -233,6 +233,24 @@ fn main() {
             });
             let hit = contact(&a, &b).is_some();
             println!("  contact(),  {pieces:>4} pieces x 1      {us:>8.3} us   resolved {hit}");
+
+            // The same pair, far enough apart that nothing can touch. This is
+            // the level of detail the distance deserves: a hull's bound
+            // contains it, so a piece out of reach cannot be the nearest pair
+            // and skipping it changes no answer.
+            let away = vec![Hull::sphere(v3(0.0, 400.0, 0.0), 0.1)];
+            let us = time(20_000, || {
+                std::hint::black_box(phys::shape::closest_of(&many, &away));
+            });
+            println!("  closest_of, {pieces:>4} pieces x 1 far  {us:>8.3} us");
+
+            // And close, but reaching only a few of them: a ball resting
+            // against one capsule of many.
+            let near = vec![Hull::sphere(v3(0.185, 0.5, 0.19), 0.1)];
+            let us = time(2_000, || {
+                std::hint::black_box(phys::shape::closest_of(&many, &near));
+            });
+            println!("  closest_of, {pieces:>4} pieces x 1 near {us:>8.3} us");
         }
     }
 
