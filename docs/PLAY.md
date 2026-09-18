@@ -835,9 +835,24 @@ discriminator is a reading rather than a law still to be written. **D18
 specifies what a surface is**: a union of solid convex primitives, emitted by
 whatever generated the thing. That is the same move §3.3 made for dispatch, and
 the disagreement between the two layers is what made a wooden ball uncollidable
-while a wooden wall was not. A cloud of gas still has no boundary, because it
-measures as not holding together, which is the honest answer rather than a
-special case for unstructured matter.
+while a wooden wall was not.
+
+**This is a decision about solids, and only about solids.** A boundary can be
+derived once and stored because a solid's shape is a property *of the solid*. A
+liquid's surface is not: it is a property of its container and the field it is
+in, so tilting a cup changes the water's surface while changing nothing about
+the water — same mass, same temperature, same mixture. It cannot be derived once
+and kept; it has to be solved whenever anything moves.
+
+So a liquid's interface is **Water's**, and a different mechanism — §7's Phase 5
+opens with it, "a free surface, so a node holds an interface and not only phase
+fractions". D13 does not cover it and must not be read as though it does. The
+worked case is a cup of water: the ceramic has a boundary under D13, the water
+in it has phase fractions and no geometry at all until Phase 5, and the cavity
+is simply where no primitive is.
+
+A cloud of gas has no boundary for the same reason it has no shape, which is the
+honest answer rather than a special case for unstructured matter.
 
 **The surface carries material per region, not per node.** `Topology` holds one
 material for a whole structure, and a house is stone walls, a wooden door and
@@ -1182,6 +1197,22 @@ thing that knows the shape states it.
 **Material attaches per primitive**, which is D13's multi-material requirement
 satisfied directly: a house is stone walls, an oak door and glass panes, and
 contact reads the material of the piece it actually struck.
+
+**And it must reconcile with the node's mixture, which is an invariant rather
+than a convention.** D17 puts a mixture on `Matter` — what the node is made of
+in bulk — and D18 puts a material on each surface primitive. Nothing in either
+decision alone stops those disagreeing, and a node whose mixture is all water by
+mass while its primitives present steel would be *telling* a contact something
+its own bulk contradicts. That is the second axiom failing by way of having two
+answers to one question, which is exactly the shape §2A found in `surface_of`.
+
+So: **a node's surface materials are a partition of its solid pools.** A cup
+that is 60% ceramic may present ceramic surfaces and may not present steel ones,
+and the mass carried by its ceramic primitives reconciles against its ceramic
+pool. This wants asserting rather than documenting — it is a conservation
+statement about material, in the same family as `summarise(sample(m)) == m`, and
+it is cheap to check at bake time and unpleasant to retrofit once both
+representations exist and have drifted.
 
 **The narrow phase is already built.** Convex against convex is GJK, which
 landed with the interim shape work and is tested against distances that can be
@@ -2613,7 +2644,9 @@ and D18 changes it again; a baseline taken afterwards is not a baseline.
 5. **The recipe emits a surface** (D18): a union of **solid** convex primitives,
    never a shell, derived once and *stored*, invalidated on `epoch`. Not a
    post-processing pass over a member list. GJK is the narrow phase and is
-   already built.
+   already built. The surface materials must **partition the node's solid
+   pools**, asserted rather than assumed — two answers to "what is it made of"
+   that nothing reconciles is how the bulk and the surface drift apart.
 6. **Joining and breaking as one transform** (D15): a composite is one node with
    a recipe, a part is promoted only when it **detaches**, and it collapses back
    into the recipe afterwards. Substructuring stays in Bodies.
