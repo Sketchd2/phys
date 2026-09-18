@@ -198,13 +198,22 @@ fn identities_are_issued_once_and_never_reused() {
     assert!(w.next_entity > other.0, "the counter moves past what it issued");
 }
 
-/// The side tables stay where they are.
+/// The side tables stay where they are, and what a node is made of moves with
+/// the node.
 ///
-/// `World::reparent` used to hold the only enumeration of them, so adding a
-/// table meant remembering to add a line there. Now only the address-to-identity
+/// `World::reparent` used to hold the only enumeration of the tables, so adding
+/// one meant remembering to add a line there. Now only the address-to-identity
 /// index moves, and this asserts the tables themselves are untouched — which is
 /// what makes a *new* side table safe by default rather than safe if somebody
 /// remembered.
+///
+/// **Speciation is no longer one of them.** `docs/PLAY.md` D17 puts the
+/// `Mixture` on the node's own `Matter`, so it needs no protection from a move
+/// at all: what a thing is made of travels with the thing, which is what the
+/// side table was contriving to imitate by keying on a name. This test used to
+/// read the table directly and assert the entry had not moved; it now asserts
+/// the stronger thing, that the answer to "what is this made of" is unchanged
+/// across a move that rekeys the node.
 #[test]
 fn a_move_does_not_touch_the_tables_keyed_by_identity() {
     use phys::chem::{Arrangement, Bond, Element, Lattice, Mixture, Order, Phase};
@@ -224,18 +233,31 @@ fn a_move_does_not_touch_the_tables_keyed_by_identity() {
     mix.add(salt, Phase::Solid, 0.25);
     w.set_mixture(a, mix);
 
-    let id = w.identity(a).expect("chemistry named the node");
-    let before = w.mixtures.get(&id).copied().expect("precondition");
+    // An environment *is* still keyed by identity, so it is what holds the
+    // original claim up now that chemistry does not.
+    let id = w.identify(a);
+    w.environments
+        .insert(id, phys::morph::Environment { light_flux: 340.0, ..Default::default() });
+    let key_before = w.tree.nodes[a.get()].key;
+    let before = w.mixture_of(a).fraction_of(salt);
+    assert!(before > 0.0, "precondition: the node is a quarter salt");
 
     assert!(w.reparent(a, b));
 
-    let after = w.mixtures.get(&id).copied();
-    assert_eq!(
-        after.map(|m| m.fraction_of(salt)),
-        Some(before.fraction_of(salt)),
-        "the entry should not have moved at all — it is keyed by a name, and the name did not change"
+    assert_ne!(
+        w.tree.nodes[a.get()].key, key_before,
+        "a move rekeys the node, or this test is measuring nothing"
     );
-    assert_eq!(w.identity(a), Some(id), "and the node still answers to it");
+    assert_eq!(
+        w.mixture_of(a).fraction_of(salt),
+        before,
+        "what a node is made of is part of its matter and a move cannot touch it"
+    );
+    assert_eq!(w.identity(a), Some(id), "and the node still answers to its name");
+    assert!(
+        w.environments.contains_key(&id),
+        "the environment table is keyed by that name and should not have moved"
+    );
 }
 
 /// Naming a node is deterministic, because only *events* name one.

@@ -523,6 +523,48 @@ pub struct Matter {
     pub magnetic_energy: f64,
     /// Bolometric luminosity, W — what the node emits, for observation.
     pub luminosity: f64,
+    /// What this matter is made of, by substance. `docs/PLAY.md` D17.
+    ///
+    /// # Why this is state and not a lookup
+    ///
+    /// It lived in a side table keyed by `EntityId`, for the handful of nodes
+    /// somebody had described. That made "what is this made of" unanswerable
+    /// for almost every node in the world, and D13's measured solidity and
+    /// D14's cohesive energy both need an answer.
+    ///
+    /// There is no derivation available. `Registry::intern` takes an
+    /// `Arrangement` — actual atoms and bonds — and `chem::analyse` works only
+    /// from one; a `Composition` is eight mass fractions of coarse element
+    /// buckets, and **there is no path between them**: wood and coal have
+    /// nearly the same composition, and no amount of carbon-hydrogen-oxygen
+    /// arithmetic yields "oak". Mineralogy from bulk composition is non-unique
+    /// in the same way — the same composition is basalt or granite depending on
+    /// cooling history.
+    ///
+    /// So `Composition` is the wrong resolution to carry substance identity,
+    /// and that is what makes putting `Mixture` here axiom-consistent rather
+    /// than a lookup. *Which substance something is* **is state**. Nothing is
+    /// told anything: `summarise` blends mixtures when detail collapses,
+    /// `promote` carries one down when a body becomes a node, and the answer
+    /// travels from wherever the matter came from by the same transform that
+    /// carries mass and energy. `SubstanceId::UNSPECIATED` stays a real answer
+    /// rather than a failure — matter at ten million kelvin genuinely has no
+    /// molecular identity.
+    ///
+    /// # What it settles
+    ///
+    /// Solidity, which D13 named and did not specify. Phase is already a law
+    /// the engine has, derived from temperature against a melting point
+    /// `chem::analyse` computes, so `mixture.in_phase(Phase::Solid)` is the
+    /// solid mass fraction and D13's "measured solidity" is a reading.
+    ///
+    /// # What it costs
+    ///
+    /// 200 bytes against `Matter`'s own 248 and a `Node`'s 1,136. `chem::react`
+    /// runs at 0.069 µs per node for one substance and 0.934 for eight, which
+    /// is 1.4% to 18.7% of a frame at 10^4 nodes — so it is gated on a mixture
+    /// that is actually non-trivial rather than run over `UNSPECIATED`.
+    pub mixture: crate::chem::Mixture,
 }
 
 impl Default for Matter {
@@ -547,6 +589,7 @@ impl Default for Matter {
             chemical_energy: 0.0,
             magnetic_energy: 0.0,
             luminosity: 0.0,
+            mixture: crate::chem::Mixture::new(),
         }
     }
 }
@@ -922,6 +965,31 @@ impl Matter {
         }
     }
 
+    /// Fraction of this matter's mass that is in a solid phase.
+    ///
+    /// `docs/PLAY.md` D13 says a node's boundary is derived from *measured
+    /// solidity* rather than from what generated the node, and left the
+    /// measurement unspecified because there was nothing to measure it from.
+    /// D17 supplies it: a mixture on the matter, and phase against a melting
+    /// point `chem::analyse` derives, so this is a **reading** rather than a
+    /// law still to be written.
+    ///
+    /// Zero for matter nobody has described, which is the honest answer to no
+    /// information and not a claim that it is a gas. A caller deciding whether
+    /// something has a surface has to distinguish "measured as not solid" from
+    /// "not described", and [`Matter::is_described`] is how.
+    pub fn solid_fraction(&self) -> f64 {
+        self.mixture.in_phase(crate::chem::Phase::Solid)
+    }
+
+    /// Whether anything has said what this matter is made of.
+    ///
+    /// The difference between "measured and found not solid" and "never
+    /// measured", which every reading off the mixture has to keep apart.
+    pub fn is_described(&self) -> bool {
+        !self.mixture.is_empty()
+    }
+
     /// Set the temperature and rebalance internal energy to match. Used when a
     /// solver decides a node has heated up.
     pub fn set_temperature(&mut self, t: f64) {
@@ -1145,6 +1213,20 @@ pub fn summarise(bodies: &[Body], mutual_potential: f64) -> Matter {
             }
             _ => 0.0,
         }),
+        // A `Body` carries no speciation, deliberately: a `Mixture` is 200
+        // bytes against a body's 184, and `docs/PLAY.md` §5A.5's own costing
+        // puts one on a `Matter` and not on a body. So `summarise` has nothing
+        // to blend *from the bodies*, and reports none — the caller reinstates
+        // it, exactly as it does for `chemical_energy` and `external_potential`.
+        //
+        // Nothing is lost by that, because `sample` distributes one mixture to
+        // every body it makes: a set of bodies drawn from one matter is made of
+        // what that matter was made of, and blending identical mixtures is the
+        // identity. The case that *does* need a blend is a node whose slots
+        // hold promoted children with chemistries of their own, and those are
+        // nodes rather than bodies — `Tree::coarsen` blends them with
+        // `Mixture::blend` before this is called.
+        mixture: crate::chem::Mixture::new(),
     };
     matter.lepton_number =
         matter.baryon_number * composition.electrons_per_nucleon() - charge / E_CHARGE;

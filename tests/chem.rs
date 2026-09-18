@@ -605,14 +605,23 @@ fn similar_recipes_are_one_recipe() {
     assert!(a.same_as(&reversed));
 }
 
+/// A mixture holds what it can and reports what it cannot.
+///
+/// The slot count is deliberately not spelled out here. `MIXTURE_SLOTS` was
+/// sized against `PLAY.md` §5A.4's worked room rather than inherited from the
+/// elemental account, and it will be sized again when something measures a case
+/// it does not cover; a test that hard-codes the number would have to be edited
+/// every time and would stop saying anything about the property.
 #[test]
 fn a_mixture_is_bounded_and_says_what_it_dropped() {
+    use phys::chem::registry::MIXTURE_SLOTS;
     let mut reg = Registry::new();
     let mut m = Mixture::new();
     let mut ids = Vec::new();
-    for i in 0..12 {
-        // Twelve distinguishable substances: chains of carbon of different
-        // lengths, none of which anything has ever heard of.
+    for i in 0..MIXTURE_SLOTS + 4 {
+        // Distinguishable substances: chains of carbon of different lengths,
+        // none of which anything has ever heard of. Four more than there is
+        // room for, so the bound is actually under test.
         let n = i + 2;
         let atoms = vec![el(6); n];
         let bonds = (0..n - 1).map(|k| Bond::new(k, k + 1, Order::Single)).collect();
@@ -627,13 +636,81 @@ fn a_mixture_is_bounded_and_says_what_it_dropped() {
         m.len(),
         m.speciated()
     );
-    assert_eq!(m.len(), phys::chem::registry::MIXTURE_SLOTS);
-    // A trace substance that does not make the cut is told so.
-    let tiny = ids[0];
+    assert_eq!(m.len(), MIXTURE_SLOTS);
+    // A trace of something the mixture has never held, below everything in it,
+    // is told it did not make the cut rather than quietly displacing a pool.
+    let unseen = reg
+        .intern(Arrangement::molecule(vec![el(6); 64], (0..63).map(|k| Bond::new(k, k + 1, Order::Single)).collect()))
+        .unwrap();
     assert!(
-        !m.add(tiny, Phase::Solid, 1e-9),
+        !m.add(unseen, Phase::Solid, 1e-9),
         "a trace below everything held must be refused, not silently lost"
     );
+}
+
+/// Blending two descriptions is what `summarise` does to chemistry, and it is
+/// the operation that can run a node out of slots.
+///
+/// `docs/PLAY.md` D17 puts the `Mixture` on `Matter`, so collapsing detail has
+/// to combine the mixtures of what is being collapsed. Two descriptions that
+/// each fit need not fit together, and `docs/BACKLOG.md` asks at minimum that
+/// what will not fit stops being lost silently: `blend` returns the fraction it
+/// had to drop, and **which pools survive is decided by size rather than by the
+/// order the caller happened to add things in**.
+#[test]
+fn blending_two_mixtures_keeps_the_largest_pools_and_reports_the_rest() {
+    use phys::chem::registry::MIXTURE_SLOTS;
+    let mut reg = Registry::new();
+    let chain = |reg: &mut Registry, n: usize| {
+        reg.intern(Arrangement::molecule(
+            vec![el(6); n],
+            (0..n - 1).map(|k| Bond::new(k, k + 1, Order::Single)).collect(),
+        ))
+        .unwrap()
+    };
+
+    // Two nodes of equal mass, each fully described on its own, and between
+    // them more substances than one node can name.
+    let mut a = Mixture::new();
+    let mut b = Mixture::new();
+    for i in 0..MIXTURE_SLOTS {
+        a.add(chain(&mut reg, i + 2), Phase::Solid, 1.0 / MIXTURE_SLOTS as f64);
+    }
+    for i in 0..MIXTURE_SLOTS {
+        b.add(chain(&mut reg, i + 2 + MIXTURE_SLOTS), Phase::Solid, 1.0 / MIXTURE_SLOTS as f64);
+    }
+    assert_eq!(a.len(), MIXTURE_SLOTS);
+    assert_eq!(b.len(), MIXTURE_SLOTS);
+
+    let (blend, lost) = Mixture::blend(&a, 1.0, &b, 1.0);
+    println!(
+        "  {} + {} pools blended to {}, {:.4} of the mass dropped, {:.4} still speciated",
+        a.len(),
+        b.len(),
+        blend.len(),
+        lost,
+        blend.speciated()
+    );
+    assert_eq!(blend.len(), MIXTURE_SLOTS, "it holds what it can");
+    assert!(lost > 0.0, "and says that the rest did not fit");
+    assert!(
+        (blend.speciated() + lost - 1.0).abs() < 1e-12,
+        "the description accounts for all of the mass either way: {} + {lost}",
+        blend.speciated()
+    );
+
+    // Which side is passed first must not change the answer, or a coarsen
+    // would depend on slot order.
+    let (other, lost_other) = Mixture::blend(&b, 1.0, &a, 1.0);
+    assert!(blend.same_as(&other), "blending is symmetric");
+    assert!((lost - lost_other).abs() < 1e-12);
+
+    // And a blend of a description with itself is that description, which is
+    // what makes `summarise(sample(m)) == m` hold for chemistry: `sample`
+    // hands every body the one mixture its matter had.
+    let (same, none) = Mixture::blend(&a, 3.0, &a, 1.0);
+    assert!(same.same_as(&a), "blending a mixture with itself changes nothing");
+    assert_eq!(none, 0.0);
 }
 
 // ---------------------------------------------------------------------------
@@ -1109,4 +1186,222 @@ fn a_bubble_speeds_up_chemistry() {
     let (slow, fast) = (brew(1.0), brew(1000.0));
     println!("  at 1x {slow:.3e} dissolved; at 1000x {fast:.3e}");
     assert!(fast > slow * 10.0, "a bubbled node must react faster: {fast:.3e} against {slow:.3e}");
+}
+
+// ---------------------------------------------------------------------------
+// D17 — a node's mixture is part of its matter
+// ---------------------------------------------------------------------------
+
+/// What a node is made of travels by the same transform that carries its mass.
+///
+/// `docs/PLAY.md` D17. Speciation used to live in a side table keyed by
+/// `EntityId`, which meant two things: almost every node in the world could not
+/// say what it was made of, and the answer did not move when detail did. It is
+/// now a field on `Matter`, so `promote` hands it down and `coarsen` blends it
+/// back up, exactly as mass and energy already were.
+///
+/// The asymmetry is deliberate and is the one design decision inside D17 worth
+/// stating: a `Body` carries **no** mixture. One is 200 bytes against a body's
+/// 184, which is not a trade `PLAY.md` §5A.5's costing makes, and it is not
+/// needed — `sample` draws every body from one matter, so a set of bodies is
+/// made of what that matter was made of and blending identical descriptions is
+/// the identity. What genuinely differs is a *promoted child*, which is a node,
+/// has a mixture of its own, and may have reacted its way somewhere its parent
+/// has not. That is the case `coarsen` blends.
+#[test]
+fn what_a_node_is_made_of_travels_down_and_back_up() {
+    use phys::engine::World;
+    use phys::sampler::{MassSpectrum, Profile, SampleSpec};
+    use phys::state::{BodyKind, Composition, Matter};
+    use phys::tree::Tree;
+    use phys::units::Tier;
+
+    let mut w = World::new(
+        Tree::new(
+            0xD17,
+            Matter::neutral(4.0, 1.0, 290.0, Composition::primordial()),
+            Tier::Continuum,
+            SampleSpec::new(4, Profile::Uniform, MassSpectrum::Equal, BodyKind::Grain),
+        ),
+        20.0,
+    );
+    let root = w.tree.root;
+
+    let salt = w.substances.intern(rock_salt()).unwrap();
+    let h2o = w.substances.intern(water()).unwrap();
+    let mut mix = Mixture::new();
+    mix.add(salt, Phase::Solid, 0.25);
+    mix.add(h2o, Phase::Solid, 0.75);
+    w.set_mixture(root, mix);
+
+    // Down. A body becoming a node inherits what its parent was made of,
+    // because that is what it was drawn from.
+    w.tree.refine(root);
+    let child_spec = SampleSpec::new(2, Profile::Uniform, MassSpectrum::Equal, BodyKind::Grain);
+    let child = w.tree.promote(root, 0, child_spec);
+    assert!(
+        w.mixture_of(child).same_as(&mix),
+        "a promoted body is made of what it was drawn from; it came out {:?}",
+        w.mixture_of(child).entries()
+    );
+
+    // And the child goes somewhere its parent has not: all of its salt
+    // dissolves. Nothing about this is authored chemistry — `convert` is the
+    // one operation `react` has — it is a hand-applied version of what a warm
+    // frame would have done, so the test does not depend on a rate.
+    {
+        let m = &mut w.tree.nodes[child.get()].matter.mixture;
+        let moved = m.convert(salt, Phase::Solid, Phase::Dissolved, 0.25);
+        assert!(moved > 0.0, "precondition: the child's salt can dissolve");
+    }
+    let child_mass = w.tree.nodes[child.get()].matter.mass;
+    let root_mass = w.tree.nodes[root.get()].matter.mass;
+    assert!(
+        child_mass > 0.0 && child_mass < root_mass,
+        "the child should be a part of the root, not all of it"
+    );
+
+    // Up. The root's own description covers what was not promoted; the child's
+    // covers the rest, and the two are blended by mass.
+    w.tree.coarsen(root);
+    let back = w.mixture_of(root);
+    let share = child_mass / root_mass;
+    let dissolved = back.pool(salt, Phase::Dissolved);
+    println!(
+        "  child is {:.3} of the root; dissolved salt came back at {dissolved:.6}, expected {:.6}",
+        share,
+        0.25 * share
+    );
+    assert!(
+        (dissolved - 0.25 * share).abs() < 1e-9,
+        "the child's dissolved salt should come back at its mass share, and came \
+         back at {dissolved}"
+    );
+    assert!(
+        (back.pool(salt, Phase::Solid) - 0.25 * (1.0 - share)).abs() < 1e-9,
+        "and the rest of the root's salt is still solid"
+    );
+    assert!(
+        (back.speciated() - 1.0).abs() < 1e-9,
+        "the blend still accounts for all of the mass: {}",
+        back.speciated()
+    );
+}
+
+/// A node that nobody promoted comes back made of exactly what it was.
+///
+/// The idempotence half, which is what `summarise(sample(m)) == m` means for
+/// chemistry. It matters because the blend in `coarsen` is new: a transform
+/// that perturbed the description on every visit would drift a region away from
+/// itself over a thousand visits, which is the same failure the idempotent
+/// early return exists to prevent for matter.
+#[test]
+fn leaving_and_coming_back_does_not_change_what_something_is_made_of() {
+    use phys::engine::World;
+    use phys::sampler::{MassSpectrum, Profile, SampleSpec};
+    use phys::state::{BodyKind, Composition, Matter};
+    use phys::tree::Tree;
+    use phys::units::Tier;
+
+    let mut w = World::new(
+        Tree::new(
+            0xD17_DEED,
+            Matter::neutral(4.0, 1.0, 290.0, Composition::primordial()),
+            Tier::Continuum,
+            SampleSpec::new(16, Profile::Uniform, MassSpectrum::Equal, BodyKind::Grain),
+        ),
+        20.0,
+    );
+    let root = w.tree.root;
+    let salt = w.substances.intern(rock_salt()).unwrap();
+    let h2o = w.substances.intern(water()).unwrap();
+    let mut mix = Mixture::new();
+    mix.add(salt, Phase::Solid, 0.25);
+    mix.add(h2o, Phase::Liquid, 0.75);
+    w.set_mixture(root, mix);
+
+    for round in 0..8 {
+        w.tree.refine(root);
+        w.tree.coarsen(root);
+        let back = w.mixture_of(root);
+        assert!(
+            back.same_as(&mix),
+            "round {round}: a node nobody disturbed came back made of {:?}",
+            back.entries()
+        );
+    }
+}
+
+/// Solidity is read off the matter, not inferred from what made the node.
+///
+/// `docs/PLAY.md` D13 says a thing's boundary follows from *measured solidity*
+/// and explicitly leaves the measurement unspecified; D17 is what supplies it.
+/// Phase is already a law the engine has — `react` moves mass between pools
+/// against a melting point `chem::analyse` derives from the arrangement — so a
+/// node carrying a mixture can be asked whether it is solid and answer from its
+/// own state.
+///
+/// Nothing here tells the engine what water is or when it freezes. The same
+/// node is cold and then warm, and the reading follows.
+#[test]
+fn solidity_is_read_rather_than_inferred_from_what_made_the_node() {
+    use phys::engine::World;
+    use phys::sampler::{MassSpectrum, Profile, SampleSpec};
+    use phys::state::{BodyKind, Composition, Matter};
+    use phys::tree::Tree;
+    use phys::units::Tier;
+
+    let mut w = World::new(
+        Tree::new(
+            0x50_11D5,
+            Matter::neutral(10.0, 0.5, 250.0, Composition::primordial()),
+            Tier::Continuum,
+            SampleSpec::new(8, Profile::Uniform, MassSpectrum::Equal, BodyKind::Grain),
+        ),
+        20.0,
+    );
+    let root = w.tree.root;
+
+    // Undescribed matter reads as not solid *and* as not described, and a
+    // caller has to be able to tell those apart — "no information" is not the
+    // same answer as "measured, and it is a gas".
+    assert_eq!(w.tree.nodes[root.get()].matter.solid_fraction(), 0.0);
+    assert!(!w.tree.nodes[root.get()].matter.is_described());
+
+    let h2o = w.substances.intern(water()).unwrap();
+    let melting = w.substances.get(h2o).unwrap().props.melting_point;
+    println!("  derived melting point of H2O: {melting:.1} K");
+
+    let mut mix = Mixture::new();
+    mix.add(h2o, Phase::Liquid, 1.0);
+    w.set_mixture(root, mix);
+    w.pace_fixed(1.0);
+
+    // Well below its own derived melting point, and left to run.
+    w.tree.nodes[root.get()].matter.set_temperature(melting - 60.0);
+    for _ in 0..40 {
+        w.step_frame(20_000.0);
+        w.tree.nodes[root.get()].matter.set_temperature(melting - 60.0);
+    }
+    let cold = w.tree.nodes[root.get()].matter.solid_fraction();
+    assert!(
+        w.tree.nodes[root.get()].matter.is_described(),
+        "the node was given a description and should still have one"
+    );
+    assert!(
+        cold > 0.9,
+        "held 60 K under its own melting point, it reads {cold:.3} solid"
+    );
+
+    // And warmed well past it, without anything being told that it should melt.
+    for _ in 0..40 {
+        w.step_frame(20_000.0);
+        w.tree.nodes[root.get()].matter.set_temperature(melting + 60.0);
+    }
+    let warm = w.tree.nodes[root.get()].matter.solid_fraction();
+    println!("  solid fraction: {cold:.3} cold, {warm:.3} warm");
+    assert!(
+        warm < 0.1,
+        "held 60 K over its own melting point, it still reads {warm:.3} solid"
+    );
 }

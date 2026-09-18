@@ -1139,7 +1139,7 @@ is decided, because splitting changes what a `Task` is.
 
 ---
 
-## A node can hold eight substances, and the play space needs more
+## ~~A node can hold eight substances, and the play space needs more~~ — sized, and the loss is no longer silent
 
 **Noticed:** asked whether "a galaxy is not made of anything you could put in a
 beaker" — the comment justifying chemistry as a sparse side table — survives
@@ -1217,6 +1217,41 @@ the signal to split the node, not to quietly forget the smallest thing in it.
 
 **Trigger:** pulled for the silent loss, which is wrong now. The granularity rule
 is Phase 2, when terrain starts generating nodes that are made of something.
+
+**Done, as far as Phase 2 goes**, and the parts that are not are named rather
+than left implied.
+
+`MIXTURE_SLOTS` is **twelve**, sized against `PLAY.md` §5A.4's own worked case —
+a room is air (five), a wooden table (three) and a beaker of brine (two), so
+ten — with margin so the granularity rule fires on a real judgement rather than
+an off-by-two. Twelve rather than sixteen because the cost is linear and now
+universal: a `Pool` is 16 bytes, so a `Mixture` is 200 rather than 136, and it
+sits on every `Matter` instead of in a side table. Measured: `Matter` 248 -> 456,
+`Node` 1,136 -> 1,344.
+
+**The silent loss is gone**, which was this entry's "at minimum". `Mixture::blend`
+is what `coarsen` uses to combine a promoted child's description with its
+parent's, and it returns the mass fraction it could not fit. Which pools survive
+is decided by **size** rather than by the order the caller happened to add things
+in, which was the other half of the complaint. `TreeStats::over_described` and
+`worst_description_lost` carry it, on §3.7's precedent that a node crossed by its
+own ensemble says so rather than doing it quietly.
+
+**Point 2 is answered by D17**: the `Mixture` is on `Matter` now and travels by
+`promote` and `coarsen` like every other conserved quantity, so the elemental
+account really is the summary and the speciation really is the fine account.
+
+**Point 3 is not.** `environment_at` still falls back to unlimited water for a
+node with no mixture, and that is still honest only while most nodes have none.
+D17 makes every node *able* to carry one; it does not make terrain generate one,
+which is Phase 4's `Program::Terrain` work. `Matter::is_described` exists so a
+caller can tell "measured and dry" from "never measured", which is the
+distinction the fallback needs and did not have.
+
+**Still not built: §5A.3's derived merge criterion**, which would blend two pools
+into an interned substance rather than drop the smaller, and §5A.4's
+subdivide-when-it-will-not-fit. `over_described` is the measurement standing
+where that rule goes. **Trigger:** when a real scene drives it non-zero.
 
 ---
 

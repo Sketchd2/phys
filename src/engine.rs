@@ -463,19 +463,6 @@ pub struct World {
     /// World state, not scenery: a node's mixture names substances by id, so a
     /// world reloaded without its catalogue would be pointing at nothing.
     pub substances: crate::chem::Registry,
-    /// What each node is made of, by substance.
-    ///
-    /// A side table rather than a field on `Matter`, for the same reason
-    /// `environments` and `clocks` are: an `Matter` is `Copy` and about two
-    /// hundred bytes, a `Mixture` is another hundred and forty, and the
-    /// overwhelming majority of nodes have no chemistry at all — a galaxy is
-    /// not made of anything you could put in a beaker. Paying for it only
-    /// where it exists keeps a few million live nodes inside the memory budget
-    /// `Matter`'s own documentation claims.
-    ///
-    /// Keyed by `PathKey`, so it survives a node being coarsened away and
-    /// materialised again, which is the same reason pinned detail is.
-    pub mixtures: HashMap<EntityId, crate::chem::Mixture>,
     /// The structures currently being integrated through time.
     ///
     /// A bounded set, deliberately. Dynamics is expensive and it is only worth
@@ -517,7 +504,6 @@ impl World {
             rejected_growth_steps: 0,
             environments: HashMap::new(),
             substances: crate::chem::Registry::new(),
-            mixtures: HashMap::new(),
             shaking: Vec::new(),
             falling: Vec::new(),
             history_depth: 64,
@@ -558,7 +544,6 @@ impl World {
             identities: &self.identities,
             next_entity: self.next_entity,
             substances: &self.substances,
-            mixtures: &self.mixtures,
             audit: &self.audit,
             mailbox: &self.mailbox,
         }
@@ -584,7 +569,6 @@ impl World {
         w.identities = s.identities;
         w.next_entity = s.next_entity.max(1);
         w.substances = s.substances;
-        w.mixtures = s.mixtures;
         w.audit = s.audit;
         w.mailbox = crate::causal::Mailbox::restore(s.in_flight, s.delivered, s.in_flight_peak);
         w.stats.sim_time = s.time;
@@ -772,7 +756,12 @@ impl World {
             + chemistry.frozen
             + chemistry.boiled
             + chemistry.condensed;
-        self.stats.reacting_nodes = self.mixtures.len();
+        self.stats.reacting_nodes = self
+            .tree
+            .nodes
+            .iter()
+            .filter(|n| n.alive && !n.matter.mixture.is_empty())
+            .count();
         self.stats.bubbled = self.bubbles().len();
         plan
     }
@@ -3018,9 +3007,10 @@ impl World {
         // there is nothing to measure and the fallback is "unlimited". That is
         // the honest answer to no information, and it is what everything built
         // before mixtures existed relies on.
-        let water = match self.identities.get(&n.key).and_then(|id| self.mixtures.get(id)) {
-            Some(mix) if !mix.is_empty() => mix.in_phase(crate::chem::Phase::Liquid),
-            _ => 1.0,
+        let water = if n.matter.mixture.is_empty() {
+            1.0
+        } else {
+            n.matter.mixture.in_phase(crate::chem::Phase::Liquid)
         };
         // Competition for the same ground. A node already mostly structure has
         // little room left, which is what stops a forest growing without bound
@@ -3468,16 +3458,17 @@ impl World {
     }
 
     /// What a node is made of, by substance. Empty for anything nobody has
-    /// given a composition to.
+    /// given a composition to and nothing has handed one down.
+    ///
+    /// A read of the node's own matter since `docs/PLAY.md` D17. It used to
+    /// consult a side table keyed by `EntityId`, which is why it needed an
+    /// identity to answer at all — and why almost every node in the world
+    /// answered "nothing".
     pub fn mixture_of(&self, idx: NodeIdx) -> crate::chem::Mixture {
         if idx.is_none() || idx.get() >= self.tree.nodes.len() {
             return crate::chem::Mixture::new();
         }
-        self.identities
-            .get(&self.tree.nodes[idx.get()].key)
-            .and_then(|id| self.mixtures.get(id))
-            .copied()
-            .unwrap_or_default()
+        self.tree.nodes[idx.get()].matter.mixture
     }
 
     /// Say what a node is made of.
@@ -3492,17 +3483,7 @@ impl World {
         if idx.is_none() || idx.get() >= self.tree.nodes.len() {
             return;
         }
-        let key = self.tree.nodes[idx.get()].key;
-        if mix.is_empty() {
-            // Do not issue an identity to take chemistry away from a node that
-            // never had any.
-            if let Some(id) = self.identity_of(key) {
-                self.mixtures.remove(&id);
-            }
-        } else {
-            let id = self.issue_identity(key);
-            self.mixtures.insert(id, mix);
-        }
+        self.tree.nodes[idx.get()].matter.mixture = mix;
     }
 
     /// Run one pass of chemistry over every node that is made of something.
@@ -3616,31 +3597,34 @@ impl World {
 
     fn react_all(&mut self, dt: f64) -> crate::chem::ReactionReport {
         let mut total = crate::chem::ReactionReport::default();
-        if !(dt > 0.0) || self.mixtures.is_empty() {
+        if !(dt > 0.0) {
             return total;
         }
+        // Gated on a mixture that is actually there, which is what `PLAY.md`
+        // D17 asks for: `react` costs 0.069 µs per node for one substance and
+        // 0.934 for eight, and running it over `UNSPECIATED` would spend
+        // between 1.4% and 18.7% of a frame at 10^4 nodes saying nothing. The
+        // gate used to be "does a side table hold an entry for this node's
+        // identity"; it is now a field on the node's own matter.
         let live: Vec<NodeIdx> = (0..self.tree.nodes.len())
             .map(|i| NodeIdx(i as u32))
             .filter(|i| {
                 let n = &self.tree.nodes[i.get()];
-                n.alive
-                    && self
-                        .identities
-                        .get(&n.key)
-                        .is_some_and(|id| self.mixtures.contains_key(id))
+                n.alive && !n.matter.mixture.is_empty()
             })
             .collect();
+        if live.is_empty() {
+            return total;
+        }
         for idx in live {
-            let (key, temperature, mass) = {
+            let (temperature, mass, mut mix) = {
                 let n = &self.tree.nodes[idx.get()];
-                (n.key, n.matter.temperature, n.matter.mass)
+                (n.matter.temperature, n.matter.mass, n.matter.mixture)
             };
             let local = dt * self.local_rate(idx);
             let tau = self.mixing_time(idx);
-            let Some(id) = self.identity_of(key) else { continue };
-            let Some(mut mix) = self.mixtures.get(&id).copied() else { continue };
             let r = crate::chem::react(&mut mix, &self.substances, temperature, local, tau);
-            self.mixtures.insert(id, mix);
+            self.tree.nodes[idx.get()].matter.mixture = mix;
             if r.quiet() && r.heat == 0.0 {
                 continue;
             }

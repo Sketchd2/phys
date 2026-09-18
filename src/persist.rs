@@ -281,6 +281,9 @@ pub(crate) fn put_matter(w: &mut Writer, a: &Matter) {
     // a field where it reads well would reinterpret every older save.
     // `FORMAT_VERSION` moves with it; see `wire.rs`.
     w.f64(a.cohesive_binding);
+    // D17: speciation is part of the matter now, not a side table keyed by
+    // name. It is variable-length, so it goes last.
+    put_mixture(w, &a.mixture);
 }
 pub(crate) fn get_matter(r: &mut Reader) -> Result<Matter> {
     Ok(Matter {
@@ -303,6 +306,7 @@ pub(crate) fn get_matter(r: &mut Reader) -> Result<Matter> {
         magnetic_energy: r.f64()?,
         luminosity: r.f64()?,
         cohesive_binding: r.f64()?,
+        mixture: get_mixture(r)?,
     })
 }
 
@@ -403,7 +407,6 @@ pub(crate) fn get_spec(r: &mut Reader) -> Result<SampleSpec> {
 // exactly that reason.
 
 const SUBSTANCE_MIN_BYTES: usize = 4 + 4 + 1 + 8 * 12 + 1 + 1;
-const MIXTURE_MIN_BYTES: usize = 8 + 4;
 
 fn put_element(w: &mut Writer, e: crate::chem::Element) {
     w.u8(e.z());
@@ -576,6 +579,7 @@ pub fn put_mixture(w: &mut Writer, m: &crate::chem::Mixture) {
 }
 
 pub fn get_mixture(r: &mut Reader) -> Result<crate::chem::Mixture> {
+    // Four bytes of substance id, one of phase tag, eight of fraction.
     let n = r.seq("pools", 13)?;
     let mut m = crate::chem::Mixture::new();
     for _ in 0..n {
@@ -884,6 +888,8 @@ pub(crate) fn put_tree_stats(w: &mut Writer, s: &TreeStats) {
     w.f64(s.worst_conservation_error);
     // Appended, never inserted: the position is the tag. See `wire.rs`.
     w.u64(s.retiers);
+    w.u64(s.over_described);
+    w.f64(s.worst_description_lost);
 }
 pub(crate) fn get_tree_stats(r: &mut Reader) -> Result<TreeStats> {
     Ok(TreeStats {
@@ -901,6 +907,8 @@ pub(crate) fn get_tree_stats(r: &mut Reader) -> Result<TreeStats> {
         persisted_bodies: r.u64()?,
         worst_conservation_error: r.f64()?,
         retiers: r.u64()?,
+        over_described: r.u64()?,
+        worst_description_lost: r.f64()?,
     })
 }
 
@@ -968,7 +976,6 @@ pub struct Snapshot {
     pub rejected_growth_steps: u64,
     pub environments: HashMap<EntityId, Environment>,
     pub substances: crate::chem::Registry,
-    pub mixtures: HashMap<EntityId, crate::chem::Mixture>,
     /// Address to identity, for the nodes that have one. Only the entries a
     /// persisted table actually refers to are written: an identity issued for
     /// a clock or a history is not worth keeping, because neither of those is.
@@ -1001,7 +1008,6 @@ pub struct WorldView<'a> {
     pub rejected_growth_steps: u64,
     pub environments: &'a HashMap<EntityId, Environment>,
     pub substances: &'a crate::chem::Registry,
-    pub mixtures: &'a HashMap<EntityId, crate::chem::Mixture>,
     pub identities: &'a HashMap<PathKey, EntityId>,
     pub next_entity: u64,
     pub audit: &'a [AuthorEvent],
@@ -1025,7 +1031,6 @@ impl Snapshot {
             identities: &self.identities,
             next_entity: self.next_entity,
             substances: &self.substances,
-            mixtures: &self.mixtures,
             audit: &self.audit,
             mailbox: &self.mailbox_view,
         }
@@ -1090,13 +1095,11 @@ pub fn encode(s: WorldView<'_>) -> Vec<u8> {
     }
 
     put_registry(&mut w, s.substances);
-    let mut mixes: Vec<(&EntityId, &crate::chem::Mixture)> = s.mixtures.iter().collect();
-    mixes.sort_by_key(|(k, _)| k.0);
-    w.seq(mixes.len());
-    for (k, m) in mixes {
-        w.u64(k.0);
-        put_mixture(&mut w, m);
-    }
+    // The `mixtures` side table is gone: `docs/PLAY.md` D17 puts a `Mixture` on
+    // every `Matter`, so speciation is written with the node it belongs to and
+    // needs no identity to survive a reload. The registry stays, because a
+    // mixture names substances by id and a world reloaded without its
+    // catalogue would be pointing at nothing.
 
     // The address-to-identity index, pruned to what the tables above refer to.
     // An identity handed out for a clock or a history is not written, because
@@ -1105,7 +1108,7 @@ pub fn encode(s: WorldView<'_>) -> Vec<u8> {
     let mut wanted: Vec<(&PathKey, &EntityId)> = s
         .identities
         .iter()
-        .filter(|(_, id)| s.environments.contains_key(id) || s.mixtures.contains_key(id))
+        .filter(|(_, id)| s.environments.contains_key(id))
         .collect();
     wanted.sort_by_key(|(k, _)| k.0);
     w.seq(wanted.len());
@@ -1227,12 +1230,6 @@ pub fn decode(bytes: &[u8]) -> Result<Snapshot> {
     }
 
     let substances = get_registry(&mut r)?;
-    let n = r.seq("mixtures", MIXTURE_MIN_BYTES)?;
-    let mut mixtures = HashMap::with_capacity(n);
-    for _ in 0..n {
-        let k = EntityId(r.u64()?);
-        mixtures.insert(k, get_mixture(&mut r)?);
-    }
 
     let n = r.seq("identities", IDENTITY_MIN_BYTES)?;
     let mut identities = HashMap::with_capacity(n);
@@ -1286,7 +1283,6 @@ pub fn decode(bytes: &[u8]) -> Result<Snapshot> {
         rejected_growth_steps,
         environments,
         substances,
-        mixtures,
         identities,
         next_entity,
         audit,

@@ -354,6 +354,16 @@ pub struct TreeStats {
     /// Non-zero means something grew or was built across a regime boundary.
     pub retiers: u64,
     pub persisted_bodies: u64,
+    /// Coarsenings where blending the descriptions ran out of slots.
+    ///
+    /// `docs/PLAY.md` §5A.4's granularity signal: a node that cannot describe
+    /// what it holds is a node that should have subdivided. Nothing subdivides
+    /// on it yet — that is §5A.4's own work and Phase 3's — so this is the
+    /// measurement standing where the rule will go, on §3.7's precedent that a
+    /// node crossed by its own ensemble says so rather than doing it quietly.
+    pub over_described: u64,
+    /// Worst single such loss, as a fraction of the node's mass.
+    pub worst_description_lost: f64,
     /// Worst conservation error seen across every scale transition so far.
     pub worst_conservation_error: f64,
 }
@@ -578,6 +588,16 @@ impl Tree {
         let mut matter = Matter::neutral(body.mass, body.radius.max(1e-30), body.temperature, body.composition);
         matter.charge = body.charge;
         matter.spin = body.spin;
+        // What the parent is made of is what its contents are made of.
+        // `docs/PLAY.md` D17's downward half: a `Body` carries no speciation of
+        // its own — 200 bytes on a 184-byte struct is not a trade §5A.5 makes —
+        // and it does not need to, because `sample` draws every body from one
+        // matter. So a body becoming a node inherits that matter's mixture,
+        // which is the same answer a body-level field would have given.
+        //
+        // Mass fractions, so nothing is scaled: a kilogram of a node that is a
+        // quarter salt is a quarter salt.
+        matter.mixture = self.nodes[i.get()].matter.mixture;
         // The child's own frame carries the bulk motion, so inside its frame the
         // net momentum is zero — that is what "rest frame" means. Bulk motion is
         // never double-counted.
@@ -638,9 +658,35 @@ impl Tree {
         }
         // Pull any promoted child's evolved state back into its body first,
         // otherwise work done at a finer tier is silently discarded.
+        //
+        // Speciation comes back here too, and this is the only place a blend is
+        // needed at all. `docs/PLAY.md` D17's upward half: `summarise` reads
+        // bodies, and a `Body` carries no mixture, so blending identical
+        // descriptions would be the identity and buy nothing. What differs is a
+        // *promoted child*, which is a node, has a mixture of its own, and may
+        // have reacted its way somewhere the parent has not — ice that melted,
+        // salt that dissolved. Those are collected before they are released and
+        // blended into the parent by mass.
         let children = self.nodes[i.get()].children.clone();
+        let mut speciation: Option<(crate::chem::Mixture, f64)> = None;
+        let mut child_mass = 0.0;
         for (slot, c) in children.iter().enumerate() {
             if !c.is_none() {
+                let (mix, mass) = {
+                    let n = &self.nodes[c.get()];
+                    (n.matter.mixture, n.matter.mass.max(0.0))
+                };
+                if !mix.is_empty() && mass > 0.0 {
+                    speciation = Some(match speciation {
+                        None => (mix, mass),
+                        Some((acc, m)) => {
+                            let (blend, lost) = crate::chem::Mixture::blend(&acc, m, &mix, mass);
+                            self.note_description_lost(lost);
+                            (blend, m + mass)
+                        }
+                    });
+                }
+                child_mass += mass;
                 self.sync_from_child(i, slot, *c);
                 self.release_subtree(*c);
             }
@@ -660,6 +706,25 @@ impl Tree {
         // error is an energy comparison and a granite block's cohesive energy
         // is the largest term in it.
         matter.cohesive_binding = self.nodes[i.get()].matter.cohesive_binding;
+        // The node's own description covers whatever was not promoted; the
+        // children cover the rest. With nothing promoted this is the node's own
+        // mixture unchanged, which is what makes leaving and coming back
+        // idempotent for chemistry as well as for matter.
+        matter.mixture = match speciation {
+            None => self.nodes[i.get()].matter.mixture,
+            Some((child_mix, mass_from_children)) => {
+                let own = self.nodes[i.get()].matter;
+                let rest = (own.mass - child_mass).max(0.0);
+                if own.mixture.is_empty() || rest <= 0.0 {
+                    child_mix
+                } else {
+                    let (blend, lost) =
+                        crate::chem::Mixture::blend(&own.mixture, rest, &child_mix, mass_from_children);
+                    self.note_description_lost(lost);
+                    blend
+                }
+            }
+        };
         matter.entropy_exported = self.nodes[i.get()].matter.entropy_exported;
         let scales = crate::state::Scales::of(&bodies);
         let err = matter.conserved().error_against(&before, &scales);
@@ -701,6 +766,7 @@ impl Tree {
         n.matter.internal_energy = matter.internal_energy;
         n.matter.gravitational_binding = matter.gravitational_binding;
         n.matter.cohesive_binding = matter.cohesive_binding;
+        n.matter.mixture = matter.mixture;
         n.matter.radius = matter.radius;
         n.matter.temperature = matter.temperature;
         n.matter.composition = matter.composition;
@@ -1137,6 +1203,14 @@ impl Tree {
         // and a seed is not the size of the tree it becomes.
         self.retier(i);
         self.nodes[i.get()].morphology.as_mut().unwrap()
+    }
+
+    /// Record that a blend could not describe everything it was given.
+    fn note_description_lost(&mut self, lost: f64) {
+        if lost > 0.0 {
+            self.stats.over_described += 1;
+            self.stats.worst_description_lost = self.stats.worst_description_lost.max(lost);
+        }
     }
 
     /// Mark a node — and its whole ancestry — as holding non-derivable detail.

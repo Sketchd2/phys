@@ -102,11 +102,24 @@ analysis going from 12 ms to 23 ms before the threshold was added.
 | Structure | Bytes |
 |---|---:|
 | `Body` | 184 |
-| `Matter` | 248 |
-| `Node` | 1,136 |
+| `Matter` | 456 |
+| `Node` | 1,344 |
+| `Mixture` | 200 |
 | `Snapshot` (history) | 80 |
 
-**`Node` was 576 and is 1,136**, re-measured taking Phase 2's entry baseline.
+**`Matter` was 248 and is 456**, because `PLAY.md` D17 puts a `Mixture` on it —
+200 bytes, 12 slots of 16. That is what makes every node in the world able to
+say what it is made of, and it replaces a side table, so the comparison is not
+against nothing: a world where a tenth of the nodes were described paid 136
+bytes for those and could not answer for the other nine tenths. `Node` follows
+to 1,344. At 10⁵ described nodes the mixture is 20 MB.
+
+`chem::react` is gated on a non-trivial mixture rather than run over
+`UNSPECIATED`, which is what keeps the 0.069–0.934 µs per node from becoming
+1.4%–18.7% of every frame at 10⁴ nodes.
+
+**`Node` was 576 and is 1,136 before D17**, re-measured taking Phase 2's entry
+baseline.
 `PLAY.md` D15 and §5A.5 both reason from 576, and the direction of the error is
 the safe one: a house of ~50 parts held as promoted nodes is 57 KB rather than
 29 KB, and a town of 500 houses is 28 MB rather than 14 MB, so D15's argument

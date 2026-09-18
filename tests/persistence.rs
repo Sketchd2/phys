@@ -500,7 +500,7 @@ fn an_unpinned_reload_comes_back_coarse() {
 #[test]
 fn the_format_stamp_tracks_the_format() {
     /// Bump `wire::FORMAT_VERSION`, then update this.
-    const REFERENCE_BYTES: usize = 2_882;
+    const REFERENCE_BYTES: usize = 2_890;
 
     use phys::chem::{Arrangement, Bond, Element, Lattice, Mixture, Order, Phase};
 
@@ -569,5 +569,11 @@ fn the_format_stamp_tracks_the_format() {
     let back = ok(decode(&bytes));
     assert_eq!(back.tree.nodes.len(), w.tree.nodes.len());
     assert_eq!(back.substances.len(), 1);
-    assert_eq!(back.mixtures.len(), 1);
+    // Speciation rides on the node's own matter now (`PLAY.md` D17), so what
+    // proves it survived is reading it back off the node rather than counting
+    // a side table that no longer exists.
+    assert!(
+        back.tree.nodes[child.get()].matter.mixture.fraction_of(salt) > 0.0,
+        "the child was a quarter salt and came back made of nothing"
+    );
 }

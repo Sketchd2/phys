@@ -106,7 +106,7 @@ fn key_from(b: &[u8]) -> Result<PathKey> {
 /// Refused, not migrated. There is no migration while the project is pre-alpha
 /// and `PostgresStore::reset` is the whole answer: drop the tables and rebuild
 /// the world.
-pub const SCHEMA_VERSION: i32 = 4;
+pub const SCHEMA_VERSION: i32 = 5;
 
 pub const SCHEMA: &str = r#"
 CREATE TABLE IF NOT EXISTS schema_version (
@@ -176,10 +176,11 @@ CREATE TABLE IF NOT EXISTS substances (
     catalogue bytea NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS mixture (
-    key  bytea PRIMARY KEY,
-    data bytea NOT NULL
-);
+-- There is deliberately no `mixture` table. `docs/PLAY.md` D17 puts a
+-- `Mixture` on every `Matter`, so speciation is written with the node it
+-- belongs to, in the `node` blob. The `substances` catalogue stays, because a
+-- mixture names substances by id and a world reloaded without it would be
+-- pointing at nothing.
 
 CREATE TABLE IF NOT EXISTS environment (
     key  bytea PRIMARY KEY,
@@ -289,7 +290,7 @@ impl PostgresStore {
         let mut client = Client::connect(url, NoTls).map_err(db)?;
         client
             .batch_execute(
-                "DROP TABLE IF EXISTS node, pinned, fact, environment, audit, world, substances, mixture,
+                "DROP TABLE IF EXISTS node, pinned, fact, environment, audit, world, substances,
                  ledger_counters, in_flight, mailbox_counters, schema_version CASCADE;",
             )
             .map_err(db)?;
@@ -301,7 +302,7 @@ impl PostgresStore {
     pub fn clear(&mut self) -> Result<()> {
         self.client
             .batch_execute(
-                "TRUNCATE node, pinned, fact, environment, identity, audit, world, substances, mixture,
+                "TRUNCATE node, pinned, fact, environment, identity, audit, world, substances,
                   ledger_counters, in_flight, mailbox_counters;",
             )
             .map_err(db)
@@ -485,19 +486,6 @@ impl PostgresStore {
         )
         .map_err(db)?;
 
-        tx.execute("DELETE FROM mixture", &[]).map_err(db)?;
-        let mut mixes: Vec<_> = v.mixtures.iter().collect();
-        mixes.sort_by_key(|(k, _)| k.0);
-        for (k, m) in mixes {
-            let mut w = Writer::new();
-            crate::persist::put_mixture(&mut w, m);
-            tx.execute(
-                "INSERT INTO mixture (key, data) VALUES ($1,$2)",
-                &[&id_bytes(*k).to_vec(), &w.finish()],
-            )
-            .map_err(db)?;
-        }
-
         // Pruned to the entries a persisted table refers to, exactly as the
         // file format does: an identity issued for a clock or a history is not
         // worth keeping, because neither of those is persisted either.
@@ -505,7 +493,7 @@ impl PostgresStore {
         let mut ids: Vec<_> = v
             .identities
             .iter()
-            .filter(|(_, id)| v.environments.contains_key(id) || v.mixtures.contains_key(id))
+            .filter(|(_, id)| v.environments.contains_key(id))
             .collect();
         ids.sort_by_key(|(k, _)| k.0);
         for (k, id) in ids {
@@ -734,14 +722,6 @@ fn load_impl(store: &mut PostgresStore) -> Result<Snapshot> {
         }
         None => crate::chem::Registry::new(),
     };
-    let mut mixtures = std::collections::HashMap::new();
-    for row in store.client.query("SELECT key, data FROM mixture", &[]).map_err(db)? {
-        let k = id_from(row.get::<_, Vec<u8>>("key").as_slice())?;
-        let blob: Vec<u8> = row.get("data");
-        let mut r = Reader::new(&blob);
-        mixtures.insert(k, crate::persist::get_mixture(&mut r)?);
-    }
-
     let mut identities = std::collections::HashMap::new();
     for row in store.client.query("SELECT key, entity_id FROM identity", &[]).map_err(db)? {
         let k = key_from(row.get::<_, Vec<u8>>("key").as_slice())?;
@@ -816,7 +796,6 @@ fn load_impl(store: &mut PostgresStore) -> Result<Snapshot> {
         rejected_growth_steps: world.get::<_, i64>("rejected") as u64,
         environments,
         substances,
-        mixtures,
         identities,
         next_entity,
         audit,

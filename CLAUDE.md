@@ -143,9 +143,16 @@ comparison.
 **Identity is issued, not derived — `EntityId`, not `PathKey`.** `PathKey` is
 the *address*: it derives children and seeds the sampler, and it changes when a
 node moves. `EntityId` is the *name*: issued once, never reused, unchanged by a
-move, a coarsen or a reload. `mixtures` and `environments` are keyed by name, so
-`reparent` does not touch them. Use `identify` on a write path (it issues),
-`identity` to read (it does not).
+move, a coarsen or a reload. `environments` is keyed by name, so `reparent` does
+not touch it. Use `identify` on a write path (it issues), `identity` to read (it
+does not).
+
+**`mixtures` is gone.** D17 put the `Mixture` on `Matter`, so what a node is
+made of travels with the node and needs no protection from a move at all — which
+is what keying on a name was contriving to imitate. Speciation is now read with
+`World::mixture_of` or straight off `node.matter.mixture`, and it is carried by
+`promote` (down) and `coarsen` (up, blended by mass) like every other conserved
+quantity.
 
 **Only an *event* may name a node** — chemistry set, an environment authored, a
 node pinned, an actor interacting. Never a scheduler-driven path: which nodes

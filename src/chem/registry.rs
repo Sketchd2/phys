@@ -223,12 +223,31 @@ impl Registry {
 
 /// How many substances one node can be made of before the smallest are lumped.
 ///
-/// Eight, for the same reason the elemental account has eight buckets: a node
-/// is *matter*, a coarse account, and one that tracked forty trace
-/// trace elements would cost more than the detail it stands in for. What falls off
-/// the end is not lost — its mass stays in the node's matter, it
-/// simply stops being attributed to a named substance.
-pub const MIXTURE_SLOTS: usize = 8;
+/// **Twelve, and sized rather than inherited.** It was eight, "for the same
+/// reason the elemental account has eight buckets", and that reason held only
+/// while a mixture was an opt-in that a handful of nodes carried.
+/// `docs/PLAY.md` D17 puts one on every `Matter`, and `PLAY.md` §7's third
+/// Phase 2 item says so in as many words: eight substances stops being an
+/// opt-in the moment every node has a mixture.
+///
+/// Sized against §5A.4's own worked case, which is the one that settles it: a
+/// room is air (N2, O2, Ar, CO2, water vapour — five), a wooden table
+/// (cellulose, lignin, water — three) and a beaker of brine (two). **Ten.** A
+/// node that cannot describe what it holds is supposed to *subdivide* rather
+/// than forget, which §5A.4 decides, so the slot count does not have to cover
+/// a whole city — it has to cover the coarsest node anybody has actually
+/// described, with enough margin that the granularity rule fires on a real
+/// judgement rather than on an off-by-two.
+///
+/// Twelve rather than sixteen because the cost is linear and visible: a `Pool`
+/// is 16 bytes, so a `Mixture` goes from 136 bytes to 200, and it now sits on
+/// every `Matter` rather than in a side table for a privileged few. Sixteen
+/// would be 264 for a margin nothing measured asks for.
+///
+/// What falls off the end is not lost — its mass stays in the node's matter,
+/// it simply stops being attributed to a named substance. What *is* now
+/// reported rather than silent is that it happened: see [`Mixture::blend`].
+pub const MIXTURE_SLOTS: usize = 12;
 
 /// What state a parcel of one substance is in.
 ///
@@ -462,6 +481,58 @@ impl Mixture {
     pub fn same_as(&self, other: &Mixture) -> bool {
         let (a, b) = (self.canonical(), other.canonical());
         a.used == b.used && a.entries() == b.entries()
+    }
+
+    /// Combine two mixtures by mass, and say what would not fit.
+    ///
+    /// This is what `summarise` does to speciation when detail collapses —
+    /// `docs/PLAY.md` D17's "summarise blends mixtures" — and it is the one
+    /// operation that can run a node out of slots, because two descriptions
+    /// that each fit may not fit together.
+    ///
+    /// Returns the blend and the mass fraction of the total that had to be
+    /// dropped. **Which pools survive is decided by size and not by insertion
+    /// order**, which is the thing `docs/BACKLOG.md` asks for at minimum: the
+    /// old behaviour displaced the smallest pool only if the newcomer beat it,
+    /// so the answer depended on the order the caller happened to add things
+    /// in, and the `false` return saying a species had not made the cut was
+    /// read by nobody.
+    ///
+    /// The dropped fraction is the granularity signal §5A.4 wants — a node
+    /// holding more than it can describe is a node that should subdivide — and
+    /// reporting it is as far as Phase 2 goes. §5A.3's derived merge criterion,
+    /// which would blend two pools into an interned substance rather than drop
+    /// the smaller, is not built here.
+    pub fn blend(a: &Mixture, mass_a: f64, b: &Mixture, mass_b: f64) -> (Mixture, f64) {
+        let total = mass_a.max(0.0) + mass_b.max(0.0);
+        if !(total > 0.0) {
+            return (Mixture::new(), 0.0);
+        }
+        let (wa, wb) = (mass_a.max(0.0) / total, mass_b.max(0.0) / total);
+        let mut pools: Vec<Pool> = Vec::with_capacity(a.len() + b.len());
+        for (mix, w) in [(a, wa), (b, wb)] {
+            for p in mix.entries() {
+                if p.fraction * w > 0.0 {
+                    pools.push(Pool { fraction: p.fraction * w, ..*p });
+                }
+            }
+        }
+        // Largest first, and ties broken by identity so the answer does not
+        // depend on which side was passed as `a`.
+        pools.sort_by(|x, y| {
+            y.fraction
+                .partial_cmp(&x.fraction)
+                .unwrap_or(std::cmp::Ordering::Equal)
+                .then_with(|| (x.substance, x.phase).cmp(&(y.substance, y.phase)))
+        });
+        let mut out = Mixture::new();
+        let mut lost = 0.0;
+        for p in pools {
+            if !out.add(p.substance, p.phase, p.fraction) {
+                lost += p.fraction;
+            }
+        }
+        (out, lost)
     }
 
     /// A hash of the canonical form, for deduplicating recipes.
