@@ -263,6 +263,22 @@ it is `#[ignore]`d because **it still fails**. That is the useful part. The
 clamp fix cut the overshoot from 4.5x10^8 radii to 4.0x10^7 and stopped there,
 which is how we know the clamp was never the cause either.
 
+**Re-measured after the binding split**, and the first thing it catches has
+moved — which is worth recording, because the two failures are different faults
+and the old one is gone:
+
+```text
+  before:  frame 0, node 18 (Atomic),    r=5.917e-12 m, body 47 at 2.371e-4 m — 4.0e7 radii
+  after:   frame 1, node 14 (Molecular), r=6.720e-9  m, body  3 at 6.300e2  m — 9.4e10 radii
+```
+
+Frame *zero* is the tell: the old failure was the sampler inflating the node at
+birth, before anything was integrated, and it is fixed. What is left fires on
+frame one, during a solve, in a node holding 8,000 molecules at a spacing equal
+to their own Lennard-Jones sigma — a liquid-density parcel with no container,
+handed a span a galactic pace supplies. It expands, and nothing is wrong with
+the expansion except its rate. Still ignored, still the reminder.
+
 **The cause. Measured this time, and it is not what the two paragraphs above
 first replaced the earlier guess with either — the packing is not unphysical,
 the solver assignment is wrong.**
@@ -826,7 +842,7 @@ unless something needs it sooner.
 
 ---
 
-## The sampler inflates anything bound by chemistry by 4.3x10^5
+## ~~The sampler inflates anything bound by chemistry by 4.3x10^5~~ — done, and it found two more
 
 **Noticed:** building D3's exchange pass. `Neighbourhood::pairs` returned zero
 for a refined granite block, which should be the easiest case in the engine.
@@ -918,6 +934,87 @@ in Phase 2. Phase 2's own done-when is a rock bouncing off a boulder, and the
 rock is this granite block. Previously: before anything at Continuum tier is
 asked a question about where its contents are, which is D3's contact half, the
 beach test, and every structure that has to sit on a surface.
+
+**Done.** `binding_energy` is now `gravitational_binding` — both halves renamed,
+so no call site could keep compiling while meaning something else — and
+`cohesive_binding` carries the rest. Only the gravitational half is in the
+relaxation loop's budget, which is the loop's own precondition made explicit
+rather than assumed. `FORMAT_VERSION` moves to 9.
+
+Measured, `sample` at `count = 512` on the whole shelf, before and after:
+
+```text
+  scenario          relax before / after    max|pos|/R before / after
+  Spiral galaxy          0        0              3.354      3.354
+  Molecular cloud        0        0              3.574      3.574
+  The Sun                0        0              3.515      3.515
+  Rocky planet           0        0              3.515      3.515
+  Granite block         33        0          4.502e5        1.043
+  Water vapour          33        0          4.387e5        1.017
+  Carbon atom           33        0          4.738e5        1.098
+  Iron nucleus           0        0              1.080      1.080
+```
+
+The four gravitationally bound scenarios are unchanged to every digit, which is
+the control: the loop still does the job it was written for. `sample`'s cost is
+unchanged — measured at 1.115 and 1.070 µs/body at 10^5 and 5x10^5 with the new
+pass compiled out, against 1.116 and 1.041 with it in.
+
+`every_scenario_samples_its_contents_inside_itself` in `tests/scenarios.rs` is
+the guard, and it is the first *geometric* assertion any test has made about a
+Continuum node — which is why nothing caught this: the conserved-set tests
+close the books either way, because the energy budget absorbs whatever `phi`
+comes out to and that is the sampler's design. `it_finds_the_two_defects_already_on_the_list`
+in `tests/spread.rs` has its first half inverted rather than deleted.
+
+### The two things it exposed, both of which it had been hiding
+
+**1. An independent draw is an ideal-gas draw.** With the vapour node's
+molecules correctly inside it, the closest pair sat at 2.55x10^-11 m against a
+Lennard-Jones sigma of 3.12x10^-10 — eight per cent of contact, where
+`(sigma/r)^12` is 8.6x10^12. The engine throttled to 2.83x10^-20 s and the pair
+still left at 4.5x10^9 m/s. `sample` chooses every position without reference
+to the others, and a real interacting system's pair correlation vanishes below
+contact.
+
+Fixed in the sampler rather than defended in the solver, which was the owner's
+call: bodies whose kind means *one object* are pushed apart until their surfaces
+no longer overlap. See `PHYSICS.md` §3 for the method and for the two bounds
+that make it terminate. `SampleReport::worst_overlap` reports what could not be
+resolved, on §3.7's precedent.
+
+**Open, and recorded here rather than fixed:** an iron nucleus reports
+`worst_overlap = 0.45` every time it is sampled. `child_radius` gives a nucleon
+the 1.2 fm that is the radius *per nucleon* in `R = r0 A^(1/3)`, so fifty-six of
+them fill their own nucleus exactly and no arrangement of spheres reaches a
+packing fraction of one. A real nucleon's charge radius is 0.84 fm, which would
+put the nucleus at 0.30 and inside the bound. Not changed here because it moves
+the geometry of every nuclear sample and nothing currently depends on it.
+**Trigger:** when anything reads `worst_overlap` to make a decision, or when
+nuclear geometry is next worked on.
+
+**2. Lennard-Jones was being applied to nucleons.** The carbon atom scenario is
+a node the size of an atom holding its twelve nucleons — the right contents, and
+what the scenario's own doc comment says it is for. `solvers::for_tier(Atomic)`
+hands it molecular dynamics, and `dominant()` reads carbon off the composition:
+
+```text
+    body kind          Nucleon, radius 1.200e-15 m
+    min separation     1.9016e-11 m
+    sigma applied      3.431e-10 m
+    (sigma/r)^12       1.190e15
+```
+
+The contents left at 150 c. Fixed by `md::has_electron_cloud`: the van der Waals
+term applies between bodies that have electron clouds, and a nucleon, an
+electron and a photon do not. Same shape as the bonded-pair exclusion beside it,
+and for the same reason — a term that does not describe a pair is removed rather
+than tuned.
+
+**This is deliberately the *body* half and not the tier half.** The entry "A
+node whose bodies are 10^20 radii outside it" above records the other one: a
+node taking its solver from a radius while its contents came from a spec five
+orders finer. That remains open and this does not close it.
 
 ---
 

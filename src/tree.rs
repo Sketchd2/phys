@@ -377,7 +377,7 @@ impl Tree {
                 ..Motion::default()
             },
             bodies: Vec::new(),
-            potential: root_agg.binding_energy,
+            potential: root_agg.gravitational_binding,
             gravity: Vec3::ZERO,
             children: Vec::new(),
             spec,
@@ -654,6 +654,12 @@ impl Tree {
         let mut matter = summarise(&bodies, potential);
         matter.external_potential = self.nodes[i.get()].matter.external_potential;
         matter.chemical_energy = self.nodes[i.get()].matter.chemical_energy;
+        // `summarise` measures where the bodies ended up, and a bond is far
+        // below the scale of a body, so it reports no cohesive binding at all.
+        // Reinstated here rather than after the error is measured, because the
+        // error is an energy comparison and a granite block's cohesive energy
+        // is the largest term in it.
+        matter.cohesive_binding = self.nodes[i.get()].matter.cohesive_binding;
         matter.entropy_exported = self.nodes[i.get()].matter.entropy_exported;
         let scales = crate::state::Scales::of(&bodies);
         let err = matter.conserved().error_against(&before, &scales);
@@ -693,7 +699,8 @@ impl Tree {
         n.matter.momentum = matter.momentum;
         n.matter.spin = matter.spin;
         n.matter.internal_energy = matter.internal_energy;
-        n.matter.binding_energy = matter.binding_energy;
+        n.matter.gravitational_binding = matter.gravitational_binding;
+        n.matter.cohesive_binding = matter.cohesive_binding;
         n.matter.radius = matter.radius;
         n.matter.temperature = matter.temperature;
         n.matter.composition = matter.composition;

@@ -36,7 +36,7 @@ fn the_cadence_matches_what_the_object_does() {
     let binding = -0.6 * G * m * m / r;
     let mut earth = spinning(m, r, 2000.0, 86164.0);
     earth.internal_energy = -0.1 * binding;
-    earth.binding_energy = binding;
+    earth.gravitational_binding = binding;
 
     let surface = earth.angular_velocity().norm() * r;
     let tau = earth.characteristic_time(r);

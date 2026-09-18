@@ -25,7 +25,12 @@ fn every_scenario_refines_and_conserves() {
 
         let scale = before.mass.abs().max(1e-30);
         let mass_error = (after.mass - before.mass).abs() / scale;
-        let energy = before.internal_energy.abs().max(before.binding_energy.abs()).max(1e-30);
+        let energy = before
+            .internal_energy
+            .abs()
+            .max(before.gravitational_binding.abs())
+            .max(before.cohesive_binding.abs())
+            .max(1e-30);
         let energy_error = (after.internal_energy - before.internal_energy).abs() / energy;
         println!(
             "  {:<16} {:>9} {:>7} bodies   mass {:.2e}   energy {:.2e}",
@@ -236,6 +241,83 @@ fn stepping_does_not_heat_a_node() {
             worst_drift < 1e-3,
             "{}: energy drifted by {worst_drift:.3e} in a single step",
             s.name
+        );
+    }
+}
+
+/// Every scenario's contents land inside the node they belong to.
+///
+/// `docs/PLAY.md` §7's second Phase 2 item, and the `docs/BACKLOG.md` entry
+/// "The sampler inflates anything bound by chemistry by 4.3x10^5".
+///
+/// `sample` has a relaxation loop whose premise is that a configuration too
+/// tightly bound to hold the energy it claims must be bigger, so it scales the
+/// geometry up by 1.5 until the budget turns positive — up to thirty-two
+/// times. Scaling moves the gravitational potential and nothing else, so
+/// against a *chemical* deficit it cannot work: it ran all thirty-two
+/// iterations, failed, fell through to a fallback and left `1.5^32 = 4.3x10^5`
+/// of inflation in place that nothing undid.
+///
+/// Nothing geometric works on a node in that state — adjacency, contact, the
+/// exchange pass and hydro's own neighbour finding all see contents scattered
+/// hundreds of thousands of radii from a node they are supposed to be inside —
+/// and the conserved-set tests never caught it, because the books close either
+/// way: the energy budget absorbs whatever `phi` comes out to, which is the
+/// sampler's design and is correct.
+///
+/// So this is a *geometric* assertion, deliberately, and the first one any
+/// test has made about a Continuum node. Measured, on this exact probe, before
+/// and after the split of `binding_energy` into a gravitational term and a
+/// cohesive one:
+///
+/// ```text
+///   scenario          relax before / after      max|pos|/R before / after
+///   Spiral galaxy          0        0                3.354      3.354
+///   Molecular cloud        0        0                3.574      3.574
+///   The Sun                0        0                3.515      3.515
+///   Rocky planet           0        0                3.515      3.515
+///   Granite block         33        0            4.502e5        1.043
+///   Water vapour          33        0            4.387e5        1.017
+///   Carbon atom           33        0            4.738e5        1.098
+///   Iron nucleus           0        0                1.080      1.080
+/// ```
+///
+/// The four gravitationally bound scenarios are untouched to every digit,
+/// which is the control: the loop is still there and still does its job for
+/// the case it was written for. The nucleus is the other control — its binding
+/// is nuclear and equally unmoved by expansion, and it never tripped the loop
+/// only because its Fermi energy exceeds it.
+///
+/// The bound is 10 rather than 4, because a Plummer sphere genuinely has a
+/// tail: the four gravitational rows sit at 3.4-3.6 and that is what a relaxed
+/// self-gravitating configuration looks like. What is being caught is five
+/// orders of magnitude, not a factor of two.
+#[test]
+fn every_scenario_samples_its_contents_inside_itself() {
+    use phys::sampler::{sample, SampleSpec};
+
+    for s in scenario::ALL {
+        let tree = s.build(0x5EED);
+        let node = &tree.nodes[tree.root.get()];
+        let matter = node.matter;
+        let spec = SampleSpec { count: 512, ..node.spec };
+        let (bodies, report) = sample(&matter, spec, tree.world_seed, node.key.0, 0);
+        assert!(!bodies.is_empty(), "{}: sampled nothing", s.name);
+
+        let furthest =
+            bodies.iter().map(|b| b.pos.norm()).fold(0.0f64, f64::max) / matter.radius;
+        println!(
+            "  {:<16} relax {:>2}   max|pos|/R {:>10.3e}   E_grav {:>10.3e}   E_cohesive {:>10.3e}",
+            s.name, report.relaxations, furthest, matter.gravitational_binding,
+            matter.cohesive_binding
+        );
+        assert!(
+            furthest < 10.0,
+            "{}: its furthest body is {furthest:.3e} radii out, after \
+             {} relaxations — the sampler expanded the configuration trying to \
+             release a binding that expansion does not release",
+            s.name,
+            report.relaxations
         );
     }
 }

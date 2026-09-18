@@ -15,7 +15,7 @@ use crate::math::Vec3;
 use crate::rng::{Purpose, Stream};
 use crate::neighbourhood::NeighbourGrid;
 use crate::solvers::SolveReport;
-use crate::state::Body;
+use crate::state::{Body, BodyKind};
 use crate::units::*;
 
 /// Lennard-Jones parameters per element: `(sigma [m], epsilon [J])`.
@@ -32,6 +32,43 @@ pub fn lj_params(s: CoarseElement) -> (f64, f64) {
         CoarseElement::Iron => (2.912e-10, 0.0056 * EV),
         CoarseElement::Other => (3.500e-10, 0.0050 * EV),
     }
+}
+
+/// Whether the van der Waals term describes this body at all.
+///
+/// Lennard-Jones is an *interatomic* potential: the repulsive term is two
+/// electron clouds refusing to overlap and the attractive one is their induced
+/// dipoles. A nucleon has neither, and an electron or a photon is not the sort
+/// of thing the potential is about either. Applying it anyway is not an
+/// approximation, it is a category error, and it detonates.
+///
+/// Measured, on the carbon atom scenario — a node the size of an atom holding
+/// its twelve *nucleons*, which is the right contents and is what the
+/// scenario's own doc comment says it is for:
+///
+/// ```text
+///     body kind          Nucleon,  radius 1.200e-15 m
+///     min separation     1.9016e-11 m
+///     LJ sigma applied   3.431e-10 m   (carbon, from the composition)
+///     (sigma/r)^12       1.190e15
+/// ```
+///
+/// The bodies leave at 150 c. This was invisible for as long as the sampler
+/// inflated the node by 4.7x10^5 — everything then sat beyond the 1 nm cutoff
+/// and felt nothing at all — and `PLAY.md` §7's second Phase 2 item, which
+/// stops that inflation, is what exposed it.
+///
+/// This is the same shape as the bonded-pair rule below and is applied for the
+/// same reason: a term that does not describe a pair is removed rather than
+/// tuned. It is deliberately about *what the body is* and not about the node's
+/// tier — `docs/BACKLOG.md` records the tier half separately, where a node
+/// takes its solver from a radius while its contents came from a spec five
+/// orders finer, and that remains open.
+fn has_electron_cloud(kind: BodyKind) -> bool {
+    !matches!(
+        kind,
+        BodyKind::Nucleon | BodyKind::Nucleus | BodyKind::Electron | BodyKind::Photon
+    )
 }
 
 /// Dominant element of a body, for force-field lookup.
@@ -292,11 +329,19 @@ pub fn forces_excluding(bodies: &[Body], params: MdParams, skip: &Exclusions) ->
                 continue;
             }
             let (sj, ej) = lj_params(dominant(&bj));
-            // Lorentz-Berthelot mixing.
+            // Lorentz-Berthelot mixing, where the term applies at all. See
+            // `has_electron_cloud`: a pair with no electron clouds between them
+            // has no dispersion and no Pauli wall, and inventing one for a
+            // nucleon out of its element's atomic sigma is what sent the carbon
+            // atom's contents out at 150 c.
+            let vdw = has_electron_cloud(bi.kind) && has_electron_cloud(bj.kind);
             let sigma = 0.5 * (si + sj);
             let epsilon = (ei * ej).sqrt();
-            let mut f = lj_force(r, sigma, epsilon);
-            let mut v = lj_potential(r, sigma, epsilon);
+            let (mut f, mut v) = if vdw {
+                (lj_force(r, sigma, epsilon), lj_potential(r, sigma, epsilon))
+            } else {
+                (0.0, 0.0)
+            };
             if bi.charge != 0.0 && bj.charge != 0.0 {
                 // Screened Coulomb, shifted so the force goes smoothly to zero
                 // at the cutoff — an unshifted cutoff puts an impulse into
@@ -349,7 +394,11 @@ pub fn potential_energy_excluding(bodies: &[Body], params: MdParams, skip: &Excl
                 continue;
             }
             let (sj, ej) = lj_params(dominant(&bj));
-            total += w * lj_potential(r, 0.5 * (si + sj), (ei * ej).sqrt());
+            // Same rule as the force above, or the energy books disagree with
+            // the forces and the drift measurement stops meaning anything.
+            if has_electron_cloud(bi.kind) && has_electron_cloud(bj.kind) {
+                total += w * lj_potential(r, 0.5 * (si + sj), (ei * ej).sqrt());
+            }
             if bi.charge != 0.0 && bj.charge != 0.0 {
                 total += w * K_COULOMB * bi.charge * bj.charge / r * (-r / params.debye).exp();
             }

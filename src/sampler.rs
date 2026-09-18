@@ -143,6 +143,17 @@ pub struct SampleReport {
     /// value when summarising these bodies, or the two directions are measuring
     /// different quantities and the round trip is not a round trip.
     pub potential: f64,
+    /// Worst surviving interpenetration between two bodies that cannot
+    /// interpenetrate, as a fraction of their contact distance. Zero for a
+    /// configuration that is physically realisable, and zero for kinds where
+    /// the question does not arise — a gas parcel is a smoothing volume and
+    /// overlapping its neighbours is what it is *for*.
+    ///
+    /// Reported rather than silently accepted, on §3.7's precedent: a node
+    /// crossed by its own ensemble says so. A non-zero value here means the
+    /// separation pass could not find room, which means the node is holding
+    /// more solid matter than it has volume for.
+    pub worst_overlap: f64,
 }
 
 impl Default for SampleReport {
@@ -160,6 +171,7 @@ impl Default for SampleReport {
             internal_energy_residual: 0.0,
             scales: crate::state::Scales::unit(),
             potential: 0.0,
+            worst_overlap: 0.0,
         }
     }
 }
@@ -230,6 +242,67 @@ pub fn sample(
         *p = p.scale(scale);
     }
 
+    // ---- 2.5 excluded volume --------------------------------------------
+    //
+    // An independent draw is an *ideal gas* draw: every position is chosen
+    // without reference to the others, so pairs land arbitrarily close. That is
+    // right for stars in a galaxy and for parcels of gas, whose kernels are
+    // supposed to overlap, and it is wrong for anything solid. A real
+    // interacting system's pair correlation vanishes below contact, because the
+    // repulsion that makes two things two things has already turned them
+    // around.
+    //
+    // Nothing had noticed, because the one place it bites is a Lennard-Jones
+    // force field and the three scenarios that reach one were all being
+    // inflated by 4.3x10^5 by the relaxation loop below. Fixing that exposed
+    // this: measured, the water vapour node's closest pair sat at 2.55x10^-11 m
+    // against a sigma of 3.12x10^-10 — eight per cent of contact, where
+    // `(sigma/r)^12` is 8.6x10^12 — and no timestep rescues it. The engine
+    // throttled to 2.83x10^-20 s and the pair still left at 4.5x10^9 m/s.
+    //
+    // So the configuration is corrected rather than the solver defended. The
+    // pass is skipped where it provably has nothing to do, which is most
+    // samples; see `expected_overlapping_pairs`.
+    // Computed once and carried to `close_books` rather than recomputed there,
+    // so a kind that needs the question asked pays for the answer once. Empty
+    // for a kind that does not, which is what `Parts::radii` already means.
+    let mut radii: Vec<f64> = Vec::new();
+    if is_impenetrable(spec.kind) {
+        radii = (0..n).map(|i| child_radius(matter, spec, masses[i], n)).collect();
+        if expected_overlapping_pairs(&radii, matter.radius) > 1e-6 {
+            let mut previous = f64::INFINITY;
+            for _ in 0..SEPARATION_PASSES {
+                let worst = push_apart(&mut pos, &radii, true);
+                if worst <= 0.0 {
+                    break;
+                }
+                // Separating grows the configuration, so put it back on the
+                // radius it is supposed to have. Shrinking can re-close a gap,
+                // which is why this iterates rather than doing one pass.
+                recentre(&mut pos, &masses, matter.mass);
+                let k = radius_scale(&pos, &masses, matter.mass, matter.radius);
+                for p in pos.iter_mut() {
+                    *p = p.scale(k);
+                }
+                scale *= k;
+                // A node can be holding more solid matter than it has room for,
+                // and then no number of passes helps. An iron nucleus is the
+                // standing case: `child_radius` gives a nucleon the 1.2 fm that
+                // is the radius *per nucleon* in `R = r0 A^(1/3)`, so
+                // fifty-six of them fill their own nucleus exactly, and a
+                // packing fraction of one is above what any arrangement of
+                // spheres reaches. Stopping when the pass stops helping leaves
+                // that in `worst_overlap` to be read, and costs one sweep
+                // rather than twenty-four.
+                if worst > 0.99 * previous {
+                    break;
+                }
+                previous = worst;
+            }
+            report.worst_overlap = push_apart(&mut pos, &radii, false);
+        }
+    }
+
     // ---- 3. energy budget, with the potential re-derived ----------------
     //
     // The parent's *total* energy is the invariant. How it splits between
@@ -241,10 +314,23 @@ pub fn sample(
     // the old total.
     let softening = matter.radius / (n as f64).cbrt() * 0.1;
     let mut phi = potential_estimate(&pos, &masses, softening, spec.profile, matter);
-    let mut random_ke_target = matter.internal_energy + matter.binding_energy - phi;
+    let mut random_ke_target = matter.internal_energy + matter.gravitational_binding - phi;
 
     // A configuration can be too tightly bound to hold the energy it claims.
     // Physically the answer is that it must be bigger, so make it bigger.
+    //
+    // **Only the gravitational half of the binding is in this budget**, and
+    // that is the loop's own precondition made explicit rather than assumed.
+    // Scaling the geometry moves `phi` and nothing else, so it can only ever
+    // relieve a deficit that `phi` caused. A granite block's deficit is a
+    // silicate cohesive energy of 5 eV per atom against a self-gravity of
+    // 10^-4 J, and against that the loop ran all thirty-two iterations, failed,
+    // fell through to the fallback below — and left a 1.5^32 = 4.3x10^5
+    // inflation in place that nothing undid. Measured: its contents sampled
+    // 4.396x10^5 radii outside the node they are inside, against 3.1 for a
+    // spiral galaxy, which is what a correctly relaxed configuration looks
+    // like. `Matter::cohesive_binding` is the term that is deliberately absent
+    // here.
     let mut guard = 0;
     while random_ke_target <= 0.0 && guard < 32 {
         for p in pos.iter_mut() {
@@ -252,7 +338,7 @@ pub fn sample(
         }
         scale *= 1.5;
         phi = potential_estimate(&pos, &masses, softening * scale, spec.profile, matter);
-        random_ke_target = matter.internal_energy + matter.binding_energy - phi;
+        random_ke_target = matter.internal_energy + matter.gravitational_binding - phi;
         report.radius_overridden = true;
         report.relaxations += 1;
         guard += 1;
@@ -281,7 +367,7 @@ pub fn sample(
         scale *= need;
         phi = potential_estimate(&pos, &masses, softening * scale, spec.profile, matter);
         random_ke_target =
-            (matter.internal_energy + matter.binding_energy - phi).max(matter.internal_energy.abs().max(1e-30));
+            (matter.internal_energy + matter.gravitational_binding - phi).max(matter.internal_energy.abs().max(1e-30));
         inertia = inertia_tensor_of(&pos, &masses);
         omega = inertia.solve(matter.spin).unwrap_or(Vec3::ZERO);
         ke_rot = 0.5 * omega.dot(matter.spin);
@@ -307,7 +393,7 @@ pub fn sample(
         pos,
         masses,
         comps: sample_compositions(matter, spec, &masses_for_comp, world_seed, path_key, epoch),
-        radii: Vec::new(),
+        radii,
         kind: spec.kind,
     };
     let bodies = close_books(matter, parts, resid, phi, random_ke_target, omega, ke_rot, scale, &mut report);
@@ -586,6 +672,134 @@ fn recentre(pos: &mut [Vec3], masses: &[f64], total: f64) -> Vec3 {
 /// Choose the scale factor that makes `summarise` report exactly `target`.
 /// `summarise` uses `1.291 * rms` (the RMS-to-uniform-sphere conversion), so we
 /// invert that same expression rather than guessing.
+/// Whether a body of this kind is a *thing*, and therefore cannot be in the
+/// same place as another one.
+///
+/// The line is not "is it small" and not "which solver runs it": it is whether
+/// one body stands for one object. A `Grain`, a `Molecule`, an `Atom`, a
+/// `Nucleon`, a `Star` and a `Planet` each are one, and two of them at the same
+/// point is a state that does not exist. A `Super` is a statistical stand-in
+/// for many objects and a `GasParcel` is a smoothing volume whose whole method
+/// depends on overlapping its neighbours — SPH with non-overlapping kernels
+/// computes nothing. An `Electron` or a `Photon` has no hard core to speak of
+/// at the scale a body radius describes.
+fn is_impenetrable(kind: BodyKind) -> bool {
+    matches!(
+        kind,
+        BodyKind::Star
+            | BodyKind::CompactObject
+            | BodyKind::Planet
+            | BodyKind::Grain
+            | BodyKind::Molecule
+            | BodyKind::Atom
+            | BodyKind::Nucleus
+            | BodyKind::Nucleon
+    )
+}
+
+/// How many times the separation pass is allowed to run before the sampler
+/// gives up and reports what is left.
+///
+/// A fixed point exists: `child_radius` gives an unstructured body half the
+/// mean spacing, which fills exactly one eighth of the node's volume whatever
+/// the count — well under the 0.64 of a random close packing — so there is
+/// always room. What there is not always is *fast* convergence, and a pass
+/// that ran until it converged would be an unbounded loop inside the one
+/// function the whole engine's determinism rests on.
+const SEPARATION_PASSES: usize = 24;
+
+/// Push apart any two bodies whose surfaces overlap, or measure the worst
+/// overlap without touching anything.
+///
+/// Jacobi rather than Gauss-Seidel — every displacement is accumulated against
+/// the *same* starting positions and applied at the end — because the sweep
+/// visits pairs in an order the neighbour grid chooses, and a solver that
+/// depends on that order gives a different answer for the same node on a
+/// different machine. Each pair is moved half the deficit from each side,
+/// which leaves the centre of mass alone for an equal-mass pair and close to
+/// it otherwise; `recentre` afterwards makes that exact.
+///
+/// Returns the worst overlap it saw, as a fraction of the pair's contact
+/// distance.
+fn push_apart(pos: &mut [Vec3], radii: &[f64], apply: bool) -> f64 {
+    let n = pos.len();
+    if n < 2 {
+        return 0.0;
+    }
+    let reach = 2.0 * radii.iter().copied().fold(0.0f64, f64::max);
+    if !(reach > 0.0) {
+        return 0.0;
+    }
+    let grid = crate::neighbourhood::NeighbourGrid::of_points(pos.iter().copied(), reach);
+    let mut shift = vec![Vec3::ZERO; n];
+    let mut worst = 0.0f64;
+    let mut nb: Vec<u32> = Vec::with_capacity(64);
+    for i in 0..n {
+        grid.neighbours(pos[i], &mut nb);
+        for &jj in nb.iter() {
+            let j = jj as usize;
+            if j <= i {
+                continue;
+            }
+            let contact = radii[i] + radii[j];
+            if !(contact > 0.0) {
+                continue;
+            }
+            let d = pos[j] - pos[i];
+            let r = d.norm();
+            if r >= contact {
+                continue;
+            }
+            worst = worst.max((contact - r) / contact);
+            if !apply {
+                continue;
+            }
+            // Two bodies at exactly the same point have no line of centres, so
+            // the direction is chosen from their indices — arbitrary, but the
+            // same arbitrary choice on every machine and every regeneration.
+            let dir = if r > 0.0 {
+                d.scale(1.0 / r)
+            } else {
+                match (i + 3 * j) % 3 {
+                    0 => Vec3 { x: 1.0, y: 0.0, z: 0.0 },
+                    1 => Vec3 { x: 0.0, y: 1.0, z: 0.0 },
+                    _ => Vec3 { x: 0.0, y: 0.0, z: 1.0 },
+                }
+            };
+            let half = 0.5 * (contact - r);
+            shift[i] -= dir.scale(half);
+            shift[j] += dir.scale(half);
+        }
+    }
+    if apply {
+        for i in 0..n {
+            pos[i] += shift[i];
+        }
+    }
+    worst
+}
+
+/// Expected number of overlapping pairs in an independent draw, so the
+/// separation pass can be skipped where it provably has nothing to do.
+///
+/// `n(n-1)/2` pairs, each overlapping with probability equal to the exclusion
+/// volume over the node's volume. For a galaxy this is `3.6x10^-24` — a star
+/// is 10^9 m across and its neighbours are 10^16 m away — and paying for a
+/// grid over half a million bodies to discover that is the sort of cost that
+/// ends up in `PERFORMANCE.md` for no reason. For a node of molecules at a
+/// tenth of liquid density it is in the hundreds, which is exactly the case
+/// this exists for.
+fn expected_overlapping_pairs(radii: &[f64], node_radius: f64) -> f64 {
+    let n = radii.len();
+    if n < 2 || !(node_radius > 0.0) {
+        return 0.0;
+    }
+    let mean_r = det_sum_by(n, &|i| radii[i]) / n as f64;
+    let ratio = 2.0 * mean_r / node_radius;
+    // (2r)^3 / R^3, the exclusion volume over the node's, the 4/3 pi cancelling.
+    0.5 * (n as f64) * (n as f64 - 1.0) * ratio * ratio * ratio
+}
+
 fn radius_scale(pos: &[Vec3], masses: &[f64], total: f64, target: f64) -> f64 {
     let n = pos.len();
     let r2 = det_sum_by(n, &|i| masses[i] * pos[i].norm2()) / total;
@@ -833,7 +1047,7 @@ pub(crate) fn close_books(
         let e_kin = crate::state::kinetic_energy_of(&bodies);
         let target_internal_sum = crate::state::bulk_kinetic(matter.mass, matter.momentum)
             + matter.internal_energy
-            + matter.binding_energy
+            + matter.gravitational_binding
             - phi
             - e_kin;
         report.internal_energy_residual = if matter.internal_energy.abs() > 0.0 {
@@ -1022,7 +1236,7 @@ pub fn sample_structured(
     // Same expression the sampled path uses. Self-gravity is negligible for a
     // structure, so this is essentially the thermal budget, but it is written
     // the same way so that the two paths cannot drift apart.
-    let random_ke_target = (matter.internal_energy + matter.binding_energy - phi)
+    let random_ke_target = (matter.internal_energy + matter.gravitational_binding - phi)
         .max(matter.internal_energy.abs().max(1e-30));
 
     // ---- 3. thermal jitter, then the shared projection --------------------

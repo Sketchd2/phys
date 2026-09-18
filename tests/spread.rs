@@ -135,25 +135,33 @@ fn a_promoted_child_is_counted_once() {
     );
 }
 
-/// The measurement, run against worlds that already exist, independently finds
-/// two things `BACKLOG.md` records.
+/// The measurement, run against worlds that already exist, independently found
+/// two things `BACKLOG.md` records. One of them has since been fixed, and this
+/// is now what holds the fix.
 ///
-/// This is the case for having it. Neither defect was looked for here — both
-/// fall out of asking one question of every node, and both were originally
-/// found by long and unrelated investigations.
+/// This is the case for having the measurement. Neither defect was looked for
+/// here — both fall out of asking one question of every node, and both were
+/// originally found by long and unrelated investigations.
 ///
 /// Measured baselines, which matter to anyone who later wants a threshold: a
 /// *healthy* node does **not** come out at or below one. A Plummer sphere's
 /// tail legitimately reaches three to four radii, and the scenario shelf runs
-/// 1.5 to 4.0. So "outgrew its radius" is not the signal; orders of magnitude
+/// 1.2 to 4.0. So "outgrew its radius" is not the signal; orders of magnitude
 /// are.
 #[test]
 fn it_finds_the_two_defects_already_on_the_list() {
-    // 1. The sampler inflates anything bound by chemistry by about 4.3e5,
-    //    because its relaxation loop releases a *gravitational* binding and a
-    //    granite block's is cohesive.
-    let mut healthy = Vec::new();
-    let mut inflated = Vec::new();
+    // 1. **Was:** the sampler inflates anything bound by chemistry by about
+    //    4.3e5, because its relaxation loop releases a *gravitational* binding
+    //    and a granite block's is cohesive. Three scenarios came out here at
+    //    over 1e5 and the other five at 3.06 to 3.98.
+    //
+    //    Fixed by `PLAY.md` §7's second Phase 2 item, which splits
+    //    `binding_energy` into the half expansion releases and the half it does
+    //    not. Now every scenario sits inside the healthy band, and this half of
+    //    the test is what keeps it there — the assertion is inverted rather
+    //    than deleted, because a measurement that caught something once is the
+    //    cheapest guard against it coming back.
+    let mut occupancies = Vec::new();
     for sc in phys::scenario::ALL {
         let mut w = World::new(sc.build(0xC0FFEE), 1.0);
         let root = w.tree.root;
@@ -163,21 +171,31 @@ fn it_finds_the_two_defects_already_on_the_list() {
             continue;
         }
         let occ = w.tree.spread(root).occupancy(w.tree.nodes[root.get()].matter.radius);
-        if occ > 100.0 { &mut inflated } else { &mut healthy }.push((sc.name, occ));
+        occupancies.push((sc.name, occ));
     }
     assert!(
-        healthy.iter().all(|(_, o)| *o < 10.0),
-        "a sampled profile's tail reaches a few radii and no more: {healthy:?}"
-    );
-    assert_eq!(
-        inflated.len(),
-        3,
-        "three scenarios set a chemical binding energy and should be the three \
-         that come out inflated; got {inflated:?} against {healthy:?}"
+        occupancies.len() >= 8,
+        "the whole shelf should refine: {occupancies:?}"
     );
     assert!(
-        inflated.iter().all(|(_, o)| *o > 1.0e5),
-        "the inflation is 1.5^32, about 4.3e5: {inflated:?}"
+        occupancies.iter().all(|(_, o)| *o < 10.0),
+        "a sampled profile's tail reaches a few radii and no more, whatever \
+         holds the node together: {occupancies:?}"
+    );
+    // And the four chemically bound ones are not merely under the ceiling but
+    // *tighter* than the gravitationally bound ones, which is what a solid
+    // ought to look like beside a Plummer sphere.
+    let chemical: Vec<f64> = occupancies
+        .iter()
+        .filter(|(n, _)| {
+            matches!(*n, "Granite block" | "Water vapour" | "Carbon atom" | "Iron nucleus")
+        })
+        .map(|(_, o)| *o)
+        .collect();
+    assert_eq!(chemical.len(), 4, "the four bound-by-chemistry scenarios: {occupancies:?}");
+    assert!(
+        chemical.iter().all(|o| *o < 2.0),
+        "a solid's contents sit inside it: {occupancies:?}"
     );
 
     // 2. A node whose bodies are flung out of it by an unstable solver. The

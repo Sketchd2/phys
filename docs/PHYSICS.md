@@ -36,7 +36,7 @@ coarsen the star, refine it again and find the protons back.
 ### Energy decomposition
 
 ```
-E = M c²  +  K_bulk(M, P)  +  U_internal  +  Φ_binding  +  Φ_external
+E = M c²  +  K_bulk(M, P)  +  U_internal  +  Φ_gravitational  +  Φ_cohesive  +  Φ_external
 ```
 
 - `K_bulk` is the **exact** relativistic form, `√((Mc²)² + (Pc)²) − Mc²`, not
@@ -44,7 +44,24 @@ E = M c²  +  K_bulk(M, P)  +  U_internal  +  Φ_binding  +  Φ_external
   recovers `U` from `(M, P, E, Φ)` — and a Newtonian bulk term makes the round
   trip lossy at the 10⁻⁵ level for anything moving at galactic rotation speeds,
   which shows up as visible energy drift when a user pans across a disc.
-- `Φ_external` is separate from `Φ_binding` because it is *not recoverable from
+- **`Φ_gravitational` and `Φ_cohesive` are separate because expansion releases
+  the first and not the second.** Gravitational binding is held by the node's
+  own long-range field, so spreading the contents out is exactly what pays it
+  back; cohesive binding is held by bonds at a scale far below the node, and
+  moving the bodies apart releases none of it. `sampler::sample` has a
+  relaxation loop whose whole premise is the first — a configuration too
+  tightly bound to hold the energy it claims must be bigger — and run against
+  the sum it inflated a cubic metre of granite by `1.5^32 = 4.3 × 10⁵`,
+  scaling for thirty-two iterations to move a term that was not the negative
+  one, then giving up and leaving the inflation in place. Measured: the block's
+  contents sampled `4.502 × 10⁵` radii outside the node they are inside,
+  against 3.35 for a spiral galaxy, which is what a correctly relaxed
+  configuration looks like. Split, they sample at 1.04.
+
+  `Φ_cohesive` is carried through both directions of a scale transition
+  untouched, like `Φ_external`: `summarise` measures where the bodies ended up,
+  and a bond is far below the scale of a body, so it has nothing to report.
+- `Φ_external` is separate from both because it is *not recoverable from
   the node's own contents*. Refine a galaxy's baryons and their mutual potential
   is nine times smaller than the dark halo's grip on them. Folding the two
   together makes every refinement demand a thermal budget that does not exist,
@@ -131,6 +148,61 @@ stream from the node address alone, so every step drew the *same* numbers. A
 "random" force that is identical every step is a constant force, and the system
 heated to 81,000 K. The fix threads the step index into the address
 (`rng::Stream::split`); the test would catch a regression.
+
+#### What Lennard-Jones is *for*
+
+The van der Waals term applies between bodies that have electron clouds. The
+repulsive half is two clouds refusing to overlap and the attractive half is
+their induced dipoles, and a nucleon has neither — so applying it to one is a
+category error rather than an approximation. Measured, on the carbon atom
+scenario, a node the size of an atom holding its twelve nucleons:
+
+```text
+    body kind          Nucleon, radius 1.200e-15 m
+    min separation     1.9016e-11 m
+    σ applied          3.431e-10 m   (carbon, taken from the composition)
+    (σ/r)^12           1.190e15
+```
+
+The contents left at 150 c. This was invisible for as long as the sampler
+inflated the node by 4.7 × 10⁵ — everything sat beyond the 1 nm cutoff and felt
+nothing at all — and splitting the binding energy is what exposed it. The rule
+is the same shape as the bonded-pair exclusion below and is there for the same
+reason: a term that does not describe a pair is removed rather than tuned.
+
+#### Excluded volume, and why an independent draw is not enough
+
+`sample` draws each position without reference to the others, which is an
+*ideal gas* draw. That is right for stars in a galaxy and for parcels of gas,
+whose SPH kernels are supposed to overlap, and it is wrong for anything solid:
+a real interacting system's pair correlation vanishes below contact, because
+the repulsion that makes two things two things has already turned them around.
+
+Measured, once the granite and vapour nodes stopped being inflated: the water
+vapour node's closest pair sat at `2.55 × 10⁻¹¹ m` against a σ of
+`3.12 × 10⁻¹⁰ m` — eight per cent of contact, where `(σ/r)^12` is
+`8.6 × 10¹²`. No timestep rescues that. The engine throttled to
+`2.83 × 10⁻²⁰ s` and the pair still left at `4.5 × 10⁹ m/s`.
+
+So the configuration is corrected rather than the solver defended. Bodies whose
+kind means *one object* — a grain, a molecule, an atom, a nucleon, a star, a
+planet — are pushed apart until their surfaces no longer overlap, Jacobi-style
+so the answer does not depend on the order the neighbour grid visits pairs, and
+re-centred and re-scaled to the node's radius after each pass. A fixed point
+always exists for an unstructured body: `child_radius` gives it half the mean
+spacing, which fills exactly one eighth of the node's volume whatever the
+count, well under the 0.64 of a random close packing.
+
+Where it does *not* exist the sampler says so rather than pretending, in
+`SampleReport::worst_overlap`. An iron nucleus is the standing case: a nucleon
+is given the 1.2 fm that is the radius *per nucleon* in `R = r₀A^(1/3)`, so
+fifty-six of them fill their own nucleus exactly, and a packing fraction of one
+is above what any arrangement of spheres reaches. It reports 0.45 and is left
+alone.
+
+The pass is skipped where the expected number of overlapping pairs —
+`n(n−1)/2 · (2r̄/R)³` — is below `10⁻⁶`, which is most samples. For a galaxy it
+is `3.6 × 10⁻²⁴`: a star is 10⁹ m across and its neighbours are 10¹⁶ m away.
 
 #### Covalent bonds
 

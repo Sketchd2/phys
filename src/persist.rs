@@ -264,7 +264,7 @@ pub(crate) fn put_matter(w: &mut Writer, a: &Matter) {
     w.vec3(a.momentum);
     w.vec3(a.spin);
     w.f64(a.internal_energy);
-    w.f64(a.binding_energy);
+    w.f64(a.gravitational_binding);
     w.f64(a.external_potential);
     w.f64(a.radius);
     w.f64(a.temperature);
@@ -277,6 +277,10 @@ pub(crate) fn put_matter(w: &mut Writer, a: &Matter) {
     w.f64(a.chemical_energy);
     w.f64(a.magnetic_energy);
     w.f64(a.luminosity);
+    // Appended, because the wire format encodes positions and inserting
+    // a field where it reads well would reinterpret every older save.
+    // `FORMAT_VERSION` moves with it; see `wire.rs`.
+    w.f64(a.cohesive_binding);
 }
 pub(crate) fn get_matter(r: &mut Reader) -> Result<Matter> {
     Ok(Matter {
@@ -285,7 +289,7 @@ pub(crate) fn get_matter(r: &mut Reader) -> Result<Matter> {
         momentum: r.vec3()?,
         spin: r.vec3()?,
         internal_energy: r.f64()?,
-        binding_energy: r.f64()?,
+        gravitational_binding: r.f64()?,
         external_potential: r.f64()?,
         radius: r.f64()?,
         temperature: r.f64()?,
@@ -298,6 +302,7 @@ pub(crate) fn get_matter(r: &mut Reader) -> Result<Matter> {
         chemical_energy: r.f64()?,
         magnetic_energy: r.f64()?,
         luminosity: r.f64()?,
+        cohesive_binding: r.f64()?,
     })
 }
 
@@ -900,7 +905,7 @@ pub(crate) fn get_tree_stats(r: &mut Reader) -> Result<TreeStats> {
 }
 
 /// Smallest a node can be: the fixed fields, with every optional part absent.
-const NODE_MIN_BYTES: usize = 16 + 4 + 4 + 4 + 1 + 8 * 24 + 8 * 11 + 4 + 4 + 1 + 1 + 1 + 1 + 1 + 8;
+const NODE_MIN_BYTES: usize = 16 + 4 + 4 + 4 + 1 + 8 * 25 + 8 * 11 + 4 + 4 + 1 + 1 + 1 + 1 + 1 + 8;
 
 fn put_tree(w: &mut Writer, t: &Tree) {
     w.u64(t.world_seed);

@@ -230,3 +230,27 @@ compile. The words that named the old concept survive in prose, where nothing
 checks them, and they teach the next reader — and the next author — the retired
 vocabulary. Grep for the *old word*, not just the old symbol, and expect to
 find that some hits are a different sense that must be left alone.
+
+## `binding_energy` split, and named for what it is
+
+`Matter::binding_energy` covered two things that behave oppositely under the one
+operation the field exists to support. `PLAY.md` §7's second Phase 2 item split
+it, and both halves were *renamed* rather than one keeping the old word:
+
+| was | is | means |
+|---|---|---|
+| `binding_energy` | `gravitational_binding` | binding held by the node's own long-range field, which spreading the contents out releases |
+| — | `cohesive_binding` | binding held by bonds — chemical, electronic, nuclear — which no rearrangement of the bodies releases |
+
+**Keeping `binding_energy` for the gravitational half would have compiled
+everywhere and meant something different at every call site**, which is the
+silent reinterpretation this document exists to prevent. Renaming both forced
+all twenty-eight uses to be looked at, and three of them were in scenarios that
+had been putting a cohesive energy into a gravitational field for as long as the
+field had existed.
+
+`view::NodeFacts::binding_energy` keeps the name and now carries the *sum*.
+That is not the retired sense: an observer asking how bound a node is has one
+question, and the split is about what the sampler may do with the answer rather
+than about what the answer is. The two are in different modules and nothing
+reads across.

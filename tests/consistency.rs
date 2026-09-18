@@ -18,7 +18,7 @@ fn sample_matter() -> Vec<(&'static str, Matter)> {
 
     let mut star = Matter::neutral(M_SUN, R_SUN, 5.8e6, Composition::solar());
     star.spin = v3(1e41, 0.0, 1.1e42);
-    star.binding_energy = -0.6 * G * M_SUN * M_SUN / R_SUN;
+    star.gravitational_binding = -0.6 * G * M_SUN * M_SUN / R_SUN;
     out.push(("star", star));
 
     let mut planet = Matter::neutral(M_EARTH, R_EARTH, 3000.0, Composition::pure(CoarseElement::Silicon));
@@ -35,6 +35,15 @@ fn sample_matter() -> Vec<(&'static str, Matter)> {
 
     let hot = Matter::neutral(1e-20, 1e-9, 1e6, Composition::primordial());
     out.push(("hot plasma parcel", hot));
+
+    // A cubic metre of granite: bound by chemistry rather than by gravity, and
+    // bound hard — 5 eV per atom against a self-gravity of about 10^-4 J. This
+    // is the case `PLAY.md` §7 item 2 exists for, and the fixture list had
+    // nothing in it: every other entry here is gravitationally bound or
+    // unbound, so the round trip never exercised a cohesive term at all.
+    let mut granite = Matter::neutral(2650.0, 0.866, 290.0, Composition::pure(CoarseElement::Silicon));
+    granite.cohesive_binding = -granite.mass * granite.composition.nucleons_per_kg() / 20.0 * 5.0 * EV;
+    out.push(("granite block", granite));
 
     out
 }
@@ -63,6 +72,11 @@ fn round_trip_conserves_everything() {
                 assert!(!bodies.is_empty(), "{aname}/{sname} produced nothing");
                 let mut back = summarise(&bodies, report.potential);
                 back.external_potential = matter.external_potential;
+                // Reinstated for the same reason `external_potential` is: it is
+                // not recoverable from where the bodies ended up, because a
+                // bond is far below the scale of a body. `Tree::coarsen` does
+                // the same thing on the engine's own path.
+                back.cohesive_binding = matter.cohesive_binding;
                 let scales = Scales::of(&bodies);
                 let err = back.conserved().error_against(&matter.conserved(), &scales);
                 if err > worst {

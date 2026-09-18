@@ -437,10 +437,46 @@ pub struct Matter {
     /// Random/thermal kinetic energy plus chemical and nuclear binding, J.
     /// Excludes rest mass and excludes bulk motion.
     pub internal_energy: f64,
-    /// Self-gravitational (and, at fine tiers, electrostatic) binding energy.
-    /// Negative for a bound object. Tracked explicitly so that coarsening does
-    /// not silently destroy it.
-    pub binding_energy: f64,
+    /// Binding held by the node's *own long-range field* — gravity, and at fine
+    /// tiers the electrostatic self-energy of a charged ball. Negative for a
+    /// bound object. Tracked explicitly so that coarsening does not silently
+    /// destroy it.
+    ///
+    /// **This is the half of the binding that spreading the contents out
+    /// releases**, and that is the whole reason it is a field of its own rather
+    /// than one number covering every kind of binding. `sampler::sample` has a
+    /// relaxation loop whose premise is exactly that: a configuration too
+    /// tightly bound to hold the energy it claims must be bigger, so scale it
+    /// up until the budget turns positive. Scaling moves `phi`, and `phi` is
+    /// this term.
+    ///
+    /// See [`Matter::cohesive_binding`] for the half it does not move, and why
+    /// running the loop against the sum inflated every solid by 4.3x10^5.
+    pub gravitational_binding: f64,
+    /// Binding held by *bonds* — chemical, electronic, nuclear. Negative for a
+    /// bound object, and zero for anything held together only by its own
+    /// gravity.
+    ///
+    /// Split out of what used to be one `binding_energy` because expansion
+    /// does not release it. A granite block's binding is a silicate cohesive
+    /// energy of about 5 eV per atom; its self-gravity at that size is around
+    /// 10^-4 J and utterly negligible against it. The relaxation loop in
+    /// `sampler::sample` scaled the block up by 1.5 thirty-two times trying to
+    /// make a budget positive by moving a term that was not the negative one,
+    /// then gave up and left the inflation in place — measured, a cubic metre
+    /// of granite sampled its contents 4.396x10^5 radii outside the node they
+    /// are supposed to be inside, against 3.1 for a spiral galaxy.
+    ///
+    /// The blast radius was three scenarios while only three scenarios set a
+    /// real cohesive energy. `PLAY.md` D17 puts a `Mixture` on every `Matter`,
+    /// which is what gives every solid in the world one — so this had to be
+    /// split first, and `PLAY.md` §7 puts it before D17 for that reason.
+    ///
+    /// Carried through both directions of a scale transition untouched, like
+    /// [`Matter::external_potential`] and [`Matter::chemical_energy`]: the
+    /// bonds are at a scale far below the node, so nothing the sampler does to
+    /// the arrangement of its bodies can be read back out of them.
+    pub cohesive_binding: f64,
     /// Energy this node holds by virtue of sitting in someone *else's*
     /// potential — a dark matter halo, a parent star, an applied field.
     ///
@@ -497,7 +533,8 @@ impl Default for Matter {
             momentum: Vec3::ZERO,
             spin: Vec3::ZERO,
             internal_energy: 0.0,
-            binding_energy: 0.0,
+            gravitational_binding: 0.0,
+            cohesive_binding: 0.0,
             external_potential: 0.0,
             radius: 1.0,
             temperature: 2.725, // CMB floor: nothing in the engine is colder
@@ -862,7 +899,8 @@ impl Matter {
     pub fn non_rest_energy(&self) -> f64 {
         bulk_kinetic(self.mass, self.momentum)
             + self.internal_energy
-            + self.binding_energy
+            + self.gravitational_binding
+            + self.cohesive_binding
             + self.external_potential
             + self.chemical_energy
     }
@@ -1084,8 +1122,12 @@ pub fn summarise(bodies: &[Body], mutual_potential: f64) -> Matter {
         momentum,
         spin,
         internal_energy: internal,
-        binding_energy: mutual_potential,
+        gravitational_binding: mutual_potential,
         // Not knowable from the children alone; the caller reinstates these.
+        // `cohesive_binding` joins the list for the reason its own doc gives:
+        // the bonds are far below the scale of the bodies, so measuring where
+        // the bodies ended up says nothing about them.
+        cohesive_binding: 0.0,
         external_potential: 0.0,
         chemical_energy: 0.0,
         entropy_exported: 0.0,

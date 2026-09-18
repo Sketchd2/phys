@@ -3884,7 +3884,7 @@ pub fn galaxy(world_seed: u64, stars: f64) -> Tree {
     let sigma = (G * enclosed / (2.0 * radius)).sqrt();
     matter.internal_energy = 0.5 * total * sigma * sigma;
     // The baryons' own binding, which refinement can and must reproduce...
-    matter.binding_energy = -0.6 * G * total * total / radius;
+    matter.gravitational_binding = -0.6 * G * total * total / radius;
     // ...and the halo's grip on them, which it cannot, because the halo is not
     // made of the thing being refined.
     matter.external_potential = -G * total * mass_dark / radius;

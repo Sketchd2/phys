@@ -132,7 +132,7 @@ fn build_cloud(seed: u64) -> Tree {
     let mut matter = Matter::neutral(mass, radius, 20.0, Composition::primordial());
     let sigma = (G * mass / radius).sqrt();
     matter.internal_energy = 0.5 * mass * sigma * sigma;
-    matter.binding_energy = -0.6 * G * mass * mass / radius;
+    matter.gravitational_binding = -0.6 * G * mass * mass / radius;
     matter.spin = v3(0.0, 0.0, 0.25 * mass * sigma * radius);
     let spec = SampleSpec {
         count: 8_000,
@@ -157,7 +157,7 @@ fn build_star(seed: u64) -> Tree {
     let binding = -0.6 * G * mass * mass / radius;
     let mut matter = Matter::neutral(mass, radius, 5.8e3, Composition::solar());
     matter.internal_energy = -0.5 * binding;
-    matter.binding_energy = binding;
+    matter.gravitational_binding = binding;
     matter.luminosity = 3.828e26;
     matter.spin = v3(0.0, 0.0, 1.9e41);
     Tree::new(seed, matter, Tier::Planetary, default_spec(Tier::Planetary))
@@ -179,7 +179,7 @@ fn build_planet(seed: u64) -> Tree {
     // strength and electron degeneracy, not by heat. Booking the full virial
     // internal energy would have the Earth at 10^5 K throughout.
     matter.internal_energy = -0.1 * binding;
-    matter.binding_energy = binding;
+    matter.gravitational_binding = binding;
     matter.spin = v3(0.0, 0.0, 7.05e33);
     Tree::new(seed, matter, Tier::Planetary, default_spec(Tier::Planetary))
 }
@@ -197,8 +197,10 @@ fn build_rock(seed: u64) -> Tree {
     comp[CoarseElement::Iron as usize] = 0.05;
     comp[CoarseElement::Other as usize] = 0.20;
     let mut matter = Matter::neutral(mass, half * 3f64.sqrt(), 290.0, Composition(comp).normalised());
-    // Cohesive energy of a silicate, a few electron volts per atom.
-    matter.binding_energy = -mass * matter.composition.nucleons_per_kg() / 20.0 * 5.0 * EV;
+    // Cohesive energy of a silicate, a few electron volts per atom. Bonds,
+    // not gravity: spreading the block out does not release any of it, which
+    // is what `cohesive_binding` exists to say.
+    matter.cohesive_binding = -mass * matter.composition.nucleons_per_kg() / 20.0 * 5.0 * EV;
     Tree::new(seed, matter, Tier::Continuum, default_spec(Tier::Continuum))
 }
 
@@ -214,7 +216,7 @@ fn build_vapour(seed: u64) -> Tree {
     comp[CoarseElement::Oxygen as usize] = 15.999 / 18.015;
     let mut matter = Matter::neutral(mass, radius, 400.0, Composition(comp).normalised());
     // Bound, and by a lot: two O-H bonds per molecule at 4.8 eV each.
-    matter.binding_energy = -count * 2.0 * 4.81 * EV;
+    matter.cohesive_binding = -count * 2.0 * 4.81 * EV;
     Tree::new(seed, matter, Tier::Molecular, default_spec(Tier::Molecular))
 }
 
@@ -231,8 +233,10 @@ fn build_atom(seed: u64) -> Tree {
     let mass = 12.011 * AMU;
     let radius = 7.0e-11;
     let mut matter = Matter::neutral(mass, radius, 300.0, Composition::pure(CoarseElement::Carbon));
-    // Total electronic binding of neutral carbon, about 1030 eV.
-    matter.binding_energy = -1030.0 * EV;
+    // Total electronic binding of neutral carbon, about 1030 eV. Electronic
+    // rather than gravitational, so it belongs with the bonds: the node
+    // refines into nucleons and their mutual `phi` is gravity alone.
+    matter.cohesive_binding = -1030.0 * EV;
     matter.internal_energy = 1030.0 * EV * 0.5;
     Tree::new(seed, matter, Tier::Atomic, default_spec(Tier::Nuclear))
 }
@@ -249,7 +253,7 @@ fn build_nucleus(seed: u64) -> Tree {
     let mass = 55.845 * AMU;
     let radius = 1.2e-15 * a.cbrt();
     let mut matter = Matter::neutral(mass, radius, 1.0e9, Composition::pure(CoarseElement::Iron));
-    matter.binding_energy = -8.79 * MEV * a;
+    matter.cohesive_binding = -8.79 * MEV * a;
     matter.internal_energy = 0.6 * 33.0 * MEV * a;
     matter = matter.with_charge(26.0 * E_CHARGE);
     Tree::new(seed, matter, Tier::Nuclear, default_spec(Tier::Nuclear))

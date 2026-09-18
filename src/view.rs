@@ -412,6 +412,13 @@ pub struct NodeFacts {
     pub radius: f64,
     pub temperature: f64,
     pub internal_energy: f64,
+    /// How bound the node is, *in total* — gravitational and cohesive together.
+    ///
+    /// `Matter` splits the two, because expansion releases the first and not
+    /// the second, and `sampler::sample`'s relaxation loop has to know which
+    /// is which. An observer does not: "how hard is this to take apart" is one
+    /// question, and a client that wanted the split would be asking about the
+    /// sampler rather than about the node.
     pub binding_energy: f64,
     pub luminosity: f64,
     pub charge: f64,
@@ -1306,7 +1313,7 @@ impl crate::engine::World {
             radius: n.matter.radius,
             temperature: n.matter.temperature,
             internal_energy: n.matter.internal_energy,
-            binding_energy: n.matter.binding_energy,
+            binding_energy: n.matter.gravitational_binding + n.matter.cohesive_binding,
             luminosity: n.matter.luminosity,
             charge: n.matter.charge,
             cadence: self.node_cadence(idx),
