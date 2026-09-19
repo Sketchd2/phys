@@ -344,3 +344,43 @@ fn pieces_out_of_reach_are_not_tested_and_the_gap_is_a_lower_bound() {
         "skipping a piece that cannot win must not change the answer"
     );
 }
+
+/// A slab is a filled rectangular solid, and its faces are flat.
+///
+/// The residual `BACKLOG.md` left open when the capsule work landed. A wall
+/// built out of capsules is a wireframe: a ball thrown at the middle of a panel
+/// passes between the members. Every number below can be written down — a
+/// rounded box of half-extents `h` and corner radius `r` supports to exactly
+/// `h` along an axis, and a sphere standing off a face is that face's distance
+/// away wherever on the face it stands.
+#[test]
+fn a_slab_is_flat_where_a_row_of_capsules_is_not() {
+    let half = v3(0.6, 0.6, 0.0125);
+    let r = 0.00125; // a tenth of the thinnest half-extent
+    let panel = Hull::slab(Vec3::ZERO, half, r);
+    assert_eq!(panel.len(), 8, "a slab is eight corner spheres");
+
+    // Support along each axis is the half-extent exactly: the inset corner plus
+    // the rounding puts the surface back where the box's face is.
+    near(panel.support(v3(1.0, 0.0, 0.0)).x, half.x, TOL, "support +x");
+    near(panel.support(v3(0.0, 0.0, 1.0)).z, half.z, TOL, "support +z");
+
+    // Flat: a probe standing off the face at three places across it reads the
+    // same gap. A row of capsules reads the largest of the three.
+    let probe = |x: f64, y: f64| {
+        let ball = Hull::sphere(v3(x, y, half.z + 0.1), 0.05);
+        closest(&panel, &ball).expect("a slab and a ball are disjoint").gap
+    };
+    let centre = probe(0.0, 0.0);
+    near(centre, 0.05, TOL, "gap above the middle of the panel");
+    near(probe(0.4, 0.0), centre, TOL, "gap two thirds out along the panel");
+    near(probe(0.3, 0.3), centre, TOL, "gap out across the diagonal");
+
+    // And it is solid. A point at the centre of the panel is inside it, which
+    // is what D18 means by "a primitive is always a filled solid".
+    let inside = closest(&panel, &Hull::sphere(Vec3::ZERO, 1e-9));
+    assert!(
+        inside.is_none_or(|c| c.gap <= 0.0),
+        "the middle of a filled slab reads as outside it"
+    );
+}

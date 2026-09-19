@@ -749,8 +749,30 @@ capsule — Tower 248/248, Tree 3400/3400, Wall 704/704, Settlement 256/256.
   narrow phase went from subtracting two radii to a GJK over small point sets,
   and nobody has priced it.
 
-**Trigger for the remainder:** flatness, when something has to rest or stand on
-a built surface rather than bounce off it — Phase 4, or Phase 2 for terrain.
+**Flatness is now half closed**, by D15's assembled part. `Hull::slab` is the
+planar primitive this entry said was undecided: eight spheres at the inset
+corners of a box, whose convex hull *is* that box with its edges rounded by the
+inset. No new support function and no second narrow phase — GJK over eight
+spheres is the same code that runs over a capsule's two — and the shape is
+exact rather than approximate, because a rounded box is a convex solid in its
+own right and not a discretisation of a sharp one.
+`a_slab_is_flat_where_a_row_of_capsules_is_not` in `tests/shape.rs` measures a
+probe standing off a 1.2 m panel at its centre, two thirds out, and across the
+diagonal: the same gap to 10^-12 m, where a row of capsules gives the scallop
+above.
+
+**What is left is the grouping half, and it is the harder one.** A slab is
+available to anything that *knows* it is a slab — an assembled part states its
+half-extents, which is D18's "the generator emits the pieces; nothing infers a
+decomposition". A *grown* structure still emits one capsule per member, so a
+coursed masonry wall is still a row of beads: deciding which of its members
+share one convex piece is inference, and the reason this entry gave for it
+being hard has not changed. A support subtree is not convex for a tree, and
+`site` names a failure rather than a convex piece.
+
+**Trigger for the remainder:** flatness on a *generated* surface, when something
+has to rest or stand on a grown or coursed one rather than bounce off it —
+Phase 4, or Phase 2 for terrain.
 
 ---
 
@@ -956,6 +978,28 @@ cellulose mixture and the material is measured.
 Griffith law rather than by the cohesive-energy-density upper bound it was
 deferring to. See the new entry below for what that reproduces and what it does
 not.
+
+**The test that stands for it** is `a_rock_that_no_program_made_bounces_off_a_boulder`
+in `tests/adjacency.rs`, Phase 2's own done-when: two nodes with a silica
+mixture, no morphology, no topology, no genome and no history, rebounding at
+0.0502 of their approach where a reinforced frame would give 0.0215. Nothing in
+the scene says what a rock is.
+
+**It found one thing on the way, and the finding is the useful part.** The first
+version of that test read **2.8x10^7 Pa** for quartz — 7,900x below the
+2.17x10^11 Pa `tests/material.rs` measures for the same arrangement — and it
+would have asserted it, because the rebound it produces is self-consistent.
+`Formation::of_matter` derives the formation conditions from the *node's own*
+bulk density against the substance's, and Gibson and Ashby say a cellular
+solid's stiffness falls as the square of that packing. A 1,000 kg node a metre
+across is 1% of silica's density: a heap of gravel, not a boulder, and the
+engine softened it by exactly the right factor. The scene was wrong and the
+measurement was right, which is the opposite of the way round it looked.
+
+Worth keeping because it is a trap with no warning on it: every number in a
+contact stays self-consistent while the material underneath is out by four
+orders of magnitude, and the only way to see it is to compare the material
+against one measured somewhere else.
 
 ---
 
@@ -1627,6 +1671,72 @@ resume it exactly — autosave, a shard handoff, a replay. Not urgent for a save
 taken at rest, where the scheduler has had a mixing time to coarsen anything it
 was solving and the gap is zero. `tests/persistence.rs` asserts the drift is
 this term and nothing else, so the bound there is what fails if it grows.
+
+---
+
+## An assembled part has no orientation of its own
+
+**Noticed:** building `docs/PLAY.md` D15's composite.
+**Where:** `assembly.rs` — `Part::half`, and everything that reads it.
+
+A `Part`'s half-extents are along the *composite's* own axes. That is exact for
+anything built square — a box, a crate, a shelf, a framed wall — and wrong for
+a part set at an angle: a braced corner, a roof pitch, a spoke. There is no
+representation for it at all, so such a part comes out axis-aligned rather than
+coming out wrong in a way somebody would see.
+
+**Measured cost of fixing it.** A quaternion is four doubles, so a `Part` goes
+from 78 bytes on the wire to 110, and a six-panel box's recipe from 608 to
+800. D15's whole argument is a storage one — "a house of ~50 parts at under
+1 KB, a town at 500 nodes rather than 25,000" — and 41% is a real fraction of
+it. A rotation matrix per part also has to reach `Hull::slab`, which builds
+its eight corner spheres on the axes, and `Assembly::render`, which picks a
+part's span by comparing half-extents.
+
+**The cheaper half-answer, if it turns out to be enough.** Most angled parts in
+a built thing are *one* rotation shared by a group — a whole roof plane, a
+whole braced bay — so a rotation could live on the assembly rather than on the
+part, at 32 bytes total rather than 32 per part. Whether that is enough is a
+question about what gets built, not about the representation.
+
+**Trigger:** the first structure whose parts are not square to each other —
+which is Making's territory, not Phase 2's. Sooner if terrain's slabs want to
+follow a slope, which is Phase 4's own version of the same question.
+
+---
+
+## A join's substance is recorded and not yet used
+
+**Noticed:** building D15's join.
+**Where:** `assembly.rs` — `Part::join`, and `topology.rs` — `Topology::material`.
+
+D15 says weld, glue, nail and grown-together "are not three features and not a
+permanent inter-node bond: they are the forward direction of this transform,
+differing only in what the join is made of and therefore in its strength under
+D14". Half of that is built: a `Part` carries the join's substance *and* its
+contact area, the area reaches the solver as the joint's own radius rather than
+the member's, and a 25 mm plank glued along one edge is held by a seam of its
+thickness instead of by its whole face. Measured on the six-panel box: every
+seam is 0.0977 m of equivalent radius, stated by the recipe, where the
+fully-stressed optimiser would have sized each one to whatever it had to carry.
+
+The substance is stored and read by nothing. `Topology` carries **one**
+`Material` for a whole structure, so a joint cannot be made of something
+different from the members it holds together, and glue as strong as the wood is
+the same joint as glue that is not.
+
+**What it takes.** A `Material` per joint rather than per topology — 7 f64 on
+a struct there are one of per part, so the same storage question as the entry
+above, and the same answer available: most structures have one or two join
+materials, so an index into a small per-structure table is 2 bytes rather than
+56. `apply_failures` then reads the joint's own strength instead of the
+structure's.
+
+**Trigger:** the first thing whose joins are meant to be its weak point by
+design — a dry-stone wall, a mortise and tenon, a riveted plate — or the first
+time a scenario wants the same box glued and nailed to behave differently.
+Phase 2's done-when does not need it: the box comes apart at the seam because
+the seam is small, which is the other half of the same law.
 
 ---
 

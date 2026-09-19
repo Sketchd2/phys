@@ -390,6 +390,12 @@ pub struct TreeStats {
     pub growth_steps: u64,
     /// Structures loaded to failure.
     pub damage_events: u64,
+    /// Parts attached into a composite's recipe. `docs/PLAY.md` D15's forward
+    /// direction; a node went away and a part appeared.
+    pub joins: u64,
+    /// Parts that came away and became nodes of their own. The same transform
+    /// run backwards, and the count that says how much of a world is loose.
+    pub detachments: u64,
     /// Energy that has crossed a node boundary inwards to drive growth, J.
     /// The world's energy is not conserved against this — it is *balanced*
     /// against it, which is what `tests/growth.rs` asserts.
@@ -1254,6 +1260,57 @@ impl Tree {
         self.stats.structures += 1;
         // A structure takes its size from its program the instant it has one,
         // and a seed is not the size of the tree it becomes.
+        self.retier(i);
+        self.nodes[i.get()].morphology.as_mut().unwrap()
+    }
+
+    /// State a composite: one node whose recipe is the parts it is made of.
+    ///
+    /// The third verb beside `plant` and `emplace`, and `docs/PLAY.md` D15's
+    /// forward direction. `plant` seeds something that grows; `emplace` states
+    /// something already grown; `assemble` states something that was *made* —
+    /// six planks attached into a box — and the difference is where the
+    /// geometry comes from. A grown thing derives its size from the mass it
+    /// accumulated. An assembled thing is the size its parts are, and its mass
+    /// and its radius both follow from them.
+    ///
+    /// `program` is provenance rather than species: it says what the parts are
+    /// made of, so a box of oak planks weighs and burns like oak, and no
+    /// `Program` variant has to exist for "box". That is D11 honoured rather
+    /// than worked around — a crate and a cathedral are both parts lists.
+    ///
+    /// The node's mass is **not** overwritten. A box of six 40 kg planks in a
+    /// node holding 300 kg is a box with 60 kg of something else in it, which
+    /// is a sampled remainder exactly as litter under a tree is; `sample_structured`
+    /// already splits the two. A node holding *less* than its parts claim is a
+    /// caller error and the parts are scaled down to fit rather than
+    /// conjuring mass.
+    pub fn assemble(
+        &mut self,
+        i: NodeIdx,
+        program: crate::morph::Program,
+        parts: crate::assembly::Assembly,
+    ) -> &mut crate::morph::Morphology {
+        let key = self.nodes[i.get()].key;
+        let seed = self.world_seed;
+        let available = self.nodes[i.get()].matter.mass;
+        let mut parts = parts;
+        let claimed = parts.mass();
+        if claimed > available && available > 0.0 && claimed > 0.0 {
+            let f = available / claimed;
+            for p in parts.parts.iter_mut() {
+                p.mass *= f;
+            }
+        }
+        let m = crate::morph::Morphology::assembled(program, parts, seed, key.0);
+        let n = &mut self.nodes[i.get()];
+        n.matter.radius = m.extent().max(1e-30);
+        n.matter.chemical_energy = m.stored_energy();
+        n.bodies.clear();
+        n.children.clear();
+        n.topology = None;
+        n.morphology = Some(m);
+        self.stats.structures += 1;
         self.retier(i);
         self.nodes[i.get()].morphology.as_mut().unwrap()
     }

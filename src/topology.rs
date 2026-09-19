@@ -145,7 +145,14 @@ impl Topology {
                 child: i as u32,
                 parent: skel.support[i],
                 at: place(skel.base[i]),
-                radius: radii.get(i).copied().unwrap_or(skel.radius[i] * scale),
+                // The member's own section, unless the generator stated a
+                // narrower joint — `docs/PLAY.md` D15's glued seam. Scaled
+                // alongside everything else, because it is stated in the same
+                // units the skeleton is.
+                radius: match skel.joint_radius.get(i).copied().unwrap_or(0.0) {
+                    r if r > 0.0 => r * scale,
+                    _ => radii.get(i).copied().unwrap_or(skel.radius[i] * scale),
+                },
                 integrity: 1.0,
             });
         }

@@ -618,7 +618,25 @@ pub(crate) fn put_morphology(w: &mut Writer, m: &Morphology) {
     }
     w.f64(m.checkpoint_age);
     w.f64(m.design_mass);
+    // Appended, like everything else: the wire format encodes positions and a
+    // reader of an older layout would misread anything inserted above.
+    let parts: &[crate::assembly::Part] =
+        m.assembly.as_ref().map(|a| a.parts.as_slice()).unwrap_or(&[]);
+    w.seq(parts.len());
+    for p in parts {
+        w.vec3(p.at);
+        w.vec3(p.half);
+        w.f64(p.mass);
+        w.u32(p.substance.0);
+        w.u16(p.joined_to);
+        w.u32(p.join.0);
+        w.f64(p.join_area);
+        w.u32(p.site);
+    }
 }
+
+/// 24 + 24 + 8 + 4 + 2 + 4 + 8 + 4 for one part.
+const PART_MIN_BYTES: usize = 78;
 
 /// 8 + 1 + 4 + 8 for one event.
 const EVENT_MIN_BYTES: usize = 21;
@@ -651,6 +669,27 @@ pub(crate) fn get_morphology(r: &mut Reader) -> Result<Morphology> {
         events,
         checkpoint_age: r.f64()?,
         design_mass: r.f64()?,
+        assembly: {
+            let n = r.seq("assembly parts", PART_MIN_BYTES)?;
+            if n == 0 {
+                None
+            } else {
+                let mut parts = Vec::with_capacity(n);
+                for _ in 0..n {
+                    parts.push(crate::assembly::Part {
+                        at: r.vec3()?,
+                        half: r.vec3()?,
+                        mass: r.f64()?,
+                        substance: crate::chem::SubstanceId(r.u32()?),
+                        joined_to: r.u16()?,
+                        join: crate::chem::SubstanceId(r.u32()?),
+                        join_area: r.f64()?,
+                        site: r.u32()?,
+                    });
+                }
+                Some(crate::assembly::Assembly::new(parts))
+            }
+        },
     })
 }
 
@@ -911,6 +950,8 @@ pub(crate) fn put_tree_stats(w: &mut Writer, s: &TreeStats) {
     w.u64(s.retiers);
     w.u64(s.over_described);
     w.f64(s.worst_description_lost);
+    w.u64(s.joins);
+    w.u64(s.detachments);
 }
 pub(crate) fn get_tree_stats(r: &mut Reader) -> Result<TreeStats> {
     Ok(TreeStats {
@@ -930,6 +971,8 @@ pub(crate) fn get_tree_stats(r: &mut Reader) -> Result<TreeStats> {
         retiers: r.u64()?,
         over_described: r.u64()?,
         worst_description_lost: r.f64()?,
+        joins: r.u64()?,
+        detachments: r.u64()?,
     })
 }
 

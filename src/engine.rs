@@ -643,6 +643,224 @@ impl World {
         }
     }
 
+    /// State a composite: one node whose recipe is the parts it is made of.
+    ///
+    /// `docs/PLAY.md` D15, the forward direction. See [`Tree::assemble`] for
+    /// what the recipe is and why `program` is provenance rather than species.
+    pub fn assemble(
+        &mut self,
+        idx: NodeIdx,
+        program: crate::morph::Program,
+        parts: crate::assembly::Assembly,
+        env: Option<crate::morph::Environment>,
+    ) {
+        let id = self.identify(idx);
+        self.tree.assemble(idx, program, parts);
+        match env {
+            Some(e) => {
+                self.environments.insert(id, e);
+            }
+            None => {
+                self.environments.remove(&id);
+            }
+        }
+    }
+
+    /// Attach a promoted child back into its parent's recipe. **D15's join.**
+    ///
+    /// Weld, glue, nail and grown-together are not four features: they differ
+    /// only in what the join is made of, and therefore in its strength under
+    /// D14's Griffith law. So this takes a substance and a contact area, and
+    /// everything else about how hard it is to undo follows from the same
+    /// measurement every other strength in the engine comes from.
+    ///
+    /// **Explicit, never automatic.** A part that has come off and is merely
+    /// lying against the thing it came from stays its own node until something
+    /// puts it back — a decision taken deliberately, because "touching and at
+    /// rest" would re-absorb a fence panel the wind had just torn off, and a
+    /// world that quietly reassembles itself is worse than one that leaves a
+    /// pile of parts on the ground.
+    ///
+    /// The child must actually be a child: joining across the tree would put a
+    /// load path over a node boundary, which is the gap `BACKLOG.md` calls
+    /// "Structures cannot span promoted children" and D5's substructuring
+    /// closes in **Bodies**.
+    ///
+    /// Returns the site name the part now has in the recipe.
+    pub fn join(
+        &mut self,
+        composite: NodeIdx,
+        child: NodeIdx,
+        join: crate::chem::SubstanceId,
+        area: f64,
+    ) -> Option<u32> {
+        if composite.is_none() || child.is_none() {
+            return None;
+        }
+        if self.tree.nodes[child.get()].parent != composite {
+            return None;
+        }
+        let slot = self.tree.nodes[child.get()].slot as usize;
+        let (at, mass, radius, substance, child_parts) = {
+            let c = &self.tree.nodes[child.get()];
+            let substance = c
+                .matter
+                .mixture
+                .entries()
+                .iter()
+                .filter(|p| p.phase == crate::chem::Phase::Solid && p.fraction > 0.0)
+                .max_by(|a, b| a.fraction.total_cmp(&b.fraction))
+                .map(|p| p.substance)
+                .unwrap_or(crate::chem::SubstanceId::UNSPECIATED);
+            (
+                c.motion.offset,
+                c.matter.mass,
+                c.matter.radius,
+                substance,
+                c.morphology.as_ref().and_then(|m| m.assembly.clone()),
+            )
+        };
+
+        // The part's shape is its own if it has one, and a cube of its bounding
+        // radius if it does not. A node with no recipe has no shape to bring,
+        // and inventing a plate for it would be the engine deciding what an
+        // undescribed thing looks like — which is the first axiom's line.
+        let half = match child_parts.as_ref().and_then(|a| a.parts.first()) {
+            Some(p) => p.half,
+            None => {
+                let e = radius / 3.0f64.sqrt();
+                crate::math::v3(e, e, e)
+            }
+        };
+
+        let Some(m) = self.tree.nodes[composite.get()].morphology.as_mut() else {
+            return None;
+        };
+        let assembly = m.assembly.get_or_insert_with(Default::default);
+        let site = assembly.next_site();
+        // Joined to whichever part it is actually touching — the nearest one,
+        // measured, rather than to whatever happened to be added first.
+        let to = assembly
+            .parts
+            .iter()
+            .enumerate()
+            .min_by(|(_, a), (_, b)| {
+                (a.at - at).norm2().total_cmp(&(b.at - at).norm2())
+            })
+            .map(|(i, _)| i as u16)
+            .unwrap_or(crate::assembly::UNJOINED);
+        let mut part = crate::assembly::Part::new(at, half, mass, substance, site);
+        if to != crate::assembly::UNJOINED {
+            part = part.joined(to, join, area);
+        }
+        assembly.parts.push(part);
+        m.built = assembly.mass();
+        m.design_mass = m.built;
+
+        // The child's matter is already counted in the composite's — a promoted
+        // child is one of its parent's bodies seen at finer resolution, not an
+        // addition to it — so absorbing it moves nothing. What goes is the
+        // node, and the slot it was standing in.
+        self.tree.release_subtree(child);
+        if let Some(c) = self.tree.nodes[composite.get()].children.get_mut(slot) {
+            *c = NodeIdx::NONE;
+        }
+        let radius = self.tree.nodes[composite.get()]
+            .morphology
+            .as_ref()
+            .map(|m| m.extent())
+            .unwrap_or(0.0);
+        {
+            let n = &mut self.tree.nodes[composite.get()];
+            n.matter.radius = radius.max(1e-30);
+            // The parts moved, so the body list they generate has, and the
+            // joins are what the solver reads next frame.
+            n.bodies.clear();
+            n.topology = None;
+            n.children.clear();
+        }
+        self.tree.retier(composite);
+        self.tree.bump_epoch(composite);
+        self.tree.record_edit(composite);
+        self.disturb(composite);
+        self.tree.stats.joins += 1;
+        Some(site)
+    }
+
+    /// One part comes away and becomes a node of its own, at that moment.
+    ///
+    /// **D15's break, which is the same transform run backwards.** The part
+    /// keeps its slot in the recipe and gains a node — a promoted child, which
+    /// is what this engine means by "a thing of its own" — carrying its own
+    /// single-part recipe, so a wall that comes off a box is still a wall and
+    /// not an anonymous lump of mass. See [`crate::assembly::Assembly::break_join`]
+    /// for why the recipe keeps six parts and five joins rather than shrinking
+    /// to five.
+    ///
+    /// Returns the new node, or `NONE` if there was no such part or nothing
+    /// holding it on.
+    pub fn detach(&mut self, composite: NodeIdx, site: u32) -> NodeIdx {
+        if composite.is_none() || !self.tree.nodes[composite.get()].alive {
+            return NodeIdx::NONE;
+        }
+        let Some(slot) = self.tree.nodes[composite.get()]
+            .morphology
+            .as_ref()
+            .and_then(|m| m.assembly.as_ref())
+            .and_then(|a| a.index_of_site(site))
+        else {
+            return NodeIdx::NONE;
+        };
+        // The bodies have to exist for there to be a slot to promote: the parts
+        // *are* the body list, in recipe order, which is what makes the site
+        // and the slot the same thing.
+        self.tree.refine(composite);
+        if slot >= self.tree.nodes[composite.get()].bodies.len() {
+            return NodeIdx::NONE;
+        }
+
+        let broke = {
+            let Some(m) = self.tree.nodes[composite.get()].morphology.as_mut() else {
+                return NodeIdx::NONE;
+            };
+            let Some(a) = m.assembly.as_mut() else { return NodeIdx::NONE };
+            let broke = a.break_join(site);
+            if broke {
+                let taken = a.taken(&[site]);
+                let at = m.age;
+                m.events.push(crate::morph::Event {
+                    at,
+                    kind: crate::morph::EventKind::Severed,
+                    site,
+                    magnitude: 0.0,
+                });
+                Some(taken)
+            } else {
+                None
+            }
+        };
+        let Some(taken) = broke else { return NodeIdx::NONE };
+
+        let program = self.tree.nodes[composite.get()]
+            .morphology
+            .as_ref()
+            .map(|m| m.program)
+            .unwrap_or(crate::morph::Program::Wall);
+        let spec = self.tree.nodes[composite.get()].spec;
+        let child = self.tree.promote(composite, slot, spec);
+        if child.is_none() {
+            return NodeIdx::NONE;
+        }
+        // The piece is what it was: the same solid, the same material, now
+        // about its own centre.
+        self.tree.assemble(child, program, taken);
+        self.identify(child);
+        self.tree.record_edit(composite);
+        self.disturb(composite);
+        self.tree.stats.detachments += 1;
+        child
+    }
+
     /// The name of whatever lives at this address, if it has been given one.
     ///
     /// Lookup only. A node nothing has recorded against has no identity, and
@@ -2300,6 +2518,25 @@ impl World {
             n.matter.mass
         };
 
+        // An assembly states its parts, each with its own material.
+        //
+        // First, and not merely as an optimisation: D18 attaches a material per
+        // primitive, and this is the only thing in the engine that has ever had
+        // more than one. Everything below — a tree, a sampled rock — is one
+        // substance throughout and takes the node's single measured material,
+        // which is why that path was enough until a box of oak panels on a
+        // steel frame existed to break it. The parts are solids of stated size
+        // rather than members inferred from joints, so nothing here needs the
+        // topology at all.
+        if let Some(a) = n.morphology.as_ref().and_then(|m| m.assembly.as_ref()) {
+            if !a.is_empty() {
+                let pieces = a.pieces(&n.matter, &self.substances, material, substance);
+                if !pieces.is_empty() {
+                    return Surface::new(pieces);
+                }
+            }
+        }
+
         // A structure states its members.
         if let (Some(mask), Some(t)) = (n.structural_mask(), n.topology.as_ref()) {
             let members = mask.iter().filter(|o| **o).count();
@@ -2914,6 +3151,32 @@ impl World {
                     self.falling.push((idx, frag));
                 }
             }
+        }
+
+        // **An assembled thing loses a part, not a fraction.** D15's break: the
+        // panel whose seam failed becomes a node of its own at that moment, and
+        // the recipe keeps six parts with five joins and a break. `sever_many`
+        // is the grown case — a tree has no parts list to take a member out of,
+        // so it books the loss as a fraction of its structural mass and
+        // regenerates a smaller tree — and running both would take the mass
+        // twice.
+        if self.tree.nodes[idx.get()].morphology.as_ref().is_some_and(|m| m.is_assembled()) {
+            let mut lost = 0.0;
+            for &site in &sites {
+                let part = self.detach(idx, site);
+                if !part.is_none() {
+                    lost += self.tree.nodes[part.get()].matter.mass;
+                    out.detached_pieces += 1;
+                }
+            }
+            out.detached_mass = lost;
+            self.tree.stats.damage_events += 1;
+            // Deliberately not clearing the body list: the parts that just
+            // became nodes are promoted children of those very slots, and
+            // clearing `children` would orphan them. The recipe changed in its
+            // joins and not in its geometry, so the bodies it generates are
+            // still the bodies it generated.
+            return out;
         }
 
         let node = &mut self.tree.nodes[idx.get()];

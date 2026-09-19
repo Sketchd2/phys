@@ -1174,7 +1174,17 @@ pub fn sample_structured(
 
     let mut pos_all = skel.pos;
     let mut radii_all = skel.radius;
-    let mut comps: Vec<Composition> = vec![morph.program.substrate(); n_struct];
+    // What the parts are made of. A grown program lays down its own substrate;
+    // an assembled thing was *made* out of whatever the node already holds, so
+    // its parts are the node's own composition and asking the program would be
+    // asking the wrong question — a box of oak planks on a steel frame is not
+    // `Program::Tree`'s substrate however the planks were grown.
+    let substrate = if morph.is_assembled() {
+        matter.composition
+    } else {
+        morph.program.substrate()
+    };
+    let mut comps: Vec<Composition> = vec![substrate; n_struct];
 
     // The unstructured remainder: litter, air, rubble. Sampled from the same
     // max-entropy machinery every other node uses.
@@ -1215,7 +1225,7 @@ pub fn sample_structured(
     // have been wrong.
     let mut radii: Vec<f64> = radii_all.iter().map(|r| r * scale).collect();
     {
-        let target_volume = structural / morph.program.density();
+        let target_volume = structural / morph.density();
         let mut current = 0.0;
         for i in 0..n_struct.min(radii.len()) {
             let len = (skel_geom.tip[i] - skel_geom.base[i]).norm() * scale;
@@ -1297,6 +1307,17 @@ pub fn sample_structured(
     // optimisation has to be part of the regeneration or it would be lost the
     // first time anybody looked away.
     let mut bodies = bodies;
+    // **An assembled thing is the size somebody made it.** Fully-stressed
+    // sizing is how a *grown* structure proportions itself — a tree that has
+    // been standing for thirty years has put wood where the load is, and
+    // regenerating it without that step would regenerate a tree that could not
+    // stand up. A box of 25 mm planks glued along their edges has had no such
+    // process applied to it, and re-sizing its seams until they could carry the
+    // load would silently make every join as strong as it needed to be, which
+    // is the same thing as it never coming apart.
+    if morph.is_assembled() {
+        return (bodies, topo, report);
+    }
     let (cases, passes) = if topo.is_determinate() {
         (design_cases(morph, &bodies, &topo, 3, gravity), crate::solvers::structure::DESIGN_PASSES)
     } else {

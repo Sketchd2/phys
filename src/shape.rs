@@ -118,6 +118,44 @@ impl Hull {
         Hull::of_spheres([Sphere::new(base, radius), Sphere::new(tip, radius)])
     }
 
+    /// A slab: a filled rectangular solid with rounded edges, as eight spheres.
+    ///
+    /// The one primitive a row of capsules cannot stand in for, and the residual
+    /// `BACKLOG.md` left open when the capsule work landed: *flatness*. A wall
+    /// built out of capsules is a wireframe — a ball thrown at the middle of a
+    /// panel passes between the members — and D18's whole vocabulary is filled
+    /// solids, so a panel has to be one.
+    ///
+    /// Eight spheres of radius `corner` at the inset corners, whose convex hull
+    /// *is* the box of the given half-extents with its edges rounded off by
+    /// `corner`. No new support function, no new narrow phase: GJK over eight
+    /// spheres is the same code that already runs over a capsule's two, and the
+    /// shape it computes is exact rather than approximate — a rounded box is a
+    /// convex solid in its own right, not a discretisation of a sharp one.
+    ///
+    /// `corner` is clamped to the smallest half-extent, so a slab thinner than
+    /// its own rounding becomes a capsule-like sliver rather than turning
+    /// inside out. A degenerate half-extent collapses that axis, which is the
+    /// right answer for a sheet: a box with one zero half-extent is a
+    /// rectangle, and the hull of four spheres is exactly that.
+    pub fn slab(centre: Vec3, half: Vec3, corner: f64) -> Hull {
+        let h = v3(half.x.abs(), half.y.abs(), half.z.abs());
+        let r = corner.max(0.0).min(h.x).min(h.y).min(h.z);
+        let inset = v3(h.x - r, h.y - r, h.z - r);
+        let mut spheres = Vec::with_capacity(8);
+        for sx in [-1.0f64, 1.0] {
+            for sy in [-1.0f64, 1.0] {
+                for sz in [-1.0f64, 1.0] {
+                    spheres.push(Sphere::new(
+                        centre + v3(sx * inset.x, sy * inset.y, sz * inset.z),
+                        r,
+                    ));
+                }
+            }
+        }
+        Hull::of_spheres(spheres)
+    }
+
     /// Bake a hull over a set of spheres.
     ///
     /// Spheres wholly inside another are dropped. The test is containment in a

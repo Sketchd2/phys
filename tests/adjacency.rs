@@ -1812,3 +1812,111 @@ fn a_contact_reads_the_material_of_the_piece_it_hit() {
         "the masonry panel and the masonry fallback must agree"
     );
 }
+
+/// A rock that no `Program` made bounces off a boulder.
+///
+/// **Phase 2's done-when, second clause.** `two_promoted_things_collide_and_rebound`
+/// above has to `emplace` a `Program::Tower` on each side of its collision, and
+/// the comment it does it under says why: "a structure is what has a material,
+/// and a material is what has a surface". That was a *provenance test standing
+/// in for a state measurement* — the engine asking how a thing was made in
+/// order to decide whether it is solid — which is the first axiom inverted, and
+/// `BACKLOG.md` carried it as the largest one left after §3.3 made the same
+/// call correctly one layer down.
+///
+/// D17 put the mixture on the matter and D14 measures a material from it, so
+/// there is nothing left to ask a program about: these two have no morphology,
+/// no topology, no genome and no history, and they are solid because *what they
+/// are made of* is solid at the temperature they are at.
+#[test]
+fn a_rock_that_no_program_made_bounces_off_a_boulder() {
+    use phys::chem::{Mixture, Phase};
+    use phys::material::Material;
+    use phys::neighbourhood::{restitution, Resilience};
+    use phys::sampler::{MassSpectrum, Profile, SampleSpec};
+    use phys::state::{BodyKind, Matter};
+    use phys::tree::Tree;
+
+    let matter = Matter::neutral(1000.0, 10.0, 290.0, Composition::primordial());
+    let spec = SampleSpec::new(8, Profile::Uniform, MassSpectrum::Equal, BodyKind::Grain);
+    let mut w = World::new(Tree::new(0x5701E, matter, Tier::Galactic, spec), 1.0);
+
+    // Silica: the same atoms, bonds and lattice `tests/material.rs` measures at
+    // 2,644 kg/m^3 and 2.17e11 Pa, interned into this world's own registry.
+    // Nothing here names a rock; the engine works out that this arrangement is
+    // a solid at 290 K, and everything after follows from that.
+    let silica = w
+        .substances
+        .intern(phys::material::substances::silica_arrangement())
+        .expect("silica analyses");
+    w.substances.name(silica, "silica");
+    let mut mix = Mixture::new();
+    mix.add(silica, Phase::Solid, 1.0);
+
+    let root = w.tree.root;
+    w.tree.refine(root);
+    let tier = w.tree.nodes[root.get()].tier;
+    let a = w.tree.promote(root, 0, default_spec(tier.finer()));
+    let b = w.tree.promote(root, 1, default_spec(tier.finer()));
+    // Solid, and the mass says so. Not a detail: `Formation::of_matter` derives
+    // the formation conditions from the node's *own* bulk density against the
+    // substance's, and Gibson and Ashby say a cellular solid's stiffness falls
+    // as the square of that packing. A 1,000 kg node a metre across is 1% of
+    // silica's density — a heap of gravel, not a boulder — and the engine
+    // softened it by 7,900x, correctly. The first version of this test read
+    // 2.8e7 Pa for quartz and would have asserted it.
+    let density = phys::material::substances::silica().density;
+    let solid_mass = 4.0 / 3.0 * std::f64::consts::PI * density;
+    for n in [a, b] {
+        let node = &mut w.tree.nodes[n.get()];
+        node.matter.mixture = mix;
+        node.matter.radius = 1.0;
+        node.matter.mass = solid_mass;
+        node.matter.temperature = 290.0;
+        assert!(node.morphology.is_none(), "this test is about a thing nothing built");
+        assert!(node.topology.is_none());
+    }
+    let at = w.tree.nodes[a.get()].motion.offset;
+    w.tree.nodes[b.get()].motion.offset = at + v3(1.9, 0.0, 0.0);
+    w.tree.nodes[a.get()].motion.velocity = v3(3.0, 0.0, 0.0);
+    w.tree.nodes[b.get()].motion.velocity = v3(-3.0, 0.0, 0.0);
+    w.tree.pin(a);
+    w.tree.pin(b);
+
+    let closing_before =
+        (w.tree.nodes[b.get()].motion.velocity - w.tree.nodes[a.get()].motion.velocity).x;
+    assert!(closing_before < 0.0, "the pair should start out approaching");
+
+    w.advance_node(root, 1.0);
+
+    assert_eq!(w.stats.contacts_resolved, 1, "two rocks passed through each other");
+    let closing_after =
+        (w.tree.nodes[b.get()].motion.velocity - w.tree.nodes[a.get()].motion.velocity).x;
+
+    // The rebound is what silica says it is, measured from the arrangement
+    // above rather than looked up.
+    let measured_material = w
+        .material_of(a)
+        .expect("a node made of a solid has a measured material");
+    let resilience = Resilience::of(&measured_material);
+    let expected = restitution(&resilience, &resilience, closing_before);
+    let ratio = closing_after / -closing_before;
+    println!(
+        "  silica: E {:.3e} Pa, strength {:.3e} Pa; rebound {ratio:.4} against {expected:.4}",
+        measured_material.stiffness,
+        measured_material.strength()
+    );
+    assert!(closing_after > 0.0, "they are still closing at {closing_after} m/s");
+    assert!(
+        (ratio - expected).abs() < 1e-3,
+        "they rebounded at {ratio} of the approach where the material says {expected}"
+    );
+    // And it is not silently the same answer a built thing would have given.
+    let tower = Resilience::of(&Material::reinforced_frame());
+    let as_a_tower = restitution(&tower, &tower, closing_before);
+    println!("  a reinforced frame would have rebounded at {as_a_tower:.4}");
+    assert!(
+        (expected - as_a_tower).abs() > 1e-6,
+        "the rock rebounds exactly like a tower, so nothing was measured"
+    );
+}

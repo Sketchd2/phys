@@ -42,6 +42,7 @@
 //! See `docs/DESIGN.md` for the full argument and `docs/PERFORMANCE.md` for the
 //! measured numbers behind the budget.
 
+pub mod assembly;
 pub mod budget;
 pub mod causal;
 pub mod chem;
