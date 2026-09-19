@@ -1577,6 +1577,59 @@ overhead per drilled node to matter. Sooner if D15's cost case is to be trusted.
 
 ---
 
+## A save drops a solved node's detail without summarising it first
+
+**Noticed:** `docs/PLAY.md` D19, wiring `tests/persistence.rs` back up after
+the ancestry pin was retired.
+**Where:** `engine.rs` — `World::view`, and `tree.rs` — `Tree::coarsen`, which
+is the only thing that currently writes a node's bodies back to its matter.
+
+While a node is materialised, **its bodies are the authority and its matter is
+a stale summary of them**. That is the design: `coarsen` re-runs `summarise` on
+the way out, and until then nothing keeps the two in step. A save writes the
+matter and throws away the bodies of any unpinned node, so a node that has been
+*solved* since it was materialised loses whatever its solver did to it.
+
+Measured on the `every_field_round_trips` world — a galaxy drilled eight deep
+with a tree planted at the bottom, six frames stepped:
+
+```text
+node 0 (root, solved every frame)   bodies+potential vs matter   2.35e-8
+node 1                                                           2.12e-15
+node 2                                                           4.24e-16
+node 3                                                           4.16e-15
+node 4                                                           1.35e-15
+node 5                                                           2.94e-16
+node 6                                                           0
+node 7                                                           2.66e-15
+```
+
+Every node the scheduler did not reach is exact to round-off. The one node
+being solved every frame is off by 2.35x10^-8 of its own energy — 3.9x10^48 J
+out of 1.6x10^56 — and that is the energy the file loses.
+
+**Why it was invisible.** `Tree::pin` used to walk to the root, so any world
+where somebody had touched anything had its whole ancestry pinned, and a pinned
+node writes its bodies verbatim. The save was carrying 28,256 sampled bodies to
+avoid noticing that it could not summarise one node. D19 removed the walk and
+the gap surfaced immediately, in the one test that compares conserved tuples
+across a save.
+
+**The fix is small and is not a one-liner.** `World::view` takes `&self` and
+`encode` writes through it, so summarising before a save means either a
+`&mut self` pre-pass — `for each materialised node: matter = summarise(bodies)`,
+which is `coarsen` without the destruction — or making the solver keep the
+matter in step as it goes, which costs a `summarise` per solved node per frame
+and is what the materialised-detail design deliberately avoids.
+
+**Trigger:** before anything checkpoints a world mid-simulation and expects to
+resume it exactly — autosave, a shard handoff, a replay. Not urgent for a save
+taken at rest, where the scheduler has had a mixing time to coarsen anything it
+was solving and the gap is zero. `tests/persistence.rs` asserts the drift is
+this term and nothing else, so the bound there is what fails if it grows.
+
+---
+
 ## A structure regrows what was removed from it
 
 **Noticed:** asked, while planning the play space, whether a window taken from a

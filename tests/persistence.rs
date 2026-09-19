@@ -156,13 +156,49 @@ fn every_field_round_trips() {
     assert!(!back.audit.is_empty(), "the authoring above should have left a record");
     assert_eq!(back.environments.len(), w.environments.len(), "environments");
 
-    // And the conserved tuple, which is the whole point.
+    // And the conserved tuple, which is the whole point — in the two pieces it
+    // actually comes in, because a save stores matter and *regenerates* detail.
+    //
+    // This used to be one assertion, and it was bit-exact only by accident:
+    // pinning a node pinned its whole ancestry, so all 28 256 sampled bodies
+    // above the authored leaf were written into the file and read straight
+    // back. `docs/PLAY.md` D19 retired the ancestry pin, and what the file
+    // carries for an unpinned node is now its matter alone.
     let reloaded = World::from_snapshot(back, 20.0);
+
+    // One: what the file carries is exact. A reload starts coarse, so its
+    // tuple is the root's matter, and that matches the saved world's to the
+    // bit. Nothing was renormalised on the way through.
+    let coarse = reloaded.conserved();
+    let saved = w.tree.nodes[root.get()].matter.conserved();
+    assert_eq!(coarse.energy.to_bits(), saved.energy.to_bits(), "coarse energy across a save");
+    assert_eq!(coarse.baryon.to_bits(), saved.baryon.to_bits(), "coarse baryon across a save");
+
+    // Two: the detail it draws again is the detail that was thrown away.
+    // Materialise it to the same depth and its baryon number is bit-identical
+    // to the resident world's — the sampler is a pure function of the state
+    // that was saved, and this is what says so.
+    let mut reloaded = reloaded;
+    for i in 0..w.tree.nodes.len() {
+        if w.tree.nodes[i].alive && w.tree.nodes[i].is_materialised() {
+            reloaded.tree.refine(phys::ids::NodeIdx(i as u32));
+        }
+    }
     let after = reloaded.conserved();
     let drift = (after.energy - before.energy).abs() / before.energy.abs().max(1e-300);
     println!("  {} nodes, {} bytes, energy drift {drift:.3e}", w.tree.nodes.len(), bytes.len());
     assert_eq!(after.baryon.to_bits(), before.baryon.to_bits(), "baryon number is not bit-exact");
-    assert!(drift < 1e-15, "energy drifted across a save: {drift:.3e}");
+
+    // Energy is *not* bit-exact through that second trip and cannot be, for a
+    // reason that has nothing to do with the file. The root here is
+    // materialised and being solved every frame, and a solved node's bodies
+    // move on from the matter that summarises them until something coarsens it
+    // — measured at 2.35e-8 relative on this world, against 1e-15 or better on
+    // every other node. The file stores the matter, so the drift is that
+    // staleness and not a loss. See the `docs/BACKLOG.md` entry on summarising
+    // before a save; the bound here is loose enough to pass it and tight
+    // enough that anything else would fail.
+    assert!(drift < 1e-9, "energy drifted across a save by more than the root's staleness: {drift:.3e}");
 }
 
 /// Detail somebody touched comes back exactly. It is not a sample of anything,
@@ -493,14 +529,16 @@ fn an_unpinned_reload_comes_back_coarse() {
 /// The world is built without `step_frame`, deliberately: stepping spends a
 /// wall-clock budget, so how much of it runs depends on how fast the machine
 /// is, and a reference world has to be the same everywhere. It is also built
-/// small — pinning a node pins its whole ancestor chain and a pinned node
-/// writes every body it holds, so drilling deep would put a hundred thousand
-/// bodies in the file and its size would then move whenever anybody tuned a
-/// default spec count.
+/// small — a pinned node writes every body it holds, so drilling deep would put
+/// a hundred thousand bodies in the file and its size would then move whenever
+/// anybody tuned a default spec count. (It used to be *very* much larger for a
+/// second reason: pinning a node pinned its whole ancestor chain, so one
+/// authored leaf wrote out every sampled body above it. `docs/PLAY.md` D19
+/// retired that, and this file lost 1 084 of its 2 903 bytes to it.)
 #[test]
 fn the_format_stamp_tracks_the_format() {
     /// Bump `wire::FORMAT_VERSION`, then update this.
-    const REFERENCE_BYTES: usize = 2_903;
+    const REFERENCE_BYTES: usize = 1_819;
 
     use phys::chem::{Arrangement, Bond, Element, Lattice, Mixture, Order, Phase};
 

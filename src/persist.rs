@@ -833,6 +833,9 @@ pub(crate) fn put_node_payload(w: &mut Writer, n: &Node) {
     // from a partial tree would regenerate a different structure. `matter` and
     // `spec` are here for the same reason.
     w.vec3(n.gravity);
+    // `PLAY.md` D19: a node whose *descendant* was changed, which is a
+    // different claim from `pinned` and must not be recovered as one.
+    w.bool(n.contains_edit);
 }
 
 pub(crate) fn get_node_payload(r: &mut Reader) -> Result<Node> {
@@ -878,6 +881,7 @@ pub(crate) fn get_node_payload(r: &mut Reader) -> Result<Node> {
         // Read in wire order, which is why it sits here rather than beside
         // `potential`: struct literal fields evaluate in the order written.
         gravity: r.vec3()?,
+        contains_edit: r.bool()?,
         // Derived from the node's own contents, and regenerated on first use.
         // Storing it would be storing a derived value — the same reason
         // `last_report` is not written.

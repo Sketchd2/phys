@@ -1330,12 +1330,11 @@ impl World {
             // single line that made this an observer-driven engine: an
             // unobserved world discarded all its detail on the first frame and
             // then did no physics at all, because there was nothing left to
-            // step. Detail now goes when the node has had a mixing time to
-            // forget what put it there — see [`World::mixing_time`] — and not
-            // before, whoever is or is not watching.
-            let forgotten =
-                self.time - self.tree.nodes[idx.get()].last_disturbed > self.mixing_time(idx);
-            if materialised && forgotten && acuity < 0.25 && !self.tree.nodes[idx.get()].pinned {
+            // step. Detail now goes when something can rebuild it — see
+            // [`World::collapsible`], which is a mixing time for matter and a
+            // recipe for a structure — and not before, whoever is or is not
+            // watching.
+            if materialised && acuity < 0.25 && self.collapsible(idx) {
                 tasks.push(Task {
                     node: idx,
                     kind: TaskKind::Coarsen,
@@ -1561,8 +1560,8 @@ impl World {
                     self.thermalise(idx, horizon);
                     return;
                 }
-                // Not forgettable — pinned, bubbled, or with something built on
-                // it. Somebody is deliberately watching this node run, so the
+                // Not forgettable — pinned, edited, bubbled, or with something
+                // built on it. Somebody is deliberately watching this node run, so the
                 // one thing that must not happen is replacing the trajectory
                 // they asked for with a draw from its equilibrium. It falls
                 // behind, and goes on falling behind for as long as the world
@@ -1623,8 +1622,14 @@ impl World {
     /// May this node's detail be thrown away and drawn again?
     ///
     /// No, if somebody has touched it — a tree you broke is not a
-    /// representative sample of anything. No, if something finer has been built
-    /// on it, because releasing it would take the whole subtree with it.
+    /// representative sample of anything, and neither is one whose *recipe*
+    /// carries a break ([`Node::contains_edit`]), because the draw would mend
+    /// it. No, if something finer has been built on it, because releasing it
+    /// would take the whole subtree with it.
+    ///
+    /// A node that fails this test may still be *collapsible* — see
+    /// [`World::collapsible`], which is the question the scheduler asks before
+    /// releasing detail, and which a broken box passes.
     pub fn forgettable(&self, idx: NodeIdx) -> bool {
         let n = &self.tree.nodes[idx.get()];
         // A bubble is somebody deliberately watching this node run. Crossing it
@@ -1633,7 +1638,54 @@ impl World {
         // is to see what it *does*, and thermalising it would replace that with
         // a fresh draw from its equilibrium. A bubbled node falls behind
         // honestly instead, and its lateness says by how much.
-        !n.pinned && n.bubble == 1.0 && !n.children.iter().any(|c| !c.is_none())
+        !n.pinned
+            && !n.contains_edit
+            && n.bubble == 1.0
+            && !n.children.iter().any(|c| !c.is_none())
+    }
+
+    /// May this node's detail be released, because something can rebuild it?
+    ///
+    /// **Not the same question as [`World::forgettable`], and `docs/PLAY.md`
+    /// D19 is the decision that separates them.** Forgetting is a fresh draw
+    /// from the ensemble, and it mends whatever happened to the node — so a
+    /// broken thing must never be forgotten. Collapsing is throwing the detail
+    /// away and running its *description* again, and a broken thing survives
+    /// that unchanged, because the break is in the description.
+    ///
+    /// The scheduler used to gate its `Coarsen` task on mixing alone, which
+    /// made the two the same question and cost both answers: a node carrying a
+    /// morphology mixes in infinite time (correctly — no amount of waiting
+    /// rearranges wood back into a sample), so **no grown or built thing ever
+    /// coarsened, ever**. Measured on a thirty-year oak: 2 232 bodies resident
+    /// for the life of the world, against 288 bytes of genome and event log
+    /// that regenerate them exactly.
+    ///
+    /// Three refusals, and each is a different thing that cannot be rebuilt:
+    ///
+    /// * **Pinned** — this node's *own* detail was altered body by body, and
+    ///   only the store has it.
+    /// * **Promoted children** — releasing the subtree would take specific
+    ///   objects with their own histories, not a sample of anything.
+    /// * **A topology with no morphology to regenerate it** — structure that
+    ///   nothing can draw again.
+    ///
+    /// Otherwise: a morphology regenerates its bodies from `(matter, genome,
+    /// age, events)` and may collapse whenever nothing is watching, and
+    /// everything else may collapse once it has had a mixing time to forget
+    /// what put it there.
+    pub fn collapsible(&self, idx: NodeIdx) -> bool {
+        let n = &self.tree.nodes[idx.get()];
+        if n.pinned || n.children.iter().any(|c| !c.is_none()) {
+            return false;
+        }
+        if n.morphology.is_some() {
+            return true;
+        }
+        if n.topology.is_some() {
+            return false;
+        }
+        self.time - n.last_disturbed > self.mixing_time(idx)
     }
 
     /// Cross a span too long to integrate, by ensemble instead of trajectory.
@@ -2896,6 +2948,13 @@ impl World {
         node.children.clear();
         // What is left of it may be a different size of thing.
         self.tree.retier(idx);
+        // `docs/PLAY.md` D19: the break is now in `Morphology::events`, which
+        // regenerates it, so this is an edit and *not* a pin. The node keeps no
+        // body list, collapses to its recipe when nobody is watching, and comes
+        // back with the same members missing. What it must not do is be
+        // redrawn from the ensemble, which would quietly mend it — that is the
+        // one thing the flag stops.
+        self.tree.record_edit(idx);
         self.tree.stats.damage_events += 1;
         out
     }
@@ -3056,6 +3115,8 @@ impl World {
         self.shaking.retain(|(n, _)| *n != idx);
         // Likewise: a structure that has shed members is smaller than it was.
         self.tree.retier(idx);
+        // D19 again, and for the same reason as the strike path above.
+        self.tree.record_edit(idx);
         self.tree.stats.damage_events += 1;
         out
     }

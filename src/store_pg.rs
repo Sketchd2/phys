@@ -106,7 +106,7 @@ fn key_from(b: &[u8]) -> Result<PathKey> {
 /// Refused, not migrated. There is no migration while the project is pre-alpha
 /// and `PostgresStore::reset` is the whole answer: drop the tables and rebuild
 /// the world.
-pub const SCHEMA_VERSION: i32 = 5;
+pub const SCHEMA_VERSION: i32 = 6;
 
 pub const SCHEMA: &str = r#"
 CREATE TABLE IF NOT EXISTS schema_version (

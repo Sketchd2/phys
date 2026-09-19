@@ -137,7 +137,27 @@ pub struct Node {
     pub residency: Residency,
     /// Set when the node's detail has been altered away from what `sample`
     /// would produce, so it must be stored rather than regenerated.
+    ///
+    /// **This node's own detail**, and not its descendants'. See
+    /// [`Node::contains_edit`], which is what the ancestry walk sets and which
+    /// `docs/PLAY.md` D19 separates from this.
     pub pinned: bool,
+    /// Set when something *below* this node has been changed away from what the
+    /// sampler would produce.
+    ///
+    /// `docs/PLAY.md` D19. `Tree::pin` used to set `pinned` on the whole
+    /// ancestry, on the reasoning that "a changed child means the parent's
+    /// materialisation no longer matches what `sample` would produce" — which
+    /// is true, and does not imply what it was being used to imply. `pin` is
+    /// one-way and walks to the root, and the scheduler refuses to coarsen a
+    /// pinned node at all, so **felling one tree made a whole planet
+    /// permanently un-coarsenable**, and then its star, and then its galaxy.
+    ///
+    /// An ancestor that merely contains an edit can still collapse, because its
+    /// recipe plus its descendants' own edits is all it needs. What it may not
+    /// do is *forget*: a fresh draw from the ensemble would quietly mend the
+    /// change, which is the one thing the flag is for.
+    pub contains_edit: bool,
     /// A deliberate, unphysical multiplier on how fast this node's *interior*
     /// runs, and its whole subtree's with it.
     ///
@@ -425,6 +445,7 @@ impl Tree {
             last_grown: 0.0,
             residency: Residency::Speculative,
             pinned: false,
+            contains_edit: false,
             bubble: 1.0,
             alive: true,
             morphology: None,
@@ -663,6 +684,7 @@ impl Tree {
             last_grown: self.nodes[i.get()].time,
             residency: Residency::Speculative,
             pinned: false,
+            contains_edit: false,
             bubble: 1.0,
             alive: true,
             morphology: None,
@@ -1244,15 +1266,64 @@ impl Tree {
         }
     }
 
-    /// Mark a node — and its whole ancestry — as holding non-derivable detail.
-    /// Ancestors must be pinned too: a changed child means the parent's
-    /// materialisation no longer matches what `sample` would produce.
+    /// Mark a node as holding detail nothing can regenerate, and its ancestry
+    /// as containing an edit.
+    ///
+    /// **The two are different claims and `docs/PLAY.md` D19 separates them.**
+    /// This used to set `pinned` on the whole ancestry, which is one-way and
+    /// walks to the root, and the scheduler refuses to coarsen a pinned node at
+    /// all — so felling one tree made a whole planet permanently
+    /// un-coarsenable, then its star, then its galaxy. Measured: pinning one
+    /// leaf of a six-deep ladder left six nodes that could never be collapsed
+    /// again, against one now.
+    ///
+    /// An ancestor that merely *contains* an edit can still collapse, because
+    /// its recipe plus its descendants' edits is all it needs. What it may not
+    /// do is forget — see [`Node::contains_edit`].
     pub fn pin(&mut self, i: NodeIdx) {
-        let mut cur = i;
-        while !cur.is_none() {
-            let n = &mut self.nodes[cur.get()];
+        if i.is_none() {
+            return;
+        }
+        {
+            let n = &mut self.nodes[i.get()];
             n.pinned = true;
             n.residency = Residency::Pinned;
+        }
+        self.note_edit_above(i);
+    }
+
+    /// Record a change the recipe *can* express: no pinning anywhere.
+    ///
+    /// `docs/PLAY.md` D19's other half. A box that lost a wall is a box with a
+    /// five-wall recipe and a break, and that description regenerates — so it
+    /// must not fall back to a stored body list, or the phase's own done-when
+    /// ("returns to ~100 bytes when nobody is watching") is unreachable.
+    ///
+    /// The change itself lives where the recipe lives: `Morphology::events` for
+    /// a grown or built thing, which already exists and is already replayed
+    /// rather than discarded. This is the *marking* — the node and its ancestry
+    /// stop being candidates for a fresh draw from the ensemble, and stay
+    /// candidates for collapsing to a description.
+    pub fn record_edit(&mut self, i: NodeIdx) {
+        if i.is_none() {
+            return;
+        }
+        self.nodes[i.get()].contains_edit = true;
+        self.note_edit_above(i);
+    }
+
+    /// Walk the ancestry marking each node as containing an edit.
+    fn note_edit_above(&mut self, i: NodeIdx) {
+        let mut cur = self.nodes[i.get()].parent;
+        while !cur.is_none() {
+            let n = &mut self.nodes[cur.get()];
+            if n.contains_edit {
+                // Already marked, and so is everything above it: the walk is
+                // idempotent and the flag is one-way, so there is nothing
+                // further up that this call could add.
+                break;
+            }
+            n.contains_edit = true;
             cur = n.parent;
         }
     }
