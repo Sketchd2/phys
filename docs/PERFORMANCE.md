@@ -244,6 +244,31 @@ in one step, because two flat faces separate along an axis the first direction
 already found. Two crossed capsules do not: the closest feature spans both
 segments, and that takes a second simplex.
 
+### What a box costs, at the end of Phase 2
+
+D15's whole argument is a storage one — "a house of ~50 parts at under 1 KB, a
+town at 500 nodes rather than 25,000" — so the recipe has to be priced against
+the detail it stands in for. A six-panel wooden box, 1.2 m on a side, 25 mm
+planks:
+
+| | bytes |
+|---|---:|
+| the recipe (`Morphology` + 6 `Part`) | 608 |
+| its materialised detail (6 bodies + topology) | 1,128 |
+| its baked surface (6 slabs of 8 spheres) | 2,688 |
+| the same six panels as promoted nodes | ~3,456 |
+
+Regeneration is exact: collapsed and re-materialised, the worst part
+displacement is 0. A `Part` is 78 bytes on the wire, so fifty parts is about
+4 KB of recipe against 28 KB of nodes and their scheduler entries — the right
+side of D15's argument, though not the "under 1 KB" the decision estimated.
+The estimate assumed a part carried less than it does; the measured figure is
+what later sizing should use.
+
+The surface costing four times the recipe is worth noting and is not a problem:
+it is derived, invalidated on `epoch`, and never persisted. It is the price of
+a box somebody is currently touching.
+
 **A limb cannot reach a stride by bending** (D5). Two 0.4 m green-wood segments,
 30 mm radius, hip built in, transverse load at the tip:
 

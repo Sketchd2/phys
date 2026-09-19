@@ -2622,8 +2622,31 @@ five tests and a suite of 349 passing.
 
 ---
 
-**Phase 2 — Things.** *A thing has a shape and is made of something, and neither
-answer depends on how it was made.* D13, D14, D15, D17, D18, D19.
+**Phase 2 — Things.** *Done.* *A thing has a shape and is made of something, and
+neither answer depends on how it was made.* D13, D14, D15, D17, D18, D19.
+
+Its done-when is six measurements and a suite of 398 passing:
+
+```text
+a box is one node        6 parts, 608 B of recipe, 151.2 kg, one node
+it responds as one box   six filled slabs, 8 spheres each, cavity empty
+struck at 20 m/s         utilisation 0.00, nothing comes off
+struck at 700 m/s        utilisation 2.79, two panels become nodes
+nobody watching          1128 B of detail -> 608 B, regenerated at 0.0 m
+a rock no Program made   rebounds at 0.0502 where a frame gives 0.0215
+```
+
+**One decision inside it was the owner's rather than this document's, and it
+is recorded here because it changes what D11 means.** The plan called for "a
+wooden box that is one node with a recipe describing six walls" and no
+`Program` variant describes a box, while D11 forbids a seventh. The answer is
+that a composite's recipe is **generated**, not selected: a wooden box is a
+tree, cut into pieces, carved, and attached together, and the engine assesses
+what that produced and writes down a recipe for resampling it. `Program`
+survives as *provenance* — what the material is, so a box of oak planks weighs
+and burns like oak — and stops being the answer to what shape a thing is.
+D11's remaining work is unchanged; this is one more column off it rather than
+a new argument.
 
 **Entry criterion, before any of it:** a measured narrow-phase row in
 `PERFORMANCE.md`, which has no row for contact at all. The narrow phase has

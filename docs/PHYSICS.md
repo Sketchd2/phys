@@ -373,6 +373,38 @@ Growth also responds to conditions without anything being arranged: a structure
 held below freezing loses mass to maintenance, and one in drought or shade grows
 slowly. That is what makes tree rings.
 
+### A third case: something that was made
+
+`PLAY.md` D15. A composite — a box, a crate, a shelf — neither grows nor is
+constructed by a program. It is a **parts list the engine generated** by
+assessing what somebody put together, stored so the thing can be sampled again.
+It does not grow, it has no light budget and no allometric ceiling, and it
+ages only because weathering still applies to it.
+
+Two things follow from "somebody made it" rather than "it grew", and both are
+physics rather than bookkeeping:
+
+**Its size does not follow from its mass.** A grown thing derives its extent
+from what it has accumulated; an assembled one is the size its parts are, and
+its mass follows from them. The arrow between geometry and mass points the
+other way.
+
+**Its joins are the size they were made, not the size they need to be.**
+Fully-stressed sizing — putting material where the load is, in proportion to
+what each member carries — is what thirty years of growth does to a tree, and
+regenerating one without it would regenerate a tree that could not stand up. A
+box of 25 mm planks glued along their edges has had no such process applied. Re-
+sizing its seams until they could carry their load would make every join as
+strong as it needed to be, which is indistinguishable from the box never coming
+apart. So the seam is stated: a plank glued along one edge is held by a joint of
+its thickness by its width, and it comes off long before it snaps.
+
+That is also why joining and breaking are one transform rather than two
+features. A weld, a glue line and a grown-together seam differ in what the join
+is made of and how much of it there is, and the strength follows from the same
+Griffith law as everything else. Break the join and the part becomes a thing of
+its own, carrying its own recipe — still a wall, not a lump of mass.
+
 ## 3.5A What a thing is made of
 
 `PLAY.md` D13 and D14. A material used to be thirteen numbers somebody typed,
@@ -445,14 +477,30 @@ simply where no primitive is.
 **The generator emits the pieces; nothing infers a decomposition.** That is what
 keeps convex decomposition — normally the hard, unsolved half of this problem —
 from arising. A wall with a doorway emits four boxes around the opening, because
-the recipe is what put the opening there. There are two generators and no third:
-a structure states its members, and unstructured solid matter states one piece,
-because a rock is one filled solid with no cavity in it.
+the recipe is what put the opening there. There are three generators and no
+fourth: an **assembly** states its parts, each a filled box with its own
+material; a structure states its members, each a capsule; and unstructured
+solid matter states one piece, because a rock is one filled solid with no
+cavity in it.
+
+The two primitives are both sphere sets, so there is one narrow phase over
+both. A capsule is the hull of its two end spheres exactly. A **slab** is the
+hull of eight spheres at the inset corners of a box — which is that box with
+its edges rounded by the inset, a convex solid in its own right rather than a
+discretisation of a sharp one. Flatness is what a capsule cannot do and a panel
+needs: a probe standing off a 1.2 m panel reads the same gap at its centre, two
+thirds out and across the diagonal, where a row of capsules scallops by 0.169 m
+between members.
 
 The surface is **derived once and stored**, and regenerated when the node's
 `epoch` moves — which is precisely the definition of when its arrangement
 changed. An undisturbed tree computes its boundary once and reuses it for a
 thousand frames.
+
+**Material attaches per primitive**, which only an assembly has ever needed: a
+tree is wood everywhere and a sampled rock is one substance throughout, so a
+single measured material was enough until a box of oak panels on a steel frame
+existed. A contact reads the material of the piece it actually struck.
 
 **Its materials are a partition of the node's solid pools**, checked at bake
 time rather than documented. A node whose mixture is all water while its

@@ -91,10 +91,17 @@ The guarantee is `summarise(sample(m)) == m` on the conserved set, to
 
 **Structures** are the other kind of node: a `morph::Program` plus a genome,
 which *generates* geometry rather than sampling it statistically. `plant` seeds
-one that grows; `emplace` states one that is already there. Programs are
-`Tree`, `Coral`, `Tower`, `Wall`, `Terrain`, `Settlement` — and a program's
-output bodies are the next level's nodes, which is how a moon becomes a town
-becomes a building.
+one that grows; `emplace` states one that is already there; **`assemble` states
+one that was made**, out of parts. Programs are `Tree`, `Coral`, `Tower`,
+`Wall`, `Terrain`, `Settlement` — and a program's output bodies are the next
+level's nodes, which is how a moon becomes a town becomes a building.
+
+An **assembly** (`src/assembly.rs`) is the third case and does not have a
+program of its own: it is a parts list the engine *generated* by assessing what
+something is made of, and it decides the shape whenever it is present.
+`Program` then records only provenance — what the material is. A composite is
+one node with a recipe; a part becomes a node only when it detaches, and
+`World::join` puts it back.
 
 **Time:** one instant, every scale. A node is either *solved* or *coasted*.
 Local rate is the product up the chain of `(1/γ) · √(1+2Φ/c²) · bubble`.
@@ -210,6 +217,39 @@ first — `evolve_matter` gates on tier for exactly this reason.
 **A hand-set temperature no longer holds.** `evolve_matter` radiates it away
 within a few frames. Drive thermal scenarios with light.
 
+**`matter.radius` is the equivalent uniform sphere, not the bounding radius.**
+`summarise` reports it from an rms and `sample` scales what it draws until it
+comes back, with the factor `1/sqrt(3/5)` = 1.291 written down in both
+`sampler::radius_scale` and `assembly::Assembly::extent`. Hand a recipe its
+*bounding* radius and the sampler will helpfully scale the whole thing up until
+the two numbers agree: a six-panel box's walls came out **1.87x too far out**,
+silently, because every individual step was doing what it was told. If you are
+writing anything that states a size, state that one, and use
+`Assembly::bound` where you actually mean what fits inside a sphere.
+
+**Collapsing is not forgetting.** `World::forgettable` asks whether the detail
+may be *redrawn from the equilibrium ensemble*, and a broken thing must refuse
+forever because the draw would mend it. `World::collapsible` asks whether the
+detail may be *released*, and a broken thing accepts, because its recipe
+reproduces the break exactly. One flag answering both is why no grown or built
+thing ever coarsened — a thirty-year oak held 2,232 bodies for the life of the
+world against 288 bytes that regenerate them. `Node::pinned` is this node's own
+unregenerable detail; `Node::contains_edit` is a change below it that a fresh
+draw would undo. `Tree::pin` no longer walks the ancestry.
+
+**An assembled thing is the size somebody made it.** `sample_structured` skips
+the fully-stressed optimiser when `morph.is_assembled()`. That sizing is how a
+*grown* structure proportions itself, and running it on a box re-sizes every
+seam until it can carry its load — which is the same thing as the box never
+coming apart. If a joint is coming out a different size from the one the recipe
+states, this is why.
+
+**A part is promoted, not removed.** A wall that comes off a box keeps its slot
+in the recipe: six parts, five joins and a break. The promoted child *is* that
+slot (`children` runs parallel to `bodies`), so clearing the body list to
+regenerate a five-part recipe orphans the node the break just made. Whether a
+part is still attached is a join; whether it is its own object is the tree.
+
 ## Naming
 
 A name says what the thing *is*, in words a stranger would recognise, and no two
@@ -240,9 +280,11 @@ They are load-bearing; keep them that way.
 
 ## Current frontier
 
-**Phase 1 of `docs/PLAY.md` §7 is done, and §7 has been reordered.** The engine
-used to model what happens *inside* a node very well and what happens *between*
-nodes barely at all; that is what Phase 1 closed.
+**Phases 1 and 2 of `docs/PLAY.md` §7 are done, and §7 has been reordered.**
+The engine used to model what happens *inside* a node very well and what
+happens *between* nodes barely at all; Phase 1 closed that. Phase 2 gave a
+thing a shape and something to be made of, neither of which depends any more on
+how it was made.
 
 **Read `PLAY.md` §2A before anything else.** It records Issue 1 — *the engine has
 no representation for the shape of a solid, at any scale* — and D13 to D18
@@ -256,101 +298,112 @@ numbering below the insertion has moved: **Things**, **Crossings**, then Ground,
 Water, Bodies, Minds, Making, Sessions. Nothing below Ground changed relative to
 anything else.
 
-**Phase 2 is Things** and nothing in it has started. Two items in it are
-*corrections* rather than additions, and the phase cannot meet its own done-when
-without them: `binding_energy` splits before D17, because D17 is what turns the
-sampler's 4.3x10^5 inflation from three scenarios into every solid; and D19
-pulls §5.7's edit list forward from Making, because otherwise a struck box
-persists a body list instead of collapsing to a recipe. Its done-when is a wooden
-box that is *one node* with a recipe describing six walls, which responds as one
-box, loses a single wall to a hard enough strike, and returns to ~100 bytes when
-nobody is watching — plus a rock that no `Program` made bouncing off a boulder.
+**Phase 2 is done.** Its done-when was a wooden box that is *one node* with a
+recipe describing six walls, which responds as one box, loses a wall to a hard
+enough strike, and returns to a recipe when nobody is watching — plus a rock
+that no `Program` made bouncing off a boulder. Measured:
 
-What landed, in the order it was built — each of these has its own commit with
-the measurement in the message:
+```text
+a box is one node        6 parts, 608 B of recipe, 151.2 kg, one node
+it responds as one box   six filled slabs, 8 spheres each, cavity empty
+struck at 20 m/s         utilisation 0.00, nothing comes off
+struck at 700 m/s        utilisation 2.79, two panels become nodes
+nobody watching          1128 B of detail -> 608 B, regenerated at 0.0 m
+a rock no Program made   rebounds at 0.0502 where a frame gives 0.0215
+```
 
-1. **D3, adjacency.** `src/neighbourhood.rs` is the one primitive: a spatial
-   hash over a node's occupants (bodies *and* promoted children, in one index),
-   `pairs(within)`, and two laws over a pair — `exchange` for a conserved
-   quantity crossing a boundary, `contact` for an overlap resolving as an
-   impulse. Both are exact two-body solutions rather than `rate × dt`, and both
-   are symmetric to the bit from either side. `engine.rs` calls them as
-   `exchange_within` (Planetary and finer) and `contact_within`.
-2. **D4, the promoted child.** It feels the force its parent's solver computed,
-   through the mailbox, instead of being ballistic from the moment it was
-   promoted.
-3. **Tier follows size** — `retier`, and the spec that travels with it. See the
-   trap above.
-4. **The spread measurement.** `Spread::of(parts)` — centre, rms, furthest,
-   count — and `occupancy(radius)`, which is what a node splitting will need and
-   what `worst_occupancy` already reports.
-5. **One second per second.** `pace_realtime`, `PaceMode::Fixed` as what a world
-   *is*, and the throttle that no longer applies in it. See the trap above.
-6. **`G_EARTH` deleted.** Gravity is `Tree::gravity_at` — shell theorem over
-   what a node is inside, with its own mass subtracted — cached on the node,
-   persisted, and carried in the recipe blob so a client regenerates the same
-   structure. Three consumers, all structural; see the leaf entry in the backlog
-   for the fourth that does not exist yet.
-7. **§3.3, dispatch reads state.** `Node::structural_mask` partitions a node's
-   contents from its topology's joint radii, and the tier solver is handed the
-   disordered remainder only. A building, a wolf and a boulder are all
-   `Continuum` and none of them is a fluid. Hydro also substeps to its Courant
-   limit now, which it never had.
-8. **§3.7, the resolution floor is reported.** `resolution_floor(signal_speed)`
-   and `resolution_floor_of(node)`, and a node crossed by its ensemble says so
-   in `Stats::ensembled` instead of doing it quietly.
+**The one decision in it that was the owner's**, because the plan did not
+answer it: no `Program` variant describes a box and D11 forbids a seventh, so a
+composite's recipe is **generated rather than selected**. A wooden box is a
+tree, cut into pieces, carved and attached together; the engine assesses what
+that produced and writes down a recipe for resampling it. `src/assembly.rs` is
+that recipe, `Program` survives as *provenance* — what the material is, so a
+box of oak planks weighs and burns like oak — and stops being the answer to
+what shape a thing is. Do not read `Program` for geometry on a node that has an
+assembly, and do not add a variant to describe an arrangement.
 
-Phase 1's done-when list, all four, are tests:
-`two_promoted_things_collide_and_rebound`,
-`a_hot_node_beside_a_cold_one_equilibrates`, `a_branch_lands_on_the_next_tree`,
-and `a_node_holds_ordered_and_disordered_contents_at_once`. Suite at the end of
-Phase 1: **349 passed, 1 ignored** (`no_node_flings_its_bodies_out_of_itself`),
-plus 6 Postgres, and five demos run.
+What landed in Phase 2, each with its measurement in its own commit:
 
-### What Phase 2 will meet first
+1. **The two rigid-body defects** of §2A: `spin_rate` re-derived from
+   `matter.spin` after a solve, and the collision shape composed with
+   `motion.orientation`.
+2. **`binding_energy` split** into `gravitational_binding` and
+   `cohesive_binding`, before D17 rather than after.
+3. **`Mixture` onto `Matter`** (D17). The `mixtures` side table is gone; read
+   speciation with `World::mixture_of` or off `node.matter.mixture`.
+4. **Material measured** (D14): `src/material.rs`, strength by Griffith with
+   the flaw scale solved from the node's own cooling rate, and `rupture`
+   deleted rather than kept as a reference.
+5. **The recipe emits a surface** (D18): `shape::Surface` and `shape::Piece`,
+   a union of filled convex solids with a material each, baked once and
+   invalidated on `epoch`, and reconciled against the node's solid pools.
+6. **Joining and breaking as one transform** (D15): `src/assembly.rs`,
+   `Tree::assemble`, `World::join` and `World::detach`.
+7. **A change is an edit** (D19): `Node::contains_edit`, and collapsing
+   separated from forgetting — see the trap below.
+8. **Collision runs against the surface**, at the level of detail the distance
+   deserves.
+9. **An equation of state outside its validity says so**, in `Stats`.
+
+Suite at the end of Phase 2: **398 passed, 1 ignored**
+(`no_node_flings_its_bodies_out_of_itself`), plus 6 Postgres, and five demos
+run. `FORMAT_VERSION` is 11 and `SCHEMA_VERSION` is 7.
+
+**Phase 3 is Crossings** (D16) and nothing in it has started. A boundary
+crossing is the event: inward, generate the detail about to be met; outward,
+re-home to the node above; into a sibling, re-home sideways with the parent
+arbitrating. The same measurement drives **node splitting**, which Phase 1
+measured and connected to nothing. Its done-when is the rocket — it leaves the
+forest, re-homes to the planet and then to the star, and keeps correct gravity
+and correct neighbours throughout.
+
+What Phase 1 landed, still worth knowing because everything above stands on it:
+
+### What Phase 3 will meet first
 
 Left deliberately undone, each with a measurement and a trigger in
 `docs/BACKLOG.md`. Read those entries before touching any of it:
 
-- ~~**The ball-in-box test still runs at `Tier::Galactic`.**~~ **Done**, and it
-  was not a tier swap. A `Node` is already what this engine means by a rigid
-  body — one velocity, one spin, and `apply_contact` has always written to both
-  — so what was missing was a *shape* for it to present. `src/shape.rs` and
-  `Node::collision_shape` supply one, partitioned by §3.3's own
-  `structural_mask`. The box is now a node with capsule walls and takes a ball's
-  momentum as 48 tonnes rather than as one 500 kg panel. It found three things
-  on the way; see its backlog entry, which is kept for them.
 - **Derived gravity is in the parent's axes**, because nothing composes
   orientation anywhere in the tree. Terrain on a sphere is the scenario that
   makes it bite.
 - **Exchange has a radiative coefficient and no conductive one.** D3 names the
   law and does not specify it; heat conduction through ground or water needs it,
   and picking a thermal conductivity is a `PHYSICS.md`-weight decision.
-- **Only a built thing has a surface**, so only a built thing collides. This is
-  a *provenance test standing in for a state measurement*, and §3.3 already made
-  the same call correctly one layer down. The derivation the backlog recorded
-  does not work: `sound_speed()` is the gas formula, not an elastic wave speed,
-  and `density()` is bulk, so `E = rho c^2` comes out 58-82x low. Strength has
-  no law at all. Deferred to D11.
 - **Growth accumulates internal energy nothing sheds** — 231× thermal after
   forty years, reading back as 67,000 K while `temperature` says 291.
-- **The sampler inflates anything bound by chemistry by 4.3×10⁵.**
-- **Collision geometry is a sphere** — *mostly closed*. Both sides of a contact
-  now carry a hull baked from spheres, so a member is the capsule its `base`,
-  `tip` and joint radius always described. What is left is **flatness**: a row
-  of capsules is not a plane, and making one needs either a rule for which
-  members share a convex piece or a planar primitive. Neither is decided.
+- **Flatness, on a *generated* surface.** `Hull::slab` closed half of it: an
+  assembled part states its half-extents and presents a filled box, flat to
+  10^-12 m across a 1.2 m panel. A grown structure still emits one capsule per
+  member, so coursed masonry is still a row of beads, and deciding which
+  members share one convex piece is *inference* — which D18 says a generator
+  never does.
+- **A save drops a solved node's detail without summarising it first** — 2.35e-8
+  of the root's energy on the reference world, and zero on any node the
+  scheduler had finished with.
+- **An assembled part has no orientation of its own**, so anything not built
+  square comes out axis-aligned. A quaternion per part is 41% on a recipe whose
+  whole argument is its size.
+- **A join's substance is recorded and read by nothing.** The join's *area* is
+  real and is what takes the box apart; `Topology` carries one material for a
+  whole structure, so glue as strong as the wood is the same joint as glue that
+  is not.
 - **A node cannot split.** Phase 1 built the measurement it needs; the splitting
-  itself is untouched.
+  itself is untouched, and D16 is what needs it.
 
 `PLAY.md` D11 also finds the largest standing axiom violation in the codebase:
 **`morph::Program` is a species table.** Six variants, fourteen dispatch sites,
 and seven per-variant columns including a tabulated per-species decay rate.
 Five of those columns are properties of the *material* or the *measured
 environment* rather than of a species, and belong there. Do not add a seventh
-variant — that is what D11 exists to prevent. Phase 2 moves the first five
-columns off it, because a derived erosion rate cannot coexist with a tabulated
-one.
+variant — that is what D11 exists to prevent.
+
+Phase 2 took the first columns off it and, more importantly, took *geometry*
+off it for anything assembled: a composite's shape is a generated recipe and
+`Program` is provenance. `Morphology::density` is measured from the parts when
+there are parts. What is left on the table is the growth and weathering side —
+the per-species decay rate above all — and the space-filling rules D11
+deliberately does not claim collapse into one.
 
 One decision in `PLAY.md` still changes text written down elsewhere, so do not
 treat the older text as current where they disagree: **`PathKey` stops being an

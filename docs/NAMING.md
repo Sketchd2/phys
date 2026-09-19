@@ -273,3 +273,42 @@ a stranger reaches for: "the surface of a box" is its faces, not its coefficient
 of restitution. *Resilience* is the materials-science word for the energy a
 material returns rather than keeps, which is exactly what the three numbers are
 for — `restitution` and `yield_velocity` are the only things that read them.
+
+---
+
+## `Assembly`, and the three verbs that place a structure
+
+`docs/PLAY.md` D15 needed a name for a recipe the engine generates by assessing
+what something is made of, as against one selected from `morph::Program`'s list
+of species. The candidates were `Composite`, `Parts`, `Aggregate` and
+`Assembly`.
+
+*Composite* is taken twice over in physics — a composite material is a specific
+thing, and so is a composite particle. *Aggregate* means the opposite of what
+this is: loose material heaped together, which is what the sampler produces and
+what an assembly is defined against. *Parts* names the contents and not the
+thing. **Assembly** is what a stranger calls six panels screwed together, and
+it carries the right implication: somebody assembled it.
+
+Its pieces are `Part`, not `Piece`, because `shape::Piece` already means *one
+convex primitive of a surface* and a part emits one of those rather than being
+one. A part is the structural thing — it has a mass, a material and a join; a
+piece is the geometry it presents.
+
+| verb | what it states | where the geometry comes from |
+|---|---|---|
+| `plant` | something that will grow | its program, from the mass it accumulates |
+| `emplace` | something already grown | its program, from the mass it has |
+| `assemble` | something that was made | its parts, and the mass follows |
+
+Three verbs and not two, because the third case is genuinely different and not
+a special case of either: an assembled thing's size does not follow from its
+mass, and its joins are the size somebody made them rather than the size the
+load requires.
+
+**`extent` versus `bound` on an `Assembly`** is the one place a reader will
+guess wrong, so both names are on the struct with the difference stated.
+`extent` is the *equivalent uniform sphere* radius — what `matter.radius` means
+everywhere in this engine, what `summarise` reports and what `sample` scales
+to. `bound` is the geometric bounding radius. Calling the second one `extent`
+put a box's walls 1.87x too far out; see `CLAUDE.md`'s traps.
