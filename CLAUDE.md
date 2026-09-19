@@ -30,6 +30,23 @@ The cost of asking is one round trip. The cost of not asking is a decision
 buried in a commit, defended by a doc comment, and found six weeks later by
 somebody reading it as settled.
 
+**Nothing is deferred without the owner's say-so.** Finding an issue part-way
+through an item is normal and expected; deciding what happens to it is not
+yours. Say what you found, say what finishing it would take, and ask.
+
+The default answer is that it goes **on the plan** — `docs/PLAY.md` §7,
+scheduled into a phase — rather than into `docs/BACKLOG.md`, which is where a
+*measured* gap waits for a stated trigger and not where an item goes to be
+forgotten. Which of the two it is, is the owner's call, and so is doing it now
+instead.
+
+This covers the quiet forms, which are the ones that actually happen: a `TODO`,
+a test marked `#[ignore]`, a case the code handles by doing nothing, a shortcut
+with a comment explaining why it is temporary, a done-when reported met with a
+caveat attached, and a commit message saying something was "left for later".
+Each of those is a decision about what the project owes, taken without asking —
+and by the time it is written down, the deferral has already happened.
+
 ## The axioms
 
 These are not preferences. Code that breaks one of them is wrong even if it
