@@ -321,11 +321,13 @@ enough strike, and returns to a recipe when nobody is watching — plus a rock
 that no `Program` made bouncing off a boulder. Measured:
 
 ```text
-a box is one node        6 parts, 608 B of recipe, 151.2 kg, one node
+a box is one node        6 parts, 664 B of recipe persisted, 151.2 kg, one node
 it responds as one box   six filled slabs, 8 spheres each, cavity empty
-struck at 20 m/s         utilisation 0.00, nothing comes off
-struck at 700 m/s        utilisation 2.79, two panels become nodes
-nobody watching          1128 B of detail -> 608 B, regenerated at 0.0 m
+a part put in at 45 deg  its piece reaches 0.848 m along x, the square floor 0.600
+struck at 20 m/s         utilisation 0.50, nothing comes off
+struck at 700 m/s        utilisation 607, two panels become nodes
+the seam decides         mortar 49.5 against cellulose 1.15 on the same box, 43x
+nobody watching          1512 B of detail -> 664 B, regenerated at 0.0 m
 a rock no Program made   rebounds at 0.0502 where a frame gives 0.0215
 ```
 
@@ -370,9 +372,9 @@ What landed in Phase 2, each with its measurement in its own commit:
     The same box with a mortar seam is loaded **43x** as hard as one with a
     cellulose seam.
 
-Suite at the end of Phase 2: **398 passed, 1 ignored**
+Suite at the end of Phase 2: **400 passed, 1 ignored**
 (`no_node_flings_its_bodies_out_of_itself`), plus 6 Postgres, and five demos
-run. `FORMAT_VERSION` is 11 and `SCHEMA_VERSION` is 7.
+run. `FORMAT_VERSION` is 12 and `SCHEMA_VERSION` is 8.
 
 **Phase 3 is Crossings** (D16) and nothing in it has started. A boundary
 crossing is the event: inward, generate the detail about to be met; outward,
@@ -397,24 +399,22 @@ Left deliberately undone, each with a measurement and a trigger in
   and picking a thermal conductivity is a `PHYSICS.md`-weight decision.
 - **Growth accumulates internal energy nothing sheds** — 231× thermal after
   forty years, reading back as 67,000 K while `temperature` says 291.
-- **Flatness, on a *generated* surface.** `Hull::slab` closed half of it: an
-  assembled part states its half-extents and presents a filled box, flat to
-  10^-12 m across a 1.2 m panel. A grown structure still emits one capsule per
-  member, so coursed masonry is still a row of beads, and deciding which
-  members share one convex piece is *inference* — which D18 says a generator
-  never does.
-- **A save drops a solved node's detail without summarising it first** — 2.35e-8
-  of the root's energy on the reference world, and zero on any node the
-  scheduler had finished with.
-- **An assembled part has no orientation of its own**, so anything not built
-  square comes out axis-aligned. A quaternion per part is 41% on a recipe whose
-  whole argument is its size.
-- **A join's substance is recorded and read by nothing.** The join's *area* is
-  real and is what takes the box apart; `Topology` carries one material for a
-  whole structure, so glue as strong as the wood is the same joint as glue that
-  is not.
 - **A node cannot split.** Phase 1 built the measurement it needs; the splitting
   itself is untouched, and D16 is what needs it.
+
+**Five more are scheduled rather than left**, and `PLAY.md` §7 is where they
+live now — none of them is a backlog entry to be picked up on a whim:
+
+- **Phase 3** takes the *orphaned promoted child* (damage a tree with a limb
+  promoted out of it and the limb's node stays alive, unreachable and never
+  freed) and the *save that drops a solved node's detail without summarising
+  it* (2.35e-8 of the root's energy; zero at rest). The first is a crossing by
+  any other name and the phase cannot meet its done-when with it open.
+- **Phase 4** takes *all* of D11's five columns, *Griffith on the worst flaw
+  rather than the grain* (bedrock 77x low), and *flatness on a generated
+  surface* — the grown and coursed half, which needs `Wall`, `Tower` and
+  `Terrain` to emit slabs the way an assembly does rather than a grouping pass
+  over members, because D18 says a generator never infers a decomposition.
 
 `PLAY.md` D11 also finds the largest standing axiom violation in the codebase:
 **`morph::Program` is a species table.** Six variants, fourteen dispatch sites,
@@ -423,12 +423,18 @@ Five of those columns are properties of the *material* or the *measured
 environment* rather than of a species, and belong there. Do not add a seventh
 variant — that is what D11 exists to prevent.
 
-Phase 2 took the first columns off it and, more importantly, took *geometry*
-off it for anything assembled: a composite's shape is a generated recipe and
-`Program` is provenance. `Morphology::density` is measured from the parts when
-there are parts. What is left on the table is the growth and weathering side —
-the per-species decay rate above all — and the space-filling rules D11
-deliberately does not claim collapse into one.
+**All five columns are still on it.** Phase 2's item 4 said they were pulled
+forward and that is not what landed: what landed is a *measured path that takes
+precedence with the tabulated column as fallback* — `Material::measured` reads a
+node's mixture, `Morphology::density` measures an assembly's parts — and
+nothing was removed. `density`, `energy_density`, `substrate`, `material` and
+`maintenance` are all still one value per variant. **Phase 4 takes all of
+them**, and the plan says so.
+
+What Phase 2 *did* take off `Program` is **geometry**, for anything assembled:
+a composite's shape is a generated recipe and `Program` is provenance. That is
+one column the species table will never get back, and it is the reason a box
+needed no variant.
 
 One decision in `PLAY.md` still changes text written down elsewhere, so do not
 treat the older text as current where they disagree: **`PathKey` stops being an

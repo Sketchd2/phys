@@ -2628,11 +2628,13 @@ neither answer depends on how it was made.* D13, D14, D15, D17, D18, D19.
 Its done-when is six measurements and a suite of 398 passing:
 
 ```text
-a box is one node        6 parts, 608 B of recipe, 151.2 kg, one node
+a box is one node        6 parts, 664 B of recipe persisted, 151.2 kg, one node
 it responds as one box   six filled slabs, 8 spheres each, cavity empty
-struck at 20 m/s         utilisation 0.00, nothing comes off
-struck at 700 m/s        utilisation 2.79, two panels become nodes
-nobody watching          1128 B of detail -> 608 B, regenerated at 0.0 m
+a part put in at 45 deg  its piece reaches 0.848 m along x, the square floor 0.600
+struck at 20 m/s         utilisation 0.50, nothing comes off
+struck at 700 m/s        utilisation 607, two panels become nodes
+the seam decides         mortar 49.5 against cellulose 1.15 on the same box, 43x
+nobody watching          1512 B of detail -> 664 B, regenerated at 0.0 m
 a rock no Program made   rebounds at 0.0502 where a frame gives 0.0215
 ```
 
