@@ -488,8 +488,14 @@ fn accumulate(
         // Tension is the weak direction for brittle materials, and it is what
         // decides whether masonry topples or merely settles.
         let tensile = axial > 0.0;
-        let ratio = if tensile { topo.material.tensile_ratio } else { 1.0 };
-        let strength = topo.material.strength() * topo.material.strength_at(t) * integrity * ratio;
+        // **What the joint is made of, not what the members are.** A glued
+        // butt joint fails in the glue; `docs/PLAY.md` D15's claim that weld,
+        // glue and grown-together differ only in the join's substance is this
+        // line and the area above it. `joint_material` falls back to the
+        // members' own, so a branch meeting its parent in wood is unchanged.
+        let bond = topo.joint_material(i);
+        let ratio = if tensile { bond.tensile_ratio } else { 1.0 };
+        let strength = bond.strength() * bond.strength_at(t) * integrity * ratio;
         let by_stress = if strength > 0.0 {
             stress / strength
         } else if stress > 0.0 {
@@ -677,8 +683,14 @@ fn frame_analyse(
         let t = loads.temperature.get(i).copied().unwrap_or(loads.ambient);
         let integrity = topo.joints[i].integrity;
         let tensile = axial > 0.0;
-        let ratio = if tensile { topo.material.tensile_ratio } else { 1.0 };
-        let strength = topo.material.strength() * topo.material.strength_at(t) * integrity * ratio;
+        // **What the joint is made of, not what the members are.** A glued
+        // butt joint fails in the glue; `docs/PLAY.md` D15's claim that weld,
+        // glue and grown-together differ only in the join's substance is this
+        // line and the area above it. `joint_material` falls back to the
+        // members' own, so a branch meeting its parent in wood is unchanged.
+        let bond = topo.joint_material(i);
+        let ratio = if tensile { bond.tensile_ratio } else { 1.0 };
+        let strength = bond.strength() * bond.strength_at(t) * integrity * ratio;
         let by_stress = if strength > 0.0 {
             stress / strength
         } else if stress > 0.0 {

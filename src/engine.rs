@@ -701,7 +701,7 @@ impl World {
             return None;
         }
         let slot = self.tree.nodes[child.get()].slot as usize;
-        let (at, mass, radius, substance, child_parts) = {
+        let (at, facing, mass, radius, substance, child_parts) = {
             let c = &self.tree.nodes[child.get()];
             let substance = c
                 .matter
@@ -714,6 +714,10 @@ impl World {
                 .unwrap_or(crate::chem::SubstanceId::UNSPECIATED);
             (
                 c.motion.offset,
+                // A part brings the way it is facing with it, which is the
+                // whole of what an orientation is for: a plank joined on
+                // sideways is a plank lying sideways.
+                c.motion.orientation,
                 c.matter.mass,
                 c.matter.radius,
                 substance,
@@ -721,16 +725,14 @@ impl World {
             )
         };
 
-        // The part's shape is its own if it has one, and a cube of its bounding
-        // radius if it does not. A node with no recipe has no shape to bring,
-        // and inventing a plate for it would be the engine deciding what an
-        // undescribed thing looks like — which is the first axiom's line.
+        // The part's shape is its own if it has one, and a sphere of its
+        // bounding radius if it does not. A node with no recipe has no shape to
+        // bring, and inventing a plate for it would be the engine deciding what
+        // an undescribed thing looks like — which is the first axiom's line.
+        // `Vec3::ZERO` half-extents *are* the sphere, so this states nothing.
         let half = match child_parts.as_ref().and_then(|a| a.parts.first()) {
             Some(p) => p.half,
-            None => {
-                let e = radius / 3.0f64.sqrt();
-                crate::math::v3(e, e, e)
-            }
+            None => crate::math::Vec3::ZERO,
         };
 
         let Some(m) = self.tree.nodes[composite.get()].morphology.as_mut() else {
@@ -744,16 +746,20 @@ impl World {
             .parts
             .iter()
             .enumerate()
-            .min_by(|(_, a), (_, b)| {
-                (a.at - at).norm2().total_cmp(&(b.at - at).norm2())
-            })
+            .min_by(|(_, a), (_, b)| (a.pos - at).norm2().total_cmp(&(b.pos - at).norm2()))
             .map(|(i, _)| i as u16)
             .unwrap_or(crate::assembly::UNJOINED);
-        let mut part = crate::assembly::Part::new(at, half, mass, substance, site);
-        if to != crate::assembly::UNJOINED {
-            part = part.joined(to, join, area);
+        let mut part = crate::state::Body::solid(at, half, mass, substance, site);
+        part.orientation = facing;
+        if !part.is_boxed() {
+            part.radius = radius;
         }
         assembly.parts.push(part);
+        assembly.joins.resize(assembly.parts.len(), crate::assembly::Join::NONE);
+        if to != crate::assembly::UNJOINED {
+            let last = assembly.parts.len() - 1;
+            assembly.joins[last] = crate::assembly::Join::new(to, join, area);
+        }
         m.built = assembly.mass();
         m.design_mass = m.built;
 
@@ -2624,6 +2630,39 @@ impl World {
         crate::material::Material::measured(&mixture, &self.substances, formation)
     }
 
+    /// Fill in what this structure's joins are made of.
+    ///
+    /// `docs/PLAY.md` D15: "weld, glue and grown-together are not three
+    /// features — they differ only in what the join is made of and therefore in
+    /// its strength under D14". The substance travels with the joint from the
+    /// recipe; the *material* is derived from it here, because this is where
+    /// the substance registry is and because a material is a derivation rather
+    /// than a lookup. There is no table of glues and nothing anywhere names
+    /// one.
+    ///
+    /// Derived once per distinct substance rather than once per joint — the
+    /// third axiom's "derived once for the kind and then run for each
+    /// individual of it". A structure has thousands of joints and one or two
+    /// kinds of join.
+    ///
+    /// Formation conditions are the node's own, exactly as they are for its
+    /// bulk material and for each of its parts: glue set in a cold damp shed is
+    /// not glue set in a kiln, and that is a property of where the thing is
+    /// rather than of the glue.
+    fn derive_bonds(&self, idx: NodeIdx, topo: &mut crate::topology::Topology) {
+        use crate::chem::SubstanceId;
+        topo.bonds.clear();
+        let matter = self.tree.nodes[idx.get()].matter;
+        for j in &topo.joints {
+            if j.bond == SubstanceId::UNSPECIATED || topo.bonds.iter().any(|(s, _)| *s == j.bond) {
+                continue;
+            }
+            let Some(sub) = self.substances.get(j.bond) else { continue };
+            let formation = crate::material::Formation::of_matter(&matter, &sub.props);
+            topo.bonds.push((j.bond, crate::material::Material::of(&sub.props, formation)));
+        }
+    }
+
     /// Resolve the overlaps inside one node. `docs/PLAY.md` D3, the impulsive
     /// half.
     ///
@@ -3063,6 +3102,7 @@ impl World {
             Some(t) => t,
             None => return out,
         };
+        self.derive_bonds(idx, &mut topo);
         let structural_mass: f64 = self
             .tree
             .nodes[idx.get()]
@@ -3252,10 +3292,12 @@ impl World {
         self.tree.refine(idx);
         let ambient = self.tree.nodes[idx.get()].matter.temperature;
         let bodies = self.tree.nodes[idx.get()].bodies.clone();
-        let topo = match self.tree.nodes[idx.get()].topology.clone() {
+        let mut topo = match self.tree.nodes[idx.get()].topology.clone() {
             Some(t) => t,
             None => return out,
         };
+        self.derive_bonds(idx, &mut topo);
+        let topo = topo;
 
         // Rebuild whenever the structure itself has changed. Carrying a stale
         // dynamic state across a regeneration would let a tree that has lost a

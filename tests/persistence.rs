@@ -538,7 +538,7 @@ fn an_unpinned_reload_comes_back_coarse() {
 #[test]
 fn the_format_stamp_tracks_the_format() {
     /// Bump `wire::FORMAT_VERSION`, then update this.
-    const REFERENCE_BYTES: usize = 1_839;
+    const REFERENCE_BYTES: usize = 3_500;
 
     use phys::chem::{Arrangement, Bond, Element, Lattice, Mixture, Order, Phase};
 
@@ -582,6 +582,43 @@ fn the_format_stamp_tracks_the_format() {
     let mut mix = Mixture::new();
     mix.add(salt, Phase::Solid, 0.25);
     w.set_mixture(child, mix);
+
+    // A two-part assembly, so the reference world exercises the *recipe*
+    // layout too. Without one this test could not see D15's parts change shape
+    // at all: it measures size, and a world with no assembly in it is the same
+    // size whatever a part costs. That is the second half of the warning in
+    // `wire.rs` — it catches neither a reordering nor a layout nobody put in
+    // the reference world.
+    {
+        use phys::assembly::{Assembly, Join};
+        use phys::state::Body;
+        let parts = vec![
+            Body::solid(v3(0.0, 0.0, -0.5), v3(0.5, 0.5, 0.02), 30.0, salt, 0),
+            Body::solid(v3(0.0, 0.0, 0.5), v3(0.5, 0.5, 0.02), 30.0, salt, 1),
+        ];
+        let joins = vec![Join::NONE, Join::new(0, salt, 0.04)];
+        // Promoted out of the *root*, not out of the tree: promoting refines
+        // the parent, and refining the pinned tree would file its whole body
+        // list — 24 kB of detail whose size moves whenever anybody tunes a
+        // structural budget, which is the thing this world is built small to
+        // avoid.
+        let shelf = w.tree.promote(root, 1, default_spec(Tier::Continuum));
+        {
+            // Sized to its parts and given a small budget, so this world stays
+            // the "reference world built small" its own doc comment promises:
+            // a node whose mass exceeds its parts' is the rest sampled as
+            // litter, and at a default `Continuum` count that is 24 kB of
+            // bodies whose number moves whenever anybody tunes a spec.
+            let n = &mut w.tree.nodes[shelf.get()];
+            n.matter.mass = 60.0;
+            n.spec.count = 4;
+        }
+        w.assemble(shelf, phys::morph::Program::Wall, Assembly::new(parts, joins), None);
+        // Materialised and pinned, so a *body*'s layout is in the file as well
+        // as a part's — they are the same type and both ends have to be read.
+        w.tree.refine(shelf);
+        w.interact(Interaction::Pin { target: shelf });
+    }
 
     let bytes = encode(w.view());
     let checksum = bytes.iter().fold(0xcbf2_9ce4_8422_2325u64, |h, b| {

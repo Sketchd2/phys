@@ -1239,6 +1239,7 @@ fn a_ball_loose_in_a_box_conserves_momentum_and_angular_momentum() {
             // tier solver. Without it these forty-eight are loose contents, and
             // `for_tier(Continuum)` is SPH.
             joints.push(Joint {
+                bond: phys::chem::SubstanceId::UNSPECIATED,
                 child: i as u32,
                 parent: if i == 0 { NO_SUPPORT } else { 0 },
                 at: *b,
@@ -1249,6 +1250,7 @@ fn a_ball_loose_in_a_box_conserves_momentum_and_angular_momentum() {
             tip.push(*t);
         }
         nd.topology = Some(Topology {
+            bonds: Vec::new(),
             joints,
             support: (0..n).map(|i| if i == 0 { NO_SUPPORT } else { 0 }).collect(),
             site: (0..n as u32).collect(),
@@ -1480,7 +1482,9 @@ fn a_plank_struck_off_centre_turns_and_its_surface_turns_with_it() {
             b.mass = PLANK_MASS;
         }
         nd.topology = Some(Topology {
+            bonds: Vec::new(),
             joints: vec![Joint {
+                bond: phys::chem::SubstanceId::UNSPECIATED,
                 child: 0,
                 parent: NO_SUPPORT,
                 at: base,
@@ -1663,7 +1667,9 @@ fn a_turned_plank_is_struck_where_its_wall_now_is() {
             b.mass = PLANK_MASS;
         }
         nd.topology = Some(Topology {
+            bonds: Vec::new(),
             joints: vec![Joint {
+                bond: phys::chem::SubstanceId::UNSPECIATED,
                 child: 0,
                 parent: NO_SUPPORT,
                 at: base,

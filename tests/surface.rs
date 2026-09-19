@@ -118,6 +118,7 @@ fn boxed(seed: u64) -> (World, phys::ids::NodeIdx) {
             body.mass = 4800.0 / n as f64;
         }
         joints.push(Joint {
+            bond: phys::chem::SubstanceId::UNSPECIATED,
             child: i as u32,
             parent: if i == 0 { NO_SUPPORT } else { 0 },
             at: *b,
@@ -128,6 +129,7 @@ fn boxed(seed: u64) -> (World, phys::ids::NodeIdx) {
         tip.push(*t);
     }
     nd.topology = Some(Topology {
+        bonds: Vec::new(),
         joints,
         support: (0..n).map(|i| if i == 0 { NO_SUPPORT } else { 0 }).collect(),
         site: (0..n as u32).collect(),

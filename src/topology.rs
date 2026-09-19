@@ -56,6 +56,17 @@ pub struct Joint {
     /// Fraction of nominal strength remaining, 0..1. Reduced by heat, decay and
     /// previous damage; a joint at zero has already failed.
     pub integrity: f64,
+    /// What the *join* is made of, where that is not what the members are made
+    /// of. `UNSPECIATED` means it is: a branch meets its parent in wood, and a
+    /// course of masonry meets the one below it in the same stone.
+    ///
+    /// `docs/PLAY.md` D15's other half. Weld, glue, mortar and nail differ in
+    /// the substance between the parts and in how much of it there is, and the
+    /// area has been real since the recipe first stated a seam. This is the
+    /// substance, and [`Topology::joint_material`] is what derives a material
+    /// from it — never a table, and never a strength multiplier standing in
+    /// for one.
+    pub bond: crate::chem::SubstanceId,
 }
 
 impl Joint {
@@ -84,6 +95,16 @@ pub struct Topology {
     pub base: Vec<Vec3>,
     pub tip: Vec<Vec3>,
     pub material: Material,
+    /// Materials derived from the distinct substances this structure's joins
+    /// are made of, one entry per substance rather than one per joint.
+    ///
+    /// The third axiom exactly: derive once for the kind, run it for each
+    /// individual. A `Material` is 120 bytes and a structure has thousands of
+    /// joints but one or two kinds of join, so a short association list beats
+    /// both a per-joint copy and a fresh derivation per query. Derived rather
+    /// than persisted — the substance is what is stored, and this comes back
+    /// from it.
+    pub bonds: Vec<(crate::chem::SubstanceId, Material)>,
     /// Connections *beyond* the support forest: bracing, ties, redundant load
     /// paths. Their presence is what decides whether the structure is
     /// statically determinate, and therefore which solver applies.
@@ -154,6 +175,11 @@ impl Topology {
                     _ => radii.get(i).copied().unwrap_or(skel.radius[i] * scale),
                 },
                 integrity: 1.0,
+                bond: skel
+                    .joint_bond
+                    .get(i)
+                    .copied()
+                    .unwrap_or(crate::chem::SubstanceId::UNSPECIATED),
             });
         }
         // The body list is longer than the skeleton whenever the node also
@@ -172,6 +198,7 @@ impl Topology {
                 // also how the renderer and the failure check identify litter.
                 radius: 0.0,
                 integrity: 0.0,
+                bond: crate::chem::SubstanceId::UNSPECIATED,
             },
         );
         let mut support = skel.support.clone();
@@ -189,6 +216,9 @@ impl Topology {
             base,
             tip,
             material,
+            // Derived where the substance registry is; see
+            // `World::derive_bonds`.
+            bonds: Vec::new(),
             ties: skel
                 .ties
                 .iter()
@@ -236,6 +266,7 @@ impl Topology {
                 at: m.base,
                 radius: m.radius,
                 integrity: 1.0,
+                bond: crate::chem::SubstanceId::UNSPECIATED,
             });
             support.push(m.support);
             site.push(i as u32);
@@ -249,11 +280,34 @@ impl Topology {
             base,
             tip,
             material,
+            bonds: Vec::new(),
             ties: ties
                 .iter()
                 .map(|&(a, b, area)| Tie { a, b, area, integrity: 1.0 })
                 .collect(),
         }
+    }
+
+    /// What joint `i` is actually made of.
+    ///
+    /// The members' own material unless something *else* holds this one on, in
+    /// which case it is whatever that is: a glued butt joint fails in the glue,
+    /// not in the plank. Falls back to the members' material for a joint whose
+    /// substance nobody has derived, so a structure whose bonds have not been
+    /// filled in behaves exactly as it did before there was such a thing.
+    ///
+    /// A linear scan of `bonds`, which is one or two entries long for anything
+    /// real. See [`Topology::bonds`] for why that is the right shape.
+    pub fn joint_material(&self, i: usize) -> &Material {
+        let Some(j) = self.joints.get(i) else { return &self.material };
+        if j.bond == crate::chem::SubstanceId::UNSPECIATED {
+            return &self.material;
+        }
+        self.bonds
+            .iter()
+            .find(|(s, _)| *s == j.bond)
+            .map(|(_, m)| m)
+            .unwrap_or(&self.material)
     }
 
     /// Is the load path a forest — every part supported by at most one other,

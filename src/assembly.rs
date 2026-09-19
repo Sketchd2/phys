@@ -21,15 +21,28 @@
 //! pieces, carve them and attach them and what comes back is not a tree and not
 //! a new species either — it is a recipe the engine wrote down by looking.
 //!
-//! # What a part is
+//! # A part is a body
 //!
-//! A [`Part`] is one solid convex primitive with its own material, which is
-//! D18's vocabulary exactly, plus the one thing D18 does not carry: **what it
-//! is joined to, and what the join is made of.** D15 is explicit that weld,
-//! glue and grown-together are not three features — they differ only in the
-//! join's substance, and therefore in its strength under D14's Griffith law.
-//! So the join is a substance and an area, and the strength comes out of the
-//! same measurement everything else's does.
+//! There is **one type for a thing inside a node**, and it is
+//! [`crate::state::Body`]. An assembly's parts are bodies; the sampler's output
+//! is bodies; a structural member is a body. Two types — one for things that
+//! were sampled and one for things that were made — would be the engine knowing
+//! how a thing came to be there, which is the same failure as "only a built
+//! thing has a surface" one layer up, and it showed up immediately as a part
+//! carrying an extent and an orientation that a body could not express.
+//!
+//! So a `Body` gained the three things a part knew and it did not: an
+//! **orientation**, **half-extents** (`Vec3::ZERO` meaning "a sphere of
+//! `radius`"), and the **substance** it is one of. What is left over is the
+//! [`Join`], which is genuinely not a property of the thing — it is a
+//! relationship between two of them, and it lives in a parallel list the way
+//! `Topology`'s joints already do.
+//!
+//! D15 is explicit that weld, glue and grown-together are not three features:
+//! they differ only in the join's substance and its area, and therefore in its
+//! strength under D14's Griffith law. So a join stores exactly those two, and
+//! the strength comes out of the same measurement everything else's does — see
+//! [`Join::material`].
 //!
 //! # The two things it emits
 //!
@@ -39,122 +52,125 @@
 //!   with the panel's own material — which is D18's "material attaches per
 //!   primitive", and the first thing in the engine that has needed it.
 //!
-//! # What it deliberately does not carry
+//! # What it costs
 //!
-//! **A part has no orientation of its own.** Its half-extents are along the
-//! composite's own axes, which is exact for a box and for anything else built
-//! square, and wrong for a part set at an angle. Adding a quaternion per part
-//! is four more doubles on a structure whose whole argument is that it costs
-//! hundreds of bytes, and nothing in Phase 2 needs one; `BACKLOG.md` carries
-//! the measurement and the trigger.
+//! A `Body` is 244 bytes in memory against the 80 a purpose-built part was, and
+//! that is the right trade only because **the wire format does not write a
+//! body's worth per part.** A recipe entry persists a position, an orientation,
+//! half-extents, a mass, a substance and a slot — everything else about a body
+//! is regenerated from the node's matter when it is sampled, which is what
+//! "derived, with shortcuts stored" means applied to a recipe. See
+//! `persist::put_morphology`.
 
 use crate::chem::SubstanceId;
 use crate::math::{v3, Vec3};
 use crate::morph::{Skeleton, NO_SUPPORT};
-use crate::shape::{Hull, Piece};
+use crate::shape::Piece;
+use crate::state::Body;
 
 /// A part that is anchored rather than joined to another part.
 pub const UNJOINED: u16 = u16::MAX;
 
-/// Rounding on a part's edges, as a fraction of its smallest half-extent.
+/// What holds one part onto another.
 ///
-/// A filled solid has to be convex and a sharp box is, so this is not needed
-/// for correctness — it is needed because [`Hull::slab`] builds the box out of
-/// corner spheres and a zero radius collapses all eight onto the corners,
-/// leaving a point cloud whose support function is the same box but whose
-/// contact normals near an edge are a corner's rather than a face's. A tenth of
-/// the thinnest dimension is a plank's arris: small enough to leave the panel
-/// flat where it is struck, large enough that an edge has a normal.
-const EDGE_ROUNDING: f64 = 0.1;
-
-/// One solid piece of an assembled thing.
-///
-/// Sizes and offsets are in **metres, in the composite's own frame** — not in
-/// units of extent the way a grown program's skeleton is. A grown thing derives
-/// its size from the mass it has accumulated; an assembled one is the size its
-/// parts are, and its mass follows from them. The arrow between geometry and
-/// mass points the other way, and storing metres is what says so.
+/// Not a property of either part: a relationship between two of them, stored
+/// in a list parallel to the parts the way `Topology`'s joints already are.
+/// D15's whole claim about joining is here — weld, glue, mortar and
+/// grown-together are one mechanism differing in **what the join is made of**
+/// and **how much of it there is**, and both of those are measured rather than
+/// named.
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub struct Part {
-    /// Centre of the part, in the composite's frame, metres.
-    pub at: Vec3,
-    /// Half-extents along the composite's axes, metres. A zero component is a
-    /// sheet and is allowed.
-    pub half: Vec3,
-    /// Mass of this part, kg.
-    pub mass: f64,
-    /// What the part is made of. `UNSPECIATED` for a part nobody has described,
-    /// which falls back to the composite's own mixture.
+pub struct Join {
+    /// Index of the part this one is held onto, or [`UNJOINED`] for a part
+    /// that is simply there — the first part of an assembly, or one resting on
+    /// the ground.
+    pub to: u16,
+    /// What the join is made of. `UNSPECIATED` means the join is the parts'
+    /// own material: two pieces grown or fused into one, with no third
+    /// substance between them.
     pub substance: SubstanceId,
-    /// The part this one is joined to, or [`UNJOINED`] for one that is simply
-    /// there — the first part of an assembly, or a part resting on the ground.
-    pub joined_to: u16,
-    /// What the *join* is made of: weld, glue, mortar, grown-together. D15's
-    /// "differing only in what the join is made of and therefore in its
-    /// strength under D14". `UNSPECIATED` means the join is the parts'
-    /// own material — two pieces grown or fused into one.
-    pub join: SubstanceId,
     /// Cross-section of the join, m². What D14's strength is multiplied by to
     /// get the force it takes to part them.
-    pub join_area: f64,
-    /// Stable name for this part, so an event can refer to it and still mean
-    /// the same part after the assembly has been regenerated.
-    pub site: u32,
+    pub area: f64,
 }
 
-impl Part {
-    /// A part with no join yet — what a piece is before it is attached.
-    pub fn new(at: Vec3, half: Vec3, mass: f64, substance: SubstanceId, site: u32) -> Part {
-        Part {
-            at,
-            half,
-            mass: mass.max(0.0),
-            substance,
-            joined_to: UNJOINED,
-            join: SubstanceId::UNSPECIATED,
-            join_area: 0.0,
-            site,
+impl Join {
+    /// A part held on by nothing.
+    pub const NONE: Join =
+        Join { to: UNJOINED, substance: SubstanceId::UNSPECIATED, area: 0.0 };
+
+    /// Joined to `to` by `area` square metres of `substance`.
+    pub fn new(to: u16, substance: SubstanceId, area: f64) -> Join {
+        Join { to, substance, area: area.max(0.0) }
+    }
+
+    #[inline]
+    pub fn is_joined(&self) -> bool {
+        self.to != UNJOINED
+    }
+
+    /// The radius of a circle of the join's own area — the section the solver
+    /// bends and shears, which is the seam and not the part.
+    pub fn seam_radius(&self) -> f64 {
+        if self.area > 0.0 {
+            (self.area / std::f64::consts::PI).sqrt()
+        } else {
+            0.0
         }
     }
 
-    /// Attach this part to another, with a join of a stated substance and area.
-    pub fn joined(mut self, to: u16, join: SubstanceId, area: f64) -> Part {
-        self.joined_to = to;
-        self.join = join;
-        self.join_area = area.max(0.0);
-        self
-    }
-
-    /// Half the longest dimension, which is the part's own reach.
-    pub fn reach(&self) -> f64 {
-        let h = self.half;
-        (h.x * h.x + h.y * h.y + h.z * h.z).sqrt()
-    }
-
-    /// The solid this part presents, in the composite's frame.
-    pub fn hull(&self) -> Hull {
-        let h = v3(self.half.x.abs(), self.half.y.abs(), self.half.z.abs());
-        let thinnest = h.x.min(h.y).min(h.z);
-        Hull::slab(self.at, h, thinnest * EDGE_ROUNDING)
-    }
-
-    /// Volume of the solid, m³. The rounding is ignored: it is a tenth of the
-    /// thinnest dimension and subtracting it exactly would make a part's
-    /// density depend on how its edges were finished.
-    pub fn volume(&self) -> f64 {
-        8.0 * self.half.x.abs() * self.half.y.abs() * self.half.z.abs()
+    /// **What the join is made of, derived and not tabulated.**
+    ///
+    /// The third axiom applied to the thing D15 says joins differ by. A
+    /// substance's arrangement analyses to `Properties`, and `Material::of`
+    /// turns those into a stiffness and a surface energy under the formation
+    /// conditions the *node* is in — the same route a node's bulk material
+    /// takes, and the same route a part's does. Nothing anywhere names glue,
+    /// mortar or weld metal, and there is no table to add a row to.
+    ///
+    /// `None` when the join has no substance of its own, which means "as
+    /// strong as the parts": two pieces grown or fused together have no third
+    /// material between them, and the caller falls back to the part's own.
+    pub fn material(
+        &self,
+        matter: &crate::state::Matter,
+        reg: &crate::chem::Registry,
+    ) -> Option<crate::material::Material> {
+        let s = reg.get(self.substance)?;
+        let formation = crate::material::Formation::of_matter(matter, &s.props);
+        Some(crate::material::Material::of(&s.props, formation))
     }
 }
 
 /// A generated recipe: the parts of a composite and how they are joined.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct Assembly {
-    pub parts: Vec<Part>,
+    /// The parts themselves. Ordinary bodies: `Body::solid` states one.
+    pub parts: Vec<Body>,
+    /// What holds each part on, parallel to `parts`. Shorter than `parts` is
+    /// read as [`Join::NONE`] for the rest, so a pile of unjoined pieces costs
+    /// nothing to describe.
+    pub joins: Vec<Join>,
 }
 
 impl Assembly {
-    pub fn new(parts: Vec<Part>) -> Assembly {
-        Assembly { parts }
+    /// A recipe from parts and the joins that hold them, padded so the two
+    /// lists are the same length.
+    pub fn new(parts: Vec<Body>, joins: Vec<Join>) -> Assembly {
+        let mut joins = joins;
+        joins.resize(parts.len(), Join::NONE);
+        Assembly { parts, joins }
+    }
+
+    /// A recipe from parts nothing holds together — a heap, or a single piece.
+    pub fn loose(parts: Vec<Body>) -> Assembly {
+        Assembly::new(parts, Vec::new())
+    }
+
+    /// What holds part `i` on.
+    #[inline]
+    pub fn join(&self, i: usize) -> Join {
+        self.joins.get(i).copied().unwrap_or(Join::NONE)
     }
 
     pub fn is_empty(&self) -> bool {
@@ -206,7 +222,7 @@ impl Assembly {
         if !(m > 0.0) {
             return widest;
         }
-        let r2: f64 = self.parts.iter().map(|p| p.mass * p.at.norm2()).sum::<f64>() / m;
+        let r2: f64 = self.parts.iter().map(|p| p.mass * p.pos.norm2()).sum::<f64>() / m;
         let r = 1.291 * r2.max(0.0).sqrt();
         if r > 0.0 {
             r
@@ -222,7 +238,7 @@ impl Assembly {
     pub fn bound(&self) -> f64 {
         self.parts
             .iter()
-            .map(|p| p.at.norm() + p.reach())
+            .map(|p| p.pos.norm() + p.reach())
             .fold(0.0f64, f64::max)
     }
 
@@ -234,24 +250,41 @@ impl Assembly {
         }
         let mut acc = Vec3::ZERO;
         for p in &self.parts {
-            acc = acc + p.at.scale(p.mass);
+            acc = acc + p.pos.scale(p.mass);
         }
         acc.scale(1.0 / m)
     }
 
     /// Byte cost of the recipe — the number D15's whole argument is about.
+    /// In-memory byte cost of the recipe.
+    ///
+    /// **Not the number D15's argument is about**, which is the *persisted*
+    /// size: a part is an ordinary `Body` here, carrying velocity, temperature
+    /// and composition that the wire format does not write because they are
+    /// regenerated from the node's matter. See `persist::assembly_bytes`.
     pub fn state_bytes(&self) -> usize {
-        std::mem::size_of::<Assembly>() + self.parts.len() * std::mem::size_of::<Part>()
+        std::mem::size_of::<Assembly>()
+            + self.parts.len() * std::mem::size_of::<Body>()
+            + self.joins.len() * std::mem::size_of::<Join>()
+    }
+
+    /// Bytes this recipe persists as — what a part costs on the wire.
+    pub fn wire_bytes(&self) -> usize {
+        crate::persist::PART_WIRE_BYTES * self.parts.len() + 4
     }
 
     /// The next unused site name, so a part added later never reuses one.
     pub fn next_site(&self) -> u32 {
-        self.parts.iter().map(|p| p.site.wrapping_add(1)).max().unwrap_or(0)
+        self.parts.iter().map(|p| p.slot.wrapping_add(1)).max().unwrap_or(0)
     }
 
     /// Position of the part with this site name, if it is still here.
+    ///
+    /// A part's site name is its `Body::slot`, which is the same number the
+    /// tree uses for the body it generates — so a site, a slot and a promoted
+    /// child's index are one thing rather than three that have to agree.
     pub fn index_of_site(&self, site: u32) -> Option<usize> {
-        self.parts.iter().position(|p| p.site == site)
+        self.parts.iter().position(|p| p.slot == site)
     }
 
     /// The structure the solver sees.
@@ -267,8 +300,14 @@ impl Assembly {
     /// and `sample_structured` is what reconciles the two.
     pub fn render(&self) -> Skeleton {
         let mut sk = Skeleton::with_capacity(self.parts.len());
-        for p in &self.parts {
-            let h = v3(p.half.x.abs(), p.half.y.abs(), p.half.z.abs());
+        for (i, p) in self.parts.iter().enumerate() {
+            let h = if p.is_boxed() {
+                p.half
+            } else {
+                // A round part has no long axis; a segment through its centre
+                // of its own radius is the honest beam for it.
+                v3(p.radius, p.radius, p.radius)
+            };
             // The longest axis is the span; the other two give the section.
             let (axis, span, a, b) = if h.x >= h.y && h.x >= h.z {
                 (v3(1.0, 0.0, 0.0), h.x, h.y, h.z)
@@ -281,27 +320,21 @@ impl Assembly {
             // cross-section carries rather than the load a rod of its thinnest
             // dimension would.
             let radius = (4.0 * a * b / std::f64::consts::PI).sqrt().max(1e-9);
-            let support = if p.joined_to == UNJOINED {
-                NO_SUPPORT
-            } else {
-                p.joined_to as u32
-            };
-            // The seam, as the radius of a circle of the join's own area.
-            // A part with no join is anchored and its base carries whatever its
-            // own section carries.
-            let seam = if p.join_area > 0.0 {
-                (p.join_area / std::f64::consts::PI).sqrt()
-            } else {
-                0.0
-            };
+            // The part is turned, so the beam through it is too.
+            let axis = p.orientation.rotate(axis);
+            let join = self.join(i);
+            let support = if join.is_joined() { join.to as u32 } else { NO_SUPPORT };
             sk.push_joined(
-                p.at - axis.scale(span),
-                p.at + axis.scale(span),
+                p.pos - axis.scale(span),
+                p.pos + axis.scale(span),
                 p.mass,
                 radius,
                 support,
-                p.site,
-                seam,
+                p.slot,
+                // A part with no join is anchored, and its base carries
+                // whatever its own section carries.
+                join.seam_radius(),
+                join.substance,
             );
         }
         sk
@@ -362,7 +395,7 @@ impl Assembly {
                 if reached[i] {
                     continue;
                 }
-                let to = self.parts[i].joined_to;
+                let to = self.join(i).to;
                 if to != UNJOINED && (to as usize) < reached.len() && reached[to as usize] {
                     reached[i] = true;
                     grew = true;
@@ -406,20 +439,13 @@ impl Assembly {
         let Some(root) = self.index_of_site(site) else {
             return false;
         };
-        let was_joined = self.parts[root].joined_to != UNJOINED;
-        {
-            let p = &mut self.parts[root];
-            p.joined_to = UNJOINED;
-            p.join = SubstanceId::UNSPECIATED;
-            p.join_area = 0.0;
-        }
+        let was_joined = self.join(root).is_joined();
+        self.joins.resize(self.parts.len(), Join::NONE);
+        self.joins[root] = Join::NONE;
         // Anything that reached the ground through this part no longer does.
-        for i in 0..self.parts.len() {
-            if i != root && self.parts[i].joined_to == root as u16 {
-                let p = &mut self.parts[i];
-                p.joined_to = UNJOINED;
-                p.join = SubstanceId::UNSPECIATED;
-                p.join_area = 0.0;
+        for i in 0..self.joins.len() {
+            if i != root && self.joins[i].to == root as u16 {
+                self.joins[i] = Join::NONE;
             }
         }
         was_joined
@@ -434,27 +460,28 @@ impl Assembly {
     /// shape would be the claim failing.
     pub fn taken(&self, sites: &[u32]) -> Assembly {
         let mut index = vec![UNJOINED; self.parts.len()];
-        let mut parts: Vec<Part> = Vec::new();
+        let mut parts: Vec<Body> = Vec::new();
+        let mut joins: Vec<Join> = Vec::new();
         for &site in sites {
             if let Some(i) = self.index_of_site(site) {
                 index[i] = parts.len() as u16;
                 parts.push(self.parts[i]);
+                joins.push(self.join(i));
             }
         }
-        for p in parts.iter_mut() {
-            if p.joined_to == UNJOINED {
+        for j in joins.iter_mut() {
+            if !j.is_joined() {
                 continue;
             }
-            let new = index.get(p.joined_to as usize).copied().unwrap_or(UNJOINED);
-            if new == UNJOINED {
-                p.joined_to = UNJOINED;
-                p.join = SubstanceId::UNSPECIATED;
-                p.join_area = 0.0;
-            } else {
-                p.joined_to = new;
+            match index.get(j.to as usize).copied().unwrap_or(UNJOINED) {
+                // Its support stayed behind, so it is anchored now: a panel
+                // whose neighbour did not come with it is not joined to
+                // something that is no longer here.
+                UNJOINED => *j = Join::NONE,
+                new => j.to = new,
             }
         }
-        let mut out = Assembly::new(parts);
+        let mut out = Assembly::new(parts, joins);
         let com = out.centre_of_mass();
         out.recentre(com);
         out
@@ -464,7 +491,7 @@ impl Assembly {
     /// and giving it a node of its own costs.
     pub fn recentre(&mut self, origin: Vec3) {
         for p in self.parts.iter_mut() {
-            p.at = p.at - origin;
+            p.pos = p.pos - origin;
         }
     }
 }

@@ -1024,6 +1024,7 @@ pub(crate) fn close_books(
             spin: Vec3::ZERO,
             slot: i as u32,
             kind: spec.kind,
+            ..Body::default()
         });
     }
 
@@ -1316,6 +1317,22 @@ pub fn sample_structured(
     // load would silently make every join as strong as it needed to be, which
     // is the same thing as it never coming apart.
     if morph.is_assembled() {
+        // **The parts *are* the bodies.** A recipe that stated an extent, an
+        // orientation and a substance and then handed the solver a list of
+        // featureless spheres would have lost exactly what it was written down
+        // to keep, so the three fields a body carries for this reason are
+        // stamped back on. Positions were scaled to the node's radius on the
+        // way through, so extents scale with them.
+        if let Some(a) = morph.assembly.as_ref() {
+            for (b, part) in bodies.iter_mut().zip(a.parts.iter()) {
+                b.orientation = part.orientation;
+                b.substance = part.substance;
+                if part.is_boxed() {
+                    b.half = part.half.scale(scale);
+                    b.radius = b.half.norm();
+                }
+            }
+        }
         return (bodies, topo, report);
     }
     let (cases, passes) = if topo.is_determinate() {

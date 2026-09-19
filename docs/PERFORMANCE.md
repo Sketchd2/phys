@@ -253,21 +253,33 @@ planks:
 
 | | bytes |
 |---|---:|
-| the recipe (`Morphology` + 6 `Part`) | 608 |
-| its materialised detail (6 bodies + topology) | 1,128 |
+| **the recipe, persisted** | **664** |
+| the recipe, resident (`Morphology` + 6 `Body` + 6 `Join`) | 1,784 |
+| its materialised detail (6 bodies + topology) | 1,512 |
 | its baked surface (6 slabs of 8 spheres) | 2,688 |
-| the same six panels as promoted nodes | ~3,456 |
+| the same six panels as promoted nodes | ~8,544 |
+
+**The persisted figure is the one D15's argument is about, and the two differ
+by nearly three times.** A part is an ordinary `Body` — there is one type for a
+thing inside a node — and a body carries a velocity, a temperature, a
+composition and a kind that the wire format does not write, because they
+regenerate from the node's matter when it is sampled. `Assembly::wire_bytes` is
+the persisted number; `state_bytes` is the resident one, and quoting it would
+overstate the cost of keeping a world by 2.7x.
+
+A part costs 110 bytes on the wire — a position, an orientation, half-extents,
+a mass, a substance, a slot and the join that holds it on. Fifty parts is about
+5.5 KB of recipe against 71 KB of nodes and their scheduler entries. That is
+the right side of D15's argument and it is not the "under 1 KB" the decision
+estimated; the estimate assumed a part carried less than a part has to carry,
+and `PLAY.md`'s done-when has been restated against the measurement.
 
 Regeneration is exact: collapsed and re-materialised, the worst part
-displacement is 0. A `Part` is 78 bytes on the wire, so fifty parts is about
-4 KB of recipe against 28 KB of nodes and their scheduler entries — the right
-side of D15's argument, though not the "under 1 KB" the decision estimated.
-The estimate assumed a part carried less than it does; the measured figure is
-what later sizing should use.
+displacement is 0.
 
-The surface costing four times the recipe is worth noting and is not a problem:
-it is derived, invalidated on `epoch`, and never persisted. It is the price of
-a box somebody is currently touching.
+The surface costing four times the persisted recipe is worth noting and is not
+a problem: it is derived, invalidated on `epoch`, and never persisted. It is
+the price of a box somebody is currently touching.
 
 **A limb cannot reach a stride by bending** (D5). Two 0.4 m green-wood segments,
 30 mm radius, hip built in, transverse load at the tip:
@@ -296,11 +308,18 @@ everything else persists as the address and epoch that regenerate it.
 |---|---:|
 | unrefined world, one node | 736 |
 | 8 nodes, 44,384 bodies, regenerable | 181,699 |
-| the same, all pinned | 8,215,203 |
-| **marginal cost of one pinned body** | **181** |
+| **marginal cost of one pinned body** | **241** |
 
 An interactive subtree is pinned by definition, so a replay or rollback
-checkpoint pays the 181 B/body figure. 10⁵ bodies is ~18 MB a checkpoint.
+checkpoint pays the 241 B/body figure. 10⁵ bodies is ~24 MB a checkpoint.
+
+**It was 181 until a `Body` gained an orientation, half-extents and a
+substance** — 60 bytes on the wire, a third again on this row. That is what it
+costs for there to be **one type for a thing inside a node** rather than one
+for things that were sampled and another for things that were made; see
+`assembly.rs`, and D15's part, which is now an ordinary `Body`. The trade is
+deliberate and it is not free: anything sized against 181 B/body needs
+re-reading, and 10⁵ bodies went from ~18 MB to ~24 MB.
 
 **Embodied energy** (§5.8). Every program that builds anything books it — tree
 and coral at 1.7e7 J/kg, tower, wall and settlement at 2.5e6 J/kg. Terrain books

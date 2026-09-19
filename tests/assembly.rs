@@ -1,11 +1,11 @@
 //! A composite is one node with a recipe. `docs/PLAY.md` D15.
 
-use phys::assembly::{Assembly, Part, UNJOINED};
-use phys::chem::{Arrangement, Bond, Element, Order, Phase, SubstanceId};
+use phys::assembly::{Assembly, Join};
+use phys::chem::{Phase, SubstanceId};
 use phys::engine::{galaxy, World};
 use phys::math::{v3, Vec3};
 use phys::morph::Program;
-use phys::state::Matter;
+use phys::state::{Body, Matter};
 use phys::units::*;
 
 /// A wooden box: six panels, five of them joined to the floor.
@@ -24,44 +24,42 @@ fn box_parts(oak: SubstanceId, glue: SubstanceId, density: f64) -> Assembly {
         (v3(0.0, -half, 0.0), v3(half, t, half)),
         (v3(0.0, half, 0.0), v3(half, t, half)),
     ];
-    let parts = faces
-        .iter()
-        .enumerate()
-        .map(|(i, (at, h))| {
-            let mass = 8.0 * h.x * h.y * h.z * density;
-            let p = Part::new(*at, *h, mass, oak, i as u32);
-            if i == 0 {
-                p
-            } else {
-                // Glued along the edge it meets the floor on: the seam is the
-                // panel's thickness by its width, not its whole face.
-                p.joined(0, glue, 2.0 * half * 2.0 * t)
-            }
-        })
-        .collect();
-    Assembly::new(parts)
+    let mut parts = Vec::new();
+    let mut joins = Vec::new();
+    for (i, (at, h)) in faces.iter().enumerate() {
+        let mass = 8.0 * h.x * h.y * h.z * density;
+        parts.push(Body::solid(*at, *h, mass, oak, i as u32));
+        // Glued along the edge it meets the floor on: the seam is the panel's
+        // thickness by its width, not its whole face. The floor is the anchor.
+        joins.push(if i == 0 { Join::NONE } else { Join::new(0, glue, 2.0 * half * 2.0 * t) });
+    }
+    Assembly::new(parts, joins)
 }
 
-/// Cellulose and a glue, built by hand: nothing in the engine knows what wood
-/// is, which is the point of the chemistry layer.
-fn woods(w: &mut World) -> (SubstanceId, SubstanceId) {
+/// Cellulose for the panels and calcium carbonate for the seams — lime mortar,
+/// which is what a mineral glue actually is. Both are the arrangements
+/// `tests/material.rs` measures, interned into this world's own registry.
+///
+/// **Not hand-rolled, and the first version of this was.** Two made-up CHO
+/// molecules analysed to a melting point of 121 K, so at 291 K they were
+/// *liquid*, and a liquid seam has no strength: the box fell apart under a
+/// 20 m/s breeze with the utilisation reading infinity. The engine was right
+/// and the scene was wrong, which is the second time in this phase that a
+/// plausible-looking test substance has been the defect. Anything used as a
+/// solid here has to be solid at the temperature it is used at, and the way to
+/// know is to derive it rather than to assume it.
+fn substances(w: &mut World) -> (SubstanceId, SubstanceId) {
     let oak = w
         .substances
-        .intern(Arrangement::molecule(
-            vec![Element(6), Element(1), Element(1), Element(8)],
-            vec![Bond::new(0, 1, Order::Single), Bond::new(0, 2, Order::Single), Bond::new(0, 3, Order::Single)],
-        ))
+        .intern(phys::material::substances::cellulose_arrangement())
         .expect("cellulose analyses");
     w.substances.name(oak, "cellulose");
-    let glue = w
+    let mortar = w
         .substances
-        .intern(Arrangement::molecule(
-            vec![Element(6), Element(1), Element(8)],
-            vec![Bond::new(0, 1, Order::Single), Bond::new(0, 2, Order::Double)],
-        ))
-        .expect("glue analyses");
-    w.substances.name(glue, "glue");
-    (oak, glue)
+        .intern(phys::material::substances::calcium_carbonate_arrangement())
+        .expect("calcium carbonate analyses");
+    w.substances.name(mortar, "mortar");
+    (oak, mortar)
 }
 
 fn a_box() -> (World, phys::ids::NodeIdx, SubstanceId, SubstanceId) {
@@ -69,7 +67,7 @@ fn a_box() -> (World, phys::ids::NodeIdx, SubstanceId, SubstanceId) {
     let root = w.tree.root;
     w.tree.refine(root);
     let node = w.tree.promote(root, 3, phys::engine::default_spec(Tier::Continuum));
-    let (oak, glue) = woods(&mut w);
+    let (oak, glue) = substances(&mut w);
     let parts = box_parts(oak, glue, 700.0);
     let mass = parts.mass();
     {
@@ -93,7 +91,7 @@ fn a_box_is_one_node_with_six_walls() {
     println!("  recipe: {} parts, {} bytes, extent {:.3} m, {:.1} kg",
         a.len(), m.state_bytes(), m.extent(), a.mass());
     assert_eq!(a.len(), 6);
-    assert_eq!(a.parts.iter().filter(|p| p.joined_to != UNJOINED).count(), 5);
+    assert_eq!(a.joins.iter().filter(|j| j.is_joined()).count(), 5);
 
     // Sampled, the parts land where the recipe put them.
     let bodies = w.tree.refine(node).to_vec();
@@ -102,7 +100,7 @@ fn a_box_is_one_node_with_six_walls() {
     let n = &w.tree.nodes[node.get()];
     let topo = n.topology.as_ref().expect("an assembly has a topology");
     for i in 0..6 {
-        let want = n.morphology.as_ref().unwrap().assembly.as_ref().unwrap().parts[i].at;
+        let want = n.morphology.as_ref().unwrap().assembly.as_ref().unwrap().parts[i].pos;
         let got = bodies[i].pos;
         println!(
             "    part {i}: recipe {:?} sampled ({:.4}, {:.4}, {:.4}) joint r {:.4}",
@@ -133,7 +131,7 @@ fn the_parts_land_where_the_recipe_put_them() {
         .unwrap()
         .parts
         .iter()
-        .map(|p| p.at)
+        .map(|p| p.pos)
         .collect();
     let bodies = w.tree.refine(node).to_vec();
     let mut worst = 0.0f64;
@@ -218,7 +216,7 @@ fn joining_absorbs_a_node_into_the_recipe() {
     assert!(!w.tree.nodes[lid.get()].alive, "the joined node is still its own object");
     assert!(w.tree.live_count() < live_before, "joining cost no nodes, which is the point of it");
     assert_eq!(a.parts.last().unwrap().substance, oak);
-    assert_eq!(a.parts.last().unwrap().join, glue);
+    assert_eq!(a.joins.last().unwrap().substance, glue);
     assert!(w.tree.nodes[node.get()].contains_edit, "the join is not recorded as an edit");
 }
 
@@ -250,7 +248,7 @@ fn a_wall_that_comes_off_is_still_a_wall() {
     // says five walls plus a break.
     let box_parts = w.tree.nodes[node.get()].morphology.as_ref().unwrap().assembly.as_ref().unwrap();
     assert_eq!(box_parts.len(), 6);
-    assert_eq!(box_parts.parts.iter().filter(|p| p.joined_to != UNJOINED).count(), 4);
+    assert_eq!(box_parts.joins.iter().filter(|j| j.is_joined()).count(), 4);
     let events = &w.tree.nodes[node.get()].morphology.as_ref().unwrap().events;
     assert_eq!(events.len(), 1, "the break is not in the recipe's event log");
     assert_eq!(events[0].site, 3);
@@ -267,7 +265,7 @@ fn a_hard_enough_strike_takes_a_wall_off() {
         let (mut w, node, _, _) = a_box();
         let out = w.damage(node, &[phys::solvers::structure::weather::wind(speed, v3(1.0, 0.0, 0.0))]);
         let a = w.tree.nodes[node.get()].morphology.as_ref().unwrap().assembly.as_ref().unwrap();
-        let still_on = a.parts.iter().filter(|p| p.joined_to != UNJOINED).count();
+        let still_on = a.joins.iter().filter(|j| j.is_joined()).count();
         println!(
             "  {speed:>5.0} m/s: peak utilisation {:.2}, {} joints broke, {} pieces away, {still_on}/5 still joined",
             out.peak_utilisation, out.broken_joints, out.detached_pieces
@@ -289,7 +287,13 @@ fn a_box_nobody_is_watching_is_its_recipe() {
     let (mut w, node, _, _) = a_box();
     let before: Vec<Vec3> = w.tree.refine(node).iter().map(|b| b.pos).collect();
     let detail = w.tree.nodes[node.get()].detail_bytes();
-    let recipe = w.tree.nodes[node.get()].morphology.as_ref().unwrap().state_bytes();
+    // **The persisted size, not the resident one.** A part is an ordinary
+    // `Body` in memory and carries velocity, temperature and composition that
+    // the wire format does not write, because they are regenerated from the
+    // node's matter. D15's storage argument is about what a world *costs to
+    // keep*, so that is the figure to compare.
+    let recipe = w.tree.nodes[node.get()].morphology.as_ref().unwrap().assembly.as_ref().unwrap().wire_bytes();
+    let resident = w.tree.nodes[node.get()].morphology.as_ref().unwrap().state_bytes();
 
     assert!(w.collapsible(node), "a described box must be able to release its detail");
     let filed = w.tree.persisted.len();
@@ -303,8 +307,121 @@ fn a_box_nobody_is_watching_is_its_recipe() {
         .zip(&after)
         .map(|(a, b)| (*a - *b).norm())
         .fold(0.0f64, f64::max);
-    println!("  detail {detail} B -> recipe {recipe} B; regenerated to {worst:.3e} m");
+    println!("  detail {detail} B -> recipe {recipe} B persisted ({resident} B resident); regenerated to {worst:.3e} m");
     assert_eq!(before.len(), after.len());
     assert_eq!(worst, 0.0, "the box came back a different box");
     assert!(recipe < detail, "the recipe is not smaller than the detail it replaces");
+}
+
+/// The seam fails in what the seam is made of.
+///
+/// D15: weld, glue, mortar and grown-together "differ only in what the join is
+/// made of and therefore in its strength under D14". Half of that has been true
+/// since the recipe first stated a seam *area*; this is the other half. Two
+/// boxes, identical in every way except the substance between their panels,
+/// have to come apart at different loads — and if they do not, the substance is
+/// being stored and read by nothing, which is what it was.
+///
+/// Nothing here names glue. Both substances are arrangements of atoms and
+/// bonds, and `Material::of` derives a strength from each under the node's own
+/// formation conditions.
+#[test]
+fn a_box_fails_in_its_seams_not_in_its_panels() {
+    let mut util = Vec::new();
+    for strong in [false, true] {
+        let mut w = World::new(galaxy(0xB0C5, 1e9), 20.0);
+        let root = w.tree.root;
+        w.tree.refine(root);
+        let node = w.tree.promote(root, 3, phys::engine::default_spec(Tier::Continuum));
+        let (oak, mortar) = substances(&mut w);
+        // The alternative seam: the panels' own substance, which is what
+        // "grown together" means — no third material in the joint at all.
+        let seam = if strong { oak } else { mortar };
+        let parts = box_parts(oak, seam, 700.0);
+        let mass = parts.mass();
+        {
+            let n = &mut w.tree.nodes[node.get()];
+            n.matter = Matter::neutral(mass, 1.0, 291.0, Program::Tree.substrate());
+            let mut mix = phys::chem::Mixture::new();
+            mix.add(oak, Phase::Solid, 1.0);
+            n.matter.mixture = mix;
+            n.spec.count = 64;
+        }
+        w.assemble(node, Program::Tree, parts, None);
+        let out = w.damage(node, &[phys::solvers::structure::weather::wind(200.0, v3(1.0, 0.0, 0.0))]);
+        let material = if strong { "cellulose" } else { "mortar" };
+        println!(
+            "  seam of {material:10}: peak utilisation {:8.2}, {} joints broke",
+            out.peak_utilisation, out.broken_joints
+        );
+        util.push(out.peak_utilisation);
+    }
+    let (weak, strong) = (util[0], util[1]);
+    println!("  weak seam is {:.2}x as loaded as the strong one", weak / strong);
+    assert!(
+        weak > strong * 1.2,
+        "the same box with a mortar seam and a cellulose one is loaded the same \
+         ({weak:.2} against {strong:.2}), so the join's substance is being read by nothing"
+    );
+}
+
+/// A part put in at an angle comes back at that angle.
+///
+/// A `Body` had a position and a spin and no *orientation* — how fast it is
+/// turning, and nothing about where it has turned to. So a plank and a boulder
+/// of the same mass were the same object seen from every direction, `promote`
+/// handed every child `Quat::IDENTITY` because there was nothing else to hand
+/// it, and a recipe could not describe anything not built square.
+///
+/// The round trip is the test: state a turned part, sample it, promote it out,
+/// and see the angle survive all three.
+#[test]
+fn a_part_put_in_at_an_angle_stays_at_that_angle() {
+    use phys::math::Quat;
+    let mut w = World::new(galaxy(0xA9E1, 1e9), 20.0);
+    let root = w.tree.root;
+    w.tree.refine(root);
+    let node = w.tree.promote(root, 3, phys::engine::default_spec(Tier::Continuum));
+    let (oak, mortar) = substances(&mut w);
+
+    // A lid set over the box at a quarter turn about z, and a pitched panel.
+    let tilt = Quat::from_axis_angle(v3(0.0, 0.0, 1.0), std::f64::consts::FRAC_PI_4);
+    let mut parts = box_parts(oak, mortar, 700.0);
+    parts.parts[1].orientation = tilt;
+    let mass = parts.mass();
+    {
+        let n = &mut w.tree.nodes[node.get()];
+        n.matter = Matter::neutral(mass, 1.0, 291.0, Program::Tree.substrate());
+        let mut mix = phys::chem::Mixture::new();
+        mix.add(oak, Phase::Solid, 1.0);
+        n.matter.mixture = mix;
+        n.spec.count = 64;
+    }
+    w.assemble(node, Program::Tree, parts, None);
+
+    // Through the sampler: the body the recipe generates is turned.
+    let bodies = w.tree.refine(node).to_vec();
+    assert_eq!(bodies[1].orientation, tilt, "the sampled body lost the part's angle");
+    assert_eq!(bodies[0].orientation, Quat::IDENTITY, "an unturned part was turned");
+    assert!(bodies[1].is_boxed(), "the sampled body lost the part's extent");
+
+    // Through the surface: the piece it presents is turned with it, so a panel
+    // set at 45 degrees reaches further along x than its own half-extent.
+    let surface = w.surface_of_node(node).clone();
+    let lid = &surface.pieces()[1];
+    let reach_x = lid.hull.support(v3(1.0, 0.0, 0.0)).x;
+    let square = surface.pieces()[0].hull.support(v3(1.0, 0.0, 0.0)).x;
+    println!("  lid at 45 deg reaches {reach_x:.4} m along x; the square floor reaches {square:.4} m");
+    assert!(
+        reach_x > square * 1.2,
+        "a panel turned 45 degrees presents the same silhouette as a square one"
+    );
+
+    // And out through `promote`, which used to hand every child identity.
+    let spec = w.tree.nodes[node.get()].spec;
+    let child = w.tree.promote(node, 1, spec);
+    assert_eq!(
+        w.tree.nodes[child.get()].motion.orientation, tilt,
+        "a part promoted out of a recipe was squared up to its parent's axes"
+    );
 }

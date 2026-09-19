@@ -401,9 +401,16 @@ fn a_limb_ruptures_long_before_it_leaves_the_linear_regime() {
 
 /// Only pinned nodes write their bodies, so a checkpoint of an *interactive*
 /// subtree — where everything an actor touched is pinned — is the case that
-/// matters. The marginal cost is about 181 bytes a body.
+/// matters. The marginal cost is about 241 bytes a body.
+///
+/// It was 181 until a `Body` gained an orientation, half-extents and a
+/// substance, which is 60 bytes on the wire and a third again on this figure.
+/// That is the price of there being **one type for a thing inside a node**
+/// rather than one for things that were sampled and another for things that
+/// were made — see `assembly.rs`. Recorded rather than absorbed, because
+/// `PERFORMANCE.md` and `PLAY.md` §6 are both sized against it.
 #[test]
-fn a_pinned_body_costs_about_181_bytes_to_checkpoint() {
+fn a_pinned_body_costs_about_241_bytes_to_checkpoint() {
     let encode_with = |pin: bool| {
         let mut w = World::new(galaxy(0xC4EC, 1e9), 20.0);
         w.tree.nodes[0].spec.count = 4096;
@@ -423,8 +430,8 @@ fn a_pinned_body_costs_about_181_bytes_to_checkpoint() {
 
     let per_body = (pinned - regen) as f64 / bodies as f64;
     assert!(
-        (per_body - 181.0).abs() < 20.0,
-        "a pinned body costs {per_body:.1} bytes, not the ~181 the plan is written \
+        (per_body - 241.0).abs() < 20.0,
+        "a pinned body costs {per_body:.1} bytes, not the ~241 the plan is written \
          against"
     );
     assert!(

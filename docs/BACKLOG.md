@@ -1674,7 +1674,7 @@ this term and nothing else, so the bound there is what fails if it grows.
 
 ---
 
-## An assembled part has no orientation of its own
+## ~~An assembled part has no orientation of its own~~ — done, and it was wider than this
 
 **Noticed:** building `docs/PLAY.md` D15's composite.
 **Where:** `assembly.rs` — `Part::half`, and everything that reads it.
@@ -1703,9 +1703,53 @@ question about what gets built, not about the representation.
 which is Making's territory, not Phase 2's. Sooner if terrain's slabs want to
 follow a slope, which is Phase 4's own version of the same question.
 
+**Done, and the owner's reading of it was the right one.** The question was not
+"should a part carry a quaternion" but "why is a part not a body". **Every body
+needs an orientation** — a `Body` had a position and a `spin` and nothing
+saying where it had turned *to*, so a plank and a boulder of the same mass were
+the same object seen from every direction, and `promote` handed each child
+`Quat::IDENTITY` with a doc comment explaining that the child's frame *is* how
+it was sampled, which was true only because there was nothing else to hand it.
+
+So `Body` gained the three things `assembly::Part` knew and it did not — an
+`orientation`, `half`-extents (`Vec3::ZERO` meaning "a sphere of `radius`", so
+a sphere is not written as a cube) and the `substance` it is one of — and
+`Part` was deleted. An assembly is `Vec<Body>` plus a parallel `Vec<Join>`,
+because a join is a relationship between two things rather than a property of
+either, which is the same shape `Topology`'s joints already have.
+
+Measured, in both directions:
+
+```text
+a part put in at 45 deg      sampled body keeps it; surface piece reaches
+                             0.848 m along x where the square floor reaches 0.600
+                             promoted child's node keeps it (was identity)
+size of Body                 184 B -> 244 B in memory
+a pinned body on the wire    181 B -> 241 B, a third again
+a six-panel recipe           608 B -> 664 B persisted, 1,784 B resident
+```
+
+**The resident figure is not the one to quote**, and separating them was part
+of the work: a part is an ordinary `Body` in memory and carries velocity,
+temperature, composition and kind that the wire format does not write, because
+they regenerate from the node's matter. `Assembly::wire_bytes` is the number
+D15's storage argument is about.
+
+**The 60 bytes a pinned body costs are the real price** and they are not free:
+`PERFORMANCE.md`'s checkpoint row went from 181 to 241 B/body, so 10^5 bodies
+is ~24 MB rather than ~18 MB, and `PLAY.md` §6's answer was restated. Anything
+sized against 181 needs re-reading.
+
+**What is still not represented:** a body's orientation is identity for
+everything *sampled*. A tumbling grain has one in reality and drawing one would
+change nothing except every bit-exactness test in the suite, so the field is
+stated by whatever knows the answer — a recipe, a promoted child coming back —
+and left alone otherwise. That is the same rule the rest of `Body` follows and
+it is a decision rather than an omission.
+
 ---
 
-## A join's substance is recorded and not yet used
+## ~~A join's substance is recorded and not yet used~~ — done
 
 **Noticed:** building D15's join.
 **Where:** `assembly.rs` — `Part::join`, and `topology.rs` — `Topology::material`.
@@ -1735,8 +1779,36 @@ structure's.
 **Trigger:** the first thing whose joins are meant to be its weak point by
 design — a dry-stone wall, a mortise and tenon, a riveted plate — or the first
 time a scenario wants the same box glued and nailed to behave differently.
-Phase 2's done-when does not need it: the box comes apart at the seam because
-the seam is small, which is the other half of the same law.
+
+**Done, and derived rather than tabulated** — which was the owner's condition
+and is the third axiom. `Joint::bond` carries the substance; `Topology::bonds`
+holds a material derived **once per distinct substance** and read per joint, so
+a structure with thousands of joints and one kind of join derives one material.
+`World::derive_bonds` is where it happens, because that is where the substance
+registry is, and the formation conditions are the node's own: glue set in a
+cold damp shed is not glue set in a kiln, and that is a property of where the
+thing is. Nothing names glue, mortar or weld metal, and there is no table to
+add a row to.
+
+Measured on one box under a 200 m/s wind, identical but for the seam:
+
+```text
+seam of mortar (calcium carbonate)    peak utilisation  49.54
+seam of cellulose (the panels' own)   peak utilisation   1.15
+                                      43x, and the test fails at 1.2x
+```
+
+The estimate above was wrong about the cost: a `Material` per joint was never
+needed, because a derivation per *kind* is what the axiom actually asks for. A
+`Joint` grew by the 4 bytes of a `SubstanceId` and nothing else.
+
+**It found one thing.** The first version of the box test used two hand-rolled
+CHO molecules as oak and glue. Both analysed to a melting point of **121 K**,
+so at 291 K they were liquid, a liquid seam correctly has no strength, and the
+box fell apart under a 20 m/s breeze with the utilisation reading infinity. The
+engine was right and the scene was wrong — the second time in this phase, after
+the 1%-density boulder. Anything used as a solid has to be *derived* to be
+solid at the temperature it is used at.
 
 ---
 

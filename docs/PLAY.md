@@ -2510,7 +2510,7 @@ a scratch probe that Phase 0 should commit properly rather than from arithmetic.
 | ~~Do segments of a walking limb exceed 0.1 rad of chord rotation?~~ | **Answered: no, and D5 is confirmed more strongly than it claimed.** The member ruptures at 700 N having travelled 1.3% of its length, with chord rotation only 0.018. A limb has no elastic path to a stride at all, so the large rotation must live in a joint between substructures and corotational elements are *off* the critical path — they would permit a bend the material does not. | done — `tests/probes.rs` |
 | Does slaving the parent body every frame preserve `summarise(sample(m)) == m`? | D4 writes into the conserved set every frame. `IDEMPOTENT_TOLERANCE` is the contract. | Promote, run, coarsen, compare against the existing consistency harness. |
 | How long does a gait optimisation take, and does it converge? | D7's shortcut is only a shortcut if deriving it is rare and bounded. | Solve one quadruped gait offline and time it. |
-| ~~How large is the checkpoint for an interactive subtree?~~ | **Answered: 181 bytes per pinned body.** Only pinned nodes write bodies, and an interactive subtree is pinned by definition, so 10⁵ bodies is ~18 MB a checkpoint. Regenerable detail costs 45× less. | done — `tests/probes.rs` |
+| ~~How large is the checkpoint for an interactive subtree?~~ | **Answered: 241 bytes per pinned body** — 181 until a `Body` gained an orientation, half-extents and a substance in Phase 2, which is what it costs for a part and a body to be one type. Only pinned nodes write bodies, and an interactive subtree is pinned by definition, so 10⁵ bodies is ~24 MB a checkpoint. Regenerable detail still costs far less. | done — `tests/probes.rs` |
 | ~~Does metre-scale bulk fluid actually hurt?~~ | Answered by §4: yes, for anything at play scale — a 5 cm channel is two orders below the floor. §3.7's option (1) is not the end of the matter, and option (2) is what Phase 3 adopts. | — |
 | Does a busy square's stored-deviation count converge, and to what? | §5.5 argues arrival rate times mean lifetime is a bound rather than a hope. If the number is millions, the decay rate is wrong or §5.6's summarising is load-bearing much earlier than expected. | Simulate arrivals at a plausible footfall against a derived sand/paving erosion rate and count what is held. |
 | ~~Can one genome give a forest tree and an open-grown tree?~~ | **Answered: no, exactly as D12 predicted.** Three light fields grow masses differing 500-fold; at equal age and mass the skeletons are bit-identical. Conditions reach form only through how much mass they grew. | done — `tests/probes.rs` |
@@ -2700,9 +2700,21 @@ and D18 changes it again; a baseline taken afterwards is not a baseline.
 *Done when:* **a wooden box is one node** whose recipe describes six walls of
 stated materials. Struck, it responds as one box. Struck hard enough, one wall
 comes away and becomes a node *at that moment*, and the recipe now describes
-five walls plus the break. With nothing watching it returns to ~100 bytes and
+five walls plus the break. With nothing watching it returns to a recipe and
 regenerates identically. **And** a rock that no `Program` made falls and bounces
 off a boulder, with the restitution coming from what they are made of.
+
+**The recipe's size, restated from the measurement.** This clause said
+"~100 bytes", which was an estimate made before a recipe existed and is not
+what one costs. A six-panel box persists as a header plus one entry per part,
+and the entry has to carry a position, an orientation, an extent, a mass, a
+substance and a join. **The target is the ratio, not the absolute**: a recipe
+against the detail it stands in for, and against the same parts held as
+promoted nodes. Measured at the end of Phase 2 and restated here so nothing
+downstream is sized against a number that was never reachable — see
+`PERFORMANCE.md` for the table, and note that the figure to quote is the
+*persisted* one, since an in-memory recipe carries regenerable fields that the
+wire format does not write.
 
 ---
 
@@ -2713,10 +2725,42 @@ the node above. Into a sibling, it re-homes sideways with the parent arbitrating
 The same measurement drives **node splitting**, which Phase 1 measured and never
 connected.
 
+**Two corrections land here, and the phase cannot meet its own done-when
+without the first.** Both were found during Phase 2 and are scheduled rather
+than deferred.
+
+1. **A promoted child is orphaned when its parent's structure changes.**
+   Measured: promote a limb out of a tree, damage the tree, and the limb's node
+   is still `alive` with `parent` pointing at the tree while the tree's
+   `children` array no longer holds it. Unreachable from any walk, never freed,
+   still holding an arena slot and still being scheduled. The cause is the
+   `children.clear()` that every structural-change path performs — it is how a
+   node says "my body list is stale", and it says it by throwing away the only
+   record of what was promoted out of it. This belongs in Crossings because it
+   *is* a crossing: a thing whose place has changed and which nothing re-homed.
+   D16's outward case is the mechanism it should have gone through, and node
+   splitting is the same question again — what happens to promoted children
+   when the node under them is rebuilt.
+
+2. **A save drops a solved node's detail without summarising it first.**
+   Measured on the reference world: 2.35x10^-8 of the root's energy, against
+   1x10^-15 or better on every node the scheduler had finished with. While a
+   node is materialised its *bodies* are the authority and its matter is a
+   summary made when it last coarsened; a save writes the matter and discards
+   the bodies of any unpinned node, so whatever the solver did since is lost.
+   It is zero at rest and only bites a checkpoint taken mid-flight, which is
+   precisely what this phase makes routine — a crossing is a save point in all
+   but name, and re-homing a node mid-solve moves matter the file has not
+   caught up with. The fix is a `&mut self` pre-pass that summarises every
+   materialised node before writing, which is `coarsen` without the
+   destruction.
+
 *Done when:* the rocket. It leaves the forest, re-homes itself to the planet and
 then to the star, and keeps correct gravity and correct neighbours throughout —
 where today it leaves a 1 km node in under a tenth of a second and nothing
-notices.
+notices. **And:** a structure that sheds a promoted limb leaves no unreachable
+node behind, and a world saved mid-solve reloads with its conserved tuple
+unchanged to the bit.
 
 ---
 
@@ -2724,14 +2768,51 @@ notices.
 `Program::Terrain` nodes, refinement and coarsening on approach, **sideways**
 handoff by `reparent` (the trigger now being Phase 3's), planetary gravity, and
 terrain as an editable deviation over a derived base (§4.3) along with §5's decay
-machinery. D11's remaining columns land here, because a derived erosion rate
-cannot coexist with a tabulated one.
+machinery.
+
+**D11's remaining columns land here, and "remaining" now means all of them.**
+Phase 2's item 4 said the material columns were pulled forward, and what
+actually landed is a *measured path that takes precedence with the tabulated
+column as fallback*: `Material::measured` reads a node's mixture and
+`Morphology::density` measures an assembly's parts, but `density`,
+`energy_density`, `substrate`, `material` and `maintenance` are all still on
+`Program`, one value per variant. Nothing was removed. That is the honest state
+and this is where it is fixed, for the reason the phase already gave: a derived
+erosion rate cannot coexist with a tabulated one, and `maintenance` is the
+tabulated per-species decay rate §5.2 says must be derived.
+
+**Two measurements from Phase 2 land here too**, because bedrock and terrain
+are what make them bite:
+
+1. **Griffith on a grain is not Griffith on the worst flaw** — bedrock comes out
+   77x low. The flaw scale is solved from the formation conditions and gives
+   the *typical* grain, where a real rock fails at its worst joint, and the
+   worst flaw in a large piece is much larger than the typical one. It needs a
+   flaw-size *distribution* and a weakest-link argument over the piece's
+   volume rather than a single length — which is a `PHYSICS.md`-weight decision
+   and is why it is scheduled rather than done. Terrain is the first thing
+   whose strength has to be right at more than one size.
+
+2. **Flatness, on a generated surface.** `Hull::slab` closed the assembled half
+   in Phase 2 — an assembled part states its half-extents and presents a filled
+   box, flat to 10^-12 m across a 1.2 m panel. A grown or coursed structure
+   still emits one capsule per member, so a masonry wall is a row of beads with
+   a 0.169 m scallop between them. D18 says a generator never infers a
+   decomposition, which rules out a grouping pass over an existing member list:
+   the answer is for the generators that lay down flat things — `Wall`,
+   `Tower`, `Terrain` — to emit slabs directly, the way an assembly does.
+   Terrain is where it is first load-bearing rather than cosmetic, because
+   something has to *stand* on it.
 
 *Done when:* an observer descends from orbit to a square metre of any planet in
 any scenario, travels ten kilometres across patch boundaries, and the terrain
 behind them regenerates bit-identically. **And:** a squiggle drawn in sand is
 gone by the next tide while a channel that redirects drainage is still there a
 year later, with neither having been tagged as important when it was made.
+**And:** `morph::Program` carries no column that is a property of a material or
+a measured environment; a boulder and a cliff face of the same rock have
+strengths that differ by size the way real ones do; and something stands on a
+coursed wall without sinking into the gaps between its blocks.
 
 **Phase 5 — Water.** *Was Phase 3.* The five pieces §4.3 names, in dependency
 order: a free surface; a liquid equation of state, so `pressure()` stops

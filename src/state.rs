@@ -11,7 +11,7 @@
 //! That is the engine's central correctness claim, and `Conserved` is the
 //! object it is stated in terms of.
 
-use crate::math::{det_sum, Mat3, Vec3};
+use crate::math::{det_sum, Mat3, Quat, Vec3};
 use crate::units::*;
 
 /// The invariant set. Every scale transition preserves this exactly (to
@@ -1067,6 +1067,42 @@ pub struct Body {
     pub temperature: f64,
     pub composition: Composition,
     pub spin: Vec3,
+    /// Which way this thing is facing, in its parent's frame.
+    ///
+    /// `spin` says how fast it is turning and about what axis; this says where
+    /// it has turned *to*, and the two are as different as velocity and
+    /// position. Nothing in the engine had it: a body was a point with a size,
+    /// so a plank and a boulder of the same mass were the same object seen from
+    /// every direction, and `promote` had to hand its child `Quat::IDENTITY`
+    /// because there was nothing else to hand it.
+    ///
+    /// Identity for anything sampled. A gas parcel has no orientation worth
+    /// carrying and giving one a random draw would change nothing except every
+    /// bit-exactness test in the suite. It is stated by whatever *knows* the
+    /// answer — a recipe's part, a promoted child coming back — which is the
+    /// same rule the rest of `Body` follows.
+    pub orientation: Quat,
+    /// Half-extents of this thing's own box, along its own axes, metres.
+    ///
+    /// **`Vec3::ZERO` means "a sphere of `radius`"**, which is what everything
+    /// sampled is and what `radius` alone has always described. Non-zero means
+    /// a box, and then `radius` is that box's bounding radius — derived, stored
+    /// alongside, and written by the same constructor so the two cannot
+    /// disagree. See [`Body::solid`].
+    ///
+    /// A sphere cannot be written as half-extents (`(r,r,r)` is a cube whose
+    /// bounding radius is `r*sqrt(3)`), which is why the zero case carries the
+    /// discriminator rather than a third field or an enum.
+    pub half: Vec3,
+    /// Which substance this body is one of, or `UNSPECIATED`.
+    ///
+    /// D17 decided a body carries no *mixture* of its own, and that stands: a
+    /// `Mixture` is 200 bytes on a 184-byte struct and every body of a sampled
+    /// node is drawn from one matter anyway. A single id is four bytes and is a
+    /// different question — *which* of the node's pools this particular thing
+    /// is made of — which only something with named parts can answer and which
+    /// a box of oak panels on a steel frame has to.
+    pub substance: crate::chem::SubstanceId,
     /// Index of this body within its parent's materialised set. Also the index
     /// into the parent's random streams, which is what makes regeneration
     /// order-independent.
@@ -1104,13 +1140,96 @@ impl Default for Body {
             temperature: 2.725,
             composition: Composition::primordial(),
             spin: Vec3::ZERO,
+            orientation: Quat::IDENTITY,
+            half: Vec3::ZERO,
+            substance: crate::chem::SubstanceId::UNSPECIATED,
             slot: 0,
             kind: BodyKind::Super,
         }
     }
 }
 
+/// Rounding on a solid body's edges, as a fraction of its smallest half-extent.
+///
+/// Not needed for correctness — a sharp box is convex — but [`crate::shape::Hull::slab`]
+/// builds the box out of corner spheres, and a zero radius collapses all eight
+/// onto the corners: the support function is still the box's, but a contact
+/// near an edge gets a corner's normal rather than a face's. A tenth of the
+/// thinnest dimension is a plank's arris.
+const EDGE_ROUNDING: f64 = 0.1;
+
 impl Body {
+    /// A solid piece of stated size, substance and orientation — what a recipe
+    /// names and what `sample` then fills in the rest of.
+    ///
+    /// `docs/PLAY.md` D15's part *is* one of these, which is the point: there is
+    /// one type for a thing inside a node and not one for things that were
+    /// sampled and another for things that were made. Two types would be the
+    /// engine knowing how a thing came to be there, which is the same failure
+    /// as "only a built thing has a surface" one layer up.
+    ///
+    /// `radius` is set from `half` here and nowhere else, so the bounding
+    /// radius and the extents cannot drift apart.
+    pub fn solid(
+        pos: Vec3,
+        half: Vec3,
+        mass: f64,
+        substance: crate::chem::SubstanceId,
+        slot: u32,
+    ) -> Body {
+        let half = Vec3 { x: half.x.abs(), y: half.y.abs(), z: half.z.abs() };
+        Body {
+            pos,
+            mass: mass.max(0.0),
+            radius: half.norm(),
+            half,
+            substance,
+            slot,
+            kind: BodyKind::Grain,
+            ..Body::default()
+        }
+    }
+
+    /// Is this body a box rather than a sphere?
+    #[inline]
+    pub fn is_boxed(&self) -> bool {
+        self.half != Vec3::ZERO
+    }
+
+    /// Half the longest diagonal — how far this body reaches from its own
+    /// centre, whichever shape it is.
+    #[inline]
+    pub fn reach(&self) -> f64 {
+        if self.is_boxed() {
+            self.half.norm()
+        } else {
+            self.radius
+        }
+    }
+
+    /// The volume the body occupies, m³.
+    pub fn volume(&self) -> f64 {
+        if self.is_boxed() {
+            8.0 * self.half.x * self.half.y * self.half.z
+        } else {
+            4.0 / 3.0 * std::f64::consts::PI * self.radius.powi(3)
+        }
+    }
+
+    /// The filled convex solid this body presents, in its parent's frame.
+    ///
+    /// One place that turns a body into geometry, so a caller never has to ask
+    /// what kind of body it is holding. A sphere is a sphere; a box is a
+    /// [`crate::shape::Hull::slab`] turned by the body's own orientation.
+    pub fn hull(&self) -> crate::shape::Hull {
+        if !self.is_boxed() {
+            return crate::shape::Hull::sphere(self.pos, self.radius);
+        }
+        let thinnest = self.half.x.min(self.half.y).min(self.half.z);
+        crate::shape::Hull::slab(Vec3::ZERO, self.half, thinnest * EDGE_ROUNDING)
+            .placed(self.orientation, self.pos)
+    }
+
     pub fn kinetic_energy(&self) -> f64 {
         0.5 * self.mass * self.vel.norm2()
     }

@@ -290,10 +290,21 @@ what an assembly is defined against. *Parts* names the contents and not the
 thing. **Assembly** is what a stranger calls six panels screwed together, and
 it carries the right implication: somebody assembled it.
 
-Its pieces are `Part`, not `Piece`, because `shape::Piece` already means *one
-convex primitive of a surface* and a part emits one of those rather than being
-one. A part is the structural thing — it has a mass, a material and a join; a
-piece is the geometry it presents.
+**`Part` was deleted almost immediately, and the deletion is the interesting
+part.** It existed for two days as "the structural thing — a mass, a material
+and a join" against `shape::Piece`, "one convex primitive of a surface". The
+owner's question was better: why is a part not a `Body`? A body is what a node
+holds, and there is no reason for a node to hold two kinds of thing depending
+on whether somebody made it — that is provenance deciding representation,
+which is the failure `surface_of` was fixed for one layer up.
+
+So `Body` gained the three things a part knew and it did not (an
+`orientation`, `half`-extents and a `substance`) and `Part` went. What did not
+fold in is the [`Join`], and that is a naming point worth keeping: a join is
+not a property of a part, it is a *relationship between two*, so it lives in a
+list parallel to the parts the way `Topology`'s joints already do. The test for
+whether something belongs on a struct is whether it would still be true of the
+thing on its own, and a join would not.
 
 | verb | what it states | where the geometry comes from |
 |---|---|---|

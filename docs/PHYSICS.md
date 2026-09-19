@@ -402,8 +402,19 @@ its thickness by its width, and it comes off long before it snaps.
 That is also why joining and breaking are one transform rather than two
 features. A weld, a glue line and a grown-together seam differ in what the join
 is made of and how much of it there is, and the strength follows from the same
-Griffith law as everything else. Break the join and the part becomes a thing of
-its own, carrying its own recipe — still a wall, not a lump of mass.
+Griffith law as everything else — the substance travels with the joint and the
+material is derived from it, once per kind of join rather than once per joint.
+Measured on one box under a 200 m/s wind: a calcium-carbonate seam is loaded
+43x as hard as one of the panels' own cellulose, and it is the seam that fails
+rather than the panel. Break the join and the part becomes a thing of its own,
+carrying its own recipe — still a wall, not a lump of mass.
+
+**A part is not a different kind of thing from anything else in a node.** It is
+a `Body`: a position, a velocity, a mass, a temperature — and an orientation,
+an extent and a substance, which are the three a body lacked until something
+had parts to describe. Nothing in the engine asks whether a thing was sampled
+or made in order to know what shape it is, which is the same rule §3.3 applies
+one layer up when it dispatches on measured state rather than on provenance.
 
 ## 3.5A What a thing is made of
 

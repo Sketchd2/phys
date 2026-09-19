@@ -222,6 +222,10 @@ fn put_body(w: &mut Writer, b: &Body) {
     w.vec3(b.spin);
     w.u32(b.slot);
     put_body_kind(w, b.kind);
+    // Appended: a body's own orientation, extent and substance. See `Body`.
+    w.quat(b.orientation);
+    w.vec3(b.half);
+    w.u32(b.substance.0);
 }
 fn get_body(r: &mut Reader) -> Result<Body> {
     Ok(Body {
@@ -236,12 +240,15 @@ fn get_body(r: &mut Reader) -> Result<Body> {
         spin: r.vec3()?,
         slot: r.u32()?,
         kind: get_body_kind(r)?,
+        orientation: r.quat()?,
+        half: r.vec3()?,
+        substance: crate::chem::SubstanceId(r.u32()?),
     })
 }
 
 /// Smallest number of bytes one body can occupy on the wire. Used to bound a
 /// length prefix before allocating; it must never overstate the true size.
-const BODY_MIN_BYTES: usize = 8 * (3 + 3 + 5 + COARSE_ELEMENTS + 3) + 4 + 1;
+const BODY_MIN_BYTES: usize = 8 * (3 + 3 + 5 + COARSE_ELEMENTS + 3 + 4 + 3) + 4 + 1 + 4;
 
 pub(crate) fn put_bodies_pub(w: &mut Writer, bodies: &[Body]) {
     w.seq(bodies.len());
@@ -620,23 +627,43 @@ pub(crate) fn put_morphology(w: &mut Writer, m: &Morphology) {
     w.f64(m.design_mass);
     // Appended, like everything else: the wire format encodes positions and a
     // reader of an older layout would misread anything inserted above.
-    let parts: &[crate::assembly::Part] =
-        m.assembly.as_ref().map(|a| a.parts.as_slice()).unwrap_or(&[]);
+    //
+    // **A part is a `Body`, and this writes a fraction of one.** That is not an
+    // inconsistency, it is the third axiom: a recipe states what cannot be
+    // re-derived, and a body's velocity, temperature, internal energy, charge,
+    // spin, composition and kind all come back from the node's own matter the
+    // moment `sample_structured` runs. What has to be stated is where the part
+    // is, which way it faces, how big it is, how much of the node's mass it
+    // accounts for, what it is made of, and what holds it on.
+    let empty: Vec<crate::assembly::Join> = Vec::new();
+    let (parts, joins): (&[crate::state::Body], &[crate::assembly::Join]) = match m.assembly.as_ref()
+    {
+        Some(a) => (a.parts.as_slice(), a.joins.as_slice()),
+        None => (&[], empty.as_slice()),
+    };
     w.seq(parts.len());
-    for p in parts {
-        w.vec3(p.at);
+    for (i, p) in parts.iter().enumerate() {
+        w.vec3(p.pos);
+        w.quat(p.orientation);
         w.vec3(p.half);
         w.f64(p.mass);
         w.u32(p.substance.0);
-        w.u16(p.joined_to);
-        w.u32(p.join.0);
-        w.f64(p.join_area);
-        w.u32(p.site);
+        w.u32(p.slot);
+        let j = joins.get(i).copied().unwrap_or(crate::assembly::Join::NONE);
+        w.u16(j.to);
+        w.u32(j.substance.0);
+        w.f64(j.area);
     }
 }
 
-/// 24 + 24 + 8 + 4 + 2 + 4 + 8 + 4 for one part.
-const PART_MIN_BYTES: usize = 78;
+/// What one part of a recipe costs on the wire: a position, an orientation,
+/// half-extents, a mass, a substance, a slot, and the join that holds it on.
+///
+/// 24 + 32 + 24 + 8 + 4 + 4 + 2 + 4 + 8. This is the number `docs/PLAY.md` D15's
+/// storage argument is about — not `size_of::<Body>()`, which counts fields the
+/// recipe does not write because they regenerate.
+pub const PART_WIRE_BYTES: usize = 110;
+const PART_MIN_BYTES: usize = PART_WIRE_BYTES;
 
 /// 8 + 1 + 4 + 8 for one event.
 const EVENT_MIN_BYTES: usize = 21;
@@ -675,19 +702,24 @@ pub(crate) fn get_morphology(r: &mut Reader) -> Result<Morphology> {
                 None
             } else {
                 let mut parts = Vec::with_capacity(n);
+                let mut joins = Vec::with_capacity(n);
                 for _ in 0..n {
-                    parts.push(crate::assembly::Part {
-                        at: r.vec3()?,
-                        half: r.vec3()?,
-                        mass: r.f64()?,
+                    let pos = r.vec3()?;
+                    let orientation = r.quat()?;
+                    let half = r.vec3()?;
+                    let mass = r.f64()?;
+                    let substance = crate::chem::SubstanceId(r.u32()?);
+                    let slot = r.u32()?;
+                    let mut b = crate::state::Body::solid(pos, half, mass, substance, slot);
+                    b.orientation = orientation;
+                    parts.push(b);
+                    joins.push(crate::assembly::Join {
+                        to: r.u16()?,
                         substance: crate::chem::SubstanceId(r.u32()?),
-                        joined_to: r.u16()?,
-                        join: crate::chem::SubstanceId(r.u32()?),
-                        join_area: r.f64()?,
-                        site: r.u32()?,
+                        area: r.f64()?,
                     });
                 }
-                Some(crate::assembly::Assembly::new(parts))
+                Some(crate::assembly::Assembly::new(parts, joins))
             }
         },
     })
@@ -745,6 +777,9 @@ fn put_topology(w: &mut Writer, t: &Topology) {
         w.vec3(b.at);
         w.f64(b.radius);
         w.f64(b.integrity);
+        // Appended: what the join itself is made of. The derived `Material`
+        // is not written — it comes back from this.
+        w.u32(b.bond.0);
     }
     w.seq(t.support.len());
     for &s in &t.support {
@@ -772,7 +807,7 @@ fn put_topology(w: &mut Writer, t: &Topology) {
     }
 }
 
-const BOND_MIN_BYTES: usize = 4 + 4 + 24 + 8 + 8;
+const BOND_MIN_BYTES: usize = 4 + 4 + 24 + 8 + 8 + 4;
 const TIE_MIN_BYTES: usize = 4 + 4 + 8 + 8;
 
 fn get_topology(r: &mut Reader) -> Result<Topology> {
@@ -785,6 +820,7 @@ fn get_topology(r: &mut Reader) -> Result<Topology> {
             at: r.vec3()?,
             radius: r.f64()?,
             integrity: r.f64()?,
+            bond: crate::chem::SubstanceId(r.u32()?),
         });
     }
     let n = r.seq("support", 4)?;
@@ -813,7 +849,9 @@ fn get_topology(r: &mut Reader) -> Result<Topology> {
     for _ in 0..n {
         ties.push(Tie { a: r.u32()?, b: r.u32()?, area: r.f64()?, integrity: r.f64()? });
     }
-    Ok(Topology { joints, support, site, base, tip, material, ties })
+    // `bonds` is derived from each joint's substance, not stored. See
+    // `World::derive_bonds`.
+    Ok(Topology { joints, support, site, base, tip, material, bonds: Vec::new(), ties })
 }
 
 // ---------------------------------------------------------------------------

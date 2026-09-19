@@ -103,6 +103,13 @@ something is made of, and it decides the shape whenever it is present.
 one node with a recipe; a part becomes a node only when it detaches, and
 `World::join` puts it back.
 
+**A part is a `Body`.** There is one type for a thing inside a node, not one
+for things that were sampled and another for things that were made. A `Body`
+carries an `orientation`, `half`-extents (`Vec3::ZERO` meaning "a sphere of
+`radius`") and the `substance` it is one of, which is everything a recipe needs
+to state; an `Assembly` is `Vec<Body>` plus a parallel `Vec<Join>`, because a
+join is a relationship between two things rather than a property of either.
+
 **Time:** one instant, every scale. A node is either *solved* or *coasted*.
 Local rate is the product up the chain of `(1/γ) · √(1+2Φ/c²) · bubble`.
 Trajectory runs on coordinate time; interiors run on local time.
@@ -244,6 +251,16 @@ seam until it can carry its load — which is the same thing as the box never
 coming apart. If a joint is coming out a different size from the one the recipe
 states, this is why.
 
+**A sphere is not a cube.** `Body::half` is `Vec3::ZERO` for anything round,
+and that zero is the discriminator — `(r,r,r)` would be a cube whose bounding
+radius is `r*sqrt(3)`. `Body::solid` is the only thing that writes `half` and
+`radius` together, so they cannot drift apart; do not set either by hand.
+
+**A body's orientation is identity unless something stated it.** A recipe's
+part, a promoted child coming back through `sync_from_child` — those know which
+way a thing is facing. A sampled gas parcel does not, and giving it a random
+draw would change nothing except every bit-exactness test in the suite.
+
 **A part is promoted, not removed.** A wall that comes off a box keeps its slot
 in the recipe: six parts, five joins and a break. The promoted child *is* that
 slot (`children` runs parallel to `bodies`), so clearing the body list to
@@ -344,6 +361,14 @@ What landed in Phase 2, each with its measurement in its own commit:
 8. **Collision runs against the surface**, at the level of detail the distance
    deserves.
 9. **An equation of state outside its validity says so**, in `Stats`.
+10. **A part and a body are one type** — `Body` gained an orientation,
+    half-extents and a substance, `assembly::Part` was deleted, and `promote`
+    hands a child the way its body was facing instead of `Quat::IDENTITY`.
+    Added to the phase by the owner rather than deferred.
+11. **A join is made of something, derived** — `Joint::bond` is a substance and
+    `Topology::bonds` holds a material derived once per distinct substance.
+    The same box with a mortar seam is loaded **43x** as hard as one with a
+    cellulose seam.
 
 Suite at the end of Phase 2: **398 passed, 1 ignored**
 (`no_node_flings_its_bodies_out_of_itself`), plus 6 Postgres, and five demos

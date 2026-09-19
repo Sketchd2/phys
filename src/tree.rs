@@ -671,10 +671,18 @@ impl Tree {
             motion: Motion {
                 offset: body.pos,
                 velocity: body.vel,
-                // A body's spin becomes the node's rotation. Orientation starts
-                // at identity: the child's body frame *is* how it was sampled,
-                // and everything after is what the rotation did to it.
-                orientation: crate::math::Quat::IDENTITY,
+                // A body's spin becomes the node's rotation, and **the way the
+                // body was facing becomes the way the node is facing**.
+                //
+                // This used to be `Quat::IDENTITY` with a comment explaining
+                // that the child's body frame *is* how it was sampled — which
+                // was true only because a `Body` had no orientation to hand
+                // over. It does now, so a part promoted out of a recipe arrives
+                // turned the way the recipe turned it, and a wall that comes
+                // off a box is not silently squared up to its parent's axes on
+                // the way out. A sampled body's orientation is identity, so
+                // nothing that was right before changes.
+                orientation: body.orientation,
                 spin_rate: matter.angular_velocity(),
                 proper_time: self.nodes[i.get()].motion.proper_time,
             },
@@ -897,6 +905,10 @@ impl Tree {
             b.radius = radius;
             b.pos = frame.offset;
             b.vel = frame.velocity;
+            // And the way it has turned, which is the other half of `promote`
+            // handing its orientation down: a part that came off a box, was
+            // knocked askew and then rejoined comes back askew.
+            b.orientation = frame.orientation;
         }
     }
 

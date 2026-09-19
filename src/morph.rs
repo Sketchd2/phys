@@ -1169,7 +1169,7 @@ impl Morphology {
     pub fn state_bytes(&self) -> usize {
         std::mem::size_of::<Morphology>()
             + self.events.len() * std::mem::size_of::<Event>()
-            + self.assembly.as_ref().map(|a| a.parts.len() * std::mem::size_of::<crate::assembly::Part>()).unwrap_or(0)
+            + self.assembly.as_ref().map(|a| a.state_bytes()).unwrap_or(0)
     }
 }
 
@@ -1218,6 +1218,10 @@ pub struct Skeleton {
     /// plank glued along one edge is held by a seam of its thickness, not by
     /// its whole face, and it comes off long before it snaps.
     pub joint_radius: Vec<f64>,
+    /// What each part's *joint* is made of, where that is not what the part is
+    /// made of. `UNSPECIATED` for everything generated: a branch meets its
+    /// parent in wood. See [`crate::topology::Joint::bond`].
+    pub joint_bond: Vec<crate::chem::SubstanceId>,
     /// Redundant connections `(a, b, fraction)` beyond the support forest —
     /// bracing, ties, anything giving load a second route to ground.
     ///
@@ -1244,6 +1248,7 @@ impl Skeleton {
             base: Vec::with_capacity(n),
             tip: Vec::with_capacity(n),
             joint_radius: Vec::with_capacity(n),
+            joint_bond: Vec::with_capacity(n),
             ties: Vec::new(),
         }
     }
@@ -1264,6 +1269,7 @@ impl Skeleton {
         self.base.push(base);
         self.tip.push(tip);
         self.joint_radius.push(0.0);
+        self.joint_bond.push(crate::chem::SubstanceId::UNSPECIATED);
     }
 
     /// Add a part held on by a joint narrower than the part itself — the
@@ -1277,9 +1283,11 @@ impl Skeleton {
         support: u32,
         site: u32,
         joint_radius: f64,
+        joint_bond: crate::chem::SubstanceId,
     ) {
         self.push_segment(base, tip, m, r, support, site);
         *self.joint_radius.last_mut().unwrap() = joint_radius.max(0.0);
+        *self.joint_bond.last_mut().unwrap() = joint_bond;
     }
 
     /// Add a part with no extent of its own — a block, a slab, a parcel.
