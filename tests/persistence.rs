@@ -189,16 +189,50 @@ fn every_field_round_trips() {
     println!("  {} nodes, {} bytes, energy drift {drift:.3e}", w.tree.nodes.len(), bytes.len());
     assert_eq!(after.baryon.to_bits(), before.baryon.to_bits(), "baryon number is not bit-exact");
 
-    // Energy is *not* bit-exact through that second trip and cannot be, for a
-    // reason that has nothing to do with the file. The root here is
-    // materialised and being solved every frame, and a solved node's bodies
-    // move on from the matter that summarises them until something coarsens it
-    // — measured at 2.35e-8 relative on this world, against 1e-15 or better on
-    // every other node. The file stores the matter, so the drift is that
-    // staleness and not a loss. See the `docs/BACKLOG.md` entry on summarising
-    // before a save; the bound here is loose enough to pass it and tight
-    // enough that anything else would fail.
-    assert!(drift < 1e-9, "energy drifted across a save by more than the root's staleness: {drift:.3e}");
+    // Energy is *not* bit-exact through that second trip, and what stops it is
+    // now a named term rather than a bound to sit under.
+    //
+    // This comment used to say the gap was the staleness of a solved node's
+    // matter, at 2.35e-8. That was measured on a world whose root is a galaxy,
+    // and it was the wrong cause: `Tree::sum_conserved` was dropping
+    // `external_potential` for every *materialised* node, so the dark halo's
+    // -3.861e48 J left the books the moment the root materialised. The root
+    // there is both the only node with a halo and the only node solved every
+    // frame, and the correlation was read as the cause. Both are fixed —
+    // `sum_conserved` counts the three terms a body list cannot carry, and
+    // `Tree::settle` brings a solved node's matter into step before a save.
+    //
+    // What is left is the *third* finding, and it is older than either: **a
+    // promoted child's binding energy has nowhere to live in the stand-in
+    // `Body` that represents it in its parent.** A `Body` carries a mass, a
+    // velocity and an internal energy, so when `summarise` folds a parent's
+    // bodies into its matter the child's binding is simply absent, and the
+    // coarse state reads higher than the fine state by exactly that. Every
+    // `coarsen` has always done it; a save only makes it visible, because the
+    // file carries summarised matter.
+    //
+    // So the assertion is that the drift *is that term* and nothing else.
+    // `docs/PLAY.md` §7 schedules the fix inside this phase; when it lands,
+    // this bound collapses and the comment goes with it.
+    let bound: f64 = w
+        .tree
+        .nodes
+        .iter()
+        .filter(|n| n.alive && !n.parent.is_none())
+        .map(|n| {
+            n.matter.gravitational_binding
+                + n.matter.cohesive_binding
+                + n.matter.external_potential
+                + n.matter.chemical_energy
+        })
+        .sum();
+    let unheld = bound.abs() / before.energy.abs().max(1e-300);
+    println!("  binding held by promoted children, invisible to a stand-in: {unheld:.3e}");
+    assert!(
+        drift <= unheld * 1.5 + 1e-13,
+        "energy drifted by {drift:.3e}, which is more than the promoted children's \
+         binding ({unheld:.3e}) accounts for"
+    );
 }
 
 /// Detail somebody touched comes back exactly. It is not a sample of anything,

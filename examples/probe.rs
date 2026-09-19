@@ -379,7 +379,7 @@ fn checkpoint_size() {
     // pinned by definition -- anything an actor touched is -- so that is the
     // case a replay checkpoint actually pays for.
     {
-        let w = World::new(galaxy(0xC4EC, 1e9), 20.0);
+        let mut w = World::new(galaxy(0xC4EC, 1e9), 20.0);
         let live = w.tree.nodes.iter().filter(|n| n.alive).count();
         println!("unrefined world: {} live node(s), {} bytes\n", live, phys::persist::encode(w.view()).len());
     }

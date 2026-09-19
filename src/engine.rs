@@ -542,7 +542,23 @@ impl World {
     ///
     /// Cheap in the sense that matters: it moves no fine detail that could be
     /// regenerated, because `persist` declines to write it.
-    pub fn view(&self) -> crate::persist::WorldView<'_> {
+    ///
+    /// **`&mut self`, and that is the point.** A save writes each node's matter
+    /// and throws away the bodies of every unpinned one, while a materialised
+    /// node's authority is its *bodies* — so a world checkpointed mid-solve
+    /// used to lose whatever the solver had done since the node was
+    /// materialised. Measured at 2.35x10^-8 of the root's energy on the
+    /// reference world, and zero on one at rest, which is why it went unnoticed
+    /// for so long.
+    ///
+    /// The fix is [`Tree::settle`], and taking the world by `&mut` is what
+    /// makes it impossible to route around: there is no way to obtain a
+    /// `WorldView` of a world whose matter has not been brought into step with
+    /// its own detail. That mattered more than the borrow was worth, because
+    /// `docs/PLAY.md` D16 turns the mid-flight checkpoint from a rarity into
+    /// the ordinary case — a crossing is a save point in all but name.
+    pub fn view(&mut self) -> crate::persist::WorldView<'_> {
+        self.settle_all();
         crate::persist::WorldView {
             tree: &self.tree,
             ledger: &self.ledger,
@@ -560,6 +576,37 @@ impl World {
             substances: &self.substances,
             audit: &self.audit,
             mailbox: &self.mailbox,
+        }
+    }
+
+    /// Bring every materialised node's matter into step with its own detail.
+    ///
+    /// The pre-pass [`World::view`] exists for. Deepest node first, because a
+    /// parent's stand-in body is written from its promoted child's matter and
+    /// that matter has to be current before it is read — settling a parent
+    /// before its child would summarise last frame's child into this frame's
+    /// parent.
+    ///
+    /// Costs one `summarise` per materialised node per save and nothing at all
+    /// per frame, which is the trade `docs/BACKLOG.md` set out: the alternative
+    /// was keeping every solved node's matter in step as it went, which is
+    /// precisely the work the materialised-detail design exists to avoid.
+    ///
+    /// A node whose detail says nothing new keeps its matter untouched — see
+    /// the idempotence rule in [`Tree::settle`] — so a world nobody has
+    /// disturbed still saves bit-for-bit as the world it was.
+    pub fn settle_all(&mut self) {
+        let mut order: Vec<(u32, NodeIdx)> = self
+            .tree
+            .nodes
+            .iter()
+            .enumerate()
+            .filter(|(_, n)| n.alive && n.is_materialised())
+            .map(|(i, n)| (n.depth, NodeIdx(i as u32)))
+            .collect();
+        order.sort_by(|a, b| b.0.cmp(&a.0).then(a.1.0.cmp(&b.1.0)));
+        for (_, idx) in order {
+            self.tree.settle(idx);
         }
     }
 

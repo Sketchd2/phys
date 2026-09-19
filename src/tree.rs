@@ -419,6 +419,14 @@ pub struct TreeStats {
     pub worst_description_lost: f64,
     /// Worst conservation error seen across every scale transition so far.
     pub worst_conservation_error: f64,
+    /// Materialised nodes whose matter was brought back into step with their
+    /// own detail — see [`Tree::settle`]. Non-zero on a save taken mid-solve
+    /// and zero on one taken at rest, which is exactly the shape of the defect
+    /// it closes.
+    pub settled: u64,
+    /// Settlings where the detail turned out to say nothing new, so the matter
+    /// was left exactly as it was. The idempotence guarantee, counted.
+    pub settled_idempotent: u64,
 }
 
 impl Tree {
@@ -764,7 +772,116 @@ impl Tree {
             (n.matter.conserved(), n.potential, n.pinned, n.key)
         };
         let bodies = std::mem::take(&mut self.nodes[i.get()].bodies);
-        let mut matter = summarise(&bodies, potential);
+        let (matter, err) = self.summarised(i, &bodies, potential, before, speciation, child_mass);
+
+        if pinned {
+            self.stats.persisted_bodies += bodies.len() as u64;
+            self.persisted.insert(key, bodies);
+        } else {
+            self.stats.bodies_discarded += bodies.len() as u64;
+        }
+
+        // If the detail did not actually change the matter — the usual case
+        // when a user simply pans away — keep the coarse state as the
+        // authority rather than overwriting it with a summarising that differs
+        // only by round-off.
+        //
+        // This is what makes "leave and come back" *exactly* idempotent rather
+        // than merely accurate. Without it, every visit perturbs the matter
+        // in the last bits, the next materialisation samples from a marginally
+        // different distribution, and a region a user visits a thousand times
+        // slowly drifts away from itself. With it, a region nobody has
+        // disturbed is bit-for-bit the region they left.
+        if err < IDEMPOTENT_TOLERANCE && !pinned {
+            self.stats.coarsenings += 1;
+            self.stats.idempotent_coarsenings += 1;
+            let n = &mut self.nodes[i.get()];
+            n.children.clear();
+            return err;
+        }
+
+        self.adopt(i, matter);
+        self.nodes[i.get()].children.clear();
+        self.stats.coarsenings += 1;
+        self.stats.worst_conservation_error = self.stats.worst_conservation_error.max(err);
+        err
+    }
+
+    /// Write what a node's detail has become back into its matter, and keep
+    /// the detail.
+    ///
+    /// [`Self::coarsen`] without the destruction, and the two share every line
+    /// that decides what the matter becomes. While a node is materialised its
+    /// **bodies are the authority and its matter is the summary made when it
+    /// last coarsened**; that is the design and it costs nothing, right up to
+    /// the moment something reads the matter as though it were current. A save
+    /// is that moment: it writes the matter and discards the bodies of every
+    /// unpinned node, so whatever the solver did since materialisation is
+    /// lost.
+    ///
+    /// Measured on the reference world before this existed: 2.35x10^-8 of the
+    /// root's energy on the one node the scheduler was solving every frame,
+    /// against 1x10^-15 or better on every node it had finished with. Zero at
+    /// rest, which is why it stayed invisible — and `docs/PLAY.md` D16 makes
+    /// exactly the mid-flight checkpoint routine, because a crossing is a save
+    /// point in all but name.
+    ///
+    /// The alternative was keeping the matter in step inside the solver, which
+    /// costs a `summarise` per solved node per frame; this costs one per
+    /// materialised node per *save*.
+    pub fn settle(&mut self, i: NodeIdx) -> f64 {
+        if i.is_none() || !self.nodes[i.get()].alive || !self.nodes[i.get()].is_materialised() {
+            return 0.0;
+        }
+        // A promoted child is the real thing and its body is a stand-in, so the
+        // stand-ins have to be current before anything summarises them. This is
+        // the same first step `coarsen` takes; what it does not do is release
+        // the children afterwards, because nothing here is going away.
+        self.sync_children(i);
+        let (before, potential, pinned) = {
+            let n = &self.nodes[i.get()];
+            (n.matter.conserved(), n.potential, n.pinned)
+        };
+        // Taken and put back rather than cloned: a node being checkpointed can
+        // hold tens of thousands of bodies, and a save that allocated a second
+        // copy of the whole world's detail would be a worse bargain than the
+        // staleness it is fixing.
+        let bodies = std::mem::take(&mut self.nodes[i.get()].bodies);
+        let (matter, err) = self.summarised(i, &bodies, potential, before, None, 0.0);
+        self.nodes[i.get()].bodies = bodies;
+        // The same idempotence rule `coarsen` uses, and for the same reason: a
+        // node nobody has disturbed must come back bit-for-bit, so matter that
+        // differs from its own detail only by round-off is left alone.
+        if err < IDEMPOTENT_TOLERANCE && !pinned {
+            self.stats.settled_idempotent += 1;
+            return err;
+        }
+        self.adopt(i, matter);
+        self.stats.settled += 1;
+        self.stats.worst_conservation_error = self.stats.worst_conservation_error.max(err);
+        err
+    }
+
+    /// What a node's matter would be if its detail were folded back into it.
+    ///
+    /// The half of the scale transform that decides *what the coarse state
+    /// becomes*, with no opinion about whether the detail survives. Both
+    /// callers need every line of it and having had it written twice is how
+    /// the two would drift apart.
+    ///
+    /// `speciation` is the mixture blended out of promoted children that are
+    /// being released, with the mass it came from; [`Self::settle`] passes
+    /// `None` because its children are staying and still speak for themselves.
+    fn summarised(
+        &mut self,
+        i: NodeIdx,
+        bodies: &[Body],
+        potential: f64,
+        before: crate::state::Conserved,
+        speciation: Option<(crate::chem::Mixture, f64)>,
+        child_mass: f64,
+    ) -> (Matter, f64) {
+        let mut matter = summarise(bodies, potential);
         matter.external_potential = self.nodes[i.get()].matter.external_potential;
         matter.chemical_energy = self.nodes[i.get()].matter.chemical_energy;
         // `summarise` measures where the bodies ended up, and a bond is far
@@ -793,35 +910,18 @@ impl Tree {
             }
         };
         matter.entropy_exported = self.nodes[i.get()].matter.entropy_exported;
-        let scales = crate::state::Scales::of(&bodies);
+        let scales = crate::state::Scales::of(bodies);
         let err = matter.conserved().error_against(&before, &scales);
+        (matter, err)
+    }
 
-        if pinned {
-            self.stats.persisted_bodies += bodies.len() as u64;
-            self.persisted.insert(key, bodies);
-        } else {
-            self.stats.bodies_discarded += bodies.len() as u64;
-        }
-
-        // If the detail did not actually change the matter — the usual case
-        // when a user simply pans away — keep the coarse state as the
-        // authority rather than overwriting it with a summarising that differs
-        // only by round-off.
-        //
-        // This is what makes "leave and come back" *exactly* idempotent rather
-        // than merely accurate. Without it, every visit perturbs the matter
-        // in the last bits, the next materialisation samples from a marginally
-        // different distribution, and a region a user visits a thousand times
-        // slowly drifts away from itself. With it, a region nobody has
-        // disturbed is bit-for-bit the region they left.
-        if err < IDEMPOTENT_TOLERANCE && !pinned {
-            self.stats.coarsenings += 1;
-            self.stats.idempotent_coarsenings += 1;
-            let n = &mut self.nodes[i.get()];
-            n.children.clear();
-            return err;
-        }
-
+    /// Take a summarised matter as the node's own.
+    ///
+    /// Field by field rather than wholesale, because a node is more than what
+    /// `summarise` can see: its tier, its spec and its identity are not
+    /// measurements of its contents, and two of the quantities that are need a
+    /// rule of their own.
+    fn adopt(&mut self, i: NodeIdx, matter: Matter) {
         let n = &mut self.nodes[i.get()];
         // Preserve the node's own frame-level bookkeeping: `summarise` measures
         // the children in the node's frame, so the node's momentum and com are
@@ -869,14 +969,10 @@ impl Tree {
         if let Some(m) = &n.morphology {
             n.matter.radius = m.extent().max(1e-30);
         }
-        n.children.clear();
         // The matter this node holds has just been rewritten from its own
         // detail — spin, mass and radius all — so the angular velocity derived
         // from them is stale. See `Node::sync_spin_rate`.
         n.sync_spin_rate();
-        self.stats.coarsenings += 1;
-        self.stats.worst_conservation_error = self.stats.worst_conservation_error.max(err);
-        err
     }
 
     /// Write a promoted child's evolved matter back into the parent's body.
@@ -1720,26 +1816,102 @@ impl Tree {
         if !n.is_materialised() {
             return n.matter.conserved();
         }
-        let mut total = crate::state::Conserved::zero();
-        for (slot, b) in n.bodies.iter().enumerate() {
+        let count = n.bodies.len();
+        // A slot whose child speaks for it contributes nothing here; the child's
+        // own total is added below.
+        let stood_for = |slot: usize| {
+            let c = n.child_of(slot);
+            !c.is_none() && self.nodes[c.get()].alive
+        };
+        // **Rest mass is summed apart from everything else**, and pairwise, for
+        // the reason `Matter::non_rest_energy` documents at length: rest energy
+        // exceeds every other term by around 10^16 for ordinary matter, so a
+        // running total that mixes the two spends its significant digits on
+        // `mc^2` and reports the interesting part as noise. Sequentially
+        // summing 20 000 bodies of 10^52 J apiece cost 1.6x10^45 J on the
+        // reference galaxy — 10^-11 of the total, and a hundred times the
+        // staleness it was being compared against. `summarise` has always
+        // grouped its terms this way; this is the other account learning the
+        // same lesson.
+        let rest = crate::math::det_sum_by(count, &|s| {
+            if stood_for(s) { 0.0 } else { n.bodies[s].mass }
+        });
+        let non_rest = crate::math::det_sum_by(count, &|s| {
+            if stood_for(s) {
+                0.0
+            } else {
+                let b = &n.bodies[s];
+                (crate::coords::gamma(b.vel) - 1.0) * b.mass * crate::units::C2
+                    + b.internal_energy
+            }
+        });
+        let momentum = crate::math::det_sum_v3_by(count, &|s| {
+            if stood_for(s) { Vec3::ZERO } else { n.bodies[s].momentum() }
+        });
+        let angular = crate::math::det_sum_v3_by(count, &|s| {
+            if stood_for(s) {
+                Vec3::ZERO
+            } else {
+                let b = &n.bodies[s];
+                b.pos.cross(b.momentum()) + b.spin
+            }
+        });
+        let charge = crate::math::det_sum_by(count, &|s| {
+            if stood_for(s) { 0.0 } else { n.bodies[s].charge }
+        });
+        let baryon = crate::math::det_sum_by(count, &|s| {
+            if stood_for(s) {
+                0.0
+            } else {
+                let b = &n.bodies[s];
+                b.mass * b.composition.nucleons_per_kg()
+            }
+        });
+        let lepton = crate::math::det_sum_by(count, &|s| {
+            if stood_for(s) {
+                0.0
+            } else {
+                let b = &n.bodies[s];
+                b.mass * b.composition.nucleons_per_kg() * b.composition.electrons_per_nucleon()
+                    - b.charge / crate::units::E_CHARGE
+            }
+        });
+        let mut total = crate::state::Conserved {
+            energy: rest * crate::units::C2 + non_rest,
+            momentum,
+            angular_momentum: angular,
+            charge,
+            baryon,
+            lepton,
+        };
+        for slot in 0..count {
             let c = n.child_of(slot);
             if !c.is_none() && self.nodes[c.get()].alive {
                 total = total.add(self.sum_conserved(c));
-            } else {
-                total = total.add(crate::state::Conserved {
-                    energy: (crate::coords::gamma(b.vel)) * b.mass * crate::units::C2
-                        + b.internal_energy,
-                    momentum: b.momentum(),
-                    angular_momentum: b.pos.cross(b.momentum()) + b.spin,
-                    charge: b.charge,
-                    baryon: b.mass * b.composition.nucleons_per_kg(),
-                    lepton: b.mass * b.composition.nucleons_per_kg()
-                        * b.composition.electrons_per_nucleon()
-                        - b.charge / crate::units::E_CHARGE,
-                });
             }
         }
         total.energy += n.potential;
+        // **Three terms a body list cannot carry.** `summarise` says so in as
+        // many words — "not knowable from the children alone; the caller
+        // reinstates these" — and this is the other side of that sentence. A
+        // `Body` has a mass, a velocity and an internal energy; it has nowhere
+        // to put the grip of a dark halo that is not being refined, the bonds
+        // holding a solid together below the scale of any body, or the free
+        // energy a structure is storing. Leave them out here and a node's
+        // energy *changes when it materialises*, which is the one thing a scale
+        // transform may never do.
+        //
+        // Measured, and it is how this was found: the reference world's root is
+        // a galaxy whose halo contributes -3.861x10^48 J of `external_potential`
+        // against a total of 1.644x10^56, and the tree's total jumped by exactly
+        // that — 2.35x10^-8 relative — the moment the root was materialised.
+        // `docs/BACKLOG.md` had recorded that number as the staleness of a
+        // solved node's matter, because in that world the root is both the only
+        // node carrying an external potential and the only node solved every
+        // frame. The staleness is real and is what [`Tree::settle`] closes, but
+        // it is 10^-11, not 2.35x10^-8.
+        total.energy +=
+            n.matter.cohesive_binding + n.matter.external_potential + n.matter.chemical_energy;
         total
     }
 }

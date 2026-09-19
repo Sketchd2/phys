@@ -990,6 +990,11 @@ pub(crate) fn put_tree_stats(w: &mut Writer, s: &TreeStats) {
     w.f64(s.worst_description_lost);
     w.u64(s.joins);
     w.u64(s.detachments);
+    // `settled` and `settled_idempotent` are deliberately **not** written. They
+    // are the only counters a *save* moves — `World::view` settles the world on
+    // its way past — so writing them would make a file depend on how many times
+    // it had been saved, and two saves of one unchanged world would differ in
+    // their last bytes. `saving_is_deterministic` is what says so.
 }
 pub(crate) fn get_tree_stats(r: &mut Reader) -> Result<TreeStats> {
     Ok(TreeStats {
@@ -1011,6 +1016,8 @@ pub(crate) fn get_tree_stats(r: &mut Reader) -> Result<TreeStats> {
         worst_description_lost: r.f64()?,
         joins: r.u64()?,
         detachments: r.u64()?,
+        settled: 0,
+        settled_idempotent: 0,
     })
 }
 
