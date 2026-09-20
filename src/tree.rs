@@ -757,6 +757,9 @@ impl Tree {
         let children = self.nodes[i.get()].children.clone();
         let mut speciation: Option<(crate::chem::Mixture, f64)> = None;
         let mut child_mass = 0.0;
+        // Collected before the children are released, because it is measured
+        // off them. See `Tree::unrepresented`.
+        let mut held = 0.0;
         for (slot, c) in children.iter().enumerate() {
             if !c.is_none() {
                 let (mix, mass) = {
@@ -774,6 +777,7 @@ impl Tree {
                     });
                 }
                 child_mass += mass;
+                held += self.unrepresented(*c);
                 self.sync_from_child(i, slot, *c);
                 self.release_subtree(*c);
             }
@@ -784,7 +788,8 @@ impl Tree {
             (n.matter.conserved(), n.potential, n.pinned, n.key)
         };
         let bodies = std::mem::take(&mut self.nodes[i.get()].bodies);
-        let (matter, err) = self.summarised(i, &bodies, potential, before, speciation, child_mass);
+        let (matter, err) =
+            self.summarised(i, &bodies, potential, before, speciation, child_mass, held);
 
         if pinned {
             self.stats.persisted_bodies += bodies.len() as u64;
@@ -850,6 +855,12 @@ impl Tree {
         // the same first step `coarsen` takes; what it does not do is release
         // the children afterwards, because nothing here is going away.
         self.sync_children(i);
+        let held: f64 = self.nodes[i.get()]
+            .children
+            .clone()
+            .iter()
+            .map(|c| self.unrepresented(*c))
+            .sum();
         let (before, potential, pinned) = {
             let n = &self.nodes[i.get()];
             (n.matter.conserved(), n.potential, n.pinned)
@@ -859,7 +870,7 @@ impl Tree {
         // copy of the whole world's detail would be a worse bargain than the
         // staleness it is fixing.
         let bodies = std::mem::take(&mut self.nodes[i.get()].bodies);
-        let (matter, err) = self.summarised(i, &bodies, potential, before, None, 0.0);
+        let (matter, err) = self.summarised(i, &bodies, potential, before, None, 0.0, held);
         self.nodes[i.get()].bodies = bodies;
         // The same idempotence rule `coarsen` uses, and for the same reason: a
         // node nobody has disturbed must come back bit-for-bit, so matter that
@@ -892,8 +903,11 @@ impl Tree {
         before: crate::state::Conserved,
         speciation: Option<(crate::chem::Mixture, f64)>,
         child_mass: f64,
+        held: f64,
     ) -> (Matter, f64) {
         let mut matter = summarise(bodies, potential);
+        // What the stand-ins could not carry. See `Tree::unrepresented`.
+        matter.internal_energy += held;
         matter.external_potential = self.nodes[i.get()].matter.external_potential;
         matter.chemical_energy = self.nodes[i.get()].matter.chemical_energy;
         // `summarise` measures where the bodies ended up, and a bond is far
@@ -985,6 +999,44 @@ impl Tree {
         // detail — spin, mass and radius all — so the angular velocity derived
         // from them is stale. See `Node::sync_spin_rate`.
         n.sync_spin_rate();
+    }
+
+    /// The energy a node has that the body standing in for it cannot carry.
+    ///
+    /// **A `Body` has a mass, a velocity and an internal energy, and that is
+    /// all.** It has nowhere to put the binding holding a thing together, the
+    /// grip of something that is not being refined, or the free energy a
+    /// structure is storing — which is exactly what `summarise` means when it
+    /// says those terms are "not knowable from the children alone". So a parent
+    /// summarised from a body list in which a promoted child appears as a
+    /// stand-in comes out *high* by the child's binding, and its own stand-in
+    /// then carries the inflated figure one level further up.
+    ///
+    /// Measured on the reference world before this existed: node 2 holds
+    /// -1.27x10^48 J of binding, nodes 0 and 1 each read 1.25x10^48 J high, and
+    /// the world's energy moved by 1.52x10^-8 across a save — the same term
+    /// arriving once per level that resamples from a summary.
+    ///
+    /// The fix is here, in the summary, and deliberately **not** in the body:
+    /// folding a negative binding into a stand-in's `internal_energy` would
+    /// hand the tier solver a parcel with less energy than its own rest mass
+    /// implies, and the equation of state would price it as something that does
+    /// not exist.
+    ///
+    /// A materialised node answers with its measured `potential`, because that
+    /// is the figure [`Self::sum_conserved`] uses for it; an unmaterialised one
+    /// answers with the `gravitational_binding` its matter carries.
+    pub fn unrepresented(&self, i: NodeIdx) -> f64 {
+        if i.is_none() || !self.nodes[i.get()].alive {
+            return 0.0;
+        }
+        let n = &self.nodes[i.get()];
+        let gravity = if n.is_materialised() {
+            n.potential
+        } else {
+            n.matter.gravitational_binding
+        };
+        gravity + n.matter.cohesive_binding + n.matter.external_potential + n.matter.chemical_energy
     }
 
     /// Write a promoted child's evolved matter back into the parent's body.

@@ -189,66 +189,35 @@ fn every_field_round_trips() {
     println!("  {} nodes, {} bytes, energy drift {drift:.3e}", w.tree.nodes.len(), bytes.len());
     assert_eq!(after.baryon.to_bits(), before.baryon.to_bits(), "baryon number is not bit-exact");
 
-    // Energy is *not* bit-exact through that second trip, and what stops it is
-    // now a named term rather than a bound to sit under.
+    // Energy is *not* bit-exact through that second trip, and what is left is
+    // the sampler's own round trip rather than anything the file lost.
     //
-    // This comment used to say the gap was the staleness of a solved node's
-    // matter, at 2.35e-8. That was measured on a world whose root is a galaxy,
-    // and it was the wrong cause: `Tree::sum_conserved` was dropping
-    // `external_potential` for every *materialised* node, so the dark halo's
-    // -3.861e48 J left the books the moment the root materialised. The root
-    // there is both the only node with a halo and the only node solved every
-    // frame, and the correlation was read as the cause. Both are fixed —
-    // `sum_conserved` counts the three terms a body list cannot carry, and
-    // `Tree::settle` brings a solved node's matter into step before a save.
+    // This comment has been wrong twice and both corrections are worth keeping.
+    // It first said the gap was the staleness of a solved node's matter, at
+    // 2.35e-8. That was measured on a world whose root is a galaxy, and it was
+    // the wrong cause: `Tree::sum_conserved` was dropping `external_potential`
+    // for every *materialised* node, so the dark halo's -3.861e48 J left the
+    // books the moment the root materialised. The root there is both the only
+    // node with a halo and the only node solved every frame, and the
+    // correlation was read as the cause.
     //
-    // What is left is the *third* finding, and it is older than either: **a
-    // promoted child's binding energy has nowhere to live in the stand-in
-    // `Body` that represents it in its parent.** A `Body` carries a mass, a
-    // velocity and an internal energy, so when `summarise` folds a parent's
-    // bodies into its matter the child's binding is simply absent, and the
-    // coarse state reads higher than the fine state by exactly that. Every
-    // `coarsen` has always done it; a save only makes it visible, because the
-    // file carries summarised matter.
+    // With that fixed and `Tree::settle` closing the real staleness, what was
+    // left was 7.78e-9, and *that* was a third defect: a promoted child's
+    // binding has nowhere to live in the stand-in `Body` representing it, so a
+    // parent summarised from a body list read high by the child's binding and
+    // its own stand-in carried the inflated figure one level further up —
+    // measured, nodes 0 and 1 each 1.25e48 J high, which is node 2's binding
+    // arriving twice. `Tree::unrepresented` carries it into the summary now,
+    // and the drift fell from 1.52e-8 to 4.3e-12.
     //
-    // So the assertion is that the drift *is that term* and nothing else.
-    // `docs/PLAY.md` §7 schedules the fix inside this phase; when it lands,
-    // this bound collapses and the comment goes with it.
-    let bound: f64 = w
-        .tree
-        .nodes
-        .iter()
-        .filter(|n| n.alive && !n.parent.is_none())
-        .map(|n| {
-            n.matter.gravitational_binding
-                + n.matter.cohesive_binding
-                + n.matter.external_potential
-                + n.matter.chemical_energy
-        })
-        .sum();
-    let unheld = bound.abs() / before.energy.abs().max(1e-300);
-    // It enters **once per level**, which is the shape of the defect rather
-    // than a fudge factor. A parent's matter is summarised from a body list in
-    // which its promoted child appears as a stand-in carrying the child's
-    // internal energy and none of its binding, so the parent's own internal
-    // energy comes out high by that binding — and *its* stand-in then carries
-    // the inflated figure one level further up. Measured here: nodes 0 and 1
-    // are each 1.25x10^48 J high, which is node 2's binding arriving twice.
-    let levels = w
-        .tree
-        .nodes
-        .iter()
-        .filter(|n| n.alive && n.children.iter().any(|c| !c.is_none()))
-        .count()
-        .max(1) as f64;
-    println!(
-        "  binding held by promoted children, invisible to a stand-in: {unheld:.3e} \
-         over {levels} levels that resample from one"
-    );
+    // What remains is `summarise(sample(m)) != m` to the last bits, which is
+    // what `tree::IDEMPOTENT_TOLERANCE` is for and is a property of the
+    // sampler rather than of the file.
+    println!("  energy drift across the save and back: {drift:.3e}");
     assert!(
-        drift <= unheld * levels + 1e-13,
-        "energy drifted by {drift:.3e}, which is more than the promoted children's \
-         binding ({unheld:.3e}, over {levels} levels) accounts for"
+        drift < 1e-10,
+        "energy drifted across a save by {drift:.3e}, which is more than the \
+         sampler's own round trip accounts for"
     );
 }
 

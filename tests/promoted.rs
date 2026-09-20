@@ -334,3 +334,57 @@ fn a_reloaded_node_keeps_what_was_promoted_out_of_it() {
         );
     }
 }
+
+/// A promoted child's binding survives being folded back in.
+///
+/// **A `Body` has a mass, a velocity and an internal energy, and that is all.**
+/// It has nowhere to put the binding holding a thing together, so a parent
+/// summarised from a body list in which a promoted child appears as a stand-in
+/// used to come out *high* by exactly the child's binding — and its own
+/// stand-in then carried the inflated figure one level further up.
+///
+/// Measured on the persistence world before `Tree::unrepresented` existed: node
+/// 2 holds -1.27e48 J of binding, nodes 0 and 1 each read 1.25e48 J high, and
+/// a save-and-reload moved the world's energy by 1.52e-8. It is 4.3e-12 now.
+#[test]
+fn a_childs_binding_survives_being_folded_back_in() {
+    let (mut w, children) = with_promoted(&[0]);
+    let root = w.tree.root;
+    let child = children[0];
+    // Materialised, so the child has a binding of its own to lose: `sample`
+    // measures the potential of what it drew and the node carries it.
+    w.tree.refine(child);
+    let held = w.tree.unrepresented(child);
+    let scale = w.tree.nodes[child.get()].matter.mass * phys::units::C2;
+    println!(
+        "  the child holds {held:.4e} J its stand-in cannot carry, against {scale:.4e} J of rest mass"
+    );
+    assert!(held.abs() > 0.0, "this test needs a child with something to lose");
+
+    // **Measured against the summary that does not carry it**, because at the
+    // scale of a node's rest mass the term is invisible: a self-gravitating
+    // child's binding is around 10^-11 of its own `mc^2`, which is beneath the
+    // sampler's own round trip. `tests/persistence.rs` is where it shows up as
+    // a number — a save moved that world's energy by 1.52e-8 before this and
+    // moves it by 4.3e-12 now — and this is where the mechanism is pinned down.
+    // The stand-ins have to be current first, or the comparison is against a
+    // different body list: `settle` syncs them before it summarises anything.
+    w.tree.sync_children(root);
+    let naive = phys::state::summarise(
+        &w.tree.nodes[root.get()].bodies,
+        w.tree.nodes[root.get()].potential,
+    );
+    // Pinned, so `settle` writes the summary rather than taking the idempotent
+    // early return that keeps an undisturbed node bit-for-bit as it was.
+    w.tree.pin(root);
+    w.tree.settle(root);
+    let carried = w.tree.nodes[root.get()].matter.internal_energy - naive.internal_energy;
+    println!(
+        "  the summary carries {carried:.4e} J that the bodies alone do not, against \
+         {held:.4e} J the child is holding"
+    );
+    assert!(
+        (carried - held).abs() <= held.abs() * 1e-9,
+        "the summary carried {carried:.4e} J where the child holds {held:.4e} J"
+    );
+}
