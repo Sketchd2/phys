@@ -427,6 +427,10 @@ pub struct TreeStats {
     /// Settlings where the detail turned out to say nothing new, so the matter
     /// was left exactly as it was. The idempotence guarantee, counted.
     pub settled_idempotent: u64,
+    /// Promoted children folded back into their parent because its detail was
+    /// discarded — see [`Tree::shed_children`]. Before it existed each one of
+    /// these was a live node nothing could reach and nothing would ever free.
+    pub shed: u64,
 }
 
 impl Tree {
@@ -557,8 +561,8 @@ impl Tree {
         // regenerated — it comes back from the persistent store instead.
         if let Some(saved) = self.persisted.get(&key) {
             let bodies = saved.clone();
+            self.reconcile_children(i, bodies.len());
             let n = &mut self.nodes[i.get()];
-            n.children = vec![NodeIdx::NONE; bodies.len()];
             n.bodies = bodies;
             self.stats.materialisations += 1;
             return &self.nodes[i.get()].bodies;
@@ -598,8 +602,8 @@ impl Tree {
             .stats
             .worst_conservation_error
             .max(report.conservation_error);
+        self.reconcile_children(i, bodies.len());
         let n = &mut self.nodes[i.get()];
-        n.children = vec![NodeIdx::NONE; bodies.len()];
         n.bodies = bodies;
         n.topology = topo;
         n.potential = report.potential;
@@ -1037,6 +1041,77 @@ impl Tree {
         }
     }
 
+    /// Release every promoted child back into this node, before its detail is
+    /// discarded.
+    ///
+    /// **The orphan.** `docs/PLAY.md` §7 Phase 3's first correction, and the
+    /// phase cannot meet its done-when with it open. Every structural-change
+    /// path in the engine says "my body list is stale" by clearing it — and
+    /// said it by throwing away the only record of what had been promoted out
+    /// of it. Measured: promote a limb out of a forty-year-old tree, load the
+    /// tree to failure, and the limb's node is still `alive` with `parent`
+    /// pointing at the tree while the tree's `children` array is empty.
+    /// Unreachable from any walk, never freed, still holding an arena slot and
+    /// still being scheduled.
+    ///
+    /// The answer is that a body list is not the only thing that goes stale: a
+    /// child's *slot* does too, because the recipe that produced it has
+    /// changed. So the child is folded back the way [`Self::coarsen`] folds one
+    /// back — its evolved state written into the body that stood for it, and
+    /// then released — which is collapsing rather than forgetting and conserves
+    /// exactly, because the node's matter counted that child all along.
+    ///
+    /// **Not a crossing, deliberately.** D16's outward case is the mechanism
+    /// for a child that has *left*, and it already runs over every node every
+    /// frame — so by the time a structure changes, anything that had drifted
+    /// out has been re-homed by the pass rather than by this. Re-homing here as
+    /// well would take the child's mass out of the tree while the matter that
+    /// still counts it was about to be regenerated from the recipe, which
+    /// creates it twice.
+    pub fn shed_children(&mut self, i: NodeIdx) -> usize {
+        if i.is_none() || !self.nodes[i.get()].alive {
+            return 0;
+        }
+        let children = self.nodes[i.get()].children.clone();
+        let mut shed = 0;
+        for (slot, c) in children.iter().enumerate() {
+            if c.is_none() || !self.nodes[c.get()].alive {
+                continue;
+            }
+            self.sync_from_child(i, slot, *c);
+            self.release_subtree(*c);
+            shed += 1;
+        }
+        self.nodes[i.get()].children.clear();
+        self.stats.shed += shed as u64;
+        shed
+    }
+
+    /// Make the children list fit a body list of `len`, without dropping any.
+    ///
+    /// [`Self::refine`] used to assign `vec![NONE; len]` outright, which is
+    /// correct for the case it was written for — a node with no detail has
+    /// nothing promoted out of it — and wrong for the case a save creates. The
+    /// wire format writes `children` and, for an unpinned node, no bodies at
+    /// all, so a reloaded node comes back unmaterialised *with* promoted
+    /// children, and the next refinement wiped them. The same orphan as the
+    /// structural paths, by a different road.
+    fn reconcile_children(&mut self, i: NodeIdx, len: usize) {
+        let children = self.nodes[i.get()].children.clone();
+        for (slot, c) in children.iter().enumerate().skip(len) {
+            if c.is_none() || !self.nodes[c.get()].alive {
+                continue;
+            }
+            // Past the end of the new body list there is no slot to stand in,
+            // so this one is folded back like any other stale slot.
+            self.sync_from_child(i, slot, *c);
+            self.release_subtree(*c);
+            self.stats.shed += 1;
+        }
+        let n = &mut self.nodes[i.get()];
+        n.children.resize(len, NodeIdx::NONE);
+    }
+
     /// Pull every promoted child's evolved state into the body that stands
     /// for it.
     ///
@@ -1420,11 +1495,14 @@ impl Tree {
         // neither creates nor destroys anything, and growth is bounded by what
         // is actually there.
         m.built = (self.nodes[i.get()].matter.mass * 1e-3).clamp(1e-6, 1.0);
+        // Whatever was promoted out of this node is folded back before its
+        // detail goes: a slot in a body list that is about to be replaced is
+        // not a place anything can live. See `Tree::shed_children`.
+        self.shed_children(i);
         let n = &mut self.nodes[i.get()];
         n.matter.radius = m.extent().max(n.matter.radius.min(1e-3)).max(1e-30);
         n.matter.chemical_energy = m.stored_energy();
         n.bodies.clear();
-        n.children.clear();
         n.morphology = Some(m);
         self.stats.structures += 1;
         // A structure takes its size from its program the instant it has one,
@@ -1465,11 +1543,11 @@ impl Tree {
             m.design_mass = m.built;
             m.progress = 1.0;
         }
+        self.shed_children(i);
         let n = &mut self.nodes[i.get()];
         n.matter.radius = m.extent().max(1e-30);
         n.matter.chemical_energy = m.stored_energy();
         n.bodies.clear();
-        n.children.clear();
         n.morphology = Some(m);
         self.stats.structures += 1;
         // A structure takes its size from its program the instant it has one,
@@ -1517,11 +1595,11 @@ impl Tree {
             }
         }
         let m = crate::morph::Morphology::assembled(program, parts, seed, key.0);
+        self.shed_children(i);
         let n = &mut self.nodes[i.get()];
         n.matter.radius = m.extent().max(1e-30);
         n.matter.chemical_energy = m.stored_energy();
         n.bodies.clear();
-        n.children.clear();
         n.topology = None;
         n.morphology = Some(m);
         self.stats.structures += 1;
@@ -1772,10 +1850,14 @@ impl Tree {
     /// when an interaction changes the node's matter enough that the old
     /// sample is no longer a valid representative of it.
     pub fn bump_epoch(&mut self, i: NodeIdx) {
+        // The detail is about to be redrawn from a different epoch, so every
+        // slot in it is about to mean something else. Anything promoted out of
+        // one is folded back rather than left pointing at a list that no
+        // longer exists.
+        self.shed_children(i);
         let n = &mut self.nodes[i.get()];
         n.epoch = n.epoch.wrapping_add(1);
         n.bodies.clear();
-        n.children.clear();
     }
 
     // -- geometry ---------------------------------------------------------

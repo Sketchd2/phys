@@ -860,13 +860,17 @@ impl World {
             .map(|m| m.extent())
             .unwrap_or(0.0);
         {
+            // Any *other* part that had been promoted out of this composite is
+            // folded back first: the recipe's slots are about to be renumbered
+            // and a child pointing at one of them would be unreachable. See
+            // `Tree::shed_children`.
+            self.tree.shed_children(composite);
             let n = &mut self.tree.nodes[composite.get()];
             n.matter.radius = radius.max(1e-30);
             // The parts moved, so the body list they generate has, and the
             // joins are what the solver reads next frame.
             n.bodies.clear();
             n.topology = None;
-            n.children.clear();
         }
         self.tree.retier(composite);
         self.tree.bump_epoch(composite);
@@ -3146,7 +3150,9 @@ impl World {
         // The structure it would generate has changed, so any materialised copy
         // is stale. Discarding it is correct and cheap — it is regenerable.
         node.bodies.clear();
-        node.children.clear();
+        // The borrow of `node` ends here; the children it had promoted out of
+        // it are folded back before the fresh body list replaces their slots.
+        self.tree.shed_children(idx);
 
         // It grew, so it may not be the size of thing it was. See
         // `Tree::retier`.
@@ -3335,7 +3341,9 @@ impl World {
         // The structure it would generate has changed.
         node.bodies.clear();
         node.topology = None;
-        node.children.clear();
+        // The borrow of `node` ends here; the children it had promoted out of
+        // it are folded back before the fresh body list replaces their slots.
+        self.tree.shed_children(idx);
         // What is left of it may be a different size of thing.
         self.tree.retier(idx);
         // `docs/PLAY.md` D19: the break is now in `Morphology::events`, which
@@ -3503,7 +3511,9 @@ impl World {
         }
         node.bodies.clear();
         node.topology = None;
-        node.children.clear();
+        // The borrow of `node` ends here; the children it had promoted out of
+        // it are folded back before the fresh body list replaces their slots.
+        self.tree.shed_children(idx);
         self.shaking.retain(|(n, _)| *n != idx);
         // Likewise: a structure that has shed members is smaller than it was.
         self.tree.retier(idx);
