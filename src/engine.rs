@@ -309,6 +309,13 @@ pub struct EngineStats {
     /// crossed into was still only one of its parent's bodies and is promoted
     /// to meet it.
     pub crossings_generated: u64,
+    /// Nodes that stopped being one neighbourhood and became two, summed over
+    /// frames. `docs/BACKLOG.md`'s "a node cannot split when its contents
+    /// spread out", which Phase 1 measured and connected to nothing.
+    pub splits: u64,
+    /// Sibling nodes that became one neighbourhood again and were folded back
+    /// into one.
+    pub merges: u64,
     /// How far outside its parent's contents the worst crosser was, as a
     /// multiple of what those contents reach.
     ///
@@ -1044,6 +1051,9 @@ impl World {
         // else in `coast_to` — so this is the first moment at which "where is
         // it" has one answer for the whole world. `docs/PLAY.md` D16.
         self.cross_boundaries();
+        // And the same measurement one level down: a node whose contents have
+        // stopped being one neighbourhood is describing two places at once.
+        self.resolve_extents(&plan);
 
         self.deliver_influences(horizon);
         // Chemistry runs on the span the frame actually covered, after the
@@ -4134,6 +4144,69 @@ impl World {
         self.disturb(moved.to);
         self.disturb(moved.moved);
         true
+    }
+
+    /// Reconcile every node the frame advanced with what it is actually
+    /// holding — `docs/BACKLOG.md`'s split, and its inverse.
+    ///
+    /// **On the node's own cadence, which is what the backlog asks for.** Only
+    /// a node whose contents have *moved* can have stopped being one
+    /// neighbourhood, and the nodes that moved are exactly the ones the plan
+    /// accepted a step for. A node nobody is advancing is not spreading either,
+    /// so paying a grid build for it every frame would buy nothing.
+    ///
+    /// The merge is checked against the split's own siblings rather than over
+    /// every pair in the parent: two nodes that are one neighbourhood are
+    /// overlapping, and the cheap overlap test in [`Tree::would_merge`] rejects
+    /// the rest before any grid is built.
+    fn resolve_extents(&mut self, plan: &Plan) -> usize {
+        let advanced: Vec<NodeIdx> = plan
+            .accepted
+            .iter()
+            .filter(|t| t.kind == TaskKind::Step)
+            .map(|t| t.node)
+            .collect();
+        let mut changed = 0;
+        for node in advanced {
+            if node.is_none() || !self.tree.nodes[node.get()].alive {
+                continue;
+            }
+            // A structure's contents are members of a recipe, and whether they
+            // are one thing is a question about its joins rather than about
+            // their spacing. D15's break is what separates those, and it makes
+            // nodes of the pieces itself.
+            if self.tree.nodes[node.get()].morphology.is_some() {
+                continue;
+            }
+            if let Some(new) = self.tree.resolve_extent(node) {
+                self.stats.splits += 1;
+                self.disturb(node);
+                self.disturb(new);
+                changed += 1;
+                continue;
+            }
+            // Nothing split, so ask the other question: has this node come back
+            // together with one of its siblings?
+            let parent = self.tree.nodes[node.get()].parent;
+            if parent.is_none() {
+                continue;
+            }
+            let siblings: Vec<NodeIdx> = self.tree.nodes[parent.get()]
+                .children
+                .iter()
+                .copied()
+                .filter(|c| !c.is_none() && *c != node)
+                .collect();
+            for other in siblings {
+                if self.tree.merge(node, other) {
+                    self.stats.merges += 1;
+                    self.disturb(node);
+                    changed += 1;
+                    break;
+                }
+            }
+        }
+        changed
     }
 
     /// Re-home everything that has left the region its parent owns.

@@ -427,6 +427,14 @@ pub struct TreeStats {
     /// Settlings where the detail turned out to say nothing new, so the matter
     /// was left exactly as it was. The idempotence guarantee, counted.
     pub settled_idempotent: u64,
+    /// Nodes that stopped being one neighbourhood and became two — see
+    /// [`Tree::resolve_extent`]. The operation `docs/BACKLOG.md` calls
+    /// sibling-from-a-subset, which nothing could do until Phase 3.
+    pub splits: u64,
+    /// Sibling nodes whose contents became one neighbourhood again and were
+    /// folded into one. Without it two clumps that fall back together stay two
+    /// nodes for ever.
+    pub merges: u64,
     /// Promoted children folded back into their parent because its detail was
     /// discarded — see [`Tree::shed_children`]. Before it existed each one of
     /// these was a live node nothing could reach and nothing would ever free.
@@ -1445,6 +1453,64 @@ impl Tree {
         crate::state::Spread::of(parts)
     }
 
+    /// Which of a node's contents are still **one neighbourhood**.
+    ///
+    /// `docs/PLAY.md` §7 Phase 3: the same measurement that drives a crossing
+    /// drives node splitting, which Phase 1 measured and connected to nothing.
+    /// A node is a region of space, and the claim a region makes is that what
+    /// is in it is *near* what else is in it. When that stops being true the
+    /// node is describing two places at once, and every length derived from its
+    /// radius — the smoothing length, the gravity softening, the LOD's angular
+    /// size, the neighbour grid's spacing — is wrong by the same factor.
+    ///
+    /// **Connected components under the node's own resolution**, and that is
+    /// the whole criterion. No threshold is chosen: two occupants are together
+    /// if they are adjacent in the sense D3's [`crate::neighbourhood`] already
+    /// defines, and a component is the transitive closure of that. This is why
+    /// it does not fire on a distribution's own tail — `docs/BACKLOG.md`
+    /// measures a Plummer sphere's at three to four radii and warns that
+    /// "outgrew its radius" is not the fault signal — because a tail is
+    /// *connected* to the body it is the tail of, however far out it reaches.
+    ///
+    /// Returns a label per occupant and the number of distinct labels, in the
+    /// neighbourhood's own occupant order. An unmaterialised node has no
+    /// contents and therefore no components.
+    pub fn components(&self, i: NodeIdx) -> (crate::neighbourhood::Neighbourhood, Vec<usize>, usize) {
+        let nb = self.neighbourhood(i);
+        let n = nb.len();
+        let mut label: Vec<usize> = (0..n).collect();
+        if n == 0 {
+            return (nb, label, 0);
+        }
+        // Union-find, iterative path compression. The sets are tiny and the
+        // ordering is fixed by `pairs`, so this is deterministic.
+        fn find(label: &mut [usize], mut x: usize) -> usize {
+            while label[x] != x {
+                label[x] = label[label[x]];
+                x = label[x];
+            }
+            x
+        }
+        // The widest query the index can answer, which is the node's own
+        // resolution unless one oversized occupant has forced the spacing up.
+        let within = nb.resolution().min(nb.reach());
+        if let Some(pairs) = nb.pairs(within) {
+            for (a, b) in pairs {
+                let (ra, rb) = (find(&mut label, a), find(&mut label, b));
+                if ra != rb {
+                    label[ra.max(rb)] = ra.min(rb);
+                }
+            }
+        }
+        for x in 0..n {
+            label[x] = find(&mut label, x);
+        }
+        let mut seen: Vec<usize> = label.clone();
+        seen.sort_unstable();
+        seen.dedup();
+        (nb, label, seen.len())
+    }
+
     /// What is next to what, inside this node.
     ///
     /// Built on demand rather than cached. Whether it should be cached is a
@@ -1675,6 +1741,669 @@ impl Tree {
             n.contains_edit = true;
             cur = n.parent;
         }
+    }
+
+    /// Reconcile a node with what it is actually holding.
+    ///
+    /// `docs/BACKLOG.md`'s three outcomes, and the entry that has been waiting
+    /// for a caller since Phase 1 built its measurement: *within the radius, do
+    /// nothing; larger than the radius but still one clump, grow the radius and
+    /// re-derive everything that depends on it; genuinely bimodal, split.*
+    ///
+    /// The middle outcome is [`Self::settle`] — the radius is measured from the
+    /// contents by `summarise`, which is the same re-derivation `coarsen` does,
+    /// followed by [`Self::retier`] because a node that changed size may not be
+    /// the size of thing it was. There is deliberately no separate "grow the
+    /// radius" path: a radius set by anything other than a measurement is a
+    /// number nothing can check.
+    ///
+    /// Returns the node that was split off, if one was.
+    pub fn resolve_extent(&mut self, i: NodeIdx) -> Option<NodeIdx> {
+        if i.is_none() || !self.nodes[i.get()].alive || !self.nodes[i.get()].is_materialised() {
+            return None;
+        }
+        let (nb, label, count) = self.components(i);
+        if count <= 1 {
+            // One neighbourhood, however far it reaches, so the only question
+            // left is whether the radius still describes it.
+            self.follow_contents(i);
+            return None;
+        }
+        // Which component keeps the node. The heaviest, because the node's
+        // identity, its address and its pinned detail all stay with it, and
+        // moving the bulk of the mass to a new address for the sake of a
+        // fragment is the expensive way round.
+        let children = self.nodes[i.get()].children.clone();
+        let mut mass: std::collections::BTreeMap<usize, f64> = Default::default();
+        let mut plain: std::collections::BTreeMap<usize, usize> = Default::default();
+        for (k, l) in label.iter().enumerate() {
+            let Some((occ, _, _)) = nb.at(k) else { continue };
+            let Some(slot) = occ.slot(&children) else { continue };
+            let m = match occ {
+                crate::neighbourhood::Occupant::Child(c) => self.nodes[c.get()].matter.mass,
+                crate::neighbourhood::Occupant::Body(_) => {
+                    *plain.entry(*l).or_insert(0) += 1;
+                    self.nodes[i.get()].bodies.get(slot).map(|b| b.mass).unwrap_or(0.0)
+                }
+            };
+            *mass.entry(*l).or_insert(0.0) += m.max(0.0);
+        }
+        let total: f64 = mass.values().sum();
+        let keeps = mass.iter().max_by(|a, b| a.1.total_cmp(b.1)).map(|(l, _)| *l)?;
+
+        // **A node describes one region when one component holds the bulk of
+        // it**, and the rest are that region's tail. This is the gate, and it
+        // is here because connectedness on its own does not survive contact
+        // with a real draw: the linking length is the mean spacing, a centrally
+        // concentrated profile's outskirts are sparser than the mean, and so
+        // isolated bodies fall out of the main component on every node in the
+        // engine. Measured, all on worlds nobody had touched —
+        //
+        //   a rocky planet, 64 bodies     9 components, largest 86.5%
+        //   a rocky planet, 512 bodies   84 components, largest 77.8%
+        //   a planetary node, 4000        31 components, largest 99.05%
+        //   a cloud pulled into two       20 components, largest 48.4%
+        //
+        // — and the separations do not tell them apart either: the planet's
+        // stray components sit 0.9 to 2.0 radii out and the genuinely bimodal
+        // pair sits at 1.79. A mass-share floor does not either; the planet's
+        // tails are 4% and the bimodal pair's own noise is 0.39%. What
+        // separates them by a factor of twenty is whether anything holds a
+        // majority: 86.5% and 77.8% against 48.4%.
+        //
+        // **The known miss is a 60/40 separation**, which stays one node until
+        // the shares even out or it drifts far enough to cross. That is
+        // recorded on the plan rather than here, because catching it needs a
+        // ratio the plan does not state.
+        if total > 0.0 && mass[&keeps] / total > 0.5 {
+            self.follow_contents(i);
+            return None;
+        }
+        // **And the same question asked of the pair.** No majority does not by
+        // itself mean two places: it also describes a node that has come apart
+        // into *many*, where splitting one piece off achieves nothing and would
+        // do it again next frame. Measured, on a draw whose bodies were spread
+        // until none of them reached its neighbours: 4000 components of one
+        // body each, no majority anywhere, and a split for every frame for
+        // ever. That node is **dispersed**, and `docs/BACKLOG.md`'s answer to
+        // dispersal is the radius following its contents rather than a new
+        // node.
+        //
+        // So the rule is the majority rule twice over: one component holding
+        // the bulk is one region; two holding it between them are two regions;
+        // and no small set holding it at all is one region that has spread.
+        let second = mass
+            .iter()
+            .filter(|(l, _)| **l != keeps)
+            .map(|(_, m)| *m)
+            .fold(0.0f64, f64::max);
+        if total > 0.0 && (mass[&keeps] + second) / total <= 0.5 {
+            self.follow_contents(i);
+            return None;
+        }
+
+        let mut candidates: Vec<usize> = mass
+            .iter()
+            .filter(|(l, _)| **l != keeps && plain.get(l).copied().unwrap_or(0) > 0)
+            .map(|(l, _)| *l)
+            .collect();
+        candidates.sort_by(|a, b| mass[b].total_cmp(&mass[a]));
+        for leaves in candidates {
+            let slots: Vec<usize> = label
+                .iter()
+                .enumerate()
+                .filter(|(_, l)| **l == leaves)
+                .filter_map(|(k, _)| nb.at(k).and_then(|(occ, _, _)| occ.slot(&children)))
+                .collect();
+            if slots.is_empty() {
+                continue;
+            }
+            if let Some(new) = self.split_off(i, &slots) {
+                return Some(new);
+            }
+        }
+        // Nothing could be made into a node of its own — a component of nothing
+        // but promoted children, which are nodes already, and which D16's
+        // crossing re-homes when they leave.
+        self.follow_contents(i);
+        None
+    }
+
+    /// Let the radius follow the contents — **where the contents are the
+    /// authority**.
+    ///
+    /// `docs/BACKLOG.md`'s second outcome: contents that are still one clump
+    /// but have outgrown the radius should grow it rather than be split. The
+    /// question it leaves open is *whose* answer the radius is, and the engine
+    /// already draws that line.
+    ///
+    /// For a node whose detail is **regenerable**, the matter is the authority
+    /// and the bodies are a drawing of it — `sample` scales what it draws until
+    /// `1.291 x rms` comes back as the radius it was given, so the radius is an
+    /// *input* to the detail, not a measurement of it. Letting it follow the
+    /// bodies inverts that, and the inversion feeds back. Measured, on the
+    /// biome world: a star's eight sampled parcels disperse under the hydro
+    /// solver, the radius follows them from 7x10^8 m to 2.9x10^11 in four
+    /// hundred frames, the radiating area grows with it, the star cools from
+    /// 5800 K to 719 K, and `retier` moves it out of `Stellar` — where
+    /// temperature means a velocity dispersion — into `Planetary`, where it
+    /// means heat. A test about whether a patch of ground freezes in winter
+    /// failed because its sun had quietly turned into something else.
+    ///
+    /// For a node whose detail has been **touched** — pinned, or carrying an
+    /// edit below it — the bodies are the authority, because that is what
+    /// pinning means, and the radius has to keep up with them. A node that has
+    /// just been split is pinned by [`Self::split_off`] for exactly this
+    /// reason.
+    ///
+    /// The regenerable case is not silently dropped: `Stats::worst_occupancy`
+    /// goes on reporting how far a node's contents have outgrown what it
+    /// claims, which is the measurement `docs/BACKLOG.md` asks for and the one
+    /// that says when the consumers of a node radius — the smoothing length,
+    /// the softening, the LOD's angular size — are being lied to.
+    fn follow_contents(&mut self, i: NodeIdx) {
+        let n = &self.nodes[i.get()];
+        if !(n.pinned || n.contains_edit) {
+            return;
+        }
+        self.remeasure_radius(i);
+        self.retier(i);
+    }
+
+    /// Put a node's radius back in step with the contents it is holding.
+    ///
+    /// The *equivalent uniform sphere* of the present configuration, which is
+    /// the same expression `summarise` uses and must stay the same one: a
+    /// second definition of this length is how `matter.radius` and what the
+    /// sampler draws come apart. Deliberately **not** the bounding radius — see
+    /// `sampler::radius_scale` — so a centrally concentrated node keeps a
+    /// radius its tail reaches past, exactly as a freshly sampled one does.
+    ///
+    /// Written only when it moved, so a node whose contents are holding still
+    /// is left bit-for-bit as it was.
+    pub fn remeasure_radius(&mut self, i: NodeIdx) -> f64 {
+        let n = &self.nodes[i.get()];
+        let count = n.bodies.len();
+        if count == 0 {
+            return n.matter.radius;
+        }
+        let mass = crate::math::det_sum_by(count, &|k| n.bodies[k].mass);
+        if !(mass > 0.0) {
+            return n.matter.radius;
+        }
+        let com = crate::math::det_sum_v3_by(count, &|k| n.bodies[k].pos.scale(n.bodies[k].mass))
+            .scale(1.0 / mass);
+        let r2 = crate::math::det_sum_by(count, &|k| {
+            n.bodies[k].mass * (n.bodies[k].pos - com).norm2()
+        }) / mass;
+        let radius = (r2.max(0.0).sqrt() * crate::state::RMS_TO_RADIUS).max(1e-30);
+        if radius != n.matter.radius {
+            self.nodes[i.get()].matter.radius = radius;
+        }
+        radius
+    }
+
+    /// Make a sibling out of a subset of a node's contents.
+    ///
+    /// The operation `docs/BACKLOG.md` calls "sibling-from-a-subset", which it
+    /// names twice: node splitting is this, and so is the promoted fragment —
+    /// "`promote` takes a single slot, while a fragment is a *set* of members".
+    ///
+    /// The new node is a child of the same parent, holding the departing
+    /// bodies re-expressed about their own centre of mass, with its matter
+    /// summarised from them. Promoted children in the subset are re-homed into
+    /// it by [`Self::reparent`], which is the one path that moves a node
+    /// between frames and the one that carries everything keyed by its address.
+    ///
+    /// **Both ends are pinned.** Neither is what `sample` would draw from its
+    /// parent's matter any more — the old node's body list now has holes in it
+    /// and the new one was never drawn at all — so neither is regenerable, and
+    /// saying so is what stops a later refinement quietly mending the split.
+    ///
+    /// Refused for the root, which has no parent to be a sibling in, and for a
+    /// subset that is everything or nothing, which would be a rename.
+    pub fn split_off(&mut self, i: NodeIdx, slots: &[usize]) -> Option<NodeIdx> {
+        if i.is_none() || !self.nodes[i.get()].alive || slots.is_empty() {
+            return None;
+        }
+        let parent = self.nodes[i.get()].parent;
+        if parent.is_none() {
+            return None;
+        }
+        let occupied = self.nodes[i.get()]
+            .bodies
+            .iter()
+            .enumerate()
+            .filter(|(slot, b)| b.mass > 0.0 || !self.nodes[i.get()].child_of(*slot).is_none())
+            .count();
+        if slots.len() >= occupied {
+            return None;
+        }
+
+        // What is leaving, measured before anything moves. A promoted child's
+        // stand-in is current — `sync_children` runs at the head of every solve
+        // — so the summary counts it exactly once, at the mass the child says.
+        let leaving: Vec<Body> = slots
+            .iter()
+            .filter_map(|s| self.nodes[i.get()].bodies.get(*s).copied())
+            .collect();
+        if leaving.is_empty() {
+            return None;
+        }
+        let matter = summarise(&leaving, 0.0);
+        if !(matter.mass > 0.0) {
+            return None;
+        }
+        let com = matter.com;
+        let bulk = if matter.mass > 0.0 {
+            matter.momentum.scale(1.0 / matter.mass)
+        } else {
+            Vec3::ZERO
+        };
+
+        // The departing detail, about its own centre and in its own frame.
+        let mut bodies: Vec<Body> = Vec::with_capacity(leaving.len());
+        let mut movers: Vec<NodeIdx> = Vec::new();
+        for s in slots {
+            let child = self.nodes[i.get()].child_of(*s);
+            if !child.is_none() {
+                movers.push(child);
+                continue;
+            }
+            if let Some(b) = self.nodes[i.get()].bodies.get(*s) {
+                let mut b = *b;
+                b.pos -= com;
+                b.vel = crate::coords::velocity_add(-bulk, b.vel);
+                bodies.push(b);
+            }
+        }
+        if bodies.is_empty() {
+            return None;
+        }
+
+        let (offset, velocity, spec, time) = {
+            let n = &self.nodes[i.get()];
+            (
+                n.motion.offset + com,
+                crate::coords::velocity_add(n.motion.velocity, bulk),
+                n.spec,
+                n.time,
+            )
+        };
+        let radius = matter.radius.max(1e-30);
+        let tier = tier_for(radius, self.nodes[parent.get()].tier);
+        let spec = spec_for(tier, spec);
+
+        // Take a slot in the parent, exactly as `reparent` does and for the
+        // same reasons: pushed rather than inserted, so no sibling is
+        // renumbered and no address changes but this one.
+        let new_slot = {
+            let p = &mut self.nodes[parent.get()];
+            p.bodies.push(Body {
+                pos: offset,
+                vel: velocity,
+                mass: matter.mass,
+                radius,
+                charge: matter.charge,
+                internal_energy: matter.internal_energy,
+                spin: matter.spin,
+                temperature: matter.temperature,
+                composition: matter.composition,
+                kind: leaving.first().map(|b| b.kind).unwrap_or(crate::state::BodyKind::Grain),
+                ..Default::default()
+            });
+            while p.children.len() < p.bodies.len() {
+                p.children.push(NodeIdx::NONE);
+            }
+            p.bodies.len() - 1
+        };
+        let new_key = self.nodes[parent.get()].key.child(new_slot as u64);
+        let new_depth = self.nodes[parent.get()].depth + 1;
+        let mut matter = matter;
+        matter.mixture = self.nodes[i.get()].matter.mixture;
+        matter.momentum = Vec3::ZERO;
+        let sibling = Node {
+            key: new_key,
+            parent,
+            slot: new_slot as u32,
+            depth: new_depth,
+            tier,
+            matter,
+            motion: Motion {
+                offset,
+                velocity,
+                orientation: self.nodes[i.get()].motion.orientation,
+                spin_rate: matter.angular_velocity(),
+                proper_time: self.nodes[i.get()].motion.proper_time,
+            },
+            bodies: Vec::new(),
+            potential: 0.0,
+            gravity: Vec3::ZERO,
+            children: Vec::new(),
+            spec,
+            epoch: 0,
+            time,
+            last_disturbed: time,
+            last_solved: time,
+            last_grown: time,
+            residency: self.nodes[i.get()].residency,
+            pinned: true,
+            contains_edit: false,
+            bubble: self.nodes[i.get()].bubble,
+            alive: true,
+            morphology: None,
+            topology: None,
+            steps_taken: 0,
+            surface: None,
+            surface_epoch: u32::MAX,
+            last_report: SampleReport::default(),
+        };
+        let new = self.alloc(sibling);
+        self.nodes[parent.get()].children[new_slot] = new;
+        {
+            let n = &mut self.nodes[new.get()];
+            n.children = vec![NodeIdx::NONE; bodies.len()];
+            n.bodies = bodies;
+        }
+
+        // Vacate what left. Zeroed rather than removed, because a sibling's
+        // address is derived from its slot index.
+        for s in slots {
+            if self.nodes[i.get()].child_of(*s).is_none() {
+                if let Some(b) = self.nodes[i.get()].bodies.get_mut(*s) {
+                    *b = Body::default();
+                }
+            }
+        }
+        // And anything that had a node of its own goes through the one path
+        // that moves a node between frames.
+        for c in movers {
+            self.reparent(c, new);
+        }
+
+        // **Re-centre what is left.** A node's frame origin is where its
+        // contents are, and after a piece leaves from one side they are not
+        // there any more — which every cheap test in the engine then gets
+        // wrong, starting with the overlap check in [`Self::would_merge`],
+        // which compares declared centres. The positions in the *parent's*
+        // frame do not move: the offset gains exactly what the contents lose.
+        let com = {
+            let n = &self.nodes[i.get()];
+            let mass = crate::math::det_sum_by(n.bodies.len(), &|k| n.bodies[k].mass);
+            if mass > 0.0 {
+                crate::math::det_sum_v3_by(n.bodies.len(), &|k| {
+                    n.bodies[k].pos.scale(n.bodies[k].mass)
+                })
+                .scale(1.0 / mass)
+            } else {
+                Vec3::ZERO
+            }
+        };
+        if com.norm() > 0.0 {
+            let kids = self.nodes[i.get()].children.clone();
+            {
+                let n = &mut self.nodes[i.get()];
+                n.motion.offset += com;
+                for b in n.bodies.iter_mut() {
+                    if b.mass > 0.0 {
+                        b.pos -= com;
+                    }
+                }
+            }
+            for c in kids {
+                if !c.is_none() && self.nodes[c.get()].alive {
+                    self.nodes[c.get()].motion.offset -= com;
+                }
+            }
+        }
+
+        self.pin(i);
+        self.pin(new);
+
+        // **A split is a partition, so the extensive quantities divide and the
+        // intensive ones do not.** `settle` was tried here first and it is the
+        // wrong tool: it re-summarises the *whole* matter from the bodies, so a
+        // node whose temperature somebody authored comes back at whatever
+        // temperature its sampled bodies happen to carry — measured, a 50 K
+        // node became 3961 K the frame it first split, because its bodies were
+        // drawn from a planet at 2000 K and the summary believed them.
+        //
+        // The four energies that a body list cannot carry (this node's own
+        // potential, and the cohesive, external and chemical terms
+        // `Tree::sum_conserved` adds for it) are divided by mass share, which
+        // is not their own law but is the only division that conserves exactly.
+        // Both ends re-derive them from their own configuration the next time
+        // they are drawn.
+        let keep = {
+            let n = &self.nodes[i.get()];
+            if n.matter.mass > 0.0 {
+                ((n.matter.mass - matter.mass) / n.matter.mass).clamp(0.0, 1.0)
+            } else {
+                1.0
+            }
+        };
+        let gone = 1.0 - keep;
+        {
+            let n = &mut self.nodes[i.get()];
+            n.matter.mass = (n.matter.mass - matter.mass).max(0.0);
+            n.matter.momentum -= matter.momentum;
+            n.matter.internal_energy *= keep;
+            n.matter.baryon_number *= keep;
+            n.matter.lepton_number *= keep;
+            n.matter.charge *= keep;
+            n.matter.chemical_energy *= keep;
+            n.matter.cohesive_binding *= keep;
+            n.matter.external_potential *= keep;
+            n.matter.gravitational_binding *= keep;
+            n.matter.entropy *= keep;
+            n.matter.luminosity *= keep;
+            n.potential *= keep;
+        }
+        {
+            let (potential, cohesive, external, chemical) = {
+                let n = &self.nodes[i.get()];
+                (n.potential, n.matter.cohesive_binding, n.matter.external_potential, n.matter.chemical_energy)
+            };
+            let share = if keep > 0.0 { gone / keep } else { 0.0 };
+            let n = &mut self.nodes[new.get()];
+            n.potential = potential * share;
+            n.matter.cohesive_binding = cohesive * share;
+            n.matter.external_potential = external * share;
+            n.matter.chemical_energy = chemical * share;
+            // Intensive, so inherited rather than re-measured.
+            n.matter.temperature = matter.temperature;
+        }
+        // What is left of the old node is a different shape and possibly a
+        // different size of thing.
+        self.remeasure_radius(i);
+        self.retier(i);
+        self.stats.splits += 1;
+        Some(new)
+    }
+
+    /// Whether two siblings have become one neighbourhood again.
+    ///
+    /// The exact inverse of the split's own question, asked of the pair's
+    /// contents in the parent's frame — **at the finer of the two resolutions**,
+    /// and that asymmetry is the hysteresis. Splitting asks whether a node's
+    /// contents are still connected at *its* resolution; merging asks the same
+    /// of the pair at the *smaller* one, so two clumps that drift apart and
+    /// back again settle rather than flipping between one node and two on
+    /// alternate frames.
+    ///
+    /// Refused for anything with a morphology: two structures coming together
+    /// is `docs/PLAY.md` D15's join, which exists, knows about seams, and would
+    /// be wrong to bypass by pouring one recipe's parts into another's.
+    pub fn would_merge(&self, a: NodeIdx, b: NodeIdx) -> bool {
+        if a.is_none() || b.is_none() || a == b {
+            return false;
+        }
+        let (na, nb_node) = (&self.nodes[a.get()], &self.nodes[b.get()]);
+        if !na.alive || !nb_node.alive || na.parent != nb_node.parent || na.parent.is_none() {
+            return false;
+        }
+        if na.morphology.is_some() || nb_node.morphology.is_some() {
+            return false;
+        }
+        if !na.is_materialised() || !nb_node.is_materialised() {
+            return false;
+        }
+        // Cheap first: two things that do not even overlap are not one
+        // neighbourhood, and this is a subtraction against a grid build.
+        let gap = (na.motion.offset - nb_node.motion.offset).norm()
+            - na.matter.radius
+            - nb_node.matter.radius;
+        if gap > 0.0 {
+            return false;
+        }
+        // The pair's contents, in the parent's frame, as one set.
+        //
+        // Vacated slots are skipped. A node that has been split, or had
+        // something re-homed out of it, keeps the slot as a zeroed body —
+        // removing it would renumber every sibling after it — and those all sit
+        // at the origin with no mass and no radius. Left in, they are a
+        // component of their own that nothing else ever reaches.
+        let shift = nb_node.motion.offset - na.motion.offset;
+        let points: Vec<(Vec3, f64, f64)> = na
+            .bodies
+            .iter()
+            .filter(|x| x.mass > 0.0)
+            .map(|x| (x.pos, x.radius, x.mass))
+            .chain(
+                nb_node
+                    .bodies
+                    .iter()
+                    .filter(|x| x.mass > 0.0)
+                    .map(|x| (x.pos + shift, x.radius, x.mass)),
+            )
+            .collect();
+        let n = points.len();
+        if n == 0 {
+            return false;
+        }
+        // **At the resolution the merged node would have**, which makes this
+        // the exact inverse of the split's own question rather than a second
+        // rule. The first attempt used the finer of the two nodes' own
+        // resolutions, on the grounds that a stricter test going back than
+        // coming apart is hysteresis — and it is so strict that a node's own
+        // contents are not connected at it, so nothing could ever merge.
+        //
+        // It does not oscillate: a pair merges only when the node they would
+        // form answers `resolve_extent`'s question with "one region", which is
+        // the same answer that node then goes on giving.
+        let centre = points.iter().fold(Vec3::ZERO, |acc, p| acc + p.0).scale(1.0 / n as f64);
+        let rms = (points.iter().map(|p| (p.0 - centre).norm2()).sum::<f64>() / n as f64)
+            .max(0.0)
+            .sqrt();
+        let within = rms * crate::state::RMS_TO_RADIUS / (n as f64).cbrt();
+        let spacing = within.max(2.0 * points.iter().fold(0.0f64, |m, p| m.max(p.1)));
+        let grid = crate::neighbourhood::NeighbourGrid::of_points(
+            points.iter().map(|p| p.0),
+            spacing,
+        );
+        let mut label: Vec<usize> = (0..n).collect();
+        fn find(label: &mut [usize], mut x: usize) -> usize {
+            while label[x] != x {
+                label[x] = label[label[x]];
+                x = label[x];
+            }
+            x
+        }
+        let mut candidates = Vec::new();
+        for i in 0..n {
+            grid.neighbours(points[i].0, &mut candidates);
+            for j in candidates.iter().map(|c| *c as usize) {
+                if j <= i {
+                    continue;
+                }
+                let d = (points[j].0 - points[i].0).norm() - points[i].1 - points[j].1;
+                if d <= within {
+                    let (x, y) = (find(&mut label, i), find(&mut label, j));
+                    if x != y {
+                        label[x.max(y)] = x.min(y);
+                    }
+                }
+            }
+        }
+        // And the same majority rule, because "is everything connected" is the
+        // wrong question here for exactly the reason it is wrong there: one
+        // outlier in the tail would keep two clumps sitting on top of each
+        // other from ever being one node again. Measured on that case — 512
+        // points, 90% of them overlapping their nearest neighbour, and a single
+        // straggler 1.65x10^16 m out.
+        let mut share: std::collections::BTreeMap<usize, f64> = Default::default();
+        let mut total = 0.0;
+        for x in 0..n {
+            let l = find(&mut label, x);
+            *share.entry(l).or_insert(0.0) += points[x].2;
+            total += points[x].2;
+        }
+        total > 0.0 && share.values().fold(0.0f64, |m, v| m.max(*v)) / total > 0.5
+    }
+
+    /// Fold one sibling into another.
+    ///
+    /// The inverse of [`Self::split_off`], and the reason `docs/BACKLOG.md`
+    /// says the merge "belongs with it": without one, two clumps that fall back
+    /// together stay two nodes for ever, and the tree accumulates a node per
+    /// event that ever separated anything.
+    ///
+    /// `b`'s detail is re-expressed in `a`'s frame and appended; anything
+    /// promoted out of `b` goes through [`Self::reparent`] into `a`; `b`'s slot
+    /// in the parent is vacated the way a departed body's is, and `b` is freed.
+    /// `a` is then re-measured against what it now holds.
+    pub fn merge(&mut self, a: NodeIdx, b: NodeIdx) -> bool {
+        if !self.would_merge(a, b) {
+            return false;
+        }
+        let parent = self.nodes[a.get()].parent;
+        let shift = self.nodes[b.get()].motion.offset - self.nodes[a.get()].motion.offset;
+        let relative = crate::coords::velocity_add(
+            -self.nodes[a.get()].motion.velocity,
+            self.nodes[b.get()].motion.velocity,
+        );
+        // Promoted children first, while `b` still has the slots they sit in.
+        for c in self.nodes[b.get()].children.clone() {
+            if !c.is_none() && self.nodes[c.get()].alive {
+                self.reparent(c, a);
+            }
+        }
+        let incoming: Vec<Body> = self.nodes[b.get()]
+            .bodies
+            .iter()
+            .filter(|x| x.mass > 0.0)
+            .map(|x| {
+                let mut x = *x;
+                x.pos += shift;
+                x.vel = crate::coords::velocity_add(relative, x.vel);
+                x
+            })
+            .collect();
+        {
+            let n = &mut self.nodes[a.get()];
+            n.bodies.extend(incoming);
+            n.children.resize(n.bodies.len(), NodeIdx::NONE);
+        }
+        // Vacate `b`'s slot, then free it. `release_subtree` would take its
+        // children with it, which is why they moved first.
+        let slot = self.nodes[b.get()].slot as usize;
+        {
+            let p = &mut self.nodes[parent.get()];
+            if slot < p.bodies.len() {
+                p.bodies[slot] = Body::default();
+            }
+            if slot < p.children.len() {
+                p.children[slot] = NodeIdx::NONE;
+            }
+        }
+        self.nodes[b.get()].bodies.clear();
+        self.release_subtree(b);
+        self.pin(a);
+        self.pin(parent);
+        self.settle(a);
+        self.retier(a);
+        self.stats.merges += 1;
+        true
     }
 
     /// Move a node under a different parent, re-expressing it in the new frame.

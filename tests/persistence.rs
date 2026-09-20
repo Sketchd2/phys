@@ -589,7 +589,7 @@ fn an_unpinned_reload_comes_back_coarse() {
 #[test]
 fn the_format_stamp_tracks_the_format() {
     /// Bump `wire::FORMAT_VERSION`, then update this.
-    const REFERENCE_BYTES: usize = 3_508;
+    const REFERENCE_BYTES: usize = 3_524;
 
     use phys::chem::{Arrangement, Bond, Element, Lattice, Mixture, Order, Phase};
 

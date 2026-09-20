@@ -57,7 +57,14 @@ fn a_system(climb: f64) -> (World, NodeIdx, NodeIdx, NodeIdx, NodeIdx) {
     let forest = w.tree.promote(planet, 0, default_spec(Tier::Continuum));
     {
         let n = &mut w.tree.nodes[forest.get()];
-        n.matter = Matter::neutral(1.0e9, 1000.0, 291.0, Composition::primordial());
+        // **Cold, and that is not a workaround.** A 291 K parcel of primordial
+        // gas is a puff of hydrogen: it disperses at its own sound speed, about
+        // 1.2 km/s, so within a couple of hundred frames it is twelve
+        // kilometres across, no longer one neighbourhood, and `resolve_extent`
+        // splits it — correctly. A patch of ground is not that, and a test
+        // about boundaries should not be a test about a gas cloud coming apart.
+        n.matter = Matter::neutral(1.0e9, 1000.0, 3.0, Composition::primordial());
+        n.matter.internal_energy = n.matter.thermal_energy();
         n.spec.count = 16;
         n.motion.offset = v3(0.0, 0.0, EARTH_RADIUS);
         // At rest on the surface. `promote` hands a child the velocity of the
@@ -238,8 +245,12 @@ fn standing_on_the_ground_is_not_leaving_it() {
         w.step_frame(2000.0);
     }
     println!(
-        "  200 frames sitting on the boundary: {} crossings, still a child of the forest: {}",
+        "  200 frames sitting on the boundary: {} crossings, {} splits, {} merges, forest radius {:.1}, reach {:.1}; still a child of the forest: {}",
         w.stats.crossings,
+        w.stats.splits,
+        w.stats.merges,
+        w.tree.nodes[forest.get()].matter.radius,
+        w.tree.contents_reach(forest, NodeIdx::NONE),
         w.tree.nodes[rocket.get()].parent == forest
     );
     assert_eq!(
@@ -312,7 +323,7 @@ fn a_node_in_the_tail_of_its_parents_draw_has_not_left() {
 /// its feet.
 #[test]
 fn a_crossing_generates_the_place_it_arrives_at() {
-    let (mut w, _, planet, forest, _) = a_system(0.0);
+    let (mut w, _, planet, forest, rocket) = a_system(0.0);
 
     // A second patch of ground beside the forest, still only one of the
     // planet's bodies. Stated by hand because a sampled planet has no tiling
@@ -339,26 +350,8 @@ fn a_crossing_generates_the_place_it_arrives_at() {
 
     // Walk out of the forest towards it, slowly enough that the only thing
     // that happens is the crossing.
-    // Cold, so the patch it is leaving is not expanding faster than it walks:
-    // a 291 K parcel of primordial gas disperses at its own sound speed, about
-    // 1.2 km/s, and a node whose contents are flying apart is a node nothing
-    // has left. (That is honest rather than a workaround — it is what the
-    // split in `tests/split.rs` is for.)
-    {
-        let n = &mut w.tree.nodes[forest.get()];
-        n.matter.temperature = 3.0;
-        n.matter.internal_energy = n.matter.thermal_energy();
-        n.bodies.clear();
-        n.children.clear();
-    }
-    w.tree.refine(forest);
-    let rocket = w.tree.promote(forest, 0, default_spec(Tier::Continuum));
-    {
-        let n = &mut w.tree.nodes[rocket.get()];
-        n.matter = Matter::neutral(5.0e5, 10.0, 300.0, Composition::primordial());
-        n.motion.offset = Vec3::ZERO;
-        n.motion.velocity = v3(0.0, 900.0, 0.0);
-    }
+    // Walk out of the forest towards it.
+    w.tree.nodes[rocket.get()].motion.velocity = v3(0.0, 900.0, 0.0);
     let before = w.tree.live_count();
     let mut crossed_at = None;
     for f in 0..200 {

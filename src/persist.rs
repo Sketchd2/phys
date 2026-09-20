@@ -991,6 +991,8 @@ pub(crate) fn put_tree_stats(w: &mut Writer, s: &TreeStats) {
     w.u64(s.joins);
     w.u64(s.detachments);
     w.u64(s.shed);
+    w.u64(s.splits);
+    w.u64(s.merges);
     // `settled` and `settled_idempotent` are deliberately **not** written. They
     // are the only counters a *save* moves — `World::view` settles the world on
     // its way past — so writing them would make a file depend on how many times
@@ -1018,6 +1020,8 @@ pub(crate) fn get_tree_stats(r: &mut Reader) -> Result<TreeStats> {
         joins: r.u64()?,
         detachments: r.u64()?,
         shed: r.u64()?,
+        splits: r.u64()?,
+        merges: r.u64()?,
         settled: 0,
         settled_idempotent: 0,
     })
