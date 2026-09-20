@@ -295,6 +295,42 @@ pub struct EngineStats {
     /// `None` until a frame has advanced something, which is not the same as
     /// zero and should not be spelled like it.
     pub worst_occupancy_at: Option<PathKey>,
+    /// Boundary crossings, summed over frames — `docs/PLAY.md` D16. A node
+    /// that left the region its parent owns and was re-homed to whatever owns
+    /// it now.
+    pub crossings: u64,
+    /// Of those, the ones that landed *sideways*, in something the arbiter
+    /// already held, rather than outward into the arbiter itself. The creature
+    /// walking from the forest into the desert, which D16 says must never
+    /// become a direct child of the planet on its way.
+    pub crossings_sideways: u64,
+    /// Of those, the ones whose destination had to be **generated** to be
+    /// arrived at: the inward row of D16's table, where the place a thing
+    /// crossed into was still only one of its parent's bodies and is promoted
+    /// to meet it.
+    pub crossings_generated: u64,
+    /// How far outside its parent's contents the worst crosser was, as a
+    /// multiple of what those contents reach.
+    ///
+    /// **The crossing pass is the detector now.** A node that steps over a
+    /// boundary crosses at a ratio a hair above one; a node *flung* over it
+    /// arrives with a number that says so. `worst_occupancy` used to report
+    /// this class of fault — `docs/BACKLOG.md` measures the ladder at 10^6 and
+    /// a nucleus at 10^22 — and it did so only because nothing re-homed the
+    /// victim, so it sat inside a node claiming a metre and the ratio kept
+    /// climbing. Re-homing it fixes the tree and would have made the fault
+    /// invisible, which is why the measurement moved here rather than going
+    /// away.
+    pub worst_crossing: f64,
+    /// The node it was measured on. `PathKey` and not `EntityId`: a
+    /// measurement of a place, and the place it names is the one that flung it.
+    pub worst_crossing_at: Option<PathKey>,
+    /// Nodes measured as having left the region their parent owns, with nowhere
+    /// to go: a child of the root, which has no outside. Not an error and not
+    /// silent — it is how the sampler faults `docs/BACKLOG.md` records at
+    /// 10^5 and 10^11 radii announce themselves once the measurement runs every
+    /// frame.
+    pub crossings_refused: u64,
     /// Nodes crossed by their **ensemble** rather than followed, summed over
     /// frames. `docs/PLAY.md` §3.7: the resolution floor is real and derivable,
     /// and the engine should *report* reaching it rather than silently dropping
@@ -1000,6 +1036,10 @@ impl World {
         let plan = self.budget.plan(tasks, bytes);
         let achieved = self.execute(&plan, horizon);
         let coasted = self.coast_to(horizon);
+        // Everything has moved by now — solved nodes in `execute`, everything
+        // else in `coast_to` — so this is the first moment at which "where is
+        // it" has one answer for the whole world. `docs/PLAY.md` D16.
+        self.cross_boundaries();
 
         self.deliver_influences(horizon);
         // Chemistry runs on the span the frame actually covered, after the
@@ -4084,6 +4124,172 @@ impl World {
         self.disturb(moved.to);
         self.disturb(moved.moved);
         true
+    }
+
+    /// Re-home everything that has left the region its parent owns.
+    ///
+    /// `docs/PLAY.md` D16's trigger, and the thing that was missing: `reparent`
+    /// did the work correctly from the day it was written and was only ever
+    /// called by hand, through `Interaction::Rehome`. Measured before this
+    /// existed, a rocket at escape velocity left a 1 km forest node in 0.100 s
+    /// and was still its child a hundred seconds and 1.12x10^6 m later.
+    ///
+    /// One pass, once a frame, after everything has moved. A node crosses at
+    /// most one boundary per frame — the rocket reaches the planet on one frame
+    /// and the star on a later one — which is both cheaper and more honest than
+    /// iterating to a fixed point: a crossing is an event, and two of them are
+    /// two events.
+    ///
+    /// The cost is a subtraction and a cube root per live node per frame, on a
+    /// list `coast_to` has just walked anyway. Nodes appended during the pass —
+    /// a body promoted to be arrived at — are deliberately not examined until
+    /// the next frame; they have not moved yet.
+    pub fn cross_boundaries(&mut self) -> usize {
+        let mut crossed = 0;
+        for i in 0..self.tree.nodes.len() {
+            if self.cross(NodeIdx(i as u32)).is_some() {
+                crossed += 1;
+            }
+        }
+        crossed
+    }
+
+    /// Re-home one node, if it has left.
+    ///
+    /// **The parent arbitrates but is not necessarily the destination**, and
+    /// that distinction is what keeps this one mechanism rather than two. A
+    /// creature walking from forest to desert lands inside a sibling and should
+    /// never become a direct child of the planet — it would be rekeyed twice,
+    /// and for one frame its neighbours would be *other regions* rather than
+    /// the ground under its feet. A rocket climbing out of the forest lands
+    /// inside no sibling and genuinely belongs to the planet.
+    ///
+    /// So the question the arbiter answers is "which of the things I hold
+    /// contains this now", over its bodies and its promoted children together —
+    /// and where the answer is a body, that body is **promoted to meet it**,
+    /// which is the inward row of D16's table. The detail about to be
+    /// interacted with is generated by the crossing rather than by somebody
+    /// having visited the place first.
+    ///
+    /// Where several occupants contain it, the *smallest* wins: "whatever now
+    /// contains you" means the finest thing that does, or a creature would land
+    /// in a continent when it is standing in a field.
+    pub fn cross(&mut self, node: NodeIdx) -> Option<crate::crossing::Crossed> {
+        use crate::crossing::{standing, Direction, Standing};
+        if node.is_none() || !self.tree.nodes[node.get()].alive {
+            return None;
+        }
+        let (parent, offset, radius) = {
+            let n = &self.tree.nodes[node.get()];
+            (n.parent, n.motion.offset, n.matter.radius)
+        };
+        if parent.is_none() {
+            return None;
+        }
+        // Two bounds, cheap one first. `Tree::domain` is a subtraction and a
+        // cube root; `Tree::contents_reach` is a pass over everything the
+        // parent holds, and in a healthy world it is paid for a handful of
+        // nodes rather than for all of them.
+        if standing(offset, radius, self.tree.domain(parent)) != Standing::Outside {
+            return None;
+        }
+        // Beyond the sphere the parent claims is not the same as beyond what
+        // the parent holds. See `Tree::contents_reach` for the ladder this was
+        // measured on, where seven parcels in the tail of their parent's own
+        // draw were re-homed and the ladder came apart.
+        let reach = self.tree.contents_reach(parent, node);
+        if standing(offset, radius, reach) != Standing::Outside {
+            return None;
+        }
+        // How far over it went, recorded before anything is moved. See
+        // `EngineStats::worst_crossing`.
+        let over = (offset.norm() - radius) / reach.max(1e-300);
+        if over > self.stats.worst_crossing {
+            self.stats.worst_crossing = over;
+            self.stats.worst_crossing_at = Some(self.tree.nodes[node.get()].key);
+        }
+        let arbiter = self.tree.nodes[parent.get()].parent;
+        if arbiter.is_none() {
+            // The universe has no outside. Counted rather than ignored: a
+            // child of the root measuring as escaped every frame is a real
+            // signal, and it is the one `docs/BACKLOG.md`'s sampler faults
+            // produce — a granite block's promoted contents sit 2.7x10^3 of
+            // their parent's radius out, a nucleus's 8x10^22.
+            self.stats.crossings_refused += 1;
+            return None;
+        }
+
+        // Where it is, in the frame of the node that is about to decide.
+        let here = self.tree.offset_from(arbiter, node, Vec3::ZERO).value;
+        let slots = self.tree.nodes[arbiter.get()].bodies.len();
+        let mut best: Option<(usize, f64)> = None;
+        for slot in 0..slots {
+            let Some((pos, claim)) = self.tree.occupant_claim(arbiter, slot) else {
+                continue;
+            };
+            // The place it has just left cannot be the place it arrives at, and
+            // it does not need excluding by name: it was measured as wholly
+            // outside that volume a few lines ago, so it fails this test too.
+            if standing(here - pos, radius, claim) != Standing::Inside {
+                continue;
+            }
+            if best.is_none_or(|(_, c)| claim < c) {
+                best = Some((slot, claim));
+            }
+        }
+
+        let (destination, direction, generated) = match best {
+            Some((slot, _)) => {
+                let existing = self.tree.nodes[arbiter.get()].child_of(slot);
+                if existing.is_none() {
+                    let spec = self.tree.nodes[arbiter.get()].spec;
+                    let made = self.tree.promote(arbiter, slot, spec);
+                    if made.is_none() {
+                        (arbiter, Direction::Outward, false)
+                    } else {
+                        // Deliberately **not** named. Only an event may name a
+                        // node, and a crossing is not one however much it looks
+                        // like one: which nodes a frame advances depends on a
+                        // wall-clock allowance, so where everything is when the
+                        // pass runs depends on how fast the machine is. Issuing
+                        // an `EntityId` here made `next_entity` — which is
+                        // persisted — a function of the budget, and
+                        // `identity_does_not_depend_on_how_fast_the_machine_is`
+                        // caught it within a frame of the pass existing. The
+                        // place gets a name when something names it.
+                        (made, Direction::Sideways, true)
+                    }
+                } else {
+                    (existing, Direction::Sideways, false)
+                }
+            }
+            None => (arbiter, Direction::Outward, false),
+        };
+        if destination == node || self.tree.is_ancestor(node, destination) {
+            return None;
+        }
+        // The detail about to be met, generated before the arrival rather than
+        // after it. `reparent` needs the destination materialised anyway — it
+        // has to take a slot in a body list — so this is where the inward case
+        // is paid for rather than an extra pass.
+        self.tree.refine(destination);
+        if !self.reparent(node, destination) {
+            return None;
+        }
+        self.stats.crossings += 1;
+        if direction == Direction::Sideways {
+            self.stats.crossings_sideways += 1;
+        }
+        if generated {
+            self.stats.crossings_generated += 1;
+        }
+        Some(crate::crossing::Crossed {
+            node,
+            from: parent,
+            to: destination,
+            direction,
+            generated,
+        })
     }
 
     /// Direct authoring. The one path that can violate conservation — so it

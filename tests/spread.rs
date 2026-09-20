@@ -198,9 +198,21 @@ fn it_finds_the_two_defects_already_on_the_list() {
         "a solid's contents sit inside it: {occupancies:?}"
     );
 
-    // 2. A node whose bodies are flung out of it by an unstable solver. The
-    //    point of the detector is *where* it fires: in the node that caused it,
-    //    on the frame it happened, rather than twenty tiers away inside a hash.
+    // 2. A node flung out of its parent by an unstable solver. The point of
+    //    the detector is *where* it fires: in the node that caused it, on the
+    //    frame it happened, rather than twenty tiers away inside a hash.
+    //
+    //    **Which detector reports it moved in Phase 3, and the reason is worth
+    //    keeping.** `worst_occupancy` saw this fault only because nothing
+    //    re-homed the victim: a promoted child drifted out of a node claiming a
+    //    metre, stayed its child, and the ratio climbed without limit — 10^6
+    //    here and 10^22 for a nucleus. `docs/PLAY.md` D16's crossing pass
+    //    re-homes it on the frame it leaves, which fixes the tree and would
+    //    have made the fault invisible. So the measurement moved to the
+    //    crossing itself: a node that *steps* over a boundary crosses at a
+    //    ratio a hair above one, and a node that is *flung* over it arrives
+    //    with a number that says so. Measured here: 3.2x10^13 times what the
+    //    parent's contents reach, on the first frame.
     let mut w = World::new(galaxy(0xABCD, 1e9), 20.0);
     let root = w.tree.root;
     // Paced to its subject. A world runs at one second per second (`PLAY.md`
@@ -212,14 +224,22 @@ fn it_finds_the_two_defects_already_on_the_list() {
     for _ in 0..20 {
         w.step_frame(50_000.0);
     }
-    assert!(
-        w.stats.worst_occupancy > 1.0e6,
-        "the ladder flings a node's bodies far outside it and the detector \
-         reported only {:e}",
-        w.stats.worst_occupancy
+    println!(
+        "  the ladder: {} crossings, worst at {:.3e} times what the parent holds",
+        w.stats.crossings, w.stats.worst_crossing
     );
     assert!(
-        w.stats.worst_occupancy_at.is_some(),
+        w.stats.crossings > 0,
+        "the ladder flings nodes clean out of their parents and nothing crossed"
+    );
+    assert!(
+        w.stats.worst_crossing > 1.0e6,
+        "the ladder flings a node far outside its parent and the detector \
+         reported only {:e}",
+        w.stats.worst_crossing
+    );
+    assert!(
+        w.stats.worst_crossing_at.is_some(),
         "a number worth chasing has to say where to look"
     );
 }

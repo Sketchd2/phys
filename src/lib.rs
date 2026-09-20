@@ -48,6 +48,7 @@ pub mod causal;
 pub mod chem;
 pub mod control;
 pub mod coords;
+pub mod crossing;
 pub mod dilation;
 pub mod engine;
 pub mod ids;

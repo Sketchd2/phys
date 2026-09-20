@@ -1226,6 +1226,112 @@ impl Tree {
         g
     }
 
+    /// The region this node owns — `docs/PLAY.md` D16, and the length every
+    /// boundary crossing is measured against.
+    ///
+    /// The larger of the volume its matter occupies and the distance at which
+    /// its parent's gravity takes over. See `crossing`'s module documentation
+    /// for why it is not simply the radius, and for the measurements that
+    /// settled it; the short version is that a surface is exactly where a
+    /// sphere's boundary is, so a geometric rule alone ejects anything standing
+    /// on a planet into interplanetary space.
+    ///
+    /// The root owns its own radius and nothing more, which costs nothing: the
+    /// universe has no outside to be re-homed into, so no crossing is ever
+    /// measured against it.
+    pub fn domain(&self, i: NodeIdx) -> f64 {
+        if i.is_none() || !self.nodes[i.get()].alive {
+            return 0.0;
+        }
+        let n = &self.nodes[i.get()];
+        let own = n.matter.radius.max(0.0);
+        if n.parent.is_none() {
+            return own;
+        }
+        let parent_mass = self.nodes[n.parent.get()].matter.mass;
+        own.max(crate::crossing::hill_radius(
+            n.matter.mass,
+            parent_mass,
+            n.motion.offset.norm(),
+        ))
+    }
+
+    /// How far this node's contents reach from its centre, ignoring one of
+    /// them.
+    ///
+    /// The third term of what a node owns, and the one that stops a crossing
+    /// firing on a distribution's own tail. `matter.radius` is the *equivalent
+    /// uniform sphere*, so a centrally-concentrated draw legitimately puts
+    /// bodies well outside it — `docs/BACKLOG.md` measures a Plummer sphere's
+    /// tail at three to four radii and the scenario shelf at 1.5 to 4.0.
+    /// Measured on the ladder `drill_to` builds: seven promoted parcels sat at
+    /// 1.0 to 3.6 of their parent's radius and at **0.28 to 0.93 of what the
+    /// parent's other contents reach**. They had not left anything. A rule that
+    /// re-homed them would flatten every ladder in the engine, and did.
+    ///
+    /// So the question is not "is it outside the sphere the node claims" but
+    /// "is it beyond everything else the node holds", which is a measurement
+    /// rather than a radius. `ignoring` is what keeps it from being circular:
+    /// the escapee is usually the furthest thing there is, and a boundary that
+    /// chases it can never be crossed.
+    ///
+    /// Distance from the node's *origin* rather than from its contents' centre
+    /// of mass, because that is the frame a child's offset is expressed in.
+    /// O(n) in the node's contents, and [`crate::engine::World::cross`] pays it
+    /// only for a node the cheap bound has already called escaped.
+    pub fn contents_reach(&self, i: NodeIdx, ignoring: NodeIdx) -> f64 {
+        if i.is_none() || !self.nodes[i.get()].alive {
+            return 0.0;
+        }
+        let n = &self.nodes[i.get()];
+        let slots = n.bodies.len().max(n.children.len());
+        let mut reach = 0.0f64;
+        for slot in 0..slots {
+            let child = n.child_of(slot);
+            if !child.is_none() && child == ignoring {
+                continue;
+            }
+            if !child.is_none() {
+                if let Some(c) = self.nodes.get(child.get()) {
+                    if c.alive {
+                        reach = reach.max(c.motion.offset.norm() + c.matter.radius.max(0.0));
+                        continue;
+                    }
+                }
+            }
+            if let Some(b) = n.bodies.get(slot) {
+                reach = reach.max(b.pos.norm() + b.radius.max(0.0));
+            }
+        }
+        reach
+    }
+
+    /// The same question asked of one of a node's *occupants*, which may be a
+    /// promoted child or may still be a body.
+    ///
+    /// One rule for both, because `Neighbourhood` already treats them as one
+    /// index: a promoted child *is* one of its parent's bodies seen one level
+    /// down, and a crossing that could only land in an already-promoted sibling
+    /// would be waiting for somebody else to have visited the place first.
+    /// Returns where the occupant is and how far its claim reaches.
+    pub fn occupant_claim(&self, parent: NodeIdx, slot: usize) -> Option<(Vec3, f64)> {
+        let n = self.nodes.get(parent.get())?;
+        let child = n.child_of(slot);
+        if !child.is_none() {
+            let c = self.nodes.get(child.get())?;
+            if c.alive {
+                return Some((c.motion.offset, self.domain(child)));
+            }
+        }
+        let b = n.bodies.get(slot)?;
+        let claim = b.radius.max(0.0).max(crate::crossing::hill_radius(
+            b.mass,
+            n.matter.mass,
+            b.pos.norm(),
+        ));
+        Some((b.pos, claim))
+    }
+
     /// How far this node's contents actually extend from their own centre.
     ///
     /// Bodies **and** promoted children, the same union
