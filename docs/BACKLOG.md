@@ -175,6 +175,18 @@ positions), not just a mass check.
 
 ## A node whose bodies are 10^20 radii outside it — cause found, partly fixed
 
+**Phase 3 moved the detector and sharpened it.** `worst_occupancy` saw this
+class of fault only because nothing re-homed the victim: a promoted child
+drifted out of a node claiming a metre, stayed its child, and the ratio climbed
+without limit. D16's crossing pass re-homes it on the frame it leaves, which
+fixes the tree and would have made the fault invisible — so the measurement
+moved to the crossing itself. `Stats::worst_crossing` records how far over the
+boundary a crosser was, and a node that *steps* over one arrives at a ratio a
+hair above one where a node that is *flung* over it does not: measured on the
+ladder `drill_to` builds, **3.2x10^13** times what the parent's contents reach,
+on the first frame, in the node that caused it. `tests/spread.rs` asserts on
+that number now; the underlying fault below is unchanged.
+
 **Noticed:** the first complete debug run of the suite (the naming pass).
 **Where:** surfaces at `solvers/hydro.rs::key_of`; the cause is upstream.
 
@@ -1621,56 +1633,44 @@ overhead per drilled node to matter. Sooner if D15's cost case is to be trusted.
 
 ---
 
-## A save drops a solved node's detail without summarising it first
+## ~~A save drops a solved node's detail without summarising it first~~ — done, and the number was somebody else's
 
 **Noticed:** `docs/PLAY.md` D19, wiring `tests/persistence.rs` back up after
 the ancestry pin was retired.
-**Where:** `engine.rs` — `World::view`, and `tree.rs` — `Tree::coarsen`, which
-is the only thing that currently writes a node's bodies back to its matter.
+**Where it was:** `engine.rs` — `World::view`, and `tree.rs` — `Tree::coarsen`.
 
-While a node is materialised, **its bodies are the authority and its matter is
-a stale summary of them**. That is the design: `coarsen` re-runs `summarise` on
-the way out, and until then nothing keeps the two in step. A save writes the
-matter and throws away the bodies of any unpinned node, so a node that has been
-*solved* since it was materialised loses whatever its solver did to it.
+Fixed in Phase 3. `Tree::settle` is `coarsen` without the destruction, and
+`World::view` takes `&mut self` so that there is no way to obtain a `WorldView`
+of a world whose matter is out of step with its own detail. It carries
+`coarsen`'s idempotence rule intact, so a world nobody has disturbed still saves
+bit-for-bit as the world it was, and it costs one `summarise` per materialised
+node per *save* rather than per frame.
 
-Measured on the `every_field_round_trips` world — a galaxy drilled eight deep
-with a tree planted at the bottom, six frames stepped:
+**The 2.35x10^-8 recorded here was not this defect.** Chasing it found two
+others, and this entry's own table is the evidence: every node in it is exact to
+round-off except node 0, and node 0 is the only node with a dark halo as well as
+the only node solved every frame. The correlation was read as the cause.
 
 ```text
-node 0 (root, solved every frame)   bodies+potential vs matter   2.35e-8
-node 1                                                           2.12e-15
-node 2                                                           4.24e-16
-node 3                                                           4.16e-15
-node 4                                                           1.35e-15
-node 5                                                           2.94e-16
-node 6                                                           0
-node 7                                                           2.66e-15
+the root's external_potential      -3.861e48 J   2.35e-8 of the world
+what settling the root moves        1.7e45 J     1.0e-11   <- this entry
+a promoted child's binding          1.27e48 J    7.7e-9
+floating point, once both are out   7e42 J       4e-14
 ```
 
-Every node the scheduler did not reach is exact to round-off. The one node
-being solved every frame is off by 2.35x10^-8 of its own energy — 3.9x10^48 J
-out of 1.6x10^56 — and that is the energy the file loses.
+`Tree::sum_conserved` was dropping `external_potential`, `cohesive_binding` and
+`chemical_energy` for every *materialised* node — the three terms `summarise`
+says in as many words that a body list cannot carry — so a node's energy changed
+the moment it materialised, which is the one thing a scale transform may never
+do. And a stand-in `Body` could not carry what its child was holding, so a
+parent's summary read high by the child's binding and its own stand-in carried
+the inflated figure one level up. Both are fixed; `Tree::unrepresented` is the
+second.
 
-**Why it was invisible.** `Tree::pin` used to walk to the root, so any world
-where somebody had touched anything had its whole ancestry pinned, and a pinned
-node writes its bodies verbatim. The save was carrying 28,256 sampled bodies to
-avoid noticing that it could not summarise one node. D19 removed the walk and
-the gap surfaced immediately, in the one test that compares conserved tuples
-across a save.
-
-**The fix is small and is not a one-liner.** `World::view` takes `&self` and
-`encode` writes through it, so summarising before a save means either a
-`&mut self` pre-pass — `for each materialised node: matter = summarise(bodies)`,
-which is `coarsen` without the destruction — or making the solver keep the
-matter in step as it goes, which costs a `summarise` per solved node per frame
-and is what the materialised-detail design deliberately avoids.
-
-**Trigger:** before anything checkpoints a world mid-simulation and expects to
-resume it exactly — autosave, a shard handoff, a replay. Not urgent for a save
-taken at rest, where the scheduler has had a mixing time to coarsen anything it
-was solving and the gap is zero. `tests/persistence.rs` asserts the drift is
-this term and nothing else, so the bound there is what fails if it grows.
+Measured end to end on the reference world: a save taken mid-solve moved the
+world's energy by 1.52x10^-8 and moves it by **4.3x10^-12** now. What is left is
+`summarise(sample(m)) != m` in the last bits, which is the sampler's own round
+trip rather than anything the file loses.
 
 ---
 
@@ -1879,70 +1879,62 @@ carries the same measurement and the reasoning behind the fix.
 
 ---
 
-## A node cannot split when its contents spread out
+## ~~A node cannot split when its contents spread out~~ — done
 
 **Noticed:** chasing the overflow above, which is *not* an instance of it.
-**Where:** `engine.rs` — `refine`, `coarsen`, `promote` change a node's
-resolution; nothing changes a node's **extent** or its **count**.
+**Where it was:** `engine.rs` — `refine`, `coarsen`, `promote` changed a node's
+resolution; nothing changed a node's **extent** or its **count**.
 
-The tree can make a node's contents finer or coarser in place, and it can push
-a child up a tier. It cannot say "these bodies are no longer one neighbourhood"
-and hand them to two nodes. A node's radius is fixed when it is created, so
-contents that legitimately expand — a gas cloud, dispersing debris, an
-explosion, anything with a positive velocity divergence — either stay inside a
-radius that no longer describes them, or leave it and are tracked by a node
-that claims a volume they are not in.
+Built in Phase 3 (`docs/PLAY.md` §7), because D16's boundary crossing is the
+same question one level up. `Tree::components` is the measurement, `split_off`
+is the mechanism this entry called sibling-from-a-subset, `merge` is the
+inverse, and `World::resolve_extents` runs them on the cadence this entry asked
+for — over the nodes the frame advanced, since a node nobody is advancing is not
+spreading either.
 
-Every downstream consumer of node radius is then wrong by the same factor: the
-SPH smoothing length `h = radius / count^(1/3) * 1.2`, the gravity softening,
-the LOD's angular size, the volume query's node selection, and the neighbour
-grid spacing. None of them fail loudly; they all quietly describe a
-neighbourhood that has stopped existing.
+**The criterion cost four measurements to get right, and the first one was
+wrong.** Connected components at the node's own resolution is a property of the
+*sample count* rather than of the node: the linking length is the mean spacing,
+a centrally concentrated profile's outskirts are sparser than the mean, and
+isolated bodies fall out of every node in the engine.
 
-**What it needs.** A spread measurement per node — RMS distance of bodies from
-the centre of mass, or the principal axes of their second moment — evaluated on
-the same cadence as the node itself. Three outcomes: within the radius, do
-nothing; larger than the radius but still one clump, grow the radius and
-re-derive everything that depends on it; genuinely bimodal, split into two
-nodes, each with its own centre, radius and body list, and `summarise` the pair
-back to the parent so the conserved quantities still add up. The inverse merge
-belongs with it, or two clumps that fall back together stay two nodes forever.
+```text
+a rocky planet, 64 bodies      9 components, largest 86.5%
+a rocky planet, 512 bodies    84 components, largest 77.8%
+a planetary node, 4000        31 components, largest 99.05%, rest in pairs
+a cloud pulled into two       20 components, largest 48.4%, next 47.7%
+```
 
-**The measurement now exists.** `state::Spread` and `Tree::spread`, built for
-Phase 1 on its own, since three separate things want it and it is to be written
-once. Centre of mass, mass-weighted RMS, and the furthest occupant *surface*,
-over bodies and promoted children together; `Spread::occupancy` is the ratio to
-what the node claims. `World::advance_node` measures it on the node it has just
-touched — the same cadence, and a cache line that is already warm — and reports
-the worst in `Stats::worst_occupancy`, with the `PathKey` it was seen at.
+Only the last is two places, and splitting on the others gave three new nodes in
+ten frames on a planet nobody had touched. **One component holding the bulk
+means one region**, and the rest are its tail — applied twice, because no
+majority also describes a node that has come apart into *many*: measured at 4000
+components of one body each, which is dispersal and not division. So one holds
+the majority, one region; two hold it between them, two regions; neither, one
+region that has spread.
 
-The **principal axes are deliberately not built**. They are what *splitting*
-needs, to say which way to cut, and none of the three Phase 1 consumers can use
-them; a symmetric eigensolver written for a caller that does not exist is what
-this list is for avoiding. They go with the split.
+**The principal axes were never needed.** This entry predicted they were what
+splitting needs, "to say which way to cut". Components say which way to cut by
+saying which occupants go, so no eigensolver was written.
 
-**A baseline, for whoever later wants a threshold.** A healthy node does *not*
-come out at or below one. A Plummer sphere's tail legitimately reaches three to
-four radii and the scenario shelf measures 1.5 to 4.0, so "outgrew its radius"
-is not the fault signal — orders of magnitude are. The two faults already on
-this list read 4.5x10^5 (the sampler's chemical-binding inflation) and
-4.2x10^11 (the ladder flinging a node's bodies out), which is the separation to
-design against.
+**Two things the outcomes turned out to need.** The middle one — grow the radius
+— must not be `settle`, which re-summarises the whole matter and walks over a
+temperature somebody authored: measured, a 6000 K node and its 50 K neighbour
+both came back at 3911 K. And it must only fire where the *contents* are the
+authority. For a regenerable node the matter is the authority and the bodies are
+a drawing of it, so letting the radius follow them inverts that and feeds back:
+a star's parcels disperse under the hydro solver, the radius follows them from
+7x10^8 m to 2.9x10^11 in four hundred frames, the radiating area grows with it,
+the star cools from 5800 K to 719 K, and `retier` moves it out of `Stellar`.
 
-**Still to build:** the three outcomes above, and the merge.
+**Still open, and on the plan rather than here:** a 52/45 separation stays one
+node, because the majority rule's boundary sits inside the working range. See
+`PLAY.md` §7, Phase 3.
 
-**It does not fix the overflow entry above.** That was checked. The bodies there
-are flung across twenty orders of magnitude *inside one* `advance_node` call, so
-a split evaluated afterwards would faithfully split corrupt state into two nodes
-of corrupt state. The spread measurement is still worth having as the *detector*
-for that class of fault — it fires on the first frame, in the node that caused
-it, rather than in a hash function twenty tiers away.
-
-**Trigger:** the first simulation whose contents are meant to expand and are
-meant to be measured afterwards — a detonation, a vented compartment, an
-ablating surface. Nothing built so far expands; every test either holds a bound
-configuration or collapses one. This is the reason it has not bitten yet, and
-the reason it will.
+**The baseline this entry recorded still holds** and is why the occupancy ratio
+was not used as the signal: a healthy node does not come out at or below one,
+a Plummer sphere's tail legitimately reaches three to four radii, and the
+scenario shelf measures 1.5 to 4.0.
 
 ---
 
@@ -2318,6 +2310,13 @@ And `promote(node, slot, spec)` takes a single slot, while a fragment is a *set*
 of members — expressing it needs the sibling-from-a-subset operation that node
 splitting is about. Fix those two and this stops being an architectural question
 and becomes one line of policy in the spread check.
+
+**Both blockers are now gone.** D4 gave a promoted child forces in Phase 1, and
+Phase 3 built sibling-from-a-subset as `Tree::split_off`. What is left is the
+one line of policy this entry describes — promote a fragment when it leaves the
+volume, not when it detaches — plus the five things it lists as wrong
+regardless. The trigger below is unchanged: nothing yet needs debris that
+outlives twelve seconds.
 
 **Trigger:** the first debris that has to outlive twelve seconds, land on
 something other than its own parent, or survive a save.

@@ -1415,30 +1415,55 @@ impl Tree {
     /// O(n) in the node's contents, and [`crate::engine::World::cross`] pays it
     /// only for a node the cheap bound has already called escaped.
     pub fn contents_reach(&self, i: NodeIdx, ignoring: NodeIdx) -> f64 {
+        let (furthest, whose, second) = self.reach_pair(i);
+        if !ignoring.is_none() && ignoring == whose {
+            second
+        } else {
+            furthest
+        }
+    }
+
+    /// How far the two furthest of a node's contents reach, and which occupant
+    /// the furthest is.
+    ///
+    /// The form [`Self::contents_reach`] is really asking for, and the reason
+    /// it is separate: only one occupant's exclusion can change the answer, so
+    /// a caller testing every child of one parent can measure the parent *once*
+    /// instead of once per child. Measured before it did: the crossing pass
+    /// cost 144 ms on a world of 8193 nodes, because every child of a galaxy
+    /// sitting in its tail paid a full sweep of the galaxy's contents. It is
+    /// linear again with this.
+    ///
+    /// The second value is the furthest reach *excluding* the furthest
+    /// occupant, which is all an exclusion can ever need.
+    pub fn reach_pair(&self, i: NodeIdx) -> (f64, NodeIdx, f64) {
         if i.is_none() || !self.nodes[i.get()].alive {
-            return 0.0;
+            return (0.0, NodeIdx::NONE, 0.0);
         }
         let n = &self.nodes[i.get()];
         let slots = n.bodies.len().max(n.children.len());
-        let mut reach = 0.0f64;
+        let (mut furthest, mut whose, mut second) = (0.0f64, NodeIdx::NONE, 0.0f64);
         for slot in 0..slots {
             let child = n.child_of(slot);
-            if !child.is_none() && child == ignoring {
+            let reach = if !child.is_none()
+                && self.nodes.get(child.get()).is_some_and(|c| c.alive)
+            {
+                let c = &self.nodes[child.get()];
+                c.motion.offset.norm() + c.matter.radius.max(0.0)
+            } else if let Some(b) = n.bodies.get(slot) {
+                b.pos.norm() + b.radius.max(0.0)
+            } else {
                 continue;
-            }
-            if !child.is_none() {
-                if let Some(c) = self.nodes.get(child.get()) {
-                    if c.alive {
-                        reach = reach.max(c.motion.offset.norm() + c.matter.radius.max(0.0));
-                        continue;
-                    }
-                }
-            }
-            if let Some(b) = n.bodies.get(slot) {
-                reach = reach.max(b.pos.norm() + b.radius.max(0.0));
+            };
+            if reach > furthest {
+                second = furthest;
+                furthest = reach;
+                whose = child;
+            } else if reach > second {
+                second = reach;
             }
         }
-        reach
+        (furthest, whose, second)
     }
 
     /// The same question asked of one of a node's *occupants*, which may be a

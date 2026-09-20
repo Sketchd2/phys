@@ -358,6 +358,48 @@ so storage is O(events); replay is O(events) per *materialised* individual:
 Paid once when an individual is materialised, not per frame. The 10⁶ column is
 never paid, because a million trees are never materialised at once.
 
+### What a crossing costs, at the end of Phase 3
+
+`docs/PLAY.md` D16 adds two passes to every frame, and the argument for both is
+that they ride on work the frame was doing anyway. Measured with
+`cargo run --release --example phase3`.
+
+**The crossing pass**, over a world where nothing is leaving — the case that
+has to be free, because it is every frame of every world:
+
+| live nodes | per pass | per node |
+|---:|---:|---:|
+| 17 | 0.15 µs | 8.8 ns |
+| 129 | 1.41 µs | 10.9 ns |
+| 1,025 | 13.5 µs | 13.2 ns |
+| 8,193 | 268 µs | 32.7 ns |
+
+Linear, and 268 µs against a 50 ms frame at eight thousand nodes is half a per
+cent. **It was 144 ms before the measurement was folded**, which is the whole
+frame and then some: the escape test needs how far the parent's *other*
+contents reach, and computing that per child made the pass quadratic in a
+world where one node holds thousands. `Tree::reach_pair` measures the parent
+once — only the furthest occupant's exclusion can change the answer — and the
+arbiter is checked before the reach, because a child of the root has nowhere to
+go whatever the measurement says and every scenario on the shelf has some.
+
+**The extent pass** — connected components of a node's contents, which decides
+whether it has stopped being one region. It runs only for a node the frame
+*advanced*, which is `docs/BACKLOG.md`'s own answer to when: a node nobody is
+advancing is not spreading either.
+
+| bodies | components pass | the solve it rides on | share |
+|---:|---:|---:|---:|
+| 256 | 245 µs | 2.4 ms | 10.1% |
+| 1,024 | 1.08 ms | 22.6 ms | 4.8% |
+| 4,096 | 4.91 ms | 172 ms | 2.9% |
+| 16,384 | 21.4 ms | 1.06 s | 2.0% |
+
+Both are O(n) in the node's contents, and the grid build is the cheaper of the
+two by the margin above — the share falls as the node grows because the solver
+is superlinear and this is not. Ten per cent at the small end is the number to
+watch if the pass ever stops being gated on having been advanced.
+
 ## 2. What the optimisation history cost and bought
 
 These were found by benchmarking, not by inspection, and each was a real bug in

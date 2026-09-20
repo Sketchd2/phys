@@ -4276,6 +4276,19 @@ impl World {
         if standing(offset, radius, self.tree.domain(parent)) != Standing::Outside {
             return None;
         }
+        let arbiter = self.tree.nodes[parent.get()].parent;
+        if arbiter.is_none() {
+            // Checked *before* the reach, which costs a sweep of the parent's
+            // contents: a child of the root has nowhere to go whatever the
+            // measurement says, and every scenario on the shelf has some.
+            // The universe has no outside. Counted rather than ignored: a
+            // child of the root measuring as escaped every frame is a real
+            // signal, and it is the one `docs/BACKLOG.md`'s sampler faults
+            // produce — a granite block's promoted contents sit 2.7x10^3 of
+            // their parent's radius out, a nucleus's 8x10^22.
+            self.stats.crossings_refused += 1;
+            return None;
+        }
         // Beyond the sphere the parent claims is not the same as beyond what
         // the parent holds. See `Tree::contents_reach` for the ladder this was
         // measured on, where seven parcels in the tail of their parent's own
@@ -4290,16 +4303,6 @@ impl World {
         if over > self.stats.worst_crossing {
             self.stats.worst_crossing = over;
             self.stats.worst_crossing_at = Some(self.tree.nodes[node.get()].key);
-        }
-        let arbiter = self.tree.nodes[parent.get()].parent;
-        if arbiter.is_none() {
-            // The universe has no outside. Counted rather than ignored: a
-            // child of the root measuring as escaped every frame is a real
-            // signal, and it is the one `docs/BACKLOG.md`'s sampler faults
-            // produce — a granite block's promoted contents sit 2.7x10^3 of
-            // their parent's radius out, a nucleus's 8x10^22.
-            self.stats.crossings_refused += 1;
-            return None;
         }
 
         // Where it is, in the frame of the node that is about to decide.

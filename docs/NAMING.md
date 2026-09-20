@@ -323,3 +323,40 @@ guess wrong, so both names are on the struct with the difference stated.
 everywhere in this engine, what `summarise` reports and what `sample` scales
 to. `bound` is the geometric bounding radius. Calling the second one `extent`
 put a box's walls 1.87x too far out; see `CLAUDE.md`'s traps.
+
+## The verbs Phase 3 added, and one it deliberately did not
+
+`docs/PLAY.md` D16 needed names for four operations, and the standard is the
+one above: a name says what the thing *is*, in words a stranger would
+recognise.
+
+| name | what it states |
+|---|---|
+| `settle` | a node's matter brought into step with its own detail, detail kept |
+| `shed_children` | promoted children folded back before their slots go stale |
+| `cross` | a node re-homed because it has left the region its parent owns |
+| `resolve_extent` | a node reconciled with what it is actually holding |
+| `split_off` | a subset of a node's contents made into a sibling |
+| `merge` | two siblings that are one neighbourhood again, made one node |
+
+**`settle` rather than `summarise`**, because `summarise` is already the
+fine-to-coarse half of the scale transform and takes a body list; `settle` is a
+thing done *to a node*, and what it settles is the disagreement between a node's
+matter and its bodies. **`shed` rather than `release`**, because
+`release_subtree` frees a node and this one does not — the child's state goes
+back into the body that stood for it first, which is the difference between
+collapsing and forgetting.
+
+**`domain` rather than `bounds` or `volume`** for the region a node owns.
+Neither of the other two is true: it is not a bounding volume (a node's contents
+routinely reach past it) and it is not the volume the matter occupies (a
+planet's domain is its Hill radius, hundreds of times its radius). What it *is*
+is the region within which this node is the thing that holds you, which is what
+"domain" says in ordinary English.
+
+**No name was added for a fragment**, and that is the deliberate one.
+`split_off` is the operation `BACKLOG.md`'s fragment entry calls
+sibling-from-a-subset, and a falling branch will use it unchanged — so the verb
+is named for what it does to the tree rather than for the one caller that will
+want it next. A `promote_fragment` would have been a second name for one
+operation.

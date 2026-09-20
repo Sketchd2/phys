@@ -337,8 +337,11 @@ node carrying `Program::Terrain`, which exists.
   fields at every other tier. That constant goes; g comes from the planet's own
   mass and radius. A backlog entry closes as a side-effect.
 - **Walking off the edge of a patch is a `reparent`**, triggered by leaving the
-  patch's volume. That trigger does not exist, and it is the same spread
-  measurement node-splitting needs — shared machinery, as `BACKLOG.md` predicted.
+  patch's volume. That trigger did not exist, and it is the same spread
+  measurement node-splitting needs — shared machinery, as `BACKLOG.md`
+  predicted. **Phase 3 built it**: `World::cross_boundaries`, measured against
+  what a node owns rather than against its radius alone. What is still Ground's
+  is the tiling that makes a patch edge a thing to walk off.
 
 ### D7 — A creature is a body plan, mechanisms, and derived shortcuts
 
@@ -1077,8 +1080,10 @@ index*, is what answers it.
 
 **Measured, on the case that shows why this is not optional.** At escape
 velocity a rocket leaves a 1 km forest node in under a tenth of a second, and
-nothing notices: `reparent` is only ever called from `Interaction::Rehome`, and
-there is no escape check anywhere in `src/`. Gravity survives — it walks the
+nothing noticed: `reparent` was only ever called from `Interaction::Rehome`,
+and there was no escape check anywhere in `src/`. (Phase 3 built one; the
+rocket is now re-homed at t = 0.150 s and reaches the star at the planet's Hill
+radius.) Gravity survives — it walks the
 whole ancestry and applies the shell theorem per step, which is a genuinely good
 piece of design — but the spatial index clamps far-away occupants into corner
 cells, so the rocket quietly stops being able to collide with or exchange heat
@@ -2588,7 +2593,9 @@ discovered:
   it, are both size changes. This must be fixed in Phase 1, not deferred.
 - **A node cannot split when its contents spread out.** The spread measurement it
   needs is the same one D6 needs for patch handoff and `BACKLOG.md`'s fragment
-  entry needs for promote-on-leaving. Build it once.
+  entry needs for promote-on-leaving. Build it once. *(Phase 1 built the
+  measurement; Phase 3 connected it — `Tree::resolve_extent`, `split_off` and
+  `merge`.)*
 - **The sampler inflates anything bound by chemistry by 4.3×10⁵.** Found while
   building D3's exchange pass, and it is a third defect in the same family:
   `sampler::sample`'s relaxation loop fixes an over-bound configuration by
@@ -2720,51 +2727,100 @@ wire format does not write.
 
 ---
 
-**Phase 3 — Crossings.** *A boundary is an event.* D16.
+**Phase 3 — Crossings.** *Done.* *A boundary is an event.* D16.
 
 Inward, a crossing generates the detail about to be met. Outward, it re-homes to
 the node above. Into a sibling, it re-homes sideways with the parent arbitrating.
 The same measurement drives **node splitting**, which Phase 1 measured and never
 connected.
 
-**Two corrections land here, and the phase cannot meet its own done-when
-without the first.** Both were found during Phase 2 and are scheduled rather
-than deferred.
+Its done-when is the rocket, and what it measured:
 
-1. **A promoted child is orphaned when its parent's structure changes.**
-   Measured: promote a limb out of a tree, damage the tree, and the limb's node
-   is still `alive` with `parent` pointing at the tree while the tree's
-   `children` array no longer holds it. Unreachable from any walk, never freed,
-   still holding an arena slot and still being scheduled. The cause is the
-   `children.clear()` that every structural-change path performs — it is how a
-   node says "my body list is stale", and it says it by throwing away the only
-   record of what was promoted out of it. This belongs in Crossings because it
-   *is* a crossing: a thing whose place has changed and which nothing re-homed.
-   D16's outward case is the mechanism it should have gone through, and node
-   splitting is the same question again — what happens to promoted children
-   when the node under them is rebuilt.
+```text
+leaves the forest      t = 0.150 s, 1.1 km up, re-homed to the planet
+gravity there          9.815337 m/s2 against a closed form of 9.815335
+reaches the star       t = 154002 s, 1.5088e9 m out — the planet's Hill radius
+gravity there          5.95e-3 m/s2, the star's field at 1 AU, 34x the planet's
+a limb shed by a tree  alive false, 3 live nodes not 4, energy moved 1e-16
+a save taken mid-solve 1.52e-8 -> 4.3e-12 of the world's energy
+a cloud in two minds   48.58 / 48.42, two nodes, energy moved 1.5e-16
+a planet, 64 bodies    9 components, largest 86.5%, stays one node
+the crossing pass      268 us for 8193 nodes, half a per cent of a frame
+```
 
-2. **A save drops a solved node's detail without summarising it first.**
-   Measured on the reference world: 2.35x10^-8 of the root's energy, against
-   1x10^-15 or better on every node the scheduler had finished with. While a
-   node is materialised its *bodies* are the authority and its matter is a
-   summary made when it last coarsened; a save writes the matter and discards
-   the bodies of any unpinned node, so whatever the solver did since is lost.
-   It is zero at rest and only bites a checkpoint taken mid-flight, which is
-   precisely what this phase makes routine — a crossing is a save point in all
-   but name, and re-homing a node mid-solve moves matter the file has not
-   caught up with. The fix is a `&mut self` pre-pass that summarises every
-   materialised node before writing, which is `coarsen` without the
-   destruction.
+**What a node owns is not simply its radius**, and that was the decision the
+plan did not answer. A geometric reading ejects anything standing on a planet:
+a surface is exactly where a sphere's boundary is, so the rocket re-homes to the
+planet at 1.1 km, is immediately outside a planet claiming 6371 km, and reaches
+the star while a kilometre above the ground — and `gravity_at` walks ancestors,
+so the planet becomes a sibling and its gravity disappears. So a node also owns
+its **Hill radius** about its parent, `d·(m/3M)^(1/3)`, derived from two masses
+and a separation with nothing supplied. The atmosphere was considered first and
+is inverted for this purpose: scale height is `kT/(μg)`, so a 500 m asteroid's
+is 430,000 of its own radii and Earth's is 0.13% of one, which hands the large
+multiple to the wrong body. The Hill radius gives 495 radii to the asteroid and
+235 to Earth, and stays out of the way where it must — 24.3 m for a 1 km forest
+patch — so D6's walk-off-a-patch is decided by geometry exactly as D6 says. An
+atmosphere needs no term of its own: an envelope a planet holds is matter in the
+node, and `matter.radius` grows with it.
 
-*Done when:* the rocket. It leaves the forest, re-homes itself to the planet and
-then to the star, and keeps correct gravity and correct neighbours throughout —
-where today it leaves a 1 km node in under a tenth of a second and nothing
-notices. **And:** a structure that sheds a promoted limb leaves no unreachable
-node behind, and a world saved mid-solve reloads with its conserved tuple
-unchanged to the bit.
+**And a third length**, because `matter.radius` is the *equivalent uniform
+sphere*: a centrally concentrated draw legitimately reaches past it. Measured on
+the ladder `drill_to` builds — seven promoted parcels at 1.0 to 3.6 of their
+parent's radius and at 0.28 to 0.93 of what the parent's other contents reach.
+The first implementation re-homed all seven and the ladder came apart in four
+frames. A node has left when it is beyond *everything else its parent holds*.
 
----
+**The split's gate was the other decision.** Connected components alone is a
+property of the sample count rather than of the node: the linking length is the
+mean spacing, a concentrated profile's outskirts are sparser than the mean, and
+isolated bodies fall out of every node in the engine — three new nodes in ten
+frames on a planet nobody had touched. The rule is that **one component holding
+the bulk means one region**, applied twice, because no majority also describes a
+node that has come apart into *many* rather than two. One holds the majority,
+one region; two hold it between them, two regions; neither, one region that has
+spread, and the radius follows it.
+
+Two corrections landed with it, and a third the phase found:
+
+1. **The orphan.** Promote a limb out of a tree, damage the tree, and the limb
+   was still `alive` with `parent` pointing at the tree while the tree's
+   `children` array was empty — unreachable, never freed, still scheduled.
+   `Tree::shed_children` folds each one back the way `coarsen` does, and every
+   path that discards a body list goes through it, `refine` included: the wire
+   format writes `children` and no bodies, so a reloaded node came back
+   unmaterialised *with* children and the next refinement wiped them.
+
+2. **A save summarises before it writes.** `Tree::settle` is `coarsen` without
+   the destruction and `World::view` takes `&mut self`, which makes it
+   impossible to obtain a `WorldView` of a world whose matter is out of step
+   with its own detail.
+
+3. **Chasing that found two older defects the 2.35x10^-8 was hiding.**
+   `Tree::sum_conserved` dropped `external_potential`, `cohesive_binding` and
+   `chemical_energy` for every *materialised* node, so a node's energy changed
+   the moment it materialised — on the reference galaxy that is the dark halo's
+   -3.861x10^48 J, which is the entire 2.35x10^-8. The real staleness is
+   10^-11. And **a stand-in `Body` cannot carry what its child is holding**: a
+   parent summarised from a body list read high by the child's binding, and its
+   own stand-in carried the inflated figure one level further up. Both fixed;
+   `Tree::unrepresented` is the second.
+
+**Scheduled out of this phase rather than left**, each with its measurement:
+
+- **A 52/45 separation stays one node.** The majority rule's boundary sits
+  inside the working range — halves of a real draw land anywhere from 50/50 to
+  70/30 — so a cloud in two clumps at 52.4/45.0 is still one region until the
+  shares cross or one clump leaves the other's volume and the crossing takes it.
+  The alternative measured cleanly (the second component is at least half the
+  first: 0.86 and 0.98 for two real bimodal clouds against 0.047 and below for
+  every fresh draw, a factor of eighteen) and was declined because it is a ratio
+  the plan does not state. Revisit when something built on the split needs the
+  uneven case.
+- **Sideways lands in Ground, as D16 says.** The mechanism is built and tested —
+  a crossing into a place that is still one of its parent's bodies promotes that
+  body to receive it — but nothing tiles a surface yet, so the case that
+  exercises it in anger is Phase 4's.
 
 **Phase 4 — Ground.** *Was Phase 2.* Cubed-sphere parameterisation, patches as
 `Program::Terrain` nodes, refinement and coarsening on approach, **sideways**

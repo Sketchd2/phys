@@ -230,6 +230,37 @@ rather than forgettable, so a test that asserts on the ensemble-crossing counter
 by building a ladder measures nothing. Give it one small node with a floor above
 its own radius instead.
 
+**A node owns more than its radius, and a crossing measures three lengths.**
+`Tree::domain` is the matter radius or the Hill radius about the parent,
+whichever reaches further — without the second, anything standing on a planet is
+ejected into interplanetary space, because a surface is exactly where a sphere's
+boundary is. `Tree::contents_reach` is the third: `matter.radius` is the
+equivalent uniform sphere, so a concentrated draw legitimately reaches past it,
+and a node has only left when it is beyond *everything else its parent holds*.
+The first implementation used the radius alone and flattened every ladder in
+the engine in four frames.
+
+**A crossing must not name a node.** Which nodes a frame advances depends on a
+wall-clock allowance, so anything a crossing issues depends on how fast the
+machine is. `World::cross` promotes a body to receive an arrival and
+deliberately does not `identify` it.
+
+**`settle` is not a general "refresh this node".** It re-summarises the whole
+matter from the bodies, which is right on the way out and wrong in the middle:
+a temperature somebody authored is replaced by whatever the sampled bodies
+happen to carry. Measured, a 6000 K node and its 50 K neighbour both came back
+at 3911 K. Where only the radius is meant, `Tree::remeasure_radius` is the one
+to call — and only for a node whose detail is the authority (`pinned` or
+`contains_edit`), because for a regenerable node the matter is the authority and
+the bodies are a drawing of it. Letting the radius follow that drawing turned a
+star into something else in four hundred frames.
+
+**Every path that discards a body list must shed its children first.**
+`Tree::shed_children`, and that includes `refine`: a reloaded node comes back
+unmaterialised *with* promoted children, because the wire format writes
+`children` and no bodies. Dropping them leaves a live node nothing can reach and
+nothing will ever free.
+
 **Wire format encodes enum *positions*.** Renaming a variant is safe; reordering
 or inserting silently reinterprets old saves. Append only. `FORMAT_VERSION` in
 `wire.rs`; `tests/persistence.rs` catches size changes but not reorderings.
@@ -391,19 +422,58 @@ What landed in Phase 2, each with its measurement in its own commit:
 
 Suite at the end of Phase 2: **400 passed, 1 ignored**
 (`no_node_flings_its_bodies_out_of_itself`), plus 6 Postgres, and five demos
-run. `FORMAT_VERSION` is 12 and `SCHEMA_VERSION` is 8.
+run, at `FORMAT_VERSION` 12.
 
-**Phase 3 is Crossings** (D16) and nothing in it has started. A boundary
-crossing is the event: inward, generate the detail about to be met; outward,
-re-home to the node above; into a sibling, re-home sideways with the parent
-arbitrating. The same measurement drives **node splitting**, which Phase 1
-measured and connected to nothing. Its done-when is the rocket — it leaves the
-forest, re-homes to the planet and then to the star, and keeps correct gravity
-and correct neighbours throughout.
+**Phase 3 is done.** A boundary crossing is the event (D16). Its done-when was
+the rocket — it leaves the forest, re-homes to the planet and then to the star,
+and keeps correct gravity and correct neighbours throughout. Measured:
+
+```text
+leaves the forest      t = 0.150 s, 1.1 km up, re-homed to the planet
+gravity there          9.815337 m/s2 against a closed form of 9.815335
+reaches the star       t = 154002 s, 1.5088e9 m out — the planet's Hill radius
+a limb shed by a tree  alive false, 3 live nodes not 4, energy moved 1e-16
+a save taken mid-solve 1.52e-8 -> 4.3e-12 of the world's energy
+a cloud in two minds   48.58 / 48.42, two nodes, energy moved 1.5e-16
+a planet, 64 bodies    9 components, largest 86.5%, stays one node
+the crossing pass      268 us for 8193 nodes, half a per cent of a frame
+```
+
+**The two decisions in it that were the owner's**, because the plan did not
+answer them, are in `PLAY.md` §7 with their measurements: **what a node owns**
+(its matter radius or its Hill radius about its parent, whichever reaches
+further — the atmosphere is inverted for this and gives the large multiple to
+the wrong body) and **the split's gate** (one component holding the bulk means
+one region, applied twice so that dispersal is told apart from division).
+
+What landed, each with its measurement in its own commit:
+
+1. **A save summarises before it writes.** `Tree::settle` is `coarsen` without
+   the destruction; `World::view` takes `&mut self` so the fix cannot be routed
+   around.
+2. **Two older defects the save's 2.35e-8 was hiding**, neither of which was
+   the save: `sum_conserved` dropped `external_potential`, `cohesive_binding`
+   and `chemical_energy` for every materialised node, and a stand-in `Body`
+   could not carry what its child was holding (`Tree::unrepresented`).
+3. **The crossing itself** — `World::cross_boundaries`, once a frame, after
+   everything has moved.
+4. **The orphan** — `Tree::shed_children`, on every path that discards a body
+   list, `refine` included.
+5. **The split and its inverse** — `Tree::components`, `resolve_extent`,
+   `split_off`, `merge`, run over the nodes the frame advanced.
+
+Suite at the end of Phase 3: **416 passed, 1 ignored**, plus 6 Postgres, and
+five demos run. `FORMAT_VERSION` is 13 and `SCHEMA_VERSION` is 8.
+
+**Phase 4 is Ground** and nothing in it has started. Sideways handoff is the
+part of D16 that waits for it: the mechanism is built and tested — a crossing
+into a place that is still one of its parent's bodies promotes that body to
+receive it — but spheres do not tile a surface, so the case that exercises it in
+anger is Ground's.
 
 What Phase 1 landed, still worth knowing because everything above stands on it:
 
-### What Phase 3 will meet first
+### What Phase 4 will meet first
 
 Left deliberately undone, each with a measurement and a trigger in
 `docs/BACKLOG.md`. Read those entries before touching any of it:
@@ -416,17 +486,19 @@ Left deliberately undone, each with a measurement and a trigger in
   and picking a thermal conductivity is a `PHYSICS.md`-weight decision.
 - **Growth accumulates internal energy nothing sheds** — 231× thermal after
   forty years, reading back as 67,000 K while `temperature` says 291.
-- **A node cannot split.** Phase 1 built the measurement it needs; the splitting
-  itself is untouched, and D16 is what needs it.
+- **A detached fragment is neither a body nor a node.** Both of its blockers are
+  gone — a promoted child feels a force (D4), and sibling-from-a-subset is
+  `Tree::split_off` — so what is left is the line of policy its entry
+  describes: promote a fragment when it leaves the volume, not when it detaches.
 
-**Five more are scheduled rather than left**, and `PLAY.md` §7 is where they
-live now — none of them is a backlog entry to be picked up on a whim:
+**Scheduled rather than left**, and `PLAY.md` §7 is where they live — none of
+them is a backlog entry to be picked up on a whim:
 
-- **Phase 3** takes the *orphaned promoted child* (damage a tree with a limb
-  promoted out of it and the limb's node stays alive, unreachable and never
-  freed) and the *save that drops a solved node's detail without summarising
-  it* (2.35e-8 of the root's energy; zero at rest). The first is a crossing by
-  any other name and the phase cannot meet its done-when with it open.
+- **A 52/45 separation stays one node.** Phase 3's split gate refuses anything
+  where one component holds the majority, and the boundary sits inside the
+  working range. The alternative measured cleanly and was declined because it is
+  a ratio the plan does not state; revisit when something built on the split
+  needs the uneven case.
 - **Phase 4** takes *all* of D11's five columns, *Griffith on the worst flaw
   rather than the grain* (bedrock 77x low), and *flatness on a generated
   surface* — the grown and coursed half, which needs `Wall`, `Tower` and

@@ -116,6 +116,46 @@ higher-order method has smaller error per step but *secular* drift, which over
 the 10⁵ steps between a user's visits shows up as a galaxy that slowly
 evaporates. Leapfrog's error oscillates instead of accumulating.
 
+### What a body owns, and where it stops
+
+A node is a region of space, and a boundary crossing (`docs/PLAY.md` D16) has
+to know where that region ends. Geometry alone cannot answer it: a node's
+`matter.radius` is the equivalent uniform sphere of its contents, and **a
+surface is exactly where a sphere's boundary is**, so anything standing on a
+planet has its bulk across the boundary of everything under it and anything a
+kilometre up is outside the planet altogether.
+
+So a node owns the larger of two lengths: the volume its matter occupies, and
+the region in which its own gravity beats its parent's — the **Hill radius**,
+
+```text
+r_H = d · (m / 3M)^(1/3)
+```
+
+with `d` the separation, `m` the node's mass and `M` its parent's *excluding*
+the node, the same subtraction the shell-theorem walk in `Tree::gravity_at`
+makes. Nothing is tabulated: both masses and the separation are already on the
+nodes. The approximation is the standard one — a circular orbit and `m << M` —
+and neither matters here, because the length is being used to decide which frame
+a thing's motion is best expressed in rather than to integrate anything.
+
+**The atmosphere was considered first and is inverted for this purpose.** The
+scale height of an isothermal envelope is `H = kT/(μg)` with `g = GM/R²`, so a
+weak-gravity body has an enormous one — precisely because it cannot hold an
+atmosphere at all. Measured: a 500 m asteroid's is 2.15 × 10⁸ m, 430,000 times
+its own radius, while Earth's is 8.5 km, 0.13% of one. It hands the large
+multiple to the wrong body. The Hill radius has the right shape on the same
+pair, 495 radii for the asteroid against 235 for Earth, and stays small where it
+must: 24.3 m for a 1 km patch of ground on Earth, 0.235 m for a 900 kg tree.
+
+Where a planet's envelope is wanted as a number in its own right — "where does
+space begin" — the derivable answer is the **exobase**, the altitude at which
+the mean free path `1/(√2 n σ)` reaches the scale height. From a node's mass,
+radius, temperature and the gas fraction of its mixture that lands at 214 km for
+Earth and at zero for an airless rock. It is not part of the domain rule,
+because an envelope a planet holds is matter in the node and `matter.radius`
+already grows with it.
+
 ### Hydrodynamics — SPH
 
 Cubic-spline kernel, Monaghan artificial viscosity, optically-thin cooling.
