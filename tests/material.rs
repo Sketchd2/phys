@@ -40,62 +40,124 @@ fn retired(name: &str) -> f64 {
     RETIRED.iter().find(|(n, _)| *n == name).map(|(_, v)| *v).expect("a named preset")
 }
 
-/// Every preset lands within an order of magnitude of the stress it replaces.
+/// A piece of a stated size, at the temperature it is used at.
+///
+/// Two things a bare `strength()` cannot express and the retired table never
+/// distinguished. A table of stresses is implicitly *for a piece*, at
+/// laboratory size and laboratory temperature, and the derivation now says
+/// which — a metre across, at 290 K, except for a material that is not a solid
+/// at 290 K, which is compared at 60% of its own melting point instead. That is
+/// a rule rather than a column: it takes the same branch for all eight, and
+/// only ice goes the other way, because only ice melts below room temperature.
+fn service(m: &Material) -> f64 {
+    290.0f64.min(0.6 * m.thermal_gone)
+}
+
+/// Every preset lands within a factor of three of the stress it replaces.
 ///
 /// The weaker half of D14's honesty test, and the one that catches a derivation
-/// that has gone somewhere silly. Bedrock is excepted **by name and with the
-/// reason measured**, which is the honest way to carry a known miss: its grain
-/// comes out at 21 cm, and a granite at 130 MPa implies a 34 µm crack, so the
-/// cracks that matter in rock are *inside* the grains rather than around them.
-/// See `Material::strength`.
+/// that has gone somewhere silly. **Bedrock is no longer excepted.** It used to
+/// be, by name and with the reason measured — its grain comes out at 21 cm and
+/// a granite at 130 MPa implies a 34 um crack — and closing that is Phase 4's
+/// first inherited measurement. See `Material::worst_flaw`.
 #[test]
 fn the_derived_strengths_are_the_right_size() {
     let mut worst = (0.0f64, String::new());
     for m in Material::presets() {
         let want = retired(m.name);
-        let ratio = m.strength() / want;
+        let t = service(m);
+        let got = m.strength_of(1.0, t);
+        let ratio = got / want;
         println!(
-            "  {:<18} a {:>9.3e} m   derived {:>9.3e} Pa   retired {:>9.3e} Pa   ratio {ratio:>6.3}",
+            "  {:<18} r* {:>9.3e}  grain {:>9.3e}  worst flaw {:>9.3e} m   \
+             derived {:>9.3e} Pa   retired {:>9.3e} Pa   ratio {ratio:>6.3}",
             m.name,
+            m.nucleus,
             m.flaw_size,
-            m.strength(),
+            m.worst_flaw_at(1.0, t).min(1.0).min(m.flaw_size),
+            got,
             want
         );
-        if m.name == "bedrock" {
-            continue;
-        }
         let off = if ratio > 1.0 { ratio } else { 1.0 / ratio };
         if off > worst.0 {
             worst = (off, m.name.to_string());
         }
     }
     assert!(
-        worst.0 < 10.0,
-        "{} is off by {:.1}x, which is more than an order of magnitude",
+        worst.0 < 3.0,
+        "{} is off by {:.1}x, and the whole table is within 2.7x",
         worst.1,
         worst.0
     );
 }
 
+/// The same rock is stronger as a pebble than as a cliff face.
+///
+/// `docs/PLAY.md` Phase 4's third done-when. Two effects that point opposite
+/// ways and are the same sentence about where the worst crack is: a small piece
+/// cannot contain a large flaw, and a large one has more chances of containing
+/// one. Weibull's size effect falls out with modulus `2b = 12`, which is what
+/// fixes the exponent — see `Material::worst_flaw`.
+#[test]
+fn a_boulder_and_a_cliff_face_of_the_same_rock_differ_by_size() {
+    let rock = Material::bedrock();
+    let mut last = f64::INFINITY;
+    let mut sizes = Vec::new();
+    for size in [0.01, 0.1, 1.0, 10.0, 100.0] {
+        let s = rock.strength_of(size, 290.0);
+        println!(
+            "  bedrock {size:>7} m across: worst flaw {:>9.3e} m, strength {s:>9.4e} Pa",
+            rock.worst_flaw(size * size * size).min(size).min(rock.flaw_size)
+        );
+        assert!(s < last, "a bigger piece of the same rock is weaker");
+        last = s;
+        sizes.push(s);
+    }
+    // Weibull with modulus 2b: a decade of size is a factor of 10^(3/2b) in
+    // strength, which for b = 6 is 1.778. Asserted as the law rather than as
+    // the five numbers, so a change to the exponent fails here and is read.
+    let decade = 10.0f64.powf(3.0 / (2.0 * Material::flaw_exponent()));
+    for pair in sizes.windows(2) {
+        assert!(
+            (pair[0] / pair[1] - decade).abs() < 1e-9 * decade,
+            "a decade of size should be {decade:.4}x of strength, and is {:.4}",
+            pair[0] / pair[1]
+        );
+    }
+    // And a boulder is not a cliff.
+    println!(
+        "  a 1 m boulder is {:.2}x the strength of a 100 m cliff face",
+        rock.strength_of(1.0, 290.0) / rock.strength_of(100.0, 290.0)
+    );
+    assert!(rock.strength_of(1.0, 290.0) / rock.strength_of(100.0, 290.0) > 3.0);
+}
+
 /// The ordering survives, and it was never shown the values it reproduces.
 ///
-/// The stronger half of D14's honesty test. Sorted by derived strength, the
-/// eight come out in the retired table's own order except for two positions,
-/// and both exceptions are recorded rather than tolerated:
+/// The stronger half of D14's honesty test. Sorted by derived strength at each
+/// material's service condition, the eight come out in the retired table's own
+/// order except for two adjacent pairs, and both are recorded rather than
+/// tolerated:
 ///
-/// - **bedrock** is last where the table put it third, for the reason above.
-/// - **ice and masonry swap**, and they are adjacent: the table separates them
-///   by 18%, which no derivation from first principles should be expected to
-///   resolve and which this one gets to within a factor of 2.3.
+/// - **steel and a reinforced frame swap.** The cause is measured and is not in
+///   this law: a metal's cohesive energy derives about 2.3x low, because iron
+///   really has eight nearest neighbours and the valence model allows three, so
+///   steel's melting point comes out 596 K against 1811 and it is *already
+///   creeping* at 290 K. `docs/BACKLOG.md` carries the root cause.
+/// - **ice and masonry swap**, as they did before, and they are adjacent: the
+///   table separates them by 18%, which no derivation from first principles
+///   should be expected to resolve.
 ///
-/// What it does reproduce is everything that matters: steel at the top,
-/// a reinforced frame second, **seasoned timber above green wood** — the same
-/// substance, told apart by nothing but a finer cell from slower growth — and
-/// masonry near the bottom.
+/// **Bedrock is third, which is where the table puts it.** It used to derive as
+/// the weakest of the eight, and the assertion below used to be written in that
+/// direction with a note saying a future fix should fail here and be read. This
+/// is that reading.
 #[test]
 fn the_ordering_survives_without_the_table() {
-    let mut derived: Vec<(&str, f64)> =
-        Material::presets().iter().map(|m| (m.name, m.strength())).collect();
+    let mut derived: Vec<(&str, f64)> = Material::presets()
+        .iter()
+        .map(|m| (m.name, m.strength_of(1.0, service(m))))
+        .collect();
     derived.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("finite strengths"));
     for (i, (name, s)) in derived.iter().enumerate() {
         println!("  {}. {name:<18} {s:.3e} Pa", i + 1);
@@ -105,11 +167,11 @@ fn the_ordering_survives_without_the_table() {
     // The pairs the derivation is held to, each one a claim about physics
     // rather than about a table.
     let rank = |name: &str| order.iter().position(|n| *n == name).expect("present");
-    assert!(rank("steel") < rank("reinforced frame"), "steel is the strongest thing here");
     assert!(
-        rank("reinforced frame") < rank("dry timber"),
-        "a reinforced frame carries more than timber"
+        rank("reinforced frame") < rank("bedrock"),
+        "a reinforced frame carries more than bedrock"
     );
+    assert!(rank("bedrock") < rank("dry timber"), "rock carries more than timber");
     assert!(
         rank("dry timber") < rank("green wood"),
         "slow-grown seasoned timber is stronger than fast-grown green wood, and \
@@ -118,15 +180,24 @@ fn the_ordering_survives_without_the_table() {
     );
     assert!(rank("green wood") < rank("aragonite"), "timber beats a coral skeleton");
     assert!(rank("aragonite") < rank("masonry"), "a coral skeleton beats masonry");
+    assert!(
+        rank("steel") < rank("dry timber"),
+        "steel carries more than timber even while it is creeping"
+    );
 
-    // And the one the table asserts that this does not reproduce, asserted in
-    // the direction it actually comes out, so that a future fix *fails* here
+    // And the two the table asserts that this does not reproduce, asserted in
+    // the direction they actually come out, so that a future fix *fails* here
     // and gets read rather than quietly changing the answer.
     assert!(
-        rank("bedrock") > rank("masonry"),
-        "bedrock derives as the weakest of the eight; if that has changed, the \
-         intragranular-crack residual in `Material::strength` has been closed \
-         and this test is what should say so"
+        rank("reinforced frame") < rank("steel"),
+        "steel derives below a reinforced frame because its melting point \
+         derives 3x low and it is creeping at room temperature; if that has \
+         changed, the valence model has been fixed and this test is what should \
+         say so"
+    );
+    assert!(
+        rank("ice") < rank("masonry"),
+        "ice and masonry swap, and they are 18% apart in the table"
     );
 }
 

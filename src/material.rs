@@ -75,6 +75,15 @@ pub struct Material {
     /// because a small piece cannot contain a large flaw. That is real,
     /// measurable, and was inexpressible while strength was a constant.
     pub flaw_size: f64,
+    /// The smallest defect the formation could have left, metres, or zero for a
+    /// solid whose flaws *are* its layers.
+    ///
+    /// The lower end of the flaw population [`Material::worst_flaw`] draws
+    /// from. For something that froze it is the critical nucleus, solved for on
+    /// the way to the grain by [`formation_scales`]; for something laid down it
+    /// is zero, because a layer is a real discontinuity present once per layer
+    /// and there is no population to take an extreme of.
+    pub nucleus: f64,
     /// Tensile strength as a fraction of [`Material::strength`]. Masonry's
     /// asymmetry is why walls topple rather than snap.
     pub tensile_ratio: f64,
@@ -369,11 +378,13 @@ impl Material {
         // made green wood 4% as strong in tension as in compression and snapped
         // a forty-year tree in an 18 m/s gust.
         let cleaves = props.crystalline && ductility < 0.5;
+        let scales = formation_scales(props, formation);
         Material {
             name: "custom",
             density: density * packing,
             surface_energy,
-            flaw_size: grain_scale(props, formation),
+            flaw_size: scales.0,
+            nucleus: scales.1,
             tensile_ratio: if cleaves {
                 (0.04 + 0.96 * ductility).clamp(0.02, 1.0)
             } else {
@@ -419,6 +430,7 @@ impl Material {
                     density: m.density * w,
                     surface_energy: m.surface_energy * w,
                     flaw_size: m.flaw_size * w,
+                    nucleus: m.nucleus * w,
                     tensile_ratio: m.tensile_ratio * w,
                     stiffness: m.stiffness * w,
                     thermal_onset: m.thermal_onset * w,
@@ -434,6 +446,7 @@ impl Material {
                     density: a.density + m.density * w,
                     surface_energy: a.surface_energy + m.surface_energy * w,
                     flaw_size: a.flaw_size + m.flaw_size * w,
+                    nucleus: a.nucleus + m.nucleus * w,
                     tensile_ratio: a.tensile_ratio + m.tensile_ratio * w,
                     stiffness: a.stiffness + m.stiffness * w,
                     thermal_onset: a.thermal_onset + m.thermal_onset * w,
@@ -574,11 +587,89 @@ impl Material {
     /// crack tip. See [`Material::strength`] for how it combines with the
     /// ductile law.
     pub fn griffith_stress(&self) -> f64 {
-        let a = self.flaw_size;
+        self.griffith_at(self.worst_flaw(self.reference_volume()))
+    }
+
+    /// Griffith on a stated crack length.
+    fn griffith_at(&self, a: f64) -> f64 {
         if !(a > 0.0) || !(self.stiffness > 0.0) || !(self.surface_energy > 0.0) {
             return 0.0;
         }
         (2.0 * self.stiffness * self.surface_energy / (std::f64::consts::PI * a)).sqrt()
+    }
+
+    /// The volume a bare [`Material::strength`] is quoted for: one grain.
+    ///
+    /// A material with no piece attached to it still has to answer, and the one
+    /// volume it owns is its own characteristic scale. Everything that knows
+    /// how big the piece is calls [`Material::strength_at_size`] instead.
+    fn reference_volume(&self) -> f64 {
+        let d = self.flaw_size.max(0.0);
+        d * d * d
+    }
+
+    /// The worst crack in a piece of this volume, metres.
+    ///
+    /// **Weakest link over a flaw population, not a single length.** D14 left
+    /// one line open — "a grain is also not the same as the worst flaw" — and
+    /// `docs/BACKLOG.md` measured what it cost: bedrock 77x low, because a
+    /// granite at 130 MPa implies a 34 um crack against the 21 cm grain the
+    /// nucleation solve gives it. A grain boundary in something that froze is
+    /// **bonded**: it is an interface, not a free surface, and there is no
+    /// grain-sized crack lying there waiting. The cracks that matter are inside
+    /// the grains.
+    ///
+    /// The population runs from the critical nucleus `r*` — the smallest island
+    /// the solidification could leave, already solved for on the way to the
+    /// grain — up to the grain `d`, which no intragranular crack can exceed.
+    /// Taking the number of flaws larger than `a` per unit volume as
+    /// `(a/r*)^-b / r*^3`, the largest one expected in a volume `V` is where
+    /// that count reaches one:
+    ///
+    /// ```text
+    ///     a_worst = r* (V / r*^3)^(1/b),   capped at the grain
+    /// ```
+    ///
+    /// # Where `b` comes from, and why it is one number for everything
+    ///
+    /// It is a universal exponent and it is stated, which is a different thing
+    /// from a per-material column: the same `b` is used for silicate, iron and
+    /// ice, and the answers differ because `r*` and `d` differ.
+    ///
+    /// Its value is fixed by what it *implies*, which is measurable and is a
+    /// property of brittle fracture rather than of any one solid. Strength goes
+    /// as `a^-1/2`, so `sigma ~ V^(-1/2b)` — which is Weibull's size effect
+    /// with modulus `m = 2b`. The modulus of brittle solids is observed between
+    /// about 5 and 20 across rock, ceramic and glass, clustering near 10-15, so
+    /// **`b = 6`** and `m = 12`. Anything in that range gives the same picture;
+    /// what would not be legitimate is a `b` per material, which is the table
+    /// D14 refused wearing a third costume.
+    ///
+    /// At the reference volume of one grain this reduces to something worth
+    /// saying out loud: `a_worst = sqrt(r* d)`, the **geometric mean of the
+    /// nucleus and the grain**.
+    ///
+    /// A deposited solid has no nucleus and no population: its flaw is its
+    /// layer, present once per layer, so every piece bigger than one layer has
+    /// one in it and the extreme value is the layer itself.
+    pub fn worst_flaw(&self, volume: f64) -> f64 {
+        let d = self.flaw_size.max(0.0);
+        let r = self.nucleus;
+        if !(r > 0.0) || !(volume > 0.0) || r >= d {
+            return d;
+        }
+        let n = volume / (r * r * r);
+        if !(n > 1.0) {
+            // A piece smaller than one nucleus has nothing in it at all.
+            return r;
+        }
+        (r * n.powf(1.0 / FLAW_EXPONENT)).clamp(r, d)
+    }
+
+    /// The undercooling-scale exponent of the flaw population. See
+    /// [`Material::worst_flaw`] for where 6 comes from.
+    pub fn flaw_exponent() -> f64 {
+        FLAW_EXPONENT
     }
 
     /// Yield stress: what it takes to make dislocations move.
@@ -649,9 +740,60 @@ impl Material {
     /// genuinely stronger than a bar of the same material — the size effect
     /// that a tabulated stress cannot express and that every member already
     /// carries a radius for.
+    /// The worst crack in a piece of this volume at this temperature, metres.
+    ///
+    /// **A grain boundary is bonded while the solid is cold and is a flaw once
+    /// it is not.** [`Material::worst_flaw`] is the cold answer, and it is the
+    /// right one for rock and steel at any temperature anything stands on them:
+    /// their creep onset is 760 K and 720 K. It is the wrong one for ice, which
+    /// exists only within a few per cent of its own melting point, where the
+    /// boundaries premelt, slide, and are exactly the free surfaces the cold
+    /// case says they are not — and measured, running ice cold gives 2.9x10^8
+    /// Pa against the 1.7x10^6 the retired table held, which is a worse miss
+    /// than the bedrock one this law was built to fix.
+    ///
+    /// So the flaw walks from the intragranular crack to the grain across the
+    /// creep range the material already carries, which is the homologous
+    /// temperature and nothing new. Nothing here knows what ice is: it knows
+    /// that a solid a few per cent below its melting point has mobile
+    /// boundaries and one at a fifth of it does not.
+    pub fn worst_flaw_at(&self, volume: f64, temperature: f64) -> f64 {
+        let cold = self.worst_flaw(volume);
+        let d = self.flaw_size.max(0.0);
+        if d <= cold || !(self.thermal_gone > self.thermal_onset) {
+            return cold;
+        }
+        let creep = ((temperature - self.thermal_onset) / (self.thermal_gone - self.thermal_onset))
+            .clamp(0.0, 1.0);
+        cold + (d - cold) * creep
+    }
+
+    /// The stress a piece this big fails at, at this temperature, Pa.
+    ///
+    /// The whole answer, and the one anything deciding whether a member has
+    /// broken should ask: the flaw population read at the piece's own volume,
+    /// capped by the piece, walked towards the grain by the homologous
+    /// temperature, and then derated by what is left of the bonding at that
+    /// temperature.
+    pub fn strength_of(&self, size: f64, temperature: f64) -> f64 {
+        let size = size.max(0.0);
+        let a = self
+            .worst_flaw_at(size * size * size, temperature)
+            .min(size.max(f64::MIN_POSITIVE))
+            .min(self.flaw_size);
+        Material { flaw_size: a, nucleus: 0.0, ..*self }.strength() * self.strength_at(temperature)
+    }
+
     pub fn strength_at_size(&self, size: f64) -> f64 {
-        let a = self.flaw_size.min(size.max(0.0));
-        Material { flaw_size: a, ..*self }.strength()
+        let size = size.max(0.0);
+        // Two effects, and they point opposite ways. A *small* piece cannot
+        // contain a large flaw, so a fibre is stronger than a bar; a *large*
+        // one has more chances to contain one, so a cliff face is weaker than
+        // the boulder at its foot. The first is the cap that has always been
+        // here; the second is the population, and both are the same sentence
+        // about where the worst crack is.
+        let a = self.worst_flaw(size * size * size).min(size).min(self.flaw_size);
+        Material { flaw_size: a, nucleus: 0.0, ..*self }.strength()
     }
     pub fn thermal_limits(&self) -> (f64, f64) {
         (self.thermal_onset, self.thermal_gone)
@@ -878,20 +1020,50 @@ impl Formation {
 /// first is captured here. A grain is also not the same as the worst flaw, so
 /// this is a *scale* rather than a precise length.
 pub fn grain_scale(p: &Properties, f: Formation) -> f64 {
+    formation_scales(p, f).0
+}
+
+/// The two lengths a formation leaves behind: the characteristic flaw, and the
+/// smallest defect the process could have left.
+///
+/// `docs/PLAY.md` Phase 4's first inherited measurement, and the line D14 left
+/// open: **"a grain is also not the same as the worst flaw"**. Bedrock came out
+/// 77x weak because Griffith was run on the grain, and a granite at 130 MPa
+/// with this stiffness and surface energy implies a 34 um crack against the
+/// 21 cm grain the nucleation solve gives it. The cracks that matter in rock
+/// are *inside* the grains, not around them, because a grain boundary in a
+/// solid that froze is **bonded** — it is an interface, not a free surface, and
+/// a crack the size of a grain is not lying there waiting.
+///
+/// So the frozen branch returns both ends of a population rather than one
+/// length. The upper end is the grain, which no intragranular crack can exceed;
+/// the lower end is the **critical nucleus** `r* = 2 gamma_sl T_m / (dH_v x)`
+/// at the undercooling the melt actually reached, which is the smallest thing
+/// the solidification could leave behind and is already solved for on the way
+/// to the grain. [`Material::worst_flaw`] draws the worst one in a piece from
+/// the two.
+///
+/// The deposited branch is unchanged and returns no nucleus. A layer *is* a
+/// flaw — a growth ring, a mortar course, a deposited band is a real
+/// discontinuity, present once per layer — so every piece bigger than one layer
+/// has one in it and there is no extreme value to take. Which is also why the
+/// four deposited presets already landed within 1.5x of the table they
+/// replaced and only the two that froze missed.
+pub fn formation_scales(p: &Properties, f: Formation) -> (f64, f64) {
     let atoms = p.atoms_per_unit.max(1) as f64;
     if !(p.density > 0.0) || !(p.unit_mass > 0.0) || !(p.melting_point > 0.0) {
-        return 0.0;
+        return (0.0, 0.0);
     }
     let volume_atom = p.unit_mass / (p.density * atoms);
     let spacing = volume_atom.cbrt();
 
     let (cooling_rate, front_speed) = match f {
-        // A layer is its own flaw. Nothing to solve.
-        Formation::Deposited { increment, .. } => return increment.max(spacing),
+        // A layer is its own flaw. Nothing to solve, and no population.
+        Formation::Deposited { increment, .. } => return (increment.max(spacing), 0.0),
         Formation::Frozen { cooling_rate, front_speed } => (cooling_rate, front_speed),
     };
     if !(cooling_rate > 0.0) || !(front_speed > 0.0) {
-        return 0.0;
+        return (0.0, 0.0);
     }
 
     let melting = p.melting_point;
@@ -938,6 +1110,9 @@ pub fn grain_scale(p: &Properties, f: Formation) -> f64 {
     let mut a2 = 0.0f64;
     let mut length = 0.0f64;
     let mut found = 0.0f64;
+    // The undercooling the melt had reached when the grains caught up with the
+    // heat leaving, which is what fixes the critical nucleus.
+    let mut at_undercooling = 0.0f64;
     for i in 1..=STEPS {
         let x = i as f64 * dx;
         length += front_speed * dx / cooling_rate;
@@ -955,6 +1130,7 @@ pub fn grain_scale(p: &Properties, f: Formation) -> f64 {
             heat_of_fusion_volumetric * 4.0 * std::f64::consts::PI * area * front_speed;
         if release >= extraction {
             found = a0;
+            at_undercooling = x;
             break;
         }
     }
@@ -964,18 +1140,31 @@ pub fn grain_scale(p: &Properties, f: Formation) -> f64 {
         // glass has no grains — the caller gets zero, which
         // `Material::strength` reads as "no answer" rather than as "infinitely
         // strong".
-        return 0.0;
+        return (0.0, 0.0);
     }
     let d = found.powf(-1.0 / 3.0);
     if !d.is_finite() {
-        return 0.0;
+        return (0.0, 0.0);
     }
+    // The critical nucleus at the undercooling the melt reached: the smallest
+    // solid island that was stable rather than redissolving, and therefore the
+    // smallest defect the solidification could leave behind.
+    let nucleus = if at_undercooling > 0.0 {
+        (2.0 * gamma_sl * melting / (heat_of_fusion_volumetric * at_undercooling))
+            .max(spacing)
+            .min(d)
+    } else {
+        spacing
+    };
     // A grain cannot be smaller than the atoms in it. Nothing caps it from
     // above here: a flaw bigger than the object is what
     // `Material::strength_at_size` is for, and it needs the object's size,
     // which a material does not have.
-    d.max(spacing)
+    (d.max(spacing), nucleus)
 }
+
+/// Exponent of the flaw-size population. See [`Material::worst_flaw`].
+const FLAW_EXPONENT: f64 = 6.0;
 
 /// The substances the named presets stand for.
 ///

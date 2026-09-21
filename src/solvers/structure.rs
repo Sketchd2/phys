@@ -495,7 +495,14 @@ fn accumulate(
         // members' own, so a branch meeting its parent in wood is unchanged.
         let bond = topo.joint_material(i);
         let ratio = if tensile { bond.tensile_ratio } else { 1.0 };
-        let strength = bond.strength() * bond.strength_at(t) * integrity * ratio;
+        // **The piece's own size is part of the answer.** A flaw cannot be
+        // bigger than the thing holding it, and a bigger thing has more
+        // chances of holding a big one, so the same rock is stronger as a
+        // pebble than as a cliff. The member's section is the length that
+        // bounds a crack across it, which is why every member has carried a
+        // radius for this since D14.
+        let strength =
+            bond.strength_of(topo.joints[i].radius, t) * integrity * ratio;
         let by_stress = if strength > 0.0 {
             stress / strength
         } else if stress > 0.0 {
@@ -690,7 +697,14 @@ fn frame_analyse(
         // members' own, so a branch meeting its parent in wood is unchanged.
         let bond = topo.joint_material(i);
         let ratio = if tensile { bond.tensile_ratio } else { 1.0 };
-        let strength = bond.strength() * bond.strength_at(t) * integrity * ratio;
+        // **The piece's own size is part of the answer.** A flaw cannot be
+        // bigger than the thing holding it, and a bigger thing has more
+        // chances of holding a big one, so the same rock is stronger as a
+        // pebble than as a cliff. The member's section is the length that
+        // bounds a crack across it, which is why every member has carried a
+        // radius for this since D14.
+        let strength =
+            bond.strength_of(topo.joints[i].radius, t) * integrity * ratio;
         let by_stress = if strength > 0.0 {
             stress / strength
         } else if stress > 0.0 {

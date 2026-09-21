@@ -745,6 +745,8 @@ fn put_material(w: &mut Writer, m: &Material) {
     w.f64(m.ductility);
     // Appended: the position is the tag. See `wire.rs`.
     w.f64(m.metallic);
+    // Appended: the lower end of the flaw population. See `Material::nucleus`.
+    w.f64(m.nucleus);
 }
 fn get_material(r: &mut Reader) -> Result<Material> {
     // The name is the one field that cannot come back from bytes: it is a
@@ -766,6 +768,7 @@ fn get_material(r: &mut Reader) -> Result<Material> {
         combustible: r.bool()?,
         ductility: r.f64()?,
         metallic: r.f64()?,
+        nucleus: r.f64()?,
     })
 }
 
