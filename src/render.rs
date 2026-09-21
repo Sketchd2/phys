@@ -58,6 +58,19 @@ impl Canvas {
         }
     }
 
+    /// Fraction of the canvas that is not still sky.
+    ///
+    /// Measured off the depth buffer rather than by comparing colours: a body
+    /// drawn in exactly the sky's colour is still a body, and a fogged one very
+    /// nearly is. Anything written has a finite depth; the sky never is.
+    pub fn coverage(&self) -> f64 {
+        if self.depth.is_empty() {
+            return 0.0;
+        }
+        let drawn = self.depth.iter().filter(|d| d.is_finite()).count();
+        drawn as f64 / self.depth.len() as f64
+    }
+
     #[inline]
     fn put(&mut self, x: i64, y: i64, z: f32, c: [f32; 3]) {
         if x < 0 || y < 0 || x >= self.width as i64 || y >= self.height as i64 {
@@ -186,6 +199,9 @@ impl Style {
 ///
 /// `intact` marks which parts are still attached; anything else is drawn in the
 /// broken colour, which is what makes a damage result legible at a glance.
+///
+/// The `Some` case of [`draw`], kept under its own name and signature because
+/// `examples/damage.rs` and the renderer's own test are written against it.
 pub fn draw_structure(
     canvas: &mut Canvas,
     camera: &Camera,
@@ -194,6 +210,99 @@ pub fn draw_structure(
     intact: &[bool],
     style: &Style,
 ) {
+    draw(canvas, camera, bodies, Some(topo), intact, &Paint::Role, style);
+}
+
+/// How to colour what is drawn.
+///
+/// `docs/VIEWING.md`: **a diagnostic image should be a measurement, not a
+/// legend.** `Role` is the original behaviour and is the one variant that is a
+/// label the caller supplies; every other variant is read off the body being
+/// drawn, and the range it was read against is returned by [`draw`] so a colour
+/// can be turned back into a number.
+///
+/// `Measured` is the escape hatch, and it is deliberately not a closure: a
+/// quantity like a phase fraction cannot be read off a `Body` at all, because a
+/// body carries a substance id and the registry that resolves it lives in
+/// `World`. So the module that *can* measure it does, and hands the numbers
+/// over. That keeps this file a rasteriser — it knows `math`, `state` and
+/// `topology`, and a rasteriser that could reach a `World` would eventually
+/// solve something.
+#[derive(Debug, Clone, PartialEq)]
+pub enum Paint {
+    /// Member, broken, litter — what the caller says each part is.
+    Role,
+    /// Kelvin.
+    Temperature { range: Option<(f64, f64)> },
+    /// Metres per second, in the frame the bodies are given in.
+    Speed { range: Option<(f64, f64)> },
+    /// A quantity measured elsewhere, one value per body.
+    Measured { values: Vec<f64>, range: Option<(f64, f64)> },
+}
+
+impl Paint {
+    /// The value this paint reads off one body, or `None` for a label.
+    fn value(&self, i: usize, b: &Body) -> Option<f64> {
+        match self {
+            Paint::Role => None,
+            Paint::Temperature { .. } => Some(b.temperature),
+            Paint::Speed { .. } => Some(b.vel.norm()),
+            Paint::Measured { values, .. } => values.get(i).copied(),
+        }
+    }
+
+    fn stated_range(&self) -> Option<(f64, f64)> {
+        match self {
+            Paint::Role => None,
+            Paint::Temperature { range } | Paint::Speed { range } => *range,
+            Paint::Measured { range, .. } => *range,
+        }
+    }
+}
+
+/// What a frame turned out to be, so it can be read back as numbers.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Drawn {
+    /// Fraction of the canvas the subject covers. The renderer's own test
+    /// asserts on this; a film that is all sky is a camera pointed nowhere.
+    pub covered: f64,
+    /// The range the colour ramp was read against, where there was one.
+    pub range: Option<(f64, f64)>,
+    pub parts: usize,
+}
+
+/// Blue through white to orange: cold low, hot high, and legible in print and
+/// to the common forms of colour blindness because the lightness runs with the
+/// value rather than only the hue.
+fn ramp(t: f64) -> [f32; 3] {
+    let t = t.clamp(0.0, 1.0) as f32;
+    if t < 0.5 {
+        let u = t * 2.0;
+        [0.15 + 0.8 * u, 0.35 + 0.6 * u, 0.75 + 0.25 * u]
+    } else {
+        let u = (t - 0.5) * 2.0;
+        [0.95, 0.95 - 0.55 * u, 1.0 - 0.9 * u]
+    }
+}
+
+/// Draw whatever a node is holding: members where there are members, and a disc
+/// at its own radius for everything else.
+///
+/// `docs/VIEWING.md`'s first missing piece, measured there: `draw_structure`
+/// iterated `bodies.len().min(topo.base.len())`, so a node whose contents are
+/// loose produced an empty sky — `show_litter` included, because the litter
+/// branch was inside that same loop. Everything Phase 1 built is in that class:
+/// a ball in a box, a node's hydro parcels, a fragment in flight, and a ball of
+/// matter that has not become a planet yet.
+pub fn draw(
+    canvas: &mut Canvas,
+    camera: &Camera,
+    bodies: &[Body],
+    topo: Option<&Topology>,
+    intact: &[bool],
+    paint: &Paint,
+    style: &Style,
+) -> Drawn {
     canvas.sky(style.sky_top, style.sky_bottom);
     let (right, up, forward) = camera.basis();
     let half_h = (camera.fov * 0.5).tan();
@@ -217,41 +326,83 @@ pub fn draw_structure(
         })
     };
 
+    // The range the ramp is read against: whatever the caller stated, else the
+    // frame's own extremes, which is what makes an unattended film legible
+    // without anybody having guessed the scale in advance.
+    let range = match paint.stated_range() {
+        Some(r) => Some(r),
+        None => {
+            let mut lo = f64::INFINITY;
+            let mut hi = f64::NEG_INFINITY;
+            for (i, b) in bodies.iter().enumerate() {
+                if let Some(v) = paint.value(i, b) {
+                    lo = lo.min(v);
+                    hi = hi.max(v);
+                }
+            }
+            if lo.is_finite() && hi > lo { Some((lo, hi)) } else { None }
+        }
+    };
+
     // Painter's order is handled by the depth buffer, but drawing far members
     // first still reduces the number of overwritten pixels.
-    let n = bodies.len().min(topo.base.len());
-    let mut order: Vec<usize> = (0..n).collect();
+    let mut order: Vec<usize> = (0..bodies.len()).collect();
     order.sort_by(|a, b| {
         let za = (bodies[*a].pos - camera.eye).dot(forward);
         let zb = (bodies[*b].pos - camera.eye).dot(forward);
         zb.partial_cmp(&za).unwrap_or(std::cmp::Ordering::Equal)
     });
 
+    // What a part is coloured: the measurement where there is one, and the
+    // caller's label where there is not.
+    let colour_of = |i: usize, b: &Body, structural: bool| -> [f32; 3] {
+        match (paint.value(i, b), range) {
+            (Some(v), Some((lo, hi))) if hi > lo => ramp((v - lo) / (hi - lo)),
+            _ if !structural => style.litter,
+            _ if intact.get(i).copied().unwrap_or(true) => style.member,
+            _ => style.broken,
+        }
+    };
+
+    let mut parts = 0usize;
     for &i in &order {
-        let structural = i < topo.joints.len() && (topo.tip[i] - topo.base[i]).norm2() > 0.0;
+        let b = match bodies.get(i) {
+            Some(b) => b,
+            None => continue,
+        };
+        let structural = topo.is_some_and(|t| {
+            i < t.joints.len() && i < t.base.len() && (t.tip[i] - t.base[i]).norm2() > 0.0
+        });
         if !structural {
-            if !style.show_litter {
+            // A loose body is a disc at its own radius. Litter inside a
+            // structure is still optional — it is what `show_litter` was for —
+            // but a node with no topology at all is *all* loose, and refusing
+            // to draw it is the defect this branch exists to fix.
+            if topo.is_some() && !style.show_litter {
                 continue;
             }
-            if let Some(p) = project(bodies[i].pos) {
-                let r = (bodies[i].radius * p.ppm).max(0.6);
-                disc(canvas, p, r, style.litter, style.fog);
+            if let Some(p) = project(b.pos) {
+                let r = (b.radius * p.ppm).max(0.6);
+                disc(canvas, p, r, colour_of(i, b, false), style.fog);
+                parts += 1;
             }
             continue;
         }
-        let (a, b) = (topo.base[i], topo.tip[i]);
-        let (pa, pb) = match (project(a), project(b)) {
+        let t = match topo {
+            Some(t) => t,
+            None => continue,
+        };
+        let (a, bb) = (t.base[i], t.tip[i]);
+        let (pa, pb) = match (project(a), project(bb)) {
             (Some(x), Some(y)) => (x, y),
             _ => continue,
         };
-        let radius_px = (topo.joints[i].radius * pa.ppm).max(0.55);
-        let colour = if intact.get(i).copied().unwrap_or(true) {
-            style.member
-        } else {
-            style.broken
-        };
-        tube(canvas, pa, pb, radius_px, (b - a).unit(), light, colour, style.fog);
+        let radius_px = (t.joints[i].radius * pa.ppm).max(0.55);
+        tube(canvas, pa, pb, radius_px, (bb - a).unit(), light, colour_of(i, b, true), style.fog);
+        parts += 1;
     }
+
+    Drawn { covered: canvas.coverage(), range, parts }
 }
 
 /// A shaded cylinder between two projected points.
@@ -415,4 +566,110 @@ fn adler32(data: &[u8]) -> u32 {
         b = (b + a) % 65521;
     }
     (b << 16) | a
+}
+
+// ---------------------------------------------------------------------------
+// a sequence, with one camera
+// ---------------------------------------------------------------------------
+
+/// A camera, a style, a paint and a size, made once.
+///
+/// `docs/VIEWING.md`: *one camera for every frame in a set.* `examples/damage.rs`
+/// paid for that lesson — auto-framing each shot rescales the subject and hides
+/// exactly what the comparison exists to show, and a tree that had lost a third
+/// of its height looked identical to one that had not. This is the lesson
+/// turned into a type, so the camera is fixed by construction rather than by
+/// remembering.
+#[derive(Debug, Clone)]
+pub struct Shot {
+    pub camera: Camera,
+    pub style: Style,
+    pub paint: Paint,
+    pub width: usize,
+    pub height: usize,
+}
+
+impl Shot {
+    /// Frame something of this size, from a corner so the depth reads.
+    ///
+    /// The fog is set from the framing radius rather than left at its 60 m
+    /// default, which is `VIEWING.md`'s third measured gap: at six metres
+    /// everything was unfogged and at a kilometre everything was fog. Two and a
+    /// half radii puts the far side of the subject at about half fog whatever
+    /// the subject is, from a nucleus to a galaxy.
+    pub fn framing(centre: Vec3, radius: f64, azimuth: f64, elevation: f64) -> Shot {
+        let camera = Camera::framing(centre, radius, azimuth, elevation);
+        Shot {
+            camera,
+            style: Style { fog: (2.5 * radius).max(1e-30), ..Style::daylight() },
+            paint: Paint::Role,
+            width: 480,
+            height: 360,
+            }
+    }
+
+    pub fn painted(mut self, paint: Paint) -> Shot {
+        self.paint = paint;
+        self
+    }
+
+    pub fn sized(mut self, width: usize, height: usize) -> Shot {
+        self.width = width;
+        self.height = height;
+        self
+    }
+
+    pub fn styled(mut self, style: Style) -> Shot {
+        let fog = self.style.fog;
+        self.style = Style { fog, ..style };
+        self
+    }
+
+    pub fn canvas(&self) -> Canvas {
+        Canvas::new(self.width, self.height)
+    }
+}
+
+/// A numbered sequence of PNGs in a directory, or nothing at all.
+///
+/// **Off unless asked.** `PHYS_FILM=<dir>` or [`Film::open`] returns `None` and
+/// every call on it is a no-op, so `cargo test` stays silent, fast and
+/// identical. With the variable set, every instrumented test drops a filmstrip
+/// in that directory.
+///
+/// Not an assertion. `VIEWING.md` is blunt about why: an image assertion is the
+/// archetype of a test that cannot fail, and this repo's rule is that a test is
+/// verified against the defect it catches. These are diagnostics; the
+/// assertions stay numeric.
+pub struct Film {
+    dir: std::path::PathBuf,
+    name: String,
+    frame: usize,
+}
+
+impl Film {
+    /// Open a filmstrip called `name`, if `PHYS_FILM` names a directory.
+    pub fn open(name: &str) -> Option<Film> {
+        let dir = std::env::var_os("PHYS_FILM")?;
+        let dir = std::path::PathBuf::from(dir);
+        std::fs::create_dir_all(&dir).ok()?;
+        Some(Film { dir, name: name.to_string(), frame: 0 })
+    }
+
+    /// Whether anything is being recorded, so a caller can skip the gathering.
+    pub fn recording() -> bool {
+        std::env::var_os("PHYS_FILM").is_some()
+    }
+
+    pub fn frames(&self) -> usize {
+        self.frame
+    }
+
+    /// Write the next frame. The number is the film's, not the world's.
+    pub fn shoot(&mut self, canvas: &Canvas) {
+        let path = self.dir.join(format!("{}-{:04}.png", self.name, self.frame));
+        if write_png(canvas, &path.to_string_lossy()).is_ok() {
+            self.frame += 1;
+        }
+    }
 }
