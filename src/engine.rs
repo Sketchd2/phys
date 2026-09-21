@@ -709,6 +709,63 @@ impl World {
                 self.environments.remove(&id);
             }
         }
+        self.rewrite_recipe(idx);
+    }
+
+    /// Write the node's generated program against what is actually measured
+    /// here.
+    ///
+    /// `Tree` has no registry and no environments, so it writes a recipe
+    /// against the conditions it can see. This is where the measured ones
+    /// arrive: the material read off the node's own mixture, and the fluid,
+    /// light and flow the node is actually in. D11's whole claim is that those
+    /// are measurements rather than columns — "a coral is in water because its
+    /// node's mixture is water; nobody tells it" — so this is the line that
+    /// makes it true.
+    pub fn rewrite_recipe(&mut self, idx: NodeIdx) {
+        if idx.is_none() || !self.tree.nodes[idx.get()].alive {
+            return;
+        }
+        let env = self.environment_at(idx);
+        // **The material the thing is made of, and not the one the node
+        // measures.** `Material::measured` reads a node's mixture and gets its
+        // *packing* from the node's bulk density against the substance's — a
+        // measurement that is right for a node which is the material (a plank,
+        // a block of stone) and wrong for one that is an arrangement of it,
+        // because a structure's volume is mostly the space between its parts.
+        // Measured on the six-panel box: a crate of solid planks reads as 4.8%
+        // packed, so its wood derives at 77 kg/m^3.
+        //
+        // And using it here would be *circular*: the recipe turns a mass into
+        // a size using the density, the size becomes the node's radius, and
+        // the radius is what the packing is measured from. The loop has every
+        // size as a fixed point, which is another way of saying it decides
+        // nothing.
+        //
+        // So a generator uses the material's own stated formation. D11's
+        // density column is therefore still on `Program` and this is the
+        // measurement that says why: **the porosity of a deposited solid is
+        // not derivable from a node's bulk density once the node contains
+        // void**, and the engine has no other way to ask.
+        let material = match self.tree.nodes[idx.get()].morphology.as_ref() {
+            Some(m) => m.program.material(),
+            None => return,
+        };
+        let Some(m) = self.tree.nodes[idx.get()].morphology.as_mut() else {
+            return;
+        };
+        // A parts list is not regenerated: somebody placed those parts, and
+        // rewriting the rule would be the engine deciding it knew better.
+        if m.is_assembled() {
+            return;
+        }
+        m.regenerate(&env, &material);
+        let extent = m.extent();
+        let stored = m.stored_energy();
+        let n = &mut self.tree.nodes[idx.get()];
+        n.matter.radius = extent.max(1e-30);
+        n.matter.chemical_energy = stored;
+        self.tree.retier(idx);
     }
 
     /// Give a node a structure that is already there, at a stated mass. The
@@ -731,6 +788,7 @@ impl World {
                 self.environments.remove(&id);
             }
         }
+        self.rewrite_recipe(idx);
     }
 
     /// State a composite: one node whose recipe is the parts it is made of.
@@ -811,7 +869,7 @@ impl World {
                 c.matter.mass,
                 c.matter.radius,
                 substance,
-                c.morphology.as_ref().and_then(|m| m.assembly.clone()),
+                c.morphology.as_ref().and_then(|m| m.assembly().cloned()),
             )
         };
 
@@ -828,7 +886,10 @@ impl World {
         let Some(m) = self.tree.nodes[composite.get()].morphology.as_mut() else {
             return None;
         };
-        let assembly = m.assembly.get_or_insert_with(Default::default);
+        if m.assembly().is_none() {
+            m.set_assembly(Default::default());
+        }
+        let assembly = m.assembly_mut().expect("just set");
         let site = assembly.next_site();
         // Joined to whichever part it is actually touching — the nearest one,
         // measured, rather than to whatever happened to be added first.
@@ -906,7 +967,7 @@ impl World {
         let Some(slot) = self.tree.nodes[composite.get()]
             .morphology
             .as_ref()
-            .and_then(|m| m.assembly.as_ref())
+            .and_then(|m| m.assembly())
             .and_then(|a| a.index_of_site(site))
         else {
             return NodeIdx::NONE;
@@ -923,7 +984,7 @@ impl World {
             let Some(m) = self.tree.nodes[composite.get()].morphology.as_mut() else {
                 return NodeIdx::NONE;
             };
-            let Some(a) = m.assembly.as_mut() else { return NodeIdx::NONE };
+            let Some(a) = m.assembly_mut() else { return NodeIdx::NONE };
             let broke = a.break_join(site);
             if broke {
                 let taken = a.taken(&[site]);
@@ -2635,7 +2696,7 @@ impl World {
         // steel frame existed to break it. The parts are solids of stated size
         // rather than members inferred from joints, so nothing here needs the
         // topology at all.
-        if let Some(a) = n.morphology.as_ref().and_then(|m| m.assembly.as_ref()) {
+        if let Some(a) = n.morphology.as_ref().and_then(|m| m.assembly()) {
             if !a.is_empty() {
                 let pieces = a.pieces(&n.matter, &self.substances, material, substance);
                 if !pieces.is_empty() {
@@ -3833,6 +3894,36 @@ impl World {
                 - n.morphology.as_ref().map(|m| m.built).unwrap_or(0.0))
             .max(0.0),
             labour: self.labour_rate,
+            // What the node is standing in, measured: the mass of everything
+            // that is not solid, over the volume it occupies. A node nobody has
+            // described is in air, which is the honest answer to no
+            // information and what everything built before mixtures existed
+            // relies on.
+            fluid_density: {
+                let fluid = if n.matter.mixture.is_empty() {
+                    0.0
+                } else {
+                    n.matter.mixture.in_phase(crate::chem::Phase::Liquid)
+                        + n.matter.mixture.in_phase(crate::chem::Phase::Gas)
+                };
+                let volume = n.matter.volume();
+                if fluid > 0.0 && volume > 0.0 {
+                    (n.matter.mass * fluid / volume).max(1.225)
+                } else {
+                    1.225
+                }
+            },
+            // The flow this node has met. Its own bulk motion relative to what
+            // contains it is the wind it feels, and a node that has never moved
+            // feels the one everything is proportioned against by default.
+            flow_speed: {
+                let moving = n.motion.velocity.norm();
+                if moving > 0.0 {
+                    moving
+                } else {
+                    crate::morph::Environment::default().flow_speed
+                }
+            },
         }
     }
 

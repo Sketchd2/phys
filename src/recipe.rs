@@ -1,0 +1,954 @@
+//! The generated program: the rule the engine wrote down for placing a thing's
+//! bodies.
+//!
+//! # Why a program is generated rather than selected
+//!
+//! `docs/PLAY.md` D11 finds the largest standing axiom violation in the
+//! codebase: [`crate::morph::Program`] was a species table with a renderer per
+//! variant, so the engine knew what a tree was, what a tower was, and what a
+//! town was, and each of them had its geometry written into a `match`. D15
+//! already answered that for a composite — a wooden box is **generated**, by
+//! assessing what the parts are, and no variant describes it — and Phase 4
+//! carries the same answer to everything else.
+//!
+//! So this module holds the *rules*, and nothing in it is a species. A recipe
+//! is produced by an analysis of what is actually there:
+//!
+//! * somebody **placed** parts, and the engine wrote down where they are;
+//! * something is **growing** into an occluded field and branches, whether it
+//!   is a tree in air or a coral in water — the fluid is measured, not named;
+//! * something is being **laid** course on course, or framed storey on storey,
+//!   or **subdivided** across a plan, which are the space-filling rules D11
+//!   keeps as *habits* rather than as species;
+//! * something is a piece of a surface and **tiles** it.
+//!
+//! Six habits serve every kind of thing the engine has, and a seventh kind of
+//! thing needs no seventh variant — it needs a measurement that picks one of
+//! these and parameterises it. That is the reduction D11 asks for.
+//!
+//! # A recipe is a rule, not a frozen outcome
+//!
+//! `CLAUDE.md`: "A stored rule stays a function of its conditions and never a
+//! frozen outcome, so a drought still reaches every tree in the region it
+//! touches." A branching recipe stores a taper, a split count and a lean — the
+//! shape of the rule — and derives its *size* from the mass the thing has
+//! accumulated, every time it is asked. A planned recipe states metres, because
+//! a planned thing's size is a decision somebody made rather than a consequence
+//! of how much it has grown, and it is regenerated when that decision changes.
+//!
+//! # It emits metres
+//!
+//! **This is the fix for a measured defect.** A generated skeleton used to be
+//! emitted in units of the structure's own extent and then rescaled by
+//! `sampler::radius_scale` until `summarise` reported the node's radius back —
+//! which meant the size a program *stated* and the size it was *drawn* at were
+//! two different numbers. Measured, as the factor the drawing was inflated by:
+//! tree 1.44, coral 1.53, tower 0.89, wall 0.76, settlement 0.95. A tree was
+//! drawn 44% taller than `tree_height` said it was.
+//!
+//! A recipe states where its parts are, in metres, and the sampler places them
+//! there. `matter.radius` for a structure is then the bounding radius of what
+//! was actually drawn, which is one meaning rather than two.
+
+use crate::assembly::Assembly;
+use crate::math::{v3, Vec3};
+use crate::morph::{Skeleton, FREE_ALL, FREE_Y, FREE_Z, NO_SUPPORT};
+
+/// How much of a thing there is, at the moment it is being drawn.
+///
+/// The conditions a recipe is a function of. Separated from the recipe so the
+/// recipe cannot accidentally store one of them and become a frozen outcome.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Growth {
+    /// Structural mass accumulated, kg.
+    pub built: f64,
+    /// Completion fraction for a planned recipe, 0..1.
+    pub progress: f64,
+}
+
+impl Growth {
+    pub fn new(built: f64, progress: f64) -> Growth {
+        Growth { built: built.max(0.0), progress: progress.clamp(0.0, 1.0) }
+    }
+}
+
+/// The generated program. See the module documentation.
+#[derive(Debug, Clone, PartialEq)]
+pub enum Recipe {
+    /// Parts somebody placed, and the joins that hold them. `docs/PLAY.md` D15.
+    Placed(Assembly),
+    /// Recursive branching under a transport field: a tree, a coral, a delta.
+    Branching(Branching),
+    /// Laid course on course: a wall, brickwork, strata.
+    Coursed(Coursed),
+    /// A frame of columns, beams and floors: anything with storeys.
+    Framed(Framed),
+    /// A tiled surface: ground.
+    Tiled(Tiled),
+    /// A subdivided plane: a settlement, cracked mud, leaf venation.
+    Subdivided(Subdivided),
+}
+
+impl Recipe {
+    /// Place the bodies, in metres, in the node's own frame.
+    pub fn render(&self, budget: usize, g: Growth) -> Skeleton {
+        match self {
+            Recipe::Placed(a) => a.render(),
+            Recipe::Branching(b) => b.render(budget, g),
+            Recipe::Coursed(c) => c.render(budget, g),
+            Recipe::Framed(f) => f.render(budget, g),
+            Recipe::Tiled(t) => t.render(budget),
+            Recipe::Subdivided(s) => s.render(budget, g),
+        }
+    }
+
+    /// The radius the node claims, metres.
+    ///
+    /// Closed-form per habit rather than measured off a render, because growth
+    /// asks for it every frame on every structure in the world.
+    ///
+    /// **This is the size the recipe states, and the sampler no longer argues
+    /// with it.** What it means differs by habit and that is deliberate: for a
+    /// parts list it is the equivalent uniform sphere of the parts, which is
+    /// what `matter.radius` means everywhere else in the engine and what every
+    /// composite has been measured as since D15; for a generated habit it is
+    /// the half-diagonal of what the habit lays out, which is what a structure
+    /// has always claimed. Reconciling the two is a separate question from the
+    /// one this module fixes — see the module documentation — and moving a
+    /// structure's radius moves what `Formation::of_matter` measures its
+    /// packing as, which moves its strength.
+    pub fn extent(&self, g: Growth) -> f64 {
+        match self {
+            Recipe::Placed(a) => a.extent(),
+            Recipe::Branching(b) => b.extent(g),
+            Recipe::Coursed(c) => c.extent(g),
+            Recipe::Framed(f) => f.extent(g),
+            Recipe::Tiled(t) => t.extent(),
+            Recipe::Subdivided(s) => s.extent(g),
+        }
+    }
+
+    /// Overall height, metres — the dimension a thing is measured by when
+    /// somebody asks how tall it is.
+    pub fn height(&self, g: Growth) -> f64 {
+        match self {
+            Recipe::Branching(b) => b.height(g),
+            Recipe::Coursed(c) => c.height(g),
+            Recipe::Framed(f) => f.height(g),
+            Recipe::Tiled(t) => t.depth,
+            Recipe::Subdivided(s) => s.height,
+            Recipe::Placed(a) => 2.0 * a.bound(),
+        }
+    }
+
+    /// Bulk density, kg/m^3 — what the analysis measured and turned this
+    /// thing's mass into its size with.
+    ///
+    /// **D11's first column, gone.** `Program::density` was one value per
+    /// species; this is the number the material actually has, carried on the
+    /// rule that used it, so the sampler's volume check and the recipe cannot
+    /// disagree. They did: a patch generated against a measured cellulose and
+    /// checked against a tabulated rock came out three times too shallow,
+    /// because the correction was making up the difference between two
+    /// densities that were describing the same thing.
+    pub fn density(&self) -> f64 {
+        match self {
+            Recipe::Placed(a) => {
+                let v: f64 = a.parts.iter().map(|p| p.volume()).sum();
+                let m = a.mass();
+                if v > 0.0 && m > 0.0 {
+                    m / v
+                } else {
+                    0.0
+                }
+            }
+            Recipe::Branching(b) => b.density,
+            Recipe::Coursed(c) => c.density,
+            Recipe::Framed(f) => f.density,
+            Recipe::Tiled(t) => t.density,
+            Recipe::Subdivided(s) => s.density,
+        }
+    }
+
+    /// The parts, where this recipe is a parts list.
+    pub fn placed(&self) -> Option<&Assembly> {
+        match self {
+            Recipe::Placed(a) => Some(a),
+            _ => None,
+        }
+    }
+
+    pub fn placed_mut(&mut self) -> Option<&mut Assembly> {
+        match self {
+            Recipe::Placed(a) => Some(a),
+            _ => None,
+        }
+    }
+
+    /// Byte cost of the rule, for the detail budget.
+    pub fn state_bytes(&self) -> usize {
+        match self {
+            Recipe::Placed(a) => a.state_bytes(),
+            _ => std::mem::size_of::<Recipe>(),
+        }
+    }
+
+    /// A short name for logs. Not read by any physics.
+    pub fn habit(&self) -> &'static str {
+        match self {
+            Recipe::Placed(_) => "placed",
+            Recipe::Branching(_) => "branching",
+            Recipe::Coursed(_) => "coursed",
+            Recipe::Framed(_) => "framed",
+            Recipe::Tiled(_) => "tiled",
+            Recipe::Subdivided(_) => "subdivided",
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// branching
+// ---------------------------------------------------------------------------
+
+/// Recursive branching under elastic self-similarity.
+///
+/// D12: branching is what transport into an occluded field looks like, so this
+/// is one habit and not two. A tree and a coral differ in the numbers below and
+/// in nothing else — and those numbers are measured, because the fluid a thing
+/// grows in is its node's own mixture and the load it is proportioned against
+/// is the flow it has met.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Branching {
+    /// Cross-section carried into each child, as a fraction of the parent's.
+    pub taper: f64,
+    /// How many children a branch point has.
+    pub splits: u8,
+    pub lean: f64,
+    pub twist: f64,
+    pub spread: f64,
+    /// Slenderness: how tall this individual stands for its mass.
+    pub slenderness: f64,
+    /// Bulk density of the structure, kg/m^3 — measured, not a column.
+    pub density: f64,
+    /// Volume of the smallest thing this habit produces, m^3. The constant in
+    /// `height ~ (V/k)^(1/4)`, which is McMahon's buckling criterion and the
+    /// same quarter power that runs through all of allometry.
+    pub allometry: f64,
+}
+
+/// Mass a structure starts from, kg. Below this there is nothing to draw.
+pub const SEED_MASS: f64 = 1e-4;
+
+impl Branching {
+    /// Height from mass, by elastic self-similarity.
+    ///
+    /// McMahon's buckling criterion gives trunk radius proportional to
+    /// `height^1.5`, so volume goes as `height^4` and height as `volume^(1/4)`.
+    pub fn height(&self, g: Growth) -> f64 {
+        let v = g.built.max(0.0) / self.density.max(1e-9);
+        (v / self.allometry.max(1e-30)).max(0.0).powf(0.25) * self.slenderness
+    }
+
+    /// How many orders of branching this much mass supports.
+    fn depth(&self, g: Growth) -> usize {
+        (2.0 + (g.built.max(SEED_MASS) / SEED_MASS).log10() * 1.4).clamp(1.0, 8.0) as usize
+    }
+
+    /// Half the height it stands at — what a thing that grew into a field
+    /// claims as its radius.
+    pub fn extent(&self, g: Growth) -> f64 {
+        0.5 * self.height(g)
+    }
+
+    /// Light-intercepting area, m^2. Crown projection, not total leaf area —
+    /// what limits a thing that grows into a field is the ground it shades.
+    pub fn capture_area(&self, g: Growth) -> f64 {
+        let h = self.height(g);
+        let crown = 0.3 * h * (0.75 + 0.55 * self.spread.clamp(0.0, 1.0));
+        std::f64::consts::PI * crown * crown
+    }
+
+    /// Segments laid down breadth-first with a mass budget.
+    ///
+    /// Each level takes `taper^3` of its parent's cross-section, so the
+    /// structure obeys da Vinci's rule — total cross-section is preserved
+    /// across a branch point — and therefore looks like a tree rather than like
+    /// a fractal.
+    ///
+    /// Breadth-first, not depth-first. With a stack the budget is spent
+    /// rendering one branch down to its finest twigs while the rest is simply
+    /// absent, which looks broken at any budget below saturation and makes the
+    /// level of detail meaningless.
+    pub fn render(&self, budget: usize, g: Growth) -> Skeleton {
+        let unit = 0.5 * self.height(g);
+        let mut sk = Skeleton::with_capacity(budget);
+        let max_depth = self.depth(g);
+        let splits = self.splits.max(1) as usize;
+
+        struct Seg {
+            base: Vec3,
+            dir: Vec3,
+            len: f64,
+            rad: f64,
+            depth: usize,
+            id: u32,
+            parent: u32,
+        }
+        let mut queue = std::collections::VecDeque::from(vec![Seg {
+            base: v3(0.0, 0.0, -1.0),
+            dir: v3(self.lean, self.lean * 0.5, 1.0).unit(),
+            len: 0.55,
+            rad: 0.055,
+            depth: 0,
+            id: 0,
+            parent: NO_SUPPORT,
+        }]);
+        let mut next_id = 1u32;
+        let mut emitted: std::collections::HashMap<u32, u32> = std::collections::HashMap::new();
+
+        while let Some(s) = queue.pop_front() {
+            if sk.len() >= budget {
+                break;
+            }
+            let tip = s.base + s.dir.scale(s.len);
+            let support = if s.parent == NO_SUPPORT {
+                NO_SUPPORT
+            } else {
+                match emitted.get(&s.parent) {
+                    Some(&idx) => idx,
+                    // The parent fell outside the budget, so this segment has
+                    // nothing to hang from and is not emitted.
+                    None => continue,
+                }
+            };
+            emitted.insert(s.id, sk.len() as u32);
+            sk.push_segment(
+                s.base.scale(unit),
+                tip.scale(unit),
+                s.rad * s.rad * s.len,
+                s.rad * unit,
+                support,
+                s.id,
+            );
+            if s.depth >= max_depth {
+                continue;
+            }
+            let child_rad = s.rad * self.taper;
+            let child_len = s.len * (0.62 + 0.12 * self.spread);
+            for k in 0..splits {
+                let phi = self.twist
+                    + k as f64 * std::f64::consts::TAU / splits as f64
+                    + s.depth as f64 * 0.7;
+                let axis = v3(phi.cos(), phi.sin(), 0.0);
+                let dir = (s.dir + axis.scale(self.spread)).unit();
+                queue.push_back(Seg {
+                    base: tip,
+                    dir,
+                    len: child_len,
+                    rad: child_rad,
+                    depth: s.depth + 1,
+                    id: next_id,
+                    parent: s.id,
+                });
+                next_id += 1;
+            }
+        }
+        sk
+    }
+}
+
+// ---------------------------------------------------------------------------
+// coursed
+// ---------------------------------------------------------------------------
+
+/// Laid course on course: a wall, brickwork, a stratum.
+///
+/// Planned, so its size is stated rather than grown into: somebody decided how
+/// long the wall is. `progress` is how much of it has been laid.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Coursed {
+    /// Metres, the finished thing.
+    pub length: f64,
+    pub height: f64,
+    pub thickness: f64,
+    /// Height of one course, metres — the thickness the process lays down at a
+    /// time. **Not a count**: how many courses are drawn depends on how finely
+    /// anyone is looking, and a rule that stored the count would be storing a
+    /// level of detail.
+    pub course: f64,
+    /// Bulk density, kg/m^3 — what the analysis turned the mass into a size
+    /// with, so the sampler's volume check and the recipe agree by
+    /// construction.
+    pub density: f64,
+}
+
+impl Coursed {
+    pub fn height(&self, _g: Growth) -> f64 {
+        self.height
+    }
+
+    pub fn extent(&self, g: Growth) -> f64 {
+        let laid = (self.length * g.progress.max(1e-3)).max(1e-9);
+        0.5 * (laid * laid + self.height * self.height + self.thickness * self.thickness).sqrt()
+    }
+
+    /// Each block rests on the course beneath, offset by half a block on
+    /// alternate courses — which is what stops a wall being a set of
+    /// independent vertical columns of brick, and is why the load path runs
+    /// diagonally down to the footing.
+    ///
+    /// **A block is a box.** A capsule over the same two endpoints is a bead,
+    /// and a row of beads has a scallop between them that something walking
+    /// along the top falls into. The wall's thickness is the one axis the
+    /// sampler's cross-section correction may move: it may not get longer or
+    /// the courses stop meeting, and it may not get taller or they stop
+    /// stacking.
+    pub fn render(&self, budget: usize, g: Growth) -> Skeleton {
+        // **How many courses is a level of detail, not a shape.** A block is
+        // about twice as long as its course is tall, which is what a brick is;
+        // that fixes the aspect, and the budget fixes how many of them there
+        // are. Coarsened, a wall is fewer bigger blocks laid the same way.
+        let want_courses = (self.height / self.course.max(1e-9)).max(1.0);
+        let want_per = (self.length / (2.0 * self.course.max(1e-9))).max(2.0);
+        let fit = (budget as f64 / (want_courses * want_per)).min(1.0).sqrt();
+        let courses = (want_courses * fit).round().max(1.0) as usize;
+        let mut sk = Skeleton::with_capacity(budget);
+        let per_course = ((want_per * fit).round() as usize).clamp(2, 256);
+        let laid = g.progress.clamp(0.0, 1.0) * courses as f64;
+        let block = self.length / per_course as f64;
+        let course_half = 0.5 * self.height / courses as f64;
+        let mut prev_start = 0u32;
+        let mut prev_count = 0usize;
+        let mut site = 0u32;
+        for c in 0..courses {
+            let complete = (laid - c as f64).clamp(0.0, 1.0);
+            if complete <= 0.0 || sk.len() >= budget {
+                break;
+            }
+            let z = -0.5 * self.height + self.height * (c as f64 + 0.5) / courses as f64;
+            let blocks = ((per_course as f64 * complete).round() as usize).max(1);
+            let offset = if c % 2 == 0 { 0.0 } else { 0.5 };
+            let start = sk.len() as u32;
+            for b in 0..blocks {
+                let x0 = -0.5 * self.length + block * (b as f64 + offset);
+                let support = if c == 0 || prev_count == 0 {
+                    NO_SUPPORT
+                } else {
+                    prev_start + (b.min(prev_count - 1)) as u32
+                };
+                sk.push_box(
+                    v3(x0, 0.0, z),
+                    v3(x0 + block, 0.0, z),
+                    v3(0.5 * block, 0.5 * self.thickness, course_half),
+                    FREE_Y,
+                    1.0,
+                    0.5 * self.thickness,
+                    support,
+                    site,
+                );
+                site += 1;
+                if sk.len() >= budget {
+                    break;
+                }
+            }
+            prev_start = start;
+            prev_count = sk.len() - start as usize;
+        }
+        if sk.is_empty() {
+            let t = 0.5 * self.thickness.max(1e-6);
+            sk.push_segment(v3(-t, 0.0, 0.0), v3(t, 0.0, 0.0), 1.0, t, NO_SUPPORT, 0);
+        }
+        sk
+    }
+}
+
+// ---------------------------------------------------------------------------
+// framed
+// ---------------------------------------------------------------------------
+
+/// Columns, beams, bracing and a floor at every storey.
+///
+/// Planned construction: the target is known in advance, so a half-built frame
+/// is the finished design masked by the completion fraction with the topmost
+/// storey partial.
+///
+/// The members are real segments — columns spanning a storey, beams spanning
+/// between column heads. An earlier version emitted each element as a point
+/// with a nominal radius, which was adequate while the parts were only drawn
+/// and became nonsense the moment they had to carry load: a zero-length member
+/// has no bending stiffness, and the density correction inflated its radius
+/// until the frame rendered as a smear of vertical streaks.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Framed {
+    /// Bulk density, kg/m^3. See [`Coursed::density`].
+    pub density: f64,
+    pub floors: u16,
+    /// Height of one storey, metres.
+    pub storey: f64,
+    /// Half-width of the plan, metres.
+    pub side: f64,
+    /// Thickness of a floor, metres.
+    pub plate: f64,
+}
+
+/// Columns per storey. Four corners is the smallest frame that is a frame.
+pub const COLUMNS: usize = 4;
+
+impl Framed {
+    pub fn height(&self, g: Growth) -> f64 {
+        self.storey * self.floors.max(1) as f64 * g.progress.clamp(0.0, 1.0).max(1e-3)
+    }
+
+    pub fn extent(&self, g: Growth) -> f64 {
+        let h = self.height(g);
+        // The plan's corners sit at `side` from the axis, so the plan's
+        // diagonal is `2 side`.
+        0.5 * (h * h + 4.0 * self.side * self.side).sqrt()
+    }
+
+    pub fn render(&self, budget: usize, g: Growth) -> Skeleton {
+        let floors = self.floors.max(1) as usize;
+        let mut sk = Skeleton::with_capacity(budget);
+        let total = self.storey * floors as f64;
+        let built_floors = g.progress.clamp(0.0, 1.0) * floors as f64;
+        let side = self.side;
+        let corner = |c: usize, z: f64| {
+            let a = std::f64::consts::TAU * c as f64 / COLUMNS as f64 + std::f64::consts::FRAC_PI_4;
+            v3(side * a.cos(), side * a.sin(), z)
+        };
+
+        let mut below = [NO_SUPPORT; COLUMNS];
+        let mut site = 0u32;
+        for f in 0..floors {
+            let complete = (built_floors - f as f64).clamp(0.0, 1.0);
+            if complete <= 0.0 || sk.len() + 2 * COLUMNS + 1 > budget {
+                break;
+            }
+            let z0 = -0.5 * total + self.storey * f as f64;
+            let z1 = z0 + self.storey * complete;
+
+            let mut here = [NO_SUPPORT; COLUMNS];
+            for (c, slot) in here.iter_mut().enumerate() {
+                *slot = sk.len() as u32;
+                sk.push_segment(corner(c, z0), corner(c, z1), 1.0, 0.03 * side, below[c], site);
+                site += 1;
+            }
+            if complete >= 0.999 {
+                for c in 0..COLUMNS {
+                    let n = (c + 1) % COLUMNS;
+                    sk.push_segment(corner(c, z1), corner(n, z1), 0.7, 0.02 * side, here[c], site);
+                    site += 1;
+                }
+                // **The floor.** A frame of columns and beams is a wireframe:
+                // there is nothing between the beams, so anything set down on a
+                // storey falls through it to the footing. `docs/PLAY.md` Phase
+                // 4 asks the generators that lay down flat things to emit them,
+                // and a floor plate is the flat thing a frame lays down.
+                //
+                // It is a *plate* and not a beam, and `solvers::frame` knows
+                // the difference: a plate spanning its bay as a beam came out
+                // with a slenderness of 827 and the static solve stopped
+                // converging. See `Skeleton::push_plate`.
+                let plan = side * std::f64::consts::FRAC_1_SQRT_2;
+                sk.push_plate(
+                    v3(0.0, 0.0, z1 - 0.5 * self.plate),
+                    v3(plan, plan, 0.5 * self.plate),
+                    2.0,
+                    &here,
+                    site,
+                );
+                site += 1;
+                // Cross-bracing between adjacent columns, and diagonally to the
+                // storey below. This is what makes a frame a frame rather than
+                // a stack of posts — and it makes the structure statically
+                // indeterminate, so the redundant solver has a generated case
+                // to work on and not only a test rig.
+                for c in 0..COLUMNS {
+                    let n = (c + 1) % COLUMNS;
+                    sk.tie(here[c], here[n], 0.33);
+                    if below[c] != NO_SUPPORT {
+                        sk.tie(here[c], below[n], 0.25);
+                    }
+                }
+            }
+            below = here;
+        }
+        if sk.is_empty() {
+            let h = 0.1 * self.storey.max(1e-6);
+            sk.push_segment(v3(0.0, 0.0, -h), v3(0.0, 0.0, h), 1.0, 0.03 * side, NO_SUPPORT, 0);
+        }
+        sk
+    }
+}
+
+// ---------------------------------------------------------------------------
+// tiled
+// ---------------------------------------------------------------------------
+
+/// A square of surface: ground.
+///
+/// Stated in metres, because a patch's side is the tiling's rather than a
+/// consequence of how much it weighs. A standalone patch has its side derived
+/// from its own mass when the recipe is generated; a patch of a planet has it
+/// from the parameterisation.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Tiled {
+    /// Bulk density, kg/m^3. See [`Coursed::density`].
+    pub density: f64,
+    /// Side of the square, metres.
+    pub side: f64,
+    /// How deep the slab goes below its own mean surface, metres.
+    pub depth: f64,
+    /// The height field, as the amplitudes and phases of a short sum of
+    /// sinusoids. See [`Tiled::surface_height`].
+    pub relief: [f32; 8],
+}
+
+impl Tiled {
+    pub fn extent(&self) -> f64 {
+        let r = self.relief_amplitude();
+        0.5 * (2.0 * self.side * self.side + (self.depth + 2.0 * r).powi(2)).sqrt()
+    }
+
+    fn gene(&self, i: usize, lo: f64, hi: f64) -> f64 {
+        lo + (hi - lo) * self.relief[i % 8] as f64
+    }
+
+    /// How far the surface departs from its own mean, metres.
+    ///
+    /// A fraction of the slab's depth rather than of its width: ground varies
+    /// by a part of how deep it is, not by a part of how wide it is.
+    pub fn relief_amplitude(&self) -> f64 {
+        self.depth * self.gene(0, 0.15, 0.55)
+    }
+
+    /// A deterministic height at a point on the patch, in units of the patch's
+    /// own half-side.
+    ///
+    /// Not noise from a library and not a table: a short sum of sinusoids whose
+    /// frequencies and phases come from the recipe, which came from the node's
+    /// address. So the same patch of ground is the same shape every time it is
+    /// regenerated, two patches differ, and nothing has to be stored. The
+    /// octaves halve in amplitude and roughly double in frequency, which is
+    /// what makes a landscape read as a landscape rather than as a sine wave:
+    /// most of the relief is in the largest feature and the rest is detail on
+    /// it.
+    pub fn surface_height(&self, x: f64, y: f64) -> f64 {
+        let tilt = self.gene(1, -0.15, 0.15);
+        let mut h = tilt * x;
+        let mut amp = 1.0;
+        let mut freq = self.gene(2, 1.1, 2.2);
+        for o in 0..4 {
+            let px = self.gene(3 + o % 4, 0.0, std::f64::consts::TAU);
+            let py = self.gene((5 + o) % 8, 0.0, std::f64::consts::TAU);
+            h += amp * ((freq * x + px).sin() * (freq * y + py).cos());
+            amp *= 0.5;
+            freq *= 2.07;
+        }
+        h
+    }
+
+    /// A grid of columns, each standing on nothing.
+    ///
+    /// `NO_SUPPORT` is exactly right here and is not a shortcut. It means "this
+    /// part is anchored, load stops here", which is what bedrock is — the
+    /// terrain is what everything else's load path terminates in.
+    ///
+    /// **A square prism, not a cylinder.** Touching at their midlines is not
+    /// the same as tiling: round columns on a square grid leave a gap at every
+    /// corner of it, and something walking across the patch drops into each
+    /// one. The cell is square, so the column that fills it is.
+    pub fn render(&self, budget: usize) -> Skeleton {
+        let mut sk = Skeleton::with_capacity(budget);
+        let n = ((budget as f64).sqrt().floor() as usize).clamp(2, 64);
+        let step = self.side / n as f64;
+        let half = 0.5 * self.side;
+        let amp = self.relief_amplitude();
+        // Relief about the patch's *own mean*, measured over the same grid it
+        // is drawn on. Without that the mean height is an arbitrary offset and
+        // the drawn volume is not the stated one.
+        let mut mean = 0.0;
+        for i in 0..n {
+            for j in 0..n {
+                let x = -1.0 + 2.0 * (i as f64 + 0.5) / n as f64;
+                let y = -1.0 + 2.0 * (j as f64 + 0.5) / n as f64;
+                mean += self.surface_height(x, y);
+            }
+        }
+        mean /= (n * n) as f64;
+
+        let mut site = 0u32;
+        for i in 0..n {
+            for j in 0..n {
+                if sk.len() >= budget {
+                    break;
+                }
+                let u = -1.0 + 2.0 * (i as f64 + 0.5) / n as f64;
+                let v = -1.0 + 2.0 * (j as f64 + 0.5) / n as f64;
+                let top = amp * (self.surface_height(u, v) - mean);
+                let base = v3(u * half, v * half, -self.depth);
+                let tip = v3(u * half, v * half, top);
+                let len = (top + self.depth).max(1e-9);
+                // The cell is the cell: a column may get deeper and may not get
+                // narrower, or the patch stops tiling and the ground has holes
+                // in it.
+                sk.push_box(
+                    base,
+                    tip,
+                    v3(0.5 * step, 0.5 * step, 0.5 * len),
+                    FREE_Z,
+                    step * step * len,
+                    0.5 * step,
+                    NO_SUPPORT,
+                    site,
+                );
+                site += 1;
+            }
+        }
+        sk
+    }
+}
+
+// ---------------------------------------------------------------------------
+// subdivided
+// ---------------------------------------------------------------------------
+
+/// Plots on a street grid: a settlement, cracked mud, leaf venation.
+///
+/// This habit deliberately does not describe walls, floors or roofs. It
+/// describes *where the buildings are*, and each plot it emits is a body that
+/// can be promoted into a node of its own — which is the whole shape of world
+/// generation here: a recipe's output bodies are the next level's nodes, and
+/// the ladder from a moon to a room is recipes all the way down rather than one
+/// generator that knows about everything.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Subdivided {
+    /// Bulk density, kg/m^3. See [`Coursed::density`].
+    pub density: f64,
+    /// Side of the plan, metres.
+    pub side: f64,
+    /// How tall the things standing on it are, metres.
+    pub height: f64,
+    /// Fraction of a block taken by the street rather than the plot.
+    pub street: f64,
+    /// Per-instance variation, so a town is not uniform and is not different
+    /// every time it is drawn.
+    pub variation: f32,
+}
+
+impl Subdivided {
+    pub fn extent(&self, _g: Growth) -> f64 {
+        0.5 * (2.0 * self.side * self.side + self.height * self.height).sqrt()
+    }
+
+    /// Ordered from the middle outward, because towns fill in from their
+    /// centre: a partly built one is a core with edges missing rather than a
+    /// scatter of lone houses.
+    pub fn render(&self, budget: usize, g: Growth) -> Skeleton {
+        let mut sk = Skeleton::with_capacity(budget);
+        let blocks = ((budget as f64).sqrt().floor() as usize).clamp(2, 16);
+        let step = self.side / blocks as f64;
+        let plot = 0.5 * step * (1.0 - self.street.clamp(0.0, 0.9));
+        let built = g.progress.clamp(0.0, 1.0);
+        let half = 0.5 * self.side;
+
+        let mut plots: Vec<(f64, usize, usize)> = Vec::with_capacity(blocks * blocks);
+        for i in 0..blocks {
+            for j in 0..blocks {
+                let x = -half + step * (i as f64 + 0.5);
+                let y = -half + step * (j as f64 + 0.5);
+                plots.push((x * x + y * y, i, j));
+            }
+        }
+        plots.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
+        let wanted = ((plots.len() as f64) * built).round() as usize;
+
+        let mut site = 0u32;
+        for (_, i, j) in plots.into_iter().take(wanted.min(budget)) {
+            if sk.len() >= budget {
+                break;
+            }
+            let x = -half + step * (i as f64 + 0.5);
+            let y = -half + step * (j as f64 + 0.5);
+            let vary = frac(
+                (i as f64 * 12.9898 + j as f64 * 78.233 + self.variation as f64 * 43.5).sin()
+                    * 43758.5453,
+            );
+            let h = self.height * (0.6 + 1.8 * vary);
+            let base = v3(x, y, -self.height);
+            let tip = v3(x, y, -self.height + h);
+            sk.push_box(
+                base,
+                tip,
+                v3(plot, plot, 0.5 * h),
+                FREE_ALL,
+                plot * plot * h,
+                plot,
+                NO_SUPPORT,
+                site,
+            );
+            site += 1;
+        }
+        sk
+    }
+}
+
+/// Fractional part, for the small deterministic hashes the flat habits use.
+fn frac(x: f64) -> f64 {
+    x - x.floor()
+}
+
+// ---------------------------------------------------------------------------
+// the analysis
+// ---------------------------------------------------------------------------
+
+/// A space-filling rule, before its numbers are filled in.
+///
+/// **Not a species.** D11: "Branching, coursed masonry and a subdivided street
+/// grid are genuinely different space-filling rules, and asserting they
+/// collapse into one would be an over-claim. What they do reduce to is a small
+/// set of **habits** — selected and parameterised by the genome instead of
+/// named by an enum." This is that set. A tree and a coral are one habit with
+/// different numbers; a wall and a stratum are one habit; a settlement and
+/// cracked mud are one habit.
+///
+/// What selects a habit is what the thing is *doing*, and where an actor has
+/// placed a design the habit comes from the design rather than from here.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Habit {
+    /// Growing into an occluded transport field.
+    Branching,
+    /// Being laid course on course.
+    Coursed,
+    /// Being framed, storey on storey.
+    Framed,
+    /// A piece of a surface.
+    Tiled,
+    /// A plan divided into plots.
+    Subdivided,
+}
+
+/// Air at sea level, kg/m^3 — the reference the measured fluid is read against.
+const AIR_DENSITY: f64 = 1.225;
+
+/// Write down the rule for placing a thing's bodies.
+///
+/// **This is the analysis, and it is the only place a habit's numbers come
+/// from.** Everything it uses is measured or derived: the mass the thing has,
+/// the material it is made of — which is read off the node's own mixture — and
+/// the fluid it is standing in, which is the node's own mixture again.
+///
+/// D11's own example is the one that proves the point: "A coral is in water
+/// because its node's mixture is water; nobody tells it." A branching thing
+/// growing in a dense fluid closes up and splits more, because the fluid both
+/// carries more load and delivers more of what it is building with; one in air
+/// opens out. That is the whole of the difference between the two branching
+/// species the table used to hold, and it is a measurement now.
+pub fn generate(
+    habit: Habit,
+    genome: &[f32; 8],
+    mass: f64,
+    env: &crate::morph::Environment,
+    material: &crate::material::Material,
+) -> Recipe {
+    let gene = |i: usize, lo: f64, hi: f64| lo + (hi - lo) * genome[i % 8] as f64;
+    let density = material.density.max(1e-6);
+    let mass = mass.max(0.0);
+    match habit {
+        Habit::Branching => {
+            // How dense the fluid is, against air. Zero for air, one for water.
+            let wet = (env.fluid_density.max(AIR_DENSITY) / AIR_DENSITY).log10()
+                / (1025.0f64 / AIR_DENSITY).log10();
+            let wet = wet.clamp(0.0, 1.0);
+            Recipe::Branching(Branching {
+                // A thing carrying its own weight in air tapers hard; one held
+                // up by the fluid it is in barely has to.
+                taper: 0.62 + 0.10 * wet,
+                // More of what it is building with arrives from more
+                // directions, so a branch point has more children.
+                splits: (3.0 + wet.round()) as u8,
+                lean: gene(2, -0.12, 0.12),
+                twist: gene(3, 0.0, std::f64::consts::TAU),
+                spread: gene(4, 0.45, 0.85),
+                slenderness: gene(0, 0.8, 1.25),
+                density,
+                // McMahon's buckling criterion, calibrated once so that a
+                // one-tonne thing of wood's density stands about fifteen
+                // metres. A universal of the allometry rather than a column:
+                // the same number gives a coral its proportions, because what
+                // differs between them is the density and the fluid.
+                allometry: 3.3e-5,
+            })
+        }
+        Habit::Coursed => {
+            // The course is the material's own deposition increment: a mason
+            // lays a course of the thickness the process puts down at a time,
+            // which is the very same number D14's flaw scale is. Nothing here
+            // states a block size.
+            // The course is the material's own deposition increment: a mason
+            // lays a course of the thickness the process puts down at a time,
+            // which is the very same number D14's flaw scale is. Nothing here
+            // states a block size. Bounded below by a millimetre, because a
+            // material whose increment is a cell wall is being used as
+            // something it was not laid down as, and a wall of 30 um courses
+            // is a level of detail nothing can draw.
+            let course = material.flaw_size.clamp(1e-3, 1.0);
+            let volume = mass / density;
+            // A wall is much longer than it is tall and much taller than it is
+            // thick. The proportions are the genome's; the size is the mass's.
+            let slender = gene(0, 2.0, 5.0);
+            let stoutness = gene(1, 0.12, 0.30);
+            // volume = length * height * thickness, with
+            // length = slender * height and thickness = stoutness * height.
+            let height = (volume / (slender * stoutness)).max(0.0).cbrt().max(1e-6);
+            Recipe::Coursed(Coursed {
+                length: slender * height,
+                height,
+                thickness: stoutness * height,
+                course: course.min(height),
+                density,
+            })
+        }
+        Habit::Framed => {
+            let storey = gene(2, 2.6, 4.0);
+            let floors = (6.0 + gene(0, 0.0, 34.0)).round().max(1.0);
+            // The plan follows from the mass: a frame of this much material,
+            // this many storeys tall, covers this much ground. The plate is a
+            // fixed fraction of a storey, which is what a floor is.
+            let volume = mass / density;
+            let plate = 0.06 * storey;
+            // Each storey costs its own floor plus its columns and beams; the
+            // floor dominates, so the plan is what the volume buys.
+            let area = (volume / (floors * plate)).max(1e-6);
+            let side = (area.sqrt() * std::f64::consts::FRAC_1_SQRT_2).max(1e-3);
+            Recipe::Framed(Framed { density, floors: floors as u16, storey, side, plate })
+        }
+        Habit::Tiled => {
+            // A patch is much wider than it is deep, and this is how much.
+            let volume = mass / density;
+            let side = (volume / SLAB_ASPECT).max(0.0).cbrt().max(1e-6);
+            let mut relief = [0.0f32; 8];
+            relief.copy_from_slice(genome);
+            Recipe::Tiled(Tiled { density, side, depth: side * SLAB_ASPECT, relief })
+        }
+        Habit::Subdivided => {
+            // A town is an *area*, not a volume, and that is the difference
+            // that matters. Deriving its size from its mass the way a solid
+            // body's is derived — the cube root of a volume — describes a town
+            // cast as one lump of concrete, and gives a six-thousand-tonne
+            // settlement fifty metres across with fifty-metre buildings in it.
+            let height = gene(2, 8.0, 16.0);
+            // What a town actually is: things a few storeys tall covering some
+            // of the ground, and streets and yards for the rest.
+            let street = gene(0, 0.22, 0.38);
+            let cover = (1.0 - street) * (1.0 - street);
+            let areal = density * height * cover;
+            let side = (mass / areal.max(1e-9)).max(0.0).sqrt().max(1e-6);
+            Recipe::Subdivided(Subdivided { density, side, height, street, variation: genome[1] })
+        }
+    }
+}
+
+/// Depth of a patch of ground as a fraction of its side. Terrain is much wider
+/// than it is deep, and this is how much.
+pub const SLAB_ASPECT: f64 = 0.125;

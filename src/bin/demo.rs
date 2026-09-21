@@ -252,7 +252,7 @@ fn main() {
             let m = w.tree.nodes[forest.get()].morphology.as_ref().unwrap();
             println!(
                 "  {:>6} {:>12} {:>9.1} m {:>14.4e} {:>14.4e}",
-                year, fmt_mass(m.built), m.tree_height(), absorbed, entropy
+                year, fmt_mass(m.built), m.height(), absorbed, entropy
             );
         }
     }

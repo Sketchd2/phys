@@ -189,7 +189,7 @@ fn growth_saturates_from_allometry() {
             m.advance(YEAR / 12.0, &env);
         }
         if year % 100 == 0 {
-            history.push((year, m.built, m.tree_height()));
+            history.push((year, m.built, m.height()));
         }
     }
     for (y, mass, h) in &history {
@@ -199,7 +199,7 @@ fn growth_saturates_from_allometry() {
     let late = history[history.len() - 1].1 - history[history.len() - 2].1;
     assert!(m.built > 100.0, "no meaningful growth: {} kg", m.built);
     assert!(late < early, "growth never slowed: {early} then {late}");
-    let h = m.tree_height();
+    let h = m.height();
     assert!((5.0..90.0).contains(&h), "implausible tree height {h:.1} m");
 }
 
@@ -378,7 +378,7 @@ fn engine_grows_unobserved_structures() {
         "10 yr unobserved: {:.1} -> {:.1} kg, height {:.2} m, {} materialisations",
         start_mass,
         n.morphology.as_ref().unwrap().built,
-        n.morphology.as_ref().unwrap().tree_height(),
+        n.morphology.as_ref().unwrap().height(),
         w.tree.stats.materialisations
     );
 

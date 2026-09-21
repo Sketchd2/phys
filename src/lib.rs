@@ -61,6 +61,7 @@ pub mod persist;
 pub mod sampler;
 pub mod shape;
 pub mod film;
+pub mod recipe;
 pub mod render;
 pub mod scenario;
 pub mod rng;

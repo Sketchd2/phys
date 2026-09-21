@@ -636,8 +636,7 @@ pub(crate) fn put_morphology(w: &mut Writer, m: &Morphology) {
     // is, which way it faces, how big it is, how much of the node's mass it
     // accounts for, what it is made of, and what holds it on.
     let empty: Vec<crate::assembly::Join> = Vec::new();
-    let (parts, joins): (&[crate::state::Body], &[crate::assembly::Join]) = match m.assembly.as_ref()
-    {
+    let (parts, joins): (&[crate::state::Body], &[crate::assembly::Join]) = match m.assembly() {
         Some(a) => (a.parts.as_slice(), a.joins.as_slice()),
         None => (&[], empty.as_slice()),
     };
@@ -654,6 +653,118 @@ pub(crate) fn put_morphology(w: &mut Writer, m: &Morphology) {
         w.u32(j.substance.0);
         w.f64(j.area);
     }
+    put_recipe(w, m.recipe.as_ref());
+}
+
+/// The generated program, where it is a rule rather than a parts list.
+///
+/// A parts list is written above, because it is what it is; a rule is a handful
+/// of numbers and is written here. Both are the same field — `Morphology`
+/// carries one recipe — and the two halves of the wire format are the two
+/// shapes a recipe comes in.
+fn put_recipe(w: &mut Writer, r: Option<&crate::recipe::Recipe>) {
+    use crate::recipe::Recipe;
+    match r {
+        None => w.u8(0),
+        Some(Recipe::Placed(_)) => w.u8(1),
+        Some(Recipe::Branching(b)) => {
+            w.u8(2);
+            w.f64(b.taper);
+            w.u8(b.splits);
+            w.f64(b.lean);
+            w.f64(b.twist);
+            w.f64(b.spread);
+            w.f64(b.slenderness);
+            w.f64(b.density);
+            w.f64(b.allometry);
+        }
+        Some(Recipe::Coursed(c)) => {
+            w.u8(3);
+            w.f64(c.length);
+            w.f64(c.height);
+            w.f64(c.thickness);
+            w.f64(c.course);
+            w.f64(c.density);
+        }
+        Some(Recipe::Framed(f)) => {
+            w.u8(4);
+            w.f64(f.density);
+            w.u16(f.floors);
+            w.f64(f.storey);
+            w.f64(f.side);
+            w.f64(f.plate);
+        }
+        Some(Recipe::Tiled(t)) => {
+            w.u8(5);
+            w.f64(t.density);
+            w.f64(t.side);
+            w.f64(t.depth);
+            for g in &t.relief {
+                w.u32(g.to_bits());
+            }
+        }
+        Some(Recipe::Subdivided(s)) => {
+            w.u8(6);
+            w.f64(s.density);
+            w.f64(s.side);
+            w.f64(s.height);
+            w.f64(s.street);
+            w.u32(s.variation.to_bits());
+        }
+    }
+}
+
+fn get_recipe(
+    r: &mut Reader,
+    parts: Option<crate::assembly::Assembly>,
+) -> Result<Option<crate::recipe::Recipe>> {
+    use crate::recipe::*;
+    Ok(match r.u8()? {
+        0 => None,
+        1 => parts.map(Recipe::Placed),
+        2 => Some(Recipe::Branching(Branching {
+            taper: r.f64()?,
+            splits: r.u8()?,
+            lean: r.f64()?,
+            twist: r.f64()?,
+            spread: r.f64()?,
+            slenderness: r.f64()?,
+            density: r.f64()?,
+            allometry: r.f64()?,
+        })),
+        3 => Some(Recipe::Coursed(Coursed {
+            length: r.f64()?,
+            height: r.f64()?,
+            thickness: r.f64()?,
+            course: r.f64()?,
+            density: r.f64()?,
+        })),
+        4 => Some(Recipe::Framed(Framed {
+            density: r.f64()?,
+            floors: r.u16()?,
+            storey: r.f64()?,
+            side: r.f64()?,
+            plate: r.f64()?,
+        })),
+        5 => {
+            let density = r.f64()?;
+            let side = r.f64()?;
+            let depth = r.f64()?;
+            let mut relief = [0.0f32; 8];
+            for g in relief.iter_mut() {
+                *g = f32::from_bits(r.u32()?);
+            }
+            Some(Recipe::Tiled(Tiled { density, side, depth, relief }))
+        }
+        6 => Some(Recipe::Subdivided(Subdivided {
+            density: r.f64()?,
+            side: r.f64()?,
+            height: r.f64()?,
+            street: r.f64()?,
+            variation: f32::from_bits(r.u32()?),
+        })),
+        other => return Err(WireError::BadTag { what: "recipe habit", tag: other as u64 }),
+    })
 }
 
 /// What one part of a recipe costs on the wire: a position, an orientation,
@@ -696,9 +807,9 @@ pub(crate) fn get_morphology(r: &mut Reader) -> Result<Morphology> {
         events,
         checkpoint_age: r.f64()?,
         design_mass: r.f64()?,
-        assembly: {
+        recipe: {
             let n = r.seq("assembly parts", PART_MIN_BYTES)?;
-            if n == 0 {
+            let parts = if n == 0 {
                 None
             } else {
                 let mut parts = Vec::with_capacity(n);
@@ -720,7 +831,8 @@ pub(crate) fn get_morphology(r: &mut Reader) -> Result<Morphology> {
                     });
                 }
                 Some(crate::assembly::Assembly::new(parts, joins))
-            }
+            };
+            get_recipe(r, parts)?
         },
     })
 }
@@ -1162,6 +1274,9 @@ pub(crate) fn put_environment_pub(w: &mut Writer, e: &Environment) {
     w.f64(e.crowding);
     w.f64(e.reservoir_mass);
     w.f64(e.labour);
+    // Appended: what the node is standing in, and what it has met.
+    w.f64(e.fluid_density);
+    w.f64(e.flow_speed);
 }
 pub(crate) fn get_environment_pub(r: &mut Reader) -> Result<Environment> {
     Ok(Environment {
@@ -1171,6 +1286,8 @@ pub(crate) fn get_environment_pub(r: &mut Reader) -> Result<Environment> {
         crowding: r.f64()?,
         reservoir_mass: r.f64()?,
         labour: r.f64()?,
+        fluid_density: r.f64()?,
+        flow_speed: r.f64()?,
     })
 }
 

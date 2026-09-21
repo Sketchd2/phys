@@ -1684,6 +1684,12 @@ impl Tree {
         // neither creates nor destroys anything, and growth is bounded by what
         // is actually there.
         m.built = (self.nodes[i.get()].matter.mass * 1e-3).clamp(1e-6, 1.0);
+        // Write down the rule. `Tree` has no registry and no observers, so it
+        // generates against the conditions it can see; `World::plant` measures
+        // the real ones and writes it again. Doing it here as well is what
+        // keeps a `Tree` on its own — which is what most of the suite is — a
+        // thing that can draw itself.
+        m.regenerate(&crate::morph::Environment::default(), &m.program.material());
         // Whatever was promoted out of this node is folded back before its
         // detail goes: a slot in a body list that is about to be replaced is
         // not a place anything can live. See `Tree::shed_children`.
@@ -1732,6 +1738,9 @@ impl Tree {
             m.design_mass = m.built;
             m.progress = 1.0;
         }
+        // The rule, written against the conditions a `Tree` can see. See
+        // `Tree::plant`.
+        m.regenerate(&crate::morph::Environment::default(), &m.program.material());
         self.shed_children(i);
         let n = &mut self.nodes[i.get()];
         n.matter.radius = m.extent().max(1e-30);

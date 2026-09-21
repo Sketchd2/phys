@@ -70,7 +70,7 @@ fn shoot(
         caption,
         topo.joints.len(),
         m.built,
-        m.tree_height(),
+        m.height(),
         path
     );
     cam

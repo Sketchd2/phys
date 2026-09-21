@@ -77,6 +77,7 @@ fn first_run(store: &mut FileStore, path: &std::path::Path) {
             crowding: 0.1,
             reservoir_mass: 4.0e4,
             labour: 0.0,
+            ..Environment::default()
         }),
     );
     println!("  planted a tree in a 12 m patch of ground");

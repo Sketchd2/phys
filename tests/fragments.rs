@@ -201,18 +201,23 @@ fn a_falling_limb_damages_what_it_lands_on() {
 
     // A gale hard enough to take limbs off, and no harder.
     //
-    // **It was 38 m/s and is now 42.** `docs/PLAY.md` D14 made the material
-    // measured rather than tabulated, and green wood comes out 3.2x stiffer
-    // than the table held — a factor that is the accuracy the derivation claims
-    // and not a change in behaviour. This tree fails by *buckling*, which
-    // scales with stiffness, so the wind that prunes it rises with its square
-    // root.
+    // **It was 38 m/s, then 42, and is now 80.** Two changes, each of which
+    // made this tree stronger for a reason that is not about wind.
     //
-    // The window is narrow and worth stating: measured, 40 m/s breaks 166
-    // joints and the debris hits 19 members, 42 sheds cleanly, and 44 breaks
-    // 281 and shreds the crown so that what comes off falls through what is
-    // left of it. That last is true and is not what this test is about.
-    let out = world.damage(node, &[weather::wind(42.0, v3(1.0, 0.0, 0.0))]);
+    // D14 made the material measured rather than tabulated, and green wood
+    // comes out 3.2x stiffer than the table held; this tree fails by
+    // *buckling*, which scales with stiffness, so the wind that prunes it rose
+    // with its square root. That took it from 38 to 42.
+    //
+    // Phase 4's generated program took it from 42 to 80, and the number is the
+    // measurement of a defect rather than a change of behaviour: a structure
+    // used to be drawn 1.44x larger than the size it stated, because the
+    // sampler rescaled a unit skeleton until `summarise` reported the node's
+    // radius back. A tree of this mass was therefore drawn 35 m tall instead of
+    // 24.6 m — the same wood, 44% more slender — and a slenderer tree buckles
+    // in a lighter wind. Measured now: 4733 kg, 24.6 m, which is what 7.9 m^3
+    // of wood standing up actually looks like.
+    let out = world.damage(node, &[weather::wind(80.0, v3(1.0, 0.0, 0.0))]);
     println!(
         "  the gale broke {} joints into {} falling pieces",
         out.broken_joints, out.detached_pieces
@@ -402,9 +407,9 @@ fn a_branch_lands_on_the_next_tree() {
         "the far tree has to be out of reach for this to be a control"
     );
 
-    // 38 m/s before the material was measured; see
-    // `a_falling_limb_damages_what_it_lands_on` for the arithmetic.
-    let out = w.damage(a, &[weather::wind(70.0, v3(1.0, 0.0, 0.15))]);
+    // 38 m/s before the material was measured and 70 before the geometry was;
+    // see `a_falling_limb_damages_what_it_lands_on` for both arithmetics.
+    let out = w.damage(a, &[weather::wind(110.0, v3(1.0, 0.0, 0.15))]);
     assert!(out.detached_pieces > 0, "the gale took nothing off the first tree");
     let before = w.tree.nodes[b.get()].morphology.as_ref().unwrap().built;
     let before_far = w.tree.nodes[far.get()].morphology.as_ref().unwrap().built;

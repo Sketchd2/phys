@@ -87,7 +87,7 @@ fn a_box_is_one_node_with_six_walls() {
     let (mut w, node, _, _) = a_box();
     let n = &w.tree.nodes[node.get()];
     let m = n.morphology.as_ref().expect("the box has a recipe");
-    let a = m.assembly.as_ref().expect("and the recipe is an assembly");
+    let a = m.assembly().expect("and the recipe is an assembly");
     println!("  recipe: {} parts, {} bytes, extent {:.3} m, {:.1} kg",
         a.len(), m.state_bytes(), m.extent(), a.mass());
     assert_eq!(a.len(), 6);
@@ -100,7 +100,7 @@ fn a_box_is_one_node_with_six_walls() {
     let n = &w.tree.nodes[node.get()];
     let topo = n.topology.as_ref().expect("an assembly has a topology");
     for i in 0..6 {
-        let want = n.morphology.as_ref().unwrap().assembly.as_ref().unwrap().parts[i].pos;
+        let want = n.morphology.as_ref().unwrap().assembly().unwrap().parts[i].pos;
         let got = bodies[i].pos;
         println!(
             "    part {i}: recipe {:?} sampled ({:.4}, {:.4}, {:.4}) joint r {:.4}",
@@ -126,7 +126,7 @@ fn the_parts_land_where_the_recipe_put_them() {
         .morphology
         .as_ref()
         .unwrap()
-        .assembly
+        .assembly()
         .as_ref()
         .unwrap()
         .parts
@@ -199,12 +199,12 @@ fn joining_absorbs_a_node_into_the_recipe() {
     let spec = w.tree.nodes[node.get()].spec;
     let lid = w.tree.promote(node, 1, spec);
     assert!(!lid.is_none(), "the lid should promote");
-    let before = w.tree.nodes[node.get()].morphology.as_ref().unwrap().assembly.as_ref().unwrap().len();
+    let before = w.tree.nodes[node.get()].morphology.as_ref().unwrap().assembly().unwrap().len();
     let live_before = w.tree.live_count();
 
     let site = w.join(node, lid, glue, 0.03).expect("the lid rejoins");
     let m = w.tree.nodes[node.get()].morphology.as_ref().unwrap();
-    let a = m.assembly.as_ref().unwrap();
+    let a = m.assembly().unwrap();
     println!(
         "  {} parts -> {} after joining at site {site}; {} live nodes -> {}",
         before,
@@ -232,7 +232,7 @@ fn a_wall_that_comes_off_is_still_a_wall() {
     assert!(!wall.is_none(), "nothing came off");
     let child = &w.tree.nodes[wall.get()];
     let a = child.morphology.as_ref().expect("the wall has a recipe of its own");
-    let parts = a.assembly.as_ref().expect("and it is an assembly");
+    let parts = a.assembly().expect("and it is an assembly");
     println!(
         "  detached: {} live nodes -> {}, the piece is {} part(s), {:.1} kg, {:.3} m",
         live_before,
@@ -246,7 +246,7 @@ fn a_wall_that_comes_off_is_still_a_wall() {
 
     // The box still describes six parts, five of them joined: the recipe now
     // says five walls plus a break.
-    let box_parts = w.tree.nodes[node.get()].morphology.as_ref().unwrap().assembly.as_ref().unwrap();
+    let box_parts = w.tree.nodes[node.get()].morphology.as_ref().unwrap().assembly().unwrap();
     assert_eq!(box_parts.len(), 6);
     assert_eq!(box_parts.joins.iter().filter(|j| j.is_joined()).count(), 4);
     let events = &w.tree.nodes[node.get()].morphology.as_ref().unwrap().events;
@@ -264,7 +264,7 @@ fn a_hard_enough_strike_takes_a_wall_off() {
     for (speed, expect) in [(20.0f64, false), (700.0, true)] {
         let (mut w, node, _, _) = a_box();
         let out = w.damage(node, &[phys::solvers::structure::weather::wind(speed, v3(1.0, 0.0, 0.0))]);
-        let a = w.tree.nodes[node.get()].morphology.as_ref().unwrap().assembly.as_ref().unwrap();
+        let a = w.tree.nodes[node.get()].morphology.as_ref().unwrap().assembly().unwrap();
         let still_on = a.joins.iter().filter(|j| j.is_joined()).count();
         println!(
             "  {speed:>5.0} m/s: peak utilisation {:.2}, {} joints broke, {} pieces away, {still_on}/5 still joined",
@@ -292,7 +292,7 @@ fn a_box_nobody_is_watching_is_its_recipe() {
     // the wire format does not write, because they are regenerated from the
     // node's matter. D15's storage argument is about what a world *costs to
     // keep*, so that is the figure to compare.
-    let recipe = w.tree.nodes[node.get()].morphology.as_ref().unwrap().assembly.as_ref().unwrap().wire_bytes();
+    let recipe = w.tree.nodes[node.get()].morphology.as_ref().unwrap().assembly().unwrap().wire_bytes();
     let resident = w.tree.nodes[node.get()].morphology.as_ref().unwrap().state_bytes();
 
     assert!(w.collapsible(node), "a described box must be able to release its detail");

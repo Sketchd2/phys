@@ -128,12 +128,22 @@ fn the_sixty_fifth_severance_resurrects_the_first_thirty_two() {
     );
 }
 
-/// **Characterisation of a defect.** Only `render_branching` consults the event
-/// log, so the four planned programs and terrain never suppress a severed site
-/// at all — not after sixty-four edits, after one. When that is fixed this test
-/// should fail and be inverted.
+/// Every habit honours a severance, because one place does it for all of them.
+///
+/// **This was a characterisation of a defect and is now the reading of its
+/// fix.** `docs/PLAY.md` §5.9 measured it: "four of the six programs never
+/// honour a severance at all. Tower, wall, terrain and settlement return
+/// exactly the same part count from the first severance onward, with every
+/// severed site still present." The skip lived inside `render_branching`,
+/// which only two of the six called, so a demolished wall section did not
+/// survive sixty-four edits — it did not survive one.
+///
+/// What fixed it was not writing the skip five more times. A generated program
+/// emits a skeleton and `Morphology::render` drops the severed sites out of
+/// whatever comes back, so there is one implementation and a new habit cannot
+/// forget it.
 #[test]
-fn four_programs_never_honour_a_severance() {
+fn every_habit_honours_a_severance() {
     for program in PROGRAMS {
         let mut m = matured(program, 0xBEEF);
         let sk = m.render(512);
@@ -143,13 +153,20 @@ fn four_programs_never_honour_a_severance() {
         let site = sk.site[sk.site.len() / 2];
         m.record(Event { at: m.age, kind: EventKind::Severed, site, magnitude: 0.001 }, 290.0);
         let after = m.render(512);
-        let honoured = !after.site.contains(&site);
-        let branching = matches!(program, Program::Tree | Program::Coral);
-        assert_eq!(
-            honoured, branching,
-            "{}: honoured a severance = {honoured}, expected {branching} \
-             (only the branching renderer consults `events`)",
-            program.name()
+        assert!(
+            !after.site.contains(&site),
+            "{} ({}): a severed site came back",
+            program.name(),
+            m.recipe.as_ref().map(|r| r.habit()).unwrap_or("none")
+        );
+        // And only that site, plus whatever was held on by it. A habit that
+        // answered by emitting nothing would pass the line above.
+        assert!(
+            after.len() > 0 && after.len() < sk.len(),
+            "{}: {} parts of {} survived, which is not a severance",
+            program.name(),
+            after.len(),
+            sk.len()
         );
     }
 }

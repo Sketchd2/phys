@@ -497,7 +497,16 @@ pub fn closest(a: &Hull, b: &Hull) -> Option<Closest> {
     }
 
     // Witness points, from the weights the last reduction produced.
-    let n = simplex.len();
+    //
+    // **Bounded by the weights, not by the simplex.** The loop pushes the new
+    // support vertex *after* the reduction that produced `weights`, so a query
+    // that runs to `GJK_MAX_ITERS` leaves a simplex one longer than the weights
+    // that describe it — and indexing the weights by the simplex's length
+    // panics. Reachable from a degenerate slab, which is how it was found: a
+    // wall generated with 512 courses of a 6.6 m height emitted blocks 16 m
+    // long and 6 mm tall, and the narrow phase went out of bounds on them
+    // rather than returning an answer.
+    let n = simplex.len().min(weights.len());
     if n == 0 {
         return Some(degenerate_contact(a, b));
     }

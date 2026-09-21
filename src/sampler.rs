@@ -1194,7 +1194,11 @@ pub fn sample_structured(
         let mut st = Stream::at(world_seed, path_key, epoch, Purpose::Positions);
         let each = residual / n_res as f64;
         for _ in 0..n_res {
-            pos_all.push(st.in_ball());
+            // Litter is drawn in the unit ball and lives in the node's own
+            // metres, so it is placed at the node's radius rather than at the
+            // recipe's — the two are the same thing once the structure is
+            // sized, and this is what keeps a node's loose matter inside it.
+            pos_all.push(st.in_ball().scale(matter.radius));
             masses.push(each);
             radii_all.push(0.0);
             comps.push(matter.composition);
@@ -1204,16 +1208,24 @@ pub fn sample_structured(
     report.count = n;
     report.structural_parts = n_struct;
 
-    // The skeleton is generated in units of the structure's extent. Scale it so
-    // that `summarise` reports exactly `matter.radius` — which the growth step has
-    // already set to `morph.extent()`, so this is a unit conversion rather than
-    // a correction to the shape.
+    // **The recipe states metres, and the bodies go where it says.**
+    //
+    // This used to rescale the whole skeleton until `summarise` reported
+    // `matter.radius` back, on the reasoning that the generator worked in units
+    // of the structure's own extent — which meant the size a program *stated*
+    // and the size it was *drawn* at were two different numbers. Measured, as
+    // the factor the drawing was inflated by: tree 1.44, coral 1.53, tower
+    // 0.89, wall 0.76, settlement 0.95. A tree was drawn 44% taller than its
+    // own height.
+    //
+    // A generated program places its parts in metres and `extent()` is the
+    // bounding radius of what it will place, so the two agree by construction
+    // and there is nothing to reconcile. The scale survives as a *number* only
+    // because the topology and the litter are expressed against it, and it is
+    // one.
     let mut pos = pos_all;
     let com_shift = recentre(&mut pos, &masses, matter.mass);
-    let scale = radius_scale(&pos, &masses, matter.mass, matter.radius);
-    for p in pos.iter_mut() {
-        *p = p.scale(scale);
-    }
+    let scale = 1.0;
 
     // Member radii are set by the *density*, not by the position scale.
     //
@@ -1387,7 +1399,7 @@ pub fn sample_structured(
         // to keep, so the three fields a body carries for this reason are
         // stamped back on. Positions were scaled to the node's radius on the
         // way through, so extents scale with them.
-        if let Some(a) = morph.assembly.as_ref() {
+        if let Some(a) = morph.assembly() {
             for (b, part) in bodies.iter_mut().zip(a.parts.iter()) {
                 b.orientation = part.orientation;
                 b.substance = part.substance;
