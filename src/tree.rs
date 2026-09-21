@@ -1322,19 +1322,23 @@ impl Tree {
     /// not pull on itself, and for a node that is most of what contains it the
     /// difference is the whole answer.
     ///
-    /// # What it does not do yet: orientation
+    /// # The answer is in the node's own axes
     ///
-    /// The answer is in the node's *frame axes*, which today are its parent's,
-    /// because [`Tree::offset_from`] composes offsets and not rotations. A
-    /// `Motion` carries an `orientation` and this does not consult it. So a node
-    /// on the `+x` side of a planet is told gravity points along `-x`, which is
-    /// true in the parent's axes and is not what a structure generated with
-    /// `+z` up expects to carry its weight along.
+    /// Each ancestor pulls along a direction expressed in *that ancestor's*
+    /// axes, because [`Tree::offset_from`] walks positions and positions are
+    /// offsets in the parent's frame. Summing those directly adds vectors from
+    /// different frames, and the sum is only meaningful while every frame in
+    /// the chain is the same one — which was true for as long as nothing
+    /// oriented a node against the body it sits on.
     ///
-    /// It does not bite yet because nothing orients a node against the body it
-    /// sits on — there is no terrain, which is the same `PLAY.md` D6 work this
-    /// field was built for. It will the moment there is: a patch on a sphere is
-    /// oriented by definition. Recorded in `BACKLOG.md`.
+    /// A patch of ground is oriented by definition: that is what a patch *is*,
+    /// a square of surface with a local up. So each contribution is rotated
+    /// into the node's own axes on the way in, with [`Tree::axes_from`], and a
+    /// node on the `+x` side of a planet carries its weight along its own `-z`
+    /// rather than being told the field points along `-x`. For an unoriented
+    /// chain every rotation is the identity and the arithmetic is unchanged,
+    /// which is why this closed a `BACKLOG.md` entry without moving a number in
+    /// the suite.
     pub fn gravity_at(&self, idx: NodeIdx) -> Vec3 {
         if idx.is_none() || !self.nodes[idx.get()].alive {
             return Vec3::ZERO;
@@ -1354,11 +1358,53 @@ impl Tree {
                 } else {
                     source * (d / radius).powi(3)
                 };
-                g += r.scale(-crate::units::G * enclosed / (d * d * d));
+                // In this ancestor's axes, then turned into the node's own.
+                let pull = r.scale(-crate::units::G * enclosed / (d * d * d));
+                g += self.into_axes_of(anc, idx, pull);
             }
             anc = a.parent;
         }
         g
+    }
+
+    /// The rotation taking a vector in `node`'s axes to `ancestor`'s.
+    ///
+    /// `Motion::orientation` is which way a node is pointing *in its parent's
+    /// frame*, and `Motion::compose` has always composed it correctly for one
+    /// step. What was missing is the walk: nothing in the tree composed
+    /// orientation across more than one level, so every vector carried between
+    /// two frames — a field, a velocity, a wind direction, an impulse — was
+    /// implicitly assuming every frame in the chain shared its axes.
+    ///
+    /// **Positions are deliberately not rotated by this.** A node's `offset` is
+    /// a dynamical position in its parent's frame, and the solvers integrate it
+    /// there; a node's `orientation` says which way the node itself is facing.
+    /// The two are independent, and conflating them would drag every child of a
+    /// spinning node around with it without any of the fictitious forces that
+    /// would make that an honest rotating frame. `offset_from` is therefore
+    /// unchanged, and this is the companion for everything that is not a
+    /// position.
+    pub fn axes_from(&self, ancestor: NodeIdx, mut node: NodeIdx) -> crate::math::Quat {
+        let mut q = crate::math::Quat::IDENTITY;
+        while node != ancestor && !node.is_none() {
+            let n = &self.nodes[node.get()];
+            q = q.then(n.motion.orientation);
+            node = n.parent;
+        }
+        q
+    }
+
+    /// Carry a vector expressed in `ancestor`'s axes into `node`'s own.
+    ///
+    /// The inverse direction of [`Tree::axes_from`], which is the one nearly
+    /// every consumer wants: a field, a flow or an impulse is measured where it
+    /// comes from and has to be applied where it lands.
+    pub fn into_axes_of(&self, ancestor: NodeIdx, node: NodeIdx, v: Vec3) -> Vec3 {
+        let q = self.axes_from(ancestor, node);
+        if q == crate::math::Quat::IDENTITY {
+            return v;
+        }
+        q.conjugate().rotate(v)
     }
 
     /// The region this node owns — `docs/PLAY.md` D16, and the length every

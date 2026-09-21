@@ -196,3 +196,78 @@ fn the_field_a_structure_was_built_in_is_stored_on_the_node() {
     );
     assert_eq!(stored, w.tree.gravity_at(node), "and it should be the derived one");
 }
+
+/// A node on the side of a planet carries its weight along its own down.
+///
+/// The `BACKLOG.md` entry this closes, whose stated trigger is "the first
+/// oriented node, which is Phase 4's first terrain patch": `gravity_at` summed
+/// each ancestor's pull in *that ancestor's* axes, so a node on the `+x` side
+/// of a planet was told the field points along `-x`. True in the planet's
+/// frame, and wrong for the node, which is generated with `+z` up — a structure
+/// standing there would have carried its weight out sideways through its own
+/// geometry.
+///
+/// A patch of ground is oriented by construction, so this is not an edge case
+/// once there is terrain; it is every patch except the two on the axis.
+#[test]
+fn a_node_on_the_side_of_a_planet_is_pulled_along_its_own_down() {
+    use phys::math::Quat;
+    let (mut w, node) = an_earth();
+    // Standing on the equator at longitude zero: the node's local +z points
+    // away from the planet's centre, which is a quarter turn about +y.
+    let up = Quat::from_axis_angle(v3(0.0, 1.0, 0.0), std::f64::consts::FRAC_PI_2);
+    w.tree.nodes[node.get()].motion.orientation = up;
+    let g = at(&mut w, node, v3(EARTH_RADIUS, 0.0, 0.0));
+
+    let expected = G * EARTH_MASS / (EARTH_RADIUS * EARTH_RADIUS);
+    assert!(
+        (g.norm() - expected).abs() / expected < 1e-9,
+        "the strength is unchanged by which way the node faces: {} against {expected}",
+        g.norm()
+    );
+    assert!(
+        g.z < 0.0 && g.x.abs() < 1e-9 * expected && g.y.abs() < 1e-9 * expected,
+        "and it should point along the node's own -z, not the planet's -x: {g:?}"
+    );
+
+    // The unoriented node in the same place is the measurement of what this
+    // was doing before: the same field, reported along the parent's -x.
+    w.tree.nodes[node.get()].motion.orientation = Quat::IDENTITY;
+    let parent_axes = at(&mut w, node, v3(EARTH_RADIUS, 0.0, 0.0));
+    assert!(
+        parent_axes.x < 0.0 && parent_axes.z.abs() < 1e-9 * expected,
+        "an unoriented node still reads the parent's axes, which is right: {parent_axes:?}"
+    );
+}
+
+/// Composition runs the whole chain, not one level of it.
+///
+/// Two quarter turns about different axes do not commute, so a node two levels
+/// down a chain of oriented frames is the case that tells a real composition
+/// apart from consulting the node's own orientation and stopping there.
+#[test]
+fn orientation_composes_all_the_way_up_the_chain() {
+    use phys::math::Quat;
+    let (mut w, node) = an_earth();
+    let planet = w.tree.nodes[node.get()].parent;
+    let a = Quat::from_axis_angle(v3(0.0, 1.0, 0.0), std::f64::consts::FRAC_PI_2);
+    let b = Quat::from_axis_angle(v3(1.0, 0.0, 0.0), std::f64::consts::FRAC_PI_2);
+    w.tree.nodes[planet.get()].motion.orientation = b;
+    w.tree.nodes[node.get()].motion.orientation = a;
+
+    let q = w.tree.axes_from(w.tree.root, node);
+    let composed = a.then(b);
+    assert!(
+        (q.conjugate().then(composed).angle()).abs() < 1e-12,
+        "axes_from should be the child's turn then the parent's: {q:?} against {composed:?}"
+    );
+
+    // And the same vector carried down lands where the composition says.
+    let v = v3(1.0, 0.0, 0.0);
+    let there = w.tree.into_axes_of(w.tree.root, node, v);
+    let by_hand = composed.conjugate().rotate(v);
+    assert!(
+        (there - by_hand).norm() < 1e-12,
+        "{there:?} against {by_hand:?}"
+    );
+}
