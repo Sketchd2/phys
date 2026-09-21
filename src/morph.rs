@@ -450,19 +450,32 @@ impl Morphology {
                 let v = self.built / CORAL_DENSITY;
                 (v / 0.3).cbrt().max(1e-3)
             }
-            // Both of the flat programs are a slab: a square of side `l` with a
-            // depth an eighth of it, so the bounding radius is the half
-            // diagonal. Deriving the side from the mass rather than storing it
-            // keeps the geometry and the matter in step the way every other
-            // program does.
-            Program::Terrain | Program::Settlement => {
+            // **A slab, reported as the equivalent uniform sphere.** A square
+            // of side `l` and depth `d` has `<r^2> = (2l^2 + d^2)/12` about its
+            // own centre, and `matter.radius` is `sqrt(5/3)` times that rms —
+            // which is what `sampler::radius_scale` scales a drawn patch until
+            // it comes back as. Reporting the *bounding* radius instead, which
+            // is what the half-diagonal is, hands the sampler a number 1.34x
+            // too large and it obligingly inflates the patch until the two
+            // agree. `CLAUDE.md` names this trap and `Assembly::extent` writes
+            // the same conversion down; see `Morphology::bound` for the
+            // half-diagonal, which is still the right answer to a different
+            // question.
+            Program::Terrain => {
                 let l = self.slab_side().max(1e-3);
-                // Ground is as deep as its own aspect; a town is only as tall
-                // as its buildings, which do not grow with the town's width.
-                let d = match self.program {
-                    Program::Settlement => SETTLEMENT_HEIGHT,
-                    _ => l * SLAB_ASPECT,
-                };
+                let d = l * SLAB_ASPECT;
+                crate::state::RMS_TO_RADIUS * ((2.0 * l * l + d * d) / 12.0).sqrt()
+            }
+            // A town is only as tall as its buildings, which do not grow with
+            // the town's width. Left on the bounding radius deliberately: its
+            // mass is in buildings standing on a plane rather than spread
+            // through a slab, so the slab's rms is not its rms, and the same
+            // mismatch is on every other program in this table. Measured, as
+            // the ratio a drawn skeleton is rescaled by: tree 1.44, coral 1.53,
+            // tower 0.89, wall 0.76, settlement 0.95.
+            Program::Settlement => {
+                let l = self.slab_side().max(1e-3);
+                let d = SETTLEMENT_HEIGHT;
                 0.5 * (2.0 * l * l + d * d).sqrt()
             }
             Program::Tower => {
@@ -943,6 +956,32 @@ impl Morphology {
         // slope in both directions rather than being a strip.
         let n = ((budget as f64).sqrt().floor() as usize).clamp(2, 64);
         let step = 2.0 / n as f64;
+        // **A patch is a slab and it is drawn as one.** The columns used to
+        // stand on `z = -1`, one full half-width below the surface, so a patch
+        // that says it is 19.4 m across and 2.4 m deep drew a block 25.1 m
+        // across and 22.3 m deep — nine times the volume its own mass and
+        // density allow. The sampler's cross-section correction then thinned
+        // every column to 0.2848 of its cell, and the "surface" was a bed of
+        // posts covering less than a third of the ground.
+        //
+        // The unit here is the patch's own half-width, so the depth in units is
+        // twice [`SLAB_ASPECT`], and the relief is a fraction of that depth
+        // rather than of the half-width: ground varies by a part of how deep it
+        // is, not by a part of how wide it is.
+        let depth = 2.0 * SLAB_ASPECT;
+        // Relief about the patch's *own mean*, measured over the same grid it
+        // is drawn on. Without that the mean height is an arbitrary offset from
+        // the genome, the drawn volume is not the stated one, and the
+        // correction has to make up the difference by moving the cells.
+        let mut mean = 0.0;
+        for i in 0..n {
+            for j in 0..n {
+                let x = -1.0 + step * (i as f64 + 0.5);
+                let y = -1.0 + step * (j as f64 + 0.5);
+                mean += self.surface_height(x, y);
+            }
+        }
+        mean /= (n * n) as f64;
         let mut site = 0u32;
         for i in 0..n {
             for j in 0..n {
@@ -951,14 +990,31 @@ impl Morphology {
                 }
                 let x = -1.0 + step * (i as f64 + 0.5);
                 let y = -1.0 + step * (j as f64 + 0.5);
-                let top = self.surface_height(x, y);
-                let base = v3(x, y, -1.0);
+                let top = depth * (self.surface_height(x, y) - mean);
+                let base = v3(x, y, -depth);
                 let tip = v3(x, y, top);
                 // Half a cell, so neighbouring columns touch rather than
                 // overlap: the patch is a surface, not a heap of pillars.
                 let rad = step * 0.5;
-                let len = (top + 1.0).max(1e-6);
-                sk.push_segment(base, tip, rad * rad * len, rad, NO_SUPPORT, site);
+                let len = (top + depth).max(1e-6);
+                // **A square prism, not a cylinder.** Touching at their
+                // midlines is not the same as tiling: round columns on a square
+                // grid leave a gap at every corner of it, and something walking
+                // across the patch drops into each one. The cell is square, so
+                // the column that fills it is.
+                // The cell is the cell: a column may get deeper and may not
+                // get narrower, or the patch stops tiling and the ground has
+                // holes in it.
+                sk.push_box(
+                    base,
+                    tip,
+                    v3(rad, rad, len * 0.5),
+                    FREE_Z,
+                    step * step * len,
+                    rad,
+                    NO_SUPPORT,
+                    site,
+                );
                 site += 1;
             }
         }
@@ -1053,13 +1109,29 @@ impl Morphology {
                 sk.push_segment(corner(c, z0), corner(c, z1), 1.0, 0.030, below[c], site);
                 site += 1;
             }
-            // Beams: the floor plate, spanning between column heads.
+            // Beams spanning between column heads, and the floor they carry.
             if complete >= 0.999 {
                 for c in 0..COLS {
                     let n = (c + 1) % COLS;
                     sk.push_segment(corner(c, z1), corner(n, z1), 0.7, 0.020, here[c], site);
                     site += 1;
                 }
+                // **A tower's floor is a slab, and it is not emitted here.**
+                // `docs/PLAY.md` Phase 4 names `Tower` alongside `Wall` and
+                // `Terrain` as a generator that lays down flat things, and the
+                // flat thing a framed tower lays down is a floor plate. It was
+                // built and backed out, and the measurement is why: the frame
+                // solver has beams and ties and no diaphragm element, so the
+                // plate could only be a member, and a member spanning the bay
+                // came out 77.6 m long with a 0.33 m section — slenderness 827
+                // against the frame's next worst of 30. The static solve
+                // stopped converging, which `tests/dynamics.rs` caught.
+                //
+                // What it needs is a plate element in `solvers::frame`, or a
+                // presented solid that carries no load and is still collided —
+                // and that is a decision about what a structure is, not a
+                // detail of this one. Raised rather than left: a frame is a
+                // wireframe until it is made, and nothing stands on a storey.
                 // Cross-bracing between adjacent columns, and diagonally to the
                 // storey below. This is what makes a frame a frame rather than
                 // a stack of posts — and it makes the structure statically
@@ -1119,11 +1191,23 @@ impl Morphology {
                 } else {
                     prev_start + (b.min(prev_count - 1)) as u32
                 };
-                sk.push_segment(
+                // A block is a box: as long as its course is wide, as deep
+                // as the wall, as tall as the course. A capsule of the same
+                // length leaves a scallop between one block and the next —
+                // measured at 0.169 m on a 1.2 m panel — and something thrown
+                // at the middle of a wall passes between its beads.
+                let depth = block * 0.35;
+                let course_half = h / courses as f64;
+                // A wall may get thicker. It may not get longer, or the
+                // courses stop meeting, and it may not get taller, or they
+                // stop stacking.
+                sk.push_box(
                     v3(x0, 0.0, z),
                     v3(x0 + block, 0.0, z),
+                    v3(block * 0.5, depth, course_half),
+                    FREE_Y,
                     1.0,
-                    block * 0.35,
+                    depth,
                     support,
                     site,
                 );
@@ -1206,6 +1290,25 @@ pub struct Skeleton {
     /// therefore where the bending stress is highest and where things break.
     pub base: Vec<Vec3>,
     pub tip: Vec<Vec3>,
+    /// The box each part presents, as half-extents along the part's own axes,
+    /// or `Vec3::ZERO` for a part that is a tube of `radius`.
+    ///
+    /// **The generator emits the slab; nothing infers one.** `docs/PLAY.md`
+    /// Phase 4: a grown or coursed structure emitted one capsule per member, so
+    /// a masonry wall was a row of beads with a 0.169 m scallop between them
+    /// and a patch of ground was a bed of cylinders with gaps at every corner
+    /// of its grid. D18 rules out a grouping pass over the member list — a
+    /// generator never infers a decomposition — so the generators that lay down
+    /// flat things state them, which is what an assembly has always done.
+    ///
+    /// Zero is the discriminator, exactly as it is on [`crate::state::Body`]:
+    /// `(r,r,r)` would be a cube whose bounding radius is `r*sqrt(3)`, so a
+    /// sphere cannot be written as half-extents and the zero case has to carry
+    /// it.
+    pub half: Vec<Vec3>,
+    /// Which axes of a boxed part the cross-section correction may move. See
+    /// [`Skeleton::free_axes`].
+    pub free: Vec<u8>,
     /// Radius of the *joint* at each part's base, metres, where that is not
     /// simply the member's own.
     ///
@@ -1237,6 +1340,12 @@ pub struct Skeleton {
 /// A part anchored to the ground rather than to another part.
 pub const NO_SUPPORT: u32 = u32::MAX;
 
+/// Axis masks for [`Skeleton::free_axes`].
+pub const FREE_X: u8 = 1;
+pub const FREE_Y: u8 = 2;
+pub const FREE_Z: u8 = 4;
+pub const FREE_ALL: u8 = FREE_X | FREE_Y | FREE_Z;
+
 impl Skeleton {
     pub fn with_capacity(n: usize) -> Skeleton {
         Skeleton {
@@ -1249,6 +1358,8 @@ impl Skeleton {
             tip: Vec::with_capacity(n),
             joint_radius: Vec::with_capacity(n),
             joint_bond: Vec::with_capacity(n),
+            half: Vec::with_capacity(n),
+            free: Vec::with_capacity(n),
             ties: Vec::new(),
         }
     }
@@ -1270,10 +1381,84 @@ impl Skeleton {
         self.tip.push(tip);
         self.joint_radius.push(0.0);
         self.joint_bond.push(crate::chem::SubstanceId::UNSPECIATED);
+        self.half.push(Vec3::ZERO);
+        self.free.push(FREE_ALL);
+    }
+
+    /// Add a part that is a filled box rather than a tube.
+    ///
+    /// The member is still a member — `base`, `tip` and a cross-section radius
+    /// are what the topology and the structural solve read, and they are
+    /// unchanged — and `half` is the solid it *presents*. A block of masonry
+    /// spans from one end to the other and is a box while it does it; the two
+    /// descriptions are of the same thing and neither is inferred from the
+    /// other.
+    #[allow(clippy::too_many_arguments)]
+    pub fn push_box(
+        &mut self,
+        base: Vec3,
+        tip: Vec3,
+        half: Vec3,
+        free: u8,
+        m: f64,
+        r: f64,
+        support: u32,
+        site: u32,
+    ) {
+        self.push_segment(base, tip, m, r, support, site);
+        *self.half.last_mut().unwrap() = v3(half.x.abs(), half.y.abs(), half.z.abs());
+        *self.free.last_mut().unwrap() = free & FREE_ALL;
+    }
+
+    /// Which of a boxed part's own axes the cross-section correction may move.
+    ///
+    /// **Stated, never inferred.** The sampler scales member sections as a
+    /// group so that the volume they enclose agrees with the structural mass at
+    /// the material's density — a tube has one free dimension and the question
+    /// never arises, and a box has three and the answer is different for every
+    /// flat thing there is. A course of masonry may get thicker and may not get
+    /// longer, or the courses stop meeting; a column of ground may get deeper
+    /// and may not get narrower, or the patch stops being a surface. D18 says a
+    /// generator never infers a decomposition, and this is the same sentence
+    /// about the same information: the generator knows, so it says.
+    ///
+    /// Bit 0 is the part's local x, bit 1 y, bit 2 z. Zero means the box is
+    /// fully stated and takes no correction at all.
+    pub fn free_axes(&self, i: usize) -> u8 {
+        self.free.get(i).copied().unwrap_or(FREE_ALL)
+    }
+
+    /// The axis a part runs along: its own direction where it has one, and its
+    /// thinnest where it does not.
+    ///
+    /// What a cross-section is *across*. A beam's section is the two axes that
+    /// are not its span; a plate's is its footprint, and the axis it is thin
+    /// along is the one that plays the part of a span.
+    pub fn axial_axis(&self, i: usize) -> usize {
+        let d = self.tip[i] - self.base[i];
+        if d.norm2() > 0.0 {
+            let (dx, dy, dz) = (d.x.abs(), d.y.abs(), d.z.abs());
+            return if dx >= dy && dx >= dz {
+                0
+            } else if dy >= dz {
+                1
+            } else {
+                2
+            };
+        }
+        let h = self.half.get(i).copied().unwrap_or(Vec3::ZERO);
+        if h.x <= h.y && h.x <= h.z {
+            0
+        } else if h.y <= h.z {
+            1
+        } else {
+            2
+        }
     }
 
     /// Add a part held on by a joint narrower than the part itself — the
     /// assembled case. See [`Skeleton::joint_radius`].
+    #[allow(clippy::too_many_arguments)]
     pub fn push_joined(
         &mut self,
         base: Vec3,

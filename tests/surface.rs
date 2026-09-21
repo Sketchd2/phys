@@ -312,3 +312,211 @@ fn a_surface_cannot_claim_what_the_node_is_not_made_of() {
         "a 900 kg node cannot present 1800 kg of wood"
     );
 }
+
+/// Something set down on a coursed wall rests on it, rather than in it.
+///
+/// `docs/PLAY.md` Phase 4's third done-when. A grown or coursed structure
+/// emitted one capsule per member, so a wall was a row of beads: the top of a
+/// block is its own round shoulder, the seam between two blocks is a valley
+/// between two shoulders, and a thing set down on the wall finds a different
+/// height depending where along it you put it. Measured before this, on the
+/// same wall: **0.169 m** of scallop on a 1.2 m panel.
+///
+/// What is measured here is the height a small sphere comes to rest at, swept
+/// along the top of the wall. A flat top gives one height everywhere; a row of
+/// beads gives a sawtooth, and the tooth is what something walking along the
+/// wall falls into.
+#[test]
+fn something_set_down_on_a_coursed_wall_rests_on_top_of_it() {
+    use phys::morph::Program;
+    let (mut w, root) = wooden(0xC0_0453D, 4000.0, 1.2, 400);
+    w.emplace(root, Program::Wall, 4000.0, None);
+    w.tree.refine(root);
+    let surface = w.surface_of_node(root).clone();
+    assert!(surface.len() > 8, "a coursed wall is many blocks: {}", surface.len());
+
+    let hulls: Vec<&phys::shape::Hull> = surface.hulls().collect();
+    // The wall's own bounding box, measured off the pieces.
+    let (mut lo_x, mut hi_x) = (f64::INFINITY, f64::NEG_INFINITY);
+    let (mut lo_y, mut hi_y, mut hi_z) = (f64::INFINITY, f64::NEG_INFINITY, f64::NEG_INFINITY);
+    for h in &hulls {
+        for sp in h.spheres() {
+            lo_x = lo_x.min(sp.centre.x - sp.radius);
+            hi_x = hi_x.max(sp.centre.x + sp.radius);
+            lo_y = lo_y.min(sp.centre.y - sp.radius);
+            hi_y = hi_y.max(sp.centre.y + sp.radius);
+            hi_z = hi_z.max(sp.centre.z + sp.radius);
+        }
+    }
+    let width = hi_x - lo_x;
+    let thickness = hi_y - lo_y;
+    let probe = width * 0.01;
+
+    // Where a small sphere comes to rest, directly above each sample point.
+    // The search runs between a height that is inside the wall — its own centre
+    // plane — and one clear above it.
+    let rest_at = |x: f64, y: f64| -> Option<f64> {
+        let touches = |z: f64| {
+            hulls.iter().any(|h| {
+                phys::shape::closest(&phys::shape::Hull::sphere(v3(x, y, z), probe), h)
+                    .map(|c| c.gap <= 0.0)
+                    .unwrap_or(false)
+            })
+        };
+        let (mut lo, mut hi) = (0.0, hi_z + 4.0 * probe);
+        if !touches(lo) {
+            return None;
+        }
+        for _ in 0..48 {
+            let mid = 0.5 * (lo + hi);
+            if touches(mid) {
+                lo = mid;
+            } else {
+                hi = mid;
+            }
+        }
+        Some(lo)
+    };
+
+    // A grid over the middle of the top face, not a line along it. A line
+    // along the courses is exactly the sweep a row of capsules passes: the
+    // blocks of one course are collinear, so their tubes union into a smooth
+    // cylinder and the top *along* the wall is flat. The fall is off the
+    // shoulder — across the thickness — and between one course and the next.
+    let mid_x = 0.5 * (lo_x + hi_x);
+    let mid_y = 0.5 * (lo_y + hi_y);
+    let mut heights = Vec::new();
+    for i in 0..8 {
+        for j in 0..8 {
+            let x = mid_x + width * 0.3 * (2.0 * (i as f64 + 0.5) / 8.0 - 1.0);
+            let y = mid_y + thickness * 0.3 * (2.0 * (j as f64 + 0.5) / 8.0 - 1.0);
+            if let Some(z) = rest_at(x, y) {
+                heights.push(z);
+            }
+        }
+    }
+    assert!(heights.len() > 32, "the sweep found the wall: {} of 64", heights.len());
+    let hi = heights.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
+    let lo = heights.iter().cloned().fold(f64::INFINITY, f64::min);
+    println!(
+        "  a wall {:.3} m across and {:.3} m thick: rest height varies {:.4} m \
+         over {} samples",
+        width,
+        thickness,
+        hi - lo,
+        heights.len()
+    );
+    assert!(
+        hi - lo < 0.01 * thickness,
+        "something set down on the top of the wall drops {:.4} m, against a \
+         wall {:.3} m thick",
+        hi - lo,
+        thickness
+    );
+}
+
+/// A patch of ground is a surface, not a bed of posts.
+///
+/// The same measurement as the wall, on the thing `docs/PLAY.md` Phase 4 says
+/// it first matters for: "Terrain is where it is first load-bearing rather than
+/// cosmetic, because something has to *stand* on it."
+///
+/// Two defects met here, and the second is upstream of the first. The columns
+/// were round on a square grid, so even touching at their midlines they left a
+/// hole at every corner of it. And `render_terrain` drew a *cube*: the columns
+/// stood on `z = -1`, one full half-width down, so a patch that says it is
+/// 19.4 m across and 2.4 m deep drew one 25.1 m across and 22.3 m deep — nine
+/// times its own volume at its own density — and the sampler's cross-section
+/// correction thinned every column to **0.2848** of its cell to make the
+/// numbers agree. The ground covered less than a third of the ground.
+#[test]
+fn a_patch_of_ground_has_no_holes_in_it() {
+    use phys::morph::Program;
+    let (mut w, root) = wooden(0x6204_11D, 2.4e6, 12.0, 400);
+    w.emplace(root, Program::Terrain, 2.4e6, None);
+    w.tree.refine(root);
+
+    // Every column fills its cell exactly: the correction that used to thin
+    // them has nothing left to do, because the patch now draws the slab it says
+    // it is and the cell is stated rather than free.
+    let bodies = &w.tree.nodes[root.get()].bodies;
+    let boxed: Vec<&phys::state::Body> = bodies.iter().filter(|b| b.is_boxed()).collect();
+    assert!(boxed.len() > 16, "a patch is a grid of columns: {}", boxed.len());
+    let mut xs: Vec<f64> = boxed.iter().map(|b| b.pos.x).collect();
+    xs.sort_by(|a, b| a.total_cmp(b));
+    xs.dedup_by(|a, b| (*a - *b).abs() < 1e-9);
+    let pitch = xs[1] - xs[0];
+    let covering = 2.0 * boxed[0].half.x / pitch;
+    println!("  cells {:.4} m apart, columns {:.4} m wide, covering {covering:.4}", pitch, 2.0 * boxed[0].half.x);
+    assert!(
+        (covering - 1.0).abs() < 1e-9,
+        "the columns tile their cells, and cover {covering}"
+    );
+
+    let surface = w.surface_of_node(root).clone();
+    let hulls: Vec<&phys::shape::Hull> = surface.hulls().collect();
+    let (mut hi_z, mut lo_z, mut wide) = (f64::NEG_INFINITY, f64::INFINITY, 0.0f64);
+    for h in &hulls {
+        for sp in h.spheres() {
+            hi_z = hi_z.max(sp.centre.z + sp.radius);
+            lo_z = lo_z.min(sp.centre.z - sp.radius);
+            wide = wide.max(sp.centre.x.abs() + sp.radius);
+        }
+    }
+    let depth = hi_z - lo_z;
+    let probe = pitch * 0.05;
+    let ground_at = |x: f64, y: f64| -> Option<f64> {
+        let touches = |z: f64| {
+            hulls.iter().any(|h| {
+                phys::shape::closest(&phys::shape::Hull::sphere(v3(x, y, z), probe), h)
+                    .map(|c| c.gap <= 0.0)
+                    .unwrap_or(false)
+            })
+        };
+        let (mut lo, mut hi) = (lo_z + 0.05 * depth, hi_z + 4.0 * probe);
+        if !touches(lo) {
+            return None;
+        }
+        for _ in 0..48 {
+            let mid = 0.5 * (lo + hi);
+            if touches(mid) {
+                lo = mid;
+            } else {
+                hi = mid;
+            }
+        }
+        Some(lo)
+    };
+
+    // Walk a line across the patch, through the corners of the grid rather than
+    // down the middle of a row — the holes a round column leaves are exactly
+    // where four cells meet.
+    let n = 40;
+    let span = wide * 0.5;
+    let mut found = 0;
+    let mut worst_step = 0.0f64;
+    let mut last: Option<f64> = None;
+    for k in 0..n {
+        let t = -span + 2.0 * span * (k as f64 + 0.5) / n as f64;
+        match ground_at(t, t) {
+            Some(z) => {
+                found += 1;
+                if let Some(p) = last {
+                    worst_step = worst_step.max((z - p).abs());
+                }
+                last = Some(z);
+            }
+            None => last = None,
+        }
+    }
+    println!(
+        "  a diagonal of {n} steps found ground {found} times, worst step \
+         {worst_step:.4} m over a patch {depth:.3} m deep"
+    );
+    assert_eq!(found, n, "every step of the walk is on ground");
+    assert!(
+        worst_step < 0.25 * depth,
+        "a step across the patch drops {worst_step:.4} m, against a patch \
+         {depth:.3} m deep"
+    );
+}

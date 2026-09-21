@@ -2657,10 +2657,21 @@ impl World {
                     let radius = t.joints.get(i).map(|j| j.radius).unwrap_or(0.0);
                     let base = t.base.get(i).copied().unwrap_or(Vec3::ZERO);
                     let tip = t.tip.get(i).copied().unwrap_or(Vec3::ZERO);
-                    // A member with no length is a block rather than a beam —
-                    // coursed masonry is the case — and its own body's sphere
-                    // is the right shape for it.
-                    let hull = if (tip - base).norm2() > 0.0 {
+                    // **A part that states a box presents one.** A coursed
+                    // wall's blocks and a patch of ground's columns are filled
+                    // solids of stated extent, and a capsule over the same two
+                    // endpoints is a bead: measured at a 0.169 m scallop
+                    // between blocks on a 1.2 m panel, and at a gap on every
+                    // corner of a terrain grid, which is what something
+                    // standing on the ground falls into.
+                    //
+                    // `Body::hull` is the one place that turns a body into
+                    // geometry, so this never has to ask what kind of body it
+                    // is holding.
+                    let boxed = n.bodies.get(i).is_some_and(|b| b.is_boxed());
+                    let hull = if boxed {
+                        n.bodies[i].hull()
+                    } else if (tip - base).norm2() > 0.0 {
                         Hull::capsule(base, tip, radius)
                     } else if let Some(b) = n.bodies.get(i) {
                         Hull::sphere(b.pos, b.radius.max(radius))

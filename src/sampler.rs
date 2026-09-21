@@ -1225,17 +1225,70 @@ pub fn sample_structured(
     // apparent strength, and every structural conclusion drawn from it would
     // have been wrong.
     let mut radii: Vec<f64> = radii_all.iter().map(|r| r * scale).collect();
+    // Half-extents where the generator stated a box. Positions scaled, so these
+    // scale with them; the cross-section correction below then moves only the
+    // axes the generator did not lay out.
+    let mut halves: Vec<Vec3> = skel_geom
+        .half
+        .iter()
+        .map(|h| h.scale(scale))
+        .collect();
+    halves.resize(n, Vec3::ZERO);
     {
         let target_volume = structural / morph.density();
         let mut current = 0.0;
         for i in 0..n_struct.min(radii.len()) {
+            if halves[i] != Vec3::ZERO {
+                // A filled box, and the volume is the box's.
+                let h = halves[i];
+                current += 8.0 * h.x * h.y * h.z;
+                continue;
+            }
             let len = (skel_geom.tip[i] - skel_geom.base[i]).norm() * scale;
             current += std::f64::consts::PI * radii[i] * radii[i] * len;
         }
         if current > 0.0 && target_volume > 0.0 {
+            // Both kinds scale as `f^2`: a tube's radius and a box's two free
+            // axes. So the correction is the same square root it always was,
+            // and a structure of mixed parts needs no second pass.
             let f = (target_volume / current).sqrt();
-            for r in radii.iter_mut().take(n_struct) {
-                *r *= f;
+            for i in 0..n_struct.min(radii.len()) {
+                if halves[i] == Vec3::ZERO {
+                    radii[i] *= f;
+                    continue;
+                }
+                // A box moves on the axes the generator said were free, and the
+                // volume still has to scale as `f^2`, so `k` free axes each
+                // take the `2/k` power. None free means the box is fully
+                // stated and the discrepancy is the structure's own density
+                // rather than a shape to be corrected.
+                let mask = skel_geom.free_axes(i);
+                let k = (mask.count_ones() as f64).max(0.0);
+                if k == 0.0 {
+                    continue;
+                }
+                let g = f.powf(2.0 / k);
+                let h = halves[i];
+                halves[i] = crate::math::v3(
+                    if mask & crate::morph::FREE_X != 0 { h.x * g } else { h.x },
+                    if mask & crate::morph::FREE_Y != 0 { h.y * g } else { h.y },
+                    if mask & crate::morph::FREE_Z != 0 { h.z * g } else { h.z },
+                );
+                // **The section is not the bounding radius.** A member's
+                // radius is what the frame solve reads for its stiffness and
+                // its strength, and handing it the half-diagonal of a floor
+                // plate gave a 77 m span a 54.8 m section — a member stiffer
+                // than the rest of the tower put together, and a linear system
+                // that ran to its iteration cap and returned noise. The honest
+                // section of a box is the circle of the same area across it.
+                let axial = skel_geom.axial_axis(i);
+                let h = [halves[i].x, halves[i].y, halves[i].z];
+                let (a, b) = match axial {
+                    0 => (h[1], h[2]),
+                    1 => (h[0], h[2]),
+                    _ => (h[0], h[1]),
+                };
+                radii[i] = (4.0 * a * b / std::f64::consts::PI).sqrt().max(1e-12);
             }
             report.radius_correction = f;
         }
@@ -1308,6 +1361,17 @@ pub fn sample_structured(
     // optimisation has to be part of the regeneration or it would be lost the
     // first time anybody looked away.
     let mut bodies = bodies;
+    // **A part that stated a box presents one.** The three fields a body
+    // carries for this are stamped back on for a generated structure exactly as
+    // they are for an assembled one below: a wall's blocks and a patch's
+    // columns are filled solids, and a body that came back a sphere would have
+    // lost what the generator wrote down.
+    for (i, b) in bodies.iter_mut().enumerate().take(n_struct) {
+        if halves.get(i).copied().unwrap_or(Vec3::ZERO) != Vec3::ZERO {
+            b.half = halves[i];
+            b.radius = b.half.norm();
+        }
+    }
     // **An assembled thing is the size somebody made it.** Fully-stressed
     // sizing is how a *grown* structure proportions itself — a tree that has
     // been standing for thirty years has put wood where the load is, and
