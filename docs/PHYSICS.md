@@ -503,15 +503,95 @@ ever record those as four materials, and a formation history tells them apart:
 a brick is fired and laid in courses, a pluton crystallises over a geological
 age, a fast summer ring has wide cells and a slow one has fine ones.
 
-### What it reproduces, and the one it does not
+### The worst flaw is not the typical one, and a big piece has a worse one
 
-Seven of eight land within a factor of 2.3, and the ordering is the retired
-table's own except that bedrock comes out last where the table put it third.
-That is the intragranular-crack gap — a granite at 130 MPa implies a 34 µm
-crack against its 21 cm grain — and it is recorded in `BACKLOG.md` with the
-measurement rather than papered over. `tests/material.rs` holds the ordering,
-and holds bedrock's position in the direction it actually comes out, so that
-closing the gap *fails* the test and gets read.
+A grain is not a crack. A grain boundary in a solid that froze is **bonded** —
+an interface, not a free surface — so a crack the size of a grain is not lying
+there waiting, and the cracks that matter in rock are *inside* the grains. What
+Griffith wants is the **worst flaw in this particular piece**, which is an
+extreme-value draw over the piece's volume rather than a single length.
+
+The population has both ends already solved for. The upper end is the grain, and
+no intragranular crack can exceed it. The lower end is the **critical nucleus**
+`r* = 2 γ_sl T_m / (ΔH_v x)` at the undercooling the melt actually reached,
+which is the smallest thing the solidification could have left behind and comes
+out of the same nucleation march that gives the grain. A weakest-link argument
+over `V/r*³` independent flaws with a Weibull modulus `m = 2b` gives
+
+```text
+    a_worst = r* (V / r*³)^(1/b),   capped at the grain,   b = 6
+```
+
+and nothing in it is per-material.
+
+The deposited branch gets no nucleus and is unchanged, for a reason rather than
+by exception: a layer *is* a flaw, present once per layer, so every piece bigger
+than one layer has one in it and there is no extreme value to take. That is also
+why the four deposited presets already landed close and only the two that froze
+missed.
+
+**Strength therefore depends on size**, which is what a rock face needs and a
+single flaw length cannot give:
+
+```text
+    bedrock  0.01 m across   3.74e8 Pa
+             0.1             2.10e8
+             1.0             1.18e8
+             10              6.65e7
+             100             3.74e7
+```
+
+### What it reproduces
+
+All eight presets land within a factor of 2.7 of the retired table, with
+bedrock at 0.91 where it used to be 0.013 — the intragranular gap, which
+`BACKLOG.md` recorded with its measurement, and which this closed at the trigger
+it named. `tests/material.rs` holds the ordering and is shown none of the
+retired values.
+
+Two approximations underneath are still live and are recorded rather than
+hidden: a metal's cohesive energy comes out about 2.3× low, because the valence
+model allows iron three nearest neighbours where it really has eight; and ice's
+density derives at 1653 kg/m³ against 917, because the van der Waals packing
+estimate is a correlation rather than a structure.
+
+### What wears a surface away
+
+`PLAY.md` §5.2. A feature in a surface — a furrow, a footprint, a channel — is
+a deviation from the surface's own derived baseline, and what removes it is not
+a mechanic but the same three quantities every time: **what the surface is made
+of, what is flowing over it, and the shape of the feature itself.**
+
+```text
+    τ = ½ ρ v²                          what the flux presses with, Pa
+    e = (τ − σ_c)₊ · v / σ_c            how fast it strips the surface, m/s
+    k = e / w                           a feature of half-width w relaxes so
+```
+
+The threshold is the physical content of the first two lines. A flux presses on
+a surface with its own dynamic pressure; a grain is held there by `σ_c`, the
+stress it takes to detach one, which is the material's Griffith strength at the
+size of its own worst flaw. Below the threshold nothing moves — which is why
+wind does not erode rock, and is not a modelling convenience. Above it the
+excess drives transport at a rate that is the excess as a fraction of what
+holds the material, carried past at the speed of the flow.
+
+The third line is the geometry. Nothing is stripped from a flat plain, because
+transport is downslope and a plain has no slope; what a feature loses goes as
+its own gradient, `h/w`. So `dh/dt = −e·h/w`, the amplitude decays
+exponentially, and the rate has no `h` in it: a deep scratch and a shallow one
+of the same width take the same time to go.
+
+**What may decay is a separate question from how fast**, and it is answered over
+the conserved set rather than by judgement. A deviation that took mass out of
+the node may never be dropped, because dropping it would put the mass back while
+it is still somewhere else; one that merely moved material about may. Nothing is
+tagged as important when it is made.
+
+The law is one expression and it is honest about where it fails: a poured
+aggregate comes out of `Material::measured` at 33 MPa in tension, four orders
+above anything a flux can press with, because every solid the engine measures is
+a *bonded* one. `BACKLOG.md` carries the measurement and what closing it needs.
 
 ### What a solid presents
 

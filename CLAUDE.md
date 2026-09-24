@@ -315,6 +315,49 @@ slot (`children` runs parallel to `bodies`), so clearing the body list to
 regenerate a five-part recipe orphans the node the break just made. Whether a
 part is still attached is a join; whether it is its own object is the tree.
 
+**Packing is measured against the volume a recipe states, not against a
+bounding sphere.** A slab much wider than it is deep is nothing like its own
+sphere, and `Formation::of_matter` divides by a volume: a patch of ground
+presented rock at **60 kg/m³** until `material_of` and `derive_bonds` were made
+to ask `Recipe::solid_volume`. That one fix moved three of Phase 2's box
+measurements, which is recorded in its commit rather than quietly absorbed.
+
+**A recipe is a pure function of itself and `(built, progress)` — so discard its
+detail only when those move.** `grow_node` used to discard every structure's
+bodies every frame on the reasoning that what it would generate had changed. For
+a tree, which grows every frame anyway, that is free; for ground, which grows
+never, it folded a planet's whole surface tree back on every frame it was looked
+at — 42 promotions over six frames with two live nodes at the end.
+
+**`f64::min` returns the *other* operand when one is NaN.** Terrain's embodied
+energy is zero, so the growth law's `gross = usable / energy_density` was
+`0.0/0.0`, and `net.min(reservoir)` then handed back the whole reservoir. A
+patch of ground quietly ate itself every step. `Morphology::advance` now
+dispatches on the habit, because what time does to a thing — grow, build, or
+neither — is a property of how it is laid out.
+
+**A piece of a sphere is not a sphere.** `gravity_at` modelled a face of a
+planet as a ball at its own centre of mass, 1.9 million metres underground,
+which put a ninth of the planet's mass pulling sideways: 8.96 m/s² tilted 2.6°.
+The shell theorem is what a shell segment's field actually is. The same fix
+found the second half of it — **a field derived from offsets is in root-aligned
+axes**, so the rotation into a node's frame is the whole composition to the root
+and not the part relative to one ancestor.
+
+**A structure's parts are macroscopic objects, not molecules.**
+`sample_structured` gave them the node's thermal energy as bulk motion —
+`3/2 N k T` over the molecules rather than `3/2 n k T` over the parts. A 4733 kg
+tree at 290 K jittered at 210 m/s and a new planet's six surface patches left at
+60 km/s. The remainder is not lost: it belongs in the bodies' own internal
+accounts, which is where `close_books` already puts it.
+
+**History is only recorded for a node at `Residency::Causal` or better.** So
+anything derived from a node's recorded past silently does nothing for a node
+nobody is watching, and the result becomes a fact about the observer. Measured:
+a melt cooling with no observer never recorded one moment in 600 frames. Where a
+derivation needs the past, hang it off the *event* — `react_all` runs for every
+node with a mixture whatever its residency — rather than off `histories`.
+
 ## Naming
 
 A name says what the thing *is*, in words a stranger would recognise, and no two
@@ -345,7 +388,7 @@ They are load-bearing; keep them that way.
 
 ## Current frontier
 
-**Phases 1 and 2 of `docs/PLAY.md` §7 are done, and §7 has been reordered.**
+**Phases 1 to 4 of `docs/PLAY.md` §7 are done, and §7 has been reordered.**
 The engine used to model what happens *inside* a node very well and what
 happens *between* nodes barely at all; Phase 1 closed that. Phase 2 gave a
 thing a shape and something to be made of, neither of which depends any more on
@@ -465,31 +508,100 @@ What landed, each with its measurement in its own commit:
 Suite at the end of Phase 3: **416 passed, 1 ignored**, plus 6 Postgres, and
 five demos run. `FORMAT_VERSION` is 13 and `SCHEMA_VERSION` is 8.
 
-**Phase 4 is Ground** and nothing in it has started. Sideways handoff is the
-part of D16 that waits for it: the mechanism is built and tested — a crossing
-into a place that is still one of its parent's bodies promotes that body to
-receive it — but spheres do not tile a surface, so the case that exercises it in
-anger is Ground's.
+**Phase 4 is done.** Ground, and D11's columns. A planetary surface is a
+cubed-sphere parameterisation whose cells *are* the node's children, so the
+surface tree is the scale tree with no adapter between them, and a program is
+now a *generated rule* rather than a variant. Measured:
 
-What Phase 1 landed, still worth knowing because everything above stands on it:
+```text
+a vector between frames    9.8200 m/s2 along the node's own -z, oriented
+a test that is watched     256 bodies cover 0.02-0.90 of the frame; 0.000 before
+flatness, generated        a 2.172 m wall's rest height varies 0.0000 m against
+                           0.2991 m as capsules; a patch's columns cover 1.0000
+                           of their cell against 0.2848
+Griffith on the worst flaw bedrock 0.91 of the retired table, not 77x low
+a program is generated     five habits, stated size 1.000x drawn; before, out by
+                           1.44 / 1.53 / 0.89 / 0.76 / 0.95
+ground                     a planet's surface is 296 B of rule and 0 B of detail;
+                           orbit to 0.55 m in 9 levels; 9.7055 m/s2 at 0.092 deg
+                           off its own down; 10 km of walking crosses 41 patches
+                           and stays within 2.1 m of 6.4098e6 m; look away and
+                           back, worst displacement 0.0e0 m
+a planet from origin       6.000e24 kg and 2.0000e7 m fell in for 1.000e5 s and
+                           became a planet at frame 86: 6.7810e6 m, 1743 kg/m^3,
+                           4.564 m/s^2 — and the run is filmable
+a layout derived           molten silicate froze through 1845 K and laid down
+                           1.662e-2 m grains; 0.25 m -> 4.53e-3, 4 m -> 6.09e-2;
+                           a rock never molten gets no layout
+forgetting is a decay      a 0.10 m mark, half-life 0.0116 s, gone; a channel
+                           that took 34.6 kg still 0.3000 m deep a year later
+one column retired         `substrate`, measured off the node's own feedstock
+```
 
-### What Phase 4 will meet first
+**Six decisions in it were the owner's**, because the plan did not answer them,
+and they are in `PLAY.md` §7 with the rest: the terrain morphology is a
+*generated program* rather than a variant; the flaw population is intragranular
+and bounded below by the critical nucleus; the erosion done-when replaces the
+tidal one, which moved to Phase 5; a planet generated from origin is a done-when
+and has to be *watchable*; a floor plate goes in the general solver with a
+generated program rather than a `Tower` type; and **there are no hardcoded
+plans** — an actor designs and places outputs, the engine assesses what that
+produced and writes a program for it, and a program is a function of the current
+and historical data derived from the axioms rather than engineered.
+
+What landed, each with its measurement in its own commit:
+
+1. **A vector carried between frames is turned into them** — `Tree::axes_from`,
+   `Tree::into_axes_of`, and `gravity_at` rotating by the composition **to the
+   root** rather than relative to one ancestor.
+2. **A test can be watched** — `src/render.rs`'s `Paint`/`Shot`/`Film` and
+   `src/film.rs`, which gathers a scene without disturbing it. `PHYS_FILM=<dir>`
+   or nothing happens at all.
+3. **A generator that lays down a flat thing states it** — `Skeleton::push_box`
+   and `push_plate`, so `Wall`, `Tower` and `Terrain` emit slabs the way an
+   assembly does.
+4. **Griffith on the worst flaw** — `Material::worst_flaw`, a weakest-link draw
+   between the critical nucleus and the grain.
+5. **A program is generated, not selected** — `src/recipe.rs`. `Habit` and
+   `Recipe::generate`; `Morphology::recipe` replaced `assembly`.
+6. **Ground** — `Recipe::Tiled`, the cubed sphere, `World::approach`.
+7. **A planet from origin** — `World::assess_surface`, gated on random loose
+   packing and then on central pressure against strength.
+8. **A layout derived from what the node went through** — `Recipe::Granular`,
+   written by the *freezing event* rather than by a state test.
+9. **Forgetting is the deviation reaching zero** — `src/erode.rs`,
+   `Morphology::field`, `Interaction::Mark`, `World::weather`.
+10. **One of D11's five columns retired, four measured** — `substrate` is gone;
+    `density`, `energy_density`, `material` and `maintenance` each hit a law the
+    engine does not have, with numbers.
+
+Suite at the end of Phase 4: **442 passed, 1 ignored**, plus 6 Postgres, and
+five demos run. `FORMAT_VERSION` is 18.
+
+### What Phase 5 will meet first
 
 Left deliberately undone, each with a measurement and a trigger in
 `docs/BACKLOG.md`. Read those entries before touching any of it:
 
-- **Derived gravity is in the parent's axes**, because nothing composes
-  orientation anywhere in the tree. Terrain on a sphere is the scenario that
-  makes it bite.
+- **An uncemented aggregate has no derived strength**, so nothing can erode
+  sand. Every solid `Material::measured` returns is a bonded one: a poured pile
+  of dry silica comes out at 3.26e7 Pa in tension against the 4.5e3 Pa water at
+  3 m/s can press with. The decay machinery, the conservation criterion and the
+  promotion rule are built and tested; this is the number that goes into them,
+  and it is `PHYSICS.md`-weight.
+- **`morph::Program`'s last four columns** each want a law the engine does not
+  have, and each was measured rather than assumed — see the entry, and see
+  `Program::maintenance`'s own doc comment for the forty-four orders.
 - **Exchange has a radiative coefficient and no conductive one.** D3 names the
-  law and does not specify it; heat conduction through ground or water needs it,
-  and picking a thermal conductivity is a `PHYSICS.md`-weight decision.
+  law and does not specify it; Phase 5's free surface is its trigger and D17
+  unblocks the choice.
 - **Growth accumulates internal energy nothing sheds** — 231× thermal after
   forty years, reading back as 67,000 K while `temperature` says 291.
 - **A detached fragment is neither a body nor a node.** Both of its blockers are
-  gone — a promoted child feels a force (D4), and sibling-from-a-subset is
-  `Tree::split_off` — so what is left is the line of policy its entry
-  describes: promote a fragment when it leaves the volume, not when it detaches.
+  gone, so what is left is the line of policy its entry describes.
+- **Sideways handoff across a patch edge** has never been exercised in anger.
+  The mechanism is Phase 3's and the tiling is Phase 4's; what is missing is a
+  scenario, and the first one is Phase 6's quadruped.
 
 **Scheduled rather than left**, and `PLAY.md` §7 is where they live — none of
 them is a backlog entry to be picked up on a whim:
@@ -499,31 +611,23 @@ them is a backlog entry to be picked up on a whim:
   working range. The alternative measured cleanly and was declined because it is
   a ratio the plan does not state; revisit when something built on the split
   needs the uneven case.
-- **Phase 4** takes *all* of D11's five columns, *Griffith on the worst flaw
-  rather than the grain* (bedrock 77x low), and *flatness on a generated
-  surface* — the grown and coursed half, which needs `Wall`, `Tower` and
-  `Terrain` to emit slabs the way an assembly does rather than a grouping pass
-  over members, because D18 says a generator never infers a decomposition.
+- **A planet stops at random loose packing**, 1743 kg/m^3 against Earth's 5514.
+  What compacts a planet past the packing its own grains jam at is an equation
+  of state for a solid, which is Phase 5's and is scheduled there.
 
-`PLAY.md` D11 also finds the largest standing axiom violation in the codebase:
-**`morph::Program` is a species table.** Six variants, fourteen dispatch sites,
-and seven per-variant columns including a tabulated per-species decay rate.
-Five of those columns are properties of the *material* or the *measured
-environment* rather than of a species, and belong there. Do not add a seventh
-variant — that is what D11 exists to prevent.
+`PLAY.md` D11 finds the largest standing axiom violation in the codebase:
+**`morph::Program` is a species table.** Do not add a seventh variant — that is
+what D11 exists to prevent. **Four of the five columns are still on it**, and
+they are still there because Phase 4 measured each one against the laws the
+engine actually has and found them out by four to forty-four orders. Read the
+backlog entry and `Program::maintenance`'s doc comment before proposing a
+derivation; the obvious ones have been tried and have numbers against them.
 
-**All five columns are still on it.** Phase 2's item 4 said they were pulled
-forward and that is not what landed: what landed is a *measured path that takes
-precedence with the tabulated column as fallback* — `Material::measured` reads a
-node's mixture, `Morphology::density` measures an assembly's parts — and
-nothing was removed. `density`, `energy_density`, `substrate`, `material` and
-`maintenance` are all still one value per variant. **Phase 4 takes all of
-them**, and the plan says so.
-
-What Phase 2 *did* take off `Program` is **geometry**, for anything assembled:
-a composite's shape is a generated recipe and `Program` is provenance. That is
-one column the species table will never get back, and it is the reason a box
-needed no variant.
+What Phase 2 took off `Program` is **geometry**, for anything assembled: a
+composite's shape is a generated recipe and `Program` is provenance. Phase 4
+took **the shape of everything else** — a habit is generated by
+`recipe::generate` and a species names none of it — and **`substrate`**, which
+is now the feedstock the node held. Those do not come back.
 
 One decision in `PLAY.md` still changes text written down elsewhere, so do not
 treat the older text as current where they disagree: **`PathKey` stops being an

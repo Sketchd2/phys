@@ -1,7 +1,9 @@
 # Watching a test
 
-The suite can assert that a thing happened. It cannot show it. This is the plan
-for the second one — **designed, not written**, and deliberately small.
+The suite can assert that a thing happened. It cannot show it. This was the plan
+for the second one; **it is built**, as Phase 4 item 2, and the text below is
+kept as the design it was built to. What changed in the building is recorded at
+the end.
 
 What it is for is the class of question a number cannot answer: the box test
 says momentum is conserved to 8×10⁻⁷ and angular momentum to 5×10⁻⁷ over eight
@@ -172,15 +174,47 @@ Named, because a tool with no caller rots:
 | `a_branch_lands_on_the_next_tree` | which tree it hit, and where |
 | `a_hot_node_beside_a_cold_one_equilibrates` | the gradient, over frames |
 | `examples/damage.rs` | already the shape of this; the regression check |
-| Phase 2's terrain | patch boundaries, and whether they line up |
-| Phase 3's beach | the one scenario nobody will believe a number about |
+| Phase 4's terrain | patch boundaries, and whether they line up |
+| `tests/accretion.rs` | **the first one taken up**: a ball of rock becoming a planet |
+| Phase 5's beach | the one scenario nobody will believe a number about |
 
 ---
 
 ## Cost
 
-Unmeasured, and small: `draw` is `O(pixels covered)`, the existing 320×260 shot
-is already inside a test that runs in the suite, and `write_png` stores rather
-than compresses. The only figure worth taking before building it is what a
-1000-frame film of the box test costs in wall time and megabytes, because that
-is the first sequence anybody will ask for.
+Measured, and it is the reason `NodeFilm` defaults to 320×240 and takes an
+`every`: `write_png` stores rather than compresses, so a frame costs its pixels.
+A 200-frame film of the accretion scenario is **100 MB at 480×360 and 46 MB at
+320×240**, so a thousand frames of anything is a quarter of a gigabyte and a
+long film wants `every`.
+
+---
+
+## What changed in the building
+
+Three things, each because a measurement said so.
+
+**`film::of_node` does not refine**, where the design said "refine the node,
+take its topology, walk its promoted children". Materialising sets
+`last_disturbed`, spends the frame's byte budget and changes which nodes the
+scheduler then finds materialised — a diagnostic that changes the LOD of the
+thing it is drawing is measuring the picture rather than the world. So it draws
+what is *there*: a node holding bodies draws its bodies, and a node holding none
+draws as one disc at its own radius. That second case is what makes a ball of
+matter becoming a planet watchable from its first frame, before anything has
+resolved it.
+
+**A promoted child replaces its stand-in rather than being drawn beside it.**
+`children` runs parallel to `bodies`, so a resolved thing was otherwise drawn
+twice: once where it is, and once as the smear it left behind.
+
+**Orientation is composed**, by `Tree::axes_from`. A child's contents are in the
+child's own axes, and before Phase 4 nothing in the tree composed a rotation
+across more than one level — which is the same gap Phase 4 item 1 closed for
+gravity, met again by the instrument.
+
+And one measured defect the work found rather than designed around:
+`draw_structure` bounded its loop by the topology's length, so **a node whose
+contents are loose drew an empty sky** — which is everything Phase 1 built. A
+cloud of 256 bodies now covers 0.02 to 0.90 of the frame where it used to cover
+0.000.

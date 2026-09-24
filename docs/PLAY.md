@@ -2864,13 +2864,117 @@ are what make them bite:
 
 *Done when:* an observer descends from orbit to a square metre of any planet in
 any scenario, travels ten kilometres across patch boundaries, and the terrain
-behind them regenerates bit-identically. **And:** a squiggle drawn in sand is
-gone by the next tide while a channel that redirects drainage is still there a
-year later, with neither having been tagged as important when it was made.
+behind them regenerates bit-identically. **And:** a mark drawn in a surface is
+gone once the flux over it has had time to take it, while a cut that carried
+material away is still there a year later, with neither having been tagged as
+important when it was made — *erosion-driven rather than tide-driven, because
+water is not here yet; the tidal version is Phase 5's.* **And:** a loose ball of
+suitable matter, put in orbit around a star and left alone, ends up a planet,
+and the run can be watched as it happens rather than only asserted about.
 **And:** `morph::Program` carries no column that is a property of a material or
 a measured environment; a boulder and a cliff face of the same rock have
 strengths that differ by size the way real ones do; and something stands on a
 coursed wall without sinking into the gaps between its blocks.
+
+**Four of those clauses were the owner's rather than this document's**, and
+they are recorded here because they change what the phase is. The terrain
+morphology is *a generated program* rather than a `Program::Terrain` variant
+with geometry on it; the flaw population is intragranular, bounded below by the
+critical nucleus; the erosion clause replaces the tidal one, which moves to
+Phase 5; the accretion clause is new, and so is the requirement that it be
+watchable. Two more arrived while the phase ran: a floor plate belongs in the
+general solver with a generated program rather than in a `Tower` type, and
+**there are to be no hardcoded plans** — an actor designs and places outputs,
+the engine assesses what that produced and writes a program for it, and the
+program is *a function of the current and historical data* derived from the
+axioms rather than engineered.
+
+---
+
+### What Phase 4 measured
+
+```text
+a vector between frames    9.8200 m/s2 along the node's own -z, oriented
+a test that is watched     a cloud of 256 bodies covers 0.02-0.90 of the frame,
+                           where the old path covered 0.000
+flatness, generated        a 2.172 m wall's rest height varies 0.0000 m against
+                           0.2991 m as capsules; a patch's columns cover 1.0000
+                           of their cell against 0.2848
+Griffith on the worst flaw bedrock 0.91 of the retired table, not 77x low; all
+                           eight presets within 2.7x with no exception by name
+a program is generated     five habits, sized as they state: tree 1.44x, coral
+                           1.53x, tower 0.89x, wall 0.76x, settlement 0.95x out
+                           before, 1.000x after
+ground                     a whole planet's surface is 296 B of rule and 0 B of
+                           detail; orbit to 0.55 m in 9 levels; 9.7055 m/s2 at
+                           0.092 degrees off its own down; ten kilometres of
+                           walking crosses 41 patches and stays within 2.1 m of
+                           6.4098e6 m; look away and back, worst displacement
+                           0.0e0 m
+a planet from origin       a ball of 6.000e24 kg and 2.0000e7 m fell in for
+                           1.000e5 s and became a planet at frame 86: 6.7810e6 m,
+                           1743 kg/m^3, 4.564 m/s^2 at its surface — filmed
+a layout derived           molten silicate froze through 1845 K at t = 3420 s
+                           and laid down 1.662e-2 m grains; a 0.25 m ball
+                           4.53e-3 m, a 4 m ball 6.09e-2 m; a rock that was
+                           never molten gets no layout at all
+forgetting is a decay      a 0.10 m mark 2 cm deep, 6.0000e1 /s, half-life
+                           0.0116 s, gone; a channel that took 34.6 kg still
+                           0.3000 m deep after a year of the same flux
+one column retired         `substrate` measured off the node's own feedstock
+```
+
+**Three of Phase 2's measurements moved**, and the reason is a defect this
+phase found rather than a change of mind: packing was being measured against a
+node's bounding sphere, and a slab much wider than it is deep is nothing like
+its own sphere — a patch of ground presented rock at 60 kg/m^3. Measuring a
+formation against the volume the recipe states fixed it and moved the box:
+
+```text
+struck at 20 m/s      utilisation 0.50 -> 0.07, nothing comes off
+struck at 700 m/s     utilisation 607  -> 80.87, two panels become nodes
+the seam decides      mortar 49.5/cellulose 1.15 -> 6.60/0.23, 43x -> 29x
+```
+
+**What the phase could not finish, each measured rather than asserted.** None
+of these is a coefficient waiting to be picked; each is a law the plan names and
+does not supply.
+
+- **An uncemented aggregate has no derived strength.** §5.2 promises wet sand
+  in hours as well as granite in millennia from one expression. Granite it
+  gives; sand it does not, and the expression is not why: a poured pile of dry
+  silica comes out of `Material::measured` at 3.26e7 Pa in tension, against the
+  4.5e3 Pa water at 3 m/s can press with and the 3.8e2 Pa of air at 25 m/s.
+  Every solid the engine measures is a bonded one and `Formation::Deposited`
+  scales strength by the packing squared, which is Gibson and Ashby's cellular
+  solid and assumes the cell walls are joined. What is needed is a tensile
+  strength for a granular aggregate — zero at zero cementation, rising from the
+  jamming point `RANDOM_LOOSE_PACKING` already names — and that is
+  `PHYSICS.md`-weight.
+- **`maintenance` has no law.** Both of the engine's candidates were run against
+  it. Erosion gives exactly zero for a tree in wind (5.16e7 Pa against 245 Pa).
+  Thermal degradation, attempt frequency from the lattice against the cohesive
+  energy per atom, gives cellulose 1.6e-46 /yr against the column's 0.02 /yr —
+  forty-four orders out, and no attempt frequency closes that. A tree's upkeep
+  is metabolic, which is a property of being alive rather than of cellulose.
+- **`energy_density`** is blocked on formation enthalpies, as `morph.rs` already
+  recorded: it measures how far uphill the making pushed the material against
+  its feedstock, and the engine has cohesive energies and nothing to difference
+  them against.
+- **`density`** is not recoverable: a deposited solid's porosity cannot be read
+  back from a node's bulk density once the node contains void, and sizing a
+  recipe from a density that the recipe's own size determines is circular.
+- **`material`** is already a fallback — `Material::measured` takes precedence
+  everywhere — and what is left is the answer for a node whose mixture nobody
+  has stated. Removing it means such a node has no material and therefore no
+  recipe, which is the second axiom applied honestly but is a change to what
+  planting means rather than a column deletion.
+- **A planet stops at random loose packing**, 1743 kg/m^3 rather than Earth's
+  5514, because what compacts a planet past the packing its own grains jam at is
+  an equation of state for a solid, which is Phase 5's and is scheduled there.
+- **Sideways handoff across a patch edge** was not exercised in anger. The
+  mechanism is Phase 3's and the tiling is now here, so what is missing is the
+  scenario rather than either piece.
 
 **Phase 5 — Water.** *Was Phase 3.* The five pieces §4.3 names, in dependency
 order: a free surface; a liquid equation of state, so `pressure()` stops
@@ -2886,7 +2990,12 @@ speed, which `Matter` already has, and with a mixture on every node the
 coefficient can differ by *phase* rather than being one guess across solid,
 liquid and gas.
 
-*Done when:* **the beach test passes.**
+*Done when:* **the beach test passes.** **And** the tidal half of Phase 4's
+deviation clause, which moved here because it needs water: a squiggle drawn in
+sand is gone by the next tide while a channel that redirects drainage is still
+there a year later. Phase 4 built the mechanism and the conservation criterion
+that separates the two; what this phase supplies is the tide, and the granular
+strength that lets sand be sand.
 
 **Phase 6 — Bodies.** *Was Phase 4.* D11's habit refactor; substructuring (D5);
 the creature genome; the actuation mechanism; derived-and-cached gait and grasp.

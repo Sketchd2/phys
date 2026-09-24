@@ -412,10 +412,31 @@ about things that are and are not moving.
 
 ---
 
-## Derived gravity is in the parent's axes, because nothing composes orientation
+## ~~Derived gravity is in the parent's axes, because nothing composes orientation~~ — done
 
 **Noticed:** building `Tree::gravity_at` for `PLAY.md` Phase 1's "`G_EARTH`
-deleted in favour of derived g".
+deleted in favour of derived g". **Closed:** Phase 4 item 1, at the trigger this
+entry predicted — the first oriented node, which is a terrain patch.
+
+`Tree::axes_from` composes `motion.orientation` up the chain and
+`Tree::into_axes_of` takes a vector into a node's own frame, which is the fix
+this entry said belonged where frames are composed rather than at one consumer.
+`gravity_at` rotates the accumulated field by the composition **to the root**
+rather than by the part relative to one ancestor, because an offset is in
+root-aligned axes and a field derived from offsets is too — that distinction was
+found by measurement and is the reason the first attempt was tilted.
+
+```text
+a node on the +x side of a planet, oriented   9.8200 m/s2 along its own -z
+```
+
+Two things the same work found, both in `Tree::gravity_at`: an ancestor's own
+mass was being subtracted instead of the chain's, and a patch of a planet was
+being modelled as a ball at its own centre of mass 1.9 million metres
+underground, which put a ninth of the planet's mass pulling sideways. The shell
+theorem is what a shell segment's field actually is, and with it the levels
+telescope: 9.7055 m/s2 at 0.092 degrees off its own down, against a closed form
+of 9.8200 for the whole ball.
 **Where:** `tree.rs` — `gravity_at`, and `offset_from` underneath it.
 
 `gravity_at` walks the ancestor chain and adds what each one pulls with, which
@@ -1015,10 +1036,57 @@ against one measured somewhere else.
 
 ---
 
-## Griffith on a grain is not Griffith on the worst flaw — bedrock is 77x low
+## ~~Griffith on a grain is not Griffith on the worst flaw — bedrock is 77x low~~ — done
 
 **Noticed:** building `PLAY.md` D14, measuring the derived strengths against the
-`rupture` column they replace.
+`rupture` column they replace. **Closed:** Phase 4 item 4, at the trigger this
+entry predicted — terrain is the first thing whose strength has to be right at
+more than one size.
+
+The flaw population is **intragranular**, bounded above by the grain and below
+by the **critical nucleus** `r* = 2 gamma_sl T_m / (dH_v x)` at the undercooling
+the melt actually reached, which the nucleation solve was already computing on
+the way to the grain. The worst flaw in a piece is a weakest-link draw over its
+volume:
+
+```text
+  a_worst = r* (V / r*^3)^(1/b),  capped at the grain,  b = 6 (Weibull m = 12)
+
+  material       r*         grain      worst flaw   derived   retired  ratio
+  green wood     —          3.0e-5     3.0e-5       5.16e7    4.5e7    1.15
+  dry timber     —          1.2e-5     1.2e-5       6.52e7    7.0e7    0.93
+  aragonite      —          3.0e-3     3.0e-3       1.35e7    1.2e7    1.13
+  reinforced     2.1e-10    1.3e-3     1.4e-5       2.15e8    1.8e8    1.20
+  masonry        —          7.0e-2     7.0e-2       2.07e6    2.0e6    1.04
+  steel          1.4e-9     8.2e-3     1.2e-3       1.68e8    4.0e8    0.42
+  ice            1.2e-9     3.8e-2     1.3e-2       4.45e6    1.7e6    2.62
+  bedrock        1.7e-9     2.1e-1     4.2e-5       1.18e8    1.3e8    0.91
+```
+
+Bedrock goes from 0.013 of the retired value to 0.91, every preset is within
+2.7x, and nothing is excepted by name. The deposited branch is untouched, which
+is why the four that already landed close did not move: a layer *is* a flaw,
+present once per layer, so there is no extreme value to take.
+
+**And strength now depends on size**, which is what the entry was really about:
+
+```text
+  bedrock  0.01 m across   3.74e8 Pa
+           0.1             2.10e8
+           1.0             1.18e8
+           10              6.65e7
+           100             3.74e7
+```
+
+The two approximations recorded below are unchanged and still stand: a metal's
+cohesive energy is about 2.3x low because the valence model allows iron three
+nearest neighbours rather than eight, and ice's density derives at 1653 kg/m^3
+against 917 because `analyse`'s van der Waals packing estimate is a correlation
+rather than a structure.
+
+### What it was, and what it measured
+
+**Was:**
 **Where:** `material.rs` — `Material::strength`, `grain_scale`.
 
 Seven of the eight presets land within a factor of 2.3 of the retired table, and
@@ -2722,3 +2790,127 @@ reasons are fresh:
 earlier and for more callers — the first dropped or thrown object needs the
 derived field on loose contents, and the first object whose shape matters more
 than its mass needs drag in flight.
+
+---
+
+## An uncemented aggregate has no derived strength, so nothing can erode sand
+
+**Noticed:** building `PLAY.md` §5's deviation decay (Phase 4 item 9), against
+§5.2's own honesty test.
+**Where:** `material.rs` — `Material::measured`, `Formation::Deposited`.
+
+§5.2 sets the test: *can one expression produce the granite case and the
+wet-sand case with only material and flux differing?* The expression is built
+and it is one expression. Granite it gives; sand it does not, and the expression
+is not why.
+
+```text
+  silica at 1600 kg/m^3, deposited     grain-scale strength 3.26e7 Pa
+  silica at 1400 kg/m^3, deposited                          2.85e7 Pa
+  granite, frozen at 1e-4 K/s                               9.72e7 Pa
+  water at 3 m/s presses with                                4.5e3 Pa
+  air at 25 m/s presses with                                 3.8e2 Pa
+```
+
+A poured pile of dry sand comes out at **33 MPa in tension**, four orders above
+anything a flux can press with. **Every solid the engine measures is a bonded
+one.** `Formation::Deposited` scales strength by the packing squared, which is
+Gibson and Ashby's cellular solid and assumes the cell walls are *joined*; a
+sandpile's grains are not joined, and what holds a surface grain there is its
+own weight, not a bond. Packing does not separate the two either — dry sand sits
+at 0.55 to 0.64 and so does a weakly cemented sandstone.
+
+**What it needs.** A tensile strength for a granular aggregate that is zero at
+zero cementation and rises from the jamming point — which is
+`World::RANDOM_LOOSE_PACKING`, already in the engine as a universal in the same
+family as Turnbull's 0.45 — plus a Shields threshold `theta_c (rho_s - rho_f) g
+D` for what it takes to lift a grain that nothing is holding. Both are standard
+and both are derivable from what `Matter` already carries. What is *not* derivable
+today is the discriminator: the engine cannot tell a cemented aggregate from a
+poured one, because nothing states the neck area at a grain contact.
+
+**Why the direction of the error is not safe here**, unlike the bedrock one: it
+makes every loose surface unerodable, so a footprint in sand is as permanent as
+a scar in granite, which is precisely the behaviour `PLAY.md` §5.1 exists to
+remove.
+
+**Trigger:** Phase 5, where the beach test needs sand to behave like sand. The
+decay machinery, the conservation criterion and the promotion rule are all built
+and tested; this is the number that goes into them.
+
+---
+
+## `morph::Program`'s last four columns each want a law the engine does not have
+
+**Noticed:** Phase 4 item 10, taking D11's "all of them" at its word.
+**Where:** `morph.rs` — `Program::{density, energy_density, material, maintenance}`.
+
+`substrate` is gone: a structure is built out of the feedstock its node held,
+measured. The other four were each put against the engine's candidate laws and
+each measured out, which is why they are still there.
+
+**`maintenance`**, both candidates:
+
+```text
+  erosion (§5.2)        green wood 5.16e7 Pa against air at 20 m/s pressing
+                        245 Pa — four orders short, derived rate exactly zero
+  thermal degradation   per atom at 291 K, attempt frequency from the lattice
+                        against the cohesive energy:
+    cellulose  3.859 eV  E/kT 153.9  nu 3.48e13   1.6e-46 /yr
+    silica     5.678 eV  E/kT 226.4  nu 2.25e13   3.3e-78 /yr
+    aragonite  5.485 eV  E/kT 218.7  nu 2.29e13   7.5e-75 /yr
+    iron       1.835 eV  E/kT  73.2  nu 7.82e12   4.2e-12 /yr
+```
+
+against the 0.02/yr the column holds for a tree: **forty-four orders out**, and
+no attempt frequency closes a gap that size. A tree's upkeep is metabolic, the
+cost of running enzymatic turnover, which is a property of being alive rather
+than of cellulose. A zero here is not harmless: capture scales with area and
+upkeep with mass, and the emergent carrying capacity is the difference, so a
+tree with no maintenance grows without bound.
+
+**`energy_density`** is blocked on formation enthalpies, which `morph.rs`
+recorded before this phase: it measures how far uphill the making pushed the
+material against its feedstock, and the engine has cohesive energies with
+nothing to difference them against. Zero for rock and large for wood is the
+shape of the answer; the comparison cannot be made yet.
+
+**`density`** is not recoverable. A deposited solid's porosity cannot be read
+back from a node's bulk density once the node contains void — the two are the
+same number — and sizing a recipe from a density that the recipe's own size
+determines is circular. Measured while trying: the loop is real and it converges
+on whatever it started from.
+
+**`material`** is already only a fallback: `Material::measured` takes precedence
+at every call site, and what is left answers for a node whose mixture nobody has
+stated. Removing it is not a deletion but a change to what planting means — such
+a node would have no material and therefore no recipe, which is the second axiom
+applied honestly and is wider than a column.
+
+**Trigger:** `maintenance` and `energy_density` want Bodies, where a creature's
+metabolism has to be modelled anyway and a formation enthalpy is the same
+question asked of food. `density` and `material` want the decision that a node
+with no stated mixture gets no structure.
+
+---
+
+## Sideways handoff across a patch edge has never been exercised in anger
+
+**Noticed:** finishing Phase 4.
+**Where:** `engine.rs` — `World::cross_boundaries`, and `recipe.rs`'s tiling.
+
+Phase 3 built the mechanism and tested it: a crossing into a place that is still
+one of its parent's bodies promotes that body to receive the arrival, and it
+deliberately issues no identity. Phase 3's own note says the case that exercises
+it *in anger* is Ground's, because nothing tiled a surface yet. Ground now does
+— an observer walking ten kilometres crosses 41 distinct patches — but the walk
+is an observer descending, which promotes cells ahead of itself rather than
+handing an object from one patch to its neighbour.
+
+**What it needs:** a scenario, not a mechanism. Something with mass rolling or
+walking across a patch boundary, arriving in a cell that is a body of the
+neighbouring patch rather than a node, and the conserved tuple checked on both
+sides of the handoff.
+
+**Trigger:** the first thing that moves across ground under its own power, which
+is Phase 6's quadruped. Until then nothing in the engine traverses a surface.
