@@ -1431,15 +1431,39 @@ pub fn summarise(bodies: &[Body], mutual_potential: f64) -> Matter {
     // Temperature is *derived* from the random kinetic energy, never averaged
     // from the children: averaging temperatures across unequal masses is wrong,
     // and across this dynamic range it is wrong by orders of magnitude.
+    matter.temperature = temperature_of(mass, composition, internal);
+    matter.entropy = matter.estimate_entropy();
+    matter
+}
+
+/// The temperature a mass of this composition has when it holds this much
+/// internal energy — the inverse of `Matter::thermal_energy`.
+///
+/// **One convention, in one place.** Energy is the conserved quantity and
+/// temperature is derived from it, so the derivation has to give the same
+/// answer at every resolution or the two disagree across a scale transform.
+/// It did: a body left `sampler::close_books` carrying an internal energy
+/// written to close the books exactly and a temperature copied from its parent
+/// before that energy was known, and the two were out by a factor of 1.3974 on
+/// a self-gravitating planet — the body said 1739.50 K while holding the energy
+/// of 2430.79 K, and the next `summarise` believed the energy and stepped the
+/// node's temperature by 40%.
+///
+/// `mean_molecular_mass` is evaluated at `1e4` and not at the answer, which is
+/// deliberate and is the convention `summarise` has always used: the function
+/// is a step at 10^4 K (`ionised = temperature > 1.0e4`), so evaluating it at
+/// the temperature being solved for makes this implicit for no gain below the
+/// step. **Above the step it is wrong**, and equally wrong at both resolutions,
+/// which is the property worth having — one answer, and its error reported
+/// rather than differing by resolution. See `docs/BACKLOG.md`.
+pub fn temperature_of(mass: f64, composition: Composition, internal: f64) -> f64 {
     let mu = composition.mean_molecular_mass(1e4);
     let particles = if mu > 0.0 { mass / mu } else { 0.0 };
-    matter.temperature = if particles > 0.0 {
+    if particles > 0.0 {
         (2.0 * internal.max(0.0) / (3.0 * particles * K_B)).max(2.725)
     } else {
         2.725
-    };
-    matter.entropy = matter.estimate_entropy();
-    matter
+    }
 }
 
 /// RMS radius to equivalent-uniform-sphere radius: a uniform ball of radius R
