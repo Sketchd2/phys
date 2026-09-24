@@ -654,6 +654,17 @@ pub(crate) fn put_morphology(w: &mut Writer, m: &Morphology) {
         w.f64(j.area);
     }
     put_recipe(w, m.recipe.as_ref());
+    // Appended: the field delta. `docs/PLAY.md` §5 — a deviation that took mass
+    // away may never be forgotten, so it has to survive a save like everything
+    // else in the conserved account.
+    w.seq(m.field.len());
+    for d in &m.field {
+        w.f64(d.x);
+        w.f64(d.y);
+        w.f64(d.span);
+        w.f64(d.amplitude);
+        w.f64(d.moved);
+    }
 }
 
 /// The generated program, where it is a rule rather than a parts list.
@@ -813,6 +824,9 @@ const PART_MIN_BYTES: usize = PART_WIRE_BYTES;
 /// 8 + 1 + 4 + 8 for one event.
 const EVENT_MIN_BYTES: usize = 21;
 
+/// Five f64 for one deviation: where, how wide, how deep, and what it took.
+const DEVIATION_MIN_BYTES: usize = 40;
+
 pub(crate) fn get_morphology(r: &mut Reader) -> Result<Morphology> {
     let program = get_program(r)?;
     let mut genome = [0.0f32; 8];
@@ -867,6 +881,20 @@ pub(crate) fn get_morphology(r: &mut Reader) -> Result<Morphology> {
                 Some(crate::assembly::Assembly::new(parts, joins))
             };
             get_recipe(r, parts)?
+        },
+        field: {
+            let n = r.seq("deviations", DEVIATION_MIN_BYTES)?;
+            let mut field = Vec::with_capacity(n);
+            for _ in 0..n {
+                field.push(crate::erode::Deviation {
+                    x: r.f64()?,
+                    y: r.f64()?,
+                    span: r.f64()?,
+                    amplitude: r.f64()?,
+                    moved: r.f64()?,
+                });
+            }
+            field
         },
     })
 }
@@ -1143,6 +1171,7 @@ pub(crate) fn put_tree_stats(w: &mut Writer, s: &TreeStats) {
     w.u64(s.splits);
     w.u64(s.merges);
     w.u64(s.layouts_derived);
+    w.u64(s.deviations_forgotten);
     // `settled` and `settled_idempotent` are deliberately **not** written. They
     // are the only counters a *save* moves — `World::view` settles the world on
     // its way past — so writing them would make a file depend on how many times
@@ -1173,6 +1202,7 @@ pub(crate) fn get_tree_stats(r: &mut Reader) -> Result<TreeStats> {
         splits: r.u64()?,
         merges: r.u64()?,
         layouts_derived: r.u64()?,
+        deviations_forgotten: r.u64()?,
         settled: 0,
         settled_idempotent: 0,
     })

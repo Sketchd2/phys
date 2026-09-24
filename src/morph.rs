@@ -356,6 +356,14 @@ pub struct Morphology {
     /// generated, which is one call later. Everything that draws goes through
     /// it.
     pub recipe: Option<crate::recipe::Recipe>,
+    /// **The field delta**: what has happened over this thing's surface that
+    /// its own rule does not describe. `docs/PLAY.md` §5.
+    ///
+    /// The coarse half of §5.7's pair — `events` is the fine half. A field
+    /// superposes, so a thousand footprints are a thousand of these summed
+    /// rather than a heightmap, and each one decays at the rate its own
+    /// material, flux and geometry set. See [`crate::erode`].
+    pub field: Vec<crate::erode::Deviation>,
 }
 
 impl Morphology {
@@ -377,6 +385,7 @@ impl Morphology {
             checkpoint_age: 0.0,
             design_mass: 0.0,
             recipe: None,
+            field: Vec::new(),
         };
         m.regenerate(&Environment::default(), &program.material());
         m
@@ -751,7 +760,7 @@ impl Morphology {
     /// generated once from the path key and then stored.
     pub fn render(&self, budget: usize) -> Skeleton {
         let mut sk = match self.recipe.as_ref() {
-            Some(r) => r.render(budget.max(1), self.growth()),
+            Some(r) => r.render(budget.max(1), self.growth(), &self.field),
             None => Skeleton::default(),
         };
         // A severed limb and everything above it is simply absent. Applied

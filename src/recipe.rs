@@ -93,13 +93,19 @@ pub enum Recipe {
 
 impl Recipe {
     /// Place the bodies, in metres, in the node's own frame.
-    pub fn render(&self, budget: usize, g: Growth) -> Skeleton {
+    ///
+    /// `field` is what has happened to this thing that its own rule does not
+    /// describe — `docs/PLAY.md` §5's deviations, superposed over the derived
+    /// baseline. Only [`Tiled`] reads it, because §5.7 decides that terrain
+    /// carries a field and a structure carries an edit list, and the edit list
+    /// is applied one level up in `Morphology::render`.
+    pub fn render(&self, budget: usize, g: Growth, field: &[crate::erode::Deviation]) -> Skeleton {
         match self {
             Recipe::Placed(a) => a.render(),
             Recipe::Branching(b) => b.render(budget, g),
             Recipe::Coursed(c) => c.render(budget, g),
             Recipe::Framed(f) => f.render(budget, g),
-            Recipe::Tiled(t) => t.render(budget),
+            Recipe::Tiled(t) => t.render(budget, field),
             Recipe::Subdivided(s) => s.render(budget, g),
             Recipe::Granular(x) => x.render(budget),
         }
@@ -733,9 +739,9 @@ impl Tiled {
     /// the same as tiling: round columns on a square grid leave a gap at every
     /// corner of it, and something walking across the patch drops into each
     /// one. The cell is square, so the column that fills it is.
-    pub fn render(&self, budget: usize) -> Skeleton {
+    pub fn render(&self, budget: usize, field: &[crate::erode::Deviation]) -> Skeleton {
         if self.on_sphere() {
-            return self.render_on_sphere();
+            return self.render_on_sphere(field);
         }
         let mut sk = Skeleton::with_capacity(budget);
         let n = ((budget as f64).sqrt().floor() as usize).clamp(2, 64);
@@ -763,7 +769,13 @@ impl Tiled {
                 }
                 let u = -1.0 + 2.0 * (i as f64 + 0.5) / n as f64;
                 let v = -1.0 + 2.0 * (j as f64 + 0.5) / n as f64;
-                let top = amp * (self.surface_height(u, v) - mean);
+                // The derived baseline, plus whatever has happened here that
+                // the baseline does not describe. A field superposes, so a
+                // thousand footprints cost what one costs — §5.7.
+                let mut top = amp * (self.surface_height(u, v) - mean);
+                for d in field {
+                    top += d.height_at(u, v, half);
+                }
                 let base = v3(u * half, v * half, -self.depth);
                 let tip = v3(u * half, v * half, top);
                 let len = (top + self.depth).max(1e-9);
@@ -1316,7 +1328,7 @@ impl Tiled {
     /// with it a descent sheds depth as it sheds width, which is what makes the
     /// thing you finally stand on a shallow patch of ground rather than a
     /// column reaching to the centre of the planet.
-    fn render_on_sphere(&self) -> Skeleton {
+    fn render_on_sphere(&self, field: &[crate::erode::Deviation]) -> Skeleton {
         let n = self.cells();
         let count = if self.is_ball() { 6 } else { n * n };
         let mut sk = Skeleton::with_capacity(count + 1);
@@ -1337,12 +1349,25 @@ impl Tiled {
             let turn = child.frame().then(self.frame().conjugate());
             cells.push((at, side, v, turn));
         }
+        let n_f = self.cells() as f64;
         for (i, (at, side, v, turn)) in cells.iter().enumerate() {
             let half = 0.5 * side;
             let depth = 0.5 * side * SLAB_ASPECT;
             // A cell is a slab, turned the way its own surface faces. Its
             // plan is the tiling's and may not move; its depth is what gives.
             let up = turn.rotate(v3(0.0, 0.0, 1.0));
+            // What has happened here that the rule does not describe, at this
+            // cell's own place on the patch. A patch on a sphere is divided the
+            // same way a flat one is, so the coordinates mean the same thing.
+            let mut lift = 0.0;
+            if !field.is_empty() && !self.is_ball() {
+                let u = -1.0 + 2.0 * ((i % self.cells()) as f64 + 0.5) / n_f;
+                let w = -1.0 + 2.0 * ((i / self.cells()) as f64 + 0.5) / n_f;
+                for d in field {
+                    lift += d.height_at(u, w, 0.5 * self.side);
+                }
+            }
+            let at = &(*at + up.scale(lift));
             sk.push_box(
                 *at - up.scale(depth),
                 *at + up.scale(depth),
@@ -1446,6 +1471,32 @@ impl Tiled {
         let i = (fa * n).floor().clamp(0.0, n - 1.0) as usize;
         let j = (fb * n).floor().clamp(0.0, n - 1.0) as usize;
         Some(j * self.cells() + i)
+    }
+
+    /// Where a direction lands on this patch, in the patch's own normalised
+    /// coordinates: -1 to 1 across it, in the same frame `surface_height` and a
+    /// [`crate::erode::Deviation`] use.
+    ///
+    /// `None` when the direction is not over this patch at all, which is the
+    /// honest answer and is what makes a deviation belong to exactly one node.
+    pub fn local_of_direction(&self, dir: Vec3) -> Option<(f64, f64)> {
+        let d = dir.unit();
+        if !d.is_finite() || self.is_ball() {
+            return None;
+        }
+        let (right, up, out) = face_axes(self.face);
+        let o = d.dot(out);
+        if o <= 1e-12 {
+            return None;
+        }
+        let (a, b) = (d.dot(right) / o, d.dot(up) / o);
+        let (ca, cb, half) = self.face_span();
+        let x = (a - ca) / half;
+        let y = (b - cb) / half;
+        if !(-1.0..=1.0).contains(&x) || !(-1.0..=1.0).contains(&y) {
+            return None;
+        }
+        Some((x, y))
     }
 
     /// The direction of the point on this patch's surface nearest a direction.

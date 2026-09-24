@@ -1556,6 +1556,9 @@ impl World {
         self.stats.absorbed += evolution.absorbed;
         self.stats.radiation_deficit += evolution.radiation_deficit;
         let chemistry = self.react_all(span);
+        // What has happened to a surface feels its own physics, on the world
+        // clock and not on whether anybody is looking. `docs/PLAY.md` §5.
+        self.weather(span);
         self.time = horizon;
         self.record_histories();
 
@@ -4608,6 +4611,121 @@ impl World {
             // for it to cross. Same reason `Pin` and `Author` apply here.
             Interaction::Dilate { target, rate } => {
                 self.dilate(target, rate);
+            }
+            Interaction::Mark { target, deviation } => {
+                self.mark(target, deviation);
+            }
+        }
+    }
+
+    /// Put a deviation into a node's field.
+    ///
+    /// `docs/PLAY.md` §5.1: a mark is not a pin. The old rule was that anything
+    /// touched is persisted outright and for ever, which at play resolution
+    /// makes a footprint as permanent as a felled trunk. A mark is remembered
+    /// exactly while it is there and decays at the rate its own material, flux
+    /// and geometry set — see [`World::weather`].
+    ///
+    /// The mass it carried away leaves the node here, at the moment the mark is
+    /// made, because that is when it left: a cut bank is lighter afterwards.
+    /// Nothing debits it later and nothing has to remember to, which is the
+    /// property §5.8 asks for.
+    pub fn mark(&mut self, target: NodeIdx, deviation: crate::erode::Deviation) -> bool {
+        if target.is_none() || !self.tree.nodes[target.get()].alive {
+            return false;
+        }
+        if self.tree.nodes[target.get()].morphology.is_none() {
+            return false;
+        }
+        let moved = deviation.moved.abs();
+        {
+            let n = &mut self.tree.nodes[target.get()];
+            if let Some(m) = n.morphology.as_mut() {
+                m.field.push(deviation);
+                m.built = (m.built - moved).max(0.0);
+            }
+            n.matter.mass = (n.matter.mass - moved).max(0.0);
+        }
+        self.disturb(target);
+        true
+    }
+
+    /// Let every stored deviation feel its own physics for `dt` seconds.
+    ///
+    /// `docs/PLAY.md` §5, once a frame. Three things happen to a deviation and
+    /// the node decides none of them:
+    ///
+    /// * its amplitude falls at [`crate::erode::relaxation_rate`], derived from
+    ///   the material's cohesion, the flux the node is actually in, and the
+    ///   feature's own half-width;
+    /// * it is **dropped** when the amplitude is below what the coarse level can
+    ///   represent — which is §5.1's "forgetting becomes the deviation reaching
+    ///   zero" — but only if dropping it leaves the conserved tuple unchanged;
+    /// * it is **kept for ever** otherwise, because §5.8 forbids forgetting to
+    ///   be a source: a deviation that took mass away would put it back.
+    ///
+    /// **Decay runs on the world clock, not on the absence of an audience**
+    /// (§5.5). What observation changes is only whether the detail has to be
+    /// stored, and a node currently resolved for somebody keeps its field
+    /// whatever the amplitude has fallen to, because dropping it in front of
+    /// them is the pop §5.4 forbids.
+    fn weather(&mut self, dt: f64) {
+        if !(dt > 0.0) {
+            return;
+        }
+        for i in 0..self.tree.nodes.len() {
+            let idx = NodeIdx(i as u32);
+            {
+                let n = &self.tree.nodes[i];
+                if !n.alive {
+                    continue;
+                }
+                match n.morphology.as_ref() {
+                    Some(m) if !m.field.is_empty() => {}
+                    _ => continue,
+                }
+            }
+            let env = self.environment_at(idx);
+            let (temperature, mass, watched) = {
+                let n = &self.tree.nodes[i];
+                (
+                    n.matter.temperature,
+                    n.matter.mass,
+                    n.pinned || n.residency.rank() >= Residency::Observed.rank(),
+                )
+            };
+            // What it takes to detach one grain of what this is made of, which
+            // is the material's strength at the size of its own worst flaw
+            // rather than the whole piece's. Measured off the node's mixture
+            // where it has one; the program's material otherwise.
+            let material = match self.material_of(idx) {
+                Some(m) => m,
+                None => match self.tree.nodes[i].morphology.as_ref() {
+                    Some(m) => m.program.material(),
+                    None => continue,
+                },
+            };
+            let cohesion = material.strength_of(material.flaw_size, temperature);
+            let local = dt * self.local_rate(idx);
+            let mut dropped = 0u64;
+            let n = &mut self.tree.nodes[i];
+            let Some(m) = n.morphology.as_mut() else { continue };
+            for d in m.field.iter_mut() {
+                let rate =
+                    crate::erode::relaxation_rate(cohesion, env.fluid_density, env.flow_speed, d.span);
+                if rate > 0.0 && d.conservative(mass) {
+                    d.amplitude *= (-rate * local).exp();
+                }
+            }
+            if !watched {
+                let floor = crate::tree::IDEMPOTENT_TOLERANCE * n.matter.radius.abs().max(1e-300);
+                let before = m.field.len();
+                m.field.retain(|d| !(d.conservative(mass) && d.amplitude.abs() <= floor));
+                dropped = (before - m.field.len()) as u64;
+            }
+            if dropped > 0 {
+                self.tree.stats.deviations_forgotten += dropped;
+                self.disturb(idx);
             }
         }
     }

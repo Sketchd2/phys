@@ -450,6 +450,20 @@ pub enum Interaction {
     ///
     /// It scales what the node *does*, never where it *is*. See `dilation.rs`.
     Dilate { target: NodeIdx, rate: f64 },
+    /// Mark a surface: a footprint, a furrow drawn in sand, a channel cut
+    /// through a bank.
+    ///
+    /// `docs/PLAY.md` §5. This is the one path that puts a deviation into a
+    /// node's field, and it is here rather than on `World` directly because
+    /// **only an event may name a node** — a deviation is somebody doing
+    /// something to a particular place, which is exactly what an interaction
+    /// is.
+    ///
+    /// Nothing about it is tagged as important, and nothing decides afterwards
+    /// whether it was: what happens to it is decided by whether it changed the
+    /// node's conserved tuple, which is a measurement. See
+    /// [`crate::erode::Deviation`].
+    Mark { target: NodeIdx, deviation: crate::erode::Deviation },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
