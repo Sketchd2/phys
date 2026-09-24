@@ -222,16 +222,34 @@ pub struct NodeFilm {
     film: Option<crate::render::Film>,
     shot: Shot,
     node: NodeIdx,
+    every: usize,
+    seen: usize,
 }
 
 impl NodeFilm {
     /// Open a film of `node`, framed at `radius` metres.
+    ///
+    /// 320 by 240, because `write_png` stores rather than compresses and a
+    /// frame costs its pixels: measured, a 200-frame film of the accretion
+    /// scenario is 100 MB at 480 by 360 and 46 MB at this size. That is
+    /// `docs/VIEWING.md`'s open cost question answered — a thousand frames of
+    /// anything is a quarter of a gigabyte, so a long film wants `every`.
     pub fn open(name: &str, node: NodeIdx, radius: f64, paint: Paint) -> NodeFilm {
         NodeFilm {
             film: crate::render::Film::open(name),
-            shot: Shot::framing(Vec3::ZERO, radius.max(1e-30), 0.6, 0.35).painted(paint),
+            shot: Shot::framing(Vec3::ZERO, radius.max(1e-30), 0.6, 0.35)
+                .painted(paint)
+                .sized(320, 240),
             node,
+            every: 1,
+            seen: 0,
         }
+    }
+
+    /// Take only every `n`th frame offered.
+    pub fn every(mut self, n: usize) -> NodeFilm {
+        self.every = n.max(1);
+        self
     }
 
     /// Whether this film is actually recording.
@@ -245,6 +263,11 @@ impl NodeFilm {
 
     /// Take a frame. Free when nothing is recording.
     pub fn take(&mut self, world: &World) -> Option<Drawn> {
+        let skip = self.seen % self.every != 0;
+        self.seen += 1;
+        if skip {
+            return None;
+        }
         let film = self.film.as_mut()?;
         let (canvas, drawn) = shoot(world, self.node, &self.shot);
         film.shoot(&canvas);

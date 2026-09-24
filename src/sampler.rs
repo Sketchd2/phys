@@ -1314,6 +1314,24 @@ pub fn sample_structured(
     // the same way so that the two paths cannot drift apart.
     let random_ke_target = (matter.internal_energy + matter.gravitational_binding - phi)
         .max(matter.internal_energy.abs().max(1e-30));
+    // **A part is a macroscopic object, not a molecule**, and it does not carry
+    // the whole node's thermal energy as motion.
+    //
+    // For a *sampled* node a body is a stand-in for an ensemble and its random
+    // velocity is exactly how the temperature is represented. For a structured
+    // one the parts are members, panels, cells — things — and equipartition
+    // over them is `3/2 n k T`, not `3/2 N k T` over the molecules. Measured,
+    // the difference is not subtle: a 4733 kg tree at 290 K has 1.05e8 J of
+    // thermal energy, and spreading it over five hundred members gave each of
+    // them 210 m/s of "jitter". A planet's six surface patches got 60 km/s and
+    // left the planet.
+    //
+    // The remainder is not lost: `close_books` closes the energy books through
+    // the bodies' own internal accounts, which is where a part's heat belongs
+    // — inside it. `summarise` adds those back, so the node's temperature comes
+    // out the same either way and only the *place* the energy sits changes.
+    let equipartition = 1.5 * (n as f64) * crate::units::K_B * matter.temperature.max(0.0);
+    let random_ke_target = random_ke_target.min(equipartition.max(1e-30));
 
     // ---- 3. thermal jitter, then the shared projection --------------------
     //

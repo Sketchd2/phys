@@ -715,6 +715,29 @@ impl World {
         self.rewrite_recipe(idx);
     }
 
+    /// Ask of every node that might have become one whether it is a body now.
+    ///
+    /// **Once a frame, and cheap because of the order the questions are in.** A
+    /// node that already has a recipe is skipped on a pointer test, and one
+    /// nobody has said what it is made of is skipped on an emptiness test — so
+    /// the cost on an ordinary world is a handful of comparisons. What is left
+    /// is a node made of something, which is asked whether its matter is packed
+    /// and then, only if it is, whether its own weight has beaten its strength.
+    ///
+    /// This is what turns a cloud into a planet while the world runs, which is
+    /// the whole of "generated from origin": nothing states that a planet is
+    /// there, and the first frame in which one is, is the frame its own
+    /// collapse made it one.
+    fn assess_surfaces(&mut self) {
+        for i in 0..self.tree.nodes.len() {
+            let n = &self.tree.nodes[i];
+            if !n.alive || n.morphology.is_some() || n.matter.mixture.is_empty() {
+                continue;
+            }
+            self.assess_surface(NodeIdx(i as u32));
+        }
+    }
+
     /// Follow every observer down the surface they are over.
     ///
     /// **"Nothing is generated until approached."** `docs/PLAY.md` D6: "A patch
@@ -829,6 +852,15 @@ impl World {
         }
     }
 
+    /// Fraction of a volume a poured pile of grains fills before it begins to
+    /// carry load rather than flow.
+    ///
+    /// Random loose packing. A universal of sphere packing rather than a
+    /// property of any material — the same kind of number as Turnbull's 0.45 —
+    /// and what [`World::assess_surface`] uses to tell a planet from a cloud
+    /// that is still falling in.
+    const RANDOM_LOOSE_PACKING: f64 = 0.55;
+
     /// Ask whether a node is a body its own gravity has rounded, and if it is,
     /// write down the surface it has.
     ///
@@ -859,20 +891,67 @@ impl World {
         if self.tree.nodes[idx.get()].morphology.is_some() {
             return false;
         }
-        let Some(material) = self.material_of(idx) else { return false };
+        // **How big it is now, not how big it was when it last coarsened.**
+        // While a node is materialised its bodies are the authority and its
+        // matter is the summary made when it last folded them back, so a
+        // collapsing cloud's `matter.radius` is stale by as long as it has been
+        // collapsing. Asking the stale one let a ball fall to a twelfth of the
+        // density it should have been caught at before anything noticed.
+        //
+        // Measured the way `summarise` measures it, so the two cannot disagree.
         let (mass, radius, spec_count) = {
             let n = &self.tree.nodes[idx.get()];
-            (n.matter.mass, n.matter.radius, n.spec.count)
+            let radius = if n.bodies.is_empty() {
+                n.matter.radius
+            } else {
+                let spread =
+                    crate::state::Spread::of(n.bodies.iter().map(|b| (b.pos, b.mass, b.radius)));
+                (spread.rms * crate::state::RMS_TO_RADIUS).max(1e-30)
+            };
+            (n.matter.mass, radius, n.spec.count)
         };
         if !(mass > 0.0) || !(radius > 0.0) {
             return false;
         }
+        // **Its matter has to be packed densely enough to carry itself**, and
+        // this is tested first because it is the half that refuses most nodes
+        // and it costs a division, where deriving a material runs a nucleation
+        // march.
+        //
+        // The pressure test alone is satisfied by a *cloud*, and trivially:
+        // strength goes as the square of how much of the volume is filled, so a
+        // ball of rock grains at half a kilogram a cubic metre has no strength
+        // to overcome and is declared round while it is still falling in.
+        // Measured: an Earth's worth of rock spread over 1.5e8 m passed the
+        // pressure test at its first frame and froze there, thirty times too
+        // large, with its collapse never run.
+        //
+        // What tells a planet from a cloud is that a planet is *condensed*: its
+        // bulk density is the density of what it is made of. The threshold is
+        // not a choice — it is where a pile of grains stops flowing and starts
+        // carrying load, which is random loose packing, a universal of sphere
+        // packing in the same family as Turnbull's 0.45.
+        //
+        // Read off the formation rather than off the material, because a
+        // measured material's density already *is* the node's bulk density —
+        // the packing is folded into it — so dividing one by the other is
+        // identically one and answers nothing.
+        let packed = self.packing_at(idx, radius).unwrap_or(0.0);
+        if !(packed >= Self::RANDOM_LOOSE_PACKING) {
+            return false;
+        }
+        // It is a body now, so its matter is brought into step with the detail
+        // that made it one before anything is written down. `Tree::settle` is
+        // `coarsen` without the destruction.
+        self.tree.settle(idx);
+        let Some(material) = self.material_of(idx) else { return false };
         let pressure =
             3.0 * crate::units::G * mass * mass / (8.0 * std::f64::consts::PI * radius.powi(4));
         if !(pressure > material.strength_of(radius, self.tree.nodes[idx.get()].matter.temperature))
         {
             return false;
         }
+
         let key = self.tree.nodes[idx.get()].key;
         let seed = self.tree.world_seed;
         let mut m = crate::morph::Morphology::new(crate::morph::Program::Terrain, seed, key.0, 0);
@@ -1301,8 +1380,9 @@ impl World {
         self.refresh_pace();
 
         let horizon = self.time + self.frame_dt();
-        // A surface is generated by being approached, and nothing else
-        // generates it. See `World::approach`.
+        // A body that has become one gets its surface, and a surface is
+        // generated by being approached and by nothing else.
+        self.assess_surfaces();
         self.approach();
         let tasks = self.survey(horizon);
         let bytes = self.tree.detail_bytes();
@@ -3000,8 +3080,66 @@ impl World {
             .iter()
             .find(|p| p.phase == crate::chem::Phase::Solid && p.fraction > 0.0)?;
         let props = self.substances.get(solid.substance)?.props;
-        let formation = crate::material::Formation::of_matter(&n.matter, &props);
+        // The same correction the packing gets: a node that states the volume
+        // it fills is measured against that rather than against the sphere it
+        // claims. See `World::packing_at`.
+        let mut matter = n.matter;
+        if let Some(v) = n
+            .morphology
+            .as_ref()
+            .and_then(|m| m.recipe.as_ref().map(|r| r.solid_volume(m.growth())))
+        {
+            if v > 0.0 {
+                matter.radius = (0.75 * v / std::f64::consts::PI).cbrt();
+            }
+        }
+        let formation = crate::material::Formation::of_matter(&matter, &props);
         crate::material::Material::measured(&mixture, &self.substances, formation)
+    }
+
+    /// How much of this node's volume its own solid actually fills, 0 to 1.
+    ///
+    /// The packing `Formation::of_matter` measures, on its own rather than
+    /// folded into a material's density — which is where it usually is, and
+    /// which makes it useless for asking *whether* a node is condensed: a
+    /// measured material's density is the node's own bulk density, so dividing
+    /// one by the other is identically one.
+    pub fn packing_of(&self, idx: NodeIdx) -> Option<f64> {
+        let r = self.tree.nodes.get(idx.get())?.matter.radius;
+        self.packing_at(idx, r)
+    }
+
+    /// As [`World::packing_of`], at a radius the caller has measured for
+    /// itself.
+    pub fn packing_at(&self, idx: NodeIdx, radius: f64) -> Option<f64> {
+        if idx.is_none() || idx.get() >= self.tree.nodes.len() {
+            return None;
+        }
+        let n = &self.tree.nodes[idx.get()];
+        let mut matter = n.matter;
+        matter.radius = radius.max(1e-30);
+        // **Against the volume the thing actually fills**, where it states one.
+        // `Formation::of_matter` reads the packing off `matter.density()`,
+        // which is the mass over the sphere the node claims — right for a node
+        // that is the material and wrong for one that is an arrangement of it.
+        // A recipe knows the volume it laid down, so the radius handed to the
+        // formation is the sphere of *that* volume rather than the node's own.
+        if let Some(v) = n
+            .morphology
+            .as_ref()
+            .and_then(|m| m.recipe.as_ref().map(|r| r.solid_volume(m.growth())))
+        {
+            if v > 0.0 {
+                matter.radius = (0.75 * v / std::f64::consts::PI).cbrt();
+            }
+        }
+        let mixture = matter.mixture;
+        let solid = mixture
+            .entries()
+            .iter()
+            .find(|p| p.phase == crate::chem::Phase::Solid && p.fraction > 0.0)?;
+        let props = self.substances.get(solid.substance)?.props;
+        Some(crate::material::Formation::of_matter(&matter, &props).packing())
     }
 
     /// Fill in what this structure's joins are made of.
@@ -3026,7 +3164,20 @@ impl World {
     fn derive_bonds(&self, idx: NodeIdx, topo: &mut crate::topology::Topology) {
         use crate::chem::SubstanceId;
         topo.bonds.clear();
-        let matter = self.tree.nodes[idx.get()].matter;
+        // The node's own formation conditions, measured against the volume it
+        // states rather than the sphere it claims — the same correction
+        // `World::material_of` makes, because a joint's history is the node's
+        // history and two answers to one question is the thing to avoid.
+        let mut matter = self.tree.nodes[idx.get()].matter;
+        if let Some(v) = self.tree.nodes[idx.get()]
+            .morphology
+            .as_ref()
+            .and_then(|m| m.recipe.as_ref().map(|r| r.solid_volume(m.growth())))
+        {
+            if v > 0.0 {
+                matter.radius = (0.75 * v / std::f64::consts::PI).cbrt();
+            }
+        }
         for j in &topo.joints {
             if j.bond == SubstanceId::UNSPECIATED || topo.bonds.iter().any(|(s, _)| *s == j.bond) {
                 continue;

@@ -170,6 +170,33 @@ impl Recipe {
         }
     }
 
+    /// The volume of solid this recipe actually lays down, m^3.
+    ///
+    /// **What a node's packing should be measured against.** A node's bulk
+    /// density is its mass over the sphere it claims, which is right for a
+    /// node that *is* the material and wrong for one that is an arrangement of
+    /// it: a crate of solid planks reads as 4.8% packed against its bounding
+    /// sphere, and a patch of ground — a slab much wider than it is deep —
+    /// reads at 60 kg/m^3 where the rock it is made of is 2600.
+    ///
+    /// A recipe knows better, because the volume it lays down is the volume it
+    /// turned the mass into a size with. A parts list states it outright; a
+    /// habit's is its own mass over its own density, which is the same number
+    /// the analysis used.
+    pub fn solid_volume(&self, g: Growth) -> f64 {
+        match self {
+            Recipe::Placed(a) => a.parts.iter().map(|p| p.volume()).sum(),
+            _ => {
+                let d = self.density();
+                if d > 0.0 {
+                    g.built.max(0.0) / d
+                } else {
+                    0.0
+                }
+            }
+        }
+    }
+
     /// The parts, where this recipe is a parts list.
     pub fn placed(&self) -> Option<&Assembly> {
         match self {
