@@ -508,10 +508,21 @@ What landed, each with its measurement in its own commit:
 Suite at the end of Phase 3: **416 passed, 1 ignored**, plus 6 Postgres, and
 five demos run. `FORMAT_VERSION` is 13 and `SCHEMA_VERSION` is 8.
 
-**Phase 4 is done.** Ground, and D11's columns. A planetary surface is a
-cubed-sphere parameterisation whose cells *are* the node's children, so the
-surface tree is the scale tree with no adapter between them, and a program is
-now a *generated rule* rather than a variant. Measured:
+**Phase 4 is closed, with three of its four done-when clauses met and the
+fourth unmet by the owner's decision.** Ground, and one of D11's columns. A
+planetary surface is a cubed-sphere parameterisation whose cells *are* the
+node's children, so the surface tree is the scale tree with no adapter between
+them, and a program is now a *generated rule* rather than a variant.
+
+The clause that fails is **"`morph::Program` carries no column that is a
+property of a material or a measured environment"**. `substrate` went; the
+other four each want a law the engine does not have, and `design_flow` — a
+table of a fluid density and a gust speed, which is precisely a measured
+environment — is the one that is merely unwired. `PLAY.md` §7 records the
+verdict clause by clause and what was left open with it. Do not read the
+measurements below as the whole done-when met.
+
+Measured:
 
 ```text
 a vector between frames    9.8200 m/s2 along the node's own -z, oriented
@@ -577,6 +588,14 @@ What landed, each with its measurement in its own commit:
 
 Suite at the end of Phase 4: **442 passed, 1 ignored**, plus 6 Postgres, and
 five demos run. `FORMAT_VERSION` is 18.
+
+**Three things were left open at the close rather than fixed**, and they are in
+`PLAY.md` §7 and `BACKLOG.md` with their measurements: `tests/accretion.rs` runs
+at a starved frame budget so the planet it derives differs run to run; the same
+test prints a size and a density taken from two different radii; and a body
+leaves the sampler with a temperature and an internal energy that disagree by
+whatever the binding term is — 1739.50 K while holding 2430.79 K of energy on a
+planet, which the first save turns into a 40% step.
 
 ### What Phase 5 will meet first
 

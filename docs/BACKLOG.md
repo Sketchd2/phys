@@ -2914,3 +2914,77 @@ sides of the handoff.
 
 **Trigger:** the first thing that moves across ground under its own power, which
 is Phase 6's quadruped. Until then nothing in the engine traverses a surface.
+
+---
+
+## A body leaves the sampler with a temperature and an energy that disagree
+
+**Noticed:** asking why `World::view` settles, at the end of Phase 4.
+**Where:** `sampler.rs` — `close_books` §6.4; `state.rs` — `temperature_of`.
+
+`close_books` writes each body's `internal_energy` **algebraically**, to close
+the energy books exactly for any configuration whatsoever:
+
+```rust
+b.internal_energy = target_internal_sum * (b.mass / matter.mass);
+```
+
+where `target_internal_sum` carries `matter.gravitational_binding - phi`. The
+body's `temperature` was copied from its parent two steps earlier and never
+follows it. Measured on an accreted planet:
+
+```text
+  matter's stated binding        B_grav -7.090962e31
+  the seven-slab drawing's phi          -1.129397e32
+  the difference                 +4.203012e31 = +39.74% of the matter's U
+  the sampler's own report       internal_energy_residual = 1.397402
+  so the body says               1739.50 K while holding 2430.79 K of energy
+  and the first save steps it    1739.5017 -> 2430.7923 K
+```
+
+One step, not a ratchet: six save/coarsen/refine rounds leave it at 2430.79 K
+with the world's energy moving **+0.000e0**. Energy is exact throughout, which
+is why nothing caught it — what moves is the split between the gravitational
+and thermal accounts, because a coarse drawing of a planet has a different
+self-potential from the grain draw its matter was summarised from.
+`SampleReport::internal_energy_residual` already measures it and **nothing reads
+it**.
+
+**The obvious fix was tried and is not narrow.** Setting the body's temperature
+from the energy it was just given, using the same `state::temperature_of` that
+`summarise` uses:
+
+```text
+  reference world root      U +1.353352e48 -> +8.585530e46, 16x
+  its first body            T 1.8411e7 K -> 5.3617e2 K
+  energy drift on a save    4.3e-12 -> 1.514e-8 against a 1e-10 threshold
+  tests failing             5
+```
+
+Two reasons, both already written down elsewhere in this project. **Temperature
+means two things** — thermodynamic at `Planetary` and finer, a velocity
+dispersion above, which is why `evolve_matter` gates on tier — so a temperature
+derived from an internal account that is not thermal at coarse tiers is a number
+nothing should read. And **the two authorities are already decoupled before the
+sampler is reached**: the solvers evolve `Body::temperature` (`hydro` reads it
+for pressure and writes it back) while a node's is derived from energy at
+`summarise`, and nothing reconciles them. Measured on the reference world's
+root, the matter says 7.3007e4 K while its own first body says 1.8411e7 K.
+
+**What landed** is the convention moved to one place, `state::temperature_of`,
+behaviour-neutral. What is open is which of the two authorities wins, which is a
+`PHYSICS.md` decision.
+
+**A latent second defect in the same function, recorded while it was open:**
+`temperature_of` evaluates `mean_molecular_mass` at `1e4`, and that function is
+a step at 10^4 K (`ionised = temperature > 1.0e4`). Below the step this is
+exact and evaluating it at the answer would only make the solve implicit for no
+gain. **Above the step it is wrong** — a stellar interior is derived with the
+neutral mean molecular mass — and it is now equally wrong at both resolutions
+rather than differing between them, which is the property worth having until it
+is fixed.
+
+**Trigger:** anything that reads a body's temperature and must be right — a
+per-body phase change, a radiating body, a contact that burns. Today the
+readers are `hydro`'s pressure term, `Paint::Temperature` and the exchange
+reservoirs, and the first two are already inside the decoupling described above.

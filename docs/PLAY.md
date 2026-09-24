@@ -2876,6 +2876,45 @@ a measured environment; a boulder and a cliff face of the same rock have
 strengths that differ by size the way real ones do; and something stands on a
 coursed wall without sinking into the gaps between its blocks.
 
+**Three of those four clauses are met and the fourth is not, and the phase was
+closed with it unmet by the owner's decision rather than by it being finished.**
+Recorded here because a done-when reported met with a caveat attached is exactly
+the quiet deferral `CLAUDE.md` names, and this is the alternative to it.
+
+```text
+descend, ten kilometres, regenerate identically     met
+a mark goes and a cut stays, nothing tagged         met as written
+a loose ball becomes a planet, watchable            met
+Program carries no material or environment column   NOT MET
+  a boulder and a cliff face differ by size           met
+  something stands on a coursed wall                  met
+  the columns themselves                              fails
+```
+
+**And the fourth clause was not reachable in this phase**, which is why it is
+recorded rather than rescheduled. `design_flow` is the only one of the five
+that is unblocked — it is a six-variant table of a fluid density and a gust
+speed, which is precisely "a measured environment", and the measurement now
+exists on `Environment` and is simply not wired to the one consumer that reads
+the table. The other four each want a law the engine does not have, listed
+below. Wiring `design_flow` alone would not have closed the clause.
+
+**Left open by the same decision**, and not to be read as forgotten:
+
+- `tests/accretion.rs` runs at a frame budget where the scheduler starves, so
+  the planet it derives differs between runs — frame 76, 86 and 87 across three,
+  with the radius moving 5% and the temperature 9.7%. It is reproducible to the
+  bit at a budget where nothing is deferred. Its assertions are loose enough to
+  pass either way, so it is green while the figure it prints is a property of
+  the machine.
+- The same test prints a size taken from the measured spread beside a density
+  and a surface gravity taken from `matter.radius` — 6.7810e6 m and
+  1743 kg/m^3 in one sentence, which for 6x10^24 kg cannot both be true.
+- A body leaves the sampler with a temperature and an internal energy that
+  disagree. See `BACKLOG.md`; the convention was single-sourced into
+  `state::temperature_of` and the behavioural half was measured, found to move
+  the reference world's root energy by 16x, and backed out.
+
 **Four of those clauses were the owner's rather than this document's**, and
 they are recorded here because they change what the phase is. The terrain
 morphology is *a generated program* rather than a `Program::Terrain` variant
