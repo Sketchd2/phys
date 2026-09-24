@@ -3,6 +3,18 @@ use phys::morph::{Morphology, Program};
 use phys::sampler::sample_structured;
 use phys::state::Matter;
 use phys::units::YEAR;
+use phys::state::Composition;
+
+/// What a scenario states a thing of this kind is made of. `docs/PLAY.md` D11
+/// retired `Program::substrate`; a structure is made of the feedstock its node
+/// held, so a scenario that wants a tree of carbohydrate puts carbohydrate in.
+fn substrate_for(p: Program) -> Composition {
+    match p {
+        Program::Tree | Program::Coral => Composition::organic(),
+        _ => Composition::crustal(),
+    }
+}
+
 
 /// Earth's surface gravity, stated rather than assumed. `docs/PLAY.md` D6
 /// retired the constant that used to supply it; this probe is about structure
@@ -27,7 +39,7 @@ fn main() {
             m
         };
         m.built = mass;
-        let matter = Matter::neutral(mass, m.extent(), 291.0, prog.substrate());
+        let matter = Matter::neutral(mass, m.extent(), 291.0, substrate_for(prog));
         let (_, _, report) = sample_structured(&matter, &m, budget, 7, 0x1234, 0, SURFACE_G);
         let d = report.design;
         println!(

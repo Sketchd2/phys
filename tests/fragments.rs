@@ -49,7 +49,7 @@ fn on_an_earth(seed: u64, mass: f64, radius: f64, count: usize) -> (World, phys:
     let node = w.tree.promote(planet, 0, phys::engine::default_spec(Tier::Continuum));
     {
         let n = &mut w.tree.nodes[node.get()];
-        n.matter = Matter::neutral(mass, radius, 291.0, Program::Tree.substrate());
+        n.matter = Matter::neutral(mass, radius, 291.0, Composition::organic());
         n.spec.count = count;
         n.motion.offset = v3(0.0, 0.0, EARTH_RADIUS);
     }
@@ -71,7 +71,7 @@ fn tree(mass: f64, budget: usize) -> (Vec<phys::state::Body>, Topology) {
     let mut m = phys::morph::Morphology::new(Program::Tree, 0xACE, 0x1234, 0);
     m.built = mass;
     m.age = 45.0 * YEAR;
-    let mut matter = Matter::neutral(mass, m.extent(), 291.0, Program::Tree.substrate());
+    let mut matter = Matter::neutral(mass, m.extent(), 291.0, Composition::organic());
     matter.chemical_energy = m.stored_energy();
     let (b, t, _) = sample_structured(&matter, &m, budget, 7, 0x1234, 0, SURFACE_G);
     (b, t)
@@ -363,7 +363,7 @@ fn a_branch_lands_on_the_next_tree() {
     let beside = w.tree.nodes[a.get()].motion.offset + v3(8.0, 0.0, 0.0);
     {
         let n = &mut w.tree.nodes[b.get()];
-        n.matter = Matter::neutral(4000.0, 6.0, 291.0, Program::Tree.substrate());
+        n.matter = Matter::neutral(4000.0, 6.0, 291.0, Composition::organic());
         n.spec.count = 900;
         n.motion.offset = beside;
     }
@@ -393,7 +393,7 @@ fn a_branch_lands_on_the_next_tree() {
     let away = w.tree.nodes[a.get()].motion.offset + v3(60.0, 0.0, 0.0);
     {
         let n = &mut w.tree.nodes[far.get()];
-        n.matter = Matter::neutral(4000.0, 6.0, 291.0, Program::Tree.substrate());
+        n.matter = Matter::neutral(4000.0, 6.0, 291.0, Composition::organic());
         n.spec.count = 900;
         n.motion.offset = away;
     }

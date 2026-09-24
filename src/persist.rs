@@ -665,6 +665,10 @@ pub(crate) fn put_morphology(w: &mut Writer, m: &Morphology) {
         w.f64(d.amplitude);
         w.f64(d.moved);
     }
+    // Appended: what it was built out of.
+    for v in m.substrate.0 {
+        w.f64(v);
+    }
 }
 
 /// The generated program, where it is a rule rather than a parts list.
@@ -895,6 +899,16 @@ pub(crate) fn get_morphology(r: &mut Reader) -> Result<Morphology> {
                 });
             }
             field
+        },
+        // Appended: what the structure was actually built out of. D11's
+        // `substrate` column lived on `Program` and is now a fact about this
+        // individual, so it has to travel with it.
+        substrate: {
+            let mut c = [0.0f64; crate::units::COARSE_ELEMENTS];
+            for v in c.iter_mut() {
+                *v = r.f64()?;
+            }
+            crate::state::Composition(c)
         },
     })
 }
@@ -1343,6 +1357,10 @@ pub(crate) fn put_environment_pub(w: &mut Writer, e: &Environment) {
     // Appended: what the node is standing in, and what it has met.
     w.f64(e.fluid_density);
     w.f64(e.flow_speed);
+    // Appended: what there is here to build out of.
+    for v in e.feedstock.0 {
+        w.f64(v);
+    }
 }
 pub(crate) fn get_environment_pub(r: &mut Reader) -> Result<Environment> {
     Ok(Environment {
@@ -1354,6 +1372,13 @@ pub(crate) fn get_environment_pub(r: &mut Reader) -> Result<Environment> {
         labour: r.f64()?,
         fluid_density: r.f64()?,
         flow_speed: r.f64()?,
+        feedstock: {
+            let mut c = [0.0f64; crate::units::COARSE_ELEMENTS];
+            for v in c.iter_mut() {
+                *v = r.f64()?;
+            }
+            crate::state::Composition(c)
+        },
     })
 }
 

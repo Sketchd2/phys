@@ -3908,14 +3908,15 @@ impl World {
 
         let node = &mut self.tree.nodes[idx.get()];
         let temperature = node.matter.temperature;
+        let made_of = node.matter.composition;
         if let Some(m) = node.morphology.as_mut() {
             if !sites.is_empty() && structural_mass > 0.0 {
                 let fraction = (failures.detached_mass / structural_mass).clamp(0.0, 1.0);
-                let txn = m.sever_many(&sites, fraction);
+                let txn = m.sever_many(&sites, fraction, made_of);
                 out.detached_mass = txn.mass_detached;
             }
             if insult_report.consumed_mass > 0.0 {
-                let burn = m.consume(insult_report.consumed_mass, temperature);
+                let burn = m.consume(insult_report.consumed_mass, temperature, made_of);
                 if burn.validate().is_ok() {
                     // Burning releases the free energy the wood was holding.
                     // The atoms stay in the node as combustion products, so mass
@@ -4094,10 +4095,11 @@ impl World {
             .map(|m| m.built)
             .unwrap_or(0.0);
         let node = &mut self.tree.nodes[idx.get()];
+        let made_of = node.matter.composition;
         if let Some(m) = node.morphology.as_mut() {
             if !sites.is_empty() && structural_mass > 0.0 {
                 let fraction = (detached / structural_mass).clamp(0.0, 1.0);
-                let txn = m.sever_many(&sites, fraction);
+                let txn = m.sever_many(&sites, fraction, made_of);
                 out.detached_mass = txn.mass_detached;
             }
             node.matter.chemical_energy = m.stored_energy();
@@ -4349,7 +4351,16 @@ impl World {
     pub fn environment_at(&self, idx: NodeIdx) -> crate::morph::Environment {
         let n = &self.tree.nodes[idx.get()];
         if let Some(env) = self.identities.get(&n.key).and_then(|id| self.environments.get(id)) {
-            return *env;
+            let mut env = *env;
+            // A stated environment overrides what it states and no more. Saying
+            // nothing about the feedstock is not saying "nothing", so the
+            // measurement stands — which is what keeps a scenario that plants a
+            // tree with `Environment::default()` from building it out of
+            // hydrogen and helium.
+            if env.feedstock.is_none() {
+                env.feedstock = n.matter.composition;
+            }
+            return env;
         }
         // Illumination from the parent's luminosity at this node's distance —
         // so a structure in the shade of its own node's parent really is in the
@@ -4436,6 +4447,9 @@ impl World {
                     crate::morph::Environment::default().flow_speed
                 }
             },
+            // What there is here to build out of. D11's `substrate` column,
+            // measured: a structure is made of what its node holds.
+            feedstock: n.matter.composition,
         }
     }
 

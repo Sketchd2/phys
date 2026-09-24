@@ -240,44 +240,42 @@ impl Program {
         }
     }
 
-    /// What the structure is built out of.
-    pub fn substrate(self) -> Composition {
-        let mut c = [0.0; COARSE_ELEMENTS];
-        match self {
-            // Cellulose, CH2O: roughly 44% C, 6% H, 50% O by mass.
-            Program::Tree => {
-                c[CoarseElement::Carbon as usize] = 0.44;
-                c[CoarseElement::Hydrogen as usize] = 0.06;
-                c[CoarseElement::Oxygen as usize] = 0.50;
-            }
-            // Calcium carbonate, lumped: carbon, oxygen, and heavier cations.
-            Program::Coral => {
-                c[CoarseElement::Carbon as usize] = 0.12;
-                c[CoarseElement::Oxygen as usize] = 0.48;
-                c[CoarseElement::Other as usize] = 0.40;
-            }
-            // Concrete and steel: silicates, oxygen, iron.
-            // Crustal silicate rock, near enough: oxygen and silicon with iron
-            // and everything heavier lumped together.
-            Program::Terrain => {
-                c[CoarseElement::Oxygen as usize] = 0.46;
-                c[CoarseElement::Silicon as usize] = 0.28;
-                c[CoarseElement::Iron as usize] = 0.09;
-                c[CoarseElement::Other as usize] = 0.17;
-            }
-            Program::Tower | Program::Wall | Program::Settlement => {
-                c[CoarseElement::Oxygen as usize] = 0.46;
-                c[CoarseElement::Silicon as usize] = 0.27;
-                c[CoarseElement::Iron as usize] = 0.12;
-                c[CoarseElement::Carbon as usize] = 0.03;
-                c[CoarseElement::Other as usize] = 0.12;
-            }
-        }
-        Composition(c).normalised()
-    }
-
     /// Maintenance cost per kilogram per second — respiration for the living
     /// programs, weathering and depreciation for the built ones.
+    ///
+    /// **Deliberately still a column, and this is the phase that measured
+    /// why.** `docs/PLAY.md` D11 calls it a tabulated per-species decay rate
+    /// that must be derived, and Phase 4 put both of the engine's candidate
+    /// laws against it:
+    ///
+    /// * **Erosion** — §5.2's expression, now built in [`crate::erode`]. Green
+    ///   wood's grain-scale cohesion is 5.16e7 Pa and air at 20 m/s presses
+    ///   with 245 Pa, four orders short of the threshold, so the derived rate
+    ///   for a tree standing in wind is **exactly zero**. A tree that pays no
+    ///   maintenance grows without bound, and the emergent carrying capacity —
+    ///   capture scaling with area against upkeep scaling with mass — goes with
+    ///   it.
+    /// * **Thermal degradation** — the other channel the engine has, an
+    ///   attempt frequency from the lattice against the cohesive energy per
+    ///   atom. Measured, per atom and at 291 K:
+    ///
+    /// ```text
+    ///   cellulose   3.859 eV   E/kT 153.9   nu 3.48e13   1.6e-46 /yr
+    ///   silica      5.678 eV   E/kT 226.4   nu 2.25e13   3.3e-78 /yr
+    ///   aragonite   5.485 eV   E/kT 218.7   nu 2.29e13   7.5e-75 /yr
+    ///   iron        1.835 eV   E/kT  73.2   nu 7.82e12   4.2e-12 /yr
+    /// ```
+    ///
+    ///   against the 0.02/yr this column holds for a tree. **Forty-four orders
+    ///   out**, and no choice of attempt frequency closes a gap that size.
+    ///
+    /// The reason is not a missing coefficient: a tree's maintenance is
+    /// *metabolic*, the cost of running enzymatic turnover, and it is a
+    /// property of being alive rather than of cellulose. The engine has no law
+    /// for that, and inventing one here would be the `if is_forest` the axioms
+    /// forbid wearing a rate constant's clothes. So the column stays, with its
+    /// numbers measured rather than assumed, until the plan says what governs
+    /// the upkeep of a living thing.
     pub fn maintenance(self) -> f64 {
         match self {
             Program::Tree => 0.02 / YEAR,
@@ -364,6 +362,19 @@ pub struct Morphology {
     /// rather than a heightmap, and each one decays at the rate its own
     /// material, flux and geometry set. See [`crate::erode`].
     pub field: Vec<crate::erode::Deviation>,
+    /// **What this thing is actually made of**, by coarse element.
+    ///
+    /// `docs/PLAY.md` D11's third column, retired. A structure used to be built
+    /// out of whatever its species was declared to be built out of; it is now
+    /// built out of **what was there** — `Environment::feedstock`, measured off
+    /// the node's own matter — and this is the mass-weighted blend of
+    /// everything that has gone into it.
+    ///
+    /// Stored rather than re-derived, which is the third axiom: it is a fact
+    /// about what happened, and what happened does not come back from the
+    /// node's present composition once the structure is part of it.
+    /// [`Composition::none`] until the first kilogram goes in.
+    pub substrate: Composition,
 }
 
 impl Morphology {
@@ -386,9 +397,41 @@ impl Morphology {
             design_mass: 0.0,
             recipe: None,
             field: Vec::new(),
+            substrate: Composition::none(),
         };
         m.regenerate(&Environment::default(), &program.material());
         m
+    }
+
+    /// What this thing is made of, as far as anything knows.
+    ///
+    /// The blend of everything that has gone into it. A structure nobody has
+    /// built anything into yet answers with the feedstock's default rather than
+    /// with nothing, because a mass leaving it has to have a composition.
+    pub fn made_of(&self, node: Composition) -> Composition {
+        if self.substrate.is_none() {
+            node
+        } else {
+            self.substrate
+        }
+    }
+
+    /// Take `mass` of `feedstock` into the structure, and say what went in.
+    ///
+    /// Blended by mass, the same way `coarsen` blends anything else: a tree
+    /// that spent its first decade in one soil and its second in another is
+    /// made of both in the proportions it took them.
+    fn absorb(&mut self, mass: f64, feedstock: Composition, standing: f64) -> Composition {
+        if !(mass > 0.0) {
+            return self.made_of(Composition::primordial());
+        }
+        let taken = if feedstock.is_none() { self.made_of(Composition::primordial()) } else { feedstock };
+        self.substrate = if self.substrate.is_none() || !(standing > 0.0) {
+            taken
+        } else {
+            Composition::blend(self.substrate, standing, taken, mass)
+        };
+        taken
     }
 
     /// What the recipe is a function of, right now.
@@ -598,9 +641,11 @@ impl Morphology {
         // was respired away. Only one of the two is ever non-zero.
         let energy_stored = actual.max(0.0) * program.energy_density();
         let energy_released = (-actual).max(0.0) * program.energy_density();
+        // What it is made of is what it was made *from*, blended in as it goes.
+        let took = self.absorb(actual.max(0.0), env.feedstock, before);
         GrowthStep::build(
             actual.max(0.0),
-            program.substrate(),
+            took,
             energy_absorbed,
             energy_stored,
             energy_released,
@@ -642,9 +687,10 @@ impl Morphology {
         // process heat, and only the embodied energy ends up in the structure.
         let energy_stored = mass * program.energy_density();
         let energy_absorbed = energy_stored / CONSTRUCTION_EFFICIENCY;
+        let took = self.absorb(mass, env.feedstock, self.built - mass);
         GrowthStep::build(
             mass,
-            program.substrate(),
+            took,
             energy_absorbed,
             energy_stored,
             0.0,
@@ -662,14 +708,14 @@ impl Morphology {
     /// that mass is released, and the matter itself stays in the node as
     /// litter. Nothing is created or destroyed — it just stops being part of
     /// the structure.
-    pub fn record(&mut self, event: Event, temperature: f64) -> GrowthStep {
+    pub fn record(&mut self, event: Event, temperature: f64, node: Composition) -> GrowthStep {
         let mut txn = GrowthStep::none();
         if event.kind == EventKind::Severed {
             let lost = (self.built * event.magnitude.clamp(0.0, 1.0)).max(0.0);
             self.built -= lost;
             txn = GrowthStep::build(
                 -lost,
-                self.program.substrate(),
+                self.made_of(node),
                 0.0,
                 0.0,
                 lost * self.program.energy_density(),
@@ -699,7 +745,7 @@ impl Morphology {
     /// compound the mass loss n times — each call taking a fraction of what the
     /// previous one left. A storm that breaks two hundred joints does not
     /// remove two hundred successive fractions of the tree.
-    pub fn sever_many(&mut self, sites: &[u32], fraction: f64) -> GrowthStep {
+    pub fn sever_many(&mut self, sites: &[u32], fraction: f64, node: Composition) -> GrowthStep {
         let lost = (self.built * fraction.clamp(0.0, 1.0)).max(0.0);
         self.built -= lost;
         for &site in sites {
@@ -716,7 +762,7 @@ impl Morphology {
         // it, which is a separate process.
         GrowthStep {
             mass_incorporated: 0.0,
-            composition: self.program.substrate(),
+            composition: self.made_of(node),
             ..GrowthStep::none()
         }
         .with_detached(lost)
@@ -724,12 +770,12 @@ impl Morphology {
 
     /// Consume structural mass outright — burned, vaporised — releasing the
     /// free energy that was holding it together.
-    pub fn consume(&mut self, mass: f64, temperature: f64) -> GrowthStep {
+    pub fn consume(&mut self, mass: f64, temperature: f64, node: Composition) -> GrowthStep {
         let lost = mass.clamp(0.0, self.built);
         self.built -= lost;
         GrowthStep::build(
             0.0,
-            self.program.substrate(),
+            self.made_of(node),
             0.0,
             0.0,
             lost * self.program.energy_density(),
@@ -1214,6 +1260,14 @@ pub struct Environment {
     /// lives through, so a tree on a headland is stouter than one in a valley
     /// without either of them being told which it is.
     pub flow_speed: f64,
+    /// **What is here to build out of**, by coarse element.
+    ///
+    /// `docs/PLAY.md` D11's `substrate` column, made a measurement: a structure
+    /// is built out of what its node holds, so a tree in a silicate world is
+    /// made of silicate and nobody tells it which. The node's own
+    /// `matter.composition`, and [`Composition::none`] where nothing has been
+    /// said.
+    pub feedstock: Composition,
 }
 
 impl Default for Environment {
@@ -1227,6 +1281,7 @@ impl Default for Environment {
             labour: 0.0,
             fluid_density: 1.225,
             flow_speed: 20.0,
+            feedstock: Composition::none(),
         }
     }
 }

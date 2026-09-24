@@ -1180,11 +1180,13 @@ pub fn sample_structured(
     // its parts are the node's own composition and asking the program would be
     // asking the wrong question — a box of oak planks on a steel frame is not
     // `Program::Tree`'s substrate however the planks were grown.
-    let substrate = if morph.is_assembled() {
-        matter.composition
-    } else {
-        morph.program.substrate()
-    };
+    // **What it is made of, from the individual and not from its kind.**
+    // `docs/PLAY.md` D11 retired `Program::substrate`: a structure is made of
+    // the feedstock it was built from, which it records as it takes it in. A
+    // structure a scenario simply *stated* has taken nothing in, so what it is
+    // made of is what its node is made of — which is also the assembled case,
+    // for the reason above.
+    let substrate = if morph.is_assembled() { matter.composition } else { morph.made_of(matter.composition) };
     let mut comps: Vec<Composition> = vec![substrate; n_struct];
 
     // The unstructured remainder: litter, air, rubble. Sampled from the same

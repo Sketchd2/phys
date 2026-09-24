@@ -9,6 +9,7 @@ use phys::observe::*;
 use phys::state::*;
 use phys::tree::Residency;
 use phys::units::*;
+use phys::state::Composition;
 
 fn rule(title: &str) {
     println!("\n\x1b[1m{}\x1b[0m", title);
@@ -230,7 +231,7 @@ fn main() {
     let forest = w.tree.promote(root, 11, default_spec(Tier::Stellar));
     {
         let n = &mut w.tree.nodes[forest.get()];
-        n.matter = Matter::neutral(2.0, 0.4, 291.0, phys::morph::Program::Tree.substrate());
+        n.matter = Matter::neutral(2.0, 0.4, 291.0, Composition::organic());
         n.spec.count = 6000;
     }
     w.plant(forest, phys::morph::Program::Tree, Some(phys::morph::Environment::default()));

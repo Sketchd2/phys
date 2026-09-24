@@ -256,6 +256,59 @@ impl Composition {
         Composition(c).normalised()
     }
 
+    /// Stated, element by element, and normalised. What a scenario uses when
+    /// it is saying what something is made of — the composition equivalent of
+    /// stating a mixture, and the honest replacement for a table of
+    /// per-species substrates.
+    pub fn of(parts: &[(CoarseElement, f64)]) -> Composition {
+        let mut c = [0.0; COARSE_ELEMENTS];
+        for (e, f) in parts {
+            c[*e as usize] += f.max(0.0);
+        }
+        Composition(c).normalised()
+    }
+
+    /// Carbon, hydrogen and oxygen in the proportions of a carbohydrate —
+    /// `CH2O`, 44/6/50 by mass.
+    ///
+    /// **A scenario's statement, not a program's property.** It sits beside
+    /// [`Composition::primordial`] and [`Composition::solar`] for the same
+    /// reason they do: a scenario has to say what its matter is made of, and
+    /// saying so is not a table the engine reads. `docs/PLAY.md` D11 retired
+    /// `Program::substrate`, which was the version of this that the *engine*
+    /// consulted; what a thing grows into is now the feedstock it grew from.
+    pub fn organic() -> Composition {
+        Composition::of(&[
+            (CoarseElement::Carbon, 0.44),
+            (CoarseElement::Hydrogen, 0.06),
+            (CoarseElement::Oxygen, 0.50),
+        ])
+    }
+
+    /// Crustal silicate rock: oxygen and silicon with iron and the rest lumped.
+    ///
+    /// The same kind of statement as [`Composition::organic`].
+    pub fn crustal() -> Composition {
+        Composition::of(&[
+            (CoarseElement::Oxygen, 0.46),
+            (CoarseElement::Silicon, 0.28),
+            (CoarseElement::Iron, 0.09),
+            (CoarseElement::Other, 0.17),
+        ])
+    }
+
+    /// Nothing stated: every bucket zero.
+    ///
+    /// Distinct from any real composition, and it means "this has not been
+    /// built out of anything yet" rather than "this is made of nothing".
+    pub fn none() -> Composition {
+        Composition([0.0; COARSE_ELEMENTS])
+    }
+
+    pub fn is_none(&self) -> bool {
+        self.0.iter().all(|v| *v <= 0.0)
+    }
+
     /// Pure one element — used when the user drills into a specific atom.
     pub fn pure(s: CoarseElement) -> Composition {
         let mut c = [0.0; COARSE_ELEMENTS];

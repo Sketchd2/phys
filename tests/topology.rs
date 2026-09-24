@@ -9,6 +9,21 @@ use phys::state::*;
 use phys::morph::NO_SUPPORT;
 use phys::topology::*;
 use phys::units::*;
+use phys::state::Composition;
+
+/// What a scenario states a thing of this kind is made of.
+///
+/// A test's own statement, not the engine's: `docs/PLAY.md` D11 retired
+/// `Program::substrate`, so what a structure is made of is the feedstock its
+/// node held, and a scenario that wants a tree made of carbohydrate has to put
+/// carbohydrate in the node.
+fn substrate_for(p: Program) -> Composition {
+    match p {
+        Program::Tree | Program::Coral => Composition::organic(),
+        _ => Composition::crustal(),
+    }
+}
+
 
 /// A node on the surface of an Earth, ready to have something planted in it.
 ///
@@ -44,7 +59,7 @@ fn on_an_earth(seed: u64, mass: f64, radius: f64, count: usize) -> (World, phys:
     let node = w.tree.promote(planet, 0, phys::engine::default_spec(Tier::Continuum));
     {
         let n = &mut w.tree.nodes[node.get()];
-        n.matter = Matter::neutral(mass, radius, 291.0, Program::Tree.substrate());
+        n.matter = Matter::neutral(mass, radius, 291.0, Composition::organic());
         n.spec.count = count;
         n.motion.offset = v3(0.0, 0.0, EARTH_RADIUS);
     }
@@ -66,7 +81,7 @@ fn tree(mass: f64) -> (Matter, Morphology) {
     let mut m = Morphology::new(Program::Tree, 0xACE, 0x1234, 0);
     m.built = mass;
     m.age = 40.0 * YEAR;
-    let mut matter = Matter::neutral(mass, m.extent(), 291.0, Program::Tree.substrate());
+    let mut matter = Matter::neutral(mass, m.extent(), 291.0, Composition::organic());
     matter.chemical_energy = m.stored_energy();
     (matter, m)
 }
@@ -85,7 +100,7 @@ fn the_support_graph_is_a_well_formed_tree() {
         m.built = 5000.0;
         m.design_mass = 5000.0;
         m.progress = 1.0;
-        let matter = Matter::neutral(5000.0, m.extent(), 290.0, program.substrate());
+        let matter = Matter::neutral(5000.0, m.extent(), 290.0, substrate_for(program));
         let (bodies, topo, report) = sample_structured(&matter, &m, 3000, 7, 0x2, 0, SURFACE_G);
         assert!(!topo.is_empty(), "{program:?} produced no joints");
 
@@ -357,7 +372,7 @@ fn fire_releases_stored_energy_without_losing_mass() {
     let node = w.tree.promote(root, 9, phys::engine::default_spec(Tier::Stellar));
     {
         let n = &mut w.tree.nodes[node.get()];
-        n.matter = Matter::neutral(900.0, 6.0, 291.0, Program::Tree.substrate());
+        n.matter = Matter::neutral(900.0, 6.0, 291.0, Composition::organic());
         n.spec.count = 3000;
     }
     w.plant(node, Program::Tree, Some(Environment::default()));
@@ -555,7 +570,7 @@ fn bracing_relieves_the_primary_path() {
     let mut m = Morphology::planned(Program::Tower, 3.0e6, 11, 0x77);
     m.progress = 1.0;
     m.built = 3.0e6;
-    let matter = Matter::neutral(3.0e6, m.extent(), 290.0, Program::Tower.substrate());
+    let matter = Matter::neutral(3.0e6, m.extent(), 290.0, Composition::crustal());
     let (bodies, topo, _) = sample_structured(&matter, &m, 2000, 7, 0x77, 0, SURFACE_G);
     assert!(!topo.ties.is_empty(), "a framed tower should be braced");
     assert!(!topo.is_determinate());

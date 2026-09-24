@@ -7,6 +7,7 @@ use phys::math::{v3, Vec3};
 use phys::morph::Program;
 use phys::state::{Body, Matter};
 use phys::units::*;
+use phys::state::Composition;
 
 /// A wooden box: six panels, five of them joined to the floor.
 ///
@@ -72,7 +73,7 @@ fn a_box() -> (World, phys::ids::NodeIdx, SubstanceId, SubstanceId) {
     let mass = parts.mass();
     {
         let n = &mut w.tree.nodes[node.get()];
-        n.matter = Matter::neutral(mass, 1.0, 291.0, Program::Tree.substrate());
+        n.matter = Matter::neutral(mass, 1.0, 291.0, Composition::organic());
         let mut mix = phys::chem::Mixture::new();
         mix.add(oak, Phase::Solid, 1.0);
         n.matter.mixture = mix;
@@ -341,7 +342,7 @@ fn a_box_fails_in_its_seams_not_in_its_panels() {
         let mass = parts.mass();
         {
             let n = &mut w.tree.nodes[node.get()];
-            n.matter = Matter::neutral(mass, 1.0, 291.0, Program::Tree.substrate());
+            n.matter = Matter::neutral(mass, 1.0, 291.0, Composition::organic());
             let mut mix = phys::chem::Mixture::new();
             mix.add(oak, Phase::Solid, 1.0);
             n.matter.mixture = mix;
@@ -391,7 +392,7 @@ fn a_part_put_in_at_an_angle_stays_at_that_angle() {
     let mass = parts.mass();
     {
         let n = &mut w.tree.nodes[node.get()];
-        n.matter = Matter::neutral(mass, 1.0, 291.0, Program::Tree.substrate());
+        n.matter = Matter::neutral(mass, 1.0, 291.0, Composition::organic());
         let mut mix = phys::chem::Mixture::new();
         mix.add(oak, Phase::Solid, 1.0);
         n.matter.mixture = mix;

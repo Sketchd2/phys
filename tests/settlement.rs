@@ -15,6 +15,7 @@ use phys::sampler::{MassSpectrum, Profile, SampleSpec};
 use phys::state::{BodyKind, Matter};
 use phys::tree::Tree;
 use phys::units::*;
+use phys::state::Composition;
 
 /// A moon 400 km across: small enough to be a moon, big enough to stand on.
 const MOON_RADIUS: f64 = 2.0e5;
@@ -32,7 +33,7 @@ fn moon() -> Tree {
         volume * MOON_DENSITY,
         MOON_RADIUS,
         220.0,
-        Program::Terrain.substrate(),
+        Composition::crustal(),
     );
     Tree::new(
         0x70_04_11,

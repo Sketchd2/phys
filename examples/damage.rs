@@ -11,6 +11,7 @@ use phys::render::*;
 use phys::solvers::structure::*;
 use phys::state::*;
 use phys::units::*;
+use phys::state::Composition;
 
 fn plant(seed: u64, mass: f64) -> (World, phys::ids::NodeIdx) {
     let mut w = World::new(galaxy(seed, 1e9), 20.0);
@@ -21,7 +22,7 @@ fn plant(seed: u64, mass: f64) -> (World, phys::ids::NodeIdx) {
         let n = &mut w.tree.nodes[node.get()];
         // A patch of ground: soil, water and air, of which the tree will build
         // itself a few tonnes. The reservoir is what bounds how big it gets.
-        n.matter = Matter::neutral(mass, 6.0, 291.0, Program::Tree.substrate());
+        n.matter = Matter::neutral(mass, 6.0, 291.0, Composition::organic());
         n.spec.count = 9000;
     }
     w.plant(node, Program::Tree, Some(Environment::default()));

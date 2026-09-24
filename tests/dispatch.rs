@@ -43,7 +43,7 @@ fn a_tree_on_a_planet() -> (World, phys::ids::NodeIdx) {
     let node = w.tree.promote(planet, 0, default_spec(Tier::Continuum));
     {
         let n = &mut w.tree.nodes[node.get()];
-        n.matter = Matter::neutral(900.0, 6.0, 291.0, Program::Tree.substrate());
+        n.matter = Matter::neutral(900.0, 6.0, 291.0, Composition::organic());
         n.spec.count = 600;
         n.motion.offset = v3(0.0, 0.0, EARTH_RADIUS);
     }

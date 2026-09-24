@@ -7,6 +7,21 @@ use phys::morph::*;
 use phys::sampler::*;
 use phys::state::*;
 use phys::units::*;
+use phys::state::Composition;
+
+/// What a scenario states a thing of this kind is made of.
+///
+/// A test's own statement, not the engine's: `docs/PLAY.md` D11 retired
+/// `Program::substrate`, so what a structure is made of is the feedstock its
+/// node held, and a scenario that wants a tree made of carbohydrate has to put
+/// carbohydrate in the node.
+fn substrate_for(p: Program) -> Composition {
+    match p {
+        Program::Tree | Program::Coral => Composition::organic(),
+        _ => Composition::crustal(),
+    }
+}
+
 
 /// Earth's surface gravity, stated rather than assumed.
 ///
@@ -22,7 +37,7 @@ fn oak(mass: f64) -> (Matter, Morphology) {
     let mut m = Morphology::new(Program::Tree, 0xACE, 0x1234, 0);
     m.built = mass;
     m.age = 40.0 * YEAR;
-    let mut matter = Matter::neutral(mass, m.extent(), 291.0, Program::Tree.substrate());
+    let mut matter = Matter::neutral(mass, m.extent(), 291.0, Composition::organic());
     matter.chemical_energy = m.stored_energy();
     (matter, m)
 }
@@ -40,7 +55,7 @@ fn structures_conserve_like_everything_else() {
             m.progress = 0.6;
             m.age = 10.0 * YEAR;
             let mut matter =
-                Matter::neutral(mass, m.extent(), 290.0, program.substrate());
+                Matter::neutral(mass, m.extent(), 290.0, substrate_for(program));
             matter.chemical_energy = m.stored_energy();
             matter.momentum = v3(mass * 0.5, -mass * 0.2, 0.0);
             matter.spin = v3(0.0, 0.0, mass * 1e-2);
@@ -276,8 +291,7 @@ fn damage_persists_through_regeneration() {
     let built_before = m.built;
     let txn = m.record(
         Event { at: m.age, kind: EventKind::Severed, site: 2, magnitude: 0.25 },
-        291.0,
-    );
+        291.0, Composition::organic());
     txn.validate().expect("severing must balance");
     let after = sample_structured(&matter, &m, 20_000, 7, 0x1234, 0, SURFACE_G).0;
 
@@ -332,8 +346,7 @@ fn event_log_is_bounded() {
                 site: i as u32,
                 magnitude: 0.001,
             },
-            290.0,
-        );
+            290.0, Composition::organic());
     }
     println!("after 5000 events the log holds {} and the state is {} bytes",
         m.events.len(), m.state_bytes());
@@ -354,7 +367,7 @@ fn engine_grows_unobserved_structures() {
     // Give it plausible tree-sized matter, then plant.
     {
         let n = &mut w.tree.nodes[node.get()];
-        n.matter = Matter::neutral(500.0, 8.0, 291.0, Program::Tree.substrate());
+        n.matter = Matter::neutral(500.0, 8.0, 291.0, Composition::organic());
     }
     w.plant(node, Program::Tree, Some(Environment::default()));
     let start_mass = w.tree.nodes[node.get()].matter.mass;
@@ -417,7 +430,7 @@ fn structures_round_trip_through_the_tree() {
     let node = w.tree.promote(root, 5, phys::engine::default_spec(Tier::Stellar));
     {
         let n = &mut w.tree.nodes[node.get()];
-        n.matter = Matter::neutral(1200.0, 10.0, 291.0, Program::Tree.substrate());
+        n.matter = Matter::neutral(1200.0, 10.0, 291.0, Composition::organic());
         n.spec.count = 1500;
     }
     w.plant(node, Program::Tree, Some(Environment::default()));

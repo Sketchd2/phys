@@ -177,7 +177,7 @@ fn the_field_a_structure_was_built_in_is_stored_on_the_node() {
     w.tree.nodes[node.get()].motion.offset = v3(0.0, 0.0, EARTH_RADIUS);
     {
         let n = &mut w.tree.nodes[node.get()];
-        n.matter = Matter::neutral(900.0, 6.0, 291.0, Program::Tree.substrate());
+        n.matter = Matter::neutral(900.0, 6.0, 291.0, Composition::organic());
         n.spec.count = 600;
     }
     w.plant(node, Program::Tree, Some(Environment::default()));

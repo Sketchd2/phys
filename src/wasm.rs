@@ -23,6 +23,7 @@ use crate::morph::{Environment, Program};
 use crate::solvers::structure::{self as st, LoadField, Mechanism};
 use crate::state::Matter;
 use crate::units::{Tier, YEAR};
+use crate::state::Composition;
 
 /// Everything the host needs to keep between calls.
 pub struct Session {
@@ -83,7 +84,10 @@ pub extern "C" fn create(seed: u32, program: u32, reservoir_kg: f32, budget: u32
     };
     {
         let n = &mut world.tree.nodes[node.get()];
-        n.matter = Matter::neutral(reservoir_kg as f64, 6.0, 291.0, prog.substrate());
+        n.matter = Matter::neutral(reservoir_kg as f64, 6.0, 291.0, match prog {
+            Program::Tree | Program::Coral => Composition::organic(),
+            _ => Composition::crustal(),
+        });
         n.spec.count = budget as usize;
     }
     // The environment override is what the node actually grows in, so a
@@ -577,7 +581,7 @@ pub extern "C" fn create_forest(seed: u32, count: u32, extent: f32, budget: u32)
         let reservoir = 8000.0 * (0.35 + 1.9 * stream.uniform().powi(2));
         {
             let n = &mut world.tree.nodes[node.get()];
-            n.matter = Matter::neutral(reservoir, 6.0, 291.0, Program::Tree.substrate());
+            n.matter = Matter::neutral(reservoir, 6.0, 291.0, Composition::organic());
             n.spec.count = per_tree;
         }
         world.plant(node, Program::Tree, Some(Environment::default()));

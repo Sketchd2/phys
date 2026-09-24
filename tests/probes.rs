@@ -16,6 +16,7 @@ use phys::solvers::dynamics::Dynamics;
 use phys::solvers::frame::{Dof, Framework, Member};
 use phys::topology::Material;
 use phys::units::*;
+use phys::state::Composition;
 
 const PROGRAMS: [Program; 6] = [
     Program::Tree,
@@ -127,13 +128,13 @@ fn the_sixty_fifth_severance_resurrects_the_first_thirty_two() {
     assert!(sites.len() == 65, "need 65 distinct sites, got {}", sites.len());
 
     for s in sites.iter().take(64) {
-        m.record(Event { at: m.age, kind: EventKind::Severed, site: *s, magnitude: 0.001 }, 290.0);
+        m.record(Event { at: m.age, kind: EventKind::Severed, site: *s, magnitude: 0.001 }, 290.0, Composition::organic());
     }
     let at64 = m.render(budget);
     let back64 = sites[..64].iter().filter(|s| at64.site.contains(s)).count();
     assert_eq!(back64, 0, "at 64 severances the log still suppresses every one");
 
-    m.record(Event { at: m.age, kind: EventKind::Severed, site: sites[64], magnitude: 0.001 }, 290.0);
+    m.record(Event { at: m.age, kind: EventKind::Severed, site: sites[64], magnitude: 0.001 }, 290.0, Composition::organic());
     let at65 = m.render(budget);
     let back65 = sites.iter().filter(|s| at65.site.contains(s)).count();
     assert!(
@@ -165,7 +166,7 @@ fn every_habit_honours_a_severance() {
             continue;
         }
         let site = sk.site[sk.site.len() / 2];
-        m.record(Event { at: m.age, kind: EventKind::Severed, site, magnitude: 0.001 }, 290.0);
+        m.record(Event { at: m.age, kind: EventKind::Severed, site, magnitude: 0.001 }, 290.0, Composition::organic());
         let after = m.render(512);
         assert!(
             !after.site.contains(&site),

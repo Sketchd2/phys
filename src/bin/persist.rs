@@ -18,6 +18,7 @@ use phys::solvers::structure::weather;
 use phys::state::Matter;
 use phys::tree::Tree;
 use phys::units::*;
+use phys::state::Composition;
 
 const UPS: f64 = 20.0;
 
@@ -38,7 +39,7 @@ fn bytes(n: usize) -> String {
 
 /// A patch of ground with enough carbon in it to grow something.
 fn a_meadow() -> Tree {
-    let mut matter = Matter::neutral(4.0e4, 12.0, 291.0, Program::Tree.substrate());
+    let mut matter = Matter::neutral(4.0e4, 12.0, 291.0, Composition::organic());
     matter.internal_energy = matter.thermal_energy();
     Tree::new(0x5011, matter, Tier::Continuum, default_spec(Tier::Continuum))
 }

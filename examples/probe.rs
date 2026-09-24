@@ -10,6 +10,7 @@
 //! gait solver, a derived erosion rate — say so and report nothing, rather than
 //! reporting a number that came from somewhere else.
 
+use phys::state::Composition;
 use phys::engine::{default_spec, galaxy, World, MAX_SUBSTEPS};
 use phys::morph::{Environment, Event, EventKind, Morphology, Program};
 use phys::math::v3;
@@ -107,7 +108,7 @@ fn event_cap_regrowth() {
         let mut at65 = 0usize;
         let mut back = 0usize;
         for (i, s) in sites.iter().enumerate().take(65) {
-            m.record(Event { at: m.age, kind: EventKind::Severed, site: *s, magnitude: 0.001 }, 290.0);
+            m.record(Event { at: m.age, kind: EventKind::Severed, site: *s, magnitude: 0.001 }, 290.0, Composition::organic());
             if i + 1 == 64 {
                 at64 = m.render(budget).site.len();
             }

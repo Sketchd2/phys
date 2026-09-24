@@ -20,11 +20,12 @@ use phys::sampler::{MassSpectrum, Profile, SampleSpec};
 use phys::state::{BodyKind, Matter};
 use phys::tree::Tree;
 use phys::units::*;
+use phys::state::Composition;
 
 const PATCH_MASS: f64 = 2.4e9;
 
 fn ground() -> Tree {
-    let matter = Matter::neutral(PATCH_MASS, 500.0, 288.0, Program::Terrain.substrate());
+    let matter = Matter::neutral(PATCH_MASS, 500.0, 288.0, Composition::crustal());
     Tree::new(
         0xB10E,
         matter,
@@ -192,7 +193,7 @@ fn a_patch_freezes_when_the_light_goes_and_thaws_when_it_returns() {
     // A star with a patch of ground in orbit, so the light is derived from
     // something shining rather than authored. `environment_at` turns the
     // parent's luminosity into a flux at the child's distance.
-    let matter = Matter::neutral(2.0e30, 7.0e8, 5800.0, Program::Terrain.substrate());
+    let matter = Matter::neutral(2.0e30, 7.0e8, 5800.0, Composition::crustal());
     let tree = Tree::new(
         0x5EA_50,
         matter,
@@ -218,7 +219,7 @@ fn a_patch_freezes_when_the_light_goes_and_thaws_when_it_returns() {
     // astronomical unit away so the flux at it is a flux and not an immersion.
     {
         let n = &mut w.tree.nodes[patch.get()];
-        n.matter = Matter::neutral(PATCH_MASS, 500.0, 280.0, Program::Terrain.substrate());
+        n.matter = Matter::neutral(PATCH_MASS, 500.0, 280.0, Composition::crustal());
         n.motion.offset = phys::math::v3(1.496e11, 0.0, 0.0);
         n.motion.velocity = phys::math::Vec3::ZERO;
     }

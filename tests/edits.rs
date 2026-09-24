@@ -46,7 +46,7 @@ fn on_an_earth(seed: u64, mass: f64, radius: f64, count: usize) -> (World, phys:
     let node = w.tree.promote(planet, 0, phys::engine::default_spec(Tier::Continuum));
     {
         let n = &mut w.tree.nodes[node.get()];
-        n.matter = Matter::neutral(mass, radius, 291.0, Program::Tree.substrate());
+        n.matter = Matter::neutral(mass, radius, 291.0, Composition::organic());
         n.spec.count = count;
         n.motion.offset = v3(0.0, 0.0, EARTH_RADIUS);
     }

@@ -7,6 +7,19 @@ use phys::math::Vec3;
 use phys::state::*;
 use phys::units::*;
 use std::time::Instant;
+use phys::state::Composition;
+use phys::morph::Program;
+
+/// What a scenario states a thing of this kind is made of. `docs/PLAY.md` D11
+/// retired `Program::substrate`; a structure is made of the feedstock its node
+/// held, so a scenario that wants a tree of carbohydrate puts carbohydrate in.
+fn substrate_for(p: Program) -> Composition {
+    match p {
+        Program::Tree | Program::Coral => Composition::organic(),
+        _ => Composition::crustal(),
+    }
+}
+
 
 /// Earth's surface gravity, stated rather than assumed. `docs/PLAY.md` D6
 /// retired the constant that used to supply it; this probe is about structure
@@ -143,7 +156,7 @@ fn main() {
             };
             m.built = mass;
             let prog = if planned { Program::Tower } else { Program::Tree };
-            let matter = Matter::neutral(mass, m.extent(), 291.0, prog.substrate());
+            let matter = Matter::neutral(mass, m.extent(), 291.0, substrate_for(prog));
             for n in [500usize, 2000, 8000] {
                 let (b, topo, _) = sample_structured(&matter, &m, n, 7, 0x1234, 0, SURFACE_G);
                 let mut field = st::LoadField::new(b.len(), 291.0);
