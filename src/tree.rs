@@ -378,6 +378,9 @@ pub struct Tree {
 pub struct TreeStats {
     pub materialisations: u64,
     pub coarsenings: u64,
+    /// Layouts the engine derived for itself, from a node's own state and its
+    /// own past. See `World::derive_layout`.
+    pub layouts_derived: u64,
     /// Nodes moved to a different parent. Each one rekeyed a whole subtree.
     pub reparents: u64,
     /// Coarsenings where the fine detail turned out to say nothing new, so the

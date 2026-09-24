@@ -709,6 +709,12 @@ fn put_recipe(w: &mut Writer, r: Option<&crate::recipe::Recipe>) {
                 w.u32(g.to_bits());
             }
         }
+        Some(Recipe::Granular(x)) => {
+            w.u8(7);
+            w.f64(x.grain);
+            w.f64(x.density);
+            w.f64(x.side);
+        }
         Some(Recipe::Subdivided(s)) => {
             w.u8(6);
             w.f64(s.density);
@@ -785,6 +791,11 @@ fn get_recipe(
             height: r.f64()?,
             street: r.f64()?,
             variation: f32::from_bits(r.u32()?),
+        })),
+        7 => Some(Recipe::Granular(Granular {
+            grain: r.f64()?,
+            density: r.f64()?,
+            side: r.f64()?,
         })),
         other => return Err(WireError::BadTag { what: "recipe habit", tag: other as u64 }),
     })
@@ -1131,6 +1142,7 @@ pub(crate) fn put_tree_stats(w: &mut Writer, s: &TreeStats) {
     w.u64(s.shed);
     w.u64(s.splits);
     w.u64(s.merges);
+    w.u64(s.layouts_derived);
     // `settled` and `settled_idempotent` are deliberately **not** written. They
     // are the only counters a *save* moves — `World::view` settles the world on
     // its way past — so writing them would make a file depend on how many times
@@ -1160,6 +1172,7 @@ pub(crate) fn get_tree_stats(r: &mut Reader) -> Result<TreeStats> {
         shed: r.u64()?,
         splits: r.u64()?,
         merges: r.u64()?,
+        layouts_derived: r.u64()?,
         settled: 0,
         settled_idempotent: 0,
     })

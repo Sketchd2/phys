@@ -728,13 +728,15 @@ impl World {
     /// the whole of "generated from origin": nothing states that a planet is
     /// there, and the first frame in which one is, is the frame its own
     /// collapse made it one.
-    fn assess_surfaces(&mut self) {
+    fn derive_layouts(&mut self) {
         for i in 0..self.tree.nodes.len() {
             let n = &self.tree.nodes[i];
             if !n.alive || n.morphology.is_some() || n.matter.mixture.is_empty() {
                 continue;
             }
-            self.assess_surface(NodeIdx(i as u32));
+            if self.assess_surface(NodeIdx(i as u32)) {
+                self.tree.stats.layouts_derived += 1;
+            }
         }
     }
 
@@ -860,6 +862,147 @@ impl World {
     /// and what [`World::assess_surface`] uses to tell a planet from a cloud
     /// that is still falling in.
     const RANDOM_LOOSE_PACKING: f64 = 0.55;
+
+    /// How fast this node was cooling when it last passed a temperature, K/s.
+    ///
+    /// **Read off its own recorded past.** `History` keeps a temperature per
+    /// node per frame for as long as the causal window holds, which is exactly
+    /// the historical datum a formation needs: a melt that froze did so at
+    /// whatever rate it happened to be losing heat at, and that rate is not
+    /// recoverable from the node's state afterwards — a cold rock looks like a
+    /// cold rock however it got there.
+    ///
+    /// `None` when the node has no recorded past that crosses the temperature
+    /// downwards, which is the honest answer for something that was simply
+    /// always cold.
+    pub fn cooling_rate_through(&self, idx: NodeIdx, through: f64) -> Option<f64> {
+        let key = self.tree.nodes.get(idx.get())?.key;
+        let history = self.histories.get(&key)?;
+        let mut previous: Option<crate::causal::Moment> = None;
+        let mut found = None;
+        for m in history.moments() {
+            if let Some(p) = previous {
+                if p.temperature > through && m.temperature <= through {
+                    let dt = m.t - p.t;
+                    if dt > 0.0 {
+                        found = Some((p.temperature - m.temperature) / dt);
+                    }
+                }
+            }
+            previous = Some(*m);
+        }
+        found
+    }
+
+    /// What a node's own state and its own past say about how it is laid out.
+    ///
+    /// **The program is derived, not chosen.** `docs/PLAY.md` D11 asks for a
+    /// genome rather than a species table, and the owner's call on this phase
+    /// went further: a program is "a function that takes in the current and
+    /// historical data, and decides on how it is laid out", derived from the
+    /// axioms rather than engineered. This is the freezing half of that
+    /// function; [`World::assess_surface`] is the rounding half.
+    ///
+    /// **Freezing is an event, and the event is the gate.** Nothing here asks
+    /// whether a node *looks* like it froze, because it cannot be told from
+    /// looking: a cold rock is a cold rock however it got there, and a gate on
+    /// the state alone would hand a recipe to every solid node in the world.
+    /// So this is called from `react_all`, on the node that just moved mass
+    /// from liquid to solid — the one moment at which the fact is available.
+    /// `react_all` runs for every node carrying a mixture whatever its
+    /// residency, which is what keeps the answer from depending on who was
+    /// watching.
+    ///
+    /// **The rate is measured, and drawn from equilibrium when there is nothing
+    /// to measure.** A node with a recorded past has its real cooling rate
+    /// through its own melting point, and that is used. A node with none gets
+    /// the rate its own radiative balance implies at that temperature, which is
+    /// D14's rule for matter nobody made — "the sampler draws formation
+    /// conditions from the equilibrium the node is in" — and is the same
+    /// arithmetic [`crate::material::Formation::of_matter`] does. What comes
+    /// out is a grain, and grains are what a melt lays down.
+    fn derive_frozen_layout(&mut self, idx: NodeIdx) -> bool {
+        if idx.is_none() || !self.tree.nodes[idx.get()].alive {
+            return false;
+        }
+        if self.tree.nodes[idx.get()].morphology.is_some() {
+            return false;
+        }
+        let (mixture, mass, radius, temperature) = {
+            let n = &self.tree.nodes[idx.get()];
+            (n.matter.mixture, n.matter.mass, n.matter.radius, n.matter.temperature)
+        };
+        if mixture.is_empty() || !(mass > 0.0) || !(radius > 0.0) {
+            return false;
+        }
+        // More of it is solid than not: a melt that has only begun to freeze is
+        // still a melt, and what it is laid out as is not settled until the
+        // solid is the thing that is there.
+        let solid = mixture
+            .entries()
+            .iter()
+            .find(|p| p.phase == crate::chem::Phase::Solid && p.fraction > 0.5)
+            .copied();
+        let Some(solid) = solid else { return false };
+        let Some(sub) = self.substances.get(solid.substance) else { return false };
+        let props = sub.props;
+        if !(props.melting_point > 0.0) || temperature >= props.melting_point {
+            return false;
+        }
+        // Both rates a freezing needs. The front speed is set by how fast
+        // latent heat can leave through the surface either way; only the
+        // cooling rate has a measured alternative.
+        let area = 4.0 * std::f64::consts::PI * radius * radius;
+        let power = crate::units::SIGMA_SB * area * props.melting_point.powi(4);
+        let atoms = props.atoms_per_unit.max(1) as f64;
+        let heat_of_fusion = crate::units::K_B
+            * crate::units::N_AVOGADRO
+            * props.melting_point
+            * atoms
+            / (props.unit_mass * crate::units::N_AVOGADRO).max(1e-30);
+        let specific_heat = 3.0 * crate::units::K_B * atoms / props.unit_mass.max(1e-30);
+        let front = power / (area * (heat_of_fusion * props.density.max(1e-6)).max(1e-30));
+        let cooling = self
+            .cooling_rate_through(idx, props.melting_point)
+            .filter(|r| *r > 0.0)
+            .unwrap_or(power / (mass * specific_heat).max(1e-30));
+        if !(cooling > 0.0) || !(front > 0.0) {
+            return false;
+        }
+        let formation = crate::material::Formation::cooled(cooling, front);
+        let grain = crate::material::grain_scale(&props, formation);
+        if !(grain > 0.0) || !grain.is_finite() {
+            return false;
+        }
+        let density = self.tree.nodes[idx.get()].matter.density().max(1e-9);
+        let side = (mass / density).cbrt();
+        if !(side > 0.0) || !side.is_finite() {
+            return false;
+        }
+        let key = self.tree.nodes[idx.get()].key;
+        let seed = self.tree.world_seed;
+        let mut m = crate::morph::Morphology::new(crate::morph::Program::Terrain, seed, key.0, 0);
+        m.built = mass;
+        m.design_mass = mass;
+        m.progress = 1.0;
+        m.recipe = Some(crate::recipe::Recipe::Granular(crate::recipe::Granular {
+            grain,
+            density,
+            side,
+        }));
+        let extent = m.extent();
+        // Anything promoted out of the body list goes back into the node before
+        // the list is discarded, or it is a live node nothing can reach.
+        self.tree.shed_children(idx);
+        let n = &mut self.tree.nodes[idx.get()];
+        n.matter.radius = extent.max(1e-30);
+        n.morphology = Some(m);
+        n.bodies.clear();
+        n.topology = None;
+        self.tree.stats.structures += 1;
+        self.tree.stats.layouts_derived += 1;
+        true
+    }
 
     /// Ask whether a node is a body its own gravity has rounded, and if it is,
     /// write down the surface it has.
@@ -1382,7 +1525,7 @@ impl World {
         let horizon = self.time + self.frame_dt();
         // A body that has become one gets its surface, and a surface is
         // generated by being approached and by nothing else.
-        self.assess_surfaces();
+        self.derive_layouts();
         self.approach();
         let tasks = self.survey(horizon);
         let bytes = self.tree.detail_bytes();
@@ -5120,6 +5263,13 @@ impl World {
             // it leaves the thermal store.
             let n = &mut self.tree.nodes[idx.get()];
             n.matter.internal_energy = (n.matter.internal_energy - r.heat * mass).max(0.0);
+            // **A melt that froze lays down grains.** The one moment at which
+            // "this froze" is a fact rather than a guess is the moment the mass
+            // moves, so the layout is derived here rather than in the frame's
+            // sweep — see `World::derive_frozen_layout`.
+            if r.frozen > 0.0 && self.tree.nodes[idx.get()].morphology.is_none() {
+                self.derive_frozen_layout(idx);
+            }
             total.melted += r.melted;
             total.frozen += r.frozen;
             total.boiled += r.boiled;

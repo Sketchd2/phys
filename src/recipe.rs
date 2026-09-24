@@ -87,6 +87,8 @@ pub enum Recipe {
     Tiled(Tiled),
     /// A subdivided plane: a settlement, cracked mud, leaf venation.
     Subdivided(Subdivided),
+    /// A packing of grains: a melt that froze.
+    Granular(Granular),
 }
 
 impl Recipe {
@@ -99,6 +101,7 @@ impl Recipe {
             Recipe::Framed(f) => f.render(budget, g),
             Recipe::Tiled(t) => t.render(budget),
             Recipe::Subdivided(s) => s.render(budget, g),
+            Recipe::Granular(x) => x.render(budget),
         }
     }
 
@@ -125,6 +128,7 @@ impl Recipe {
             Recipe::Framed(f) => f.extent(g),
             Recipe::Tiled(t) => t.extent(),
             Recipe::Subdivided(s) => s.extent(g),
+            Recipe::Granular(x) => x.extent(),
         }
     }
 
@@ -137,6 +141,7 @@ impl Recipe {
             Recipe::Framed(f) => f.height(g),
             Recipe::Tiled(t) => t.depth,
             Recipe::Subdivided(s) => s.height,
+            Recipe::Granular(x) => x.height(),
             Recipe::Placed(a) => 2.0 * a.bound(),
         }
     }
@@ -167,6 +172,7 @@ impl Recipe {
             Recipe::Framed(f) => f.density,
             Recipe::Tiled(t) => t.density,
             Recipe::Subdivided(s) => s.density,
+            Recipe::Granular(x) => x.density,
         }
     }
 
@@ -229,6 +235,7 @@ impl Recipe {
             Recipe::Framed(_) => "framed",
             Recipe::Tiled(_) => "tiled",
             Recipe::Subdivided(_) => "subdivided",
+            Recipe::Granular(_) => "granular",
         }
     }
 }
@@ -1459,5 +1466,82 @@ impl Tiled {
         let a = (d.dot(right) / o).clamp(ca - half, ca + half);
         let b = (d.dot(up) / o).clamp(cb - half, cb + half);
         cube_to_sphere(self.face, a, b)
+    }
+}
+
+// ---------------------------------------------------------------------------
+// granular
+// ---------------------------------------------------------------------------
+
+/// A packing of grains: what a melt that froze is laid out as.
+///
+/// **Nothing selects this habit; it is derived.** A node whose own recorded
+/// past shows it crossing its melting point while cooling *froze*, and what a
+/// freezing melt produces is grains — at a size the competition between how
+/// fast nuclei appear and how fast they grow decides, which `grain_scale`
+/// already solves from the cooling rate. So the layout, and the one number in
+/// it, are both consequences of the node's history rather than of anything
+/// anybody stated.
+///
+/// The grain is the *physics*; the cells this draws are the *resolution*. A
+/// cubic metre of granite has 10^8 grains and nobody is going to draw them, so
+/// a cell stands for as many of them as the budget requires — which is the
+/// third axiom again, a rule derived once and run at whatever detail is asked
+/// for.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Granular {
+    /// The grain the freezing left, metres. Derived from the node's own
+    /// cooling rate, and the thing a crack in this rock has to get around.
+    pub grain: f64,
+    /// Bulk density, kg/m^3. See [`Coursed::density`].
+    pub density: f64,
+    /// Side of the cube this fills, metres.
+    pub side: f64,
+}
+
+impl Granular {
+    pub fn extent(&self) -> f64 {
+        0.5 * self.side * 3.0f64.sqrt()
+    }
+
+    pub fn height(&self) -> f64 {
+        self.side
+    }
+
+    /// How many grains across this piece is.
+    pub fn grains_across(&self) -> f64 {
+        (self.side / self.grain.max(1e-30)).max(1.0)
+    }
+
+    /// A cubic packing of cells filling the piece.
+    pub fn render(&self, budget: usize) -> Skeleton {
+        // As many cells across as the budget and the grain both allow: never
+        // finer than the grains themselves, because below that there is nothing
+        // there to draw.
+        let by_budget = (budget as f64).cbrt().floor().max(1.0);
+        let n = by_budget.min(self.grains_across()).max(1.0) as usize;
+        let step = self.side / n as f64;
+        let half = 0.5 * step;
+        let origin = -0.5 * self.side + half;
+        let mut sk = Skeleton::with_capacity(n * n * n);
+        let mut site = 0u32;
+        let mass = 1.0;
+        for i in 0..n {
+            for j in 0..n {
+                for k in 0..n {
+                    let at = v3(
+                        origin + step * i as f64,
+                        origin + step * j as f64,
+                        origin + step * k as f64,
+                    );
+                    // A packing fills what it fills; none of its axes is free,
+                    // because a cell that grew would overlap the one next to it
+                    // and one that shrank would leave a hole.
+                    sk.push_box(at, at, v3(half, half, half), 0, mass, half, NO_SUPPORT, site);
+                    site += 1;
+                }
+            }
+        }
+        sk
     }
 }

@@ -137,6 +137,16 @@ impl History {
         }
     }
 
+    /// Walk the recorded moments, oldest first.
+    ///
+    /// The ring is private because its indexing is, and a caller that wants to
+    /// ask a question of the *shape* of a node's past — did it cool through a
+    /// temperature, how fast was it falling then — needs the moments rather
+    /// than an interpolation at a time it does not yet know.
+    pub fn moments(&self) -> impl Iterator<Item = &Moment> + '_ {
+        (0..self.len).map(move |i| self.at(i))
+    }
+
     /// How far back this history reaches. If a retarded query needs a time
     /// older than this, the engine must fall back to extrapolation and say so —
     /// silently clamping would fabricate a state that never existed.
