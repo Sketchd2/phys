@@ -376,6 +376,41 @@ pub fn sample(
         guard += 1;
     }
 
+    // **A parcel of condensed matter is a macroscopic object, not a molecule**
+    // — the rule `sample_structured` already applies to a structure's parts,
+    // for the same reason, applied to what it is actually about: the phase.
+    //
+    // For a gas a parcel's random velocity is how the temperature is
+    // represented, and that stands. For a liquid or a solid it is not: the
+    // molecules jiggle and the parcel does not. Measured, on a 0.15 m ball of
+    // water at 290 K in 64 parcels: they were drawn at up to **4960 m/s**, and
+    // SPH then did exactly what it was told with them.
+    //
+    // Only the *thermal* part moves, and that is what keeps this narrow.
+    // `Matter::thermal_energy` is what the temperature accounts for; anything
+    // above it is motion the temperature does not explain — infall, stirring —
+    // and is real motion of the parcels, as `Matter::stirring_speed` already
+    // takes it to be. The thermal energy above equipartition over the parcels
+    // goes into their own internal accounts, which `close_books` fills with
+    // whatever the motion does not take, and `summarise` adds back, so the
+    // node's energy and temperature come out the same either way.
+    //
+    // **Only where the temperature and the energy agree about what is heat.**
+    // A node whose stated temperature claims more thermal energy than the node
+    // holds has the two disagreeing already — `BACKLOG.md`'s "a body leaves the
+    // sampler with a temperature and an energy that disagree" — and there is
+    // no reading of which part is heat. Measured on Phase 4's accretion ball,
+    // silicate by mixture and hydrogen by composition: 300 K claims 1.86e31 J
+    // against the 3.6e30 J it holds, and moving "the heat" out of the grains
+    // took all of their motion and the collapse with it. Such a node is drawn
+    // exactly as it was.
+    let thermal = matter.thermal_energy();
+    if !matter.gas_law_applies() && thermal <= matter.internal_energy {
+        let equipartition = 1.5 * n as f64 * crate::units::K_B * matter.temperature.max(0.0);
+        let held = (thermal - equipartition).max(0.0);
+        random_ke_target = (random_ke_target - held).max(ke_rot / 0.95).max(1e-30);
+    }
+
     // ---- 5. velocities: sample, project, then polish --------------------
     //
     // The projection below is exact in Newtonian mechanics. The engine's

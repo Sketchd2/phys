@@ -1095,6 +1095,22 @@ impl World {
             return false;
         }
 
+        // **And then it compacts.** What passed the test above is a pile whose
+        // own weight exceeds what its grains can carry, so the grains give: the
+        // pores close, and past full density the solid itself is squeezed until
+        // its equation of state carries the weight. Without this a planet
+        // stopped where its grains jammed — measured at 1743 kg/m^3 for an
+        // Earth's worth of silicate, against the 2644 its own substance is.
+        let radius = self.compacted_radius(idx, radius);
+
+        // **And then it compacts.** What passed the test above is a pile whose
+        // own weight exceeds what its grains can carry, so the grains give: the
+        // pores close, and past full density the solid itself is squeezed until
+        // its equation of state carries the weight. Without this a planet
+        // stopped where its grains jammed — measured at 1743 kg/m^3 for an
+        // Earth's worth of silicate, against the 2644 its own substance is.
+        let radius = self.compacted_radius(idx, radius);
+
         let key = self.tree.nodes[idx.get()].key;
         let seed = self.tree.world_seed;
         let mut m = crate::morph::Morphology::new(crate::morph::Program::Terrain, seed, key.0, 0);
@@ -1130,6 +1146,67 @@ impl World {
         n.topology = None;
         self.tree.stats.structures += 1;
         true
+    }
+
+    /// Squeeze a self-gravitating ball of condensed matter to the radius where
+    /// its equation of state carries its own weight, and return that radius.
+    ///
+    /// **The balance is the virial theorem's**, which needs no density profile:
+    /// for a body in hydrostatic equilibrium the volume-averaged pressure is
+    /// `-W / 3V`, and the mean density is what carries it. The condensed
+    /// phase's `p(rho)` is Murnaghan's (`eos.rs`), so the answer is where
+    /// `p(M / V(r)) = -W(r) / 3V(r)`, and the left side rises as `r^-12`
+    /// against the right's `r^-4`, so there is exactly one such radius below
+    /// the one at rest density.
+    ///
+    /// **The binding follows homologously**: a contraction by `R/r` scales
+    /// every separation by the same factor, so `W(r) = W(R) R / r` whatever
+    /// the profile, and the energy released goes into the node's internal
+    /// account, which is where the heat of a planet's formation belongs. The
+    /// total is unchanged to rounding.
+    ///
+    /// Returns `radius` unchanged for anything whose matter is not condensed,
+    /// and for anything the pressure does not reach full density.
+    pub fn compacted_radius(&mut self, idx: NodeIdx, radius: f64) -> f64 {
+        let Some(c) = self.eos_of(idx).condensed() else { return radius };
+        let n = &self.tree.nodes[idx.get()];
+        let mass = n.matter.mass;
+        let binding = n.matter.gravitational_binding;
+        if !(mass > 0.0) || !(binding < 0.0) || !(radius > 0.0) {
+            return radius;
+        }
+        let volume = |r: f64| 4.0 / 3.0 * std::f64::consts::PI * r.powi(3);
+        let excess = |r: f64| {
+            let weight = -binding * radius / r / (3.0 * volume(r));
+            c.pressure(mass / volume(r)) - weight
+        };
+        // At rest density the solid carries nothing, so the weight wins there;
+        // bisect in the logarithm from there down.
+        let at_rest = (mass / c.rest_density / (4.0 / 3.0 * std::f64::consts::PI)).cbrt();
+        if at_rest >= radius {
+            // Still porous when its own weight is carried: nothing to do here
+            // that the packing test above did not already decide.
+            return radius;
+        }
+        let (mut hi, mut lo) = (at_rest, at_rest * 1e-3);
+        if !(excess(lo) > 0.0) {
+            return radius;
+        }
+        for _ in 0..200 {
+            let mid = (hi * lo).sqrt();
+            if excess(mid) > 0.0 {
+                lo = mid;
+            } else {
+                hi = mid;
+            }
+        }
+        let r = (hi * lo).sqrt();
+        let n = &mut self.tree.nodes[idx.get()];
+        let squeezed = binding * radius / r;
+        n.matter.internal_energy += binding - squeezed;
+        n.matter.gravitational_binding = squeezed;
+        n.matter.radius = r;
+        r
     }
 
     /// Write the node's generated program against what is actually measured
@@ -1957,7 +2034,30 @@ impl World {
         }
         let n = &self.tree.nodes[idx.get()];
         let flow = n.bodies.iter().map(|b| b.vel.norm()).fold(0.0f64, f64::max);
-        self.resolution_floor(n.matter.sound_speed().max(flow))
+        self.resolution_floor(self.sound_speed_of(idx).max(flow))
+    }
+
+    /// The equation of state a node's matter answers to, from what it is made
+    /// of. See `eos.rs`.
+    pub fn eos_of(&self, idx: NodeIdx) -> crate::eos::Eos {
+        if idx.is_none() || idx.get() >= self.tree.nodes.len() {
+            return crate::eos::Eos::Gas;
+        }
+        crate::eos::Eos::of_matter(&self.tree.nodes[idx.get()].matter, &self.substances)
+    }
+
+    /// Speed at which a disturbance crosses a node's matter, m/s.
+    ///
+    /// `Matter::sound_speed` for a gas and for anything nobody has described,
+    /// and the condensed phase's own for a liquid or a solid. §4.2 measured
+    /// what the gas law says about water — 820 m/s, capped by the velocity
+    /// dispersion — where the engine's own water, priced by its vaporisation
+    /// energy, carries sound at 1569 m/s against a real 1500.
+    pub fn sound_speed_of(&self, idx: NodeIdx) -> f64 {
+        if idx.is_none() || idx.get() >= self.tree.nodes.len() {
+            return 0.0;
+        }
+        self.eos_of(idx).sound_speed(&self.tree.nodes[idx.get()].matter)
     }
 
     /// May this node be resolved at the pace the world is currently running?
@@ -2606,11 +2706,16 @@ impl World {
         let n = &self.tree.nodes[idx.get()];
         let parts = if n.bodies.is_empty() { n.spec.count } else { n.bodies.len() };
         let flow = n.bodies.iter().map(|b| b.vel.norm()).fold(0.0f64, f64::max);
+        // The signal crosses at the speed the node's *own* equation of state
+        // gives it, not the gas law's: see `World::sound_speed_of`.
+        let signal = self.sound_speed_of(idx).max(flow);
+        let spacing = n.matter.radius / (parts.max(1) as f64).cbrt();
+        let crossing = if signal > 0.0 && signal.is_finite() { spacing / signal } else { f64::INFINITY };
         let mut natural = n
             .tier
             .dt()
             .min(n.matter.dynamical_time() / 50.0)
-            .min(0.25 * n.matter.signal_crossing(parts, flow));
+            .min(0.25 * crossing);
         // Where a force field decides the timestep, ask the force field. The
         // engine already has a function whose entire job is "what step does
         // this system need"; the scheduler was not calling it.
@@ -2690,6 +2795,30 @@ impl World {
             .filter(|c| !c.is_none())
             .count();
         let mut eos_suspect = false;
+        // What each body answers to when squeezed, in the order of the node's
+        // bodies: a stand-in for a promoted child answers with the child's own
+        // matter, and everything else with the node's. `eos.rs`.
+        //
+        // This is what the stand-in detonation in `BACKLOG.md` wanted, seen
+        // from the parent's side: a 48-tonne box and a 10 kg ball in a room
+        // were a hot dense gas to their parent's SPH and gained a factor of
+        // three a frame with nothing touching. Priced as what they are — two
+        // solids, each far below its own rest density at the parent's
+        // smoothing length — they carry no pressure at all.
+        let body_eos: Vec<crate::eos::Eos> = if matches!(solvers::for_tier(tier), SolverKind::Hydro) {
+            let n = &self.tree.nodes[idx.get()];
+            let own = crate::eos::Eos::of_matter(&n.matter, &self.substances);
+            (0..n.bodies.len())
+                .map(|i| match n.children.get(i) {
+                    Some(c) if !c.is_none() => {
+                        crate::eos::Eos::of_matter(&self.tree.nodes[c.get()].matter, &self.substances)
+                    }
+                    _ => own,
+                })
+                .collect()
+        } else {
+            Vec::new()
+        };
 
         let bodies = &mut self.tree.nodes[idx.get()].bodies;
         // Solve the disordered contents in place where there are no ordered
@@ -2771,7 +2900,17 @@ impl World {
                 //
                 // Reported and not corrected. Correcting it needs a liquid and
                 // a solid equation of state, which is Water's second piece.
-                eos_suspect = !gas_law || (count > 0 && stand_ins >= count);
+                // What is left to report is matter the engine still cannot
+                // price: a stand-in or a condensed node whose substance has no
+                // condensed equation of state, which an undescribed child is.
+                let eos: Vec<crate::eos::Eos> = if partitioned {
+                    loose_of.iter().map(|&i| body_eos[i]).collect()
+                } else {
+                    body_eos.clone()
+                };
+                let priced = |e: &crate::eos::Eos| matches!(e, crate::eos::Eos::Condensed(_));
+                eos_suspect = (!gas_law && !eos.iter().any(priced))
+                    || (count > 0 && stand_ins >= count && !eos.iter().all(priced));
                 let params = solvers::hydro::HydroParams {
                     h: radius / (count as f64).cbrt() * 1.2,
                     ..Default::default()
@@ -2793,13 +2932,13 @@ impl World {
                 // that cannot afford the whole span covers the part it can
                 // integrate stably, reports it in `dt_used`, and lets the
                 // shortfall become lateness the scheduler can see.
-                let stable = solvers::hydro::courant_dt(bodies, params, 0.3).max(1e-30);
+                let stable = solvers::hydro::courant_dt_with(bodies, params, 0.3, &eos).max(1e-30);
                 let wanted = (dt / stable).ceil();
                 let substeps = (wanted.clamp(1.0, MAX_SUBSTEPS as f64) as u32).max(1);
                 let h = (dt / substeps as f64).min(stable);
                 let mut total = solvers::SolveReport::default();
                 for k in 0..substeps {
-                    let r = solvers::hydro::step(bodies, h, params);
+                    let r = solvers::hydro::step_with(bodies, h, params, &eos);
                     if k == 0 {
                         total = r;
                     } else {
@@ -3579,18 +3718,42 @@ impl World {
 
         // Read every potential once, then let the walk move them.
         let mut side: Vec<Reservoir> = Vec::with_capacity(nb.len());
+        // And how well each conducts, W/m/K — `transport.rs`. A body is made of
+        // its own substance where it names one and of its node's mixture where
+        // it does not; a child is made of its own matter. Matter nobody has
+        // described conducts nothing, rather than something invented.
+        let mut conducts: Vec<f64> = Vec::with_capacity(nb.len());
+        let own = {
+            let m = &self.tree.nodes[idx.get()].matter;
+            crate::transport::conductivity_of(&m.mixture, &self.substances, m.temperature)
+        };
         for i in 0..nb.len() {
             let (occ, _, _) = nb.at(i).expect("index is in range");
-            side.push(match occ {
+            match occ {
                 Occupant::Body(k) => {
                     let b = &self.tree.nodes[idx.get()].bodies[k as usize];
-                    Reservoir::new(b.temperature, b.heat_capacity())
+                    side.push(Reservoir::new(b.temperature, b.heat_capacity()));
+                    let named = self.substances.get(b.substance).map(|s| {
+                        let phase = if b.temperature >= s.props.boiling_point {
+                            crate::chem::Phase::Gas
+                        } else if b.temperature >= s.props.melting_point {
+                            crate::chem::Phase::Liquid
+                        } else {
+                            crate::chem::Phase::Solid
+                        };
+                        crate::transport::conductivity(&s.props, phase, b.temperature)
+                    });
+                    conducts.push(named.or(own).unwrap_or(0.0));
                 }
                 Occupant::Child(c) => {
                     let m = &self.tree.nodes[c.get()].matter;
-                    Reservoir::new(m.temperature, m.heat_capacity())
+                    side.push(Reservoir::new(m.temperature, m.heat_capacity()));
+                    conducts.push(
+                        crate::transport::conductivity_of(&m.mixture, &self.substances, m.temperature)
+                            .unwrap_or(0.0),
+                    );
                 }
-            });
+            }
         }
         let mut moved = vec![0.0f64; nb.len()];
 
@@ -3600,11 +3763,22 @@ impl World {
             let (_, pj, rj) = nb.at(j).expect("pair index is in range");
             let d = (pj - pi).norm();
             let area = crate::neighbourhood::radiative_area(ri, rj, d);
+            // Radiation across whatever gap there is, and conduction across
+            // the face they share when there is none: D3's "three calls to one
+            // function with different coefficients", two of them now.
             let g = crate::neighbourhood::radiative_conductance(
                 side[i].potential,
                 side[j].potential,
                 area,
-            );
+            ) + match (nb.at(i).map(|o| o.0), nb.at(j).map(|o| o.0)) {
+                // Two parcels of this node's own medium are neighbouring cells
+                // of it; anything involving a separate object touches only
+                // where the two surfaces meet. `transport.rs`.
+                (Some(Occupant::Body(_)), Some(Occupant::Body(_))) => {
+                    crate::transport::continuum_conductance(conducts[i], conducts[j], d)
+                }
+                _ => crate::transport::conductive_conductance(conducts[i], ri, conducts[j], rj, d),
+            };
             let q = crate::neighbourhood::exchange(side[i], side[j], g, dt);
             if !q.is_finite() || q == 0.0 {
                 continue;

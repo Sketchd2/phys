@@ -857,7 +857,17 @@ impl Tree {
         // different distribution, and a region a user visits a thousand times
         // slowly drifts away from itself. With it, a region nobody has
         // disturbed is bit-for-bit the region they left.
-        if err < IDEMPOTENT_TOLERANCE && !pinned {
+        //
+        // **The mixture is part of the matter** (D17), so it has to round-trip
+        // too before the coarse state may stand. A promoted child that reacted
+        // — salt that dissolved — changes what the node is made of without
+        // moving a single conserved quantity, and the conserved tuple alone
+        // let the early return discard the blend. It was hidden for as long
+        // as a sampled condensed node's round trip happened to miss the
+        // tolerance; drawing its parcels as macroscopic objects made it exact,
+        // and `what_a_node_is_made_of_travels_down_and_back_up` failed.
+        let unchanged = matter.mixture.same_as(&self.nodes[i.get()].matter.mixture);
+        if err < IDEMPOTENT_TOLERANCE && !pinned && unchanged {
             self.stats.coarsenings += 1;
             self.stats.idempotent_coarsenings += 1;
             let n = &mut self.nodes[i.get()];

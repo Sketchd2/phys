@@ -273,26 +273,29 @@ fn a_gas_law_asked_about_a_solid_says_so() {
         "matter nobody has described must not be accused of being the wrong phase"
     );
 
-    // The same node, told what it is made of. Nothing else changes.
-    let (mut loud, root) = build(true);
+    // The same node, told what it is made of. Nothing else changes — and
+    // since Phase 5 it is priced by its own equation of state (`eos.rs`), so
+    // there is nothing left to report. This half of the test said "has to say
+    // so" until there was an equation of state to say it *with*.
+    let (mut priced, root) = build(true);
     assert!(
-        !loud.tree.nodes[root.get()].matter.gas_law_applies(),
+        !priced.tree.nodes[root.get()].matter.gas_law_applies(),
         "a node of solid silicate is not a gas"
     );
+    assert!(
+        priced.eos_of(root).condensed().is_some(),
+        "and it has an equation of state of its own"
+    );
     for _ in 0..4 {
-        loud.advance_node(root, 1.0e-4);
+        priced.advance_node(root, 1.0e-4);
     }
     println!(
-        "  described as solid silicate: {} reports, at {:?}",
-        loud.stats.eos_outside_validity, loud.stats.eos_outside_validity_at
+        "  described as solid silicate: {} reports",
+        priced.stats.eos_outside_validity
     );
-    assert!(
-        loud.stats.eos_outside_validity > 0,
-        "a solid priced through the gas law has to say so"
-    );
-    assert!(
-        loud.stats.eos_outside_validity_at.is_some(),
-        "a number worth chasing has to say where to look"
+    assert_eq!(
+        priced.stats.eos_outside_validity, 0,
+        "a solid priced by Murnaghan is inside its equation of state"
     );
 
     // And the other way to be outside it: a node that is **mostly vacuum with
@@ -324,5 +327,9 @@ fn a_gas_law_asked_about_a_solid_says_so() {
         w.stats.eos_outside_validity > before,
         "a Continuum node that is two promoted solids and vacuum is being priced \
          as a hot dense gas, and has to say so"
+    );
+    assert!(
+        w.stats.eos_outside_validity_at.is_some(),
+        "a number worth chasing has to say where to look"
     );
 }

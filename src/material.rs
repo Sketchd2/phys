@@ -311,16 +311,11 @@ impl Material {
         let volume_atom = (props.unit_mass / (density * atoms)).max(1e-45);
         let energy_atom = (props.cohesive_energy / atoms).max(0.0);
 
-        // Stiffness from the cohesive energy density. A pair potential's bulk
-        // modulus is its energy density times a factor of order one set by the
-        // curvature of the well at its minimum; three reproduces iron's
-        // 211 GPa from 58 GPa of energy density, and is the same three for
-        // everything else here.
         // Gibson and Ashby: a cellular solid bends its cell walls where a
         // dense one stretches its bonds, so stiffness falls as the square of
         // how much of the volume is filled and density falls linearly.
         let packing = formation.packing();
-        let stiffness = 3.0 * energy_atom / volume_atom * packing * packing;
+        let stiffness = dense_stiffness(props) * packing * packing;
 
         // Making a surface means breaking the bonds that cross it. An atom
         // shares its cohesive energy with its neighbours, a cleavage plane cuts
@@ -1165,6 +1160,24 @@ pub fn formation_scales(p: &Properties, f: Formation) -> (f64, f64) {
 
 /// Exponent of the flaw-size population. See [`Material::worst_flaw`].
 const FLAW_EXPONENT: f64 = 6.0;
+
+/// Young's modulus of a substance at full density, Pa.
+///
+/// From the cohesive energy density. A pair potential's bulk modulus is its
+/// energy density times a factor of order one set by the curvature of the well
+/// at its minimum; three reproduces iron's 211 GPa from 58 GPa of energy
+/// density, and is the same three for everything else here.
+///
+/// Its own function because `eos::Condensed::solid` needs the same number
+/// without a formation: an equation of state is of the substance, and how much
+/// of a volume it fills is the caller's business.
+pub fn dense_stiffness(props: &Properties) -> f64 {
+    let atoms = props.atoms_per_unit.max(1) as f64;
+    let density = props.density.max(1e-6);
+    let volume_atom = (props.unit_mass / (density * atoms)).max(1e-45);
+    let energy_atom = (props.cohesive_energy / atoms).max(0.0);
+    3.0 * energy_atom / volume_atom
+}
 
 /// The substances the named presets stand for.
 ///
