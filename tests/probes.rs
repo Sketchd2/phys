@@ -26,12 +26,26 @@ const PROGRAMS: [Program; 6] = [
     Program::Settlement,
 ];
 
+/// A structure at a size worth measuring.
+///
+/// **Ground is stated rather than grown**, and that is the engine speaking
+/// rather than a convenience here: a patch of ground was not grown and nobody
+/// built it, so `Morphology::advance` does nothing to it but age it — which is
+/// what `docs/PLAY.md` §5 means by "its `advance` weathers rather than builds".
+/// It is `Tree::emplace`'s case, and stating the mass is what that verb does.
 fn matured(program: Program, seed: u64) -> Morphology {
     let mut m = if program.is_planned() {
         Morphology::planned(program, 5.0e4, seed, 0x1234)
     } else {
         Morphology::new(program, seed, 0x1234, 0)
     };
+    if matches!(program, Program::Terrain) {
+        m.built = 5.0e4;
+        m.design_mass = m.built;
+        m.progress = 1.0;
+        m.regenerate(&Environment::default(), &program.material());
+        return m;
+    }
     let mut env = Environment::default();
     env.labour = 0.02;
     env.reservoir_mass = 1.0e9;

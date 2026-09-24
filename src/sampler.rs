@@ -1379,6 +1379,9 @@ pub fn sample_structured(
     // columns are filled solids, and a body that came back a sphere would have
     // lost what the generator wrote down.
     for (i, b) in bodies.iter_mut().enumerate().take(n_struct) {
+        if let Some(q) = skel_geom.orientation.get(i) {
+            b.orientation = *q;
+        }
         if halves.get(i).copied().unwrap_or(Vec3::ZERO) != Vec3::ZERO {
             b.half = halves[i];
             b.radius = b.half.norm();

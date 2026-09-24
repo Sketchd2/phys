@@ -524,19 +524,30 @@ impl Morphology {
         if dt <= 0.0 {
             return GrowthStep::none();
         }
-        // An assembly does not grow and is not under construction. A box made
-        // of oak planks has the oak's chemistry and none of a tree's
+        // **The habit decides what time does to this thing**, and the three
+        // answers are different. Something growing into a field accumulates
+        // what it can catch; something being built advances towards a design;
+        // and something that was *made* or is simply *there* does neither.
+        //
+        // A box of oak planks has the oak's chemistry and none of a tree's
         // development: no light budget, no allometric ceiling, no progress to
-        // advance. It ages, because weathering and decay still apply to it, and
-        // that is the whole of what time does to it here.
-        if self.is_assembled() {
-            self.age += dt * env.suppression();
-            return GrowthStep::none();
-        }
-        let txn = if self.program.is_planned() {
-            self.advance_construction(dt, env)
-        } else {
-            self.advance_growth(dt, env)
+        // advance. A patch of ground has less than that — nobody grew it and
+        // nobody built it. Both still age, because weathering applies to them,
+        // and that is the whole of what time does to them here.
+        //
+        // Running the growth law on ground was not merely pointless: terrain's
+        // embodied energy is zero, so the gross-growth division was `0.0/0.0`,
+        // and `f64::min` returns the *other* operand when one is NaN — so a
+        // patch of ground quietly incorporated the whole of its own reservoir
+        // every step.
+        let txn = match self.recipe.as_ref() {
+            Some(crate::recipe::Recipe::Branching(_)) => self.advance_growth(dt, env),
+            Some(
+                crate::recipe::Recipe::Coursed(_)
+                | crate::recipe::Recipe::Framed(_)
+                | crate::recipe::Recipe::Subdivided(_),
+            ) => self.advance_construction(dt, env),
+            _ => GrowthStep::none(),
         };
         self.age += dt * env.suppression();
         txn
@@ -561,7 +572,7 @@ impl Morphology {
             * (1.0 - env.crowding).max(0.0);
 
         // Gross new structure, before maintenance.
-        let gross = usable / program.energy_density();
+        let gross = usable / program.energy_density().max(1e-30);
         // Maintenance is paid out of standing structure: respiration for a
         // tree, dissolution for a coral. It scales with mass while capture
         // scales with area, so the two balance at a finite size and the
@@ -818,6 +829,7 @@ impl Morphology {
             );
             *out.half.last_mut().unwrap() = sk.half[i];
             *out.free.last_mut().unwrap() = sk.free[i];
+            *out.orientation.last_mut().unwrap() = sk.orientation[i];
         }
         for (a, b, f) in &sk.ties {
             let (a, b) = (*a as usize, *b as usize);
@@ -911,6 +923,14 @@ pub struct Skeleton {
     /// Which axes of a boxed part the cross-section correction may move. See
     /// [`Skeleton::free_axes`].
     pub free: Vec<u8>,
+    /// Which way each part is facing, in the node's own frame.
+    ///
+    /// Identity for everything laid out on an axis, which is every habit but
+    /// one: a patch of ground on a *sphere* has cells whose own ups are not its
+    /// up, because that is what being on a sphere means. A body carries an
+    /// orientation for exactly this reason and it had nowhere to come from for
+    /// a generated part.
+    pub orientation: Vec<crate::math::Quat>,
     /// Radius of the *joint* at each part's base, metres, where that is not
     /// simply the member's own.
     ///
@@ -962,6 +982,7 @@ impl Skeleton {
             joint_bond: Vec::with_capacity(n),
             half: Vec::with_capacity(n),
             free: Vec::with_capacity(n),
+            orientation: Vec::with_capacity(n),
             ties: Vec::new(),
         }
     }
@@ -985,6 +1006,7 @@ impl Skeleton {
         self.joint_bond.push(crate::chem::SubstanceId::UNSPECIATED);
         self.half.push(Vec3::ZERO);
         self.free.push(FREE_ALL);
+        self.orientation.push(crate::math::Quat::IDENTITY);
     }
 
     /// Add a part that is a filled box rather than a tube.

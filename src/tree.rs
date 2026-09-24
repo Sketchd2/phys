@@ -731,7 +731,49 @@ impl Tree {
         let idx = self.alloc(child);
         self.nodes[i.get()].children[slot] = idx;
         self.stats.promotions += 1;
+        self.inherit_recipe(i, slot, idx);
         idx
+    }
+
+    /// Hand a promoted cell the recipe its parent's recipe says it has.
+    ///
+    /// **This is what makes a surface a tree.** `docs/PLAY.md` D6: a planetary
+    /// node "on refinement divides its sphere into patches", and a patch's
+    /// children are four squares of it. The bodies a patch holds *are* those
+    /// squares, so promoting one has to give the new node the piece of the
+    /// parameterisation it stands for — otherwise it arrives as an anonymous
+    /// lump of rock and the ladder stops at the first step.
+    ///
+    /// Nothing is stored per patch except its address, so the descent generates
+    /// what it needs and regenerates it bit-for-bit on the way back: the
+    /// address is exact integer arithmetic on a face index and two cell
+    /// indices, twenty-four levels deep on an Earth.
+    ///
+    /// It issues no identity, which matters: which nodes a frame promotes
+    /// depends on a wall-clock allowance, and `next_entity` is persisted. See
+    /// `World::cross`, which promotes for the same reason and is careful the
+    /// same way.
+    fn inherit_recipe(&mut self, parent: NodeIdx, slot: usize, child: NodeIdx) {
+        let Some((program, recipe)) = self.nodes[parent.get()].morphology.as_ref().and_then(|m| {
+            let r = m.recipe.as_ref()?;
+            let crate::recipe::Recipe::Tiled(t) = r else { return None };
+            Some((m.program, t.child(slot)?))
+        }) else {
+            return;
+        };
+        let key = self.nodes[child.get()].key;
+        let seed = self.world_seed;
+        let mut m = crate::morph::Morphology::new(program, seed, key.0, 0);
+        m.built = self.nodes[child.get()].matter.mass;
+        m.design_mass = m.built;
+        m.progress = 1.0;
+        m.recipe = Some(crate::recipe::Recipe::Tiled(recipe));
+        let extent = m.extent();
+        let n = &mut self.nodes[child.get()];
+        n.matter.radius = extent.max(1e-30);
+        n.morphology = Some(m);
+        self.stats.structures += 1;
+        self.retier(child);
     }
 
     /// Fold fine detail back into the node's matter and free it.
@@ -1343,25 +1385,94 @@ impl Tree {
         if idx.is_none() || !self.nodes[idx.get()].alive {
             return Vec3::ZERO;
         }
-        let own = self.nodes[idx.get()].matter.mass.max(0.0);
         let mut g = Vec3::ZERO;
+        let mut inner = idx;
         let mut anc = self.nodes[idx.get()].parent;
         while !anc.is_none() {
             let a = &self.nodes[anc.get()];
             let r = self.offset_from(anc, idx, Vec3::ZERO).value;
             let d = r.norm();
             let (m, radius) = (a.matter.mass.max(0.0), a.matter.radius);
-            if d > 0.0 && radius > 0.0 && m > own {
-                let source = m - own;
-                let enclosed = if d >= radius {
-                    source
-                } else {
-                    source * (d / radius).powi(3)
+            // **What this ancestor holds beyond the one below it.** An
+            // ancestor's mass includes every descendant's, so counting each
+            // ancestor's whole mass counts the chain once per level. The right
+            // decomposition is nested: the galaxy contributes what it holds
+            // that the cloud does not, the cloud what it holds that the parcel
+            // does not, and so on, which is the shell theorem applied at every
+            // level rather than only at the last one.
+            //
+            // It did not bite while the ladder was clouds inside clouds, where
+            // a child is a thousandth of its parent and the double count is a
+            // rounding. It bites the moment the ladder is a *surface*: a face
+            // of a planet is a tenth of it, standing at nine tenths of its
+            // radius, and counting it twice put 0.65 m/s^2 of sideways pull on
+            // everything standing on it.
+            let own = self.nodes[inner.get()].matter.mass.max(0.0);
+            // **A piece of a sphere is not a sphere.** A patch of ground holds
+            // its mass in a curved shell about the *planet's* centre, not in a
+            // ball about its own, and the shell theorem is what says what that
+            // field is: everything above a point contributes nothing and
+            // everything below it contributes as if it were at the centre. So
+            // for an ancestor that is a piece of a surface the radius vector is
+            // measured from the body it is a piece of.
+            //
+            // The difference is not small and it is not only a magnitude.
+            // Modelling a face of a planet as a ball at its own centre of mass
+            // — 1.9 million metres underground — left a standing thing at
+            // 8.96 m/s^2 tilted 2.6 degrees off its own down, because a ninth
+            // of the planet was pulling sideways. With the shell the levels
+            // telescope: each contributes what it holds beyond the one below,
+            // all along the same radius, and the sum is the field the planet's
+            // whole mass makes.
+            let shell = self.nodes[anc.get()].morphology.as_ref().and_then(|mo| {
+                let Some(crate::recipe::Recipe::Tiled(t)) = mo.recipe.as_ref() else {
+                    return None;
                 };
-                // In this ancestor's axes, then turned into the node's own.
+                if t.is_ball() {
+                    return None;
+                }
+                Some(t.centre_of_mass_from_planet())
+            });
+            let (r, d, radius) = match shell {
+                Some(com) => {
+                    let from_centre = r + com;
+                    (from_centre, from_centre.norm(), self.nodes[anc.get()].matter.radius)
+                }
+                None => (r, d, radius),
+            };
+            let _ = radius;
+            if d > 0.0 && m > own {
+                let source = m - own;
+                // A point below the shell feels nothing of it; a point above
+                // it feels all of it. For a ball the same expression is the
+                // ordinary interior law, because its "shell" is itself.
+                let enclosed = match shell {
+                    Some(_) => source,
+                    None => {
+                        let radius = self.nodes[anc.get()].matter.radius;
+                        if radius <= 0.0 {
+                            continue;
+                        }
+                        if d >= radius {
+                            source
+                        } else {
+                            source * (d / radius).powi(3)
+                        }
+                    }
+                };
+                // **Turned by the node's own absolute facing, not by its
+                // facing relative to this ancestor.** An offset is a position
+                // in root-aligned axes — nothing in the tree rotates one on the
+                // way up — so a pull derived from offsets is in those axes too,
+                // and what takes it into the node's frame is the whole
+                // composition from the node to the root. Rotating by the
+                // relative part alone is exact only while every frame between
+                // here and the root is the same one, which is true until a
+                // surface exists and false immediately afterwards.
                 let pull = r.scale(-crate::units::G * enclosed / (d * d * d));
-                g += self.into_axes_of(anc, idx, pull);
+                g += self.into_axes_of(self.root, idx, pull);
             }
+            inner = anc;
             anc = a.parent;
         }
         g

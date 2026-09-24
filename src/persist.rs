@@ -697,6 +697,12 @@ fn put_recipe(w: &mut Writer, r: Option<&crate::recipe::Recipe>) {
         Some(Recipe::Tiled(t)) => {
             w.u8(5);
             w.f64(t.density);
+            w.f64(t.sphere);
+            w.u8(t.face);
+            w.u8(t.level);
+            w.u64(t.u);
+            w.u64(t.v);
+            w.u8(t.cells);
             w.f64(t.side);
             w.f64(t.depth);
             for g in &t.relief {
@@ -748,13 +754,30 @@ fn get_recipe(
         })),
         5 => {
             let density = r.f64()?;
+            let sphere = r.f64()?;
+            let face = r.u8()?;
+            let level = r.u8()?;
+            let u = r.u64()?;
+            let v = r.u64()?;
+            let cells = r.u8()?;
             let side = r.f64()?;
             let depth = r.f64()?;
             let mut relief = [0.0f32; 8];
             for g in relief.iter_mut() {
                 *g = f32::from_bits(r.u32()?);
             }
-            Some(Recipe::Tiled(Tiled { density, side, depth, relief }))
+            Some(Recipe::Tiled(Tiled {
+                density,
+                sphere,
+                face,
+                level,
+                u,
+                v,
+                cells,
+                side,
+                depth,
+                relief,
+            }))
         }
         6 => Some(Recipe::Subdivided(Subdivided {
             density: r.f64()?,

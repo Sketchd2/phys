@@ -51,7 +51,7 @@
 //! was actually drawn, which is one meaning rather than two.
 
 use crate::assembly::Assembly;
-use crate::math::{v3, Vec3};
+use crate::math::{v3, Quat, Vec3};
 use crate::morph::{Skeleton, FREE_ALL, FREE_Y, FREE_Z, NO_SUPPORT};
 
 /// How much of a thing there is, at the moment it is being drawn.
@@ -595,6 +595,24 @@ impl Framed {
 pub struct Tiled {
     /// Bulk density, kg/m^3. See [`Coursed::density`].
     pub density: f64,
+    /// Radius of the sphere this patch is a piece of, metres, or zero for a
+    /// flat patch that is a thing on its own.
+    pub sphere: f64,
+    /// Which face of the cube, or [`WHOLE_BALL`] for the ball itself.
+    pub face: u8,
+    /// How many times the face has been divided to reach this patch.
+    pub level: u8,
+    /// Where on the face, at that level. Sixty-four bits because the address
+    /// is exact integer arithmetic and a descent to a millimetre on an Earth
+    /// is twelve levels of eight, which is `8^12` — past what thirty-two bits
+    /// hold, and the overflow is a panic rather than a wrong answer because
+    /// `[profile.test]` keeps overflow checks on.
+    pub u: u64,
+    pub v: u64,
+    /// How many cells across this patch divides into. Fixed by the recipe
+    /// rather than by whoever is looking, because the address has to mean the
+    /// same thing at every level of detail.
+    pub cells: u8,
     /// Side of the square, metres.
     pub side: f64,
     /// How deep the slab goes below its own mean surface, metres.
@@ -606,6 +624,29 @@ pub struct Tiled {
 
 impl Tiled {
     pub fn extent(&self) -> f64 {
+        if self.is_ball() {
+            // The ball is the size it is. Its cells are pieces of its surface
+            // and its radius is not theirs.
+            return self.sphere;
+        }
+        if self.on_sphere() {
+            // **A patch on a sphere is curved, and its bound is not a flat
+            // slab's.** The half-diagonal of a face laid out flat is 6.59e6 m
+            // on an Earth — larger than the planet the face is part of — so a
+            // promoted face came out bigger than its own parent. The honest
+            // answer is the furthest of its own corners from its own centre of
+            // mass, which curvature makes smaller rather than larger.
+            let com = self.centre_of_mass_from_planet();
+            let (a, b, half) = self.face_span();
+            let mut worst: f64 = 0.0;
+            for (da, db) in [(-1.0, -1.0), (-1.0, 1.0), (1.0, -1.0), (1.0, 1.0)] {
+                let dir = cube_to_sphere(self.face, a + da * half, b + db * half);
+                for depth in [0.0, self.depth] {
+                    worst = worst.max((dir.scale(self.sphere - depth) - com).norm());
+                }
+            }
+            return worst.max(1e-30) + self.relief_amplitude();
+        }
         let r = self.relief_amplitude();
         0.5 * (2.0 * self.side * self.side + (self.depth + 2.0 * r).powi(2)).sqrt()
     }
@@ -659,6 +700,9 @@ impl Tiled {
     /// corner of it, and something walking across the patch drops into each
     /// one. The cell is square, so the column that fills it is.
     pub fn render(&self, budget: usize) -> Skeleton {
+        if self.on_sphere() {
+            return self.render_on_sphere();
+        }
         let mut sk = Skeleton::with_capacity(budget);
         let n = ((budget as f64).sqrt().floor() as usize).clamp(2, 64);
         let step = self.side / n as f64;
@@ -929,7 +973,18 @@ pub fn generate(
             let side = (volume / SLAB_ASPECT).max(0.0).cbrt().max(1e-6);
             let mut relief = [0.0f32; 8];
             relief.copy_from_slice(genome);
-            Recipe::Tiled(Tiled { density, side, depth: side * SLAB_ASPECT, relief })
+            Recipe::Tiled(Tiled {
+                density,
+                sphere: 0.0,
+                face: 0,
+                level: 0,
+                u: 0,
+                v: 0,
+                cells: 2,
+                side,
+                depth: side * SLAB_ASPECT,
+                relief,
+            })
         }
         Habit::Subdivided => {
             // A town is an *area*, not a volume, and that is the difference
@@ -952,3 +1007,430 @@ pub fn generate(
 /// Depth of a patch of ground as a fraction of its side. Terrain is much wider
 /// than it is deep, and this is how much.
 pub const SLAB_ASPECT: f64 = 0.125;
+
+// ---------------------------------------------------------------------------
+// the cubed sphere
+// ---------------------------------------------------------------------------
+
+/// A [`Tiled`] recipe that is the whole ball rather than a square on it.
+pub const WHOLE_BALL: u8 = 6;
+
+/// The three axes of one face of the cube, as `(right, up, out)`.
+///
+/// Six faces, in the order `+x -x +y -y +z -z`. The handedness is consistent
+/// across all six — `right × up = out` — so a patch's local frame is a rotation
+/// of its parent's and never a reflection, which is what lets `Tree::axes_from`
+/// compose them.
+pub fn face_axes(face: u8) -> (Vec3, Vec3, Vec3) {
+    match face % 6 {
+        0 => (v3(0.0, 1.0, 0.0), v3(0.0, 0.0, 1.0), v3(1.0, 0.0, 0.0)),
+        1 => (v3(0.0, 0.0, 1.0), v3(0.0, 1.0, 0.0), v3(-1.0, 0.0, 0.0)),
+        2 => (v3(0.0, 0.0, 1.0), v3(1.0, 0.0, 0.0), v3(0.0, 1.0, 0.0)),
+        3 => (v3(1.0, 0.0, 0.0), v3(0.0, 0.0, 1.0), v3(0.0, -1.0, 0.0)),
+        4 => (v3(1.0, 0.0, 0.0), v3(0.0, 1.0, 0.0), v3(0.0, 0.0, 1.0)),
+        _ => (v3(0.0, 1.0, 0.0), v3(1.0, 0.0, 0.0), v3(0.0, 0.0, -1.0)),
+    }
+}
+
+/// A point on the unit sphere from a point on one face of the unit cube.
+///
+/// `docs/PLAY.md` D6 chose the cubed sphere over HEALPix and geodesic
+/// subdivision for one reason that outranks their better area properties: **the
+/// child relation is a clean square split**, which is what `PathKey`'s
+/// child-index derivation consumes, so the surface tree *is* the scale tree
+/// with no adapter. A pentagon defect or a nested-ring indexing scheme is not.
+///
+/// `(a, b)` run over `[-1, 1]` on the face. The plain normalisation is used
+/// rather than one of the equal-area or tangent-warped variants: the angular
+/// distortion is bounded at 1.3 and is corrected at the patch level, which is
+/// exactly what D6 says to do with it, and a warp would put a transcendental
+/// function inside the address arithmetic that has to regenerate bit-for-bit.
+pub fn cube_to_sphere(face: u8, a: f64, b: f64) -> Vec3 {
+    let (right, up, out) = face_axes(face);
+    (out + right.scale(a) + up.scale(b)).unit()
+}
+
+/// How deep ground goes, as a fraction of how wide the piece of it is.
+///
+/// One rule at every level, which is what makes the ladder a ladder: a patch
+/// ten thousand kilometres across is the outer eighth of a planet, and a patch
+/// a metre across is the top twelve centimetres of soil. The number is
+/// [`SLAB_ASPECT`], shared with a flat patch, because it is the same statement.
+impl Tiled {
+    /// Is this the whole ball, tiled into its six faces?
+    pub fn is_ball(&self) -> bool {
+        self.face == WHOLE_BALL
+    }
+
+    /// Is this a square on a sphere rather than a flat slab?
+    pub fn on_sphere(&self) -> bool {
+        self.sphere > 0.0
+    }
+
+    /// How many cells across this patch divides into.
+    pub fn cells(&self) -> usize {
+        (self.cells as usize).max(2)
+    }
+
+    /// The half-width of this patch on its face, in cube coordinates.
+    ///
+    /// Level zero is the whole face; every level halves it. `u` and `v` are the
+    /// cell's index on the face at that level, so the address is exact integer
+    /// arithmetic all the way down and a patch twenty-four levels deep
+    /// regenerates bit-for-bit.
+    pub fn face_span(&self) -> (f64, f64, f64) {
+        let n = (self.cells() as f64).powi(self.level as i32);
+        let half = 1.0 / n;
+        let a = -1.0 + (2.0 * self.u as f64 + 1.0) * half;
+        let b = -1.0 + (2.0 * self.v as f64 + 1.0) * half;
+        (a, b, half)
+    }
+
+    /// The direction of this patch's centre from the planet's own centre.
+    pub fn centre_direction(&self) -> Vec3 {
+        if self.is_ball() {
+            return v3(0.0, 0.0, 1.0);
+        }
+        let (a, b, _) = self.face_span();
+        cube_to_sphere(self.face, a, b)
+    }
+
+    /// Which way is up here, as a rotation of the *planet's* axes.
+    ///
+    /// A patch is oriented by construction — that is what a patch is, a square
+    /// of surface with a local up — and this is the rotation that says so. It
+    /// is what `Tree::axes_from` composes and what makes gravity arrive along a
+    /// standing thing's own `-z` at any latitude rather than along the planet's
+    /// `-x`.
+    pub fn frame(&self) -> crate::math::Quat {
+        let up = self.centre_direction();
+        let z = v3(0.0, 0.0, 1.0);
+        let axis = z.cross(up);
+        let s = axis.norm();
+        if s < 1e-12 {
+            return if up.z >= 0.0 {
+                crate::math::Quat::IDENTITY
+            } else {
+                crate::math::Quat::from_axis_angle(v3(1.0, 0.0, 0.0), std::f64::consts::PI)
+            };
+        }
+        crate::math::Quat::from_axis_angle(axis.scale(1.0 / s), s.atan2(z.dot(up)))
+    }
+
+    /// The recipe for one of this patch's cells.
+    ///
+    /// **The child relation, and the whole of what makes a surface a tree.**
+    /// A cell of the ball is a face; a cell of a face is a quarter of it, or an
+    /// `n`-th, and so on down. Nothing is stored per patch except the address,
+    /// so a planet nobody has visited costs its `Matter` and nothing else.
+    ///
+    /// The last cell of a patch on a sphere is the *substrate* — what is under
+    /// the surface rather than part of it — and it has no recipe, because it is
+    /// not a piece of surface. See [`Tiled::render`].
+    pub fn child(&self, cell: usize) -> Option<Tiled> {
+        if !self.on_sphere() {
+            return None;
+        }
+        if self.is_ball() {
+            if cell >= 6 {
+                return None;
+            }
+            let side = self.sphere * FACE_SIDE;
+            return Some(Tiled {
+                density: self.density,
+                sphere: self.sphere,
+                face: cell as u8,
+                level: 0,
+                u: 0,
+                v: 0,
+                cells: self.cells,
+                side,
+                depth: side * SLAB_ASPECT,
+                relief: self.relief,
+            });
+        }
+        let n = self.cells();
+        if cell >= n * n {
+            return None;
+        }
+        let (i, j) = (cell % n, cell / n);
+        let side = self.side / n as f64;
+        // The address has a bottom. Below it the arithmetic would wrap and a
+        // patch would silently be a different patch, so the division stops
+        // instead — which is honest: nothing can be addressed finer than the
+        // address goes.
+        let (u, v) = (
+            self.u.checked_mul(n as u64)?.checked_add(i as u64)?,
+            self.v.checked_mul(n as u64)?.checked_add(j as u64)?,
+        );
+        Some(Tiled {
+            density: self.density,
+            sphere: self.sphere,
+            face: self.face,
+            level: self.level.checked_add(1)?,
+            u,
+            v,
+            cells: self.cells,
+            side,
+            depth: side * SLAB_ASPECT,
+            relief: self.relief,
+        })
+    }
+
+    /// Where a cell's centre of mass sits, relative to this patch's own.
+    ///
+    /// **In the planet's axes, not the patch's**, and that is deliberate: a
+    /// node's `offset` is a position in the frame its parent's offset is
+    /// expressed in, and nothing in the tree rotates an offset on the way up.
+    /// Rotating these into the patch's own axes put a cell at 1.0e7 m from the
+    /// centre of a planet 6.4e6 m across, because the offset and the one it was
+    /// added to were in two different frames.
+    ///
+    /// What *is* relative is the cell's own facing, which is what
+    /// `Tree::axes_from` composes. The two conventions are different and each
+    /// is consistent: a position is stated once in one frame, and a facing is
+    /// stated against the thing it is inside.
+    fn cell_offset(&self, cell: usize) -> Option<(Vec3, f64)> {
+        let child = self.child(cell)?;
+        let here = self.centre_of_mass_from_planet();
+        let there = child.centre_of_mass_from_planet();
+        Some((there - here, child.side))
+    }
+
+    /// Where this patch's own centre of mass sits, from the planet's centre.
+    ///
+    /// **Integrated over the patch, not taken as its middle.** A patch is a
+    /// curved wedge, and the centre of a curved thing is not on its surface's
+    /// midpoint: a whole face of the cube has a centroid well inside the
+    /// direction of its centre, and even a small patch is a little inward of
+    /// it.
+    ///
+    /// Getting this wrong is not cosmetic. The sampler recentres a node's
+    /// bodies on their own centre of mass, so if a recipe states its cells
+    /// about a point that is *not* that centre, every level of a descent
+    /// shifts by the difference — and they accumulate. Measured before this: a
+    /// descent seven levels deep left the patch's centre 93 km from the
+    /// observer it was descending towards, and stopped there.
+    ///
+    /// The integral separates: the radial factor is `int r^3 dr / int r^2 dr`
+    /// over the patch's own depth, and the angular factor is the mean of the
+    /// cube map's direction over the cell weighted by its Jacobian,
+    /// `(1 + a^2 + b^2)^(-3/2)`. Eight points a side is far finer than the
+    /// answer needs — the integrand has no structure — and it is deterministic,
+    /// which is what regenerating bit-for-bit requires.
+    pub fn centre_of_mass_from_planet(&self) -> Vec3 {
+        if self.is_ball() {
+            return Vec3::ZERO;
+        }
+        self.region_com(self.sphere - self.depth, self.sphere)
+    }
+
+    /// The centre of mass of the shell of this patch between two radii.
+    pub fn region_com(&self, r0: f64, r1: f64) -> Vec3 {
+        let (r0, r1) = (r0.min(r1).max(0.0), r0.max(r1).max(0.0));
+        let radial = if r1 > r0 {
+            0.75 * (r1.powi(4) - r0.powi(4)) / (r1.powi(3) - r0.powi(3)).max(1e-300)
+        } else {
+            r1
+        };
+        let (ca, cb, half) = self.face_span();
+        const Q: usize = 8;
+        let (right, up, out) = face_axes(self.face);
+        let mut acc = Vec3::ZERO;
+        let mut weight = 0.0;
+        for i in 0..Q {
+            for j in 0..Q {
+                let a = ca - half + 2.0 * half * (i as f64 + 0.5) / Q as f64;
+                let b = cb - half + 2.0 * half * (j as f64 + 0.5) / Q as f64;
+                let w = (1.0 + a * a + b * b).powf(-1.5);
+                acc = acc + (out + right.scale(a) + up.scale(b)).unit().scale(w);
+                weight += w;
+            }
+        }
+        if weight <= 0.0 {
+            return self.centre_direction().scale(radial);
+        }
+        acc.scale(radial / weight)
+    }
+}
+
+/// Side of one face of a cubed sphere, as a fraction of the sphere's radius.
+///
+/// A cube face covers a sixth of the sphere's area, `4 pi R^2 / 6`, so the
+/// square with that area has a side of `R sqrt(2 pi / 3)`. Used to turn a
+/// planet's radius into the side of the six patches that cover it, so a face
+/// and the surface it stands for have the same area rather than the same
+/// angular width.
+pub const FACE_SIDE: f64 = 1.447_202_699_454_372_5;
+
+impl Tiled {
+    /// A piece of a planet's surface: its cells, and what is under them.
+    ///
+    /// **The cells are the children.** `docs/PLAY.md` D6: "a patch refines into
+    /// sub-patches as an observer descends and coarsens behind them", and the
+    /// bodies a patch holds *are* those sub-patches, so the surface tree is the
+    /// scale tree with no adapter between them. The ball's cells are its six
+    /// faces; a face's cells are its `n²` squares; and so on down to a square
+    /// metre, which on Earth is twenty-four levels.
+    ///
+    /// # Why there is one more body than there are cells
+    ///
+    /// Each cell is only as deep as it is wide — [`SLAB_ASPECT`] of its own
+    /// side, the same rule at every level — so the cells of a patch account for
+    /// `1/n` of its volume and not all of it. The rest is *under* them, and it
+    /// is one body: the substrate. Without it the mass would not conserve, and
+    /// with it a descent sheds depth as it sheds width, which is what makes the
+    /// thing you finally stand on a shallow patch of ground rather than a
+    /// column reaching to the centre of the planet.
+    fn render_on_sphere(&self) -> Skeleton {
+        let n = self.cells();
+        let count = if self.is_ball() { 6 } else { n * n };
+        let mut sk = Skeleton::with_capacity(count + 1);
+        // Volume of this patch, and of the cells that cover it.
+        let mine = self.volume();
+        let mut covered = 0.0;
+        let here = self.centre_of_mass_from_planet();
+        let mut cells: Vec<(Vec3, f64, f64, Quat)> = Vec::with_capacity(count);
+        for c in 0..count {
+            let Some(child) = self.child(c) else { continue };
+            let Some((at, side)) = self.cell_offset(c) else { continue };
+            let v = child.volume();
+            covered += v;
+            // The cell's own frame, expressed in this patch's. `a.then(b)` is
+            // `a` applied and then `b`, so taking a vector out of the cell's
+            // axes and into the patch's is the cell's frame followed by the
+            // inverse of the patch's — in that order.
+            let turn = child.frame().then(self.frame().conjugate());
+            cells.push((at, side, v, turn));
+        }
+        for (i, (at, side, v, turn)) in cells.iter().enumerate() {
+            let half = 0.5 * side;
+            let depth = 0.5 * side * SLAB_ASPECT;
+            // A cell is a slab, turned the way its own surface faces. Its
+            // plan is the tiling's and may not move; its depth is what gives.
+            let up = turn.rotate(v3(0.0, 0.0, 1.0));
+            sk.push_box(
+                *at - up.scale(depth),
+                *at + up.scale(depth),
+                v3(half, half, depth),
+                FREE_Z,
+                *v,
+                half,
+                NO_SUPPORT,
+                i as u32,
+            );
+            *sk.orientation.last_mut().unwrap() = *turn;
+        }
+        // What is under them, as one body at its own centre of mass — which is
+        // *not* the patch's, because the cells are a skin on the outside of it
+        // and the substrate is everything else.
+        let under = (mine - covered).max(0.0);
+        if under > 0.0 {
+            let skin = if self.is_ball() {
+                self.sphere * FACE_SIDE * SLAB_ASPECT
+            } else {
+                self.side / self.cells() as f64 * SLAB_ASPECT
+            };
+            let at = if self.is_ball() {
+                // A ball's substrate is its whole interior, centred on it.
+                Vec3::ZERO
+            } else {
+                self.region_com(self.sphere - self.depth, self.sphere - skin) - here
+            };
+            let r = (0.75 * under / std::f64::consts::PI).cbrt();
+            sk.push_segment(
+                at - v3(0.0, 0.0, r),
+                at + v3(0.0, 0.0, r),
+                under,
+                r,
+                NO_SUPPORT,
+                count as u32,
+            );
+        }
+        sk
+    }
+
+    /// The volume this patch stands for, m^3.
+    pub fn volume(&self) -> f64 {
+        if self.is_ball() {
+            return 4.0 / 3.0 * std::f64::consts::PI * self.sphere.powi(3);
+        }
+        self.side * self.side * self.depth
+    }
+}
+
+impl Tiled {
+    /// Which cell of this patch a direction from the planet's centre falls in.
+    ///
+    /// **The inverse of the parameterisation, and the reason there is one.**
+    /// Finding the cell an observer is over by searching for the nearest cell
+    /// body is a plausible thing to write and it does not work: the cells of a
+    /// face are spread over a curved square nine thousand kilometres across,
+    /// and the nearest *centre* to a point above the middle of it is not the
+    /// cell below that point. Measured, a descent that searched drifted to a
+    /// corner cell within three levels and stopped 93 km from the observer.
+    ///
+    /// Inverting the cube map is exact and costs a divide: the face is the axis
+    /// the direction leans on hardest, and `(a, b)` are the other two
+    /// components over that one. `None` when the direction is not over this
+    /// patch at all, which is how a walk knows it has left.
+    pub fn cell_of_direction(&self, dir: Vec3) -> Option<usize> {
+        let d = dir.unit();
+        if !d.is_finite() {
+            return None;
+        }
+        if self.is_ball() {
+            // The ball's cells are the six faces, and a direction is over
+            // exactly one of them.
+            let (x, y, z) = (d.x, d.y, d.z);
+            let face = if x.abs() >= y.abs() && x.abs() >= z.abs() {
+                if x >= 0.0 { 0 } else { 1 }
+            } else if y.abs() >= z.abs() {
+                if y >= 0.0 { 2 } else { 3 }
+            } else if z >= 0.0 {
+                4
+            } else {
+                5
+            };
+            return Some(face);
+        }
+        let (right, up, out) = face_axes(self.face);
+        let o = d.dot(out);
+        if o <= 1e-12 {
+            // On the far side of the cube from this face.
+            return None;
+        }
+        let (a, b) = (d.dot(right) / o, d.dot(up) / o);
+        let (ca, cb, half) = self.face_span();
+        let n = self.cells() as f64;
+        // Where in this patch, as a fraction of its own span.
+        let fa = (a - (ca - half)) / (2.0 * half);
+        let fb = (b - (cb - half)) / (2.0 * half);
+        if !(0.0..1.0).contains(&fa) || !(0.0..1.0).contains(&fb) {
+            return None;
+        }
+        let i = (fa * n).floor().clamp(0.0, n - 1.0) as usize;
+        let j = (fb * n).floor().clamp(0.0, n - 1.0) as usize;
+        Some(j * self.cells() + i)
+    }
+
+    /// The direction of the point on this patch's surface nearest a direction.
+    ///
+    /// Used to ask where a walk has got to when it has left this patch: the
+    /// answer is the edge it went out through.
+    pub fn clamped_direction(&self, dir: Vec3) -> Vec3 {
+        if self.is_ball() {
+            return dir.unit();
+        }
+        let (right, up, out) = face_axes(self.face);
+        let d = dir.unit();
+        let o = d.dot(out);
+        if o <= 1e-12 {
+            return self.centre_direction();
+        }
+        let (ca, cb, half) = self.face_span();
+        let a = (d.dot(right) / o).clamp(ca - half, ca + half);
+        let b = (d.dot(up) / o).clamp(cb - half, cb + half);
+        cube_to_sphere(self.face, a, b)
+    }
+}

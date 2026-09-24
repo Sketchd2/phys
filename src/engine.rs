@@ -368,6 +368,9 @@ pub struct EngineStats {
     /// Surfaces baked. `PLAY.md` D13 stores a boundary and regenerates it when
     /// `epoch` moves, so this counts arrangements that changed, not frames.
     pub surfaces_baked: u64,
+    /// Cells promoted because an observer came close enough to want them. See
+    /// [`World::approach`].
+    pub approaches: u64,
     /// Surfaces whose materials did not reconcile with the node's own solid
     /// pools. `PLAY.md` D18's invariant; non-zero means a node is presenting
     /// something its bulk contradicts.
@@ -710,6 +713,201 @@ impl World {
             }
         }
         self.rewrite_recipe(idx);
+    }
+
+    /// Follow every observer down the surface they are over.
+    ///
+    /// **"Nothing is generated until approached."** `docs/PLAY.md` D6: "A patch
+    /// refines into sub-patches as an observer descends and coarsens behind
+    /// them, and the terrain regenerates bit-identically. A planet nobody has
+    /// visited costs its `Matter` and nothing else."
+    ///
+    /// Materialising is the scheduler's business and already follows angular
+    /// size; what the scheduler has never done is *promote*, and a patch's
+    /// cells are bodies until one of them is promoted into a node of its own.
+    /// So this walks from each observer's anchor down towards the observer,
+    /// promoting the cell it is over for as long as the patch is coarser than
+    /// the observer can resolve. Twenty-four levels take an Earth from six
+    /// thousand kilometres to a square metre, and each level is one refine and
+    /// one promote.
+    ///
+    /// It issues no identity, which is the rule: which nodes a frame promotes
+    /// depends on a wall-clock allowance, so anything a promotion named would
+    /// make identity depend on how fast the machine is.
+    ///
+    /// Coarsening behind the observer needs nothing here. A patch is a
+    /// structure with a recipe, so `World::collapsible` already says its detail
+    /// may be released, and the scheduler releases it as soon as the observer's
+    /// acuity on it drops.
+    fn approach(&mut self) {
+        if self.observers.is_empty() {
+            return;
+        }
+        for i in 0..self.observers.len() {
+            let obs = self.observers[i];
+            let mut here = obs.anchor;
+            // Where the observer is, as a direction from the centre of the
+            // body it is over. A patch's address is in the planet's own axes,
+            // so that is the frame the question has to be asked in.
+            let from_centre = {
+                let mut ball = obs.anchor;
+                let mut found = NodeIdx::NONE;
+                while !ball.is_none() {
+                    let is_ball = matches!(
+                        self.tree.nodes[ball.get()].morphology.as_ref().and_then(|m| m.recipe.as_ref()),
+                        Some(crate::recipe::Recipe::Tiled(t)) if t.is_ball()
+                    );
+                    if is_ball {
+                        found = ball;
+                        break;
+                    }
+                    ball = self.tree.nodes[ball.get()].parent;
+                }
+                if found.is_none() {
+                    continue;
+                }
+                self.tree.separation(found, Vec3::ZERO, obs.anchor, obs.offset).value
+            };
+            // A bound on the walk rather than the thing that ends it: the walk
+            // ends because the patch is fine enough or because the observer is
+            // not over one of its cells.
+            for _ in 0..64 {
+                if here.is_none() || !self.tree.nodes[here.get()].alive {
+                    break;
+                }
+                let is_tiled = matches!(
+                    self.tree.nodes[here.get()].morphology.as_ref().and_then(|m| m.recipe.as_ref()),
+                    Some(crate::recipe::Recipe::Tiled(_))
+                );
+                if !is_tiled {
+                    break;
+                }
+                // How far the observer is from this patch's *surface*, and how
+                // finely it wants to see it.
+                //
+                // Not the distance to the node's origin, which for a patch is
+                // its centre of mass and for a whole face of a planet is 1.9
+                // million metres underground. A descent measured against that
+                // thinks an observer standing on the ground is halfway to the
+                // core and stops eleven levels early.
+                let Some(surface) = self.tree.nodes[here.get()].morphology.as_ref().and_then(|m| {
+                    let Some(crate::recipe::Recipe::Tiled(t)) = m.recipe.as_ref() else {
+                        return None;
+                    };
+                    Some((t.clamped_direction(from_centre).scale(t.sphere), t.side))
+                }) else {
+                    break;
+                };
+                let d = (from_centre - surface.0).norm().max(1e-30);
+                let wanted = obs.linear_resolution(d);
+                if !(surface.1 > wanted) {
+                    break;
+                }
+                // The cell the observer is over, from the parameterisation
+                // rather than from a search. See `Tiled::cell_of_direction`.
+                self.tree.refine(here);
+                let Some(best) = self.tree.nodes[here.get()].morphology.as_ref().and_then(|m| {
+                    let Some(crate::recipe::Recipe::Tiled(t)) = m.recipe.as_ref() else {
+                        return None;
+                    };
+                    t.cell_of_direction(from_centre)
+                }) else {
+                    break;
+                };
+                if best >= self.tree.nodes[here.get()].bodies.len() {
+                    break;
+                }
+                let spec = self.tree.nodes[here.get()].spec;
+                let child = self.tree.promote(here, best, spec);
+                if child.is_none() {
+                    break;
+                }
+                self.tree.nodes[child.get()].residency = Residency::Observed;
+                self.stats.approaches += 1;
+                here = child;
+            }
+        }
+    }
+
+    /// Ask whether a node is a body its own gravity has rounded, and if it is,
+    /// write down the surface it has.
+    ///
+    /// **Nothing here knows what a planet is.** `docs/PLAY.md` D6: "A planetary
+    /// surface is not a new kind of thing." What makes a body round is that its
+    /// own weight has overcome the strength of what it is made of, and both
+    /// sides of that are measured: the central pressure of a self-gravitating
+    /// sphere is `3 G M^2 / (8 pi R^4)`, and the strength is D14's, read off
+    /// the node's own mixture at the node's own size. A 500 m asteroid comes
+    /// out at 2.2e-4 Pa against rock's 10^8 and stays a potato; an Earth comes
+    /// out at 1.7e11 and is a ball. The transition is around two hundred
+    /// kilometres of rock, which is where it is.
+    ///
+    /// A node with no mixture is not refused on a guess: it has not been said
+    /// what it is made of, so there is no fact of the matter about its surface,
+    /// and it gets none. That is the second axiom rather than a gap — a
+    /// scenario that wants ground says what its planet is made of, exactly as
+    /// it already says what it is composed of.
+    ///
+    /// Solidity is deliberately *not* part of the gate. A magma ocean is still
+    /// a surface and still tiles; whether anything can stand on it is the
+    /// mixture's business, and `bake_surface` already answers it by presenting
+    /// no solid for a node that holds none.
+    pub fn assess_surface(&mut self, idx: NodeIdx) -> bool {
+        if idx.is_none() || !self.tree.nodes[idx.get()].alive {
+            return false;
+        }
+        if self.tree.nodes[idx.get()].morphology.is_some() {
+            return false;
+        }
+        let Some(material) = self.material_of(idx) else { return false };
+        let (mass, radius, spec_count) = {
+            let n = &self.tree.nodes[idx.get()];
+            (n.matter.mass, n.matter.radius, n.spec.count)
+        };
+        if !(mass > 0.0) || !(radius > 0.0) {
+            return false;
+        }
+        let pressure =
+            3.0 * crate::units::G * mass * mass / (8.0 * std::f64::consts::PI * radius.powi(4));
+        if !(pressure > material.strength_of(radius, self.tree.nodes[idx.get()].matter.temperature))
+        {
+            return false;
+        }
+        let key = self.tree.nodes[idx.get()].key;
+        let seed = self.tree.world_seed;
+        let mut m = crate::morph::Morphology::new(crate::morph::Program::Terrain, seed, key.0, 0);
+        m.built = mass;
+        m.design_mass = mass;
+        m.progress = 1.0;
+        let mut relief = [0.0f32; 8];
+        relief.copy_from_slice(&m.genome);
+        // How many cells a patch divides into, from the resolution policy the
+        // node already carries. Fixed in the recipe rather than read from
+        // whoever is looking, because the address has to mean the same thing at
+        // every level of detail.
+        let cells = ((spec_count as f64).sqrt().floor() as usize).clamp(2, 32) as u8;
+        m.recipe = Some(crate::recipe::Recipe::Tiled(crate::recipe::Tiled {
+            density: (mass / (4.0 / 3.0 * std::f64::consts::PI * radius.powi(3))).max(1e-9),
+            sphere: radius,
+            face: crate::recipe::WHOLE_BALL,
+            level: 0,
+            u: 0,
+            v: 0,
+            cells,
+            side: radius * crate::recipe::FACE_SIDE,
+            depth: radius * crate::recipe::FACE_SIDE * crate::recipe::SLAB_ASPECT,
+            relief,
+        }));
+        let n = &mut self.tree.nodes[idx.get()];
+        // A ball's radius is its own, and the recipe says so. Stated rather
+        // than taken from `extent()` so that acquiring a surface cannot move a
+        // planet's radius by a hair and disturb everything standing on it.
+        n.matter.radius = radius;
+        n.morphology = Some(m);
+        n.bodies.clear();
+        n.topology = None;
+        self.tree.stats.structures += 1;
+        true
     }
 
     /// Write the node's generated program against what is actually measured
@@ -1103,6 +1301,9 @@ impl World {
         self.refresh_pace();
 
         let horizon = self.time + self.frame_dt();
+        // A surface is generated by being approached, and nothing else
+        // generates it. See `World::approach`.
+        self.approach();
         let tasks = self.survey(horizon);
         let bytes = self.tree.detail_bytes();
         let plan = self.budget.plan(tasks, bytes);
@@ -3206,6 +3407,7 @@ impl World {
         let env = self.environment_at(idx);
         let node = &mut self.tree.nodes[idx.get()];
         let morph = node.morphology.as_mut()?;
+        let was = (morph.built, morph.progress);
         let txn = morph.advance(dt, &env);
         if txn.validate().is_err() {
             // A program that cannot balance its books does not get to run. This
@@ -3215,6 +3417,7 @@ impl World {
         }
         let extent = morph.extent().max(1e-30);
         let stored = morph.stored_energy();
+        let (morph_built, morph_progress) = (morph.built, morph.progress);
 
         // Apply the growth step to the node's matter. Mass moves *within* the node
         // — carbon from its air into its wood — so mass, composition and baryon
@@ -3229,16 +3432,28 @@ impl World {
         node.matter.radius = extent;
         node.matter.luminosity = crate::state::stefan_boltzmann(extent, node.matter.temperature);
 
-        // The structure it would generate has changed, so any materialised copy
-        // is stale. Discarding it is correct and cheap — it is regenerable.
-        node.bodies.clear();
-        // The borrow of `node` ends here; the children it had promoted out of
-        // it are folded back before the fresh body list replaces their slots.
-        self.tree.shed_children(idx);
-
-        // It grew, so it may not be the size of thing it was. See
-        // `Tree::retier`.
-        self.tree.retier(idx);
+        // **Only if the structure it would generate has actually changed.** A
+        // recipe is a pure function of itself and `(built, progress)`, so when
+        // neither moved the drawing is the same drawing and there is nothing
+        // stale to throw away.
+        //
+        // Discarding unconditionally was cheap for a tree, which grows every
+        // frame anyway, and ruinous for ground, which grows never: a planet's
+        // whole surface tree was folded back on every frame it was looked at,
+        // so an observer descending it re-promoted seven patches a frame and
+        // arrived nowhere. Measured: 42 promotions over six frames with two
+        // live nodes at the end of them.
+        let changed = (morph_built, morph_progress) != was;
+        if changed {
+            let node = &mut self.tree.nodes[idx.get()];
+            node.bodies.clear();
+            // The children it had promoted out of it are folded back before
+            // the fresh body list replaces their slots.
+            self.tree.shed_children(idx);
+            // It grew, so it may not be the size of thing it was. See
+            // `Tree::retier`.
+            self.tree.retier(idx);
+        }
         self.tree.stats.growth_steps += 1;
         self.tree.stats.external_energy_absorbed += txn.net_boundary_flux();
         Some(txn)
