@@ -77,11 +77,10 @@
 //! neck whose area nothing in the engine states.
 //!
 //! So the threshold is right and the number going into it is wrong, for one
-//! class of material. Finishing it needs a derived tensile strength for a
-//! granular aggregate — zero at zero cementation, rising from the jamming point
-//! that `World::RANDOM_LOOSE_PACKING` already names — which is a `PHYSICS.md`
-//! decision rather than an implementation detail. It is written up for the
-//! owner rather than guessed at here.
+//! class of material. Finishing it needed a derived strength for a granular
+//! aggregate — zero at zero cementation, rising from the jamming point — which
+//! was a `PHYSICS.md` decision. Phase 5 took it: see [`loose_grain_threshold`],
+//! [`capillary_cohesion`], and `World::is_loose` for which ground is loose.
 //!
 //! # What may decay, and what may not
 //!
@@ -214,4 +213,95 @@ pub fn relaxation_rate(cohesion: f64, fluid_density: f64, flow_speed: f64, span:
 /// numbers — an actor standing somewhere and drawing in the sand has one.
 pub fn local_of(patch: &crate::recipe::Tiled, dir: Vec3) -> Option<(f64, f64)> {
     patch.local_of_direction(dir)
+}
+
+/// Close packing of equal spheres, the densest there is: `pi / (3 sqrt 2)`.
+/// A universal of geometry, and the reference a looser packing is measured
+/// from.
+pub const CLOSE_PACKING: f64 = 0.740_480_489_693_061;
+
+/// How steep a pocket a grain sits in at the surface of a loose pile: the
+/// tangent of the angle it has to be tipped through to roll out.
+///
+/// A grain resting on three others that touch each other — a close-packed
+/// pocket — tips out over the edge between two of its supports at
+/// `tan a = 1 / (2 sqrt 2)`, 19.5 degrees, which is geometry and nothing else.
+/// A loose pile's supports do not touch: at packing `phi` the spacing between
+/// them is the close-packed one opened by `(phi_close / phi)^(1/3)`, the grain
+/// sits deeper between them, and the pocket is steeper. At random loose
+/// packing that gives 22.5 degrees.
+///
+/// This is Phase 5's choice for what holds an uncemented grain, taken with
+/// three alternatives on the table: the pocket of a random packing rather than
+/// the Bowden–Tabor surface friction the contact code derives, because a
+/// grain in a pile is held by the grains around it, not by rubbing.
+pub fn pocket_friction(packing: f64) -> f64 {
+    let open = (CLOSE_PACKING / packing.clamp(1e-3, CLOSE_PACKING)).cbrt();
+    let height = (1.0 - open * open / 3.0).max(1e-9).sqrt();
+    open / (2.0 * 3.0f64.sqrt() * height)
+}
+
+/// The stress a flux has to press with to lift a grain of an uncemented
+/// aggregate, Pa, in the terms this module compares it in.
+///
+/// **What holds a loose grain is its own weight**, not a bond. A sphere of
+/// diameter `D` presents `pi D^2 / 4` to a flow and weighs
+/// `(rho_s - rho_f) g pi D^3 / 6` in the fluid it is in, and it leaves when the
+/// flow's push tips it out of its pocket:
+///
+/// ```text
+///     sigma_c = tan(a) (rho_s - rho_f) g (2 D / 3)
+/// ```
+///
+/// Shields' threshold is the same balance written against a bed shear stress
+/// rather than a dynamic pressure; in those terms this is a Shields number of
+/// `(2/3) tan a`, 0.28 at random loose packing, where Shields' own curve is
+/// quoted in shear-stress units and sits at 0.03 to 0.06. The two differ by
+/// the ratio of the pressure at a grain to the stress on the bed, which is a
+/// boundary layer this module does not model and which [`relaxation_rate`]
+/// already takes the dynamic pressure for.
+pub fn loose_grain_threshold(grain_density: f64, fluid_density: f64, g: f64, grain: f64, packing: f64) -> f64 {
+    let buoyant = (grain_density - fluid_density).max(0.0);
+    (pocket_friction(packing) * buoyant * g.abs() * 2.0 / 3.0 * grain.max(0.0)).max(0.0)
+}
+
+/// What a liquid's menisci hold a damp aggregate together with, Pa.
+///
+/// Rumpf's relation for a packing held by bridges between its grains,
+/// `sigma = (9/8) (phi / (1 - phi)) F / D^2`, with the bridge force between two
+/// wetted spheres of radius `D/2` taken as `2 pi gamma (D/2)`:
+///
+/// ```text
+///     sigma = (9/8) (phi / (1 - phi)) pi gamma / D
+/// ```
+///
+/// Why a sandcastle stands and a heap of dry sand does not. It holds only
+/// where the pores hold both liquid and air: fully submerged there are no
+/// menisci and nothing here applies, which is why the same squiggle that
+/// holds its shape on a damp beach at low tide is gone when the water is over
+/// it. The caller decides which; see `World::weather`.
+pub fn capillary_cohesion(surface_tension: f64, grain: f64, packing: f64) -> f64 {
+    if !(grain > 0.0) || !(surface_tension > 0.0) {
+        return 0.0;
+    }
+    let phi = packing.clamp(1e-3, 0.999);
+    9.0 / 8.0 * phi / (1.0 - phi) * std::f64::consts::PI * surface_tension / grain
+}
+
+/// A liquid's surface tension, J/m^2, from what holds it together.
+///
+/// The rule `Material::of` uses for a solid's surface energy — a quarter of the
+/// energy per unit spread over the area one unit presents — applied to the
+/// energy that actually holds a liquid, which is its vaporisation enthalpy
+/// rather than the bonds inside its molecules (see `eos.rs`, where the same
+/// distinction sets a liquid's stiffness).
+pub fn surface_tension(props: &crate::chem::Properties) -> f64 {
+    let l = crate::chem::react::heat_of_vaporisation(props);
+    let m = props.unit_mass;
+    let rho = props.density;
+    if !(l > 0.0) || !(m > 0.0) || !(rho > 0.0) {
+        return 0.0;
+    }
+    let area = (m / rho).powf(2.0 / 3.0);
+    l * m / (4.0 * area)
 }

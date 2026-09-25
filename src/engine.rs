@@ -5310,7 +5310,10 @@ impl World {
                     None => continue,
                 },
             };
-            let cohesion = material.strength_of(material.flaw_size, temperature);
+            let cohesion = match self.loose_grain_strength(idx, &material, env.fluid_density) {
+                Some(loose) => loose,
+                None => material.strength_of(material.flaw_size, temperature),
+            };
             let local = dt * self.local_rate(idx);
             let mut dropped = 0u64;
             let n = &mut self.tree.nodes[i];
@@ -5333,6 +5336,100 @@ impl World {
                 self.disturb(idx);
             }
         }
+    }
+
+    /// Whether a node's ground is an uncemented aggregate: laid down, and never
+    /// seen to freeze.
+    ///
+    /// **History decides**, which is Phase 5's choice for what tells a poured
+    /// pile from a cemented one when nothing in the engine states the neck area
+    /// at a grain contact. A layout written by a freezing event
+    /// (`Recipe::Granular`, see `World::assess_surface`) is a rock whose grains
+    /// grew into each other, and it keeps the strength Griffith gives it. Ground
+    /// — a `Recipe::Tiled` surface — with no such event anywhere up its
+    /// ancestry was laid down and never bonded, and what holds a grain of it is
+    /// its own weight. Grown and built things are not ground: their joints are
+    /// explicit and carry their own bonds.
+    pub fn is_loose(&self, idx: NodeIdx) -> bool {
+        if idx.is_none() || idx.get() >= self.tree.nodes.len() {
+            return false;
+        }
+        let tiled = matches!(
+            self.tree.nodes[idx.get()].morphology.as_ref().and_then(|m| m.recipe.as_ref()),
+            Some(crate::recipe::Recipe::Tiled(_))
+        );
+        if !tiled {
+            return false;
+        }
+        let mut at = idx;
+        while !at.is_none() {
+            if matches!(
+                self.tree.nodes[at.get()].morphology.as_ref().and_then(|m| m.recipe.as_ref()),
+                Some(crate::recipe::Recipe::Granular(_))
+            ) {
+                return false;
+            }
+            at = self.tree.nodes[at.get()].parent;
+        }
+        true
+    }
+
+    /// The stress it takes to lift a grain of a loose node's ground, Pa, or
+    /// `None` for ground that is not loose (`World::is_loose`).
+    ///
+    /// Its weight in the fluid over it, tipped out of its pocket
+    /// (`erode::loose_grain_threshold`), and — where its pores hold liquid and
+    /// air both — the menisci between its grains (`erode::capillary_cohesion`).
+    /// Which of dry, damp and drowned it is, is read off its own state: the
+    /// liquid it holds against the pore space its solid leaves at its packing.
+    /// Less liquid than pore space is damp; more is water standing over it,
+    /// and no meniscus survives that.
+    pub fn loose_grain_strength(
+        &self,
+        idx: NodeIdx,
+        material: &crate::material::Material,
+        fluid_density: f64,
+    ) -> Option<f64> {
+        if !self.is_loose(idx) {
+            return None;
+        }
+        let n = &self.tree.nodes[idx.get()];
+        let mix = &n.matter.mixture;
+        let (mut solid_mass, mut solid_volume) = (0.0, 0.0);
+        let (mut liquid_mass, mut liquid_volume, mut tension) = (0.0, 0.0, 0.0);
+        for p in mix.entries() {
+            let Some(sub) = self.substances.get(p.substance) else { continue };
+            let Some(c) = crate::eos::Condensed::of(&sub.props, p.phase) else { continue };
+            let m = p.fraction * n.matter.mass;
+            match p.phase {
+                crate::chem::Phase::Solid => {
+                    solid_mass += m;
+                    solid_volume += m / c.rest_density;
+                }
+                crate::chem::Phase::Liquid => {
+                    liquid_mass += m;
+                    liquid_volume += m / c.rest_density;
+                    tension += m * crate::erode::surface_tension(&sub.props);
+                }
+                _ => {}
+            }
+        }
+        if !(solid_volume > 0.0) {
+            return None;
+        }
+        let grain_density = solid_mass / solid_volume;
+        let packing = (material.density / grain_density).clamp(1e-3, crate::erode::CLOSE_PACKING);
+        let g = n.gravity.norm();
+        let pores = solid_volume * (1.0 / packing - 1.0);
+        let damp = liquid_volume > 0.0 && liquid_volume < pores;
+        let buoyancy = if damp { 0.0 } else { fluid_density };
+        let weight = crate::erode::loose_grain_threshold(grain_density, buoyancy, g, material.flaw_size, packing);
+        let menisci = if damp && liquid_mass > 0.0 {
+            crate::erode::capillary_cohesion(tension / liquid_mass, material.flaw_size, packing)
+        } else {
+            0.0
+        };
+        Some(weight + menisci)
     }
 
     /// Distance from the primary observer to a node — the light-travel distance
