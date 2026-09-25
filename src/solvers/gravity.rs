@@ -495,6 +495,7 @@ pub fn step_leapfrog(bodies: &mut [Body], dt: f64, params: GravityParams) -> Sol
         before,
         after,
         non_mechanical_energy: 0.0,
+        unrest: 0.0,
     }
 }
 

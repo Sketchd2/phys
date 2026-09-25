@@ -381,10 +381,12 @@ fn two_touching_things_reach_the_same_temperature() {
     );
     assert!(conductive > 10.0 * radiative, "touching, conduction is what carries the heat");
 
-    // The solver heats every parcel by viscosity as it moves, and that is not
-    // the exchange. A condensed pressure does not depend on temperature, so a
-    // control with the hot parcel at 300 K follows the same trajectories to
-    // the bit, and the difference between the two is the heat that crossed.
+    // Measured against a control with the hot parcel at 300 K, so that
+    // anything else the solve does to the cold parcel's temperature appears in
+    // both runs and the difference is the heat that crossed. A packed solid is
+    // not solved as a fluid (`World::advance_node`), and before that was so the
+    // control was what kept SPH's viscous heating out of the answer; it is
+    // kept because the assertion should not depend on which is true.
     let cold_after = |hot: f64| {
         let mut w = ball_of(0xC0D, substances::silica_arrangement(), Phase::Solid, 0.10, 64);
         let root = w.tree.root;
@@ -429,5 +431,155 @@ fn two_touching_things_reach_the_same_temperature() {
     assert!((hot - cold).abs() < 0.01 * 600.0);
     // A rock's diffusivity is about 1e-6 m^2/s, so 3 cm takes minutes.
     assert!(tau > 30.0 && tau < 3000.0, "{tau} s is not a rock's diffusion time");
+}
+
+
+/// **Buoyancy**, which §4.3 lists beside a water level as what a free surface
+/// is for — and a floor under it, for what does not float.
+///
+/// Two balls go into a bucket of water: one half as dense as water, one twice
+/// as dense. The water meets each as a wall and every push it gives comes back
+/// to the ball, so each is held up by exactly the pressure the water puts on
+/// it; nothing here writes Archimedes down. He says the light one floats with
+/// its centre on the water line and the heavy one goes to the bottom, and the
+/// test is where each comes to rest.
+#[test]
+fn one_ball_floats_half_under_and_one_sinks_to_the_floor() {
+    use phys::math::v3;
+    let mut w = a_bucket(0xF10A7, 0.5, 600.0, 6000);
+    let key = w.tree.nodes.iter().find(|n| n.alive && n.morphology.is_some()).unwrap().key;
+    let bucket =
+        phys::ids::NodeIdx(w.tree.nodes.iter().position(|n| n.alive && n.key == key).unwrap() as u32);
+    w.pace_realtime();
+    let rest = w.tree.nodes[bucket.get()].rest_density;
+    let mask = w.tree.nodes[bucket.get()].structural_mask().unwrap();
+    let water: Vec<usize> = (0..mask.len()).filter(|&i| !mask[i]).collect();
+    let (spacing, surface, floor) = {
+        let b = &w.tree.nodes[bucket.get()].bodies;
+        let spacing = (b[water[0]].mass / rest).cbrt();
+        let surface = water.iter().map(|&i| b[i].pos.z).fold(f64::NEG_INFINITY, f64::max) + 0.5 * spacing;
+        let floor = (0..mask.len())
+            .filter(|&i| mask[i])
+            .map(|i| b[i].pos.z + b[i].half.z)
+            .fold(f64::INFINITY, f64::min);
+        (spacing, surface, floor)
+    };
+    let radius: f64 = 0.15;
+    let volume = 4.0 / 3.0 * std::f64::consts::PI * radius.powi(3);
+    let oak = w.substances.intern(substances::cellulose_arrangement()).unwrap();
+    let mut mix = Mixture::new();
+    mix.add(oak, Phase::Solid, 1.0);
+    let composition = mix.composition(&w.substances).0;
+
+    let mut balls = Vec::new();
+    for (x, ratio) in [(-0.24, 0.5), (0.24, 2.0)] {
+        let at = v3(x, 0.0, surface);
+        let mass = ratio * rest * volume;
+        // The parcel nearest where the ball goes becomes it.
+        let slot = {
+            let b = &w.tree.nodes[bucket.get()].bodies;
+            *water
+                .iter()
+                .filter(|&&i| w.tree.nodes[bucket.get()].children.get(i).map(|c| c.is_none()).unwrap_or(true))
+                .min_by(|&&p, &&q| (b[p].pos - at).norm().total_cmp(&(b[q].pos - at).norm()))
+                .unwrap()
+        };
+        let spec = SampleSpec::new(4, Profile::Uniform, MassSpectrum::Equal, BodyKind::Grain);
+        let ball = w.tree.promote(bucket, slot, spec);
+        {
+            let n = &mut w.tree.nodes[ball.get()];
+            n.matter = Matter::neutral(mass, radius, 290.0, composition);
+            n.motion.offset = at;
+            n.motion.velocity = phys::math::Vec3::ZERO;
+        }
+        w.set_mixture(ball, mix);
+        // Its size was authored, and a tier follows size.
+        w.tree.retier(ball);
+        balls.push((ball, slot, ratio, mass));
+    }
+    {
+        // Whatever water the balls now occupy is laid as one more layer on the
+        // surface, clear of both, to find its level from there. The balls'
+        // own parcels become the balls, so the bucket's mass is what the balls
+        // were given rather than what those parcels were: the test authors it.
+        let centres: Vec<phys::math::Vec3> = balls.iter().map(|(b, ..)| w.tree.nodes[b.get()].motion.offset).collect();
+        let slots: Vec<usize> = balls.iter().map(|(_, s, ..)| *s).collect();
+        let b = &mut w.tree.nodes[bucket.get()].bodies;
+        let across = (0.9 / spacing).floor() as usize;
+        let mut spot = 0usize;
+        for &i in &water {
+            if slots.contains(&i) || !centres.iter().any(|c| (b[i].pos - *c).norm() < radius + 0.5 * spacing) {
+                continue;
+            }
+            loop {
+                let (a, c) = (spot % across, spot / across);
+                spot += 1;
+                let p = v3(-0.45 + (a as f64 + 0.5) * spacing, -0.45 + (c as f64 + 0.5) * spacing, surface + 0.5 * spacing);
+                if centres.iter().all(|q| (p - *q).norm() > radius + spacing) {
+                    b[i].pos = p;
+                    break;
+                }
+            }
+        }
+    }
+    // Somebody is watching, which is what makes the scheduler advance it; and a
+    // generous wall-clock allowance, because this test is about the physics and
+    // the scheduler would otherwise honestly defer what this machine cannot fit
+    // in a twentieth of a second.
+    w.add_observer(phys::observe::Observer {
+        anchor: bucket,
+        offset: v3(0.0, -2.0, 0.5),
+        look: v3(0.0, 1.0, -0.2),
+        angular_resolution: 1e-3,
+        ..Default::default()
+    });
+    for _ in 0..50 {
+        w.step_frame(5_000_000.0);
+    }
+
+    // Where the water stands now, measured off the water itself: the median
+    // height of its surface layer — every parcel with nothing above it — plus
+    // the half cell it stands for. The median, because one parcel riding a
+    // ripple is not the water line.
+    let nb = &w.tree.nodes[bucket.get()];
+    let parcels: Vec<phys::math::Vec3> = nb
+        .bodies
+        .iter()
+        .enumerate()
+        .filter(|(i, _)| !mask.get(*i).copied().unwrap_or(true) && nb.children.get(*i).map(|c| c.is_none()).unwrap_or(true))
+        .map(|(_, b)| b.pos)
+        .collect();
+    let mut top: Vec<f64> = parcels
+        .iter()
+        .filter(|a| {
+            !parcels.iter().any(|b| {
+                let d = *b - **a;
+                d.z > 0.25 * spacing && (d.x * d.x + d.y * d.y).sqrt() < 0.5 * spacing
+            })
+        })
+        .map(|p| p.z)
+        .collect();
+    top.sort_by(|a, b| a.total_cmp(b));
+    let line = top[top.len() / 2] + 0.5 * spacing;
+    for (ball, _, ratio, _) in &balls {
+        let n = &w.tree.nodes[ball.get()];
+        let (z, v) = (n.motion.offset.z, n.motion.velocity.norm());
+        // The fraction of the ball below the line, from the cap it cuts.
+        let depth = (line - (z - radius)).clamp(0.0, 2.0 * radius);
+        let under = std::f64::consts::PI * depth * depth * (3.0 * radius - depth) / 3.0 / volume;
+        println!(
+            "  a ball {ratio}x as dense as water: centre {:.4} m above the floor, {:.4} below the \
+             water line, {under:.3} of it under, moving at {v:.4} m/s",
+            z - floor,
+            line - z
+        );
+        assert_eq!(n.parent, bucket, "it left the bucket");
+        assert!(v < 0.05, "still moving at {v} m/s");
+        if *ratio < 1.0 {
+            assert!((under - ratio).abs() < 0.1, "floats with {under} of it under, not {ratio}");
+        } else {
+            assert!((z - floor - radius).abs() < 0.25 * spacing, "rests {:.4} m above the floor", z - floor - radius);
+        }
+    }
 }
 

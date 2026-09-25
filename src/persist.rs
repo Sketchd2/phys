@@ -1153,6 +1153,8 @@ pub(crate) fn get_node_payload(r: &mut Reader) -> Result<Node> {
         gravity: r.vec3()?,
         contains_edit: r.bool()?,
         rest_density: r.f64()?,
+        // A measurement of the last solve, and a reloaded node has not had one.
+        unrest: 0.0,
         // Derived from the node's own contents, and regenerated on first use.
         // Storing it would be storing a derived value — the same reason
         // `last_report` is not written.

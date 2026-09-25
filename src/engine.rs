@@ -414,6 +414,39 @@ pub enum PaceMode {
     Fixed,
 }
 
+/// How fast a liquid's contents move, or will once they are let go: the
+/// greater of `sqrt(2 g H)` for a column of depth `H` in a field `g`, the
+/// liquid's bulk motion, and the fastest thing driving it — `drivers`, the
+/// walls that move with a body through it. Weakly-compressible SPH runs a
+/// liquid at ten times this, and the scheduler and the solver have to agree on
+/// it — see `World::signal_speed_of`.
+///
+/// **Bulk motion is the rms speed, not the fastest parcel.** The sound speed
+/// is the stiffness, so taking it from the fastest parcel is a feedback: one
+/// parcel squirting from between a sinking ball and a floor stiffened the whole
+/// bucket, which threw it faster, which stiffened it further — measured, from
+/// 4.8 m/s to 147 m/s in two frames. WCSPH's own rule is that the sound speed
+/// comes from the scene's velocity scale, not from its noise.
+pub fn flow_scale<'a>(
+    bodies: impl Iterator<Item = &'a crate::state::Body>,
+    field: crate::math::Vec3,
+    spacing: f64,
+    drivers: f64,
+) -> f64 {
+    let g = field.norm();
+    let (mut lo, mut hi, mut sum, mut mass) = (f64::INFINITY, f64::NEG_INFINITY, 0.0, 0.0);
+    for b in bodies {
+        let h = if g > 0.0 { -b.pos.dot(field) / g } else { 0.0 };
+        lo = lo.min(h);
+        hi = hi.max(h);
+        sum += b.mass * b.vel.norm2();
+        mass += b.mass;
+    }
+    let depth = if hi >= lo { (hi - lo).max(spacing) } else { spacing };
+    let bulk = if mass > 0.0 { (sum / mass).sqrt() } else { 0.0 };
+    bulk.max(drivers).max((2.0 * g * depth).sqrt())
+}
+
 /// The world.
 pub struct World {
     pub tree: Tree,
@@ -1954,7 +1987,30 @@ impl World {
             // thermal motion into the bodies already, so where a sound speed is
             // meaningful it is in here anyway.
             let v = n.bodies.iter().map(|b| b.vel.norm()).fold(0.0f64, f64::max);
-            return if v > 0.0 { h / v } else { f64::INFINITY };
+            let moving = if v > 0.0 { h / v } else { f64::INFINITY };
+            // **And anything out of balance, which speeds alone cannot see.**
+            // Contents at rest under a net force cover a resolution element in
+            // `sqrt(2 h / a)` from standing still. Measured without this: a
+            // ball put in a bucket of water was coasted for four seconds and
+            // the bucket never solved once, because nothing in it was moving
+            // yet. Not yet measured is infinite, which is due now.
+            let pushed = if n.unrest > 0.0 { (2.0 * h / n.unrest).sqrt() } else { f64::INFINITY };
+            // **A thing standing in a liquid is coupled to it at the liquid's
+            // signal speed**, through a wall whose spring rings in `gap / c`
+            // (`hydro::Wall`). The child moves on its own clock between the
+            // parent's solves, so a liquid coasted while a child in it moves is
+            // a child sinking into water nobody is solving. Measured: a ball
+            // coasted two frames into a coasted bucket, and the next solve
+            // found parcels a spacing inside it and threw it out at 14.5 m/s.
+            let coupled = if n.matter.mixture.in_phase(crate::chem::Phase::Liquid) > 0.0
+                && n.children.iter().any(|c| !c.is_none())
+            {
+                let c = self.signal_speed_of(idx);
+                if c > 0.0 { h / c } else { f64::INFINITY }
+            } else {
+                f64::INFINITY
+            };
+            return moving.min(pushed).min(coupled);
         }
         n.matter.characteristic_time(n.matter.radius)
     }
@@ -2034,7 +2090,7 @@ impl World {
         }
         let n = &self.tree.nodes[idx.get()];
         let flow = n.bodies.iter().map(|b| b.vel.norm()).fold(0.0f64, f64::max);
-        self.resolution_floor(self.sound_speed_of(idx).max(flow))
+        self.resolution_floor(self.signal_speed_of(idx).max(flow))
     }
 
     /// The equation of state a node's matter answers to, from what it is made
@@ -2058,6 +2114,61 @@ impl World {
             return 0.0;
         }
         self.eos_of(idx).sound_speed(&self.tree.nodes[idx.get()].matter)
+    }
+
+    /// Speed at which a disturbance crosses a node's contents *as they are
+    /// being solved*, m/s: [`World::sound_speed_of`], except for a liquid,
+    /// which weakly-compressible SPH runs at ten times its flow scale
+    /// (`flow_scale`), capped at its own sound speed.
+    ///
+    /// **The scheduler has to ask this and not the physical speed**, because it
+    /// is what sets the step the solver can take. Measured with the physical
+    /// one: a bucket of 1200 parcels was priced at 1569 m/s, `advance_to` cut
+    /// each frame into 6765 calls of a few microseconds, and a frame took 21 s
+    /// of which the solve needed 0.4. It is also §3.7's second response to the
+    /// resolution floor, which is the reason WCSPH was chosen: the floor for a
+    /// liquid moves with the speed the liquid is actually integrated at.
+    pub fn signal_speed_of(&self, idx: NodeIdx) -> f64 {
+        let physical = self.sound_speed_of(idx);
+        if idx.is_none() || idx.get() >= self.tree.nodes.len() {
+            return physical;
+        }
+        let n = &self.tree.nodes[idx.get()];
+        if !(n.matter.mixture.in_phase(crate::chem::Phase::Liquid) > 0.0) {
+            // A solid carries no signal a fluid solver has to follow: packed, it
+            // is rigid and not solved as a fluid at all (`advance_node`);
+            // below its rest density it presses with nothing and its parcels
+            // move ballistically. §3.5: solids escape the floor.
+            if !n.matter.gas_law_applies() && self.eos_of(idx).condensed().is_some() {
+                return 0.0;
+            }
+            return physical;
+        }
+        if n.bodies.is_empty() {
+            return physical;
+        }
+        let mask = n.structural_mask();
+        let eos = if mask.is_some() {
+            crate::eos::Eos::of_loose(&n.matter.mixture, &self.substances)
+        } else {
+            crate::eos::Eos::of_matter(&n.matter, &self.substances)
+        };
+        let Some(c) = eos.condensed() else { return physical };
+        let field = if mask.is_some() { n.gravity } else { crate::math::Vec3::ZERO };
+        let loose = n.bodies.iter().enumerate().filter(|(i, _)| {
+            !mask.as_ref().map(|m| m.get(*i).copied().unwrap_or(false)).unwrap_or(false)
+                && n.children.get(*i).map(|c| c.is_none()).unwrap_or(true)
+        });
+        let first = loose.clone().next().map(|(_, b)| b.mass).unwrap_or(0.0);
+        let spacing = if c.rest_density > 0.0 { (first / c.rest_density).cbrt() } else { 0.0 };
+        let drivers = n
+            .children
+            .iter()
+            .filter(|c| !c.is_none())
+            .map(|c| self.tree.nodes[c.get()].motion.velocity.norm())
+            .fold(0.0f64, f64::max);
+        let scale = flow_scale(loose.map(|(_, b)| b), field, spacing, drivers);
+        (10.0 * scale).min(c.sound_speed(c.rest_density))
     }
 
     /// May this node be resolved at the pace the world is currently running?
@@ -2659,6 +2770,32 @@ impl World {
     ///
     /// Returns how many nodes were carried rather than solved. It is nearly all
     /// of them, nearly every frame, and that is the point.
+    /// Carry each of a node's promoted children that is behind it on the world
+    /// clock up to it, as [`Self::coast_to`] carries everything at the end of a
+    /// frame. See the call in `advance_node`.
+    fn coast_children(&mut self, idx: NodeIdx) {
+        let horizon = self.tree.nodes[idx.get()].time;
+        let children = self.tree.nodes[idx.get()].children.clone();
+        for c in children {
+            if c.is_none() || !self.tree.nodes[c.get()].alive {
+                continue;
+            }
+            let n = &mut self.tree.nodes[c.get()];
+            let dt = horizon - n.time;
+            if !(dt > 0.0) {
+                continue;
+            }
+            n.motion.advance(dt);
+            n.time = horizon;
+            let key = n.key;
+            let physical = self.time_rate_of(c).physical();
+            if let Some(clock) = self.clocks.get_mut(&key) {
+                clock.time = horizon;
+                clock.proper_time += dt * physical;
+            }
+        }
+    }
+
     fn coast_to(&mut self, horizon: f64) -> usize {
         let mut coasted = 0;
         for i in 0..self.tree.nodes.len() {
@@ -2708,7 +2845,7 @@ impl World {
         let flow = n.bodies.iter().map(|b| b.vel.norm()).fold(0.0f64, f64::max);
         // The signal crosses at the speed the node's *own* equation of state
         // gives it, not the gas law's: see `World::sound_speed_of`.
-        let signal = self.sound_speed_of(idx).max(flow);
+        let signal = self.signal_speed_of(idx).max(flow);
         let spacing = n.matter.radius / (parts.max(1) as f64).cbrt();
         let crossing = if signal > 0.0 && signal.is_finite() { spacing / signal } else { f64::INFINITY };
         let mut natural = n
@@ -2757,6 +2894,17 @@ impl World {
         // The child is the real thing and its body is a stand-in, so the solver
         // has to see where the child actually is before it computes anything.
         // See `Tree::sync_children`.
+        // **A child that is behind its parent's clock is carried up to it
+        // first**, the way the frame's coast would carry it at the end. The
+        // child owns where it is (D4), and it moves at its own velocity between
+        // its own solves; a parent solved many times in a frame used to see it
+        // where it stood at its own last clock for all of them, while its
+        // velocity took every push the parent gave it and its position took
+        // none. Measured: a ball in a bucket of water was frozen through fifty
+        // of the bucket's solves, then carried a whole frame at once, and was
+        // thrown out at 14.5 m/s. Carrying it in the parent's steps is the same
+        // coast, in finer pieces.
+        self.coast_children(idx);
         let promoted = self.tree.sync_children(idx);
         let before = self.tree.stand_in_velocities(idx, &promoted);
 
@@ -2833,15 +2981,29 @@ impl World {
         // nothing ordered in it is held up by the fluid around it, which is
         // outside the node, and gets no uniform field: that keeps every gas
         // node the engine already had exactly as it was.
-        let (walls, field) = match &ordered {
+        //
+        // A member is a slab where the generator stated one and a beam from its
+        // base to its tip otherwise — a body alone is a sphere or a box, and a
+        // branch is neither.
+        let (mut walls, field) = match &ordered {
             Some(mask) => {
                 let n = &self.tree.nodes[idx.get()];
+                let topo = n.topology.as_ref();
                 let walls: Vec<solvers::hydro::Wall> = n
                     .bodies
                     .iter()
+                    .enumerate()
                     .zip(mask.iter())
                     .filter(|(_, o)| **o)
-                    .map(|(b, _)| solvers::hydro::Wall::of(b))
+                    .map(|((i, b), _)| {
+                        let beam = topo.and_then(|t| Some((*t.base.get(i)?, *t.tip.get(i)?)));
+                        match beam {
+                            Some((base, tip)) if !b.is_boxed() && (tip - base).norm() > 0.0 => {
+                                solvers::hydro::Wall::capsule(base, tip, b.radius)
+                            }
+                            _ => solvers::hydro::Wall::of(b),
+                        }
+                    })
                     .collect();
                 (walls, n.gravity)
             }
@@ -2853,6 +3015,26 @@ impl World {
         let liquid_node = self.tree.nodes[idx.get()].matter.mixture.in_phase(crate::chem::Phase::Liquid) > 0.0;
         let stand_in: Vec<bool> =
             self.tree.nodes[idx.get()].children.iter().map(|c| !c.is_none()).collect();
+        // **A packed solid is not a fluid, whether or not anything built it.**
+        // `docs/PLAY.md` §3.5: solids escape the resolution floor, and it binds
+        // free fluid only. A structure's members were already kept from the
+        // tier solver by §3.3's dispatch; a sampled lump of solid — a rock, a
+        // wooden ball — had no topology to say so and went through SPH at its
+        // own elastic sound speed, which since it has an equation of state is
+        // the real one: 11 km/s for wood, cutting a frame into 23,000 solves of
+        // four bodies that did not move. Its motion is the node's, and inside
+        // it there is nothing for the tier solver to do. Anything with a
+        // promoted child in it is left to the solver, which is how the child
+        // feels its parent.
+        let rigid = {
+            let n = &self.tree.nodes[idx.get()];
+            !liquid_node
+                && ordered.is_none()
+                && !stand_in.iter().any(|s| *s)
+                && matches!(solvers::for_tier(tier), SolverKind::Hydro)
+                && crate::eos::Eos::of_matter(&n.matter, &self.substances).condensed().is_some()
+                && crate::sampler::is_packed(&n.matter, n.rest_density)
+        };
 
         let bodies = &mut self.tree.nodes[idx.get()].bodies;
         // Solve the disordered contents in place where there are no ordered
@@ -2894,6 +3076,9 @@ impl World {
         // as a node that is not there.
         let report = if count == 0 {
             solvers::SolveReport::default()
+        } else if rigid {
+            // Nothing inside it to integrate, and the whole span covered.
+            solvers::SolveReport { dt_used: dt, ..Default::default() }
         } else {
             match solvers::for_tier(tier) {
             SolverKind::Gravity | SolverKind::GravityHydro => {
@@ -2965,6 +3150,20 @@ impl World {
                 // node's radius over its count: a liquid parcel sits where its
                 // rest density puts it (`sampler::packed_positions`), and the
                 // kernel has to span its neighbours rather than the node.
+                // **A solid child standing in the fluid is a wall to it**, and
+                // takes back every push it gives: see `hydro::Wall`. Only where
+                // the node holds a liquid — a stand-in in a gas keeps the
+                // pairwise coupling it has always had.
+                if liquid_node {
+                    for (k, e) in eos.iter().enumerate() {
+                        let slot = if partitioned { loose_of[k] } else { k };
+                        if stand_in.get(slot).copied().unwrap_or(false) && priced(e) {
+                            let mut w = solvers::hydro::Wall::of(&bodies[k]);
+                            w.owner = Some(k as u32);
+                            walls.push(w);
+                        }
+                    }
+                }
                 let spacing = {
                     let (mut m, mut k) = (0.0, 0usize);
                     let mut rest = 0.0;
@@ -2982,16 +3181,23 @@ impl World {
                     (k > 0 && m > 0.0).then(|| (m / k as f64 / (rest / m)).cbrt())
                 };
                 if liquid_node {
-                    let g = field.norm();
-                    let (lo, hi) = bodies
+                    let drivers = walls
                         .iter()
-                        .zip(eos.iter())
-                        .filter(|(_, e)| priced(e))
-                        .map(|(b, _)| if g > 0.0 { -b.pos.dot(field) / g } else { 0.0 })
-                        .fold((f64::INFINITY, f64::NEG_INFINITY), |(a, z), h| (a.min(h), z.max(h)));
-                    let depth = (hi - lo).max(spacing.unwrap_or(0.0));
-                    let fastest = bodies.iter().map(|b| b.vel.norm()).fold(0.0f64, f64::max);
-                    let scale = fastest.max((2.0 * g * depth).sqrt());
+                        .filter_map(|w| w.owner)
+                        .map(|o| bodies[o as usize].vel.norm())
+                        .fold(0.0f64, f64::max);
+                    let scale = flow_scale(
+                        bodies
+                            .iter()
+                            .enumerate()
+                            .filter(|(k, _)| !walls.iter().any(|w| w.owner == Some(*k as u32)))
+                            .zip(eos.iter())
+                            .filter(|(_, e)| priced(e))
+                            .map(|((_, b), _)| b),
+                        field,
+                        spacing.unwrap_or(0.0),
+                        drivers,
+                    );
                     for (k, e) in eos.iter_mut().enumerate() {
                         let slot = if partitioned { loose_of[k] } else { k };
                         if stand_in.get(slot).copied().unwrap_or(false) {
@@ -3032,7 +3238,7 @@ impl World {
                 // that cannot afford the whole span covers the part it can
                 // integrate stably, reports it in `dt_used`, and lets the
                 // shortfall become lateness the scheduler can see.
-                let stable = solvers::hydro::courant_dt_with(bodies, params, 0.3, &eos).max(1e-30);
+                let stable = solvers::hydro::courant_dt_with(bodies, params, 0.3, &eos, &walls).max(1e-30);
                 let wanted = (dt / stable).ceil();
                 let substeps = (wanted.clamp(1.0, MAX_SUBSTEPS as f64) as u32).max(1);
                 let h = (dt / substeps as f64).min(stable);
@@ -3046,6 +3252,7 @@ impl World {
                         total.steps += r.steps;
                         total.interactions += r.interactions;
                         total.non_mechanical_energy += r.non_mechanical_energy;
+                        total.unrest = r.unrest;
                     }
                 }
                 total.dt_used = h * substeps as f64;
@@ -3091,6 +3298,11 @@ impl World {
             SolverKind::Statistical => self.advance_statistical(idx, dt),
             }
         };
+
+        // What the solve left out of balance, for contents held in a field —
+        // the only case where it is not zero at rest. See `Node::unrest`.
+        self.tree.nodes[idx.get()].unrest =
+            if field != crate::math::Vec3::ZERO && report.unrest.is_finite() { report.unrest } else { 0.0 };
 
         // Reported once the solver has let go of the bodies. See the
         // `SolverKind::Hydro` arm for what this means and why it is reported
@@ -3644,18 +3856,32 @@ impl World {
                     // `tip` and a cross-section radius, and the sphere at the
                     // midpoint is 164x shorter than the beam the renderer draws.
                     // This is the side a limb landing on a tree strikes.
+                    //
+                    // **Unless the recipe stated a box**, which is what a
+                    // panel, a slab of ground or a floor is. The beam through a
+                    // bucket's floor has the floor's seam for a radius, and a
+                    // ball sinking through the water found it 4 cm under the
+                    // floor's top — and went through. A stated solid is its own
+                    // shape, and `Body::hull` is what turns one into geometry.
                     let member = n.topology.as_ref().and_then(|t| {
                         let i = k as usize;
                         let r = t.joints.get(i)?.radius;
+                        if r > 0.0 && b.is_boxed() {
+                            return Some(b.hull());
+                        }
                         let (base, tip) = (*t.base.get(i)?, *t.tip.get(i)?);
                         (r > 0.0 && (tip - base).norm2() > 0.0)
                             .then(|| crate::shape::Hull::capsule(base, tip, r))
                     });
+                    // A member of a structure whose contents carry the node's
+                    // weight is held by the same support that weight assumes,
+                    // so a contact meets it as immovable: see `held` below.
+                    let mass = if n.gravity != crate::math::Vec3::ZERO { f64::INFINITY } else { b.mass };
                     match member {
                         Some(h) => Side::shaped(
                             pos,
                             b.vel,
-                            b.mass,
+                            mass,
                             b.heat_capacity(),
                             mine?,
                             vec![h],
@@ -3704,12 +3930,47 @@ impl World {
             Some((occ, side))
         };
 
+        // Which of this node's bodies are liquid it holds loose — the parcels
+        // weakly-compressible SPH couples to a solid child through the child's
+        // own wall (`hydro::Wall`).
+        let liquid_loose: Option<Vec<bool>> = {
+            let n = &self.tree.nodes[idx.get()];
+            (n.matter.mixture.in_phase(crate::chem::Phase::Liquid) > 0.0).then(|| {
+                let mask = n.structural_mask();
+                (0..n.bodies.len())
+                    .map(|k| !mask.as_ref().map(|m| m[k]).unwrap_or(false))
+                    .collect()
+            })
+        };
+
         let mut resolved = 0u64;
         let now = self.time;
         for (i, j) in overlaps {
             let (Some((oa, a)), Some((ob, b))) = (side_of(self, i), side_of(self, j)) else {
                 continue;
             };
+            // **And a solid child in a liquid is the solver's already.** The
+            // parcels meet it as a wall and give every push back, which is its
+            // buoyancy and its drag; an impulse here as well would couple it
+            // twice. Measured before this line: 371 contacts resolved between
+            // a floating ball and the water holding it up, on top of the
+            // pressure that was holding it up.
+            if let Some(loose) = &liquid_loose {
+                let pair = match (oa, ob) {
+                    (Occupant::Child(c), Occupant::Body(k)) | (Occupant::Body(k), Occupant::Child(c)) => {
+                        Some((c, k))
+                    }
+                    _ => None,
+                };
+                if let Some((c, k)) = pair {
+                    let solid = crate::eos::Eos::of_matter(&self.tree.nodes[c.get()].matter, &self.substances)
+                        .condensed()
+                        .is_some();
+                    if solid && loose.get(k as usize).copied().unwrap_or(false) {
+                        continue;
+                    }
+                }
+            }
             // Two bodies of the same node are not in contact, they are in it
             // *together*, and whatever couples them is already running: the
             // structure solver if the node is a structure, the tier's own
@@ -3730,6 +3991,49 @@ impl World {
             if matches!((oa, ob), (Occupant::Body(_), Occupant::Body(_))) {
                 continue;
             }
+            // **A member held by its structure takes no velocity from a
+            // contact.** In a node whose contents carry its weight, the frame
+            // is held up by definition — that is what makes the weight a
+            // weight — and a member is the structure doing the holding. Giving
+            // it the impulse instead handed a bucket's floor panel a velocity
+            // nothing ever integrates: every contact split its impulse with a
+            // floor that appeared to recede, and a ball resting on it gained
+            // downward speed without end. The momentum goes to the support, as
+            // the momentum gravity adds comes from it.
+            let held = |o: Occupant| match o {
+                Occupant::Body(k) => {
+                    self.tree.nodes[idx.get()].gravity != crate::math::Vec3::ZERO
+                        && self.tree.nodes[idx.get()]
+                            .topology
+                            .as_ref()
+                            .and_then(|t| t.joints.get(k as usize))
+                            .map(|j| j.radius > 0.0)
+                            .unwrap_or(false)
+                }
+                _ => false,
+            };
+            let (held_a, held_b) = (held(oa), held(ob));
+            // **And against what holds it, a child is moved out of the
+            // overlap.** An impulse removes the approach and leaves the overlap
+            // where it was; for a thing resting in a field, each solve adds
+            // `g dt` of approach back and the overlap deepens by that every
+            // time — measured, a ball twice as dense as water came to the floor
+            // of a bucket, took 378 contacts and went through it. A child owns
+            // where it is, so the child moves. Only against a held member,
+            // because that is where momentum already goes to the support:
+            // between two free things a shift of position would move `sum r x
+            // p`, and a contact between them conserves that exactly.
+            if held_a != held_b {
+                if let Some((depth, axis)) = crate::neighbourhood::overlap(&a, &b) {
+                    let (child, sign) = if held_a { (ob, 1.0) } else { (oa, -1.0) };
+                    if let Occupant::Child(ch) = child {
+                        if !ch.is_none() {
+                            let n = &mut self.tree.nodes[ch.get()];
+                            n.motion.offset = n.motion.offset + axis.scale(sign * depth);
+                        }
+                    }
+                }
+            }
             let Some(c) = contact(&a, &b) else { continue };
             let total = c.normal + c.friction;
             if !total.is_finite() {
@@ -3737,9 +4041,21 @@ impl World {
             }
             // `a` takes the negative of every impulse `b` takes. Written this
             // way round so momentum conservation is a property of the code
-            // rather than something a test has to keep watch on.
-            apply_contact(self, idx, oa, total.scale(-1.0), c.spin_a, c.heat_a, now);
-            apply_contact(self, idx, ob, total, c.spin_b, c.heat_b, now);
+            // rather than something a test has to keep watch on — and a held
+            // member's share goes to its support, with its heat still arriving:
+            // what the contact did not give back is made at the interface,
+            // whoever is holding what.
+            let zero = crate::math::Vec3::ZERO;
+            if held_a {
+                apply_contact(self, idx, oa, zero, zero, c.heat_a, now);
+            } else {
+                apply_contact(self, idx, oa, total.scale(-1.0), c.spin_a, c.heat_a, now);
+            }
+            if held_b {
+                apply_contact(self, idx, ob, zero, zero, c.heat_b, now);
+            } else {
+                apply_contact(self, idx, ob, total, c.spin_b, c.heat_b, now);
+            }
             resolved += 1;
         }
         self.stats.contacts_resolved += resolved;
@@ -3962,6 +4278,7 @@ impl World {
             before,
             after,
             non_mechanical_energy: released,
+            unrest: 0.0,
         }
     }
 

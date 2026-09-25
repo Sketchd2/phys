@@ -37,6 +37,14 @@ pub struct SolveReport {
     /// mechanical — radiative cooling, fusion, decay. Subtracted before the
     /// conservation check, and reported so nothing hides in it.
     pub non_mechanical_energy: f64,
+    /// The largest net acceleration the solve left on anything it moved,
+    /// m/s^2. Zero for contents in balance, whatever forces are on them.
+    ///
+    /// A cadence built from speeds alone never solves contents at rest, and a
+    /// thing at rest under an unbalanced force is not at rest for long: a ball
+    /// put in a bucket of water was coasted for four seconds with the bucket
+    /// never solved once. See `World::node_cadence`.
+    pub unrest: f64,
 }
 
 impl SolveReport {

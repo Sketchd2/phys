@@ -786,6 +786,18 @@ pub struct Collision {
     pub heat_b: f64,
 }
 
+/// How far two sides overlap and along which direction, from `a` to `b`,
+/// they part — or `None` where they do not.
+///
+/// What [`contact`] does not report: a pair already separating has no impulse
+/// to resolve and may still interpenetrate, which is what resting in a field
+/// looks like between one solve's push and the next. `World::contact_within`
+/// moves a child out of what holds it with this; see there.
+pub fn overlap(a: &Side, b: &Side) -> Option<(f64, Vec3)> {
+    let (near, _, _) = crate::shape::nearest_of(&a.shape, &b.shape)?;
+    (near.gap < 0.0 && near.normal.is_finite()).then_some((-near.gap, near.normal))
+}
+
 /// Resolve an overlap into an impulse pair.
 ///
 /// Returns `None` when there is nothing to resolve: the two are separating

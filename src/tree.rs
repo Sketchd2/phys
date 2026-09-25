@@ -169,6 +169,16 @@ pub struct Node {
     /// Pa — and a client regenerating the node holds no registry to derive it
     /// from.
     pub rest_density: f64,
+    /// The largest net acceleration the node's last solve left on its loose
+    /// contents, m/s^2, or infinity for "not yet measured".
+    ///
+    /// Only ever not zero for contents that are held in a field by something
+    /// in their own node — water in a bucket, litter on the ground — since that
+    /// is the only case where contents at rest can be out of balance: see
+    /// `World::node_cadence`. Marked unknown where such a node is drawn or has
+    /// something promoted into it, and measured by its next solve. Not
+    /// persisted; a reloaded node is drawn again and measured again.
+    pub unrest: f64,
     /// A deliberate, unphysical multiplier on how fast this node's *interior*
     /// runs, and its whole subtree's with it.
     ///
@@ -490,6 +500,7 @@ impl Tree {
             pinned: false,
             contains_edit: false,
             rest_density: 0.0,
+            unrest: 0.0,
             bubble: 1.0,
             alive: true,
             morphology: None,
@@ -631,7 +642,14 @@ impl Tree {
             .worst_conservation_error
             .max(report.conservation_error);
         self.reconcile_children(i, bodies.len());
+        // Contents held in a field by a structure are drawn near balance, not
+        // in it — measured, a bucket's water drawn against its walls peaked at
+        // 0.72 m/s settling — so they are solved until they say otherwise.
+        let loose = topo.as_ref().map(|t| {
+            (0..bodies.len()).any(|k| t.joints.get(k).map(|j| j.radius <= 0.0).unwrap_or(true))
+        });
         let n = &mut self.nodes[i.get()];
+        n.unrest = if gravity != Vec3::ZERO && loose == Some(true) { f64::INFINITY } else { 0.0 };
         n.bodies = bodies;
         n.topology = topo;
         n.potential = report.potential;
@@ -646,6 +664,11 @@ impl Tree {
     /// invented at this step — invention happens when the child is refined.
     pub fn promote(&mut self, i: NodeIdx, slot: usize, spec: SampleSpec) -> NodeIdx {
         self.refine(i);
+        // A new thing among contents held in a field is a new balance to find.
+        // See `Node::unrest`.
+        if self.nodes[i.get()].gravity != Vec3::ZERO && self.nodes[i.get()].topology.is_some() {
+            self.nodes[i.get()].unrest = f64::INFINITY;
+        }
         {
             let n = &self.nodes[i.get()];
             if slot >= n.bodies.len() {
@@ -741,6 +764,7 @@ impl Tree {
             contains_edit: false,
             // Drawn from the parent, so made of what the parent is made of.
             rest_density: self.nodes[i.get()].rest_density,
+            unrest: 0.0,
             bubble: 1.0,
             alive: true,
             morphology: None,
@@ -2365,6 +2389,7 @@ impl Tree {
             pinned: true,
             contains_edit: false,
             rest_density: self.nodes[i.get()].rest_density,
+            unrest: 0.0,
             bubble: self.nodes[i.get()].bubble,
             alive: true,
             morphology: None,

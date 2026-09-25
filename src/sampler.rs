@@ -1559,10 +1559,14 @@ pub fn sample_structured_in(
         None
     };
     if let Some((spots, each)) = laid {
+        // A parcel of liquid is the cell it fills, so it carries that cell's
+        // equivalent radius — a promoted parcel takes its tier from it, and a
+        // radius of zero made one a nucleus.
+        let cell = (each / setting.rest_density).cbrt() * (3.0 / (4.0 * std::f64::consts::PI)).cbrt();
         for p in spots {
             pos_all.push(p);
             masses.push(each);
-            radii_all.push(0.0);
+            radii_all.push(cell);
             comps.push(matter.composition);
         }
     } else if residual > 0.0 && residual_frac > 1e-12 {

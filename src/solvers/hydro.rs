@@ -82,28 +82,70 @@ impl Default for HydroParams {
     }
 }
 
-/// Something solid the fluid cannot enter: a sphere of `radius`, or a box of
-/// `half`-extents turned by `orientation`, in the node's frame. What a node's
-/// own ordered members present to its loose contents.
+/// Something solid the fluid cannot enter, in the node's frame: a sphere of
+/// `radius`, a capsule of `radius` about the segment `centre +- axis`, or a box
+/// of `half`-extents turned by `orientation`. What a node's ordered members,
+/// and the stand-ins for its solid children, present to its loose contents.
+///
+/// `owner` is the index of the body it moves with, among the bodies being
+/// solved, for a wall that is itself one of them: a stand-in for a promoted
+/// child. Its position follows that body every substep, the body is taken out
+/// of the pairwise sums, and **every push the wall gives a parcel is given back
+/// to its owner** — so a thing standing in water is held up by exactly the
+/// pressure the water puts on it, which is what buoyancy is, and slowed by
+/// exactly the drag, with nothing written for either.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Wall {
     pub centre: Vec3,
     pub radius: f64,
     pub half: Vec3,
     pub orientation: crate::math::Quat,
+    pub axis: Vec3,
+    pub owner: Option<u32>,
 }
 
 impl Wall {
+    /// A body as a wall: its box if it states one, its sphere otherwise.
     pub fn of(b: &Body) -> Wall {
-        Wall { centre: b.pos, radius: b.radius, half: b.half, orientation: b.orientation }
+        Wall {
+            centre: b.pos,
+            radius: b.radius,
+            half: b.half,
+            orientation: b.orientation,
+            axis: Vec3::ZERO,
+            owner: None,
+        }
+    }
+
+    /// A member between two points: a structure's beam, which a body alone
+    /// cannot state because a body is a sphere or a box.
+    pub fn capsule(base: Vec3, tip: Vec3, radius: f64) -> Wall {
+        Wall {
+            centre: (base + tip).scale(0.5),
+            radius,
+            half: Vec3::ZERO,
+            orientation: crate::math::Quat::IDENTITY,
+            axis: (tip - base).scale(0.5),
+            owner: None,
+        }
+    }
+
+    /// How far from its centre anything of it reaches.
+    pub fn reach(&self) -> f64 {
+        self.radius.max(self.half.norm()) + self.axis.norm()
     }
 
     /// Signed distance from a point to the surface, and the outward normal.
     pub fn distance(&self, p: Vec3) -> (f64, Vec3) {
         let d = p - self.centre;
         if self.half == Vec3::ZERO {
-            let r = d.norm();
-            let n = if r > 0.0 { d.scale(1.0 / r) } else { crate::math::v3(0.0, 0.0, 1.0) };
+            // A sphere, or a capsule: the distance to the nearest point of
+            // its segment, less the radius.
+            let a2 = self.axis.norm2();
+            let along = if a2 > 0.0 { (d.dot(self.axis) / a2).clamp(-1.0, 1.0) } else { 0.0 };
+            let off = d - self.axis.scale(along);
+            let r = off.norm();
+            let n = if r > 0.0 { off.scale(1.0 / r) } else { crate::math::v3(0.0, 0.0, 1.0) };
             return (r - self.radius, n);
         }
         let q = self.orientation.conjugate().rotate(d);
@@ -112,7 +154,11 @@ impl Wall {
         let out = crate::math::v3(e.x.max(0.0), e.y.max(0.0), e.z.max(0.0));
         let outside = out.norm();
         let (dist, local) = if outside > 0.0 {
-            (outside, crate::math::v3(out.x * q.x.signum(), out.y * q.y.signum(), out.z * q.z.signum()).scale(1.0 / outside))
+            (
+                outside,
+                crate::math::v3(out.x * q.x.signum(), out.y * q.y.signum(), out.z * q.z.signum())
+                    .scale(1.0 / outside),
+            )
         } else {
             // Inside: the nearest face.
             let m = e.x.max(e.y).max(e.z);
@@ -325,6 +371,22 @@ pub fn step_with(
         };
     }
 
+    // A body that is a wall is taken out of the pairwise sums: the fluid meets
+    // it as a surface, not as a kernel's worth of its mass. See `Wall`.
+    let mut walls: Vec<Wall> = walls.to_vec();
+    let mut is_wall = vec![false; n];
+    for w in walls.iter_mut() {
+        if let Some(o) = w.owner {
+            match bodies.get(o as usize) {
+                // It goes where its body has gone.
+                Some(b) => {
+                    w.centre = b.pos;
+                    is_wall[o as usize] = true;
+                }
+                None => w.owner = None,
+            }
+        }
+    }
     let condensed: Vec<bool> = (0..n).map(|i| matches!(eos_at(eos, i), Eos::Condensed(_))).collect();
     let mut rho = if condensed.iter().any(|c| *c) {
         let grid = NeighbourGrid::build(bodies, 2.0 * params.h);
@@ -335,7 +397,7 @@ pub fn step_with(
             out[i] = nb
                 .iter()
                 .map(|&j| j as usize)
-                .filter(|&j| condensed[j] == condensed[i])
+                .filter(|&j| condensed[j] == condensed[i] && !is_wall[j])
                 .map(|j| bodies[j].mass * kernel((b.pos - bodies[j].pos).norm(), params.h))
                 .sum();
         }
@@ -346,12 +408,24 @@ pub fn step_with(
     // The kernel's own bias on a lattice at the spacing the rest density
     // gives, per condensed body, and then the walls' share of its sum: see
     // `beyond_plane`.
+    // Every parcel of one liquid shares a spacing, so the lattice sum is
+    // worked out once per spacing rather than once per parcel per substep.
+    let mut sums: Vec<(u64, f64)> = Vec::new();
     for i in 0..n {
         if let Eos::Condensed(c) = eos_at(eos, i) {
             let spacing = (bodies[i].mass / c.rest_density).cbrt();
-            rho[i] /= lattice_sum(params.h, spacing);
-            for w in walls {
-                if (bodies[i].pos - w.centre).norm() > w.radius.max(w.half.norm()) + 2.0 * params.h {
+            let bits = spacing.to_bits();
+            let sum = match sums.iter().find(|(b, _)| *b == bits) {
+                Some((_, v)) => *v,
+                None => {
+                    let v = lattice_sum(params.h, spacing);
+                    sums.push((bits, v));
+                    v
+                }
+            };
+            rho[i] /= sum;
+            for w in walls.iter() {
+                if w.owner == Some(i as u32) || (bodies[i].pos - w.centre).norm() > w.reach() + 2.0 * params.h {
                     continue;
                 }
                 let (d, _) = w.distance(bodies[i].pos);
@@ -378,12 +452,12 @@ pub fn step_with(
     for i in 0..n {
         grid.neighbours(bodies[i].pos, &mut nb);
         let bi = bodies[i];
-        if rho[i] <= 0.0 {
+        if rho[i] <= 0.0 || is_wall[i] {
             continue;
         }
         for &jj in nb.iter() {
             let j = jj as usize;
-            if j == i || rho[j] <= 0.0 {
+            if j == i || rho[j] <= 0.0 || is_wall[j] {
                 continue;
             }
             let bj = bodies[j];
@@ -426,36 +500,47 @@ pub fn step_with(
         }
     }
 
-    // The field, and the walls, as accelerations from outside.
-    let spacing = 0.5 * params.h / 1.3;
+    // The field, and the walls, as accelerations from outside — or, for a
+    // wall that moves with a body, from that body, which takes the reaction.
+    let gap = 0.5 * params.h / 1.3;
+    let mut pushed = vec![Vec3::ZERO; n];
     for i in 0..n {
         acc[i] += params.gravity;
-        if walls.is_empty() {
+        if walls.is_empty() || is_wall[i] {
             continue;
         }
         let p = bodies[i].pos;
-        for w in walls {
-            // Cheap reject before the exact distance.
-            let reach = w.radius.max(w.half.norm()) + spacing;
-            if (p - w.centre).norm() > reach {
+        for w in walls.iter() {
+            if w.owner == Some(i as u32) || (p - w.centre).norm() > w.reach() + gap {
                 continue;
             }
             let (d, normal) = w.distance(p);
-            if d < spacing {
+            if d < gap {
                 let c = cs[i].max(1e-30);
-                acc[i] += normal.scale(c * c * (spacing - d) / (spacing * spacing));
+                let spring = normal.scale(c * c * (gap - d) / (gap * gap));
                 // And the wall's share of the artificial viscosity. A spring
                 // with nothing to damp it rings for ever: measured, a bucket's
                 // bottom layer bounced at +-0.5 m/s for the whole of a second
                 // while the parcels above it, which the pairwise viscosity
                 // does reach, were still. A dashpot at the spring's own
                 // frequency `c / g` — damping ratio a half — against the
-                // normal velocity, and what it takes out of the motion goes
-                // into the parcel as heat, exactly as the pairwise term's does.
-                let vn = bodies[i].vel.dot(normal);
-                let damp = -(c / spacing) * vn;
-                acc[i] += normal.scale(damp);
-                du[i] += -damp * vn;
+                // velocity *relative to the wall*, and what it takes out of the
+                // motion goes into the parcel as heat, exactly as the pairwise
+                // term's does.
+                let moving = w.owner.map(|o| bodies[o as usize].vel).unwrap_or(Vec3::ZERO);
+                let vn = (bodies[i].vel - moving).dot(normal);
+                let damp = normal.scale(-(c / gap) * vn);
+                acc[i] += spring + damp;
+                if w.owner.is_none() {
+                    pushed[i] += spring;
+                }
+                du[i] += (c / gap) * vn * vn;
+                if let Some(o) = w.owner {
+                    let o = o as usize;
+                    if bodies[o].mass > 0.0 {
+                        acc[o] -= (spring + damp).scale(bodies[i].mass / bodies[o].mass);
+                    }
+                }
             }
         }
     }
@@ -467,19 +552,11 @@ pub fn step_with(
         // Work done from outside: the field and the walls, less the pairwise
         // part, which is internal and conserves. Measured on the velocity the
         // step actually moves the body with.
-        // The wall's dashpot is not in this: its work is booked as heat in
-        // `du`, which the conservation check already sees.
-        let outside = params.gravity + {
-            let mut a = Vec3::ZERO;
-            for w in walls {
-                let (d, normal) = w.distance(b.pos);
-                if d < spacing {
-                    let c = cs[i].max(1e-30);
-                    a += normal.scale(c * c * (spacing - d) / (spacing * spacing));
-                }
-            }
-            a
-        };
+        // Work done on the contents from outside them: the field, and the
+        // push of a wall nothing in the solve owns. A moving wall's push is
+        // internal — it is given back — and every dashpot's work is booked as
+        // heat in `du`, which the conservation check already sees.
+        let outside = params.gravity + pushed[i];
         b.vel += acc[i].scale(dt);
         external += b.mass * outside.dot(b.vel) * dt;
         b.pos += b.vel.scale(dt);
@@ -511,6 +588,10 @@ pub fn step_with(
         before,
         after,
         non_mechanical_energy: external - radiated,
+        // Including anything that is a wall: a ball put in water is out of
+        // balance until the water holds it, and that is precisely the thing a
+        // cadence has to see.
+        unrest: (0..n).map(|i| acc[i].norm()).fold(0.0, f64::max),
     }
 }
 
@@ -542,17 +623,28 @@ pub fn cooling_rate(t: f64, rho: f64, metallicity: f64) -> f64 {
 
 /// Courant condition, including the viscous signal speed.
 pub fn courant_dt(bodies: &[Body], params: HydroParams, cfl: f64) -> f64 {
-    courant_dt_with(bodies, params, cfl, &[])
+    courant_dt_with(bodies, params, cfl, &[], &[])
 }
 
-/// [`courant_dt`], with an equation of state per body — as [`step_with`].
-pub fn courant_dt_with(bodies: &[Body], params: HydroParams, cfl: f64, eos: &[Eos]) -> f64 {
+/// [`courant_dt`], with an equation of state per body and the walls — as
+/// [`step_with`].
+///
+/// **A body that is a wall is not a fluid parcel**, and its own sound speed is
+/// a fact about its inside, which is a different node's business. Counting it
+/// held a bucket's water to the step a wooden ball's 11 km/s asks for: 256
+/// substeps a millisecond, and a second of floating that did not finish in ten
+/// minutes. What a wall does ask of the step is its spring, `c / g` at the
+/// parcels' own speed, which the parcels' term already carries.
+pub fn courant_dt_with(bodies: &[Body], params: HydroParams, cfl: f64, eos: &[Eos], walls: &[Wall]) -> f64 {
     // A body in a field accelerates across its own smoothing length in
     // `sqrt(h / g)`, and a step longer than that lets it fall through
     // whatever holds it up.
     let g = params.gravity.norm();
     let mut dt = if g > 0.0 { cfl * (params.h / g).sqrt() } else { f64::INFINITY };
     for (i, b) in bodies.iter().enumerate() {
+        if walls.iter().any(|w| w.owner == Some(i as u32)) {
+            continue;
+        }
         let rho = b.mass / (4.0 / 3.0 * std::f64::consts::PI * params.h.powi(3));
         let c = match eos_at(eos, i) {
             Eos::Condensed(c) => c.sound_speed(rho),
