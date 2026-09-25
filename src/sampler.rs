@@ -722,6 +722,7 @@ pub fn sample_in(
         comps: sample_compositions(matter, spec, &masses_for_comp, world_seed, path_key, epoch),
         radii,
         kind: spec.kind,
+        own: crate::math::Mat3::zero(),
     };
     let bodies = close_books(matter, parts, resid, phi, random_ke_target, omega, ke_rot, scale, &mut report);
 
@@ -1219,6 +1220,11 @@ pub(crate) struct Parts {
     /// Per-part radii. Empty means "derive them from the spec".
     pub radii: Vec<f64>,
     pub kind: BodyKind,
+    /// The inertia the parts hold by turning about their own centres, summed,
+    /// so that what they carry by going round is `L - own w`. Zero for
+    /// parcels, which are points; for a structure it is the node's inertia
+    /// less the points'. See `sample_structured`.
+    pub own: crate::math::Mat3,
 }
 
 /// Project a set of parts onto the conserved-quantity constraint surface and
@@ -1241,7 +1247,7 @@ pub(crate) fn close_books(
     scale: f64,
     report: &mut SampleReport,
 ) -> Vec<Body> {
-    let Parts { pos, masses, comps, radii, kind } = parts;
+    let Parts { pos, masses, comps, radii, kind, own } = parts;
     let n = pos.len();
     let spec = SampleSpec::new(n.max(1), Profile::Uniform, MassSpectrum::Equal, kind);
     let inertia = inertia_of_slices(&pos, &masses);
@@ -1278,7 +1284,8 @@ pub(crate) fn close_books(
 
     // Targets, stated in exactly the form `summarise` will measure them.
     let p_target = matter.momentum;
-    let l_target = matter.spin;
+    // The points go round with what is not the parts' own turning.
+    let l_target = matter.spin - own.mul_vec(omega);
     let k_target = random_ke_target + crate::state::bulk_kinetic(matter.mass, matter.momentum);
 
     let mut vel = vec![Vec3::ZERO; n];
@@ -1721,9 +1728,19 @@ pub fn sample_structured_in(
     let mut st = Stream::at(world_seed, path_key, epoch, Purpose::ThermalNoise);
     let resid: Vec<Vec3> = (0..n).map(|_| st.normal3()).collect();
 
-    let inertia = inertia_of_slices(&pos, &masses);
-    let omega = inertia.solve(matter.spin).unwrap_or(Vec3::ZERO);
-    let ke_rot = 0.5 * omega.dot(matter.spin);
+    // **A structure's parts go round with it**, at the node's own angular
+    // velocity, and what that leaves of its angular momentum is the parts'
+    // own turning. Solving for the spin that points at the parts' centres
+    // would carry — which is what a cloud of parcels is — spun a planet's six
+    // faces 1.908 times faster than the ground they are made of, because a
+    // point at a face's centre of mass holds far less `r x p` than the shell it
+    // stands for; the faces slid over their own planet at 321 m/s. The parts'
+    // own turning rides in their spin (`close_books`, step 6.5), and the total
+    // is exact either way.
+    let omega = matter.angular_velocity();
+    let slices = inertia_of_slices(&pos, &masses);
+    let own = crate::math::Mat3::identity().scaled(matter.moment_of_inertia()).add(slices.scaled(-1.0));
+    let ke_rot = 0.5 * omega.dot(slices.mul_vec(omega));
 
     let member_radii = radii.clone();
     let parts = Parts {
@@ -1732,6 +1749,7 @@ pub fn sample_structured_in(
         comps,
         radii,
         kind: morph.body_kind(),
+        own,
     };
     let bodies = close_books(
         matter,

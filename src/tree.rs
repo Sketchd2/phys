@@ -198,6 +198,30 @@ pub struct Node {
     /// measured, a moon advanced 300 km per 3.6-day solve instead of 313,000.
     /// See `Tree::carry` and `Tree::position_at`.
     pub carried: f64,
+    /// The angular velocity of the frame this node is carried in between its
+    /// parent's solves, rad/s, root-aligned: its parent's spin where the parent
+    /// *holds* it, and zero where it does not.
+    ///
+    /// **Held things turn with what holds them** — the owner's decision for
+    /// Phase 5. A straight line is the exact carry for a thing no force acts
+    /// on, and wrong for one whose forces supply the centripetal of a turning
+    /// body: measured, a parcel of air neutrally buoyant over a turning Earth
+    /// that nobody solved went along its tangent to 31,800 km in a day. The
+    /// turning carry is the account of that centripetal, so a held thing's
+    /// solves apply only what its forces do beyond it.
+    ///
+    /// **What it does not carry is Coriolis.** Between solves a held thing
+    /// keeps its velocity relative to the ground, so wind and current over a
+    /// turning planet are not deflected by its turning. A first version counted
+    /// the centripetal at each solve as well — the fluid's own acceleration in
+    /// its push, and the carry's velocity change handed back — so that over any
+    /// span the forces alone decided; that is exact only where every solve
+    /// applies the true forces, and a patch of ground's solve applies no
+    /// gravity to what it holds. Measured there: a parcel of air at its own
+    /// ambient density went inward at 2.0 m/s in the first minute and 13.5 m/s
+    /// after the second solve. Set each frame by `World::hold`; see
+    /// `Tree::carry`.
+    pub turning: Vec3,
     /// A deliberate, unphysical multiplier on how fast this node's *interior*
     /// runs, and its whole subtree's with it.
     ///
@@ -522,6 +546,7 @@ impl Tree {
             unrest: 0.0,
             ocean: None,
             carried: 0.0,
+            turning: Vec3::ZERO,
             bubble: 1.0,
             alive: true,
             morphology: None,
@@ -788,6 +813,7 @@ impl Tree {
             unrest: 0.0,
             ocean: None,
             carried: self.nodes[i.get()].time,
+            turning: Vec3::ZERO,
             bubble: 1.0,
             alive: true,
             morphology: None,
@@ -1205,7 +1231,13 @@ impl Tree {
         let n = &mut self.nodes[i.get()];
         let dt = instant - n.carried;
         if dt > 0.0 && dt.is_finite() {
+            let (offset, velocity) = (n.motion.offset, n.motion.velocity);
             n.motion.advance(dt);
+            if n.turning != Vec3::ZERO {
+                let (at, v) = turning_carry(n.turning, offset, velocity, dt);
+                n.motion.offset = at;
+                n.motion.velocity = v;
+            }
             n.carried = instant;
         }
     }
@@ -1217,7 +1249,13 @@ impl Tree {
     pub fn position_at(&self, i: NodeIdx, instant: f64) -> Vec3 {
         let n = &self.nodes[i.get()];
         let dt = instant - n.carried;
-        if dt.is_finite() { n.motion.offset + n.motion.velocity.scale(dt) } else { n.motion.offset }
+        if !dt.is_finite() {
+            return n.motion.offset;
+        }
+        if n.turning != Vec3::ZERO {
+            return turning_carry(n.turning, n.motion.offset, n.motion.velocity, dt).0;
+        }
+        n.motion.offset + n.motion.velocity.scale(dt)
     }
 
     /// Free a node and everything under it.
@@ -2449,6 +2487,7 @@ impl Tree {
             unrest: 0.0,
             ocean: None,
             carried: time,
+            turning: Vec3::ZERO,
             bubble: self.nodes[i.get()].bubble,
             alive: true,
             morphology: None,
@@ -3191,6 +3230,42 @@ impl Tree {
             n.matter.cohesive_binding + n.matter.external_potential + n.matter.chemical_energy;
         total
     }
+}
+
+/// Carry a point held in a frame turning at `w` for `dt`, in either direction:
+/// where it is and how fast it is going afterwards, in the same axes.
+///
+/// Held means supported at its height: what it does *relative to the turning
+/// frame* — `u = v - w x r` — is to go round the centre along the surface at
+/// its tangential part and to change its height at its radial part, keeping
+/// both. So the relative motion is a great circle, `|u_t| dt / |r|` of arc
+/// about `r x u_t`, and the whole is then turned by `w dt`. A straight line in
+/// the turning frame would leave the curve by `(u t)^2 / 2R`: ten metres a
+/// second along the surface of an Earth gains a metre of height in six minutes
+/// and a kilometre in three hours.
+pub fn turning_carry(w: Vec3, r: Vec3, v: Vec3, dt: f64) -> (Vec3, Vec3) {
+    let u = v - w.cross(r);
+    let d = r.norm();
+    let (at, rel) = if d > 0.0 {
+        let up = r.scale(1.0 / d);
+        let radial = u.dot(up);
+        let along = u - up.scale(radial);
+        let height = d + radial * dt;
+        let s = along.norm();
+        let (dir, tangent) = if s > 0.0 {
+            let axis = up.cross(along).unit();
+            let arc = crate::math::Quat::from_rate(axis.scale(s / d), dt);
+            (arc.rotate(up), arc.rotate(along))
+        } else {
+            (up, along)
+        };
+        (dir.scale(height), tangent + dir.scale(radial))
+    } else {
+        (r + u.scale(dt), u)
+    };
+    let turn = crate::math::Quat::from_rate(w, dt);
+    let at = turn.rotate(at);
+    (at, w.cross(at) + turn.rotate(rel))
 }
 
 // ---------------------------------------------------------------------------

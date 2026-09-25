@@ -1108,6 +1108,9 @@ pub(crate) fn put_node_payload(w: &mut Writer, n: &Node) {
     w.f64(n.rest_density);
     // Where the node is has its own clock, separate from its contents'.
     w.f64(n.carried);
+    // The frame it is carried in, which a reload needs before the next frame
+    // derives it again: `catch_up` carries in it.
+    w.vec3(n.turning);
     // A tide depends on its history, so the ocean is state and is written.
     // Its grid is not: that is regenerated from `n` and the radius.
     match &n.ocean {
@@ -1118,6 +1121,8 @@ pub(crate) fn put_node_payload(w: &mut Writer, n: &Node) {
             w.f64(o.depth);
             w.f64(o.g);
             w.f64(o.drag);
+            w.f64(o.density);
+            w.f64(o.tension);
             w.f64(o.time);
             w.f64(o.owed);
             w.seq(o.cells.len());
@@ -1125,6 +1130,7 @@ pub(crate) fn put_node_payload(w: &mut Writer, n: &Node) {
                 w.f64(c.eta);
                 w.vec3(c.velocity);
                 w.f64(c.waves);
+                w.vec3(c.heading);
             }
         }
         None => w.bool(false),
@@ -1136,11 +1142,12 @@ fn get_ocean(r: &mut Reader) -> Result<Option<Box<crate::ocean::Ocean>>> {
         return Ok(None);
     }
     let n = r.u64()? as usize;
-    let (radius, depth, g, drag, time) = (r.f64()?, r.f64()?, r.f64()?, r.f64()?, r.f64()?);
-    let mut o = crate::ocean::Ocean::new(n, radius, depth, g, drag);
+    let (radius, depth, g, drag) = (r.f64()?, r.f64()?, r.f64()?, r.f64()?);
+    let (density, tension, time) = (r.f64()?, r.f64()?, r.f64()?);
+    let mut o = crate::ocean::Ocean::new(n, radius, depth, g, drag, density, tension);
     o.time = time;
     o.owed = r.f64()?;
-    let count = r.seq("ocean cells", 32)?;
+    let count = r.seq("ocean cells", 64)?;
     if count != o.cells.len() {
         return Err(crate::wire::WireError::BadRecipe { what: "ocean cells" });
     }
@@ -1148,6 +1155,7 @@ fn get_ocean(r: &mut Reader) -> Result<Option<Box<crate::ocean::Ocean>>> {
         c.eta = r.f64()?;
         c.velocity = r.vec3()?;
         c.waves = r.f64()?;
+        c.heading = r.vec3()?;
     }
     Ok(Some(Box::new(o)))
 }
@@ -1200,6 +1208,7 @@ pub(crate) fn get_node_payload(r: &mut Reader) -> Result<Node> {
         // A measurement of the last solve, and a reloaded node has not had one.
         unrest: 0.0,
         carried: r.f64()?,
+        turning: r.vec3()?,
         ocean: get_ocean(r)?,
         // Derived from the node's own contents, and regenerated on first use.
         // Storing it would be storing a derived value — the same reason
@@ -1739,19 +1748,16 @@ impl Snapshot {
     /// makes skipping the write safe rather than lossy.
     pub fn catch_up(&mut self) {
         let instant = self.time;
-        for n in self.tree.nodes.iter_mut() {
-            if !n.alive {
+        for i in 0..self.tree.nodes.len() {
+            if !self.tree.nodes[i].alive {
                 continue;
             }
-            // Where it is, in closed form; and its contents' clock where its
-            // contents are closed-form too — a node holding only matter. A
-            // node with bodies stays at the time they were solved to, and is
-            // scheduled: see `Node::carried`.
-            let dt = instant - n.carried;
-            if dt > 0.0 {
-                n.motion.advance(dt);
-                n.carried = instant;
-            }
+            // Where it is, in closed form and in the frame it is held in; and
+            // its contents' clock where its contents are closed-form too — a
+            // node holding only matter. A node with bodies stays at the time
+            // they were solved to, and is scheduled: see `Node::carried`.
+            self.tree.carry(NodeIdx(i as u32), instant);
+            let n = &mut self.tree.nodes[i];
             if n.bodies.is_empty() && n.time < instant {
                 n.time = instant;
             }
