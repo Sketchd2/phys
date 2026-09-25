@@ -457,3 +457,47 @@ fn no_node_flings_its_bodies_out_of_itself() {
         }
     }
 }
+
+/// **What may be redrawn is never left further behind than it could
+/// integrate.** A node whose contents owe a span its own physics needs more
+/// than `MAX_SUBSTEPS` steps to cover is crossed by its ensemble, and that
+/// used to happen only to a node the frame budget chose to step. The owner's
+/// decision for Phase 5 is that causality is measured on what nodes hold and
+/// that they catch up wherever the redraw is allowed, so the frame applies the
+/// same test to every node it did not solve.
+///
+/// Three unpinned children of a galaxy, a pace of 10^15 s a frame against
+/// their 3.2x10^12 s step, and a budget of one microsecond — which accepts
+/// one task and no more.
+#[test]
+fn what_may_be_redrawn_is_never_left_behind() {
+    let mut w = World::new(galaxy(0x9E77, 1e9), 20.0);
+    w.tree.nodes[0].spec.count = 400;
+    let root = w.tree.root;
+    w.tree.refine(root);
+    let mut kids = Vec::new();
+    for slot in [3, 7, 11] {
+        let mut spec = default_spec(Tier::Galactic.finer());
+        spec.count = 64;
+        let c = w.tree.promote(root, slot, spec);
+        w.tree.refine(c);
+        assert!(w.forgettable(c), "the test needs children that may be redrawn");
+        kids.push(c);
+    }
+    w.pace_fixed(1.0e15);
+    w.step_frame(1.0);
+    let behind: Vec<_> = kids
+        .iter()
+        .filter(|c| {
+            let n = &w.tree.nodes[c.get()];
+            n.alive && n.time < w.time
+        })
+        .collect();
+    println!(
+        "  {} of 3 children behind the world at {:.3e} s; {} crossed by ensemble",
+        behind.len(),
+        w.time,
+        w.stats.ensembled
+    );
+    assert!(behind.is_empty(), "children that may be redrawn were left owing a span they cannot integrate");
+}

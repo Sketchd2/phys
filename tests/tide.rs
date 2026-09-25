@@ -12,6 +12,8 @@ use phys::math::v3;
 use phys::sampler::{MassSpectrum, Profile, SampleSpec};
 use phys::state::{BodyKind, Composition, Matter};
 use phys::tree::Tree;
+use phys::morph::{Morphology, Program};
+use phys::recipe::{Granular, Recipe};
 use phys::units::Tier;
 
 const EARTH: f64 = 5.972e24;
@@ -140,4 +142,36 @@ fn the_tide_comes_in_twice_a_lunar_day() {
     assert!(lost.abs() < 1e-12, "water was made or lost");
     assert!((period - lunar_day / 2.0).abs() < 0.03 * lunar_day / 2.0, "the tide is not semidiurnal: {period} s");
     assert!(amplitude > 0.1 * equilibrium && amplitude < 10.0 * equilibrium);
+}
+
+/// **A seabed is rough with the grain its own freezing laid down** — the
+/// owner's decision for Phase 5 — and with the flaw scale only where nothing
+/// froze. The same Earth twice: once as it is, with no freezing on its record,
+/// and once carrying the layout a silicate melt freezes to in
+/// `tests/accretion.rs`, a 1.662 cm grain.
+#[test]
+fn a_frozen_seabed_is_rough_with_its_own_grain() {
+    let grain = 1.662e-2;
+    let (mut bare, earth) = earth_and_moon(0x5EAB, 1.4e21);
+    assert!(bare.assess_ocean(earth));
+    let flaw = bare.tree.nodes[earth.get()].ocean.as_ref().unwrap().drag;
+
+    let (mut frozen, earth) = earth_and_moon(0x5EAB, 1.4e21);
+    {
+        let key = frozen.tree.nodes[earth.get()].key;
+        let seed = frozen.tree.world_seed;
+        let mut m = Morphology::new(Program::Terrain, seed, key.0, 0);
+        m.recipe = Some(Recipe::Granular(Granular { grain, density: 5514.0, side: 1.0e7 }));
+        frozen.tree.nodes[earth.get()].morphology = Some(m);
+    }
+    assert!(frozen.assess_ocean(earth));
+    let o = frozen.tree.nodes[earth.get()].ocean.as_ref().unwrap();
+    println!(
+        "  seabed drag {:.3e} from a {grain:.3e} m grain, against {flaw:.3e} from the flaw scale ({:.3e} m)",
+        o.drag,
+        bare.seabed_grain(earth)
+    );
+    assert_eq!(frozen.seabed_grain(earth), grain);
+    assert_eq!(o.drag, phys::ocean::log_law_drag(o.depth, grain));
+    assert!(o.drag < 0.1 * flaw, "a grain-rough bed should drag far less than a kilometre-rough one");
 }

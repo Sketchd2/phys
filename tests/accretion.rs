@@ -32,6 +32,19 @@ use phys::state::{BodyKind, Composition, Matter, Spread};
 use phys::tree::Tree;
 use phys::units::*;
 
+/// A frame budget at which the scheduler defers nothing, microseconds.
+///
+/// **The owner's decision for Phase 5.** Phase 4 ran this collapse at 20 ms and
+/// left the starved budget open because the test passed either way, while the
+/// planet it printed was a property of the machine — frame 76, 86 or 87, the
+/// radius moving 5% between runs. Under Phase 5's rule that no node is left
+/// unsolved, only scheduled, it stopped passing either way: at 20 ms one task
+/// fits a frame, the sun won it every frame, the ball was not integrated once
+/// in fifty, and when the span it owed passed what it could integrate it was
+/// redrawn from its equilibrium and never collapsed at all. At this budget
+/// nothing is deferred, which both tests assert.
+const GENEROUS_US: f64 = 1.0e8;
+
 /// A star, and a loose ball of rock in orbit at one astronomical unit.
 ///
 /// The ball is stated the way a scenario states anything: a mass, a size, a
@@ -104,7 +117,7 @@ fn a_loose_ball_of_matter_in_orbit_becomes_a_planet() {
     let mut became: Option<(usize, f64)> = None;
     let mut smallest = f64::INFINITY;
     for frame in 0..200 {
-        w.step_frame(20_000.0);
+        w.step_frame(GENEROUS_US);
         film.take(&w);
         let size = size_of(&w, ball);
         smallest = smallest.min(size);
@@ -119,6 +132,7 @@ fn a_loose_ball_of_matter_in_orbit_becomes_a_planet() {
         );
     }
 
+    assert_eq!(w.stats.tasks_deferred, 0, "the scheduler deferred work, so this measures the machine");
     let (frame, size) = became.expect("the ball never became a planet");
     let n = &w.tree.nodes[ball.get()];
     let density = n.matter.mass / (4.0 / 3.0 * std::f64::consts::PI * n.matter.radius.powi(3));
@@ -147,11 +161,11 @@ fn a_loose_ball_of_matter_in_orbit_becomes_a_planet() {
     // goes.** Phase 4 stopped a planet at random loose packing, 1743 kg/m^3,
     // because what squeezes one further is an equation of state for a solid;
     // Phase 5 derived one (`eos::Condensed::solid`) and `compacted_radius`
-    // balances it against the planet's own weight. Measured: a binding
-    // structure constant of 0.594 against a uniform sphere's 0.6, which that
-    // balance turns into about 1.45x10^11 Pa at the centre and 3683 kg/m^3 —
-    // above silica's own 2644, and short of Earth's 5514, which takes an iron
-    // core this ball does not have.
+    // balances it against the planet's own weight. Measured: the ball is
+    // assessed at frame 9 with a binding of 0.2715 GM^2/R — less bound than a
+    // uniform sphere's 0.6 — and compacts to 2814 kg/m^3, above silica's own
+    // 2644 and short of Earth's 5514, which takes an iron core this ball does
+    // not have.
     let rest = w.eos_of(ball).condensed().map(|c| c.rest_density).expect("a ball of rock is condensed");
     assert!(
         density > rest && density < 5514.0,
@@ -177,12 +191,13 @@ fn the_planet_it_became_has_ground_under_the_recipe() {
         ..Default::default()
     });
     for _ in 0..200 {
-        w.step_frame(20_000.0);
+        w.step_frame(GENEROUS_US);
         if w.tree.nodes[ball.get()].morphology.is_some() {
             break;
         }
     }
     assert!(w.tree.nodes[ball.get()].morphology.is_some(), "it never became a planet");
+    assert_eq!(w.stats.tasks_deferred, 0, "the scheduler deferred work, so this measures the machine");
 
     // The rule is a handful of numbers, and the collapse's two hundred and
     // fifty-six bodies are not in it.

@@ -1144,14 +1144,6 @@ impl World {
         // Earth's worth of silicate, against the 2644 its own substance is.
         let radius = self.compacted_radius(idx, radius);
 
-        // **And then it compacts.** What passed the test above is a pile whose
-        // own weight exceeds what its grains can carry, so the grains give: the
-        // pores close, and past full density the solid itself is squeezed until
-        // its equation of state carries the weight. Without this a planet
-        // stopped where its grains jammed — measured at 1743 kg/m^3 for an
-        // Earth's worth of silicate, against the 2644 its own substance is.
-        let radius = self.compacted_radius(idx, radius);
-
         let key = self.tree.nodes[idx.get()].key;
         let seed = self.tree.world_seed;
         let mut m = crate::morph::Morphology::new(crate::morph::Program::Terrain, seed, key.0, 0);
@@ -2802,7 +2794,30 @@ impl World {
             if !self.tree.nodes[i].alive {
                 continue;
             }
-            self.tree.carry(NodeIdx(i as u32), horizon);
+            let idx = NodeIdx(i as u32);
+            self.tree.carry(idx, horizon);
+            let owed = horizon - self.tree.nodes[i].time;
+            // **What it holds catches up wherever it is allowed to.** The
+            // owner's rule for Phase 5 measures causality on what a node holds,
+            // and a node whose contents are further behind than its own physics
+            // could ever integrate is the gate `advance_to` applies — except
+            // that one only runs for a node the budget chose. A node it never
+            // chose went on owing: measured before this, three unpinned
+            // children of a galaxy paced at 1e15 s a frame against their
+            // 3.2e12 s step, on a budget that accepts one task, left two of
+            // them at t = 0. So the same test, against the same step, for
+            // everything the frame did not solve. A node that may not be
+            // redrawn — pinned, edited, bubbled, holding children — stays
+            // behind and is what `check_causality` reports; so is one that
+            // could integrate its span and was simply not chosen, which is
+            // scheduled and ranked by its lateness.
+            if owed > 0.0 && !self.tree.nodes[i].bodies.is_empty() {
+                let h0 = self.node_dt(idx) / self.local_rate(idx);
+                if h0 > 0.0 && h0.is_finite() && owed / h0 > MAX_SUBSTEPS as f64 && self.forgettable(idx) {
+                    self.stats.ensembled += 1;
+                    self.thermalise(idx, horizon);
+                }
+            }
             let n = &mut self.tree.nodes[i];
             let dt = horizon - n.time;
             if !(dt > 0.0) || !n.bodies.is_empty() {
@@ -5368,12 +5383,40 @@ impl World {
             return false;
         }
         let g = crate::units::G * mass / (radius * radius);
-        let grain = self.material_of(idx).map(|m| m.flaw_size).unwrap_or(0.0);
+        let grain = self.seabed_grain(idx);
         let drag = crate::ocean::log_law_drag(depth, grain);
         let mut ocean = crate::ocean::Ocean::new(OCEAN_CELLS, radius, depth, g, drag);
         ocean.time = self.tree.nodes[idx.get()].time;
         self.tree.nodes[idx.get()].ocean = Some(Box::new(ocean));
         true
+    }
+
+    /// The grain an ocean's bed is rough with, metres.
+    ///
+    /// **The grain the ground's own freezing laid down, where it froze** — the
+    /// owner's decision for Phase 5. A seabed is rough with what it is made
+    /// of, and what a melt is made of once it has frozen is the grain
+    /// `derive_frozen_layout` wrote into its `Recipe::Granular`, found on the
+    /// node or anywhere up its ancestry the way `is_loose` finds it. Where no
+    /// freezing event ever happened there is no grain to read, and the flaw
+    /// scale `Material::measured` derives stands in: for a planet nobody saw
+    /// freeze that is the deposited increment, 3.9 km on an Earth, which
+    /// describes how the planet was laid down rather than its bed. Measured on
+    /// that Earth: a drag of 2.57e-2 from the flaw against 7.56e-4 from the
+    /// 1.66 cm grain a silicate melt froze to in `tests/accretion.rs`.
+    pub fn seabed_grain(&self, idx: NodeIdx) -> f64 {
+        let mut at = idx;
+        while !at.is_none() {
+            if let Some(crate::recipe::Recipe::Granular(g)) =
+                self.tree.nodes[at.get()].morphology.as_ref().and_then(|m| m.recipe.as_ref())
+            {
+                if g.grain > 0.0 && g.grain.is_finite() {
+                    return g.grain;
+                }
+            }
+            at = self.tree.nodes[at.get()].parent;
+        }
+        self.material_of(idx).map(|m| m.flaw_size).unwrap_or(0.0)
     }
 
     /// The equilibrium elevation of each cell of a node's ocean — the tidal
@@ -6419,6 +6462,18 @@ impl World {
 
     /// Largest causality violation between any two materialised nodes: the
     /// invariant the scheduler exists to protect.
+    ///
+    /// **Measured on what the nodes hold** — `Node::time`, not
+    /// `Node::carried` — which is the owner's decision for Phase 5. Where a
+    /// node is, is carried to the world instant every frame and cannot be
+    /// skewed; what it holds is behind for as long as it waits to be solved,
+    /// and catches up by its ensemble wherever it may be redrawn (`coast_to`).
+    /// A node that may not — pinned, edited, bubbled, holding children — and
+    /// that its own physics cannot carry at the world's pace stays behind,
+    /// and this is where it shows. Measured in `phys-demo`: a pinned Atomic
+    /// node of 56 bodies at 2.4e-17 s in a world paced at 8.9e7 s a frame,
+    /// 5.5e12 s behind a neighbour, where the coasting this replaced reported
+    /// zero by relabelling frozen contents as current.
     pub fn check_causality(&self) -> f64 {
         let live: Vec<NodeIdx> = (0..self.tree.nodes.len())
             .map(|i| NodeIdx(i as u32))
