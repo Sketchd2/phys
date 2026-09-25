@@ -1104,6 +1104,8 @@ pub(crate) fn put_node_payload(w: &mut Writer, n: &Node) {
     // `PLAY.md` D19: a node whose *descendant* was changed, which is a
     // different claim from `pinned` and must not be recovered as one.
     w.bool(n.contains_edit);
+    // An input to regeneration, like `gravity`: see `Node::rest_density`.
+    w.f64(n.rest_density);
 }
 
 pub(crate) fn get_node_payload(r: &mut Reader) -> Result<Node> {
@@ -1150,6 +1152,7 @@ pub(crate) fn get_node_payload(r: &mut Reader) -> Result<Node> {
         // `potential`: struct literal fields evaluate in the order written.
         gravity: r.vec3()?,
         contains_edit: r.bool()?,
+        rest_density: r.f64()?,
         // Derived from the node's own contents, and regenerated on first use.
         // Storing it would be storing a derived value — the same reason
         // `last_report` is not written.

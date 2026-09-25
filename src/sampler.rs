@@ -42,6 +42,7 @@
 //! for the energy scale `s` in closed form instead of iterating.
 
 use crate::math::{det_sum_by, det_sum_v3_by, Vec3};
+use std::collections::HashMap;
 use crate::rng::{Purpose, Stream};
 use crate::state::{mutual_gravitational_energy, Matter, Body, BodyKind, Composition};
 use crate::units::*;
@@ -203,6 +204,276 @@ pub fn sample(
     path_key: u128,
     epoch: u32,
 ) -> (Vec<Body>, SampleReport) {
+    sample_in(matter, spec, world_seed, path_key, epoch, Setting::default())
+}
+
+/// What a node is sitting in, as far as how its contents lie is concerned:
+/// the field it is in and the density its condensed matter has at rest.
+///
+/// Both are stored on the node (`Node::gravity`, `Node::rest_density`) and
+/// travel in a recipe, because they are inputs to regeneration and a client
+/// holding part of a tree cannot derive either.
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+pub struct Setting {
+    pub gravity: Vec3,
+    pub rest_density: f64,
+}
+
+/// Where random loose packing sits: the fraction of a volume a pile of equal
+/// grains fills when poured, and where a pile stops flowing and starts carrying
+/// load. A universal of sphere packing, in the same family as Turnbull's 0.45.
+pub const RANDOM_LOOSE_PACKING: f64 = 0.55;
+
+/// Whether matter is condensed and packed: a liquid or a solid at a bulk
+/// density its own grains or molecules are touching at.
+///
+/// A ball of silicate grains falling in to make a planet is condensed and is
+/// *not* packed — 179 kg/m^3 against 2644 — and its draw is the cloud it is.
+pub fn is_packed(matter: &Matter, rest_density: f64) -> bool {
+    rest_density > 0.0
+        && !matter.gas_law_applies()
+        && matter.density() >= RANDOM_LOOSE_PACKING * rest_density
+}
+
+/// Lay `n` parcels of a packed condensed phase on a cubic lattice at the
+/// spacing its rest density gives each, filling from the bottom.
+///
+/// **A liquid's positions are not a Poisson draw.** Measured, 64 parcels of
+/// water drawn independently in a sphere put their SPH densities at 0.86 to 2.3
+/// times rest, and Tait turns 2.3 into 10^11 Pa; the draw was an explosion
+/// before any solver ran. A liquid is close-packed and the density it has is
+/// the one its molecules touch at, so the parcels go where that density puts
+/// them: `(m / rho)^(1/3)` apart.
+///
+/// **And a liquid lies at the bottom.** With a field, candidates are taken
+/// lowest first along it, so the top of the draw is flat and level: that is
+/// the free surface, and its height is where the liquid's own volume puts it
+/// given what else is in the way. With no field, or for a solid, they are
+/// taken nearest the centre first, which is a ball.
+///
+/// `excluded` says where something already is — a structure's members — so a
+/// liquid laid into a recipe fills around them rather than through them.
+/// `within` bounds the region the node owns. Deterministic: candidates are
+/// ordered by a total key with the lattice index as the last tie-break.
+pub fn packed_positions(
+    n: usize,
+    spacing: f64,
+    within: f64,
+    gravity: Vec3,
+    liquid: bool,
+    excluded: &dyn Fn(Vec3) -> bool,
+) -> Vec<Vec3> {
+    if n == 0 || !(spacing > 0.0) || !(within > 0.0) {
+        return Vec::new();
+    }
+    let down = if liquid && gravity.norm() > 0.0 { Some(gravity.scale(1.0 / gravity.norm())) } else { None };
+    // Grow the region until it holds enough candidates: a node denser than
+    // its own rest density (compressed) needs more room than its radius, and
+    // one with things in the way needs the room they take.
+    let mut reach = within;
+    for _ in 0..16 {
+        let k = (reach / spacing).ceil() as i64;
+        let mut cand: Vec<(f64, f64, i64, Vec3)> = Vec::new();
+        let mut index = 0i64;
+        for ix in -k..=k {
+            for iy in -k..=k {
+                for iz in -k..=k {
+                    index += 1;
+                    let p = crate::math::v3(ix as f64, iy as f64, iz as f64).scale(spacing);
+                    if p.norm() > reach || excluded(p) {
+                        continue;
+                    }
+                    let (first, second) = match down {
+                        // Height against the field first, then distance off its
+                        // axis, so a basin fills level and from the middle.
+                        Some(d) => (-p.dot(d), (p - d.scale(p.dot(d))).norm()),
+                        None => (p.norm(), 0.0),
+                    };
+                    cand.push((first, second, index, p));
+                }
+            }
+        }
+        if cand.len() >= n {
+            cand.sort_by(|a, b| {
+                a.0.total_cmp(&b.0).then(a.1.total_cmp(&b.1)).then(a.2.cmp(&b.2))
+            });
+            return cand.into_iter().take(n).map(|c| c.3).collect();
+        }
+        reach *= 1.25;
+    }
+    Vec::new()
+}
+
+/// Where a liquid laid into a structure may lie: on top of whatever the
+/// structure stacks beneath it.
+///
+/// A height map over the plane perpendicular to the field, one cell per parcel
+/// spacing, holding the highest top of any part whose footprint covers the
+/// cell. A point is open where a footprint covers it and it is above that top.
+///
+/// **Not "not inside a part".** That rule was tried first and laid a patch's
+/// water *under* the patch — 1.03 m below its ground, in the space beneath the
+/// slab — because the slab is a slab and the space under it is empty in the
+/// recipe. For ground that space is more ground, and beside the slab is the
+/// next patch. A bucket is the same rule: its floor's footprint covers its
+/// inside, and its walls stack above it.
+///
+/// What it does not do is put a liquid *under* an overhang, which a real one
+/// can flow into. That is a statement about where the draw lays it, and the
+/// solver is free to carry it there.
+struct Ground {
+    down: Vec3,
+    u: Vec3,
+    v: Vec3,
+    cell: f64,
+    tops: HashMap<(i64, i64), f64>,
+}
+
+/// One solid a [`Ground`] is built from: a box, or a capsule.
+enum Solid {
+    Box { centre: Vec3, half: Vec3, orientation: crate::math::Quat },
+    Capsule { base: Vec3, tip: Vec3, radius: f64 },
+}
+
+impl Solid {
+    /// Every solid a structure states: an assembly's parts where it has them
+    /// (a part is a box or a sphere and says so), and the skeleton's members
+    /// otherwise — a slab where the generator emitted one, and a capsule from
+    /// base to tip where it did not. `Assembly::render` hands each part back as
+    /// a beam with an equal-area radius, and reading that as the part's shape
+    /// made a bucket's floor a 0.126 m ball at its own centre.
+    fn of(morph: &crate::morph::Morphology, skel: &crate::morph::Skeleton) -> Vec<Solid> {
+        if let Some(a) = morph.assembly() {
+            return a
+                .parts
+                .iter()
+                .map(|p| {
+                    if p.is_boxed() {
+                        Solid::Box { centre: p.pos, half: p.half, orientation: p.orientation }
+                    } else {
+                        Solid::Capsule { base: p.pos, tip: p.pos, radius: p.radius }
+                    }
+                })
+                .collect();
+        }
+        (0..skel.pos.len())
+            .map(|i| {
+                let half = skel.half.get(i).copied().unwrap_or(Vec3::ZERO);
+                if half != Vec3::ZERO {
+                    Solid::Box {
+                        centre: skel.pos[i],
+                        half,
+                        orientation: skel.orientation.get(i).copied().unwrap_or(crate::math::Quat::IDENTITY),
+                    }
+                } else {
+                    Solid::Capsule { base: skel.base[i], tip: skel.tip[i], radius: skel.radius[i] }
+                }
+            })
+            .collect()
+    }
+
+    /// Its centre, and how far it reaches along a direction.
+    fn centre(&self) -> Vec3 {
+        match self {
+            Solid::Box { centre, .. } => *centre,
+            Solid::Capsule { base, tip, .. } => (*base + *tip).scale(0.5),
+        }
+    }
+
+    fn reach(&self, dir: Vec3) -> f64 {
+        match self {
+            Solid::Box { half, orientation, .. } => {
+                let q = *orientation;
+                half.x * q.rotate(crate::math::v3(1.0, 0.0, 0.0)).dot(dir).abs()
+                    + half.y * q.rotate(crate::math::v3(0.0, 1.0, 0.0)).dot(dir).abs()
+                    + half.z * q.rotate(crate::math::v3(0.0, 0.0, 1.0)).dot(dir).abs()
+            }
+            Solid::Capsule { base, tip, radius } => 0.5 * (*tip - *base).dot(dir).abs() + radius,
+        }
+    }
+}
+
+impl Ground {
+    fn of(solids: &[Solid], gravity: Vec3, spacing: f64) -> Ground {
+        let g = gravity.norm();
+        let down = if g > 0.0 { gravity.scale(1.0 / g) } else { crate::math::v3(0.0, 0.0, -1.0) };
+        let seed = if down.x.abs() < 0.9 { crate::math::v3(1.0, 0.0, 0.0) } else { crate::math::v3(0.0, 1.0, 0.0) };
+        let w = seed.cross(down);
+        let u = w.scale(1.0 / w.norm());
+        let v = down.cross(u);
+        let mut tops: HashMap<(i64, i64), f64> = HashMap::new();
+        for solid in solids {
+            let c = solid.centre();
+            let top = -c.dot(down) + solid.reach(down);
+            let (cu, cv) = (c.dot(u), c.dot(v));
+            let (ru, rv) = (solid.reach(u), solid.reach(v));
+            let (i0, i1) = (((cu - ru) / spacing).floor() as i64, ((cu + ru) / spacing).ceil() as i64);
+            let (j0, j1) = (((cv - rv) / spacing).floor() as i64, ((cv + rv) / spacing).ceil() as i64);
+            for a in i0..i1 {
+                for b in j0..j1 {
+                    let e = tops.entry((a, b)).or_insert(f64::NEG_INFINITY);
+                    *e = e.max(top);
+                }
+            }
+        }
+        Ground { down, u, v, cell: spacing, tops }
+    }
+
+    /// Lay `n` parcels on this ground, lowest first: in every covered cell, a
+    /// column standing on that cell's own top, a half spacing up and then one
+    /// spacing apart — so the bottom layer rests on the ground wherever the
+    /// ground is, rather than wherever a lattice fixed to the node happened to
+    /// cross it. A lattice was tried first and left a bucket's water 1.4
+    /// spacings above its floor, to fall the difference when first solved.
+    ///
+    /// Taken within `within` of the node's centre, widening if that does not
+    /// hold enough. Deterministic: the order is height, then distance from the
+    /// field's axis through the centre, then the cell.
+    fn lay(&self, n: usize, within: f64) -> Vec<Vec3> {
+        let s = self.cell;
+        let mut reach = within;
+        for _ in 0..16 {
+            let mut cand: Vec<(f64, f64, (i64, i64, i64), Vec3)> = Vec::new();
+            let mut cells: Vec<(&(i64, i64), &f64)> = self.tops.iter().collect();
+            cells.sort_by(|a, b| a.0.cmp(b.0));
+            for (&(a, b), &top) in cells {
+                let (cu, cv) = ((a as f64 + 0.5) * s, (b as f64 + 0.5) * s);
+                let across = (cu * cu + cv * cv).sqrt();
+                if across > reach {
+                    continue;
+                }
+                let mut k = 0i64;
+                loop {
+                    let height = top + (k as f64 + 0.5) * s;
+                    let p = self.u.scale(cu) + self.v.scale(cv) - self.down.scale(height);
+                    if height > reach {
+                        break;
+                    }
+                    if p.norm() <= reach {
+                        cand.push((height, across, (a, b, k), p));
+                    }
+                    k += 1;
+                }
+            }
+            if cand.len() >= n {
+                cand.sort_by(|x, y| x.0.total_cmp(&y.0).then(x.1.total_cmp(&y.1)).then(x.2.cmp(&y.2)));
+                return cand.into_iter().take(n).map(|c| c.3).collect();
+            }
+            reach *= 1.25;
+        }
+        Vec::new()
+    }
+}
+
+/// [`sample`], in a setting. See [`Setting`] and [`packed_positions`].
+pub fn sample_in(
+    matter: &Matter,
+    spec: SampleSpec,
+    world_seed: u64,
+    path_key: u128,
+    epoch: u32,
+    setting: Setting,
+) -> (Vec<Body>, SampleReport) {
     // You cannot materialise more atoms than there are atoms.
     //
     // Above the molecular tier a body is a statistical stand-in and the count
@@ -233,11 +504,30 @@ pub fn sample(
     }
 
     // ---- 2. positions ---------------------------------------------------
-    let mut pos = sample_positions(spec, n, world_seed, path_key, epoch);
+    //
+    // Packed condensed matter is laid at its own spacing and not rescaled to
+    // the radius: the radius of a puddle is whatever its volume makes it. See
+    // `packed_positions`.
+    let laid = if is_packed(matter, setting.rest_density)
+        && matches!(spec.profile, Profile::Uniform | Profile::Lattice)
+    {
+        let liquid = matter.mixture.in_phase(crate::chem::Phase::Liquid)
+            >= matter.mixture.in_phase(crate::chem::Phase::Solid);
+        let spacing = (matter.mass / n as f64 / setting.rest_density).cbrt();
+        let laid = packed_positions(n, spacing, matter.radius, setting.gravity, liquid, &|_| false);
+        (laid.len() == n).then_some(laid)
+    } else {
+        None
+    };
+    let packed = laid.is_some();
+    let mut pos = match laid {
+        Some(p) => p,
+        None => sample_positions(spec, n, world_seed, path_key, epoch),
+    };
 
     // Centre so that sum m r = 0, then scale to hit the requested radius.
     recentre(&mut pos, &masses, matter.mass);
-    let mut scale = radius_scale(&pos, &masses, matter.mass, matter.radius);
+    let mut scale = if packed { 1.0 } else { radius_scale(&pos, &masses, matter.mass, matter.radius) };
     for p in pos.iter_mut() {
         *p = p.scale(scale);
     }
@@ -269,7 +559,9 @@ pub fn sample(
     let mut radii: Vec<f64> = Vec::new();
     if is_impenetrable(spec.kind) {
         radii = (0..n).map(|i| child_radius(matter, spec, masses[i], n)).collect();
-        if expected_overlapping_pairs(&radii, matter.radius) > 1e-6 {
+        // A packed lattice is already at contact spacing, and pushing it apart
+        // would rescale it back onto the radius it deliberately is not on.
+        if !packed && expected_overlapping_pairs(&radii, matter.radius) > 1e-6 {
             let mut previous = f64::INFINITY;
             for _ in 0..SEPARATION_PASSES {
                 let worst = push_apart(&mut pos, &radii, true);
@@ -1165,6 +1457,30 @@ pub fn sample_structured(
     epoch: u32,
     gravity: crate::math::Vec3,
 ) -> (Vec<Body>, crate::topology::Topology, SampleReport) {
+    sample_structured_in(
+        matter,
+        morph,
+        budget,
+        world_seed,
+        path_key,
+        epoch,
+        Setting { gravity, rest_density: 0.0 },
+    )
+}
+
+/// [`sample_structured`], in a setting: a liquid remainder is laid into the
+/// structure the way a liquid lies, rather than scattered through it. See
+/// [`packed_positions`].
+pub fn sample_structured_in(
+    matter: &Matter,
+    morph: &crate::morph::Morphology,
+    budget: usize,
+    world_seed: u64,
+    path_key: u128,
+    epoch: u32,
+    setting: Setting,
+) -> (Vec<Body>, crate::topology::Topology, SampleReport) {
+    let gravity = setting.gravity;
     let mut report = SampleReport {
         count: budget,
         ..Default::default()
@@ -1226,7 +1542,30 @@ pub fn sample_structured(
 
     // The unstructured remainder: litter, air, rubble. Sampled from the same
     // max-entropy machinery every other node uses.
-    if residual > 0.0 && residual_frac > 1e-12 {
+    // **Unless it is a liquid**, which lies at the bottom of whatever holds it
+    // at the spacing its own density gives it, and fills around the
+    // structure's parts rather than through them. What is left at the top is
+    // level, and that is a free surface: `docs/PLAY.md` §4.3's first piece,
+    // with its height derived from how much liquid there is and what shape the
+    // structure is, and nothing stored for it.
+    let liquid = matter.mixture.in_phase(crate::chem::Phase::Liquid);
+    let laid = if residual > 0.0 && setting.rest_density > 0.0 && liquid >= 0.5 * residual_frac {
+        let n_res = ((budget as f64) * litter_share).round().max(1.0) as usize;
+        let spacing = (residual / n_res as f64 / setting.rest_density).cbrt();
+        let ground = Ground::of(&Solid::of(morph, &skel_geom), gravity, spacing);
+        let p = ground.lay(n_res, matter.radius);
+        (p.len() == n_res).then_some((p, residual / n_res as f64))
+    } else {
+        None
+    };
+    if let Some((spots, each)) = laid {
+        for p in spots {
+            pos_all.push(p);
+            masses.push(each);
+            radii_all.push(0.0);
+            comps.push(matter.composition);
+        }
+    } else if residual > 0.0 && residual_frac > 1e-12 {
         let n_res = ((budget as f64) * litter_share).round().max(1.0) as usize;
         let mut st = Stream::at(world_seed, path_key, epoch, Purpose::Positions);
         let each = residual / n_res as f64;

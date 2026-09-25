@@ -219,6 +219,21 @@ impl Eos {
         })
     }
 
+    /// The equation of state of what a structure is *not* made of: the node's
+    /// liquid and gas pools, with its solids — which the structure is — left
+    /// out. A patch of ground with water on it has loose contents that are
+    /// water, and pricing them as the blend priced them at 2436 kg/m^3 of
+    /// rest density where water rests at 1653.
+    pub fn of_loose(mix: &Mixture, reg: &Registry) -> Eos {
+        let mut loose = Mixture::new();
+        for p in mix.entries() {
+            if p.phase != Phase::Solid {
+                loose.add(p.substance, p.phase, p.fraction);
+            }
+        }
+        Eos::of_mixture(&loose, reg)
+    }
+
     pub fn of_matter(m: &Matter, reg: &Registry) -> Eos {
         Eos::of_mixture(&m.mixture, reg)
     }

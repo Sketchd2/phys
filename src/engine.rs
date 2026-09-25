@@ -861,7 +861,7 @@ impl World {
     /// property of any material — the same kind of number as Turnbull's 0.45 —
     /// and what [`World::assess_surface`] uses to tell a planet from a cloud
     /// that is still falling in.
-    const RANDOM_LOOSE_PACKING: f64 = 0.55;
+    const RANDOM_LOOSE_PACKING: f64 = crate::sampler::RANDOM_LOOSE_PACKING;
 
     /// How fast this node was cooling when it last passed a temperature, K/s.
     ///
@@ -2807,7 +2807,13 @@ impl World {
         // smoothing length — they carry no pressure at all.
         let body_eos: Vec<crate::eos::Eos> = if matches!(solvers::for_tier(tier), SolverKind::Hydro) {
             let n = &self.tree.nodes[idx.get()];
-            let own = crate::eos::Eos::of_matter(&n.matter, &self.substances);
+            // A structure is its solids, so what is loose around it is the
+            // rest of the mixture.
+            let own = if ordered.is_some() {
+                crate::eos::Eos::of_loose(&n.matter.mixture, &self.substances)
+            } else {
+                crate::eos::Eos::of_matter(&n.matter, &self.substances)
+            };
             (0..n.bodies.len())
                 .map(|i| match n.children.get(i) {
                     Some(c) if !c.is_none() => {
@@ -2819,6 +2825,34 @@ impl World {
         } else {
             Vec::new()
         };
+
+        // What the loose contents can rest on, and whether they rest at all.
+        // The node's own ordered members are walls to them (`hydro::Wall`),
+        // and **contents with something inside their own node to rest on carry
+        // their own weight** — the node's stored field. A fluid region with
+        // nothing ordered in it is held up by the fluid around it, which is
+        // outside the node, and gets no uniform field: that keeps every gas
+        // node the engine already had exactly as it was.
+        let (walls, field) = match &ordered {
+            Some(mask) => {
+                let n = &self.tree.nodes[idx.get()];
+                let walls: Vec<solvers::hydro::Wall> = n
+                    .bodies
+                    .iter()
+                    .zip(mask.iter())
+                    .filter(|(_, o)| **o)
+                    .map(|(b, _)| solvers::hydro::Wall::of(b))
+                    .collect();
+                (walls, n.gravity)
+            }
+            None => (Vec::new(), crate::math::Vec3::ZERO),
+        };
+        // Whether the node holds a liquid, and which of its bodies stand in for
+        // promoted children — those answer with their own law and are not the
+        // node's liquid.
+        let liquid_node = self.tree.nodes[idx.get()].matter.mixture.in_phase(crate::chem::Phase::Liquid) > 0.0;
+        let stand_in: Vec<bool> =
+            self.tree.nodes[idx.get()].children.iter().map(|c| !c.is_none()).collect();
 
         let bodies = &mut self.tree.nodes[idx.get()].bodies;
         // Solve the disordered contents in place where there are no ordered
@@ -2898,12 +2932,11 @@ impl World {
                 //   a control of exactly 5.3572 every frame with the root not
                 //   advanced.
                 //
-                // Reported and not corrected. Correcting it needs a liquid and
-                // a solid equation of state, which is Water's second piece.
-                // What is left to report is matter the engine still cannot
+                // Phase 5 gave both an equation of state (`eos.rs`). What is
+                // left to report is matter the engine still cannot
                 // price: a stand-in or a condensed node whose substance has no
                 // condensed equation of state, which an undescribed child is.
-                let eos: Vec<crate::eos::Eos> = if partitioned {
+                let mut eos: Vec<crate::eos::Eos> = if partitioned {
                     loose_of.iter().map(|&i| body_eos[i]).collect()
                 } else {
                     body_eos.clone()
@@ -2911,8 +2944,75 @@ impl World {
                 let priced = |e: &crate::eos::Eos| matches!(e, crate::eos::Eos::Condensed(_));
                 eos_suspect = (!gas_law && !eos.iter().any(priced))
                     || (count > 0 && stand_ins >= count && !eos.iter().all(priced));
+
+                // **Weakly-compressible SPH**, `docs/PLAY.md` §4.2 and §3.7's
+                // second response to the resolution floor: a liquid's physical
+                // sound speed is replaced by one ten times the fastest thing in
+                // it — its fastest parcel, or the `sqrt(2 g H)` a column of
+                // depth `H` reaches when it falls — which keeps its density
+                // within a per cent of rest (Mach 0.1 squared) and is the
+                // standard treatment for a free surface. For a 2 m/s wave it
+                // is 20 m/s instead of 1500, and §4.2's scene goes from 30,000
+                // substeps to 80. It is an approximation with a known error
+                // bound: the liquid is a per cent more compressible than it
+                // is, and nothing else changes.
+                //
+                // Only for a liquid, and only for the node's own contents. A
+                // solid is not a free-surface flow and keeps the speed it has;
+                // a stand-in answers with its child's own law.
+                //
+                // And the smoothing length is the liquid's own spacing, not the
+                // node's radius over its count: a liquid parcel sits where its
+                // rest density puts it (`sampler::packed_positions`), and the
+                // kernel has to span its neighbours rather than the node.
+                let spacing = {
+                    let (mut m, mut k) = (0.0, 0usize);
+                    let mut rest = 0.0;
+                    for (q, (b, e)) in bodies.iter().zip(eos.iter()).enumerate() {
+                        let slot = if partitioned { loose_of[q] } else { q };
+                        if stand_in.get(slot).copied().unwrap_or(false) {
+                            continue;
+                        }
+                        if let crate::eos::Eos::Condensed(c) = e {
+                            m += b.mass;
+                            rest += c.rest_density * b.mass;
+                            k += 1;
+                        }
+                    }
+                    (k > 0 && m > 0.0).then(|| (m / k as f64 / (rest / m)).cbrt())
+                };
+                if liquid_node {
+                    let g = field.norm();
+                    let (lo, hi) = bodies
+                        .iter()
+                        .zip(eos.iter())
+                        .filter(|(_, e)| priced(e))
+                        .map(|(b, _)| if g > 0.0 { -b.pos.dot(field) / g } else { 0.0 })
+                        .fold((f64::INFINITY, f64::NEG_INFINITY), |(a, z), h| (a.min(h), z.max(h)));
+                    let depth = (hi - lo).max(spacing.unwrap_or(0.0));
+                    let fastest = bodies.iter().map(|b| b.vel.norm()).fold(0.0f64, f64::max);
+                    let scale = fastest.max((2.0 * g * depth).sqrt());
+                    for (k, e) in eos.iter_mut().enumerate() {
+                        let slot = if partitioned { loose_of[k] } else { k };
+                        if stand_in.get(slot).copied().unwrap_or(false) {
+                            continue;
+                        }
+                        if let crate::eos::Eos::Condensed(c) = *e {
+                            let artificial = (10.0 * scale).min(c.sound_speed(c.rest_density));
+                            *e = crate::eos::Eos::Condensed(crate::eos::Condensed {
+                                bulk_modulus: c.rest_density * artificial * artificial,
+                                stiffening: crate::eos::LIQUID_STIFFENING,
+                                ..c
+                            });
+                        }
+                    }
+                }
                 let params = solvers::hydro::HydroParams {
-                    h: radius / (count as f64).cbrt() * 1.2,
+                    h: match spacing {
+                        Some(s) => 1.3 * s,
+                        None => radius / (count as f64).cbrt() * 1.2,
+                    },
+                    gravity: field,
                     ..Default::default()
                 };
                 // Substep to what the Courant condition allows, for the same
@@ -2938,7 +3038,7 @@ impl World {
                 let h = (dt / substeps as f64).min(stable);
                 let mut total = solvers::SolveReport::default();
                 for k in 0..substeps {
-                    let r = solvers::hydro::step_with(bodies, h, params, &eos);
+                    let r = solvers::hydro::step_with(bodies, h, params, &eos, &walls);
                     if k == 0 {
                         total = r;
                     } else {
@@ -5420,6 +5520,40 @@ impl World {
             return;
         }
         self.tree.nodes[idx.get()].matter.mixture = mix;
+        self.refresh_rest_density(idx);
+    }
+
+    /// Derive and store the density a node's condensed matter rests at: its
+    /// liquid's if it holds any, since a liquid is what lies and flows, and its
+    /// solid's otherwise. Zero for matter the gas law describes. See
+    /// `Node::rest_density`, and `eos.rs` for the law.
+    ///
+    /// Stored because a regeneration reads it and a client has no registry;
+    /// refreshed wherever a node's mixture changes.
+    pub fn refresh_rest_density(&mut self, idx: NodeIdx) {
+        if idx.is_none() || idx.get() >= self.tree.nodes.len() {
+            return;
+        }
+        let density = {
+            let m = &self.tree.nodes[idx.get()].matter;
+            if m.gas_law_applies() {
+                0.0
+            } else {
+                let of = |want: crate::chem::Phase| {
+                    let (mut mass, mut volume) = (0.0, 0.0);
+                    for p in m.mixture.entries().iter().filter(|p| p.phase == want) {
+                        let Some(s) = self.substances.get(p.substance) else { continue };
+                        let Some(c) = crate::eos::Condensed::of(&s.props, want) else { continue };
+                        mass += p.fraction;
+                        volume += p.fraction / c.rest_density;
+                    }
+                    if volume > 0.0 { mass / volume } else { 0.0 }
+                };
+                let liquid = of(crate::chem::Phase::Liquid);
+                if liquid > 0.0 { liquid } else { of(crate::chem::Phase::Solid) }
+            }
+        };
+        self.tree.nodes[idx.get()].rest_density = density;
     }
 
     /// Run one pass of chemistry over every node that is made of something.
@@ -5564,6 +5698,8 @@ impl World {
             if r.quiet() && r.heat == 0.0 {
                 continue;
             }
+            // A phase moved, so what the condensed matter rests at may have.
+            self.refresh_rest_density(idx);
             // Latent heat is real energy and comes out of the node's own
             // internal account. Positive `heat` was absorbed by the matter, so
             // it leaves the thermal store.

@@ -27,7 +27,7 @@
 use crate::coords::{Motion, Bounded};
 use crate::ids::{NodeIdx, PathKey};
 use crate::math::Vec3;
-use crate::sampler::{sample, SampleReport, SampleSpec};
+use crate::sampler::{SampleReport, SampleSpec};
 use crate::state::{summarise, Matter, Body};
 use crate::units::Tier;
 use std::collections::HashMap;
@@ -158,6 +158,17 @@ pub struct Node {
     /// do is *forget*: a fresh draw from the ensemble would quietly mend the
     /// change, which is the one thing the flag is for.
     pub contains_edit: bool,
+    /// Density the node's condensed matter has at rest, kg/m^3, or zero for a
+    /// node whose matter the gas law describes or nobody has described.
+    ///
+    /// Derived by `World` from the mixture and its registry (`eos.rs`) and
+    /// stored, for the reason `gravity` is: it is an **input to regeneration**.
+    /// A liquid or a packed solid is drawn at the spacing its own density
+    /// implies rather than as a Poisson cloud — a random draw of water put its
+    /// parcels at 0.86 to 2.3 times rest density, which Tait turns into 10^11
+    /// Pa — and a client regenerating the node holds no registry to derive it
+    /// from.
+    pub rest_density: f64,
     /// A deliberate, unphysical multiplier on how fast this node's *interior*
     /// runs, and its whole subtree's with it.
     ///
@@ -478,6 +489,7 @@ impl Tree {
             residency: Residency::Speculative,
             pinned: false,
             contains_edit: false,
+            rest_density: 0.0,
             bubble: 1.0,
             alive: true,
             morphology: None,
@@ -592,21 +604,23 @@ impl Tree {
             let n = &self.nodes[i.get()];
             (n.matter, n.spec, n.epoch, n.morphology.clone())
         };
+        let setting = crate::sampler::Setting { gravity, rest_density: self.nodes[i.get()].rest_density };
         let (bodies, topo, report) = match &morph {
             Some(m) => {
-                let (b, t, r) = crate::sampler::sample_structured(
+                let (b, t, r) = crate::sampler::sample_structured_in(
                     &matter,
                     m,
                     spec.count,
                     self.world_seed,
                     key.0,
                     epoch,
-                    gravity,
+                    setting,
                 );
                 (b, Some(t), r)
             }
             None => {
-                let (b, r) = sample(&matter, spec, self.world_seed, key.0, epoch);
+                let (b, r) =
+                    crate::sampler::sample_in(&matter, spec, self.world_seed, key.0, epoch, setting);
                 (b, None, r)
             }
         };
@@ -725,6 +739,8 @@ impl Tree {
             residency: Residency::Speculative,
             pinned: false,
             contains_edit: false,
+            // Drawn from the parent, so made of what the parent is made of.
+            rest_density: self.nodes[i.get()].rest_density,
             bubble: 1.0,
             alive: true,
             morphology: None,
@@ -2348,6 +2364,7 @@ impl Tree {
             residency: self.nodes[i.get()].residency,
             pinned: true,
             contains_edit: false,
+            rest_density: self.nodes[i.get()].rest_density,
             bubble: self.nodes[i.get()].bubble,
             alive: true,
             morphology: None,

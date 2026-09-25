@@ -329,26 +329,25 @@ impl Recipe {
         let mut r = Reader::new(&self.blob);
         let matter = crate::persist::get_matter(&mut r)?;
         let spec = crate::persist::get_spec(&mut r)?;
-        let (morph, gravity) = if r.bool()? {
-            let m = crate::persist::get_morphology(&mut r)?;
-            let g = r.vec3()?;
-            (Some(m), g)
-        } else {
-            (None, crate::math::Vec3::ZERO)
-        };
+        let gravity = r.vec3()?;
+        let rest_density = r.f64()?;
+        let morph = if r.bool()? { Some(crate::persist::get_morphology(&mut r)?) } else { None };
         r.finish()?;
+        let setting = crate::sampler::Setting { gravity, rest_density };
 
         let bodies = match &morph {
             Some(m) => {
                 // The field the server proportioned it in, not one worked out
                 // here: a client holds part of a tree and would derive a
                 // different number, and the member radii depend on it.
-                crate::sampler::sample_structured(
-                    &matter, m, spec.count, self.seed, self.key.0, self.epoch, gravity,
+                crate::sampler::sample_structured_in(
+                    &matter, m, spec.count, self.seed, self.key.0, self.epoch, setting,
                 )
                 .0
             }
-            None => crate::sampler::sample(&matter, spec, self.seed, self.key.0, self.epoch).0,
+            None => {
+                crate::sampler::sample_in(&matter, spec, self.seed, self.key.0, self.epoch, setting).0
+            }
         };
 
         // The check that is worth making. If this build of the engine samples
@@ -1441,19 +1440,20 @@ impl Recipe {
         let mut w = Writer::new();
         crate::persist::put_matter(&mut w, &n.matter);
         crate::persist::put_spec(&mut w, &n.spec);
+        // The field the node was drawn in and the density its condensed
+        // matter rests at. A recipe is everything the client needs to
+        // reproduce what the server produced, and since `PLAY.md` D6 made
+        // gravity derived, this is one of those things: a structure carries
+        // its own weight, so its members' radii depend on it, and a liquid
+        // lies at the bottom of it at the spacing its own density gives it. A
+        // client working either out from the part of the tree it holds would
+        // draw something different.
+        w.vec3(n.gravity);
+        w.f64(n.rest_density);
         match &n.morphology {
             Some(m) => {
                 w.bool(true);
                 crate::persist::put_morphology(&mut w, m);
-                // The field the structure was proportioned in. A recipe is
-                // everything the client needs to reproduce what the server
-                // produced, and since `PLAY.md` D6 made gravity derived, this
-                // is one of those things: a structure carries its own weight,
-                // so its members' radii depend on it, and a client working the
-                // field out from the part of the tree it holds would build a
-                // different structure. Only for a structure, because only a
-                // structure is proportioned.
-                w.vec3(n.gravity);
             }
             None => w.bool(false),
         }
