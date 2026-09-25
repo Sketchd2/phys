@@ -137,3 +137,72 @@ fn an_atmosphere_is_the_gas_a_planet_holds() {
     assert!((up / rho - (-1.0f64).exp()).abs() < 1e-12);
     assert_eq!(w.ambient_density(e, base - 10.0), w.tree.nodes[e.get()].ocean.as_ref().unwrap().density);
 }
+
+/// A turning, tiled Earth made of silica, with the face under the equator
+/// promoted into a node of its own and drawn.
+fn an_earth_with_a_face(seed: u64) -> (World, phys::ids::NodeIdx, phys::ids::NodeIdx) {
+    let spec = SampleSpec::new(65, Profile::Uniform, MassSpectrum::Equal, BodyKind::Grain);
+    let mut w = World::new(
+        Tree::new(seed, Matter::neutral(EARTH, RADIUS, 290.0, Composition::crustal()), Tier::Planetary, spec),
+        20.0,
+    );
+    let e = w.tree.root;
+    let silica = w.substances.intern(substances::silica_arrangement()).unwrap();
+    let mut mix = Mixture::new();
+    mix.add(silica, Phase::Solid, 1.0);
+    w.set_mixture(e, mix);
+    {
+        let n = &mut w.tree.nodes[e.get()];
+        n.matter.spin = v3(0.0, 0.0, std::f64::consts::TAU / DAY * n.matter.moment_of_inertia());
+        n.sync_spin_rate();
+    }
+    assert!(w.assess_surface(e));
+    w.tree.refine(e);
+    let dir = v3(1.0, 0.0, 0.0);
+    let f = match w.tree.nodes[e.get()].morphology.as_ref().and_then(|m| m.recipe.as_ref()) {
+        Some(phys::recipe::Recipe::Tiled(t)) => t.cell_of_direction(dir).unwrap(),
+        _ => panic!("the Earth has no surface"),
+    };
+    let spec = w.tree.nodes[e.get()].spec;
+    let face = w.tree.promote(e, f, spec);
+    w.tree.refine(face);
+    w.pace_fixed(60.0);
+    (w, e, face)
+}
+
+/// **Ground holds together by its gravity against its own stiffness** — the
+/// owner's decision for Phase 5. A face of a turning Earth, promoted into a
+/// node of its own, stays where the planet draws it through a day of the
+/// planet being solved, and goes round with the ground. Measured before: the
+/// face met the planet's interior as a separate object, left at 76 m/s, and
+/// was 1.46x10^6 m further out six hours later.
+///
+/// What this measures is the face *as a node* — its centre, against the
+/// planet. The pieces drawn inside it are a separate question: they are drawn
+/// turning at the rate a uniform sphere of the face's radius gives its
+/// angular momentum, 0.63 of the ground's, and the support that holds them is
+/// derived for the ground's; measured, the face's pieces slip over the
+/// turning ground at 5.6 to 8.2 km/s by the sixth hour of the air test. That
+/// is with the owner, in `docs/PLAY.md` §7.
+#[test]
+fn a_turning_planets_ground_holds_together() {
+    let (mut w, e, face) = an_earth_with_a_face(0xA1D);
+    let r0 = w.tree.offset_from(e, face, Vec3::ZERO).value.norm();
+    let mut worst_r: f64 = 0.0;
+    let mut worst_slip: f64 = 0.0;
+    for _ in 0..(DAY / 60.0) as usize {
+        w.step_frame(1.0e6);
+        let at = w.tree.offset_from(e, face, Vec3::ZERO).value;
+        let v = w.tree.velocity_from(e, face);
+        let spin = w.tree.nodes[e.get()].motion.spin_rate;
+        worst_r = worst_r.max((at.norm() - r0).abs());
+        worst_slip = worst_slip.max((v - spin.cross(at)).norm());
+    }
+    println!(
+        "  a day: the face's centre moved {worst_r:.3e} m at worst from {r0:.4e} m, and slid over its ground at {worst_slip:.3e} m/s; the Earth solved {} times",
+        w.tree.nodes[e.get()].steps_taken
+    );
+    assert!(w.tree.nodes[e.get()].steps_taken > 0, "the Earth was never solved, so nothing here was tested");
+    assert!(worst_r < 1.0, "the ground came apart: {worst_r} m");
+    assert!(worst_slip < 0.01, "the face slid over its own planet at {worst_slip} m/s");
+}

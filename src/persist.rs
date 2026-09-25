@@ -1209,6 +1209,9 @@ pub(crate) fn get_node_payload(r: &mut Reader) -> Result<Node> {
         unrest: 0.0,
         carried: r.f64()?,
         turning: r.vec3()?,
+        // Derived from the drawing on the first solve after it: see
+        // `solvers::ground::Cache`.
+        ground: None,
         ocean: get_ocean(r)?,
         // Derived from the node's own contents, and regenerated on first use.
         // Storing it would be storing a derived value — the same reason

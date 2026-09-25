@@ -15,6 +15,7 @@
 pub mod dynamics;
 pub mod frame;
 pub mod gravity;
+pub mod ground;
 pub mod hydro;
 pub mod md;
 pub mod nuclear;

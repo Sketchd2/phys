@@ -222,6 +222,9 @@ pub struct Node {
     /// after the second solve. Set each frame by `World::hold`; see
     /// `Tree::carry`.
     pub turning: Vec3,
+    /// What this node's ground is, where it is ground: derived on its first
+    /// solve after it is drawn. See `solvers::ground`.
+    pub ground: Option<Box<crate::solvers::ground::Cache>>,
     /// A deliberate, unphysical multiplier on how fast this node's *interior*
     /// runs, and its whole subtree's with it.
     ///
@@ -547,6 +550,7 @@ impl Tree {
             ocean: None,
             carried: 0.0,
             turning: Vec3::ZERO,
+            ground: None,
             bubble: 1.0,
             alive: true,
             morphology: None,
@@ -647,6 +651,8 @@ impl Tree {
             self.reconcile_children(i, bodies.len());
             let n = &mut self.nodes[i.get()];
             n.bodies = bodies;
+        n.ground = None;
+            n.ground = None;
             self.stats.materialisations += 1;
             return &self.nodes[i.get()].bodies;
         }
@@ -708,6 +714,32 @@ impl Tree {
     /// The child's matter is *the body itself*, reinterpreted: same mass,
     /// same composition, same momentum in the parent's frame. Nothing is
     /// invented at this step — invention happens when the child is refined.
+    /// State a thing that is already there: a new slot in `parent`, holding
+    /// `body`, and the node it becomes.
+    ///
+    /// `promote` makes a node of something the parent already holds, and a
+    /// parent whose contents are all members of its recipe — a patch of ground,
+    /// every one of whose bodies is a cell or what is under them — has nothing
+    /// to spare: making a cell into air takes the cell out of the ground. This
+    /// is the other way in, the one an arrival from outside takes
+    /// (`Tree::reparent`): a slot beyond the recipe's, loose among its members.
+    ///
+    /// **A scene's statement, not physics.** Nothing is conserved across it:
+    /// the thing placed was not anywhere before, and the parent's matter does
+    /// not yet count it.
+    pub fn place(&mut self, parent: NodeIdx, body: Body, spec: SampleSpec) -> NodeIdx {
+        self.refine(parent);
+        let slot = {
+            let p = &mut self.nodes[parent.get()];
+            p.bodies.push(body);
+            while p.children.len() < p.bodies.len() {
+                p.children.push(NodeIdx::NONE);
+            }
+            p.bodies.len() - 1
+        };
+        self.promote(parent, slot, spec)
+    }
+
     pub fn promote(&mut self, i: NodeIdx, slot: usize, spec: SampleSpec) -> NodeIdx {
         self.refine(i);
         // A new thing among contents held in a field is a new balance to find.
@@ -814,6 +846,7 @@ impl Tree {
             ocean: None,
             carried: self.nodes[i.get()].time,
             turning: Vec3::ZERO,
+            ground: None,
             bubble: 1.0,
             alive: true,
             morphology: None,
@@ -1205,6 +1238,7 @@ impl Tree {
         // parent's contents are at: a parent that is behind the world solves
         // against where its children were then. See `Node::carried`.
         let at = self.position_at(child, self.nodes[parent.get()].time);
+        let self_velocity_at = self.velocity_at(child, self.nodes[parent.get()].time);
         let _ = frame.offset;
         let p = &mut self.nodes[parent.get()];
         if let Some(b) = p.bodies.get_mut(slot) {
@@ -1216,7 +1250,11 @@ impl Tree {
             b.internal_energy = internal;
             b.radius = radius;
             b.pos = at;
-            b.vel = frame.velocity;
+            // And how fast it is going then, in the same frame: a held child's
+            // velocity turns with the ground, and its velocity now against its
+            // position then is turned 0.66 rad out of step for an Earth whose
+            // contents are 9000 s behind.
+            b.vel = self_velocity_at;
             // And the way it has turned, which is the other half of `promote`
             // handing its orientation down: a part that came off a box, was
             // knocked askew and then rejoined comes back askew.
@@ -1228,13 +1266,14 @@ impl Tree {
     /// at constant velocity and spin. The only thing that moves a node's
     /// motion forward. See `Node::carried`.
     pub fn carry(&mut self, i: NodeIdx, instant: f64) {
+        let about = self.turning_about(i, self.nodes[i.get()].carried);
         let n = &mut self.nodes[i.get()];
         let dt = instant - n.carried;
         if dt > 0.0 && dt.is_finite() {
             let (offset, velocity) = (n.motion.offset, n.motion.velocity);
             n.motion.advance(dt);
             if n.turning != Vec3::ZERO {
-                let (at, v) = turning_carry(n.turning, offset, velocity, dt);
+                let (at, v) = turning_carry_about(n.turning, about, offset, velocity, dt);
                 n.motion.offset = at;
                 n.motion.velocity = v;
             }
@@ -1253,9 +1292,80 @@ impl Tree {
             return n.motion.offset;
         }
         if n.turning != Vec3::ZERO {
-            return turning_carry(n.turning, n.motion.offset, n.motion.velocity, dt).0;
+            return turning_carry_about(n.turning, self.turning_about(i, n.carried), n.motion.offset, n.motion.velocity, dt).0;
         }
         n.motion.offset + n.motion.velocity.scale(dt)
+    }
+
+    /// Where a held node's parent's centre is at an instant, relative to the
+    /// centre the node goes round, m, root-aligned: zero where the parent is
+    /// the turning body itself, and otherwise the parent's own place at that
+    /// instant from the same centre. A thing held by a patch of ground goes
+    /// round the planet, not the patch — measured with its great circle taken
+    /// about the patch's centre, air over a face of an Earth fell 955 km while
+    /// the face caught up 1200 s — and where the patch is has to be read at
+    /// the same instant: a copy taken at the frame's start was 21 km of turning
+    /// out by its end.
+    pub fn turning_about(&self, i: NodeIdx, instant: f64) -> Vec3 {
+        let n = &self.nodes[i.get()];
+        if n.turning == Vec3::ZERO || n.parent.is_none() {
+            return Vec3::ZERO;
+        }
+        let p = n.parent;
+        if self.nodes[p.get()].turning == Vec3::ZERO {
+            return Vec3::ZERO;
+        }
+        self.turning_about(p, instant) + self.position_at(p, instant)
+    }
+
+    /// Where a node is at an instant relative to an ancestor: its place and
+    /// each of its ancestors' up to that one, all read at the same instant —
+    /// [`Tree::offset_from`] as it was then rather than as it has been carried.
+    pub fn offset_at(&self, ancestor: NodeIdx, mut node: NodeIdx, instant: f64) -> Vec3 {
+        let mut at = Vec3::ZERO;
+        while node != ancestor && !node.is_none() {
+            at += self.position_at(node, instant);
+            node = self.nodes[node.get()].parent;
+        }
+        at
+    }
+
+    /// How fast a node is going at an instant, in its parent's frame — the
+    /// companion of [`Tree::position_at`], carried the same way.
+    pub fn velocity_at(&self, i: NodeIdx, instant: f64) -> Vec3 {
+        let n = &self.nodes[i.get()];
+        let dt = instant - n.carried;
+        if dt.is_finite() && n.turning != Vec3::ZERO {
+            return turning_carry_about(n.turning, self.turning_about(i, n.carried), n.motion.offset, n.motion.velocity, dt).1;
+        }
+        n.motion.velocity
+    }
+
+    /// Change a node's velocity by `dv`, a change that happened at `instant`
+    /// — its parent's, while the node's motion has been carried to a later
+    /// one. Where it was then is taken back, the change made there, and the
+    /// whole carried forward again the way the node is carried: in a straight
+    /// line, or turning with what holds it, which also turns the change.
+    pub fn kick(&mut self, i: NodeIdx, dv: Vec3, instant: f64) {
+        if !dv.is_finite() || dv == Vec3::ZERO {
+            return;
+        }
+        let since = self.nodes[i.get()].carried - instant;
+        let turning = self.nodes[i.get()].turning;
+        if turning == Vec3::ZERO || !(since.abs() > 0.0) || !since.is_finite() {
+            let n = &mut self.nodes[i.get()];
+            n.motion.velocity = n.motion.velocity + dv;
+            if since.is_finite() {
+                n.motion.offset = n.motion.offset + dv.scale(since.max(0.0));
+            }
+            return;
+        }
+        let (at, v) = (self.position_at(i, instant), self.velocity_at(i, instant));
+        let about = self.turning_about(i, instant);
+        let (at, v) = turning_carry_about(turning, about, at, v + dv, since);
+        let n = &mut self.nodes[i.get()];
+        n.motion.offset = at;
+        n.motion.velocity = v;
     }
 
     /// Free a node and everything under it.
@@ -1408,6 +1518,24 @@ impl Tree {
     /// the child's radius, where before it passed 0.79 in forty and kept
     /// climbing.
     pub fn apply_body_forces(&mut self, parent: NodeIdx, before: &[(usize, crate::math::Vec3)]) {
+        self.hand_back(parent, before, None);
+    }
+
+    /// Hand what a parent's solve did to its stand-ins back to the children
+    /// they stand for.
+    ///
+    /// With `adopt` of `None`, the change in each stand-in's velocity, made at
+    /// the parent's instant (`Tree::kick`) — the rule for a solver whose
+    /// stand-ins are points it pushes. With `Some(end)`, the stand-in's whole
+    /// state, which the solve integrated to the instant `end`, carried from
+    /// there to wherever the child's motion is: **the solve is the account of
+    /// the child's motion over the step**, so nothing integrates it twice. A
+    /// ground solve is that kind. Handing only the velocity back and letting
+    /// the child's own carry move it over the same step counted the
+    /// centripetal of a turning planet twice — once in the ground's support and
+    /// once in the carry — and a face of a turning Earth went from 4.85e6 m to
+    /// 2.9e8 m in a day.
+    pub fn hand_back(&mut self, parent: NodeIdx, before: &[(usize, crate::math::Vec3)], adopt: Option<f64>) {
         for (slot, was) in before {
             let Some(child) = self.nodes[parent.get()].children.get(*slot).copied() else {
                 continue;
@@ -1422,13 +1550,41 @@ impl Tree {
             if !dv.is_finite() {
                 continue;
             }
+            if let Some(end) = adopt {
+                let pos = self.nodes[parent.get()].bodies[*slot].pos;
+                self.put_at(child, pos, now, end);
+                continue;
+            }
             // The change happened at the parent's instant, and the child's
-            // motion is carried to a later one: its position there moved by
-            // the change for the difference.
-            let since = (self.nodes[child.get()].carried - self.nodes[parent.get()].time).max(0.0);
-            let n = &mut self.nodes[child.get()];
-            n.motion.velocity = n.motion.velocity + dv;
-            n.motion.offset = n.motion.offset + dv.scale(since);
+            // motion is carried to a later one. See `Tree::kick`.
+            let at = self.nodes[parent.get()].time;
+            self.kick(child, dv, at);
+        }
+    }
+
+    /// Put a node where it is at `instant` — `pos` and `vel` in its parent's
+    /// frame — and carry that to wherever its motion is, the way it is
+    /// carried. A node whose motion is behind `instant` is brought up to it.
+    pub fn put_at(&mut self, i: NodeIdx, pos: Vec3, vel: Vec3, instant: f64) {
+        if !pos.is_finite() || !vel.is_finite() {
+            return;
+        }
+        let about = self.turning_about(i, instant);
+        let n = &mut self.nodes[i.get()];
+        let since = n.carried - instant;
+        if !(since > 0.0) || !since.is_finite() {
+            n.motion.offset = pos;
+            n.motion.velocity = vel;
+            n.carried = n.carried.max(instant);
+            return;
+        }
+        if n.turning == Vec3::ZERO {
+            n.motion.offset = pos + vel.scale(since);
+            n.motion.velocity = vel;
+        } else {
+            let (at, v) = turning_carry_about(n.turning, about, pos, vel, since);
+            n.motion.offset = at;
+            n.motion.velocity = v;
         }
     }
 
@@ -1535,12 +1691,48 @@ impl Tree {
         if idx.is_none() || !self.nodes[idx.get()].alive {
             return Vec3::ZERO;
         }
+        self.into_axes_of(self.root, idx, self.gravity_at_point(idx, Vec3::ZERO))
+    }
+
+    /// The field at a point `local` from a node's centre, from everything the
+    /// node is inside, in root-aligned axes — [`Tree::gravity_at`] anywhere in
+    /// the node rather than at its middle. A patch of a planet a continent
+    /// across is pulled harder at its deep side than its shallow one: a face of
+    /// an Earth has its centre of mass 1.5x10^6 m below the air over it, and the
+    /// same law gives 15.4 m/s^2 there against 8.9 at the air.
+    pub fn gravity_at_point(&self, idx: NodeIdx, local: Vec3) -> Vec3 {
+        self.field_at(idx, local, false)
+    }
+
+    /// The field at a point inside a node, the node's own mass included as
+    /// part of what it is a piece of — the smooth field a loose thing inside a
+    /// patch of ground stands in, rather than the pull of the patch's pieces as
+    /// points. A ball includes itself by its own interior law.
+    pub fn field_within(&self, idx: NodeIdx, local: Vec3) -> Vec3 {
+        let mut g = self.field_at(idx, local, true);
+        let n = &self.nodes[idx.get()];
+        if n.parent.is_none() || matches!(n.morphology.as_ref().and_then(|m| m.recipe.as_ref()), Some(crate::recipe::Recipe::Tiled(t)) if t.is_ball()) {
+            let d = local.norm();
+            let (m, radius) = (n.matter.mass.max(0.0), n.matter.radius);
+            if d > 0.0 && radius > 0.0 {
+                let enclosed = if d >= radius { m } else { m * (d / radius).powi(3) };
+                g += local.scale(-crate::units::G * enclosed / (d * d * d));
+            }
+        }
+        g
+    }
+
+    fn field_at(&self, idx: NodeIdx, local: Vec3, whole: bool) -> Vec3 {
+        if idx.is_none() || !self.nodes[idx.get()].alive {
+            return Vec3::ZERO;
+        }
         let mut g = Vec3::ZERO;
         let mut inner = idx;
         let mut anc = self.nodes[idx.get()].parent;
+        let mut first = true;
         while !anc.is_none() {
             let a = &self.nodes[anc.get()];
-            let r = self.offset_from(anc, idx, Vec3::ZERO).value;
+            let r = self.offset_from(anc, idx, local).value;
             let d = r.norm();
             let (m, radius) = (a.matter.mass.max(0.0), a.matter.radius);
             // **What this ancestor holds beyond the one below it.** An
@@ -1557,7 +1749,10 @@ impl Tree {
             // of a planet is a tenth of it, standing at nine tenths of its
             // radius, and counting it twice put 0.65 m/s^2 of sideways pull on
             // everything standing on it.
-            let own = self.nodes[inner.get()].matter.mass.max(0.0);
+            // Its own mass left out, unless the point is being measured as
+            // standing in the whole of the piece it is in.
+            let own = if whole && first { 0.0 } else { self.nodes[inner.get()].matter.mass.max(0.0) };
+            first = false;
             // **A piece of a sphere is not a sphere.** A patch of ground holds
             // its mass in a curved shell about the *planet's* centre, not in a
             // ball about its own, and the shell theorem is what says what that
@@ -1620,7 +1815,7 @@ impl Tree {
                 // here and the root is the same one, which is true until a
                 // surface exists and false immediately afterwards.
                 let pull = r.scale(-crate::units::G * enclosed / (d * d * d));
-                g += self.into_axes_of(self.root, idx, pull);
+                g += pull;
             }
             inner = anc;
             anc = a.parent;
@@ -1653,6 +1848,24 @@ impl Tree {
             node = n.parent;
         }
         q
+    }
+
+    /// The rotation taking a vector fixed in `node`'s own body to the root's
+    /// axes: [`Tree::axes_from`] to the root, and for the root itself its own
+    /// facing, which that walk stops short of.
+    ///
+    /// What is drawn on a body rather than in its space — an ocean's cells —
+    /// turns with the body. For any node below the root the walk already
+    /// includes its facing; for a root the walk is empty, and an Earth at the
+    /// root of its own world had an ocean standing still while its ground went
+    /// round: measured, air held over the equator swept 428 of 1536 cells in a
+    /// day and raised 0.95 m of sea on the far side of the planet.
+    pub fn body_axes(&self, node: NodeIdx) -> crate::math::Quat {
+        if node == self.root {
+            self.nodes[node.get()].motion.orientation
+        } else {
+            self.axes_from(self.root, node)
+        }
     }
 
     /// Carry a vector expressed in `ancestor`'s axes into `node`'s own.
@@ -2488,6 +2701,7 @@ impl Tree {
             ocean: None,
             carried: time,
             turning: Vec3::ZERO,
+            ground: None,
             bubble: self.nodes[i.get()].bubble,
             alive: true,
             morphology: None,
@@ -3266,6 +3480,19 @@ pub fn turning_carry(w: Vec3, r: Vec3, v: Vec3, dt: f64) -> (Vec3, Vec3) {
     let turn = crate::math::Quat::from_rate(w, dt);
     let at = turn.rotate(at);
     (at, w.cross(at) + turn.rotate(rel))
+}
+
+/// [`turning_carry`] for a thing whose parent's centre is at `about` from the
+/// centre it goes round: carried about that centre, and handed back relative to
+/// where its parent's centre has gone round to. The parent is taken to be going
+/// round rigidly, which is what a held parent is.
+pub fn turning_carry_about(w: Vec3, about: Vec3, r: Vec3, v: Vec3, dt: f64) -> (Vec3, Vec3) {
+    if about == Vec3::ZERO {
+        return turning_carry(w, r, v, dt);
+    }
+    let (at, vel) = turning_carry(w, about + r, w.cross(about) + v, dt);
+    let about = crate::math::Quat::from_rate(w, dt).rotate(about);
+    (at - about, vel - w.cross(about))
 }
 
 // ---------------------------------------------------------------------------

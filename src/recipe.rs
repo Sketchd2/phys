@@ -1418,6 +1418,55 @@ impl Tiled {
     }
 }
 
+/// How two pieces of ground touch: side by side across a face they share, or
+/// one resting on the other.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Touch {
+    Beside,
+    On,
+}
+
+impl Tiled {
+    /// Which pieces of this ground touch which, by the index of the body each
+    /// is drawn as (`Tiled::render_on_sphere`), and how.
+    ///
+    /// A patch's cells touch the cells beside them in its grid and rest on
+    /// the substrate under them, which is the body after the last cell. A
+    /// ball's six faces each touch the four that are not opposite them and
+    /// rest on its interior. Only ground on a sphere is laid out this way; a
+    /// flat patch is drawn as columns and has no joints here.
+    pub fn joints(&self) -> Vec<(usize, usize, Touch)> {
+        let mut out = Vec::new();
+        if !self.on_sphere() {
+            return out;
+        }
+        if self.is_ball() {
+            for a in 0..6usize {
+                for b in (a + 1)..6 {
+                    if a / 2 != b / 2 {
+                        out.push((a, b, Touch::Beside));
+                    }
+                }
+                out.push((a, 6, Touch::On));
+            }
+            return out;
+        }
+        let n = self.cells();
+        let count = n * n;
+        for c in 0..count {
+            let (i, j) = (c % n, c / n);
+            if i + 1 < n {
+                out.push((c, c + 1, Touch::Beside));
+            }
+            if j + 1 < n {
+                out.push((c, c + n, Touch::Beside));
+            }
+            out.push((c, count, Touch::On));
+        }
+        out
+    }
+}
+
 impl Tiled {
     /// Which cell of this patch a direction from the planet's centre falls in.
     ///

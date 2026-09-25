@@ -3036,6 +3036,23 @@ there a year later. Phase 4 built the mechanism and the conservation criterion
 that separates the two; what this phase supplies is the tide, and the granular
 strength that lets sand be sand.
 
+*Open, with the owner — a structure turns at a sphere's rate.* Ground is
+pieces held by gravity against stiffness (the owner's decision for this
+phase), and a promoted face of a turning Earth now holds together *as a node*:
+its centre stays within 0.28 m of where the planet draws it for a day. The
+pieces drawn inside it do not. A node's angular velocity is its angular
+momentum over `0.4 m r^2`, a uniform sphere of its radius, and a face is a
+slab: the sampler draws its pieces turning at 0.63 of the ground's rate,
+promotion gives the face 23x the ground's rate from its stand-in's radius, and
+the ground support is derived for the ground's own rate. Measured in the air
+test, the face's pieces slip over the turning ground at 5.6 to 8.2 km/s by the
+sixth hour; and a face nothing pins is redrawn each frame without turning at
+all, 0.0000 rad against the ground's 1.57 in six hours. Making them agree
+means deriving a structure's inertia from what is drawn — each part's own box
+or rod plus its place — for the sampler, for how `close_books` hands out the
+parts' own turning (by mass fraction now), and for a node's spin rate; an
+Earth drawn that way turns at about 0.95 of the rate `0.4 M R^2` states.
+
 **Phase 6 — Bodies.** *Was Phase 4.* D11's habit refactor; substructuring (D5);
 the creature genome; the actuation mechanism; derived-and-cached gait and grasp.
 Standing is contact against a surface that now exists.
