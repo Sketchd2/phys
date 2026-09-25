@@ -179,6 +179,25 @@ pub struct Node {
     /// something promoted into it, and measured by its next solve. Not
     /// persisted; a reloaded node is drawn again and measured again.
     pub unrest: f64,
+    /// The ocean this node carries at its own scale, if it has one: its
+    /// dynamic tide and the sea the wind has raised on it. See `ocean.rs`.
+    ///
+    /// State, not a drawing: a tide depends on its history, so it travels
+    /// with the node and is persisted. Boxed, because almost no node has one.
+    pub ocean: Option<Box<crate::ocean::Ocean>>,
+    /// The world instant this node's *motion* has been carried to, s.
+    ///
+    /// **Not the same clock as `time`**, which is how far the node's contents
+    /// have been solved. Where a node is can be carried to the world instant
+    /// every frame, in closed form, and is — that is what keeps one instant
+    /// everywhere. What it holds cannot: the owner's rule for Phase 5 is that
+    /// no node is ever left unsolved, only scheduled, so a materialised node the
+    /// frame did not reach keeps its contents at the time they were solved to
+    /// and covers the whole of what it is owed when it runs. Coasting `time`
+    /// along with the motion used to lose that span from the contents for good:
+    /// measured, a moon advanced 300 km per 3.6-day solve instead of 313,000.
+    /// See `Tree::carry` and `Tree::position_at`.
+    pub carried: f64,
     /// A deliberate, unphysical multiplier on how fast this node's *interior*
     /// runs, and its whole subtree's with it.
     ///
@@ -501,6 +520,8 @@ impl Tree {
             contains_edit: false,
             rest_density: 0.0,
             unrest: 0.0,
+            ocean: None,
+            carried: 0.0,
             bubble: 1.0,
             alive: true,
             morphology: None,
@@ -765,6 +786,8 @@ impl Tree {
             // Drawn from the parent, so made of what the parent is made of.
             rest_density: self.nodes[i.get()].rest_density,
             unrest: 0.0,
+            ocean: None,
+            carried: self.nodes[i.get()].time,
             bubble: 1.0,
             alive: true,
             morphology: None,
@@ -1152,6 +1175,11 @@ impl Tree {
                 c.motion,
             )
         };
+        // Where the child is at the parent's instant, which is the instant the
+        // parent's contents are at: a parent that is behind the world solves
+        // against where its children were then. See `Node::carried`.
+        let at = self.position_at(child, self.nodes[parent.get()].time);
+        let _ = frame.offset;
         let p = &mut self.nodes[parent.get()];
         if let Some(b) = p.bodies.get_mut(slot) {
             b.mass = mass;
@@ -1161,13 +1189,35 @@ impl Tree {
             b.spin = spin;
             b.internal_energy = internal;
             b.radius = radius;
-            b.pos = frame.offset;
+            b.pos = at;
             b.vel = frame.velocity;
             // And the way it has turned, which is the other half of `promote`
             // handing its orientation down: a part that came off a box, was
             // knocked askew and then rejoined comes back askew.
             b.orientation = frame.orientation;
         }
+    }
+
+    /// Carry a node's motion to a world instant: where it is, in closed form,
+    /// at constant velocity and spin. The only thing that moves a node's
+    /// motion forward. See `Node::carried`.
+    pub fn carry(&mut self, i: NodeIdx, instant: f64) {
+        let n = &mut self.nodes[i.get()];
+        let dt = instant - n.carried;
+        if dt > 0.0 && dt.is_finite() {
+            n.motion.advance(dt);
+            n.carried = instant;
+        }
+    }
+
+    /// Where a node is at an instant, in its parent's frame: its carried
+    /// offset moved at its own velocity by the difference. Exact for the
+    /// constant velocity it is carried at, in either direction — which is what
+    /// a parent solving at an earlier instant than the world's needs to read.
+    pub fn position_at(&self, i: NodeIdx, instant: f64) -> Vec3 {
+        let n = &self.nodes[i.get()];
+        let dt = instant - n.carried;
+        if dt.is_finite() { n.motion.offset + n.motion.velocity.scale(dt) } else { n.motion.offset }
     }
 
     /// Free a node and everything under it.
@@ -1334,7 +1384,13 @@ impl Tree {
             if !dv.is_finite() {
                 continue;
             }
-            self.nodes[child.get()].motion.velocity = self.nodes[child.get()].motion.velocity + dv;
+            // The change happened at the parent's instant, and the child's
+            // motion is carried to a later one: its position there moved by
+            // the change for the difference.
+            let since = (self.nodes[child.get()].carried - self.nodes[parent.get()].time).max(0.0);
+            let n = &mut self.nodes[child.get()];
+            n.motion.velocity = n.motion.velocity + dv;
+            n.motion.offset = n.motion.offset + dv.scale(since);
         }
     }
 
@@ -1830,7 +1886,8 @@ impl Tree {
             n.epoch,
             |c| {
                 let child = self.nodes.get(c.get())?;
-                child.alive.then(|| (child.motion.offset, child.matter.radius))
+                // Where it is at this node's instant: see `Node::carried`.
+                child.alive.then(|| (self.position_at(c, n.time), child.matter.radius))
             },
         )
     }
@@ -2390,6 +2447,8 @@ impl Tree {
             contains_edit: false,
             rest_density: self.nodes[i.get()].rest_density,
             unrest: 0.0,
+            ocean: None,
+            carried: time,
             bubble: self.nodes[i.get()].bubble,
             alive: true,
             morphology: None,

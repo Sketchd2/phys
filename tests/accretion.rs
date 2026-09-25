@@ -143,14 +143,20 @@ fn a_loose_ball_of_matter_in_orbit_becomes_a_planet() {
         ),
         "and what it became is a body with a surface"
     );
-    // Loose-packed rather than Earth's 5514 kg/m^3, and the reason is scheduled
-    // rather than missing: what compacts a planet past the packing its own
-    // grains jam at is an equation of state for a solid, which `docs/PLAY.md`
-    // puts in Water along with the liquid one. Everything up to that point is
-    // here.
+    // **Compacted past the packing its grains jam at, and no further than rock
+    // goes.** Phase 4 stopped a planet at random loose packing, 1743 kg/m^3,
+    // because what squeezes one further is an equation of state for a solid;
+    // Phase 5 derived one (`eos::Condensed::solid`) and `compacted_radius`
+    // balances it against the planet's own weight. Measured: a binding
+    // structure constant of 0.594 against a uniform sphere's 0.6, which that
+    // balance turns into about 1.45x10^11 Pa at the centre and 3683 kg/m^3 —
+    // above silica's own 2644, and short of Earth's 5514, which takes an iron
+    // core this ball does not have.
+    let rest = w.eos_of(ball).condensed().map(|c| c.rest_density).expect("a ball of rock is condensed");
     assert!(
-        (1000.0..3000.0).contains(&density),
-        "a planet at random loose packing is around 1600 kg/m^3, and this is {density:.0}"
+        density > rest && density < 5514.0,
+        "a planet of silica compacts past its rest density {rest:.0} and short of Earth's 5514 kg/m^3, \
+         and this is {density:.0}"
     );
     assert!(g > 1.0, "and you could stand on it: {g:.3} m/s^2");
 }

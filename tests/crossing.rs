@@ -17,6 +17,7 @@
 use phys::engine::{default_spec, World};
 use phys::ids::NodeIdx;
 use phys::math::{v3, Vec3};
+use phys::chem::{Mixture, Phase};
 use phys::state::{Composition, Matter};
 use phys::tree::Tree;
 use phys::units::*;
@@ -42,6 +43,12 @@ fn a_star() -> Tree {
 /// Star, planet at 1 AU, a 1 km patch of forest on its surface, and something
 /// sitting in the forest.
 fn a_system(climb: f64) -> (World, NodeIdx, NodeIdx, NodeIdx, NodeIdx) {
+    a_system_on(climb, false)
+}
+
+/// The same, with the patch made of silica at the size its own density gives
+/// it when `solid` — ground that stays where it is put.
+fn a_system_on(climb: f64, solid: bool) -> (World, NodeIdx, NodeIdx, NodeIdx, NodeIdx) {
     let mut w = World::new(a_star(), 20.0);
     let star = w.tree.root;
     w.tree.refine(star);
@@ -72,6 +79,21 @@ fn a_system(climb: f64) -> (World, NodeIdx, NodeIdx, NodeIdx, NodeIdx) {
         // per second of turbulence — which is right for a parcel of a hot
         // interior and wrong for a patch of ground somebody is standing on.
         n.motion.velocity = Vec3::ZERO;
+    }
+    if solid {
+        let silica = w
+            .substances
+            .intern(phys::material::substances::silica_arrangement())
+            .expect("silica analyses");
+        let mut mix = Mixture::new();
+        mix.add(silica, Phase::Solid, 1.0);
+        let composition = mix.composition(&w.substances).0;
+        let rho = w.substances.get(silica).expect("interned").props.density;
+        let mass = 1.0e9;
+        let radius = (3.0 * mass / (4.0 * std::f64::consts::PI * rho)).cbrt();
+        w.tree.nodes[forest.get()].matter = Matter::neutral(mass, radius, 290.0, composition);
+        w.set_mixture(forest, mix);
+        w.tree.retier(forest);
     }
     w.tree.refine(forest);
     let rocket = w.tree.promote(forest, 0, default_spec(Tier::Continuum));
@@ -237,10 +259,18 @@ fn a_crossing_conserves_everything() {
 /// frame.
 #[test]
 fn standing_on_the_ground_is_not_leaving_it() {
-    let (mut w, _, _, forest, rocket) = a_system(0.0);
-    // Resting on the forest's own boundary rather than in the middle of it:
+    // **Ground, and made of something that stays put.** The shared patch is
+    // cold hydrogen, and cold hydrogen is a gas: 3 K still gives its parcels
+    // 376 m/s, and since Phase 5 a node's contents are solved over every
+    // second the world moves rather than frozen between solves, so in 2.16 s
+    // that patch was two neighbourhoods and `resolve_extent` split it —
+    // correctly — taking the rocket with the half it was in. That is a gas
+    // cloud coming apart, which this test is not about.
+    let (mut w, _, _, forest, rocket) = a_system_on(0.0, true);
+    let ground = w.tree.nodes[forest.get()].matter.radius;
+    // Resting on the patch's own boundary rather than in the middle of it:
     // the hardest case, and the one a naive rule gets wrong.
-    w.tree.nodes[rocket.get()].motion.offset = v3(0.0, 0.0, 1000.0);
+    w.tree.nodes[rocket.get()].motion.offset = v3(0.0, 0.0, ground);
     for _ in 0..200 {
         w.step_frame(2000.0);
     }
@@ -405,3 +435,4 @@ fn the_universe_has_no_outside() {
     assert!(w.stats.crossings_refused > 0, "the measurement did not fire at all");
     assert_eq!(w.tree.nodes[planet.get()].parent, star, "the root lost a child it cannot lose");
 }
+

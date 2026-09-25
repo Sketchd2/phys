@@ -19,6 +19,19 @@ use phys::neighbourhood::{Neighbourhood, Occupant};
 use phys::state::{Body, Composition};
 use phys::units::*;
 
+/// What a frame does after its solves, for a test that drives `advance_node`
+/// itself: carry every node's motion to the instant the loop has reached. Two
+/// clocks since Phase 5 — a solve advances what a node holds, by as much as
+/// its solver covered, and where it is is carried to the world instant
+/// separately (`Node::carried`, `Tree::carry`). Carrying to the contents'
+/// clock instead would leave a node whose solver covers a sixteenth of each
+/// step standing a sixteenth as far along as the world.
+fn carry_to(w: &mut World, nodes: &[NodeIdx], instant: f64) {
+    for &i in nodes {
+        w.tree.carry(i, instant);
+    }
+}
+
 /// A ring of `n` bodies of radius `r` on a circle of radius `ring`, in a node
 /// frame. Deliberately parameterised by scale so one test can run at galactic
 /// and nuclear sizes without a second copy.
@@ -1329,10 +1342,11 @@ fn a_ball_loose_in_a_box_conserves_momentum_and_angular_momentum() {
     let mut worst_p: f64 = 0.0;
     let mut worst_l: f64 = 0.0;
     let mut escaped = false;
-    for _ in 0..FRAMES {
+    for k in 0..FRAMES {
         w.advance_node(root, DT);
         w.advance_node(the_box, DT);
         w.advance_node(ball, DT);
+        carry_to(&mut w, &[root, the_box, ball], (k + 1) as f64 * DT);
         let (p, l, _, _) = totals(&w);
         worst_p = worst_p.max((p - p0).norm() / p0.norm());
         worst_l = worst_l.max((l - l0).norm() / l_scale);
@@ -1524,10 +1538,11 @@ fn a_plank_struck_off_centre_turns_and_its_surface_turns_with_it() {
     assert_eq!(before.len(), 1, "the plank is one member and so one capsule");
     let tip_before = before[0].support(v3(1.0, 0.0, 0.0));
 
-    for _ in 0..400 {
+    for k in 0..400 {
         w.advance_node(root, DT);
         w.advance_node(plank, DT);
         w.advance_node(ball, DT);
+        carry_to(&mut w, &[root, plank, ball], (k + 1) as f64 * DT);
     }
 
     assert!(
@@ -1712,10 +1727,11 @@ fn a_turned_plank_is_struck_where_its_wall_now_is() {
          ball crosses at {ALONG} — this scene cannot tell the two apart"
     );
 
-    for _ in 0..400 {
+    for k in 0..400 {
         w.advance_node(root, DT);
         w.advance_node(plank, DT);
         w.advance_node(ball, DT);
+        carry_to(&mut w, &[root, plank, ball], (k + 1) as f64 * DT);
     }
 
     assert!(

@@ -274,7 +274,7 @@ fn a_move_does_not_touch_the_tables_keyed_by_identity() {
 /// world.
 #[test]
 fn identity_does_not_depend_on_how_fast_the_machine_is() {
-    fn run(budget_us: f64) -> (u64, usize, usize) {
+    fn run(budget_us: f64) -> (u64, usize, Vec<phys::ids::PathKey>) {
         let mut w = a_world();
         w.tree.nodes[0].spec.count = 4096;
         let root = w.tree.root;
@@ -288,7 +288,9 @@ fn identity_does_not_depend_on_how_fast_the_machine_is() {
         for _ in 0..40 {
             w.step_frame(budget_us);
         }
-        (w.next_entity, w.identities.len(), w.clocks.len())
+        let mut advanced: Vec<_> = w.clocks.keys().copied().collect();
+        advanced.sort();
+        (w.next_entity, w.identities.len(), advanced)
     }
 
     let generous = run(50_000.0);
@@ -303,7 +305,10 @@ fn identity_does_not_depend_on_how_fast_the_machine_is() {
 
     // The control: the budget must actually have changed what the engine did,
     // or this test is asserting nothing. Clocks are keyed by address precisely
-    // so that they may vary with the budget without naming anything.
+    // so that they may vary with the budget without naming anything. *Which*
+    // nodes, not how many: measured at Phase 5, a generous budget and a
+    // starved one each advanced two nodes over forty frames, and not the same
+    // two.
     let starved = run(1.0);
     assert_ne!(
         starved.2, generous.2,

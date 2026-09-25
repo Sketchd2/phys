@@ -85,9 +85,15 @@ fn a_child_and_its_stand_in_agree_whenever_they_are_synced() {
         w.step_frame(50_000.0);
     }
 
-    // The exact invariant: a sync makes them the same place.
+    // The exact invariant: a sync makes them the same place — at the instant
+    // the parent's bodies are at. A child's motion is carried to the world
+    // instant every frame while its parent's contents keep the instant they
+    // were last solved to (Phase 5: no node is left unsolved, only scheduled),
+    // so the stand-in is where the child *was then*, which is where the
+    // parent's solver needs it.
     w.tree.sync_children(root);
-    let child_at = w.tree.nodes[child.get()].motion.offset;
+    let then = w.tree.nodes[root.get()].time;
+    let child_at = w.tree.position_at(child, then);
     let body_at = w.tree.nodes[root.get()].bodies[slot].pos;
     assert_eq!(
         child_at, body_at,

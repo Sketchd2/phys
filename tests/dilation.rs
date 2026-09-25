@@ -178,11 +178,15 @@ fn a_dilated_node_still_travels_at_its_velocity() {
     let before = w.tree.nodes[d.get()].motion.offset;
     let t0 = w.tree.nodes[d.get()].time;
 
+    // The contents are solved, and the motion is carried to the instant the
+    // solve reached — two clocks since Phase 5, and the frame runs both.
     w.advance_node(d, 1.0);
+    let reached = w.tree.nodes[d.get()].time;
+    w.tree.carry(d, reached);
 
     let n = &w.tree.nodes[d.get()];
     let moved = (n.motion.offset - before).norm();
-    let coordinate = n.time - t0;
+    let coordinate = n.carried - t0;
     println!(
         "  {coordinate:.6} s of world time moved it {moved:.6e} m; v*dt would be {:.6e}",
         v.norm() * coordinate
@@ -213,11 +217,12 @@ fn a_bubble_multiplies_the_interior_and_nothing_else() {
     // The trajectory is untouched.
     w.tree.nodes[d.get()].motion.velocity = v3(1000.0, 0.0, 0.0);
     let before = w.tree.nodes[d.get()].motion.offset;
-    let t0 = w.tree.nodes[d.get()].time;
+    let t0 = w.tree.nodes[d.get()].carried;
     w.advance_node(d, 1.0);
+    w.tree.carry(d, t0 + 1.0);
     let n = &w.tree.nodes[d.get()];
     let moved = (n.motion.offset - before).norm();
-    let coordinate = n.time - t0;
+    let coordinate = n.carried - t0;
     println!("  bubbled 100x, one second: moved {moved:.3} m over {coordinate:.6} s of world time");
     assert!(
         (moved - 1000.0 * coordinate).abs() < 1e-6,

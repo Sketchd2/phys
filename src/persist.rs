@@ -1106,6 +1106,50 @@ pub(crate) fn put_node_payload(w: &mut Writer, n: &Node) {
     w.bool(n.contains_edit);
     // An input to regeneration, like `gravity`: see `Node::rest_density`.
     w.f64(n.rest_density);
+    // Where the node is has its own clock, separate from its contents'.
+    w.f64(n.carried);
+    // A tide depends on its history, so the ocean is state and is written.
+    // Its grid is not: that is regenerated from `n` and the radius.
+    match &n.ocean {
+        Some(o) => {
+            w.bool(true);
+            w.u64(o.n as u64);
+            w.f64(o.radius);
+            w.f64(o.depth);
+            w.f64(o.g);
+            w.f64(o.drag);
+            w.f64(o.time);
+            w.f64(o.owed);
+            w.seq(o.cells.len());
+            for c in &o.cells {
+                w.f64(c.eta);
+                w.vec3(c.velocity);
+                w.f64(c.waves);
+            }
+        }
+        None => w.bool(false),
+    }
+}
+
+fn get_ocean(r: &mut Reader) -> Result<Option<Box<crate::ocean::Ocean>>> {
+    if !r.bool()? {
+        return Ok(None);
+    }
+    let n = r.u64()? as usize;
+    let (radius, depth, g, drag, time) = (r.f64()?, r.f64()?, r.f64()?, r.f64()?, r.f64()?);
+    let mut o = crate::ocean::Ocean::new(n, radius, depth, g, drag);
+    o.time = time;
+    o.owed = r.f64()?;
+    let count = r.seq("ocean cells", 32)?;
+    if count != o.cells.len() {
+        return Err(crate::wire::WireError::BadRecipe { what: "ocean cells" });
+    }
+    for c in o.cells.iter_mut() {
+        c.eta = r.f64()?;
+        c.velocity = r.vec3()?;
+        c.waves = r.f64()?;
+    }
+    Ok(Some(Box::new(o)))
 }
 
 pub(crate) fn get_node_payload(r: &mut Reader) -> Result<Node> {
@@ -1155,6 +1199,8 @@ pub(crate) fn get_node_payload(r: &mut Reader) -> Result<Node> {
         rest_density: r.f64()?,
         // A measurement of the last solve, and a reloaded node has not had one.
         unrest: 0.0,
+        carried: r.f64()?,
+        ocean: get_ocean(r)?,
         // Derived from the node's own contents, and regenerated on first use.
         // Storing it would be storing a derived value — the same reason
         // `last_report` is not written.
@@ -1697,9 +1743,16 @@ impl Snapshot {
             if !n.alive {
                 continue;
             }
-            let dt = instant - n.time;
+            // Where it is, in closed form; and its contents' clock where its
+            // contents are closed-form too — a node holding only matter. A
+            // node with bodies stays at the time they were solved to, and is
+            // scheduled: see `Node::carried`.
+            let dt = instant - n.carried;
             if dt > 0.0 {
                 n.motion.advance(dt);
+                n.carried = instant;
+            }
+            if n.bodies.is_empty() && n.time < instant {
                 n.time = instant;
             }
         }

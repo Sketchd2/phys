@@ -11,10 +11,20 @@
 //! a nucleus in the tree pinned the whole world to 10^-23 s per frame.
 
 use phys::engine::{default_spec, galaxy, World};
+use phys::ids::NodeIdx;
 use phys::math::v3;
 use phys::units::*;
 
 /// Every live node ends the frame at the world instant. Not near it — at it.
+///
+/// **Where a node is, that is.** Every node's motion is carried to the world
+/// instant each frame (`Node::carried`). What it *holds* is another clock: a
+/// node with bodies keeps the instant its bodies were solved to, and is never
+/// coasted past it, because coasting bodies is leaving them unsolved — the
+/// owner's rule for Phase 5 is that no node is, and that one behind is only
+/// scheduled. So the second half of the claim is that every node whose
+/// contents are behind is owed a solve that covers all of it: its lateness is
+/// a finite number the scheduler ranks, and nothing was dropped on the floor.
 #[test]
 fn the_whole_world_is_at_one_instant() {
     let mut w = World::new(galaxy(0xA11CE, 1e9), 20.0);
@@ -28,21 +38,35 @@ fn the_whole_world_is_at_one_instant() {
     }
 
     let mut checked = 0;
+    let mut behind = 0;
     for (i, n) in w.tree.nodes.iter().enumerate() {
         if !n.alive {
             continue;
         }
         checked += 1;
-        let slip = (n.time - w.time).abs();
+        let slip = (n.carried - w.time).abs();
         assert!(
             slip <= w.time.abs() * 1e-9,
             "node {i} ({:?}) is at {:.6e} s, the world is at {:.6e} s",
             n.tier,
-            n.time,
+            n.carried,
             w.time
         );
+        assert!(n.time <= w.time * (1.0 + 1e-12), "node {i}'s contents are ahead of the world");
+        if n.time < w.time * (1.0 - 1e-9) {
+            behind += 1;
+            assert!(!n.bodies.is_empty(), "node {i} holds only matter and was left behind");
+            let late = w.lateness(NodeIdx(i as u32), w.time);
+            println!(
+                "  node {i} ({:?}) holds its contents at {:.3e} s, lateness {late:.3e}",
+                n.tier, n.time
+            );
+            // `lateness` clamps at 1e9, which is its "due now"; a node the
+            // scheduler could not rank would come back NaN or negative.
+            assert!(late.is_finite() && late >= 0.0, "node {i} is behind and not scheduled");
+        }
     }
-    println!("  {checked} live nodes, all at t = {:.6e} s", w.time);
+    println!("  {checked} live nodes, all at t = {:.6e} s; {behind} owed a solve", w.time);
     assert!(checked >= 6);
 }
 

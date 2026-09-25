@@ -414,6 +414,14 @@ pub enum PaceMode {
     Fixed,
 }
 
+/// Cells along a side of each face of a planet's ocean.
+///
+/// Sixteen puts a cell at 630 km on an Earth, which resolves a tide — the
+/// forcing is the planet's own size — and the shallow-water waves that carry
+/// it, which are a few thousand kilometres long. Not a physical number and not
+/// pretending to be one: it is the resolution, as `SampleSpec::count` is.
+pub const OCEAN_CELLS: usize = 16;
+
 /// How fast a liquid's contents move, or will once they are let go: the
 /// greater of `sqrt(2 g H)` for a column of depth `H` in a field `g`, the
 /// liquid's bulk motion, and the fastest thing driving it — `drivers`, the
@@ -1649,6 +1657,18 @@ impl World {
         // And the same measurement one level down: a node whose contents have
         // stopped being one neighbourhood is describing two places at once.
         self.resolve_extents(&plan);
+        // Both of those can make a node out of a body, and a node made from a
+        // body is where that body was at its parent's contents instant — which
+        // may be behind the world's (`Node::carried`). Carried here, so that
+        // every node the frame ends with is at the frame's instant and not
+        // only the ones that existed when it started. Measured without it: an
+        // Atomic node made in the last frame's crossing or split passes stood
+        // at 2.9e-17 s in a world at 1 s.
+        for i in 0..self.tree.nodes.len() {
+            if self.tree.nodes[i].alive {
+                self.tree.carry(NodeIdx(i as u32), horizon);
+            }
+        }
 
         self.deliver_influences(horizon);
         // Chemistry runs on the span the frame actually covered, after the
@@ -1669,6 +1689,8 @@ impl World {
         // What has happened to a surface feels its own physics, on the world
         // clock and not on whether anybody is looking. `docs/PLAY.md` §5.
         self.weather(span);
+        // And a planet's ocean answers what is outside it. `ocean.rs`.
+        self.tides(span);
         self.time = horizon;
         self.record_histories();
 
@@ -2749,11 +2771,8 @@ impl World {
         if was_materialised {
             self.tree.coarsen(idx);
         }
+        self.tree.carry(idx, horizon);
         let n = &mut self.tree.nodes[idx.get()];
-        let dt = horizon - n.time;
-        if dt > 0.0 {
-            n.motion.advance(dt);
-        }
         n.time = horizon;
         n.last_solved = horizon;
         n.epoch = n.epoch.wrapping_add(1);
@@ -2770,44 +2789,25 @@ impl World {
     ///
     /// Returns how many nodes were carried rather than solved. It is nearly all
     /// of them, nearly every frame, and that is the point.
-    /// Carry each of a node's promoted children that is behind it on the world
-    /// clock up to it, as [`Self::coast_to`] carries everything at the end of a
-    /// frame. See the call in `advance_node`.
-    fn coast_children(&mut self, idx: NodeIdx) {
-        let horizon = self.tree.nodes[idx.get()].time;
-        let children = self.tree.nodes[idx.get()].children.clone();
-        for c in children {
-            if c.is_none() || !self.tree.nodes[c.get()].alive {
-                continue;
-            }
-            let n = &mut self.tree.nodes[c.get()];
-            let dt = horizon - n.time;
-            if !(dt > 0.0) {
-                continue;
-            }
-            n.motion.advance(dt);
-            n.time = horizon;
-            let key = n.key;
-            let physical = self.time_rate_of(c).physical();
-            if let Some(clock) = self.clocks.get_mut(&key) {
-                clock.time = horizon;
-                clock.proper_time += dt * physical;
-            }
-        }
-    }
-
+    ///
+    /// **Where a node is, not what it holds.** Every node's motion is carried to
+    /// the world instant here. Its contents' clock follows only where its
+    /// contents are closed-form too, which is a node holding only matter; a
+    /// node with bodies is never left unsolved — the owner's rule for Phase 5 —
+    /// so it keeps the time its bodies were solved to and is scheduled, and
+    /// when it runs it covers all of it. See `Node::carried`.
     fn coast_to(&mut self, horizon: f64) -> usize {
         let mut coasted = 0;
         for i in 0..self.tree.nodes.len() {
+            if !self.tree.nodes[i].alive {
+                continue;
+            }
+            self.tree.carry(NodeIdx(i as u32), horizon);
             let n = &mut self.tree.nodes[i];
-            if !n.alive {
-                continue;
-            }
             let dt = horizon - n.time;
-            if !(dt > 0.0) {
+            if !(dt > 0.0) || !n.bodies.is_empty() {
                 continue;
             }
-            n.motion.advance(dt);
             n.time = horizon;
             coasted += 1;
             let key = n.key;
@@ -2894,17 +2894,6 @@ impl World {
         // The child is the real thing and its body is a stand-in, so the solver
         // has to see where the child actually is before it computes anything.
         // See `Tree::sync_children`.
-        // **A child that is behind its parent's clock is carried up to it
-        // first**, the way the frame's coast would carry it at the end. The
-        // child owns where it is (D4), and it moves at its own velocity between
-        // its own solves; a parent solved many times in a frame used to see it
-        // where it stood at its own last clock for all of them, while its
-        // velocity took every push the parent gave it and its position took
-        // none. Measured: a ball in a bucket of water was frozen through fifty
-        // of the bucket's solves, then carried a whole frame at once, and was
-        // thrown out at 14.5 m/s. Carrying it in the parent's steps is the same
-        // coast, in finer pieces.
-        self.coast_children(idx);
         let promoted = self.tree.sync_children(idx);
         let before = self.tree.stand_in_velocities(idx, &promoted);
 
@@ -3377,7 +3366,8 @@ impl World {
         // before carrying the frame forward, so the orientation this span
         // advances by is the one the node's contents actually imply.
         n.sync_spin_rate();
-        n.motion.advance(coordinate);
+        // Its motion is carried to the world instant by `Tree::carry`, on its
+        // own clock; this advances what it holds. See `Node::carried`.
         let node_time = n.time;
         let clock = self
             .clocks
@@ -5338,6 +5328,144 @@ impl World {
         }
     }
 
+    /// Give a node the ocean its own matter describes, if it describes one and
+    /// has none yet. Returns whether it has one afterwards.
+    ///
+    /// **Measured, not stated.** A planetary node whose mixture holds a liquid
+    /// on a solid majority has water on rock, and that water spreads over the
+    /// node's surface to the depth its own volume gives — one depth everywhere
+    /// while ground on a sphere has no relief (`ocean.rs`). Its surface gravity
+    /// is its own, and its seabed drag is the log-law against the ground's own
+    /// grain, the deposited flaw scale `Material::measured` derives.
+    pub fn assess_ocean(&mut self, idx: NodeIdx) -> bool {
+        if idx.is_none() || !self.tree.nodes[idx.get()].alive {
+            return false;
+        }
+        if self.tree.nodes[idx.get()].ocean.is_some() {
+            return true;
+        }
+        let (liquid, solid, mass, radius, tier) = {
+            let n = &self.tree.nodes[idx.get()];
+            let m = &n.matter.mixture;
+            (m.in_phase(crate::chem::Phase::Liquid), m.in_phase(crate::chem::Phase::Solid), n.matter.mass, n.matter.radius, n.tier)
+        };
+        if tier != crate::units::Tier::Planetary || !(liquid > 0.0) || solid < 0.5 || !(radius > 0.0) {
+            return false;
+        }
+        // The liquid's volume, pool by pool at its own rest density.
+        let mut volume = 0.0;
+        for p in self.tree.nodes[idx.get()].matter.mixture.entries() {
+            if p.phase != crate::chem::Phase::Liquid {
+                continue;
+            }
+            let Some(sub) = self.substances.get(p.substance) else { continue };
+            let Some(c) = crate::eos::Condensed::liquid(&sub.props) else { continue };
+            volume += p.fraction * mass / c.rest_density;
+        }
+        let area = 4.0 * std::f64::consts::PI * radius * radius;
+        let depth = volume / area;
+        if !(depth > 0.0) {
+            return false;
+        }
+        let g = crate::units::G * mass / (radius * radius);
+        let grain = self.material_of(idx).map(|m| m.flaw_size).unwrap_or(0.0);
+        let drag = crate::ocean::log_law_drag(depth, grain);
+        let mut ocean = crate::ocean::Ocean::new(OCEAN_CELLS, radius, depth, g, drag);
+        ocean.time = self.tree.nodes[idx.get()].time;
+        self.tree.nodes[idx.get()].ocean = Some(Box::new(ocean));
+        true
+    }
+
+    /// The equilibrium elevation of each cell of a node's ocean — the tidal
+    /// potential over `-g` — from everything else the node's parent holds, at
+    /// where it is now, in the node's own axes.
+    ///
+    /// Its parent's bodies where the parent is materialised, the planet's own
+    /// stand-in left out; the parent's mass at its own centre where it is not.
+    /// Exact, not the quadrupole: `ocean::tidal_potential` subtracts only what
+    /// moves the whole planet.
+    pub fn tidal_equilibrium(&self, idx: NodeIdx) -> Vec<f64> {
+        let n = &self.tree.nodes[idx.get()];
+        let Some(ocean) = n.ocean.as_ref() else { return Vec::new() };
+        let parent = n.parent;
+        let mut sources: Vec<(Vec3, f64)> = Vec::new();
+        let into = n.motion.orientation.conjugate();
+        if !parent.is_none() {
+            let p = &self.tree.nodes[parent.get()];
+            if p.bodies.is_empty() {
+                let m = (p.matter.mass - n.matter.mass).max(0.0);
+                sources.push((into.rotate(Vec3::ZERO - n.motion.offset), m));
+            } else {
+                // Where each body is at the planet's instant. The parent's
+                // bodies are at the time its contents were solved to, and the
+                // planet is carried to the world's (`Node::carried`); between
+                // the two, a body goes at its own velocity. Reading it where
+                // the last solve left it held a moon still — an Earth-moon
+                // pair's cadence is 3.7 days, and the tide it drove came out at
+                // half a sidereal day rather than half a lunar one.
+                let since = n.carried - p.time;
+                for (k, b) in p.bodies.iter().enumerate() {
+                    if k == n.slot as usize {
+                        continue;
+                    }
+                    let at = b.pos + b.vel.scale(since);
+                    sources.push((into.rotate(at - n.motion.offset), b.mass));
+                }
+            }
+        }
+        ocean
+            .cells
+            .iter()
+            .map(|c| {
+                let x = c.up.scale(ocean.radius);
+                let phi: f64 = sources.iter().map(|(r, m)| crate::ocean::tidal_potential(x, *r, *m)).sum();
+                -phi / ocean.g
+            })
+            .collect()
+    }
+
+    /// Carry every ocean in the world forward by a span of world time, on its
+    /// own node's clock and at its own stable step.
+    ///
+    /// Cheap by construction: an Earth's ocean at sixteen cells a face side is
+    /// 1536 cells stepped every thousand seconds or so, which at one second per
+    /// second is once in twenty thousand frames. It runs whether or not anyone
+    /// is watching, like weather, because a tide nobody watched still came in.
+    fn tides(&mut self, span: f64) {
+        if !(span > 0.0) {
+            return;
+        }
+        for i in 0..self.tree.nodes.len() {
+            let idx = NodeIdx(i as u32);
+            if !self.tree.nodes[i].alive || self.tree.nodes[i].tier != crate::units::Tier::Planetary {
+                continue;
+            }
+            if self.tree.nodes[i].ocean.is_none() && !self.assess_ocean(idx) {
+                continue;
+            }
+            let local = span * self.local_rate(idx);
+            let spin = self.tree.nodes[i].motion.spin_rate;
+            let stable = self.tree.nodes[i].ocean.as_ref().map(|o| o.stable_step()).unwrap_or(0.0);
+            if !(stable > 0.0) {
+                continue;
+            }
+            // The forcing moves with the moon and the planet's turning, both
+            // of which the frame has already advanced; within a span it is
+            // held, which is exact for the forcing's own period being far
+            // longer than a stable step.
+            let eq = self.tidal_equilibrium(idx);
+            let Some(ocean) = self.tree.nodes[i].ocean.as_mut() else { continue };
+            // Whole stable steps, and the remainder carried: a frame is far
+            // shorter than a step, so most frames take none.
+            let owed = local + ocean.owed;
+            let steps = (owed / stable).floor() as u64;
+            for _ in 0..steps {
+                ocean.step(stable, &eq, spin);
+            }
+            ocean.owed = owed - steps as f64 * stable;
+        }
+    }
+
     /// Whether a node's ground is an uncemented aggregate: laid down, and never
     /// seen to freeze.
     ///
@@ -6422,9 +6550,15 @@ fn apply_contact(
             if c.is_none() || !w.tree.nodes[c.get()].alive {
                 return;
             }
+            // The impulse lands at the parent's instant and the child's motion
+            // is carried to a later one, so its position there moves by the
+            // change for the difference. See `Node::carried`.
+            let since = (w.tree.nodes[c.get()].carried - w.tree.nodes[parent.get()].time).max(0.0);
             let n = &mut w.tree.nodes[c.get()];
             if n.matter.mass > 0.0 {
-                n.motion.velocity = n.motion.velocity + impulse.scale(1.0 / n.matter.mass);
+                let dv = impulse.scale(1.0 / n.matter.mass);
+                n.motion.velocity = n.motion.velocity + dv;
+                n.motion.offset = n.motion.offset + dv.scale(since);
             }
             n.matter.spin += spin;
             // Angular momentum arrived, so the angular velocity it implies has
