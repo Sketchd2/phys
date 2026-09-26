@@ -3220,6 +3220,24 @@ neither angular momentum nor the energy a bore dissipates exactly, and the
 bed's drag is the only heat it books. The SPH open edge of item 5b was
 removed with it. `FORMAT_VERSION` is 25, for the sheet.
 
+*Decided by the owner — members of one structure are not tested for contact
+with each other, and heat between them moves on the structure's own
+conduction time.* The beach asks for real time, and a patch of shore cost
+2.2 s of computing for 1 s of world, the sheet itself 1.6 ms of each 40 ms
+solve. Measured, the rest was mostly one thing the question did not name:
+the sheet's stand-in, as wide as its patch, made the neighbourhood index's
+cells the patch's size, so finding neighbours among the patch's 2500 columns
+took 16 to 18 ms twice a solve. A sea or a sheet is now left out of the index
+(`Tree::neighbourhood`). Of what remained, skipping contact between joined
+members saves about 6 ms a solve and the heat cadence (`L^2 rho c / k` across
+the members' spacing, hours for sand) about 4 ms. A patch of shore under an
+Earth's sea now takes 0.52 s of computing for 1 s of world.
+
+Left open by it, to be put to the owner: heat between the sheet and the
+ground under it. Pairwise, as a sphere, it was never right, and it now does
+not happen at all; column by column in the sheet's own step is where it
+belongs.
+
 **Phase 6 — The program.** *Inserted by the owner during Phase 5.* The whole
 system simulated and watched on the owner's own PC as a native executable —
 the owner's requirement, on the grounds that a web renderer's overhead would

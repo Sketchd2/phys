@@ -608,6 +608,12 @@ pub struct World {
     /// free, and a patch that has not changed has the same answer. A cache
     /// of a measurement, not state; not persisted.
     sheets_assessed: HashMap<PathKey, u32>,
+    /// Time each structure's members have gone without exchanging heat with
+    /// each other, by address: they exchange once it reaches their own
+    /// conduction time (`World::exchange_within`). Not persisted — a reload
+    /// owes them less than that time, which is less than it takes heat to
+    /// move between them.
+    heat_owed: HashMap<PathKey, f64>,
 }
 
 impl World {
@@ -640,6 +646,7 @@ impl World {
             falling: Vec::new(),
             history_depth: 64,
             sheets_assessed: HashMap::new(),
+            heat_owed: HashMap::new(),
         };
         // A world runs at one second per second. `docs/PLAY.md` D1: that is
         // what a shared world *is*, and the clock must not be dragged slower by
@@ -4158,7 +4165,20 @@ impl World {
                 _ => None,
             }
         };
+        // **Members of one structure are joined, and do not collide with each
+        // other** — the owner's decision for Phase 5. Whether a joined part
+        // holds is the structural solver's question; asked here, a patch of
+        // ground's 2500 columns built a hull for every pair of touching
+        // neighbours on every solve, about 6 ms of a patch of shore's 16.
+        // They still meet everything else the node holds.
+        let members = self.tree.nodes[idx.get()].structural_mask();
+        let joined = |k: u32| members.as_ref().and_then(|m| m.get(k as usize).copied()).unwrap_or(false);
         for (i, j) in overlaps {
+            if let (Some((Occupant::Body(a), _, _)), Some((Occupant::Body(b), _, _))) = (nb.at(i), nb.at(j)) {
+                if joined(a) && joined(b) {
+                    continue;
+                }
+            }
             let (Some((oa, a)), Some((ob, b))) = (side_of(self, i), side_of(self, j)) else {
                 continue;
             };
@@ -4396,8 +4416,46 @@ impl World {
         }
         let mut moved = vec![0.0f64; nb.len()];
 
+        // **Heat between the members of one structure moves on the
+        // structure's own conduction time** — the owner's decision for Phase
+        // 5: `L^2 rho c / k` across the spacing of its members, from what it
+        // is made of. Across the 5 cm columns of a patch of sand that is
+        // hours, and exchanging them every fiftieth of a second cost about
+        // 4 ms of a patch of shore's 16 to move heat that had not had time to
+        // move. The exchange is an exact relaxation between two reservoirs,
+        // so a pair given the whole span it was owed takes it in one step.
+        // Everything else the node holds exchanges every solve.
+        let members = self.tree.nodes[idx.get()].structural_mask();
+        let joined = |k: u32| members.as_ref().and_then(|m| m.get(k as usize).copied()).unwrap_or(false);
+        let key = self.tree.nodes[idx.get()].key;
+        let members_due = match &members {
+            None => None,
+            Some(_) => {
+                let n = &self.tree.nodes[idx.get()];
+                let parts = n.bodies.len().max(1) as f64;
+                let spacing = n.matter.radius / parts.cbrt();
+                let per_volume = n.matter.heat_capacity() / n.matter.volume().max(1e-300);
+                let own = own.unwrap_or(0.0);
+                let conduction = if own > 0.0 { spacing * spacing * per_volume / own } else { f64::INFINITY };
+                let owed = self.heat_owed.get(&key).copied().unwrap_or(0.0) + dt;
+                if owed >= conduction {
+                    self.heat_owed.remove(&key);
+                    Some(owed)
+                } else {
+                    self.heat_owed.insert(key, owed);
+                    None
+                }
+            }
+        };
+
         let mut crossings = 0u64;
         for (i, j) in pairs {
+            let both = matches!((nb.at(i), nb.at(j)), (Some((Occupant::Body(a), _, _)), Some((Occupant::Body(b), _, _))) if joined(a) && joined(b));
+            let dt = match (both, members_due) {
+                (false, _) => dt,
+                (true, Some(owed)) => owed,
+                (true, None) => continue,
+            };
             let (_, pi, ri) = nb.at(i).expect("pair index is in range");
             let (_, pj, rj) = nb.at(j).expect("pair index is in range");
             let d = (pj - pi).norm();

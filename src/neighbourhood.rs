@@ -200,7 +200,8 @@ impl Neighbourhood {
     /// Build over a node's contents.
     ///
     /// `resolution` is the node's own, and `child_at(slot)` supplies the
-    /// position and radius of the promoted child in that slot if there is one.
+    /// position and radius of the promoted child in that slot if there is one
+    /// — or `None` to leave that slot out of the index altogether.
     /// Taking it as a closure keeps this module free of the tree: adjacency is
     /// about geometry, and which arena a child lives in is not its business.
     pub fn build(
@@ -216,13 +217,12 @@ impl Neighbourhood {
         let mut radii = Vec::with_capacity(n);
 
         for slot in 0..n {
-            let promoted = children
-                .get(slot)
-                .copied()
-                .filter(|c| !c.is_none())
-                .and_then(|c| child_at(c).map(|(p, r)| (c, p, r)));
-            match promoted {
-                Some((c, p, r)) => {
+            // A slot a child stands in is the child's, or nobody's where the
+            // caller leaves the child out: its stand-in body is not a second
+            // thing there.
+            match children.get(slot).copied().filter(|c| !c.is_none()) {
+                Some(c) => {
+                    let Some((p, r)) = child_at(c) else { continue };
                     occupants.push(Occupant::Child(c));
                     positions.push(p);
                     radii.push(r.max(0.0));

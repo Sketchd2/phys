@@ -2400,10 +2400,17 @@ impl Tree {
             &n.children,
             resolution,
             n.epoch,
+            // A sea or a sheet of water is a description of the fluid over
+            // what the node holds, not a solid among it, and its slot is left
+            // out of the index: as the sphere its stand-in is, a sheet as wide
+            // as its patch made the index's cells the patch's size, and
+            // finding the neighbours among a patch of ground's 2500 columns
+            // took 16 to 18 ms, twice a solve.
             |c| {
                 let child = self.nodes.get(c.get())?;
                 // Where it is at this node's instant: see `Node::carried`.
-                child.alive.then(|| (self.position_at(c, n.time), child.matter.radius))
+                (child.alive && child.ocean.is_none() && child.sheet.is_none())
+                    .then(|| (self.position_at(c, n.time), child.matter.radius))
             },
         )
     }
