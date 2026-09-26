@@ -870,7 +870,8 @@ is still not decided anywhere.
 
 **Trigger:** the first time a *member* of a node has to respond as part of its
 structure rather than on its own — a branch that should sway the tree instead of
-flying off. Unavoidable by Phase 6.
+flying off. Unavoidable by Bodies (Phase 7 since the owner inserted the program
+as Phase 6).
 
 ---
 
@@ -2940,7 +2941,7 @@ neighbouring patch rather than a node, and the conserved tuple checked on both
 sides of the handoff.
 
 **Trigger:** the first thing that moves across ground under its own power, which
-is Phase 6's quadruped. Until then nothing in the engine traverses a surface.
+is Phase 7's quadruped. Until then nothing in the engine traverses a surface.
 
 ---
 

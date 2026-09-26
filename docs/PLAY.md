@@ -3113,7 +3113,29 @@ for a day, slips over its ground at 2.4e-3 m/s at worst, and the world's
 angular momentum moves 1.3e-8 and its momentum 1.8e-4 of the air's.
 `FORMAT_VERSION` is 23, for the patch layout.
 
-**Phase 6 — Bodies.** *Was Phase 4.* D11's habit refactor; substructuring (D5);
+**Phase 6 — The program.** *Inserted by the owner during Phase 5.* The whole
+system simulated and watched on the owner's own PC as a native executable —
+the owner's requirement, on the grounds that a web renderer's overhead would
+keep it from running at speed. Decided with it:
+
+- **Its own phase, straight after Water** — not folded into Phase 5, and not
+  left to Sessions.
+- **Rendering first.** A native window drawing the world on the GPU: bodies,
+  structures, ground, and what is described rather than drawn, such as an
+  ocean's height and sea. The physics stays on the CPU, which remains the
+  bit-exact reference; the compute path `docs/GPU.md` designs is a later,
+  separate step, validated against it.
+- **wgpu**, which runs on Vulkan, DirectX 12 or Metal, and whose compute
+  shaders fit `GPU.md`'s WGSL sketches.
+- **On D10's seam.** The program is a server and a client in one process,
+  talking through the same encode and decode; the renderer draws what the
+  client receives and never reaches into the `World`. The physics must not
+  depend on the renderer (`GPU.md`, "What is not planned"), and this keeps it
+  so.
+
+*Done when:* the owner's to state when the phase starts.
+
+**Phase 7 — Bodies.** *Was Phase 6.* D11's habit refactor; substructuring (D5);
 the creature genome; the actuation mechanism; derived-and-cached gait and grasp.
 Standing is contact against a surface that now exists.
 
@@ -3121,13 +3143,14 @@ Standing is contact against a surface that now exists.
 planets with different g, with no per-morphology code and no enum variant naming
 either of them.
 
-**Phase 7 — Minds.** *Was Phase 5.* Unchanged.
+**Phase 8 — Minds.** *Was Phase 7.* Unchanged.
 
-**Phase 8 — Making things.** *Was Phase 6.* Unchanged in content, and now
+**Phase 9 — Making things.** *Was Phase 8.* Unchanged in content, and now
 standing on D15: a player-built thing is a recipe that grows as it is built,
 rather than a pile of placed nodes.
 
-**Phase 9 — Sessions.** *Was Phase 7.* Unchanged.
+**Phase 10 — Sessions.** *Was Phase 9.* Unchanged, apart from standing on the
+program Phase 6 builds, which is already a server and a client in one process.
 
 ---
 

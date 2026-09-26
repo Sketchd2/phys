@@ -404,7 +404,9 @@ node's mixture is part of its matter**, which is what lets any node say what it
 is made of and therefore whether it is solid at all. Two phases were inserted ahead of Ground as a result, so the
 numbering below the insertion has moved: **Things**, **Crossings**, then Ground,
 Water, Bodies, Minds, Making, Sessions. Nothing below Ground changed relative to
-anything else.
+anything else. A third was inserted after Water during Phase 5, by the owner:
+**the program** — a native executable rendering on the GPU with wgpu, physics
+on the CPU — so Bodies is now Phase 7 and Sessions Phase 10.
 
 **Phase 2 is done.** Its done-when was a wooden box that is *one node* with a
 recipe describing six walls, which responds as one box, loses a wall to a hard
@@ -620,7 +622,7 @@ Left deliberately undone, each with a measurement and a trigger in
   gone, so what is left is the line of policy its entry describes.
 - **Sideways handoff across a patch edge** has never been exercised in anger.
   The mechanism is Phase 3's and the tiling is Phase 4's; what is missing is a
-  scenario, and the first one is Phase 6's quadruped.
+  scenario, and the first one is Phase 7's quadruped.
 
 **Scheduled rather than left**, and `PLAY.md` §7 is where they live — none of
 them is a backlog entry to be picked up on a whim:

@@ -114,7 +114,9 @@ The reference implementation is the oracle:
 - **Rendering** is out of scope here. The engine produces `Sighting`s with
   retarded positions, Doppler factors and fluxes; turning those into pixels is a
   separate concern, and deliberately so — the physics must not depend on the
-  renderer.
+  renderer. That separate concern is now planned: `docs/PLAY.md` §7, Phase 6, a
+  native wgpu program that renders on the GPU while this compute path stays
+  unwritten until after it.
 - **Multi-GPU.** The causal decomposition would make it natural (regions with
   large separations are exactly the ones that need no synchronisation), but a
   2060 is the stated target.
