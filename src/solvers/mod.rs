@@ -39,10 +39,9 @@ pub struct SolveReport {
     /// conservation check, and reported so nothing hides in it.
     pub non_mechanical_energy: f64,
     /// Momentum the contents gained from outside them, kg m/s — a field, a
-    /// wall nothing in the solve owns, a thermostat — other than across an
-    /// open edge, which the node's describing body pays for itself
-    /// (`hydro::Exchange`). Measured as the change in their momentum wherever
-    /// nothing crosses an edge, since what they do to each other cancels.
+    /// wall nothing in the solve owns, a thermostat. Measured as the change in
+    /// their momentum where nothing else reports it, since what they do to
+    /// each other cancels.
     /// The momentum's `non_mechanical_energy`, so a check of the world's
     /// books can take it out.
     pub outside: crate::math::Vec3,

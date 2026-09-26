@@ -651,80 +651,35 @@ pub fn step_with(
     eos: &[Eos],
     walls: &[Wall],
 ) -> SolveReport {
-    step_open(bodies, dt, params, eos, walls, None, None).0
+    step_indexed(bodies, dt, params, eos, walls, None)
 }
 
-/// Water beyond a region's open edge, in the node's frame: parcels of the sea
-/// that describes the region, where the sea puts them and moving as it moves.
+/// [`step_with`], with the walls indexed once for every substep of a solve
+/// (see [`Solid`]; `None` indexes them for this step alone). The index must
+/// have been made from these walls at this smoothing length.
 ///
-/// **The region's parcels feel them as neighbours and they feel nothing
-/// back.** A parcel at the edge of a region drawn out of an ocean has water on
-/// every side, and the part of its kernel beyond the edge is the ocean's; left
-/// empty, the edge is a free surface standing on its side, and the water
-/// pours out of it. The ocean is far larger than anything the region can do to
-/// it, so what the region pushes on it does not move it: the push is handed,
-/// whole, to the body that describes the ocean — see [`Exchange`].
-///
-/// **Their pressure is summed, not stated.** Each is priced exactly as a
-/// parcel of the region is — its neighbours' kernel over the lattice's, and
-/// the bed under it counted as a floor is — so the sea beyond the edge has the
-/// same free surface as the water inside it. Stated as the sea's hydrostatic
-/// pressure instead, it pressed harder than the water beside it by the half
-/// spacing a free surface's top layer carries nothing over, and a patch of
-/// shore under a still sea filled to 0.13 m above it in three seconds.
-#[derive(Debug, Clone, Copy)]
-pub struct Ghosts<'a> {
-    pub bodies: &'a [Body],
-    /// How far each stands above the bed under it, m: the region's floor
-    /// carried on past its edge.
-    pub above_bed: &'a [f64],
-    /// What the sea is made of, as its parcels are.
-    pub law: crate::eos::Condensed,
-}
-
-/// What the sea beyond an open edge did to the region's parcels in one step:
-/// the impulse it gave them, its moment about the node's centre, and the
-/// energy — motion and heat — they took up from it. The sea's side of each is
-/// equal and opposite, and is its describing body's to take.
-#[derive(Debug, Clone, Copy, Default, PartialEq)]
-pub struct Exchange {
-    pub impulse: Vec3,
-    pub moment: Vec3,
-    pub energy: f64,
-}
-
-/// [`step_with`], with the sea beyond an open edge (see [`Ghosts`]) and the
-/// walls indexed once for every substep of a solve (see [`Solid`]; `None`
-/// indexes them for this step alone). The index must have been made from
-/// these walls at this smoothing length.
-///
-/// A body with no mass is a slot that water has left (`World::advance_node`),
-/// and takes no part.
-pub fn step_open(
+/// A body with no mass is an empty slot — one a child was re-homed out of
+/// (`Tree::reparent`) or that a sea's stand-in is left out through
+/// (`World::advance_node`) — and takes no part.
+pub fn step_indexed(
     bodies: &mut [Body],
     dt: f64,
     params: HydroParams,
     eos: &[Eos],
     walls: &[Wall],
-    ghosts: Option<Ghosts>,
     solid: Option<&Solid>,
-) -> (SolveReport, Exchange) {
+) -> SolveReport {
     let before = crate::solvers::measure(bodies, 0.0);
     let n = bodies.len();
     if n == 0 || dt == 0.0 {
-        return (
-            SolveReport {
-                before,
-                after: before,
-                dt_used: dt,
-                ..Default::default()
-            },
-            Exchange::default(),
-        );
+        return SolveReport {
+            before,
+            after: before,
+            dt_used: dt,
+            ..Default::default()
+        };
     }
     let absent: Vec<bool> = bodies.iter().map(|b| !(b.mass > 0.0)).collect();
-    let sea = ghosts.filter(|g| !g.bodies.is_empty());
-    let sea_grid = sea.map(|g| NeighbourGrid::build(g.bodies, 2.0 * params.h));
 
     // A body that is a wall is taken out of the pairwise sums: the fluid meets
     // it as a surface, not as a kernel's worth of its mass. See `Wall`.
@@ -758,15 +713,6 @@ pub fn step_open(
                 .filter(|&j| condensed[j] == condensed[i] && !is_wall[j])
                 .map(|j| bodies[j].mass * kernel((b.pos - bodies[j].pos).norm(), params.h))
                 .sum();
-            // The sea beyond the edge is condensed water too.
-            if let (true, Some(g), Some(sg)) = (condensed[i], sea, sea_grid.as_ref()) {
-                sg.neighbours(b.pos, &mut nb);
-                out[i] += nb
-                    .iter()
-                    .map(|&k| &g.bodies[k as usize])
-                    .map(|o| o.mass * kernel((b.pos - o.pos).norm(), params.h))
-                    .sum::<f64>();
-            }
         }
         out
     } else {
@@ -805,38 +751,6 @@ pub fn step_open(
             rho[i] += c.rest_density * inside_walls(solid, &walls, bodies[i].pos, i, params.h);
         }
     }
-    // The sea's density, summed as the region's is, over the region's
-    // condensed parcels and the sea's own, and its bed as a floor.
-    let (sea_rho, sea_p): (Vec<f64>, Vec<f64>) = match (sea, sea_grid.as_ref()) {
-        (Some(g), Some(sg)) => {
-            let grid = NeighbourGrid::build(bodies, 2.0 * params.h);
-            let mut near = Vec::with_capacity(128);
-            let spacing = |m: f64| (m / g.law.rest_density).cbrt();
-            g.bodies
-                .iter()
-                .enumerate()
-                .map(|(k, o)| {
-                    let mut sum = 0.0;
-                    grid.neighbours(o.pos, &mut near);
-                    for &j in near.iter() {
-                        let j = j as usize;
-                        if condensed[j] && !is_wall[j] && !absent[j] {
-                            sum += bodies[j].mass * kernel((o.pos - bodies[j].pos).norm(), params.h);
-                        }
-                    }
-                    sg.neighbours(o.pos, &mut near);
-                    for &j in near.iter() {
-                        let q = &g.bodies[j as usize];
-                        sum += q.mass * kernel((o.pos - q.pos).norm(), params.h);
-                    }
-                    let rho = sum / lattice_sum(params.h, spacing(o.mass))
-                        + g.law.rest_density * beyond_plane(g.above_bed[k], params.h);
-                    (rho, g.law.pressure(rho))
-                })
-                .unzip()
-        }
-        _ => (Vec::new(), Vec::new()),
-    };
     let mut pressure = vec![0.0; n];
     let mut cs = vec![0.0; n];
     for i in 0..n {
@@ -853,52 +767,11 @@ pub fn step_open(
     let mut nb = Vec::with_capacity(128);
     let mut interactions = 0u64;
 
-    // What the sea gave each body, as an acceleration and as heating: kept
-    // apart so the exchange can be told from what the parcels did to each
-    // other.
-    let mut from_sea = vec![Vec3::ZERO; if sea.is_some() { n } else { 0 }];
-    let mut heat_from_sea = vec![0.0; if sea.is_some() { n } else { 0 }];
     for i in 0..n {
         grid.neighbours(bodies[i].pos, &mut nb);
         let bi = bodies[i];
         if rho[i] <= 0.0 || is_wall[i] || absent[i] {
             continue;
-        }
-        if let (Some(g), Some(sg)) = (sea, sea_grid.as_ref()) {
-            let mut near = Vec::new();
-            sg.neighbours(bi.pos, &mut near);
-            for &k in near.iter() {
-                let k = k as usize;
-                let o = &g.bodies[k];
-                let (po, ro) = (sea_p[k], sea_rho[k]);
-                let d = bi.pos - o.pos;
-                let r = d.norm();
-                if r <= 0.0 || r >= 2.0 * params.h || !(ro > 0.0) {
-                    continue;
-                }
-                let grad = kernel_grad(r, params.h);
-                let dir = d.scale(1.0 / r);
-                let term = pressure[i] / (rho[i] * rho[i]) + po / (ro * ro);
-                let v_ij = bi.vel - o.vel;
-                let vr = v_ij.dot(d);
-                let visc = if vr < 0.0 {
-                    let h = params.h;
-                    let mu_ij = h * vr / (r * r + 0.01 * h * h);
-                    let rho_bar = 0.5 * (rho[i] + ro);
-                    (-params.alpha * cs[i] * mu_ij + params.beta * mu_ij * mu_ij) / rho_bar
-                } else {
-                    0.0
-                };
-                let f = o.mass * (term + visc) * grad;
-                acc[i] += dir.scale(-f);
-                from_sea[i] += dir.scale(-f);
-                let mut heat = 0.5 * o.mass * visc * grad * v_ij.dot(dir);
-                if matches!(eos_at(eos, i), Eos::Condensed(_)) {
-                    heat += pressure[i] / (rho[i] * rho[i]) * o.mass * grad * v_ij.dot(dir);
-                }
-                heat_from_sea[i] += heat;
-                interactions += 1;
-            }
         }
         for &jj in nb.iter() {
             let j = jj as usize;
@@ -996,19 +869,12 @@ pub fn step_open(
 
     let mut radiated = 0.0;
     let mut external = 0.0;
-    let mut exchange = Exchange::default();
     let mut impulse = Vec3::ZERO;
     for i in 0..n {
         if absent[i] {
             continue;
         }
         let b = &mut bodies[i];
-        // What the sea gave it, before it moves: the push acts along the line
-        // to each parcel of the sea, so its moment about the node's centre is
-        // the sea's reaction's, reversed.
-        let sea_push = from_sea.get(i).map(|a| a.scale(b.mass * dt)).unwrap_or(Vec3::ZERO);
-        exchange.impulse += sea_push;
-        exchange.moment += b.pos.cross(sea_push);
         // Work done from outside: the field and the walls, less the pairwise
         // part, which is internal and conserves. Measured on the velocity the
         // step actually moves the body with.
@@ -1020,7 +886,6 @@ pub fn step_open(
         b.vel += acc[i].scale(dt);
         external += b.mass * outside.dot(b.vel) * dt;
         impulse += (outside + damped[i]).scale(b.mass * dt);
-        exchange.energy += sea_push.dot(b.vel) + heat_from_sea.get(i).copied().unwrap_or(0.0) * dt * b.mass;
         b.pos += b.vel.scale(dt);
         let heat = du[i] * dt * b.mass;
         b.internal_energy += heat + dw[i] * dt * b.mass;
@@ -1043,7 +908,7 @@ pub fn step_open(
     }
 
     let after = crate::solvers::measure(bodies, 0.0);
-    let report = SolveReport {
+    SolveReport {
         steps: 1,
         interactions,
         dt_used: dt,
@@ -1055,8 +920,7 @@ pub fn step_open(
         // balance until the water holds it, and that is precisely the thing a
         // cadence has to see.
         unrest: (0..n).map(|i| acc[i].norm()).fold(0.0, f64::max),
-    };
-    (report, exchange)
+    }
 }
 
 /// Optically-thin cooling rate in W/m^3.

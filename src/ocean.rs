@@ -432,18 +432,14 @@ impl Train {
         across.scale(self.amplitude * self.omega * along * theta.cos()) + up.scale(self.amplitude * self.omega * vertical * theta.sin())
     }
 
-    /// The pressure the wave adds to the still water's at `x`, `z` above the
-    /// still level, Pa — linear theory's `rho g a cosh k(z+d) / cosh kd
-    /// cos(theta)`, which is the surface's own weight at the surface and dies
-    /// away with depth as the motion does.
-    pub fn pressure(&self, x: Vec3, z: f64, t: f64) -> f64 {
-        let kd = self.k * self.depth;
-        let ratio = if kd > 20.0 {
-            (self.k * z.min(0.0)).exp()
-        } else {
-            (self.k * (z + self.depth).max(0.0)).cosh() / kd.cosh()
-        };
-        self.density * self.g * self.amplitude * ratio * self.phase(x, t).cos()
+    /// The water's velocity averaged down the whole depth at `x`, m/s:
+    /// Airy's horizontal velocity integrated from the bed to the still
+    /// surface, `a omega / (k d) cos(theta)` along the heading — what a sheet
+    /// of shallow water carries (`shallow::Sheet`).
+    pub fn mean_velocity(&self, x: Vec3, up: Vec3, t: f64) -> Vec3 {
+        let across = (self.heading - up.scale(self.heading.dot(up))).unit();
+        let d = self.depth.max(1e-300);
+        across.scale(self.amplitude * self.omega / (self.k * d) * self.phase(x, t).cos())
     }
 }
 
@@ -480,18 +476,6 @@ impl Sea {
         self.level + train.map(|w| w.surface(x, t)).unwrap_or(0.0)
     }
 
-    /// The water's velocity at `x`, `z` above the ocean's mean.
-    pub fn velocity(&self, train: Option<&Train>, x: Vec3, z: f64, t: f64) -> Vec3 {
-        self.current + train.map(|w| w.velocity(x, z - self.level, self.up, t)).unwrap_or(Vec3::ZERO)
-    }
-
-    /// The water's pressure at `x`, `z` above the ocean's mean, Pa, gauge:
-    /// the still water's weight above it and the wave's share. Never below
-    /// zero, which is what a free surface is.
-    pub fn pressure(&self, train: Option<&Train>, x: Vec3, z: f64, t: f64) -> f64 {
-        let still = self.density * self.g * (self.level - z);
-        (still + train.map(|w| w.pressure(x, z - self.level, t)).unwrap_or(0.0)).max(0.0)
-    }
 }
 
 /// The exact tidal potential at `x` of a mass `m` at `r`, both from the

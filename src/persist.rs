@@ -1144,6 +1144,55 @@ pub(crate) fn put_node_payload(w: &mut Writer, n: &Node) {
         }
         None => w.bool(false),
     }
+    // The water over a patch of ground, which is state the same way.
+    put_sheet(w, &n.sheet);
+}
+
+fn put_sheet(w: &mut Writer, sheet: &Option<Box<crate::shallow::Sheet>>) {
+    match sheet {
+        Some(s) => {
+            w.bool(true);
+            w.u64(s.nx as u64);
+            w.u64(s.ny as u64);
+            w.f64(s.dx);
+            w.vec3(s.u);
+            w.vec3(s.v);
+            w.vec3(s.up);
+            w.vec3(s.corner);
+            w.f64(s.density);
+            w.f64(s.grain);
+            w.f64(s.heat);
+            w.seq(s.bed.len());
+            for k in 0..s.bed.len() {
+                w.f64(s.bed[k]);
+                w.f64(s.depth[k]);
+                w.f64(s.flow[k][0]);
+                w.f64(s.flow[k][1]);
+            }
+        }
+        None => w.bool(false),
+    }
+}
+
+fn get_sheet(r: &mut Reader) -> Result<Option<Box<crate::shallow::Sheet>>> {
+    if !r.bool()? {
+        return Ok(None);
+    }
+    let (nx, ny) = (r.u64()? as usize, r.u64()? as usize);
+    let dx = r.f64()?;
+    let (u, v, up, corner) = (r.vec3()?, r.vec3()?, r.vec3()?, r.vec3()?);
+    let (density, grain, heat) = (r.f64()?, r.f64()?, r.f64()?);
+    let count = r.seq("sheet columns", 32)?;
+    if count != nx.saturating_mul(ny) {
+        return Err(crate::wire::WireError::BadRecipe { what: "sheet columns" });
+    }
+    let (mut bed, mut depth, mut flow) = (Vec::with_capacity(count), Vec::with_capacity(count), Vec::with_capacity(count));
+    for _ in 0..count {
+        bed.push(r.f64()?);
+        depth.push(r.f64()?);
+        flow.push([r.f64()?, r.f64()?]);
+    }
+    Ok(Some(Box::new(crate::shallow::Sheet { nx, ny, dx, u, v, up, corner, bed, depth, flow, density, grain, heat })))
 }
 
 fn get_ocean(r: &mut Reader) -> Result<Option<Box<crate::ocean::Ocean>>> {
@@ -1231,6 +1280,7 @@ pub(crate) fn get_node_payload(r: &mut Reader) -> Result<Node> {
         // `solvers::ground::Cache`.
         ground: None,
         ocean: get_ocean(r)?,
+        sheet: get_sheet(r)?,
         // Derived from the node's own contents, and regenerated on first use.
         // Storing it would be storing a derived value — the same reason
         // `last_report` is not written.

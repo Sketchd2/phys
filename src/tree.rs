@@ -185,6 +185,11 @@ pub struct Node {
     /// State, not a drawing: a tide depends on its history, so it travels
     /// with the node and is persisted. Boxed, because almost no node has one.
     pub ocean: Option<Box<crate::ocean::Ocean>>,
+    /// The water over a patch of ground, as a sheet, if this node is that
+    /// water: its depth and flow over the patch's own columns. See
+    /// `shallow.rs`. State, like the ocean: persisted, and never drawn as
+    /// bodies.
+    pub sheet: Option<Box<crate::shallow::Sheet>>,
     /// The world instant this node's *motion* has been carried to, s.
     ///
     /// **Not the same clock as `time`**, which is how far the node's contents
@@ -554,6 +559,7 @@ impl Tree {
             rest_density: 0.0,
             unrest: 0.0,
             ocean: None,
+            sheet: None,
             carried: 0.0,
             turning: Vec3::ZERO,
             ground: None,
@@ -649,9 +655,9 @@ impl Tree {
         // planet's sea — a shell a thousand kilometres round and a few deep —
         // and its cells are what it holds. Drawn as bodies it would be a ball
         // of water parcels the size of a planet, which it is not; where water
-        // is wanted at a finer scale, it is drawn in a patch of shore and
-        // crosses in through that patch's open edge (`open_edge`).
-        if self.nodes[i.get()].is_materialised() || self.nodes[i.get()].ocean.is_some() {
+        // is wanted at a finer scale, it is a sheet over a patch of shore
+        // (`shallow.rs`), which is a description the same way.
+        if self.nodes[i.get()].is_materialised() || self.nodes[i.get()].ocean.is_some() || self.nodes[i.get()].sheet.is_some() {
             return &self.nodes[i.get()].bodies;
         }
         let key = self.nodes[i.get()].key;
@@ -1011,6 +1017,7 @@ impl Tree {
             rest_density: self.nodes[i.get()].rest_density,
             unrest: 0.0,
             ocean: None,
+            sheet: None,
             carried: self.nodes[i.get()].time,
             turning: Vec3::ZERO,
             ground: None,
@@ -2958,6 +2965,7 @@ impl Tree {
             rest_density: self.nodes[i.get()].rest_density,
             unrest: 0.0,
             ocean: None,
+            sheet: None,
             carried: time,
             turning: Vec3::ZERO,
             ground: None,

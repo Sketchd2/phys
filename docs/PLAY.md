@@ -3173,6 +3173,53 @@ inside the decision:
 A planet with a sea is therefore never collapsed: a node holding a child
 cannot be. `FORMAT_VERSION` is 24, for the account.
 
+*Decided by the owner — water over a patch of shore is nested shallow
+water, not SPH.* With the sea's books closed, the SPH edge itself would not
+behave: under a still sea a patch of shore churned (79 parcels out and 45 in
+within 0.08 s, parcels at 4 m/s) and its water surged to twice its depth and
+out again within half a second, because an open boundary in weakly
+compressible SPH has nothing to absorb what the region sends back; and 450
+parcels at 12.6 cm cost 0.5 s of computing for 0.02 s of world, where the
+beach wants 1e5 parcels at 1 to 5 cm. Asked, the owner chose a height field:
+the water over a patch of ground is the same shallow-water equations the
+ocean uses, at the patch's own resolution, on the patch's own columns, coupled
+to the ocean cell by what crosses the edge. SPH stays for water that is not a
+sheet — a bucket, a splash. Plain shallow water does not disperse short
+waves; a Boussinesq term that would is a further decision, put to the owner
+with this phase's close.
+
+Built (`shallow.rs`), the sheet is a node like the sea: a child of its patch
+whose matter is exactly its water, never drawn as bodies and left out of its
+patch's solve. Its bed is the patch's floor measured column by column down
+the field at the floor's own resolution (`shallow::Floor`) — for ground, its
+own columns — so a channel carved into the ground is a change in the bed and
+nothing else. The scheme is first-order finite volumes with hydrostatic
+reconstruction and HLL fluxes, which is well-balanced and keeps every depth
+non-negative, with the log-law drag against the ground's own grain; the edge
+is a characteristic boundary, the sheet's outgoing invariant against the sea's
+incoming one, so what the patch sends back leaves and the sea's train comes
+in. A patch that stands in a sea is laid a sheet the first time it is solved
+after it changes (`World::assess_sheet`), and the water is the sea's, lent
+through its account (`World::lend`). Measured:
+
+- still water over two blocks, 1681 columns, 5 s: fastest 8.0e-16 m/s, mass
+  exact;
+- a dam of 0.4 m let go: 0.2816, 0.1818 and 0.0992 m at -0.4, 0 and +0.4 m
+  after 0.4 s, against Ritter's 0.2788, 0.1778 and 0.0994;
+- a 0.1 m swell through the edge of a flat patch half a metre deep: 0.0978 m
+  high in its middle against the train's 0.1023, period 2.532 s against 2.531;
+- on a patch of generated ground a third of a metre under an Earth's sea, 54
+  by 54 columns: 903 kg laid, 976.247251 kg held a second later and exactly
+  that lent, the sea's account off the sheet's momentum by 1.3e-13 and the
+  world's momentum off the outside push by the same; the sea's 0.3 m sea
+  arriving over the middle at 1.160 s against its 1.159, 0.152 m high against
+  0.127.
+
+The sheet's books close on mass and momentum; a first-order scheme carries
+neither angular momentum nor the energy a bore dissipates exactly, and the
+bed's drag is the only heat it books. The SPH open edge of item 5b was
+removed with it. `FORMAT_VERSION` is 25, for the sheet.
+
 **Phase 6 — The program.** *Inserted by the owner during Phase 5.* The whole
 system simulated and watched on the owner's own PC as a native executable —
 the owner's requirement, on the grounds that a web renderer's overhead would
