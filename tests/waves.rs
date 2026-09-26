@@ -195,10 +195,11 @@ fn an_earth_with_wind(wind: f64, r: f64) -> (World, NodeIdx, NodeIdx) {
         n.sync_spin_rate();
     }
     w.set_mixture(earth, mix);
-    assert!(w.assess_ocean(earth), "an Earth with water has an ocean");
+
     // A planet already, with its surface written, so that nothing about it is
     // still to be decided once the air is over it.
     assert!(w.assess_surface(earth), "an Earth is a body its gravity has rounded");
+    assert!(w.assess_ocean(earth), "an Earth with water on its ground has an ocean");
     w.tree.refine(earth);
 
 
@@ -207,7 +208,7 @@ fn an_earth_with_wind(wind: f64, r: f64) -> (World, NodeIdx, NodeIdx) {
     // there — which is what makes it weigh nothing in it.
     let mut air_mix = Mixture::new();
     air_mix.add(n2, Phase::Gas, 1.0);
-    let sea = w.tree.nodes[earth.get()].ocean.as_ref().unwrap().radius;
+    let sea = w.ocean_of(earth).unwrap().radius;
     let at = v3(sea + 10.0, 0.0, 0.0);
     let ambient = w.ambient_density(earth, at.norm());
     let (_, rho0, height) = w.atmosphere_of(earth).expect("an Earth with nitrogen has an atmosphere");
@@ -308,7 +309,7 @@ fn a_stated_wind_raises_the_sea_it_outruns_and_pays_for_it() {
                 turned = turned.max((c.angular_momentum - c0.angular_momentum).norm() / c0.angular_momentum.norm());
                 moved = moved.max((c.momentum - c0.momentum).norm());
             }
-            let h = w.tree.offset_from(earth, air, Vec3::ZERO).value.norm() - w.tree.nodes[earth.get()].ocean.as_ref().unwrap().radius;
+            let h = w.tree.offset_from(earth, air, Vec3::ZERO).value.norm() - w.ocean_of(earth).unwrap().radius;
             lowest = lowest.min(h);
             highest = highest.max(h);
         }
@@ -334,7 +335,7 @@ fn a_stated_wind_raises_the_sea_it_outruns_and_pays_for_it() {
         assert!(pieces > 0, "the face holding the air was never solved as ground");
         fc.bodies[..pieces].iter().map(|b| (fv + b.vel - spin.cross(centre + b.pos)).norm()).fold(0.0f64, f64::max)
     };
-    let o = w.tree.nodes[earth.get()].ocean.as_ref().unwrap();
+    let o = w.ocean_of(earth).unwrap();
     let up = w.tree.offset_from(earth, air, Vec3::ZERO).value.unit();
     let into = w.tree.facing(earth).conjugate();
     let under = o.wave_height(o.cell_of(into.rotate(up)));

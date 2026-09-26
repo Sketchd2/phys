@@ -106,6 +106,47 @@ pub struct Ocean {
     /// stable step, carried from frame to frame so that nothing is lost to
     /// rounding a frame to whole steps.
     pub owed: f64,
+    /// What the ocean has exchanged with everything else since its node's
+    /// matter was stated. See [`Account`].
+    pub account: Account,
+}
+
+/// The ocean's own books of what it has given and taken, kept apart from its
+/// node's matter because its matter cannot hold them: an Earth's sea is
+/// 1.4e21 kg, which moves in steps of 2.6e5 kg, and its heat in steps of
+/// 2e11 J, where a parcel of water crossing into a patch of shore is a few
+/// kilograms carrying a few joules. The owner's decision for Phase 5, on the
+/// condition that the ocean is a node like any other: this is that node's
+/// state, and the world's books count it with the node's matter
+/// (`Tree::total_conserved`).
+///
+/// Everything is the change to the ocean's own totals: water it gave to a
+/// patch of shore is a negative mass here. Angular momentum is about the
+/// ocean node's centre, and momentum in its parent's frame.
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+pub struct Account {
+    pub mass: f64,
+    /// Energy beyond the rest mass's, J.
+    pub energy: f64,
+    pub momentum: Vec3,
+    pub angular_momentum: Vec3,
+    pub charge: f64,
+    pub baryon: f64,
+    pub lepton: f64,
+}
+
+impl Account {
+    /// As the world's books count it.
+    pub fn conserved(&self) -> crate::state::Conserved {
+        crate::state::Conserved {
+            energy: self.mass * crate::units::C2 + self.energy,
+            momentum: self.momentum,
+            angular_momentum: self.angular_momentum,
+            charge: self.charge,
+            baryon: self.baryon,
+            lepton: self.lepton,
+        }
+    }
 }
 
 /// Von Kármán's constant, the log-law's one number: the universal slope of a
@@ -552,7 +593,7 @@ impl Ocean {
                 }
             }
         }
-        Ocean { n, radius, depth, g, drag, density, tension, cells, edges, time: 0.0, owed: 0.0 }
+        Ocean { n, radius, depth, g, drag, density, tension, cells, edges, time: 0.0, owed: 0.0, account: Account::default() }
     }
 
     /// The largest step the scheme is stable at, s.

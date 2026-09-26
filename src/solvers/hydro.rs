@@ -175,18 +175,224 @@ impl Wall {
     }
 }
 
+/// One solve's walls, found by where they are.
+///
+/// **Indexed once a solve, not searched once a parcel.** Ground is thousands
+/// of columns, and every parcel asked every one of them how far away it was,
+/// twice a substep — and integrating the kernel over the solid asked each
+/// point of the kernel the same of every wall in reach. Measured on a patch
+/// of shore holding 450 parcels over 2500 columns: four seconds a solve. The
+/// walls are found through a grid of their centres a cell wide enough that
+/// anything reaching within a kernel's support of a point is in the 27 cells
+/// round it, and whether a small cube of space is solid is worked out the
+/// first time a kernel asks and remembered for the rest of the solve.
+pub struct Solid {
+    /// The walls nothing moves, by the cells their bounding boxes touch, a
+    /// kernel's support wide: what is near a parcel.
+    coarse: Cells,
+    /// The walls that move with a body, which are few and are asked
+    /// directly.
+    moving: Vec<usize>,
+    /// The kernel's points (`kernel_points`).
+    points: Vec<(Vec3, f64)>,
+    /// How far into or out of the walls nothing moves each point of a
+    /// lattice round them is — negative inside — on the kernel points' own
+    /// spacing: `step` apart, from the point at `corner`, `dims` of them each
+    /// way.
+    step: f64,
+    corner: (i64, i64, i64),
+    dims: (usize, usize, usize),
+    distance: Vec<f64>,
+}
+
+/// Indices filed under every cell a box touches.
+struct Cells {
+    side: f64,
+    map: std::collections::HashMap<(i64, i64, i64), Vec<u32>>,
+}
+
+impl Cells {
+    fn key(&self, p: Vec3) -> (i64, i64, i64) {
+        ((p.x / self.side).floor() as i64, (p.y / self.side).floor() as i64, (p.z / self.side).floor() as i64)
+    }
+
+    fn of(boxes: &[(usize, Vec3, Vec3)], side: f64) -> Cells {
+        let mut cells = Cells { side, map: Default::default() };
+        for (k, lo, hi) in boxes {
+            let (a, b) = (cells.key(*lo), cells.key(*hi));
+            for x in a.0..=b.0 {
+                for y in a.1..=b.1 {
+                    for z in a.2..=b.2 {
+                        cells.map.entry((x, y, z)).or_default().push(*k as u32);
+                    }
+                }
+            }
+        }
+        cells
+    }
+
+    /// Everything filed under a cell that the box `lo..hi` touches, once each.
+    fn within(&self, lo: Vec3, hi: Vec3, out: &mut Vec<usize>) {
+        let (a, b) = (self.key(lo), self.key(hi));
+        for x in a.0..=b.0 {
+            for y in a.1..=b.1 {
+                for z in a.2..=b.2 {
+                    if let Some(list) = self.map.get(&(x, y, z)) {
+                        out.extend(list.iter().map(|&k| k as usize));
+                    }
+                }
+            }
+        }
+        out.sort_unstable();
+        out.dedup();
+    }
+}
+
+impl Wall {
+    /// The box that holds all of it, in the node's axes.
+    fn bounds(&self) -> (Vec3, Vec3) {
+        let e = if self.half == Vec3::ZERO {
+            let r = self.radius;
+            crate::math::v3(self.axis.x.abs() + r, self.axis.y.abs() + r, self.axis.z.abs() + r)
+        } else {
+            let q = self.orientation;
+            let (a, b, c) = (
+                q.rotate(crate::math::v3(self.half.x, 0.0, 0.0)),
+                q.rotate(crate::math::v3(0.0, self.half.y, 0.0)),
+                q.rotate(crate::math::v3(0.0, 0.0, self.half.z)),
+            );
+            crate::math::v3(
+                a.x.abs() + b.x.abs() + c.x.abs(),
+                a.y.abs() + b.y.abs() + c.y.abs(),
+                a.z.abs() + b.z.abs() + c.z.abs(),
+            )
+        };
+        (self.centre - e, self.centre + e)
+    }
+}
+
+impl Solid {
+    /// The walls of a solve at smoothing length `h`, indexed. **Once for all
+    /// of a node's substeps**, not once a substep: the walls nothing moves do
+    /// not move between them.
+    pub fn new(walls: &[Wall], h: f64) -> Solid {
+        let boxes: Vec<(usize, Vec3, Vec3)> = walls
+            .iter()
+            .enumerate()
+            .filter(|(_, w)| w.owner.is_none())
+            .map(|(k, w)| {
+                let (lo, hi) = w.bounds();
+                (k, lo, hi)
+            })
+            .collect();
+        let moving = walls.iter().enumerate().filter(|(_, w)| w.owner.is_some()).map(|(k, _)| k).collect();
+        let points = kernel_points(h);
+        let step = 0.5 * h;
+        // Every cube a kernel touching a fixed wall could ask about: the
+        // walls' own bounds and a kernel's support round them.
+        let (mut lo, mut hi) = (Vec3::ZERO, Vec3::ZERO);
+        for (n, (_, a, b)) in boxes.iter().enumerate() {
+            if n == 0 {
+                (lo, hi) = (*a, *b);
+            } else {
+                lo = crate::math::v3(lo.x.min(a.x), lo.y.min(a.y), lo.z.min(a.z));
+                hi = crate::math::v3(hi.x.max(b.x), hi.y.max(b.y), hi.z.max(b.z));
+            }
+        }
+        let cube = |x: f64| (x / step).round() as i64;
+        let (corner, dims, distance) = if boxes.is_empty() {
+            ((0, 0, 0), (0, 0, 0), Vec::new())
+        } else {
+            let pad = 2.0 * h + step;
+            let a = (cube(lo.x - pad), cube(lo.y - pad), cube(lo.z - pad));
+            let b = (cube(hi.x + pad), cube(hi.y + pad), cube(hi.z + pad));
+            let dims = ((b.0 - a.0 + 1) as usize, (b.1 - a.1 + 1) as usize, (b.2 - a.2 + 1) as usize);
+            // Only the nearby walls matter to a point, and nothing past two
+            // steps from a surface needs its distance exactly.
+            let fine = Cells::of(&boxes, 2.0 * step);
+            let far = 2.0 * step;
+            let r = crate::math::v3(far, far, far);
+            let mut distance = vec![far; dims.0 * dims.1 * dims.2];
+            let mut near = Vec::new();
+            for z in 0..dims.2 {
+                for y in 0..dims.1 {
+                    for x in 0..dims.0 {
+                        let c = crate::math::v3((a.0 + x as i64) as f64, (a.1 + y as i64) as f64, (a.2 + z as i64) as f64).scale(step);
+                        near.clear();
+                        fine.within(c - r, c + r, &mut near);
+                        let d = near.iter().map(|&k| walls[k].distance(c).0).fold(far, f64::min);
+                        distance[(z * dims.1 + y) * dims.0 + x] = d.max(-far);
+                    }
+                }
+            }
+            (a, dims, distance)
+        };
+        Solid { coarse: Cells::of(&boxes, 2.0 * h), moving, points, step, corner, dims, distance }
+    }
+
+    /// The walls whose surfaces could be within `reach` of `p`.
+    fn near(&self, p: Vec3, reach: f64) -> Vec<usize> {
+        let r = crate::math::v3(reach, reach, reach);
+        let mut out = self.moving.clone();
+        self.coarse.within(p - r, p + r, &mut out);
+        out
+    }
+
+    /// The share of a kernel at `p` inside the walls nothing moves, by
+    /// integrating over them.
+    fn integrated(&self, p: Vec3) -> f64 {
+        self.points.iter().map(|(q, wt)| wt * self.solid_at(p + *q)).sum()
+    }
+
+    /// How much of the small cube of space round `p` is inside a wall nothing
+    /// moves: the distance to them, interpolated between the lattice's
+    /// points, read as a surface smoothed over one step. Read as inside or
+    /// out by the nearest point instead, a floor came out a fifth of a kernel
+    /// off the plane's closed form.
+    fn solid_at(&self, p: Vec3) -> f64 {
+        let far = 2.0 * self.step;
+        let at = |x: i64, y: i64, z: i64| -> f64 {
+            let (x, y, z) = (x - self.corner.0, y - self.corner.1, z - self.corner.2);
+            if x < 0 || y < 0 || z < 0 || x as usize >= self.dims.0 || y as usize >= self.dims.1 || z as usize >= self.dims.2 {
+                return far;
+            }
+            self.distance[(z as usize * self.dims.1 + y as usize) * self.dims.0 + x as usize]
+        };
+        let (fx, fy, fz) = (p.x / self.step, p.y / self.step, p.z / self.step);
+        let (x0, y0, z0) = (fx.floor(), fy.floor(), fz.floor());
+        let (tx, ty, tz) = (fx - x0, fy - y0, fz - z0);
+        let (x0, y0, z0) = (x0 as i64, y0 as i64, z0 as i64);
+        let mut d = 0.0;
+        for (dx, wx) in [(0, 1.0 - tx), (1, tx)] {
+            for (dy, wy) in [(0, 1.0 - ty), (1, ty)] {
+                for (dz, wz) in [(0, 1.0 - tz), (1, tz)] {
+                    d += wx * wy * wz * at(x0 + dx, y0 + dy, z0 + dz);
+                }
+            }
+        }
+        (0.5 - d / self.step).clamp(0.0, 1.0)
+    }
+}
+
 /// The share of a kernel at `p` that lies inside the walls: what a wall
 /// stands in place of in a density sum.
 ///
-/// **One plane, exactly; anything more, by integrating over the solid.** A
+/// **One face, exactly; more than one, by integrating over the solid.** A
 /// single face within reach is a plane to the kernel and `beyond_plane` is
-/// its closed form. Where more than one face is near, adding a plane for each
-/// counts every one of them as reaching away to infinity, and a step two
-/// centimetres high in a floor of generated ground was priced as a whole wall:
-/// measured, 5500 m/s^2 on a parcel standing in a dip. So the kernel is
-/// integrated over the union itself, on `kernel_points`.
-fn inside_walls(walls: &[Wall], p: Vec3, i: usize, h: f64, points: &[(Vec3, f64)]) -> f64 {
-    let near = facing(walls, p, i, 2.0 * h);
+/// its closed form — and exactness matters here more than anywhere: weakly
+/// compressible, a liquid carries its weight on a per cent of its density, so
+/// an error of a per cent in what a wall stands in for is an error the size
+/// of the whole column's weight in the pressure. Where more than one face is
+/// near, adding a plane for each counts every one of them as reaching away to
+/// infinity, and a step two centimetres high in a floor of generated ground
+/// was priced as a whole wall: measured, 5500 m/s^2 on a parcel standing in a
+/// dip. There the kernel is integrated over the union itself, on
+/// `kernel_points` against the distance to it (`Solid`), which is within
+/// 0.0153 of a kernel of the closed form on a floor
+/// (`a_floor_integrated_is_the_plane`) and which the closed form is kept
+/// ahead of wherever it applies.
+fn inside_walls(solid: &Solid, walls: &[Wall], p: Vec3, i: usize, h: f64) -> f64 {
+    let near = facing(solid, walls, p, i, 2.0 * h);
     // A wall that moves with a body is that body's own surface, and is the
     // plane it always was: a thing floating in water is held up by exactly
     // what this gives it, and `one_ball_floats_half_under` is measured on it.
@@ -196,17 +402,7 @@ fn inside_walls(walls: &[Wall], p: Vec3, i: usize, h: f64, points: &[(Vec3, f64)
         + match fixed.len() {
             0 => 0.0,
             1 => beyond_plane(fixed[0].1, h),
-            _ => {
-                let close: Vec<&Wall> = walls
-                    .iter()
-                    .filter(|w| w.owner.is_none() && (p - w.centre).norm() <= w.reach() + 2.0 * h)
-                    .collect();
-                points
-                    .iter()
-                    .filter(|(q, _)| close.iter().any(|w| w.distance(p + *q).0 < 0.0))
-                    .map(|(_, wt)| *wt)
-                    .sum()
-            }
+            _ => solid.integrated(p),
         }
 }
 
@@ -248,13 +444,13 @@ fn kernel_points(h: f64) -> Vec<(Vec3, f64)> {
 /// and are both counted, as they always were. A wall that moves with a body
 /// is that body's own surface and always counts, so every push it gives
 /// still comes back to it.
-fn facing(walls: &[Wall], p: Vec3, i: usize, reach: f64) -> Vec<(usize, f64, Vec3)> {
-    let mut near: Vec<(usize, f64, Vec3)> = walls
-        .iter()
-        .enumerate()
-        .filter(|(_, w)| w.owner != Some(i as u32) && (p - w.centre).norm() <= w.reach() + reach)
-        .map(|(k, w)| {
-            let (d, n) = w.distance(p);
+fn facing(solid: &Solid, walls: &[Wall], p: Vec3, i: usize, reach: f64) -> Vec<(usize, f64, Vec3)> {
+    let mut near: Vec<(usize, f64, Vec3)> = solid
+        .near(p, reach)
+        .into_iter()
+        .filter(|&k| walls[k].owner != Some(i as u32))
+        .map(|k| {
+            let (d, n) = walls[k].distance(p);
             (k, d, n)
         })
         .filter(|(_, d, _)| *d < reach)
@@ -455,12 +651,11 @@ pub fn step_with(
     eos: &[Eos],
     walls: &[Wall],
 ) -> SolveReport {
-    step_open(bodies, dt, params, eos, walls, None).0
+    step_open(bodies, dt, params, eos, walls, None, None).0
 }
 
 /// Water beyond a region's open edge, in the node's frame: parcels of the sea
-/// that describes the region, where the sea puts them and moving as it moves,
-/// at the pressure it has there.
+/// that describes the region, where the sea puts them and moving as it moves.
 ///
 /// **The region's parcels feel them as neighbours and they feel nothing
 /// back.** A parcel at the edge of a region drawn out of an ocean has water on
@@ -469,13 +664,22 @@ pub fn step_with(
 /// pours out of it. The ocean is far larger than anything the region can do to
 /// it, so what the region pushes on it does not move it: the push is handed,
 /// whole, to the body that describes the ocean — see [`Exchange`].
+///
+/// **Their pressure is summed, not stated.** Each is priced exactly as a
+/// parcel of the region is — its neighbours' kernel over the lattice's, and
+/// the bed under it counted as a floor is — so the sea beyond the edge has the
+/// same free surface as the water inside it. Stated as the sea's hydrostatic
+/// pressure instead, it pressed harder than the water beside it by the half
+/// spacing a free surface's top layer carries nothing over, and a patch of
+/// shore under a still sea filled to 0.13 m above it in three seconds.
 #[derive(Debug, Clone, Copy)]
 pub struct Ghosts<'a> {
     pub bodies: &'a [Body],
-    /// Gauge pressure of each, Pa: the sea's own, not a density sum's.
-    pub pressure: &'a [f64],
-    /// The density that pressure is carried at, kg/m^3.
-    pub density: &'a [f64],
+    /// How far each stands above the bed under it, m: the region's floor
+    /// carried on past its edge.
+    pub above_bed: &'a [f64],
+    /// What the sea is made of, as its parcels are.
+    pub law: crate::eos::Condensed,
 }
 
 /// What the sea beyond an open edge did to the region's parcels in one step:
@@ -489,7 +693,10 @@ pub struct Exchange {
     pub energy: f64,
 }
 
-/// [`step_with`], with the sea beyond an open edge: see [`Ghosts`].
+/// [`step_with`], with the sea beyond an open edge (see [`Ghosts`]) and the
+/// walls indexed once for every substep of a solve (see [`Solid`]; `None`
+/// indexes them for this step alone). The index must have been made from
+/// these walls at this smoothing length.
 ///
 /// A body with no mass is a slot that water has left (`World::advance_node`),
 /// and takes no part.
@@ -500,6 +707,7 @@ pub fn step_open(
     eos: &[Eos],
     walls: &[Wall],
     ghosts: Option<Ghosts>,
+    solid: Option<&Solid>,
 ) -> (SolveReport, Exchange) {
     let before = crate::solvers::measure(bodies, 0.0);
     let n = bodies.len();
@@ -570,7 +778,14 @@ pub fn step_open(
     // Every parcel of one liquid shares a spacing, so the lattice sum is
     // worked out once per spacing rather than once per parcel per substep.
     let mut sums: Vec<(u64, f64)> = Vec::new();
-    let points = if walls.len() > 1 { kernel_points(params.h) } else { Vec::new() };
+    let own;
+    let solid = match solid {
+        Some(s) => s,
+        None => {
+            own = Solid::new(&walls, params.h);
+            &own
+        }
+    };
     for i in 0..n {
         if absent[i] {
             continue;
@@ -587,9 +802,41 @@ pub fn step_open(
                 }
             };
             rho[i] /= sum;
-            rho[i] += c.rest_density * inside_walls(&walls, bodies[i].pos, i, params.h, &points);
+            rho[i] += c.rest_density * inside_walls(solid, &walls, bodies[i].pos, i, params.h);
         }
     }
+    // The sea's density, summed as the region's is, over the region's
+    // condensed parcels and the sea's own, and its bed as a floor.
+    let (sea_rho, sea_p): (Vec<f64>, Vec<f64>) = match (sea, sea_grid.as_ref()) {
+        (Some(g), Some(sg)) => {
+            let grid = NeighbourGrid::build(bodies, 2.0 * params.h);
+            let mut near = Vec::with_capacity(128);
+            let spacing = |m: f64| (m / g.law.rest_density).cbrt();
+            g.bodies
+                .iter()
+                .enumerate()
+                .map(|(k, o)| {
+                    let mut sum = 0.0;
+                    grid.neighbours(o.pos, &mut near);
+                    for &j in near.iter() {
+                        let j = j as usize;
+                        if condensed[j] && !is_wall[j] && !absent[j] {
+                            sum += bodies[j].mass * kernel((o.pos - bodies[j].pos).norm(), params.h);
+                        }
+                    }
+                    sg.neighbours(o.pos, &mut near);
+                    for &j in near.iter() {
+                        let q = &g.bodies[j as usize];
+                        sum += q.mass * kernel((o.pos - q.pos).norm(), params.h);
+                    }
+                    let rho = sum / lattice_sum(params.h, spacing(o.mass))
+                        + g.law.rest_density * beyond_plane(g.above_bed[k], params.h);
+                    (rho, g.law.pressure(rho))
+                })
+                .unzip()
+        }
+        _ => (Vec::new(), Vec::new()),
+    };
     let mut pressure = vec![0.0; n];
     let mut cs = vec![0.0; n];
     for i in 0..n {
@@ -623,7 +870,7 @@ pub fn step_open(
             for &k in near.iter() {
                 let k = k as usize;
                 let o = &g.bodies[k];
-                let (po, ro) = (g.pressure[k], g.density[k]);
+                let (po, ro) = (sea_p[k], sea_rho[k]);
                 let d = bi.pos - o.pos;
                 let r = d.norm();
                 if r <= 0.0 || r >= 2.0 * params.h || !(ro > 0.0) {
@@ -714,7 +961,7 @@ pub fn step_open(
             continue;
         }
         let p = bodies[i].pos;
-        for (k, d, normal) in facing(&walls, p, i, gap) {
+        for (k, d, normal) in facing(solid, &walls, p, i, gap) {
             let w = &walls[k];
             if d < gap {
                 let c = cs[i].max(1e-30);
@@ -890,4 +1137,41 @@ pub fn needs_refinement(rho: f64, temperature: f64, mu: f64, h: f64) -> bool {
     let cs = (1.6667 * K_B * temperature / mu).sqrt();
     let jeans = cs * (std::f64::consts::PI / (G * rho)).sqrt();
     jeans < 4.0 * h
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// **The kernel integrated over a solid agrees with the plane's closed
+    /// form**, for a floor, wherever a parcel can stand over it: what
+    /// `Solid::integrated` gives a flat floor against `beyond_plane`, at
+    /// heights from touching it to a kernel's support above it. Read as
+    /// inside or out by the nearest point of the lattice instead of by the
+    /// distance, it was 0.218 of a kernel off.
+    #[test]
+    fn a_floor_integrated_is_the_plane() {
+        let h = 0.13;
+        let floor = Wall {
+            centre: crate::math::v3(0.0, 0.0, -1.0),
+            radius: 0.0,
+            half: crate::math::v3(3.0, 3.0, 1.0),
+            orientation: crate::math::Quat::IDENTITY,
+            axis: Vec3::ZERO,
+            owner: None,
+        };
+        let walls = [floor];
+        let solid = Solid::new(&walls, h);
+        let mut worst: f64 = 0.0;
+        for k in 0..=40 {
+            let d = 2.0 * h * k as f64 / 40.0;
+            // Off the cubes' own lattice, where the rounding is worst.
+            let p = crate::math::v3(0.013, -0.029, d);
+            let integrated = solid.integrated(p);
+            let exact = beyond_plane(d, h);
+            worst = worst.max((integrated - exact).abs());
+        }
+        println!("  a floor integrated on the kernel's points: worst {worst:.4} of a whole kernel off the plane's closed form");
+        assert!(worst < 0.03, "{worst}");
+    }
 }

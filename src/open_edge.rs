@@ -26,9 +26,9 @@
 //!   than anything a patch of shore does to it.
 //! - **Water leaving.** A parcel over a column the floor does not cover has
 //!   gone back into the sea, with its mass, momentum and energy.
-//! - **Water arriving.** A site on the region's lattice just inside the edge,
-//!   under the sea's surface there and empty, is filled from the sea: a
-//!   parcel of the region's own water, moving as the sea does there.
+//! - **Water arriving.** Where a column just inside the edge stands a whole
+//!   spacing below the sea's surface there, a parcel of the region's own
+//!   water comes in on top of it, moving as the sea does there.
 
 use crate::math::Vec3;
 use crate::ocean::{Sea, Train};
@@ -219,8 +219,8 @@ pub struct Edge {
 #[derive(Debug, Clone, Default)]
 pub struct Beyond {
     pub bodies: Vec<Body>,
-    pub pressure: Vec<f64>,
-    pub density: Vec<f64>,
+    /// How far each stands above the bed carried on under it, m.
+    pub above_bed: Vec<f64>,
 }
 
 impl Edge {
@@ -256,8 +256,8 @@ impl Edge {
     }
 
     /// The sea beyond the edge at `t`, as parcels of `template`'s mass on the
-    /// region's lattice, at the density `density_at` gives each pressure.
-    pub fn beyond_at(&self, t: f64, template: &Body, density_at: &dyn Fn(f64) -> f64) -> Beyond {
+    /// region's lattice.
+    pub fn beyond_at(&self, t: f64, template: &Body) -> Beyond {
         let s = self.floor.spacing;
         let mut out = Beyond::default();
         for (c, bed, train) in &self.beyond {
@@ -267,36 +267,44 @@ impl Edge {
             let mut z = self.floor.first_above(*bed, self.lattice_height);
             while z < top {
                 let height = z + self.centre_height;
-                let p = self.sea.pressure(train.as_ref(), place, height, t);
                 out.bodies.push(Body {
                     pos: foot + self.floor.up.scale(z),
                     vel: self.sea.velocity(train.as_ref(), place, height, t),
                     ..*template
                 });
-                out.pressure.push(p);
-                out.density.push(density_at(p));
+                out.above_bed.push(z - bed);
                 z += s;
             }
         }
         out
     }
 
-    /// Sites just inside the edge that are under the sea's surface at `t`,
-    /// with the sea's velocity at each, in deterministic order. Which of them
-    /// are empty is the caller's to say.
-    pub fn inflow_sites(&self, t: f64) -> Vec<(Vec3, Vec3)> {
+    /// Where the sea comes in at `t`: in each column just inside the edge
+    /// whose water stands a whole spacing below the sea's surface there, one
+    /// parcel on top of it, moving as the sea does there. `tops` is the
+    /// highest parcel's height in each column that holds any.
+    ///
+    /// **Short by a whole parcel, measured by the column's own surface.** The
+    /// first rule filled any site with no parcel within three quarters of a
+    /// spacing, and water settling from its draw jiggles by more than that:
+    /// measured, a patch of shore took in 537 kg more than it gave back in
+    /// three seconds, drawn into gaps that were only parcels a little out of
+    /// place.
+    pub fn short(&self, t: f64, tops: &HashMap<Column, f64>) -> Vec<(Vec3, Vec3)> {
         let s = self.floor.spacing;
         let mut out = Vec::new();
         for (c, bed, train) in &self.rim {
-            let top = self.surface(*c, train.as_ref(), t);
-            let foot = self.floor.foot(*c);
-            let place = self.place(*c);
-            let mut z = self.floor.first_above(*bed, self.lattice_height);
-            while z < top {
-                let height = z + self.centre_height;
-                out.push((foot + self.floor.up.scale(z), self.sea.velocity(train.as_ref(), place, height, t)));
-                z += s;
+            let surface = self.surface(*c, train.as_ref(), t);
+            let z = match tops.get(c) {
+                Some(top) => top + s,
+                None => self.floor.first_above(*bed, self.lattice_height),
+            };
+            if z > surface {
+                continue;
             }
+            let place = self.place(*c);
+            let height = z + self.centre_height;
+            out.push((self.floor.foot(*c) + self.floor.up.scale(z), self.sea.velocity(train.as_ref(), place, height, t)));
         }
         out
     }

@@ -2996,6 +2996,23 @@ impl World {
         // has to see where the child actually is before it computes anything.
         // See `Tree::sync_children`.
         let promoted = self.tree.sync_children(idx);
+        // **A sea is a shell round its planet, and the planet's solve leaves
+        // it out.** A shell pulls nothing inside it and is pulled by nothing
+        // inside it, and it goes where its planet goes; solved as the point
+        // mass its stand-in is, an Earth's sea at the centre of eight lumps
+        // moving at 5 km/s was thrown 2.8e7 m out in 3467 frames and left its
+        // planet. It weighs nothing in the solve, takes no kick from it, and
+        // shares the pushes its planet's contents take (`take_wrench`), which
+        // keeps it moving with them from where it was made: at their centre of
+        // mass, at their velocity (`Tree::withdraw`).
+        let sea_slot = self.sea_of(idx).map(|s| self.tree.nodes[s.get()].slot as usize);
+        let sea_body = sea_slot.and_then(|k| self.tree.nodes[idx.get()].bodies.get(k).copied());
+        if let Some(k) = sea_slot {
+            if let Some(b) = self.tree.nodes[idx.get()].bodies.get_mut(k) {
+                b.mass = 0.0;
+            }
+        }
+        let promoted: Vec<usize> = promoted.into_iter().filter(|k| Some(*k) != sea_slot).collect();
         let before = self.tree.stand_in_velocities(idx, &promoted);
         // The fluid around each promoted child where it is now, before the
         // solve moves it: where it felt its pull is where it is pushed.
@@ -3364,6 +3381,9 @@ impl World {
                 // **An open edge, where the node's water is the sea's.** Its
                 // floor is the node's own ordered members, and a parcel of its
                 // own water is what crosses. See `open_edge`.
+                // The walls, indexed once for every substep: they do not move
+                // between them. `hydro::Solid`.
+                let solid = solvers::hydro::Solid::new(&walls, params.h);
                 let open = match (sea, spacing) {
                     (Some(here), Some(s)) => {
                         let floor_walls: Vec<solvers::hydro::Wall> = walls.iter().filter(|w| w.owner.is_none()).copied().collect();
@@ -3388,10 +3408,9 @@ impl World {
                     let r = match &open {
                         Some((edge, template, law)) => {
                             let t = start + k as f64 * h / rate;
-                            let at = |p: f64| law.condensed().map(|c| c.density_at(p)).unwrap_or(0.0);
-                            let beyond = edge.beyond_at(t, template, &at);
-                            let ghosts = solvers::hydro::Ghosts { bodies: &beyond.bodies, pressure: &beyond.pressure, density: &beyond.density };
-                            let (r, ex) = solvers::hydro::step_open(bodies, h, params, &eos, &walls, Some(ghosts));
+                            let beyond = edge.beyond_at(t, template);
+                            let ghosts = law.condensed().map(|c| solvers::hydro::Ghosts { bodies: &beyond.bodies, above_bed: &beyond.above_bed, law: c });
+                            let (r, ex) = solvers::hydro::step_open(bodies, h, params, &eos, &walls, ghosts, Some(&solid));
                             crossed.exchange.impulse += ex.impulse;
                             crossed.exchange.moment += ex.moment;
                             crossed.exchange.energy += ex.energy;
@@ -3403,20 +3422,18 @@ impl World {
                                     *b = crate::state::Body { mass: 0.0, ..Default::default() };
                                 }
                             }
-                            // And where the sea stands over an empty site just
-                            // inside the edge, it comes in.
-                            let s = edge.floor.spacing;
-                            let grid = crate::neighbourhood::NeighbourGrid::build(bodies, s);
-                            let mut near = Vec::new();
-                            for (site, vel) in edge.inflow_sites(t + h / rate) {
-                                grid.neighbours(site, &mut near);
-                                let taken = near.iter().any(|&j| {
-                                    let b = &bodies[j as usize];
-                                    b.mass > 0.0 && (b.pos - site).norm() < 0.75 * s
-                                });
-                                if taken {
-                                    continue;
+                            // And where a column just inside the edge stands
+                            // below the sea, the sea comes in on top of it.
+                            let mut tops: std::collections::HashMap<crate::open_edge::Column, f64> = std::collections::HashMap::new();
+                            for (q, b) in bodies.iter().enumerate() {
+                                let slot = if partitioned { loose_of.get(q).copied().unwrap_or(usize::MAX) } else { q };
+                                if b.mass > 0.0 && !stand_in.get(slot).copied().unwrap_or(false) && priced(&eos[q]) {
+                                    let z = b.pos.dot(edge.floor.up);
+                                    let e = tops.entry(edge.floor.column(b.pos)).or_insert(f64::NEG_INFINITY);
+                                    *e = e.max(z);
                                 }
+                            }
+                            for (site, vel) in edge.short(t + h / rate, &tops) {
                                 let parcel = crate::state::Body { pos: site, vel, ..*template };
                                 crossed.arrived.push(parcel);
                                 match bodies.iter().enumerate().position(|(q, b)| {
@@ -3432,7 +3449,7 @@ impl World {
                             }
                             r
                         }
-                        None => solvers::hydro::step_with(bodies, h, params, &eos, &walls),
+                        None => solvers::hydro::step_open(bodies, h, params, &eos, &walls, None, Some(&solid)).0,
                     };
                     if k == 0 {
                         total = r;
@@ -3582,6 +3599,12 @@ impl World {
             } else {
                 self.tree.apply_body_forces(idx, &before);
                 self.buoy_children(idx, &pulls, &ambient, None);
+            }
+        }
+
+        if let (Some(k), Some(b)) = (sea_slot, sea_body) {
+            if let Some(slot) = self.tree.nodes[idx.get()].bodies.get_mut(k) {
+                *slot = b;
             }
         }
 
@@ -5629,27 +5652,46 @@ impl World {
     /// while ground on a sphere has no relief (`ocean.rs`). Its surface gravity
     /// is its own, and its seabed drag is the log-law against the ground's own
     /// grain, the deposited flaw scale `Material::measured` derives.
+    ///
+    /// **The ocean is a node** — the owner's decision for Phase 5: a child of
+    /// its planet, a shell whose matter is the sea's water and whose
+    /// description is the ocean's cells (`Node::ocean`). Its water comes out
+    /// of the planet's own bodies, each by its share of their mass and with
+    /// what that share carries (`Tree::withdraw`), so making it moves nothing
+    /// in the world's books; and it is never drawn as bodies of its own
+    /// (`Tree::refine`).
+    ///
+    /// **Only over ground.** An ocean is water standing on rock, so a planet
+    /// is asked for one once what its ground is has been written down — its
+    /// surface (`World::assess_surface`) or the layout its freezing laid down
+    /// (`Recipe::Granular`) — and not before: a surface written afterwards
+    /// would redraw the planet's bodies under a sea already taken out of
+    /// them.
     pub fn assess_ocean(&mut self, idx: NodeIdx) -> bool {
         if idx.is_none() || !self.tree.nodes[idx.get()].alive {
             return false;
         }
-        if self.tree.nodes[idx.get()].ocean.is_some() {
+        if self.sea_of(idx).is_some() {
             return true;
+        }
+        // A sea is not a planet, and has none of its own.
+        if self.tree.nodes[idx.get()].ocean.is_some() {
+            return false;
         }
         // **A piece of a planet has its planet's sea, not one of its own.** A
         // face of an Earth is a planet-sized node with the Earth's water in its
         // mixture, and it was given an ocean round its own centre — which
         // stood the sea's surface a thousand kilometres from where the Earth
-        // has it, and left air over the real one in no air at all.
-        if matches!(
-            self.tree.nodes[idx.get()].morphology.as_ref().and_then(|m| m.recipe.as_ref()),
-            Some(crate::recipe::Recipe::Tiled(t)) if !t.is_ball()
-        ) {
-            return false;
+        // has it, and left air over the real one in no air at all. And a
+        // planet without its surface has no ground to stand a sea on yet.
+        match self.tree.nodes[idx.get()].morphology.as_ref() {
+            None => return false,
+            Some(m) if matches!(m.recipe.as_ref(), Some(crate::recipe::Recipe::Tiled(t)) if !t.is_ball()) => return false,
+            Some(_) => {}
         }
         let mut up = self.tree.nodes[idx.get()].parent;
         while !up.is_none() {
-            if self.tree.nodes[up.get()].ocean.is_some() {
+            if self.sea_of(up).is_some() {
                 return false;
             }
             up = self.tree.nodes[up.get()].parent;
@@ -5689,8 +5731,48 @@ impl World {
         let drag = crate::ocean::log_law_drag(depth, grain);
         let mut ocean = crate::ocean::Ocean::new(OCEAN_CELLS, radius, depth, g, drag, density, tension);
         ocean.time = self.tree.nodes[idx.get()].time;
-        self.tree.nodes[idx.get()].ocean = Some(Box::new(ocean));
+        // What the sea is made of: the planet's liquid, and nothing else.
+        let mut water = crate::chem::Mixture::new();
+        for p in self.tree.nodes[idx.get()].matter.mixture.entries() {
+            if p.phase == crate::chem::Phase::Liquid {
+                water.add(p.substance, p.phase, p.fraction / liquid);
+            }
+        }
+        let composition = water.composition(&self.substances).0;
+        // A shell's rms radius is its own, and `matter.radius` is the uniform
+        // sphere with that rms (`sampler::radius_scale`).
+        let shell = radius / (3.0f64 / 5.0).sqrt();
+        let spec = self.tree.nodes[idx.get()].spec;
+        let sea = self.tree.hold_out(idx, liquid_mass, composition, shell, spec);
+        if sea.is_none() {
+            return false;
+        }
+        let n = &mut self.tree.nodes[sea.get()];
+        n.matter.mixture = water;
+        n.ocean = Some(Box::new(ocean));
+        self.refresh_rest_density(sea);
         true
+    }
+
+    /// The node that is a planet's sea, if it has one: its child that carries
+    /// an ocean.
+    pub fn sea_of(&self, idx: NodeIdx) -> Option<NodeIdx> {
+        self.tree.nodes[idx.get()]
+            .children
+            .iter()
+            .copied()
+            .find(|c| !c.is_none() && self.tree.nodes[c.get()].alive && self.tree.nodes[c.get()].ocean.is_some())
+    }
+
+    /// A planet's ocean: the description its sea's node carries.
+    pub fn ocean_of(&self, idx: NodeIdx) -> Option<&crate::ocean::Ocean> {
+        self.sea_of(idx).and_then(|s| self.tree.nodes[s.get()].ocean.as_deref())
+    }
+
+    /// [`World::ocean_of`], to change.
+    pub fn ocean_of_mut(&mut self, idx: NodeIdx) -> Option<&mut crate::ocean::Ocean> {
+        let sea = self.sea_of(idx)?;
+        self.tree.nodes[sea.get()].ocean.as_deref_mut()
     }
 
     /// The grain an ocean's bed is rough with, metres.
@@ -5731,7 +5813,7 @@ impl World {
     /// moves the whole planet.
     pub fn tidal_equilibrium(&self, idx: NodeIdx) -> Vec<f64> {
         let n = &self.tree.nodes[idx.get()];
-        let Some(ocean) = n.ocean.as_ref() else { return Vec::new() };
+        let Some(ocean) = self.ocean_of(idx) else { return Vec::new() };
         let parent = n.parent;
         let mut sources: Vec<(Vec3, f64)> = Vec::new();
         // Offsets are in root-aligned axes, and what takes a vector derived
@@ -5788,13 +5870,14 @@ impl World {
             if !self.tree.nodes[i].alive || self.tree.nodes[i].tier != crate::units::Tier::Planetary {
                 continue;
             }
-            if self.tree.nodes[i].ocean.is_none() && !self.assess_ocean(idx) {
+            // A sea is stepped by its planet, which is what it is the sea of.
+            if self.tree.nodes[i].ocean.is_some() || !self.assess_ocean(idx) {
                 continue;
             }
             let local = span * self.local_rate(idx);
             // In the ocean's own axes, which turn with the planet.
             let spin = self.tree.facing(idx).conjugate().rotate(self.tree.angular_velocity(idx));
-            let stable = self.tree.nodes[i].ocean.as_ref().map(|o| o.stable_step()).unwrap_or(0.0);
+            let stable = self.ocean_of(idx).map(|o| o.stable_step()).unwrap_or(0.0);
             if !(stable > 0.0) {
                 continue;
             }
@@ -5803,7 +5886,7 @@ impl World {
             // held, which is exact for the forcing's own period being far
             // longer than a stable step.
             let eq = self.tidal_equilibrium(idx);
-            let Some(ocean) = self.tree.nodes[i].ocean.as_mut() else { continue };
+            let Some(ocean) = self.ocean_of_mut(idx) else { continue };
             // Whole stable steps, and the remainder carried: a frame is far
             // shorter than a step, so most frames take none.
             let owed = local + ocean.owed;
@@ -5844,7 +5927,7 @@ impl World {
     pub fn winds_over(&self, idx: NodeIdx) -> Vec<(crate::ocean::Wind, NodeIdx)> {
         let mut out = Vec::new();
         let n = &self.tree.nodes[idx.get()];
-        let Some(ocean) = n.ocean.as_ref() else { return out };
+        let Some(ocean) = self.ocean_of(idx) else { return out };
         let into = self.tree.facing(idx).conjugate();
         let spin = into.rotate(self.tree.angular_velocity(idx));
         // Air anywhere under the planet: over open sea it is the planet's own
@@ -5860,7 +5943,7 @@ impl World {
         }
         for c in under {
             let air = &self.tree.nodes[c.get()];
-            if air.matter.mixture.is_empty() || air.matter.mixture.in_phase(crate::chem::Phase::Gas) < 0.5 {
+            if air.ocean.is_some() || air.matter.mixture.is_empty() || air.matter.mixture.in_phase(crate::chem::Phase::Gas) < 0.5 {
                 continue;
             }
             let r = air.matter.radius;
@@ -5918,30 +6001,35 @@ impl World {
     /// planet's time, and carry its sea.
     ///
     /// **The books close the way a contact's do** (`apply_contact`): the air
-    /// loses the momentum its stress carries, the planet's own contents take
-    /// it — its bodies where it is materialised, its matter where it is not —
-    /// and the kinetic energy the air gave up, less what those contents took
-    /// up as motion, is heat in them. The ocean's currents and sea are a
-    /// description of part of that energy, not a second account of it.
+    /// loses the momentum its stress carries and the kinetic energy that
+    /// costs it, and the sea takes both — the water is what the wind pushes.
+    /// The sea is a node whose matter cannot hold a push this small, so what
+    /// it takes is written in its own books (`ocean::Account`), with the
+    /// angular momentum about the sea's centre. The ocean's currents and sea
+    /// are a description of part of that energy, not a second account of it.
     fn blow(&mut self, idx: NodeIdx, span: f64) {
         if !(span > 0.0) {
             return;
         }
+        let Some(sea) = self.sea_of(idx) else { return };
         let winds = self.winds_over(idx);
         if !winds.is_empty() {
             let list: Vec<crate::ocean::Wind> = winds.iter().map(|w| w.0).collect();
-            let blown = match self.tree.nodes[idx.get()].ocean.as_mut() {
+            let blown = match self.ocean_of_mut(idx) {
                 Some(o) => o.raise(span, &list),
                 None => return,
             };
             let to_root = self.tree.facing(idx);
-            let radius = self.tree.nodes[idx.get()].ocean.as_ref().map(|o| o.radius).unwrap_or(0.0);
+            let centre = self.tree.position_at(sea, self.tree.nodes[idx.get()].time);
             for ((w, air), b) in winds.iter().zip(blown.iter()) {
                 let dp = to_root.rotate(b.momentum);
                 if !(dp.norm() > 0.0) {
                     continue;
                 }
-                let where_ = to_root.rotate(self.tree.nodes[idx.get()].ocean.as_ref().unwrap().cells[w.cell].up.scale(radius));
+                let where_ = {
+                    let o = self.ocean_of(idx).expect("the sea was just blown on");
+                    to_root.rotate(o.cells[w.cell].up.scale(o.radius))
+                };
                 // The air.
                 let a = &mut self.tree.nodes[air.get()];
                 let m = a.matter.mass.max(1e-300);
@@ -5949,13 +6037,15 @@ impl World {
                 let v1 = v0 - dp.scale(1.0 / m);
                 a.motion.velocity = v1;
                 let lost = 0.5 * m * (v0.norm2() - v1.norm2());
-                // The planet's contents.
-                let taken = self.take_reaction(idx, dp, where_);
-                self.add_heat_to(idx, lost - taken);
+                // The sea.
+                let Some(o) = self.ocean_of_mut(idx) else { continue };
+                o.account.momentum += dp;
+                o.account.angular_momentum += (where_ - centre).cross(dp);
+                o.account.energy += lost;
             }
         }
         // The sea travels, in steps it is stable at.
-        let Some(ocean) = self.tree.nodes[idx.get()].ocean.as_mut() else { return };
+        let Some(ocean) = self.ocean_of_mut(idx) else { return };
         let mut left = span;
         while left > 0.0 {
             let step = ocean.wave_step().min(left);
@@ -5985,7 +6075,7 @@ impl World {
     /// and a second account of the same pressure would double it.
     pub fn atmosphere_of(&self, idx: NodeIdx) -> Option<(f64, f64, f64)> {
         let n = &self.tree.nodes[idx.get()];
-        let base = match (n.ocean.as_ref(), n.morphology.as_ref().and_then(|m| m.recipe.as_ref())) {
+        let base = match (self.ocean_of(idx), n.morphology.as_ref().and_then(|m| m.recipe.as_ref())) {
             (Some(o), _) => o.radius,
             (None, Some(crate::recipe::Recipe::Tiled(t))) if t.is_ball() => t.sphere,
             _ => return None,
@@ -6017,8 +6107,7 @@ impl World {
     /// its centre, kg/m^3: its sea below the sea's surface, its atmosphere
     /// above it, and nothing inside the ground or where it describes neither.
     pub fn ambient_density(&self, idx: NodeIdx, r: f64) -> f64 {
-        let n = &self.tree.nodes[idx.get()];
-        if let Some(o) = n.ocean.as_ref() {
+        if let Some(o) = self.ocean_of(idx) {
             if r < o.radius {
                 return if r > o.radius - o.depth { o.density } else { 0.0 };
             }
@@ -6259,7 +6348,7 @@ impl World {
     /// one, its ground's where it is a rounded body — or `None`.
     pub fn surface_radius(&self, idx: NodeIdx) -> Option<f64> {
         let n = &self.tree.nodes[idx.get()];
-        if let Some(o) = n.ocean.as_ref() {
+        if let Some(o) = self.ocean_of(idx) {
             return Some(o.radius);
         }
         match n.morphology.as_ref().and_then(|m| m.recipe.as_ref()) {
@@ -6337,7 +6426,7 @@ impl World {
                 .unwrap_or(0);
             let parcels = (pieces..p.bodies.len()).any(|i| p.child_of(i).is_none());
             let resolves = parcels && p.matter.mixture.in_phase(crate::chem::Phase::Liquid) > 0.0;
-            let below = self.tree.nodes[anc.get()].ocean.as_ref().map(|o| r < o.radius).unwrap_or(false);
+            let below = self.ocean_of(anc).map(|o| r < o.radius).unwrap_or(false);
             if resolves && below {
                 return 0.0;
             }
@@ -6491,11 +6580,16 @@ impl World {
             let there = self.tree.offset_from(parent, idx, Vec3::ZERO).value;
             return self.take_wrench(parent, dp, dl + there.cross(dp));
         }
+        // Its free bodies, and its sea, which goes with the ground it is on.
+        let sea = self.sea_of(idx);
         let (takers, mass): (Vec<(usize, f64, Vec3)>, f64) = {
             let n = &self.tree.nodes[idx.get()];
             let t: Vec<(usize, f64, Vec3)> = (0..n.bodies.len())
-                .filter(|&s| n.child_of(s).is_none())
-                .map(|s| (s, n.bodies[s].mass, n.bodies[s].pos))
+                .filter(|&s| n.child_of(s).is_none() || Some(n.child_of(s)) == sea)
+                .map(|s| match n.child_of(s) {
+                    c if c.is_none() => (s, n.bodies[s].mass, n.bodies[s].pos),
+                    c => (s, self.tree.nodes[c.get()].matter.mass, self.tree.position_at(c, n.time)),
+                })
                 .collect();
             let m = t.iter().map(|x| x.1).sum();
             (t, m)
@@ -6522,11 +6616,20 @@ impl World {
             }
             let turn = inertia.solve(dl - centre.cross(dp)).unwrap_or(Vec3::ZERO);
             let mut gained = 0.0;
-            for (s, _, pos) in takers {
-                let b = &mut self.tree.nodes[idx.get()].bodies[s];
-                let before = 0.5 * b.mass * b.vel.norm2();
-                b.vel += dv + turn.cross(pos - centre);
-                gained += 0.5 * b.mass * b.vel.norm2() - before;
+            for (s, m, pos) in takers {
+                let kick = dv + turn.cross(pos - centre);
+                let child = self.tree.nodes[idx.get()].child_of(s);
+                if child.is_none() {
+                    let b = &mut self.tree.nodes[idx.get()].bodies[s];
+                    let before = 0.5 * b.mass * b.vel.norm2();
+                    b.vel += kick;
+                    gained += 0.5 * b.mass * b.vel.norm2() - before;
+                } else {
+                    let then = self.tree.nodes[idx.get()].time;
+                    let v0 = self.tree.velocity_at(child, then);
+                    self.tree.kick(child, kick, then);
+                    gained += 0.5 * m * ((v0 + kick).norm2() - v0.norm2());
+                }
             }
             return gained;
         }
@@ -6561,7 +6664,7 @@ impl World {
         if anc == idx {
             return None;
         }
-        let ocean = self.tree.nodes[anc.get()].ocean.as_ref()?;
+        let ocean = self.ocean_of(anc)?;
         let centre = self.tree.offset_at(anc, idx, self.tree.nodes[idx.get()].time);
         let facing = self.tree.facing(anc);
         let cell = ocean.cell_of(facing.conjugate().rotate(centre).unit());
@@ -6585,24 +6688,24 @@ impl World {
         Some(SeaAround { sea, anc, centre, height: centre.norm() - ocean.radius })
     }
 
-    /// Book what crossed a node's open edge in one solve against the body
-    /// that describes its sea (`open_edge`), so the world's totals do not
-    /// move.
+    /// Book what crossed a node's open edge in one solve against the sea it
+    /// crossed from (`open_edge`), so the world's totals do not move.
     ///
-    /// **Every node between them holds the water that arrived**, as `place`
-    /// has it: its mass, its share of the centre of mass, and its mixture's
-    /// liquid. **The describing body's own contents give it up**, keeping
-    /// their momentum, and take the reaction to everything the water gained —
-    /// the sea's push along the edge and the motion of each parcel that came
-    /// in or went out — as one impulse and one angular impulse. What that
-    /// leaves in the energy is their heat, as the ground's reaction books it.
-    /// Measured as the world's books compose a child's motion into its
-    /// parent's (`Tree::in_parents_frame`): each level at its parent's
-    /// instant.
+    /// **Every node between the region and its planet holds the water that
+    /// arrived**, as `place` has it: its mass, its share of the centre of
+    /// mass, and its mixture's liquid. **The sea gives it up** — the sea is a
+    /// node, a child of the planet (`World::assess_ocean`), and what it gives
+    /// and takes at this scale is below what its matter can hold, so it goes
+    /// in the sea's own books (`ocean::Account`): the water that went and
+    /// came with its mass and what it carried, and the sea's push along the
+    /// edge. Composed the way the world's books compose a child's motion into
+    /// its parent's (`Tree::in_parents_frame`), each level at its parent's
+    /// instant, into the planet's frame, which is the sea's parent's.
     fn cross_edge(&mut self, idx: NodeIdx, anc: NodeIdx, crossed: &Crossed) {
         if crossed.left.is_empty() && crossed.arrived.is_empty() && crossed.exchange == crate::solvers::hydro::Exchange::default() {
             return;
         }
+        let Some(sea) = self.sea_of(anc) else { return };
         let mut chain = Vec::new();
         let (mut centre, mut moving) = (Vec3::ZERO, Vec3::ZERO);
         let mut at = idx;
@@ -6617,21 +6720,31 @@ impl World {
             moving += self.tree.velocity_at(at, instant);
             at = parent;
         }
+        // What the water gained, in the planet's frame and about its centre.
         let ex = crossed.exchange;
-        let mut dp = Vec3::ZERO - ex.impulse;
-        let mut dl = Vec3::ZERO - (ex.moment + centre.cross(ex.impulse));
-        let mut energy = ex.energy;
-        let (mut dm, mut first) = (0.0, Vec3::ZERO);
+        let mut gained = crate::ocean::Account {
+            momentum: ex.impulse,
+            angular_momentum: ex.moment + centre.cross(ex.impulse),
+            energy: ex.energy,
+            ..Default::default()
+        };
+        let mut first = Vec3::ZERO;
         let signed = crossed.arrived.iter().map(|b| (b, 1.0)).chain(crossed.left.iter().map(|b| (b, -1.0)));
         for (b, sign) in signed {
             let v = moving + b.vel;
             let p = v.scale(b.mass * sign);
-            dm += sign * b.mass;
+            gained.mass += sign * b.mass;
             first += b.pos.scale(sign * b.mass);
-            dp -= p;
-            dl -= (centre + b.pos).cross(p);
-            energy += sign * (0.5 * b.mass * v.norm2() + b.internal_energy);
+            gained.momentum += p;
+            gained.angular_momentum += (centre + b.pos).cross(p) + b.spin.scale(sign);
+            gained.energy += sign * (0.5 * b.mass * v.norm2() + b.internal_energy);
+            gained.charge += sign * b.charge;
+            gained.baryon += sign * b.mass * b.composition.nucleons_per_kg();
+            gained.lepton += sign
+                * (b.mass * b.composition.nucleons_per_kg() * b.composition.electrons_per_nucleon()
+                    - b.charge / crate::units::E_CHARGE);
         }
+        let dm = gained.mass;
         if dm != 0.0 {
             for &(node, offset) in &chain {
                 let n = &mut self.tree.nodes[node.get()];
@@ -6648,24 +6761,18 @@ impl World {
                 }
                 n.matter.mass = total;
             }
-            // The describing body's contents give the water up, each by its
-            // share of their mass, keeping its momentum.
-            let n = &mut self.tree.nodes[anc.get()];
-            let free: Vec<usize> = (0..n.bodies.len()).filter(|&s| n.child_of(s).is_none() && n.bodies[s].mass > 0.0).collect();
-            let mass: f64 = free.iter().map(|&s| n.bodies[s].mass).sum();
-            if mass > 0.0 {
-                for &s in &free {
-                    let b = &mut n.bodies[s];
-                    let kept = b.mass - dm * b.mass / mass;
-                    let before = 0.5 * b.mass * b.vel.norm2();
-                    b.vel = b.vel.scale(b.mass / kept);
-                    b.mass = kept;
-                    energy += 0.5 * b.mass * b.vel.norm2() - before;
-                }
-            }
         }
-        let taken = self.take_wrench(anc, dp, dl);
-        self.add_heat_to(anc, -(energy + taken));
+        // The sea's books take it, about the sea's own centre.
+        let there = self.tree.position_at(sea, self.tree.nodes[anc.get()].time);
+        let Some(o) = self.ocean_of_mut(anc) else { return };
+        let a = &mut o.account;
+        a.mass -= gained.mass;
+        a.energy -= gained.energy;
+        a.momentum -= gained.momentum;
+        a.angular_momentum -= gained.angular_momentum - there.cross(gained.momentum);
+        a.charge -= gained.charge;
+        a.baryon -= gained.baryon;
+        a.lepton -= gained.lepton;
     }
 
     /// Heat into a node's own contents, J: its free bodies by mass where it is
@@ -7389,6 +7496,12 @@ impl World {
             // The tier is the honest place to draw it, because the tier is
             // exactly the statement of which physics describes the node.
             if self.tree.nodes[i].tier < crate::units::Tier::Planetary {
+                continue;
+            }
+            // A sea's surface is its planet's, which radiates for the whole:
+            // a second sphere of its own round the same surface would radiate
+            // it twice.
+            if self.tree.nodes[i].ocean.is_some() {
                 continue;
             }
             let env = self.environment_at(idx);

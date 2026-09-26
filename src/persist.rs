@@ -1132,6 +1132,15 @@ pub(crate) fn put_node_payload(w: &mut Writer, n: &Node) {
                 w.f64(c.waves);
                 w.vec3(c.heading);
             }
+            // Its books, which its matter cannot hold: `ocean::Account`.
+            let a = &o.account;
+            w.f64(a.mass);
+            w.f64(a.energy);
+            w.vec3(a.momentum);
+            w.vec3(a.angular_momentum);
+            w.f64(a.charge);
+            w.f64(a.baryon);
+            w.f64(a.lepton);
         }
         None => w.bool(false),
     }
@@ -1157,6 +1166,15 @@ fn get_ocean(r: &mut Reader) -> Result<Option<Box<crate::ocean::Ocean>>> {
         c.waves = r.f64()?;
         c.heading = r.vec3()?;
     }
+    o.account = crate::ocean::Account {
+        mass: r.f64()?,
+        energy: r.f64()?,
+        momentum: r.vec3()?,
+        angular_momentum: r.vec3()?,
+        charge: r.f64()?,
+        baryon: r.f64()?,
+        lepton: r.f64()?,
+    };
     Ok(Some(Box::new(o)))
 }
 

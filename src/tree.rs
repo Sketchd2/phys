@@ -645,7 +645,13 @@ impl Tree {
     /// Produce this node's fine detail. Idempotent, and — for an unpinned node —
     /// bit-identical every time it is called at the same epoch.
     pub fn refine(&mut self, i: NodeIdx) -> &[Body] {
-        if self.nodes[i.get()].is_materialised() {
+        // **An ocean is its description.** A node that carries one is a
+        // planet's sea — a shell a thousand kilometres round and a few deep —
+        // and its cells are what it holds. Drawn as bodies it would be a ball
+        // of water parcels the size of a planet, which it is not; where water
+        // is wanted at a finer scale, it is drawn in a patch of shore and
+        // crosses in through that patch's open edge (`open_edge`).
+        if self.nodes[i.get()].is_materialised() || self.nodes[i.get()].ocean.is_some() {
             return &self.nodes[i.get()].bodies;
         }
         let key = self.nodes[i.get()].key;
@@ -722,6 +728,26 @@ impl Tree {
             .stats
             .worst_conservation_error
             .max(report.conservation_error);
+        // **A sea keeps its slot through a redraw.** A planet comes back from
+        // a save with its children and none of its bodies, and its sea — which
+        // holds a tide's history and its own books — is past the end of any
+        // fresh draw, where `reconcile_children` would fold it back. The draw
+        // is of the planet's whole matter, sea included, so the sea's water
+        // is taken back out of it the way it was taken out the first time
+        // (`Tree::withdraw`), and the slots between are left empty.
+        let mut bodies = bodies;
+        let seas: Vec<(usize, NodeIdx)> = self.nodes[i.get()]
+            .children
+            .iter()
+            .enumerate()
+            .skip(bodies.len())
+            .filter(|(_, c)| !c.is_none() && self.nodes[c.get()].alive && self.nodes[c.get()].ocean.is_some())
+            .map(|(s, c)| (s, *c))
+            .collect();
+        let last = seas.iter().map(|(s, _)| *s + 1).max().unwrap_or(0);
+        if last > bodies.len() {
+            bodies.resize(last, Body { mass: 0.0, ..Default::default() });
+        }
         self.reconcile_children(i, bodies.len());
         // Contents held in a field by a structure are drawn near balance, not
         // in it — measured, a bucket's water drawn against its walls peaked at
@@ -735,6 +761,14 @@ impl Tree {
         n.topology = topo;
         n.potential = report.potential;
         n.last_report = report;
+        for (slot, sea) in seas {
+            let (mass, composition, radius) = {
+                let m = &self.nodes[sea.get()].matter;
+                (m.mass, m.composition, m.radius)
+            };
+            self.withdraw(i, mass, composition, radius);
+            self.sync_from_child(i, slot, sea);
+        }
         &self.nodes[i.get()].bodies
     }
 
@@ -779,6 +813,88 @@ impl Tree {
             p.bodies.len() - 1
         };
         self.promote(parent, slot, spec)
+    }
+
+    /// Take `mass` out of a node's free bodies, each by its share of their
+    /// mass, and hold it as a child of its own: what that share carried —
+    /// momentum, angular momentum, internal energy — goes with it, so the
+    /// books do not move. The child's slot is after everything drawn.
+    ///
+    /// How a planet's sea becomes a node (`World::assess_ocean`): the water
+    /// was in the planet's bodies, spread through them by the draw, and it is
+    /// the same water afterwards.
+    pub fn hold_out(
+        &mut self,
+        parent: NodeIdx,
+        mass: f64,
+        composition: crate::state::Composition,
+        radius: f64,
+        spec: SampleSpec,
+    ) -> NodeIdx {
+        self.refine(parent);
+        let Some(body) = self.withdraw(parent, mass, composition, radius) else { return NodeIdx::NONE };
+        let slot = {
+            let p = &mut self.nodes[parent.get()];
+            p.bodies.push(body);
+            while p.children.len() < p.bodies.len() {
+                p.children.push(NodeIdx::NONE);
+            }
+            p.bodies.len() - 1
+        };
+        let child = self.promote(parent, slot, spec);
+        // What it carried, exactly: `promote` would floor the heat at the
+        // new node's own thermal energy.
+        if !child.is_none() {
+            self.nodes[child.get()].matter.internal_energy = body.internal_energy;
+        }
+        child
+    }
+
+    /// Take `mass` out of a node's free bodies by their shares of it, and
+    /// return it as one body: at their shares' centre of mass, moving with
+    /// their momentum, turning with their angular momentum about that centre,
+    /// and holding their share of the heat. `None` where the free bodies do
+    /// not hold that much.
+    pub fn withdraw(
+        &mut self,
+        parent: NodeIdx,
+        mass: f64,
+        composition: crate::state::Composition,
+        radius: f64,
+    ) -> Option<Body> {
+        let n = &mut self.nodes[parent.get()];
+        let free: Vec<usize> = (0..n.bodies.len()).filter(|&s| n.child_of(s).is_none() && n.bodies[s].mass > 0.0).collect();
+        let total: f64 = free.iter().map(|&s| n.bodies[s].mass).sum();
+        if !(mass > 0.0) || !(total > mass) {
+            return None;
+        }
+        let (mut p, mut x, mut l, mut u) = (Vec3::ZERO, Vec3::ZERO, Vec3::ZERO, 0.0);
+        let mut temperature = 0.0;
+        for &s in &free {
+            let b = &mut n.bodies[s];
+            let share = mass * b.mass / total;
+            let f = share / b.mass;
+            p += b.vel.scale(share);
+            x += b.pos.scale(share);
+            l += b.pos.cross(b.vel.scale(share)) + b.spin.scale(f);
+            u += b.internal_energy * f;
+            temperature += b.temperature * share;
+            b.mass -= share;
+            b.internal_energy *= 1.0 - f;
+            b.spin = b.spin.scale(1.0 - f);
+        }
+        let (at, v) = (x.scale(1.0 / mass), p.scale(1.0 / mass));
+        Some(Body {
+            pos: at,
+            vel: v,
+            mass,
+            radius,
+            temperature: temperature / mass,
+            composition,
+            internal_energy: u,
+            spin: l - at.cross(p),
+            ..Default::default()
+        })
     }
 
     pub fn promote(&mut self, i: NodeIdx, slot: usize, spec: SampleSpec) -> NodeIdx {
@@ -3517,7 +3633,12 @@ impl Tree {
     fn sum_conserved(&self, i: NodeIdx) -> crate::state::Conserved {
         let n = &self.nodes[i.get()];
         if !n.is_materialised() {
-            return n.matter.conserved();
+            // An ocean's matter cannot hold what it has given and taken, and
+            // its own books do: `ocean::Account`.
+            return match n.ocean.as_ref() {
+                Some(o) => n.matter.conserved().add(o.account.conserved()),
+                None => n.matter.conserved(),
+            };
         }
         let count = n.bodies.len();
         // A slot whose child speaks for it contributes nothing here; the child's

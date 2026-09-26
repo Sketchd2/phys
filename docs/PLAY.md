@@ -3147,6 +3147,32 @@ water, with the cell grid as its description — so that water crossing into a
 patch of shore moves between two nodes like any other transfer, and the
 ledger is the ocean node's own matter.
 
+Built, the node's matter could not be the ledger either: an Earth's sea is
+1.4e21 kg, which moves in steps of 2.6e5 kg, and its heat in steps of 2e11 J.
+So the sea node carries its own books beside its matter (`ocean::Account`,
+counted by `Tree::total_conserved`), which is the ledger the owner allowed,
+held by a node. What it gives and takes goes there: water across a patch's
+edge, the sea's push along it, and the wind's stress, which used to go into
+the planet's bodies. Measured over ten solves of a patch of shore: 105 parcels
+in and 78 out, the water +90 kg and the sea's account -90 kg exactly, and the
+momentum across the edge (300 kg m/s) held by the account to 8.7e-13, with the
+world's momentum moving by the outside push alone to 8.2e-13. Four rulings
+inside the decision:
+
+- **A sea is assessed only over ground** — once the planet's surface or its
+  frozen layout is written — because a surface written afterwards redraws the
+  planet's bodies under a sea already taken out of them.
+- **It is never drawn as bodies** (`Tree::refine`); its cells are what it
+  holds. A redraw of its planet (a reload) keeps its slot and takes its water
+  back out of the fresh draw.
+- **Its planet's solve leaves it out**, and it shares the pushes its planet's
+  contents take: solved as the point mass its stand-in is, an Earth's sea was
+  thrown 2.8e7 m out by eight lumps moving at 5 km/s and left its planet.
+- **It does not radiate apart from its planet**, whose surface is its own.
+
+A planet with a sea is therefore never collapsed: a node holding a child
+cannot be. `FORMAT_VERSION` is 24, for the account.
+
 **Phase 6 — The program.** *Inserted by the owner during Phase 5.* The whole
 system simulated and watched on the owner's own PC as a native executable —
 the owner's requirement, on the grounds that a web renderer's overhead would

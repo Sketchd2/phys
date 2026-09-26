@@ -124,6 +124,7 @@ fn an_atmosphere_is_the_gas_a_planet_holds() {
     w.tree.nodes[e.get()].matter = Matter::neutral(EARTH, RADIUS, 290.0, composition);
     w.set_mixture(e, mix);
     assert!(w.atmosphere_of(e).is_none(), "no surface assessed, so nothing to stand the air on");
+    assert!(w.assess_surface(e), "an Earth has ground to stand a sea on");
     assert!(w.assess_ocean(e));
     let (base, rho, height) = w.atmosphere_of(e).expect("an Earth with nitrogen and a sea has an atmosphere");
     let up = w.ambient_density(e, base + height);
@@ -135,7 +136,7 @@ fn an_atmosphere_is_the_gas_a_planet_holds() {
     assert!((rho - 1.141).abs() < 0.01, "sea-level density {rho}");
     assert!((height - 8760.0).abs() < 50.0, "scale height {height}");
     assert!((up / rho - (-1.0f64).exp()).abs() < 1e-12);
-    assert_eq!(w.ambient_density(e, base - 10.0), w.tree.nodes[e.get()].ocean.as_ref().unwrap().density);
+    assert_eq!(w.ambient_density(e, base - 10.0), w.ocean_of(e).unwrap().density);
 }
 
 /// A turning, tiled Earth made of silica, with the face under the equator

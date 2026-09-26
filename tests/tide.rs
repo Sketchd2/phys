@@ -107,10 +107,10 @@ fn the_tide_comes_in_twice_a_lunar_day() {
     let point = v3(1.0, 0.0, 0.0);
     for _ in 0..(60.0 * DAY / 300.0) as usize {
         w.step_frame(1_000_000.0);
-        let Some(o) = w.tree.nodes[earth.get()].ocean.as_ref() else { continue };
+        let Some(o) = w.ocean_of(earth) else { continue };
         trace.push((w.time, o.cells[o.cell_of(point)].eta));
     }
-    let o = w.tree.nodes[earth.get()].ocean.as_ref().expect("an Earth with water has an ocean");
+    let o = w.ocean_of(earth).expect("an Earth with water has an ocean");
     let volume = o.depth * 4.0 * std::f64::consts::PI * o.radius * o.radius;
     let lost = o.excess_volume() / volume;
     let late: Vec<(f64, f64)> = trace.iter().copied().filter(|(t, _)| *t > 2.0 * DAY).collect();
@@ -153,8 +153,9 @@ fn the_tide_comes_in_twice_a_lunar_day() {
 fn a_frozen_seabed_is_rough_with_its_own_grain() {
     let grain = 1.662e-2;
     let (mut bare, earth) = earth_and_moon(0x5EAB, 1.4e21);
+    assert!(bare.assess_surface(earth), "an Earth has ground to stand a sea on");
     assert!(bare.assess_ocean(earth));
-    let flaw = bare.tree.nodes[earth.get()].ocean.as_ref().unwrap().drag;
+    let flaw = bare.ocean_of(earth).unwrap().drag;
 
     let (mut frozen, earth) = earth_and_moon(0x5EAB, 1.4e21);
     {
@@ -165,7 +166,7 @@ fn a_frozen_seabed_is_rough_with_its_own_grain() {
         frozen.tree.nodes[earth.get()].morphology = Some(m);
     }
     assert!(frozen.assess_ocean(earth));
-    let o = frozen.tree.nodes[earth.get()].ocean.as_ref().unwrap();
+    let o = frozen.ocean_of(earth).unwrap();
     println!(
         "  seabed drag {:.3e} from a {grain:.3e} m grain, against {flaw:.3e} from the flaw scale ({:.3e} m)",
         o.drag,
