@@ -254,6 +254,144 @@ pub struct Blown {
     pub broken: f64,
 }
 
+/// A sea as the one wave it knows how to be — the owner's decision for
+/// Phase 5, where a coarse ocean meets water drawn as parcels.
+///
+/// The ocean holds its sea as an energy and a heading, not a phase or a
+/// spectrum, so the train is what that state says and nothing more: **its
+/// energy**, as one regular wave of height `H_s / sqrt 2` (a regular wave holds
+/// `rho g H^2 / 8` and a sea `rho g H_s^2 / 16`); **its length**, from the
+/// ocean's own limiting steepness, `k = 2 pi s / H_s` (`phase_speed`); **its
+/// period**, from the gravity-capillary dispersion relation in the water it
+/// is in; and **its phase**, `k x . heading - omega t` from where and when it is
+/// read, so that it is the same wherever and whenever anything asks. Nothing is
+/// tabulated and nothing is drawn at random.
+///
+/// **Carried into shallower water it keeps its period** and re-solves its
+/// wavenumber at the new depth; its height follows the energy flux, which is
+/// conserved (`E c_g` constant), until McCowan's depth limit breaks it.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Train {
+    /// Half the wave's height, m.
+    pub amplitude: f64,
+    /// Wavenumber, rad/m.
+    pub k: f64,
+    /// Angular frequency, rad/s.
+    pub omega: f64,
+    /// Which way it travels, unit, in the planet's axes.
+    pub heading: Vec3,
+    /// The water depth it is in, m.
+    pub depth: f64,
+    /// Gravity, surface tension and density, which its dispersion is.
+    pub g: f64,
+    pub tension: f64,
+    pub density: f64,
+}
+
+/// `omega^2 = (g k + sigma k^3 / rho) tanh(k d)`: the gravity-capillary
+/// dispersion relation.
+pub fn dispersion(k: f64, depth: f64, g: f64, tension: f64, density: f64) -> f64 {
+    let capillary = if density > 0.0 { tension * k * k * k / density } else { 0.0 };
+    ((g * k + capillary) * (k * depth.max(0.0)).tanh()).max(0.0).sqrt()
+}
+
+impl Train {
+    /// The sea of significant height `h` heading along `heading`, in water
+    /// `depth` deep — `None` for no sea.
+    pub fn of(h: f64, heading: Vec3, depth: f64, g: f64, tension: f64, density: f64) -> Option<Train> {
+        if !(h > 0.0) || !(depth > 0.0) || !(g > 0.0) || heading.norm() == 0.0 {
+            return None;
+        }
+        let k = std::f64::consts::TAU * BREAKING_STEEPNESS / h;
+        let omega = dispersion(k, depth, g, tension, density);
+        let train = Train { amplitude: 0.5 * h / std::f64::consts::SQRT_2, k, omega, heading: heading.unit(), depth, g, tension, density };
+        Some(train.broken())
+    }
+
+    /// Group speed, m/s: `d omega / d k`, by a centred difference of the
+    /// dispersion relation itself.
+    pub fn group_speed(&self) -> f64 {
+        let dk = 1e-6 * self.k;
+        let up = dispersion(self.k + dk, self.depth, self.g, self.tension, self.density);
+        let down = dispersion(self.k - dk, self.depth, self.g, self.tension, self.density);
+        (up - down) / (2.0 * dk)
+    }
+
+    /// Energy per area, J/m^2: `rho g H^2 / 8` for the regular wave it is.
+    pub fn energy(&self) -> f64 {
+        0.5 * self.density * self.g * self.amplitude * self.amplitude
+    }
+
+    /// Period, s.
+    pub fn period(&self) -> f64 {
+        std::f64::consts::TAU / self.omega
+    }
+
+    /// The same train in water `depth` deep: the same period, the wavenumber
+    /// that period has there, and the height the energy flux carried in gives
+    /// it — broken at McCowan's limit where that is exceeded.
+    pub fn in_depth(&self, depth: f64) -> Option<Train> {
+        if !(depth > 0.0) || !(self.omega > 0.0) {
+            return None;
+        }
+        // Newton on omega(k) = omega, from the deep-water guess.
+        let mut k = (self.omega * self.omega / self.g).max(self.omega / (self.g * depth).sqrt());
+        for _ in 0..60 {
+            let f = dispersion(k, depth, self.g, self.tension, self.density) - self.omega;
+            let dk = 1e-7 * k;
+            let slope = (dispersion(k + dk, depth, self.g, self.tension, self.density) - dispersion(k - dk, depth, self.g, self.tension, self.density)) / (2.0 * dk);
+            if !(slope > 0.0) {
+                break;
+            }
+            let step = f / slope;
+            k = (k - step).max(0.5 * k);
+            if step.abs() < 1e-14 * k {
+                break;
+            }
+        }
+        let there = Train { k, depth, ..*self };
+        let flux = self.energy() * self.group_speed();
+        let amplitude = (2.0 * flux / (self.density * self.g * there.group_speed().max(1e-300))).sqrt();
+        Some(Train { amplitude, ..there }.broken())
+    }
+
+    /// Height limited by McCowan's depth limit.
+    fn broken(self) -> Train {
+        let most = 0.5 * MCCOWAN * self.depth;
+        Train { amplitude: self.amplitude.min(most), ..self }
+    }
+
+    /// Phase at `x` (from the planet's centre, planet axes) and time `t`.
+    pub fn phase(&self, x: Vec3, t: f64) -> f64 {
+        self.k * x.dot(self.heading) - self.omega * t
+    }
+
+    /// How far the surface stands above its still level there and then, m.
+    pub fn surface(&self, x: Vec3, t: f64) -> f64 {
+        self.amplitude * self.phase(x, t).cos()
+    }
+
+    /// The water's velocity at `x`, `z` above the still level (negative below
+    /// it), with `up` the local vertical — linear (Airy) wave theory. Along
+    /// the heading `a omega cosh k(z+d) / sinh kd cos(theta)`, up
+    /// `a omega sinh k(z+d) / sinh kd sin(theta)`.
+    pub fn velocity(&self, x: Vec3, z: f64, up: Vec3, t: f64) -> Vec3 {
+        let theta = self.phase(x, t);
+        let kd = self.k * self.depth;
+        let above_bed = (z + self.depth).max(0.0);
+        let (along, vertical) = if kd > 20.0 {
+            // Deep: both ratios are e^{kz}.
+            let e = (self.k * z.min(0.0)).exp();
+            (e, e)
+        } else {
+            let s = kd.sinh();
+            ((self.k * above_bed).cosh() / s, (self.k * above_bed).sinh() / s)
+        };
+        let across = (self.heading - up.scale(self.heading.dot(up))).unit();
+        across.scale(self.amplitude * self.omega * along * theta.cos()) + up.scale(self.amplitude * self.omega * vertical * theta.sin())
+    }
+}
+
 /// The exact tidal potential at `x` of a mass `m` at `r`, both from the
 /// planet's centre: the potential less its value and its gradient at the
 /// centre, which is what moves the whole planet rather than its ocean.
