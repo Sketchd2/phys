@@ -18,6 +18,33 @@ done about it and in what order.
 
 ---
 
+## The frame's cost model over-reads on this container, so a budget test fails on and off
+
+**Noticed:** Phase 5, item 7b, running the suite. **Owner's call:** the backlog,
+with a trigger, rather than the plan.
+**Where:** `tests/budget.rs::frames_stay_within_budget`, its second assertion.
+
+The test fails in about two runs out of three, and does so identically at
+`46b45e2` and the two commits after it, so it is not Phase 5's change. What
+fails is the one assertion that does not depend on the machine's speed: that
+the cost model knows what a frame will cost. Measured across six runs:
+
+```text
+    planned median 105 to 133 ms     actual median 74 to 81 ms
+    calibration 3.8 to 4.5           target 50 ms, 20 of 20 frames over it
+```
+
+so the plan over-reads the frame by about 50% while the assertion allows 30%.
+Nothing has been measured about *why* — whether the calibration is chasing a
+noisy container, or a task's modelled cost has drifted from what it costs.
+
+**Trigger:** the suite being run somewhere a red it cannot explain costs a
+decision — CI, or a phase whose done-when needs the full suite green on a single
+run — or the planner deferring detail an observer can see because the model
+said a frame was dearer than it was.
+
+---
+
 ## ~~Pace control has no honest "manual" mode~~ — done
 
 **Noticed:** building `phys-persist` (Phase 1). **Closed:** building

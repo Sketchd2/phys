@@ -754,10 +754,22 @@ impl Tree {
     /// (`Tree::reparent`): a slot beyond the recipe's, loose among its members.
     ///
     /// **A scene's statement, not physics.** Nothing is conserved across it:
-    /// the thing placed was not anywhere before, and the parent's matter does
-    /// not yet count it.
+    /// the thing placed was not anywhere before.
+    ///
+    /// **What is placed is new matter where it is placed**, so the node it is
+    /// placed in and every node holding that one hold it too: their mass grows
+    /// by the body's, and the node it lands in takes its momentum. Left out, a
+    /// face of an Earth holding a mass of air weighed what it did without it,
+    /// and the world's books missed the part of the air's momentum that is the
+    /// face carrying it — 2.7e20 kg m/s between two solves of the Earth.
     pub fn place(&mut self, parent: NodeIdx, body: Body, spec: SampleSpec) -> NodeIdx {
         self.refine(parent);
+        self.nodes[parent.get()].matter.momentum += body.momentum();
+        let mut up = parent;
+        while !up.is_none() {
+            self.nodes[up.get()].matter.mass += body.mass;
+            up = self.nodes[up.get()].parent;
+        }
         let slot = {
             let p = &mut self.nodes[parent.get()];
             p.bodies.push(body);

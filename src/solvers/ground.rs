@@ -60,8 +60,20 @@ pub struct Spring {
     pub b: u32,
     /// Stiffness, N/m: `E A / L`.
     pub k: f64,
-    /// Length at which it carries nothing, m: the pieces' distance as drawn.
+    /// Length at which it carries no more than `tension`, m: the pieces'
+    /// distance as drawn.
     pub rest: f64,
+    /// What it carries, N — positive pulling the two together, negative
+    /// pushing them apart: the rock's stress as drawn (`stress`).
+    pub tension: f64,
+    /// The line from `a` to `b` as drawn, unit, which that stress acts along.
+    /// Kept in the node's own axes in a `Cache` and in the bodies' within a
+    /// step, where it turns with the ground (`Ground::turn`) — not with the
+    /// two pieces. Along their current line instead, a compression is also a
+    /// sideways push the moment the line bends, and a face of a turning Earth
+    /// carrying its weight that way buckled: its pieces slipped over the
+    /// ground at 124 m/s by the second hour and climbing.
+    pub along: Vec3,
 }
 
 /// What a node's ground is, derived on its first solve after it is drawn and
@@ -75,6 +87,9 @@ pub struct Cache {
     pub support: Vec<Vec3>,
     /// How many of the node's bodies are pieces of its ground.
     pub pieces: usize,
+    /// The share of what the pieces need that the springs could not carry
+    /// and is left on each piece instead, rms against the need (`stress`).
+    pub unresolved: f64,
 }
 
 /// Everything a ground solve needs besides the bodies.
@@ -105,6 +120,15 @@ pub struct Ground {
     /// What else moves what is loose among the pieces, for a node inside a
     /// fluid that goes round with its planet — `None` where nothing does.
     pub swirl: Option<Swirl>,
+    /// Whether something outside holds these pieces — a patch of a planet,
+    /// held by the rest of it — so that what holds them is exactly what keeps
+    /// their centre of mass with the node: the pieces' mean acceleration is
+    /// taken off each of them. Measured without it, a face of a turning Earth
+    /// held by a force derived where it was drawn sloshed inside itself at 2.5
+    /// m/s against the face it is, as the face's real motion drifted from the
+    /// drawing's. `false` for a body nothing holds, whose pieces' forces
+    /// already sum to nothing.
+    pub held: bool,
     /// The ground's angular velocity, rad/s, in the bodies' axes: the support
     /// is a stress fixed in the ground, so within a step it turns with it.
     pub turn: Vec3,
@@ -182,8 +206,10 @@ fn accelerations_at(bodies: &[Body], ground: &Ground, elapsed: f64) -> Vec<Vec3>
         if !(len > 0.0) {
             continue;
         }
-        // Positive when stretched: it pulls the two together.
-        let f = d.scale(s.k * (len - s.rest) / len);
+        // Positive when stretched: it pulls the two together. The stress it
+        // was drawn carrying acts along the line as drawn, turned with the
+        // ground.
+        let f = d.scale(s.k * (len - s.rest) / len) + turned(ground.turn, s.along).scale(s.tension);
         if bi.mass > 0.0 {
             acc[i] += f.scale(1.0 / bi.mass);
         }
@@ -194,10 +220,44 @@ fn accelerations_at(bodies: &[Body], ground: &Ground, elapsed: f64) -> Vec<Vec3>
     for (a, p) in acc.iter_mut().zip(&ground.preload) {
         *a += turned(ground.turn, *p);
     }
+    if ground.held {
+        let n = ground.pieces.min(bodies.len());
+        let mass: f64 = bodies[..n].iter().map(|b| b.mass).sum();
+        if mass > 0.0 {
+            let mean = (0..n).fold(Vec3::ZERO, |m, i| m + acc[i].scale(bodies[i].mass)).scale(1.0 / mass);
+            for a in acc[..n].iter_mut() {
+                *a -= mean;
+            }
+            // And turning with it: the net torque about the pieces' centre is
+            // what going round at the ground's rate needs, and no more.
+            // Measured without it, the same face twisted inside itself by
+            // 3e29 kg m^2/s against the ground's turning in forty minutes.
+            let centre = (0..n).fold(Vec3::ZERO, |c, i| c + bodies[i].pos.scale(bodies[i].mass)).scale(1.0 / mass);
+            let w = ground.turn;
+            let mut excess = Vec3::ZERO;
+            let mut inertia = crate::math::Mat3::zero();
+            for i in 0..n {
+                let (m, d) = (bodies[i].mass, bodies[i].pos - centre);
+                excess += d.cross(acc[i] - w.cross(w.cross(d))).scale(m);
+                let o = d.outer(d);
+                for r in 0..3 {
+                    for c in 0..3 {
+                        let delta = if r == c { d.norm2() } else { 0.0 };
+                        inertia.0[r][c] += m * (delta - o.0[r][c]);
+                    }
+                }
+            }
+            if let Some(beta) = inertia.solve(excess) {
+                for i in 0..n {
+                    acc[i] -= beta.cross(bodies[i].pos - centre);
+                }
+            }
+        }
+    }
     acc
 }
 
-/// The elastic energy the springs hold, J.
+/// The elastic energy the springs hold beyond their stress as drawn, J.
 pub fn elastic_energy(bodies: &[Body], springs: &[Spring]) -> f64 {
     springs
         .iter()
@@ -213,12 +273,129 @@ pub fn elastic_energy(bodies: &[Body], springs: &[Spring]) -> f64 {
 /// gravity and the springs give it there. Evaluated once, on the ground as
 /// drawn, for the pieces; zero for everything else.
 pub fn support(bodies: &[Body], ground: &Ground, pieces: &[bool]) -> Vec<Vec3> {
-    let free = Ground { preload: vec![Vec3::ZERO; bodies.len()], turn: Vec3::ZERO, lift: Vec::new(), swirl: None, ..ground.clone() };
+    let free = Ground { preload: vec![Vec3::ZERO; bodies.len()], turn: Vec3::ZERO, lift: Vec::new(), swirl: None, held: false, ..ground.clone() };
     accelerations(bodies, &free)
         .into_iter()
         .zip(pieces)
         .map(|(a, &p)| if p { Vec3::ZERO - a } else { Vec3::ZERO })
         .collect()
+}
+
+/// The rock's stress as drawn: how each piece's weight is carried.
+///
+/// `need` is the force each piece needs to stay where it is drawn, N —
+/// against gravity and the springs, and toward the axis it goes round. Part of
+/// it is what holds the whole: a patch of a planet is held up by the rest of
+/// the planet, and that is one rigid acceleration of all its pieces with the
+/// same net force and torque as `need`. That part comes back as a force on
+/// each piece (`Vec3`s, N). **The rest sums to no force and no torque, and the
+/// springs carry it** — a tension or a compression along each, found by least
+/// squares — so it is equal and opposite between two pieces along the line
+/// joining them, whatever they then do. What the springs cannot carry is added
+/// to the per-piece forces, and its size returned, so that it is measured
+/// rather than assumed away.
+///
+/// The owner's decision for Phase 5. Given as a fixed force per piece, the
+/// support stopped summing to no torque the moment the pieces rang off where
+/// they were drawn: a turning Earth with one face promoted moved its angular
+/// momentum by 4e-7 of itself in six hours, in steps at each ground solve.
+pub fn stress(bodies: &[Body], springs: &[Spring], pieces: usize, need: &[Vec3]) -> (Vec<f64>, Vec<Vec3>, f64) {
+    let n = pieces.min(bodies.len()).min(need.len());
+    let mut outside = vec![Vec3::ZERO; need.len()];
+    if n == 0 {
+        return (vec![0.0; springs.len()], outside, 0.0);
+    }
+    // The rigid part: net force and torque about the pieces' centre of mass.
+    let mass: f64 = bodies[..n].iter().map(|b| b.mass).sum();
+    if !(mass > 0.0) {
+        return (vec![0.0; springs.len()], need.to_vec(), 0.0);
+    }
+    let centre = bodies[..n].iter().fold(Vec3::ZERO, |a, b| a + b.pos.scale(b.mass)).scale(1.0 / mass);
+    let net: Vec3 = need[..n].iter().fold(Vec3::ZERO, |a, f| a + *f);
+    let torque: Vec3 = (0..n).fold(Vec3::ZERO, |a, i| a + (bodies[i].pos - centre).cross(need[i]));
+    let mut inertia = crate::math::Mat3::zero();
+    for b in &bodies[..n] {
+        let d = b.pos - centre;
+        let o = d.outer(d);
+        for r in 0..3 {
+            for c in 0..3 {
+                let delta = if r == c { d.norm2() } else { 0.0 };
+                inertia.0[r][c] += b.mass * (delta - o.0[r][c]);
+            }
+        }
+    }
+    let linear = net.scale(1.0 / mass);
+    let angular = inertia.solve(torque).unwrap_or(Vec3::ZERO);
+    for i in 0..n {
+        outside[i] = (linear + angular.cross(bodies[i].pos - centre)).scale(bodies[i].mass);
+    }
+    // The rest, carried along the springs: minimise |A t - g|^2 by conjugate
+    // gradients on the normal equations, where `A` puts a spring's tension on
+    // its two ends along the line between them.
+    let g: Vec<Vec3> = (0..n).map(|i| need[i] - outside[i]).collect();
+    let usable: Vec<Option<(usize, usize, Vec3)>> = springs
+        .iter()
+        .map(|s| {
+            let (a, b) = (s.a as usize, s.b as usize);
+            if a >= n || b >= n {
+                return None;
+            }
+            let d = bodies[b].pos - bodies[a].pos;
+            let len = d.norm();
+            (len > 0.0).then(|| (a, b, d.scale(1.0 / len)))
+        })
+        .collect();
+    let apply = |t: &[f64]| -> Vec<Vec3> {
+        let mut f = vec![Vec3::ZERO; n];
+        for (e, u) in usable.iter().enumerate() {
+            if let Some((a, b, u)) = u {
+                f[*a] += u.scale(t[e]);
+                f[*b] -= u.scale(t[e]);
+            }
+        }
+        f
+    };
+    let apply_t = |v: &[Vec3]| -> Vec<f64> {
+        usable.iter().map(|u| u.map(|(a, b, u)| (v[a] - v[b]).dot(u)).unwrap_or(0.0)).collect()
+    };
+    let dot = |x: &[f64], y: &[f64]| x.iter().zip(y).map(|(a, b)| a * b).sum::<f64>();
+    let mut t = vec![0.0; springs.len()];
+    let mut r = apply_t(&g);
+    let mut p = r.clone();
+    let mut rr = dot(&r, &r);
+    let scale = rr;
+    for _ in 0..(4 * springs.len().max(1)) {
+        if !(rr > 1e-28 * scale) {
+            break;
+        }
+        let ap = apply_t(&apply(&p));
+        let pap = dot(&p, &ap);
+        if !(pap > 0.0) {
+            break;
+        }
+        let alpha = rr / pap;
+        for e in 0..t.len() {
+            t[e] += alpha * p[e];
+            r[e] -= alpha * ap[e];
+        }
+        let next = dot(&r, &r);
+        let beta = next / rr;
+        rr = next;
+        for e in 0..p.len() {
+            p[e] = r[e] + beta * p[e];
+        }
+    }
+    let carried = apply(&t);
+    let mut left: f64 = 0.0;
+    let mut total: f64 = 0.0;
+    for i in 0..n {
+        let rest = g[i] - carried[i];
+        outside[i] += rest;
+        left += rest.norm2();
+        total += need[i].norm2();
+    }
+    let unresolved = if total > 0.0 { (left / total).sqrt() } else { 0.0 };
+    (t, outside, unresolved)
 }
 
 /// One leapfrog step of `dt`.

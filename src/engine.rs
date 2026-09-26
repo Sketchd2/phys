@@ -3431,21 +3431,33 @@ impl World {
             if ground.is_some() {
                 let reached = self.tree.nodes[idx.get()].time + report.dt_used.min(dt) / rate;
                 self.tree.hand_back(idx, &before, Some(reached));
-                // The fluid's push was inside the solve; what it gave each
-                // child comes out of the parent's own contents, and the work
-                // is their heat, as `buoy_children` books it elsewhere.
-                if let Some(g) = &ground {
+                // The real forces on a loose child within the solve are its
+                // weight and the fluid's push — against the weight, and toward
+                // the axis the fluid goes round — and the body that describes
+                // the fluid is the source of both: its gravity and its air or
+                // sea. So it takes the reaction to their sum, at the child's
+                // place in it; the work is heat there, as `buoy_children` books
+                // it elsewhere. Gravity is a field and pulls nothing back, so
+                // booking the fluid's push alone pushed an Earth away from the
+                // air over it by the air's whole weight; and booking it on the
+                // node holding the child instead pushed that node's centre
+                // rather than the planet at the air, and the world's angular
+                // momentum moved by 6e-6.
+                if let (Some(g), Some(anc)) = (&ground, self.describing(idx)) {
                     let covered = report.dt_used.min(dt);
+                    let spin = self.spin_in_root(anc);
+                    let centre = self.tree.offset_at(anc, idx, self.tree.nodes[idx.get()].time);
                     for (slot, _) in &before {
                         let lift = g.lift.get(*slot).copied().unwrap_or(0.0);
                         let (Some(b), Some(f)) = (self.tree.nodes[idx.get()].bodies.get(*slot).copied(), g.field.get(*slot).copied()) else { continue };
                         if lift == 0.0 {
                             continue;
                         }
-                        let dp = f.scale(-lift * b.mass * covered);
+                        let at = centre + b.pos;
+                        let dp = (f + (spin.cross(spin.cross(at)) - f).scale(lift)).scale(b.mass * covered);
                         let gained = b.vel.dot(dp) - 0.5 * dp.norm2() / b.mass.max(1e-300);
-                        let taken = self.take_reaction(idx, Vec3::ZERO - dp, b.pos);
-                        self.add_heat_to(idx, -(gained + taken));
+                        let taken = self.take_reaction(anc, Vec3::ZERO - dp, at);
+                        self.add_heat_to(anc, -(gained + taken));
                     }
                 }
             } else {
@@ -5979,31 +5991,45 @@ impl World {
                 let (Some(ba), Some(bb)) = (n.bodies.get(a), n.bodies.get(b)) else { continue };
                 let length = (bb.pos - ba.pos).norm();
                 let h = if ba.half != Vec3::ZERO { ba.half } else { bb.half };
-                let area = match touch {
-                    crate::recipe::Touch::Beside => 4.0 * h.x * h.z,
-                    crate::recipe::Touch::On => 4.0 * h.x * h.y,
+                // A column of rock, `E A / L`, across a face two pieces share
+                // or under one resting on another; across a diagonal, the
+                // shear the lattice needs, `G t` (`recipe::Touch`), with `G`
+                // at the Poisson's ratio of 0.3 `Material::yield_stress` takes.
+                let k = match touch {
+                    crate::recipe::Touch::Beside => stiffness * 4.0 * h.x * h.z / length.max(1e-300),
+                    crate::recipe::Touch::On => stiffness * 4.0 * h.x * h.y / length.max(1e-300),
+                    crate::recipe::Touch::Across => stiffness / 2.6 * 2.0 * h.z,
                 };
-                if length > 0.0 && area > 0.0 && stiffness > 0.0 {
-                    springs.push(Spring { a: a as u32, b: b as u32, k: stiffness * area / length, rest: length });
+                if length > 0.0 && k > 0.0 {
+                    springs.push(Spring { a: a as u32, b: b as u32, k, rest: length, tension: 0.0, along: (bb.pos - ba.pos).scale(1.0 / length) });
                 }
             }
             let spin = self.spin_in_root(idx);
-            let bare = Ground { springs: springs.clone(), field: field.clone(), preload: Vec::new(), gravity: Some(gravity), pieces, turn: Vec3::ZERO, lift: Vec::new(), swirl: None };
+            let bare = Ground { springs: springs.clone(), field: field.clone(), preload: Vec::new(), gravity: Some(gravity), pieces, turn: Vec3::ZERO, lift: Vec::new(), swirl: None, held: false };
             let is_piece: Vec<bool> = (0..n.bodies.len()).map(|i| i < pieces).collect();
             let held = crate::solvers::ground::support(&n.bodies, &bare, &is_piece);
-            let support: Vec<Vec3> = held
+            // What each piece needs, as a force: to stay where it is drawn,
+            // and to go round with the ground.
+            let need: Vec<Vec3> = held
                 .iter()
                 .zip(&n.bodies)
                 .zip(&is_piece)
-                .map(|((s, b), &p)| {
-                    if !p {
-                        return Vec3::ZERO;
-                    }
-                    let going_round = spin.cross(spin.cross(b.pos));
-                    facing.conjugate().rotate(*s + going_round)
-                })
+                .map(|((s, b), &p)| if p { (*s + spin.cross(spin.cross(b.pos))).scale(b.mass) } else { Vec3::ZERO })
                 .collect();
-            self.tree.nodes[idx.get()].ground = Some(Box::new(Cache { springs, support, pieces }));
+            // Carried by the rock between the pieces where it can be, and by
+            // whatever holds the whole where it cannot (`ground::stress`).
+            let (tensions, outside, unresolved) = crate::solvers::ground::stress(&n.bodies, &springs, pieces, &need);
+            for (s, t) in springs.iter_mut().zip(&tensions) {
+                s.tension = *t;
+                // In the node's own axes, so that it turns with the ground.
+                s.along = facing.conjugate().rotate(s.along);
+            }
+            let support: Vec<Vec3> = outside
+                .iter()
+                .zip(&n.bodies)
+                .map(|(f, b)| if b.mass > 0.0 { facing.conjugate().rotate(f.scale(1.0 / b.mass)) } else { Vec3::ZERO })
+                .collect();
+            self.tree.nodes[idx.get()].ground = Some(Box::new(Cache { springs, support, pieces, unresolved }));
         }
         let n = &self.tree.nodes[idx.get()];
         let cache = n.ground.as_ref()?;
@@ -6053,7 +6079,8 @@ impl World {
             let round = if n.turning != Vec3::ZERO || anc == idx { w } else { Vec3::ZERO };
             crate::solvers::ground::Swirl { spin: w, centre: here, frame: round.cross(round.cross(here)), round }
         });
-        Some(Ground { springs: cache.springs.clone(), field, preload, gravity: Some(gravity), pieces: cache.pieces, turn, lift, swirl })
+        let springs: Vec<Spring> = cache.springs.iter().map(|s| Spring { along: facing.rotate(s.along), ..*s }).collect();
+        Some(Ground { springs, field, preload, gravity: Some(gravity), pieces: cache.pieces, turn, lift, swirl, held: !self.tree.nodes[idx.get()].parent.is_none() })
     }
 
     /// The radius of the surface a node describes — its sea's where it has
@@ -6271,25 +6298,84 @@ impl World {
     /// Give a node's own contents an impulse at a place in root-aligned axes
     /// relative to its centre, and return the kinetic energy they took up, J.
     fn take_reaction(&mut self, idx: NodeIdx, dp: Vec3, at: Vec3) -> f64 {
-        let n = &mut self.tree.nodes[idx.get()];
-        let free: Vec<usize> = (0..n.bodies.len())
-            .filter(|&s| {
-                let c = n.child_of(s);
-                c.is_none()
-            })
-            .collect();
-        let mass: f64 = free.iter().map(|&s| n.bodies[s].mass).sum();
+        // **Ground something holds passes it on.** Its pieces' centre of mass
+        // stays with the node (`ground::Ground::held`), so a push on them is
+        // a push on the node, which is a body in whatever holds it and gets
+        // there through its stand-in. Put into the pieces, the weight of air
+        // held over a face of an Earth drove the face's contents off the face
+        // at 8.7e-5 m/s^2 — the air's weight over the face's mass.
+        if self.tree.nodes[idx.get()].ground.is_some() && !self.tree.nodes[idx.get()].parent.is_none() {
+            let m = self.tree.nodes[idx.get()].matter.mass.max(1e-300);
+            let instant = self.tree.nodes[idx.get()].time;
+            let v = self.tree.velocity_at(idx, instant);
+            self.tree.kick(idx, dp.scale(1.0 / m), instant);
+            let w = v + dp.scale(1.0 / m);
+            return 0.5 * m * (w.norm2() - v.norm2());
+        }
+        // Who takes it. **A body's ground takes it whole** — every piece of
+        // it, a piece promoted into a node of its own included, which takes it
+        // as that node — because the ground is one rigid thing and the push
+        // is on all of it. Left to the pieces not promoted, the weight of air
+        // over a face of an Earth pushed the rest of the Earth away from the
+        // face under it by 1e-4 m/s a step, and the springs between them
+        // shook the face, and the air on it, every time the Earth was solved.
+        // Anything else is taken by its free bodies, as it always was.
+        let (instant, takers): (f64, Vec<(usize, NodeIdx, f64, Vec3)>) = {
+            let n = &self.tree.nodes[idx.get()];
+            let pieces = n.ground.as_ref().map(|g| g.pieces.min(n.bodies.len()));
+            let slots: Vec<usize> = match pieces {
+                Some(p) => (0..p).collect(),
+                None => (0..n.bodies.len()).filter(|&s| n.child_of(s).is_none()).collect(),
+            };
+            let takers = slots
+                .into_iter()
+                .map(|s| {
+                    let c = n.child_of(s);
+                    let pos = if c.is_none() { n.bodies[s].pos } else { self.tree.position_at(c, n.time) };
+                    (s, c, n.bodies[s].mass, pos)
+                })
+                .collect();
+            (n.time, takers)
+        };
+        let mass: f64 = takers.iter().map(|t| t.2).sum();
         if mass > 0.0 {
+            // A push at a place: the momentum to all of them alike, and the
+            // turn it makes about their centre of mass as a rigid turn of all
+            // of them, so their angular momentum changes by exactly `at x dp`.
+            // As a uniform kick alone, the free bodies of an Earth with one
+            // face promoted — whose centre of mass is not the Earth's — took
+            // up 3e27 kg m^2/s from the weight of air pointing at its centre.
             let dv = dp.scale(1.0 / mass);
+            let centre = takers.iter().fold(Vec3::ZERO, |c, t| c + t.3.scale(t.2)).scale(1.0 / mass);
+            let mut inertia = crate::math::Mat3::zero();
+            for t in &takers {
+                let (m, d) = (t.2, t.3 - centre);
+                let o = d.outer(d);
+                for r in 0..3 {
+                    for c in 0..3 {
+                        let delta = if r == c { d.norm2() } else { 0.0 };
+                        inertia.0[r][c] += m * (delta - o.0[r][c]);
+                    }
+                }
+            }
+            let turn = inertia.solve((at - centre).cross(dp)).unwrap_or(Vec3::ZERO);
             let mut gained = 0.0;
-            for &s in &free {
-                let b = &mut n.bodies[s];
-                let before = 0.5 * b.mass * b.vel.norm2();
-                b.vel += dv;
-                gained += 0.5 * b.mass * b.vel.norm2() - before;
+            for (s, c, m, pos) in takers {
+                let kick = dv + turn.cross(pos - centre);
+                if c.is_none() {
+                    let b = &mut self.tree.nodes[idx.get()].bodies[s];
+                    let before = 0.5 * b.mass * b.vel.norm2();
+                    b.vel += kick;
+                    gained += 0.5 * b.mass * b.vel.norm2() - before;
+                } else {
+                    let v = self.tree.velocity_at(c, instant);
+                    self.tree.kick(c, kick, instant);
+                    gained += 0.5 * m * ((v + kick).norm2() - v.norm2());
+                }
             }
             return gained;
         }
+        let n = &mut self.tree.nodes[idx.get()];
         let m = n.matter.mass.max(1e-300);
         let before = 0.5 * n.matter.momentum.norm2() / m;
         n.matter.momentum += dp;

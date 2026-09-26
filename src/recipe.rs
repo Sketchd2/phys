@@ -1417,12 +1417,21 @@ impl Tiled {
     }
 }
 
-/// How two pieces of ground touch: side by side across a face they share, or
-/// one resting on the other.
+/// How two pieces of ground touch: side by side across a face they share, one
+/// resting on the other, or corner to corner across a diagonal of the grid.
+///
+/// **The diagonal is what carries shear.** Springs along a grid's rows and
+/// columns alone let a square of it lean into a rhombus for nothing, and a
+/// ground carrying its own weight is in compression, which leans it further:
+/// measured, a face of a turning Earth holding its weight as a stress between
+/// neighbours slipped over its ground from 4 to 21 m/s in two hours. A
+/// diagonal spring of `G t` — the shear modulus over the slab's depth — gives
+/// the square lattice the rock's own resistance to shear.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Touch {
     Beside,
     On,
+    Across,
 }
 
 impl Tiled {
@@ -1459,6 +1468,12 @@ impl Tiled {
             }
             if j + 1 < n {
                 out.push((c, c + n, Touch::Beside));
+            }
+            if i + 1 < n && j + 1 < n {
+                out.push((c, c + n + 1, Touch::Across));
+            }
+            if i > 0 && j + 1 < n {
+                out.push((c, c + n - 1, Touch::Across));
             }
             out.push((c, count, Touch::On));
         }
