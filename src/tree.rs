@@ -674,6 +674,70 @@ impl Tree {
             return &self.nodes[i.get()].bodies;
         }
 
+        let (bodies, topo, report) = self.draw(i);
+        self.stats.materialisations += 1;
+        self.stats.bodies_created += bodies.len() as u64;
+        self.stats.worst_conservation_error = self
+            .stats
+            .worst_conservation_error
+            .max(report.conservation_error);
+        // **A sea or a sheet keeps its slot through a redraw.** A planet comes
+        // back from a save with its children and none of its bodies, and its
+        // sea — which holds a tide's history and its own books — is past the
+        // end of any fresh draw, where `reconcile_children` would fold it
+        // back; so is a patch of shore's sheet. The draw left their water out
+        // (`Tree::draw`), and the slots between are left empty.
+        let mut bodies = bodies;
+        let seas: Vec<(usize, NodeIdx)> = self.fluids(i).into_iter().filter(|(s, _)| *s >= bodies.len()).collect();
+        let last = seas.iter().map(|(s, _)| *s + 1).max().unwrap_or(0);
+        if last > bodies.len() {
+            bodies.resize(last, Body { mass: 0.0, ..Default::default() });
+        }
+        self.reconcile_children(i, bodies.len());
+        // Contents held in a field by a structure are drawn near balance, not
+        // in it — measured, a bucket's water drawn against its walls peaked at
+        // 0.72 m/s settling — so they are solved until they say otherwise.
+        let loose = topo.as_ref().map(|t| {
+            (0..bodies.len()).any(|k| t.joints.get(k).map(|j| j.radius <= 0.0).unwrap_or(true))
+        });
+        let n = &mut self.nodes[i.get()];
+        n.unrest = if n.gravity != Vec3::ZERO && loose == Some(true) { f64::INFINITY } else { 0.0 };
+        n.bodies = bodies;
+        n.topology = topo;
+        n.potential = report.potential;
+        n.last_report = report;
+        for (slot, sea) in seas {
+            self.sync_from_child(i, slot, sea);
+        }
+        &self.nodes[i.get()].bodies
+    }
+
+    /// The children of a node that are the fluid over what it holds — its
+    /// sea, or its sheet of water — with their slots.
+    fn fluids(&self, i: NodeIdx) -> Vec<(usize, NodeIdx)> {
+        self.nodes[i.get()]
+            .children
+            .iter()
+            .enumerate()
+            .filter(|(_, c)| {
+                !c.is_none() && self.nodes[c.get()].alive && (self.nodes[c.get()].ocean.is_some() || self.nodes[c.get()].sheet.is_some())
+            })
+            .map(|(s, c)| (s, *c))
+            .collect()
+    }
+
+    /// Draw a node's contents from its matter, as `refine` does, without
+    /// putting them anywhere.
+    ///
+    /// **Less what its sea or its sheet holds.** A node's matter counts what
+    /// its children hold, and a child drawn out of the parent's own bodies
+    /// stands in one of them; but a sea and a sheet were never among them —
+    /// the sea was taken out of its planet's bodies and a sheet was lent by
+    /// the sea — so the draw is of the matter without their water, or a
+    /// patch of shore drawn again would hold its sheet's water twice, once as
+    /// loose parcels.
+    fn draw(&mut self, i: NodeIdx) -> (Vec<Body>, Option<crate::topology::Topology>, crate::sampler::SampleReport) {
+        let key = self.nodes[i.get()].key;
         // The field the structure is proportioned in, derived here and stored,
         // so that the geometry and the number it was built with travel
         // together. A client regenerating this node reads the stored value
@@ -684,6 +748,14 @@ impl Tree {
             let n = &self.nodes[i.get()];
             (n.matter, n.spec, n.epoch, n.morphology.clone())
         };
+        // Less the water its sea or its sheet holds.
+        let mut matter = matter;
+        for (_, c) in self.fluids(i) {
+            let at = self.position_at(c, self.nodes[i.get()].time);
+            let v = self.velocity_at(c, self.nodes[i.get()].time);
+            matter = without(&matter, &self.nodes[c.get()].matter, at, v);
+        }
+        let matter = matter;
         // A structure is drawn at the node's own turning, in the axes its
         // layout is stated in, and the drawing then placed at the turn it has
         // reached (`Tree::drawn_turn`) — so what is redrawn is where the thing
@@ -728,54 +800,34 @@ impl Tree {
                 (b, None, r)
             }
         };
-        self.stats.materialisations += 1;
-        self.stats.bodies_created += bodies.len() as u64;
-        self.stats.worst_conservation_error = self
-            .stats
-            .worst_conservation_error
-            .max(report.conservation_error);
-        // **A sea keeps its slot through a redraw.** A planet comes back from
-        // a save with its children and none of its bodies, and its sea — which
-        // holds a tide's history and its own books — is past the end of any
-        // fresh draw, where `reconcile_children` would fold it back. The draw
-        // is of the planet's whole matter, sea included, so the sea's water
-        // is taken back out of it the way it was taken out the first time
-        // (`Tree::withdraw`), and the slots between are left empty.
-        let mut bodies = bodies;
-        let seas: Vec<(usize, NodeIdx)> = self.nodes[i.get()]
-            .children
-            .iter()
-            .enumerate()
-            .skip(bodies.len())
-            .filter(|(_, c)| !c.is_none() && self.nodes[c.get()].alive && self.nodes[c.get()].ocean.is_some())
-            .map(|(s, c)| (s, *c))
-            .collect();
-        let last = seas.iter().map(|(s, _)| *s + 1).max().unwrap_or(0);
-        if last > bodies.len() {
-            bodies.resize(last, Body { mass: 0.0, ..Default::default() });
+        (bodies, topo, report)
+    }
+
+    /// Draw a materialised node's members again from its rule, in place:
+    /// every slot nothing is promoted out of takes what the fresh draw puts
+    /// there, and the node keeps its children.
+    ///
+    /// **What a mark does to ground someone is standing on** (`World::mark`).
+    /// A mark changes the rule a patch of ground is drawn from, and a patch
+    /// nobody has drawn draws it the next time; but a patch that is already
+    /// drawn kept its old columns until something redrew it, so a channel cut
+    /// in front of an actor was not there to see or to flow through. The
+    /// draw is the same rule at the same slots, so a slot keeps its meaning.
+    pub fn redraw_members(&mut self, i: NodeIdx) {
+        if !self.nodes[i.get()].is_materialised() {
+            return;
         }
-        self.reconcile_children(i, bodies.len());
-        // Contents held in a field by a structure are drawn near balance, not
-        // in it — measured, a bucket's water drawn against its walls peaked at
-        // 0.72 m/s settling — so they are solved until they say otherwise.
-        let loose = topo.as_ref().map(|t| {
-            (0..bodies.len()).any(|k| t.joints.get(k).map(|j| j.radius <= 0.0).unwrap_or(true))
-        });
+        let (fresh, topo, _) = self.draw(i);
         let n = &mut self.nodes[i.get()];
-        n.unrest = if gravity != Vec3::ZERO && loose == Some(true) { f64::INFINITY } else { 0.0 };
-        n.bodies = bodies;
-        n.topology = topo;
-        n.potential = report.potential;
-        n.last_report = report;
-        for (slot, sea) in seas {
-            let (mass, composition, radius) = {
-                let m = &self.nodes[sea.get()].matter;
-                (m.mass, m.composition, m.radius)
-            };
-            self.withdraw(i, mass, composition, radius);
-            self.sync_from_child(i, slot, sea);
+        for slot in 0..n.bodies.len().min(fresh.len()) {
+            if n.child_of(slot).is_none() {
+                n.bodies[slot] = fresh[slot];
+            }
         }
-        &self.nodes[i.get()].bodies
+        if topo.is_some() {
+            n.topology = topo;
+        }
+        n.surface = None;
     }
 
     /// Turn one materialised body into a node of its own, one tier finer.
@@ -3844,5 +3896,35 @@ pub fn spec_for(tier: Tier, spec: SampleSpec) -> SampleSpec {
         spec
     } else {
         crate::sampler::budgeted_spec(tier, spec.count)
+    }
+}
+
+/// Matter less what a child holds: its mass, its share of each pool of the
+/// mixture, its heat, and the momentum and angular momentum it carries at
+/// `at`, moving at `v`, in the parent's frame. What a draw of the parent is
+/// closed against where the child was never one of the parent's bodies
+/// (`Tree::draw`).
+fn without(m: &Matter, c: &Matter, at: Vec3, v: Vec3) -> Matter {
+    let rest = m.mass - c.mass;
+    if !(rest > 0.0) {
+        return *m;
+    }
+    let mut mixture = crate::chem::Mixture::new();
+    for p in m.mixture.entries() {
+        let theirs = c.mixture.entries().iter().find(|q| q.substance == p.substance && q.phase == p.phase).map(|q| q.fraction).unwrap_or(0.0);
+        let f = (p.fraction * m.mass - theirs * c.mass) / rest;
+        if f > 0.0 {
+            mixture.add(p.substance, p.phase, f);
+        }
+    }
+    let p = v.scale(c.mass) + c.momentum;
+    Matter {
+        mass: rest,
+        mixture,
+        internal_energy: (m.internal_energy - c.internal_energy).max(0.0),
+        momentum: m.momentum - p,
+        spin: m.spin - at.cross(p) - c.spin,
+        com: (m.com.scale(m.mass) - (at + c.com).scale(c.mass)).scale(1.0 / rest),
+        ..*m
     }
 }

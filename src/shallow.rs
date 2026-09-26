@@ -180,6 +180,9 @@ pub struct Sheet {
     pub grain: f64,
     /// Heat the bed's drag has made in the water since it was laid, J.
     pub heat: f64,
+    /// The arrangement of the patch its bed was measured from (`Node::epoch`):
+    /// a carve redraws the ground, and the bed follows it.
+    pub epoch: u32,
 }
 
 /// One face's state on each side, reconstructed.
@@ -221,7 +224,35 @@ impl Sheet {
             density,
             grain,
             heat: 0.0,
+            epoch: 0,
         })
+    }
+
+    /// Lay the sheet on a floor that has changed under it — the ground was
+    /// carved, or filled — keeping the water each column holds: a channel
+    /// cut into a flooded flat is empty the moment it is cut, and the water
+    /// round it flows into it. A column the floor no longer covers gives its
+    /// water back, which is what this returns, kg; the grid is the same
+    /// floor's, so that is only ever a column at its edge.
+    pub fn rebed(&mut self, floor: &Floor) -> f64 {
+        let mut lost = 0.0;
+        let a = self.density * self.dx * self.dx;
+        for k in 0..self.bed.len() {
+            let foot = self.foot(k) - floor.origin;
+            let c = ((foot.dot(floor.u) / floor.spacing).round() as i64, (foot.dot(floor.v) / floor.spacing).round() as i64);
+            match floor.top(c) {
+                Some(t) => self.bed[k] = t,
+                None => {
+                    if self.holds(k) {
+                        lost += a * self.depth[k];
+                    }
+                    self.bed[k] = f64::NAN;
+                    self.depth[k] = 0.0;
+                    self.flow[k] = [0.0, 0.0];
+                }
+            }
+        }
+        lost
     }
 
     fn index(&self, i: i64, j: i64) -> Option<usize> {

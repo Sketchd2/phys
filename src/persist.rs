@@ -1162,6 +1162,7 @@ fn put_sheet(w: &mut Writer, sheet: &Option<Box<crate::shallow::Sheet>>) {
             w.f64(s.density);
             w.f64(s.grain);
             w.f64(s.heat);
+            w.u64(s.epoch as u64);
             w.seq(s.bed.len());
             for k in 0..s.bed.len() {
                 w.f64(s.bed[k]);
@@ -1182,6 +1183,7 @@ fn get_sheet(r: &mut Reader) -> Result<Option<Box<crate::shallow::Sheet>>> {
     let dx = r.f64()?;
     let (u, v, up, corner) = (r.vec3()?, r.vec3()?, r.vec3()?, r.vec3()?);
     let (density, grain, heat) = (r.f64()?, r.f64()?, r.f64()?);
+    let epoch = r.u64()? as u32;
     let count = r.seq("sheet columns", 32)?;
     if count != nx.saturating_mul(ny) {
         return Err(crate::wire::WireError::BadRecipe { what: "sheet columns" });
@@ -1192,7 +1194,7 @@ fn get_sheet(r: &mut Reader) -> Result<Option<Box<crate::shallow::Sheet>>> {
         depth.push(r.f64()?);
         flow.push([r.f64()?, r.f64()?]);
     }
-    Ok(Some(Box::new(crate::shallow::Sheet { nx, ny, dx, u, v, up, corner, bed, depth, flow, density, grain, heat })))
+    Ok(Some(Box::new(crate::shallow::Sheet { nx, ny, dx, u, v, up, corner, bed, depth, flow, density, grain, heat, epoch })))
 }
 
 fn get_ocean(r: &mut Reader) -> Result<Option<Box<crate::ocean::Ocean>>> {

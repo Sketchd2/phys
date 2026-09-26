@@ -3531,7 +3531,14 @@ impl World {
         }
         if ordered.is_some() && ground.is_none() {
             let covered = if report.dt_used.is_finite() && report.dt_used > 0.0 { report.dt_used.min(dt) } else { dt };
-            report.outside += self.flow_sheet(idx, covered, rate);
+            if let Some((bed, flowed)) = self.flow_sheet(idx, covered, rate) {
+                report.outside += bed;
+                // The water covers what its own stable step allows, as a
+                // solver does (`SolveReport::dt_used`), and the node's clock
+                // follows the shorter of the two: a patch whose water fell
+                // behind is late, and says so.
+                report.dt_used = flowed;
+            }
         }
 
         self.stats.bodies_stepped += count as u64;
@@ -5534,6 +5541,19 @@ impl World {
             n.matter.mass = (n.matter.mass - moved).max(0.0);
         }
         self.disturb(target);
+        // **Ground somebody is standing on changes when it is marked**, not
+        // when it is next drawn: its members are drawn again from the rule
+        // with the mark in it (`Tree::redraw_members`), and the water over
+        // it, if any, lies on the ground as it now is.
+        self.tree.redraw_members(target);
+        if let (Some(sheet), Some(floor)) = (self.sheet_of(target), self.floor_of(target)) {
+            let returned = self.tree.nodes[sheet.get()].sheet.as_mut().map(|s| s.rebed(&floor)).unwrap_or(0.0);
+            if let Some((anc, _)) = self.sea_around(target) {
+                let water = self.tree.nodes[sheet.get()].matter.mixture;
+                self.lend(target, anc, &water, -returned, Vec3::ZERO, Vec3::ZERO, Vec3::ZERO);
+            }
+            self.settle_sheet(sheet);
+        }
         true
     }
 
@@ -5592,17 +5612,25 @@ impl World {
                     None => continue,
                 },
             };
-            let cohesion = match self.loose_grain_strength(idx, &material, env.fluid_density) {
+            let cohesion_in = |w: &World, fluid: f64| match w.loose_grain_strength(idx, &material, fluid) {
                 Some(loose) => loose,
                 None => material.strength_of(material.flaw_size, temperature),
             };
+            // What each deviation is in: the sea, where the sea stands over it
+            // (`World::sea_over`), and otherwise what the node is in.
+            let field: Vec<crate::erode::Deviation> = self.tree.nodes[i].morphology.as_ref().map(|m| m.field.clone()).unwrap_or_default();
+            let rates: Vec<f64> = field
+                .iter()
+                .map(|d| {
+                    let (fluid, flow) = self.sea_over(idx, d).unwrap_or((env.fluid_density, env.flow_speed));
+                    crate::erode::relaxation_rate(cohesion_in(self, fluid), fluid, flow, d.span)
+                })
+                .collect();
             let local = dt * self.local_rate(idx);
             let mut dropped = 0u64;
             let n = &mut self.tree.nodes[i];
             let Some(m) = n.morphology.as_mut() else { continue };
-            for d in m.field.iter_mut() {
-                let rate =
-                    crate::erode::relaxation_rate(cohesion, env.fluid_density, env.flow_speed, d.span);
+            for (d, rate) in m.field.iter_mut().zip(rates) {
                 if rate > 0.0 && d.conservative(mass) {
                     d.amplitude *= (-rate * local).exp();
                 }
@@ -6689,6 +6717,84 @@ impl World {
             .collect()
     }
 
+    /// The sea over a mark on a patch of ground, where the sea stands over
+    /// it: `(density, speed)` of the water going past, or `None` where the
+    /// patch is under no sea, holds no sheet, or the mark's ground is above
+    /// the water.
+    ///
+    /// **From the sea's own description, not from the sheet's detail**,
+    /// because the weather runs on the world clock whoever is watching
+    /// (`World::weather`), and a rate read off a sheet only solved when
+    /// somebody looks would make how long a mark lasts a fact about the
+    /// observer. What is used is what the sea is everywhere: its level now —
+    /// the tide — against the bed under the mark, which the sheet's floor
+    /// measures; and where that is under water, the ocean's current there and
+    /// the peak speed its wave train reaches at the bed in that depth,
+    /// `a omega / sinh kd`.
+    fn sea_over(&self, idx: NodeIdx, d: &crate::erode::Deviation) -> Option<(f64, f64)> {
+        let (_, sea) = self.sea_around(idx)?;
+        let sheet_node = self.sheet_of(idx)?;
+        let sheet = self.tree.nodes[sheet_node.get()].sheet.as_ref()?;
+        let half = match self.tree.nodes[idx.get()].morphology.as_ref()?.recipe.as_ref()? {
+            crate::recipe::Recipe::Tiled(t) if !t.on_sphere() => 0.5 * t.side,
+            _ => return None,
+        };
+        let at = self.tree.drawn_turn(idx).rotate(crate::math::v3(d.x * half, d.y * half, 0.0));
+        let k = sheet.column_of(at)?;
+        let bed = sheet.bed[k];
+        let depth = sea.sea.level - sea.height - bed;
+        if !(depth > crate::shallow::DRY) {
+            return None;
+        }
+        let orbital = sea
+            .sea
+            .train_in(depth)
+            .map(|w| {
+                let kd = w.k * depth;
+                w.amplitude * w.omega / kd.sinh().max(1e-300)
+            })
+            .unwrap_or(0.0);
+        Some((sheet.density, sea.sea.current.norm() + orbital))
+    }
+
+    /// The floor a node's ordered members make, column by column down its
+    /// own field, at the floor's own resolution: the narrowest a member is
+    /// across the field, which for ground is its own columns — water cannot
+    /// tell apart what the bed does not. `None` for a node with no members or
+    /// no field.
+    fn floor_of(&self, idx: NodeIdx) -> Option<crate::shallow::Floor> {
+        let mask = self.tree.nodes[idx.get()].structural_mask()?;
+        let walls = self.member_walls(idx, &mask);
+        let gravity = self.tree.nodes[idx.get()].gravity;
+        let g = gravity.norm();
+        if walls.is_empty() || !(g > 0.0) {
+            return None;
+        }
+        let up = Vec3::ZERO - gravity.scale(1.0 / g);
+        let pitch = walls
+            .iter()
+            .map(|w| {
+                if w.half == Vec3::ZERO {
+                    2.0 * w.radius
+                } else {
+                    let q = w.orientation;
+                    let across = |a: Vec3| (a - up.scale(a.dot(up))).norm();
+                    let mut e = [
+                        across(q.rotate(crate::math::v3(w.half.x, 0.0, 0.0))),
+                        across(q.rotate(crate::math::v3(0.0, w.half.y, 0.0))),
+                        across(q.rotate(crate::math::v3(0.0, 0.0, w.half.z))),
+                    ];
+                    // The two widest of the three across the field are its
+                    // footprint; the narrower of those is its width.
+                    e.sort_by(|x, y| y.total_cmp(x));
+                    2.0 * e[1]
+                }
+            })
+            .filter(|p| *p > 0.0)
+            .fold(f64::INFINITY, f64::min);
+        pitch.is_finite().then(|| crate::shallow::Floor::of(&walls, gravity, pitch, Vec3::ZERO))
+    }
+
     /// The node that is the water over a patch of ground, if it has one.
     pub fn sheet_of(&self, idx: NodeIdx) -> Option<NodeIdx> {
         self.tree.nodes[idx.get()]
@@ -6717,44 +6823,9 @@ impl World {
         if self.sheet_of(idx).is_some() {
             return true;
         }
-        let Some(mask) = self.tree.nodes[idx.get()].structural_mask() else { return false };
         let Some((anc, sea)) = self.sea_around(idx) else { return false };
         let Some(sea_node) = self.sea_of(anc) else { return false };
-        let walls = self.member_walls(idx, &mask);
-        let gravity = self.tree.nodes[idx.get()].gravity;
-        let g = gravity.norm();
-        if walls.is_empty() || !(g > 0.0) {
-            return false;
-        }
-        let up = Vec3::ZERO - gravity.scale(1.0 / g);
-        // The narrowest a member is across the field: the bed's own
-        // resolution.
-        let pitch = walls
-            .iter()
-            .map(|w| {
-                if w.half == Vec3::ZERO {
-                    2.0 * w.radius
-                } else {
-                    let q = w.orientation;
-                    let across = |a: Vec3| {
-                        let a = a - up.scale(a.dot(up));
-                        a.norm()
-                    };
-                    let (a, b) = (across(q.rotate(crate::math::v3(w.half.x, 0.0, 0.0))), across(q.rotate(crate::math::v3(0.0, w.half.y, 0.0))));
-                    let c = across(q.rotate(crate::math::v3(0.0, 0.0, w.half.z)));
-                    // The two widest of the three across the field are its
-                    // footprint; the narrower of those is its width.
-                    let mut e = [a, b, c];
-                    e.sort_by(|x, y| y.total_cmp(x));
-                    2.0 * e[1]
-                }
-            })
-            .filter(|p| *p > 0.0)
-            .fold(f64::INFINITY, f64::min);
-        if !pitch.is_finite() {
-            return false;
-        }
-        let floor = crate::shallow::Floor::of(&walls, gravity, pitch, Vec3::ZERO);
+        let Some(floor) = self.floor_of(idx) else { return false };
         let density = self.ocean_of(anc).map(|o| o.density).unwrap_or(0.0);
         let grain = self.seabed_grain(idx);
         let surface = sea.sea.level - sea.height;
@@ -6783,10 +6854,11 @@ impl World {
         if node.is_none() {
             return false;
         }
+        let epoch = self.tree.nodes[idx.get()].epoch;
         {
             let n = &mut self.tree.nodes[node.get()];
             n.matter.mixture = water;
-            n.sheet = Some(Box::new(sheet));
+            n.sheet = Some(Box::new(crate::shallow::Sheet { epoch, ..sheet }));
         }
         self.refresh_rest_density(node);
         // The water is the sea's, lent: the patch and what holds it gain it,
@@ -6799,23 +6871,36 @@ impl World {
     /// Carry the water over a patch of ground forward by `span` of the
     /// patch's local time (`rate` its local rate), with the sea beyond its
     /// edge, and return the momentum the bed gave it — from outside the water,
-    /// as a wall's is (`SolveReport::outside`).
+    /// as a wall's is (`SolveReport::outside`) — and the span it covered,
+    /// which is less than asked where `MAX_SUBSTEPS` of its own stable step
+    /// do not reach. `None` for a patch with no water over it.
     ///
     /// **The books close on the sea's**: what crossed the edge — mass and
     /// the momentum it carried and the sea's pressure gave — is lent by the
     /// sea (`World::lend`), and the sheet's node holds exactly what the sheet
     /// does (`World::settle_sheet`).
-    fn flow_sheet(&mut self, idx: NodeIdx, span: f64, rate: f64) -> Vec3 {
-        let Some(node) = self.sheet_of(idx) else { return Vec3::ZERO };
-        let Some((anc, sea)) = self.sea_around(idx) else { return Vec3::ZERO };
+    fn flow_sheet(&mut self, idx: NodeIdx, span: f64, rate: f64) -> Option<(Vec3, f64)> {
+        let node = self.sheet_of(idx)?;
+        let (anc, sea) = self.sea_around(idx)?;
         let g = self.tree.nodes[idx.get()].gravity.norm();
         if !(g > 0.0) || !(span > 0.0) {
-            return Vec3::ZERO;
+            return None;
         }
         let start = self.tree.nodes[idx.get()].time;
-        let Some(mut sheet) = self.tree.nodes[node.get()].sheet.take() else { return Vec3::ZERO };
+        // The ground may have changed under it since it was last carried: the
+        // bed follows, and what a column the floor no longer covers held goes
+        // back to the sea.
+        let epoch = self.tree.nodes[idx.get()].epoch;
+        let stale = self.tree.nodes[node.get()].sheet.as_ref().map(|s| s.epoch != epoch).unwrap_or(false);
+        let floor = if stale { self.floor_of(idx) } else { None };
+        let mut sheet = self.tree.nodes[node.get()].sheet.take()?;
+        let mut returned = 0.0;
+        if let Some(f) = floor {
+            returned = sheet.rebed(&f);
+            sheet.epoch = epoch;
+        }
         let sea = crate::shallow::SeaAtEdge { sea: crate::ocean::Sea { up: sheet.up, g, ..sea.sea }, ..sea };
-        let mut total = crate::shallow::Crossing::default();
+        let mut total = crate::shallow::Crossing { mass: -returned, ..Default::default() };
         let mut done = 0.0;
         let mut steps = 0;
         while done < span && steps < MAX_SUBSTEPS {
@@ -6836,7 +6921,7 @@ impl World {
         let water = self.tree.nodes[node.get()].matter.mixture;
         self.lend(idx, anc, &water, total.mass, total.momentum, total.moment, Vec3::ZERO);
         self.settle_sheet(node);
-        total.bed
+        Some((total.bed, done))
     }
 
     /// Make a sheet's node hold exactly what its sheet does: its mass, its
