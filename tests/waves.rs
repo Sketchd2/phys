@@ -304,9 +304,24 @@ fn a_stated_wind_raises_the_sea_it_outruns_and_pays_for_it() {
     };
     let (w, earth, air, u0, lowest, highest) = run(10.0);
     let u1 = wind_of(&w, earth, air);
+    // The ground the air is held by, solved every frame of it: its pieces go
+    // round with the planet, ringing a little about it. Drawn at the rate a
+    // uniform sphere of the face's radius gives its angular momentum, they
+    // slipped at 5.6 to 8.2 km/s; with that fixed and their pull on each
+    // other through a Barnes-Hut tree, the ringing grew to 22.8 m/s in a day.
+    let slip = {
+        let face = w.tree.nodes[air.get()].parent;
+        let fc = &w.tree.nodes[face.get()];
+        let spin = w.tree.nodes[earth.get()].motion.spin_rate;
+        let centre = w.tree.offset_at(earth, face, fc.time);
+        let fv = w.tree.velocity_at(face, fc.time);
+        let pieces = fc.ground.as_ref().map(|g| g.pieces).unwrap_or(0);
+        assert!(pieces > 0, "the face holding the air was never solved as ground");
+        fc.bodies[..pieces].iter().map(|b| (fv + b.vel - spin.cross(centre + b.pos)).norm()).fold(0.0f64, f64::max)
+    };
     let o = w.tree.nodes[earth.get()].ocean.as_ref().unwrap();
     let up = w.tree.offset_from(earth, air, Vec3::ZERO).value.unit();
-    let into = w.tree.body_axes(earth).conjugate();
+    let into = w.tree.facing(earth).conjugate();
     let under = o.wave_height(o.cell_of(into.rotate(up)));
     let far = o.wave_height(o.cell_of(into.rotate(Vec3::ZERO - up)));
     let lit = (0..o.cells.len()).filter(|&k| o.wave_height(k) > 0.01).count();
@@ -321,8 +336,10 @@ fn a_stated_wind_raises_the_sea_it_outruns_and_pays_for_it() {
         o.cells.len()
     );
     println!("  the wind {u0:.4} -> {u1:.4} m/s; the same air with none drifted {drift:.1e} m/s");
+    println!("  the ground under it rings: its pieces slip over the turning planet at {slip:.2} m/s at worst");
     assert!(under > 0.97 * limit(u1) && under < 1.01 * limit(u0), "the sea is not the one the wind outruns: {under} m");
     assert!(far < 1e-3, "the far side of the planet has a sea: {far} m");
+    assert!(slip < 15.0, "the ground holding the air slips over its planet at {slip} m/s");
     assert!(lowest > 0.0 && highest < 50.0, "the air left its level: {lowest} to {highest} m");
     assert!(drift.abs() < 1e-3, "held air with no wind moved at {drift} m/s");
     assert!(u0 - u1 > 10.0 * drift.abs().max(1e-3), "the air paid nothing for the sea it raised: {u0} -> {u1}");

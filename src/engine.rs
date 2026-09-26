@@ -2966,6 +2966,7 @@ impl World {
         let rate = self.local_rate(idx);
         let dt = dt * rate;
         let seed = self.tree.world_seed;
+        let spin_before = self.tree.nodes[idx.get()].matter.spin;
 
         // The child is the real thing and its body is a stand-in, so the solver
         // has to see where the child actually is before it computes anything.
@@ -3492,14 +3493,14 @@ impl World {
         let coordinate = dt / rate;
         let physical_rate = self.time_rate_of(idx).physical();
         self.stats.bubble_seconds += coordinate * (rate - physical_rate).abs();
+        // The solve may have moved the node's angular momentum, and what
+        // arrived turns it by that much (`Tree::turn_by`) before the frame is
+        // carried forward.
+        let arrived = self.tree.nodes[idx.get()].matter.spin - spin_before;
+        self.tree.turn_by(idx, arrived);
         let n = &mut self.tree.nodes[idx.get()];
         n.time += coordinate;
         n.steps_taken += 1;
-        // The solve may have moved the angular momentum, the mass or the
-        // radius, and the angular velocity is derived from all three. Re-derive
-        // before carrying the frame forward, so the orientation this span
-        // advances by is the one the node's contents actually imply.
-        n.sync_spin_rate();
         // Its motion is carried to the world instant by `Tree::carry`, on its
         // own clock; this advances what it holds. See `Node::carried`.
         let node_time = n.time;
@@ -5599,7 +5600,7 @@ impl World {
         // Offsets are in root-aligned axes, and what takes a vector derived
         // from them into the planet's frame is the whole composition to the
         // root (`Tree::gravity_at`), not the planet's own facing alone.
-        let into = self.tree.body_axes(idx).conjugate();
+        let into = self.tree.facing(idx).conjugate();
         if !parent.is_none() {
             let p = &self.tree.nodes[parent.get()];
             if p.bodies.is_empty() {
@@ -5655,7 +5656,7 @@ impl World {
             }
             let local = span * self.local_rate(idx);
             // In the ocean's own axes, which turn with the planet.
-            let spin = self.tree.body_axes(idx).conjugate().rotate(self.tree.nodes[i].motion.spin_rate);
+            let spin = self.tree.facing(idx).conjugate().rotate(self.tree.angular_velocity(idx));
             let stable = self.tree.nodes[i].ocean.as_ref().map(|o| o.stable_step()).unwrap_or(0.0);
             if !(stable > 0.0) {
                 continue;
@@ -5707,8 +5708,8 @@ impl World {
         let mut out = Vec::new();
         let n = &self.tree.nodes[idx.get()];
         let Some(ocean) = n.ocean.as_ref() else { return out };
-        let into = self.tree.body_axes(idx).conjugate();
-        let spin = into.rotate(n.motion.spin_rate);
+        let into = self.tree.facing(idx).conjugate();
+        let spin = into.rotate(self.tree.angular_velocity(idx));
         // Air anywhere under the planet: over open sea it is the planet's own
         // child, and near a shore it is held by the patch of ground it is over.
         let mut under: Vec<NodeIdx> = Vec::new();
@@ -5796,7 +5797,7 @@ impl World {
                 Some(o) => o.raise(span, &list),
                 None => return,
             };
-            let to_root = self.tree.body_axes(idx);
+            let to_root = self.tree.facing(idx);
             let radius = self.tree.nodes[idx.get()].ocean.as_ref().map(|o| o.radius).unwrap_or(0.0);
             for ((w, air), b) in winds.iter().zip(blown.iter()) {
                 let dp = to_root.rotate(b.momentum);
@@ -5918,12 +5919,13 @@ impl World {
     fn ground_of(&mut self, idx: NodeIdx, dt: f64) -> Option<crate::solvers::ground::Ground> {
         use crate::solvers::ground::{Cache, Ground, Spring};
         let joints = self.ground_joints(idx)?;
-        // The orientation the node's contents are at: its motion is carried to
-        // the world's instant, and its contents to their own.
+        // The way the node's layout faces at its contents' instant — the turn
+        // its drawing is placed at (`Tree::drawn_turn`), taken back from the
+        // world's instant it is carried to by the node's own turning.
         let facing = {
             let n = &self.tree.nodes[idx.get()];
             let behind = n.carried - n.time;
-            crate::math::Quat::from_rate(n.motion.spin_rate, -behind).then(n.motion.orientation).unit()
+            crate::math::Quat::from_rate(self.tree.angular_velocity(idx), -behind).then(self.tree.drawn_turn(idx)).unit()
         };
         // The pieces are pulled by what is outside the node where each is,
         // and by each other as points; anything loose among them by the
@@ -5955,7 +5957,13 @@ impl World {
             let n = &self.tree.nodes[idx.get()];
             let count = n.bodies.len().max(1) as f64;
             crate::solvers::gravity::GravityParams {
-                theta: 0.5,
+                // Exact, pair by pair. A ground's pieces are few — 65 for a
+                // face — and they turn through a Barnes-Hut tree's cells, so
+                // its error changes as they go round and forces the ground's
+                // ringing: measured with `theta` 0.5, the springs' elastic
+                // energy grew from 7e22 to 2.8e24 J over two days of a face
+                // under air, and its pieces slipped at 27 m/s by the end.
+                theta: 0.0,
                 softening: n.matter.radius / count.cbrt() * 0.3,
                 retarded: false,
                 post_newtonian: false,
@@ -6168,15 +6176,10 @@ impl World {
         volume > 0.0 && self.ambient_around(parent, child) >= c.matter.mass / volume
     }
 
-    /// A node's own spin, in root-aligned axes — the axes offsets are in. A
-    /// node's spin rate is kept in its parent's.
+    /// A node's turning, in root-aligned axes — the axes offsets are in:
+    /// `Tree::angular_velocity`.
     fn spin_in_root(&self, idx: NodeIdx) -> Vec3 {
-        let n = &self.tree.nodes[idx.get()];
-        if n.parent.is_none() {
-            n.motion.spin_rate
-        } else {
-            self.tree.axes_from(self.tree.root, n.parent).rotate(n.motion.spin_rate)
-        }
+        self.tree.angular_velocity(idx)
     }
 
     /// Derive, for every node, the frame it is carried in until its parent
@@ -7416,12 +7419,12 @@ fn apply_contact(
                 let at = w.tree.nodes[parent.get()].time;
                 w.tree.kick(c, impulse.scale(1.0 / m), at);
             }
+            w.tree.nodes[c.get()].matter.spin += spin;
+            // Angular momentum arrived, so the node turns by that much more.
+            // Without this the node banks the momentum and never turns, which
+            // is what `PLAY.md` §2A measured.
+            w.tree.turn_by(c, spin);
             let n = &mut w.tree.nodes[c.get()];
-            n.matter.spin += spin;
-            // Angular momentum arrived, so the angular velocity it implies has
-            // changed. Without this line the node banks the momentum and never
-            // turns, which is what `PLAY.md` §2A measured.
-            n.sync_spin_rate();
             if heat != 0.0 {
                 // Through the mailbox, like every other joule crossing into
                 // another node's books. See `World::exchange_within`.

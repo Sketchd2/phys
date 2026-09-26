@@ -363,7 +363,14 @@ impl Quat {
         Quat { w: self.w / n, v: self.v.scale(1.0 / n) }
     }
 
-    /// Compose: `self` applied after `other`.
+    /// Compose: `self` applied after `other` — the Hamilton product
+    /// `self other`, so `a.then(b).rotate(v) == a.rotate(b.rotate(v))`.
+    ///
+    /// **The name reads the other way round, and has been misread by it.**
+    /// `Tree::axes_from`, `Motion::compose` and `Tiled::render_on_sphere` each
+    /// took `a.then(b)` as "`a`, then `b`" and got a node's facing and its
+    /// parent's in the wrong order; the recipe and `axes_from` cancelled, and
+    /// only a test written on the same reading noticed nothing.
     pub fn then(self, other: Quat) -> Quat {
         Quat {
             w: self.w * other.w - self.v.dot(other.v),

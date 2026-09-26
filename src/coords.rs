@@ -285,7 +285,7 @@ impl Motion {
         Motion {
             offset: parent.offset + self.offset,
             velocity: velocity_add(parent.velocity, self.velocity),
-            orientation: self.orientation.then(parent.orientation).unit(),
+            orientation: parent.orientation.then(self.orientation).unit(),
             spin_rate: parent.spin_rate + parent.orientation.rotate(self.spin_rate),
             proper_time: self.proper_time,
         }

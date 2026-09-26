@@ -333,7 +333,10 @@ impl Recipe {
         let rest_density = r.f64()?;
         let morph = if r.bool()? { Some(crate::persist::get_morphology(&mut r)?) } else { None };
         r.finish()?;
-        let setting = crate::sampler::Setting { gravity, rest_density };
+        // Drawn in the node's own axes and at the turning its matter implies:
+        // what is shown is where the parts are, which the turning does not
+        // move, and the recipe carries no parent to take it from.
+        let setting = crate::sampler::Setting { gravity, rest_density, turning: None };
 
         let bodies = match &morph {
             Some(m) => {

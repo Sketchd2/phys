@@ -1342,11 +1342,10 @@ impl Tiled {
             let Some((at, side)) = self.cell_offset(c) else { continue };
             let v = child.volume();
             covered += v;
-            // The cell's own frame, expressed in this patch's. `a.then(b)` is
-            // `a` applied and then `b`, so taking a vector out of the cell's
-            // axes and into the patch's is the cell's frame followed by the
-            // inverse of the patch's — in that order.
-            let turn = child.frame().then(self.frame().conjugate());
+            // The cell's own frame, expressed in this patch's: out of the
+            // cell's axes by its frame, then into the patch's by the inverse of
+            // the patch's. `a.then(b)` applies `b` first (`Quat::then`).
+            let turn = self.frame().conjugate().then(child.frame());
             cells.push((at, side, v, turn));
         }
         let n_f = self.cells() as f64;

@@ -345,6 +345,12 @@ impl Node {
     /// after a solve, after a contact, and after a child's evolved state is
     /// folded back. Not from coasting: coasting asserts that nothing changed,
     /// and re-deriving there would be either a no-op or a lie about which.
+    ///
+    /// **For stating a node's turning, not for keeping it.** Since Phase 5 a
+    /// node's `spin_rate` is an offset from its parent's turning (the owner's
+    /// decision), so `L / I` is its turning only for a node whose parent does
+    /// not turn — a root, which is what a scene states. What moves it after
+    /// that is angular momentum arriving, by `Tree::turn_by`.
     pub fn sync_spin_rate(&mut self) {
         self.motion.spin_rate = self.matter.angular_velocity();
     }
@@ -651,7 +657,6 @@ impl Tree {
             self.reconcile_children(i, bodies.len());
             let n = &mut self.nodes[i.get()];
             n.bodies = bodies;
-        n.ground = None;
             n.ground = None;
             self.stats.materialisations += 1;
             return &self.nodes[i.get()].bodies;
@@ -667,11 +672,27 @@ impl Tree {
             let n = &self.nodes[i.get()];
             (n.matter, n.spec, n.epoch, n.morphology.clone())
         };
-        let setting = crate::sampler::Setting { gravity, rest_density: self.nodes[i.get()].rest_density };
+        // A structure is drawn at the node's own turning, in the axes its
+        // layout is stated in, and the drawing then placed at the turn it has
+        // reached (`Tree::drawn_turn`) — so what is redrawn is where the thing
+        // has turned to, going round at the rate it turns.
+        let turn = self.drawn_turn(i);
+        let turning = turn.conjugate().rotate(self.angular_velocity(i));
+        let setting = crate::sampler::Setting {
+            gravity,
+            rest_density: self.nodes[i.get()].rest_density,
+            turning: Some(turning),
+        };
         let (bodies, topo, report) = match &morph {
             Some(m) => {
+                // Everything the drawing is closed against, in its own axes.
+                let mut drawn = matter;
+                if turn != crate::math::Quat::IDENTITY {
+                    drawn.spin = turn.conjugate().rotate(matter.spin);
+                    drawn.com = turn.conjugate().rotate(matter.com);
+                }
                 let (b, t, r) = crate::sampler::sample_structured_in(
-                    &matter,
+                    &drawn,
                     m,
                     spec.count,
                     self.world_seed,
@@ -679,6 +700,14 @@ impl Tree {
                     epoch,
                     setting,
                 );
+                let mut b = b;
+                if turn != crate::math::Quat::IDENTITY {
+                    for body in b.iter_mut() {
+                        body.pos = turn.rotate(body.pos);
+                        body.vel = turn.rotate(body.vel);
+                        body.spin = turn.rotate(body.spin);
+                    }
+                }
                 (b, Some(t), r)
             }
             None => {
@@ -801,6 +830,16 @@ impl Tree {
         matter.momentum = Vec3::ZERO;
         matter.internal_energy = body.internal_energy.max(matter.thermal_energy());
         matter.luminosity = crate::state::stefan_boltzmann(matter.radius, matter.temperature);
+        // **A part of a structure turns with the structure**: it was drawn
+        // going round at the structure's rate, and has no turning of its own
+        // relative to it. Anything else — a parcel of a cloud — turns at what
+        // its angular momentum says a sphere of it does, less its parent's.
+        let turning = if self.nodes[i.get()].morphology.is_some() {
+            Vec3::ZERO
+        } else {
+            let own = matter.angular_velocity() - self.angular_velocity(i);
+            self.facing(i).conjugate().rotate(own)
+        };
 
         let child = Node {
             key,
@@ -824,7 +863,7 @@ impl Tree {
                 // the way out. A sampled body's orientation is identity, so
                 // nothing that was right before changes.
                 orientation: body.orientation,
-                spin_rate: matter.angular_velocity(),
+                spin_rate: turning,
                 proper_time: self.nodes[i.get()].motion.proper_time,
             },
             bodies: Vec::new(),
@@ -1128,6 +1167,7 @@ impl Tree {
     /// measurements of its contents, and two of the quantities that are need a
     /// rule of their own.
     fn adopt(&mut self, i: NodeIdx, matter: Matter) {
+        let arrived = matter.spin - self.nodes[i.get()].matter.spin;
         let n = &mut self.nodes[i.get()];
         // Preserve the node's own frame-level bookkeeping: `summarise` measures
         // the children in the node's frame, so the node's momentum and com are
@@ -1176,9 +1216,9 @@ impl Tree {
             n.matter.radius = m.extent().max(1e-30);
         }
         // The matter this node holds has just been rewritten from its own
-        // detail — spin, mass and radius all — so the angular velocity derived
-        // from them is stale. See `Node::sync_spin_rate`.
-        n.sync_spin_rate();
+        // detail, and whatever angular momentum its contents gained or lost
+        // since turns it by that much (`Tree::turn_by`).
+        self.turn_by(i, arrived);
     }
 
     /// The energy a node has that the body standing in for it cannot carry.
@@ -1691,7 +1731,7 @@ impl Tree {
         if idx.is_none() || !self.nodes[idx.get()].alive {
             return Vec3::ZERO;
         }
-        self.into_axes_of(self.root, idx, self.gravity_at_point(idx, Vec3::ZERO))
+        self.facing(idx).conjugate().rotate(self.gravity_at_point(idx, Vec3::ZERO))
     }
 
     /// The field at a point `local` from a node's centre, from everything the
@@ -1841,30 +1881,103 @@ impl Tree {
     /// unchanged, and this is the companion for everything that is not a
     /// position.
     pub fn axes_from(&self, ancestor: NodeIdx, mut node: NodeIdx) -> crate::math::Quat {
+        // `a.then(b)` is the Hamilton product `a b`, which applies `b` first,
+        // so each ancestor's rotation goes on the left of what is below it.
+        // Written the other way round, a node's facing was applied after its
+        // parent's — right only while the two turn about the same axis.
         let mut q = crate::math::Quat::IDENTITY;
         while node != ancestor && !node.is_none() {
             let n = &self.nodes[node.get()];
-            q = q.then(n.motion.orientation);
+            q = n.motion.orientation.then(q);
             node = n.parent;
         }
         q
     }
 
-    /// The rotation taking a vector fixed in `node`'s own body to the root's
-    /// axes: [`Tree::axes_from`] to the root, and for the root itself its own
-    /// facing, which that walk stops short of.
+    /// Which way a node is facing, as the rotation taking a vector fixed in
+    /// its body to the root-aligned axes every position is written in: its
+    /// own facing after its parent's, all the way up, the root's included.
     ///
-    /// What is drawn on a body rather than in its space — an ocean's cells —
-    /// turns with the body. For any node below the root the walk already
-    /// includes its facing; for a root the walk is empty, and an Earth at the
-    /// root of its own world had an ocean standing still while its ground went
-    /// round: measured, air held over the equator swept 428 of 1536 cells in a
-    /// day and raised 0.95 m of sea on the far side of the planet.
-    pub fn body_axes(&self, node: NodeIdx) -> crate::math::Quat {
-        if node == self.root {
-            self.nodes[node.get()].motion.orientation
+    /// **A node's facing and its turning are offsets from its parent's** —
+    /// `Motion::compose`'s reading, and the owner's decision for Phase 5.
+    /// Positions and velocities are not: they stay root-aligned at every level
+    /// (`axes_from`), and this is only for what is drawn *on* a body — an
+    /// ocean's cells, a planet's tiles, which way a structure's layout faces.
+    ///
+    /// The root's own facing is part of it. `axes_from` stops short of the
+    /// root, and an Earth at the root of its own world had an ocean standing
+    /// still while its ground went round: measured, air held over the equator
+    /// swept 428 of 1536 cells in a day and raised 0.95 m of sea on the far
+    /// side of the planet.
+    pub fn facing(&self, node: NodeIdx) -> crate::math::Quat {
+        let n = &self.nodes[node.get()];
+        if n.parent.is_none() {
+            n.motion.orientation
         } else {
-            self.axes_from(self.root, node)
+            self.facing(n.parent).then(n.motion.orientation)
+        }
+    }
+
+    /// How fast a node is turning, rad/s, in root-aligned axes: its parent's
+    /// turning and its own offset from it (`Tree::facing`).
+    ///
+    /// A face of a turning planet has no turning of its own — it is a piece of
+    /// the planet — and so turns with it exactly, whatever shape it is. Read
+    /// as its angular momentum over a uniform sphere of its radius instead, a
+    /// face promoted from its planet turned at 23x the planet's rate, and the
+    /// pieces drawn inside it at 0.63x.
+    pub fn angular_velocity(&self, node: NodeIdx) -> Vec3 {
+        let n = &self.nodes[node.get()];
+        if n.parent.is_none() {
+            n.motion.spin_rate
+        } else {
+            self.angular_velocity(n.parent) + self.facing(n.parent).rotate(n.motion.spin_rate)
+        }
+    }
+
+    /// Angular momentum `dl` has arrived at a node, kg m^2/s in root-aligned
+    /// axes — a contact, a solve, its contents folded back — and turns it by
+    /// `dl / I` more relative to its parent.
+    ///
+    /// **`I` is the uniform sphere of the node's radius**, which is right for
+    /// something round and an approximation for anything else: a slab takes
+    /// a torque about its normal more easily than this says. It is used here
+    /// and only here, for the change, and never to say what the whole turning
+    /// is — which is what put a planet's face at 23x its rate. What it does not
+    /// see either is a change of `I` itself: a node whose radius grows while it
+    /// turns keeps its rate rather than slowing, until something measures it.
+    pub fn turn_by(&mut self, node: NodeIdx, dl: Vec3) {
+        if dl == Vec3::ZERO || !dl.is_finite() {
+            return;
+        }
+        let i = self.nodes[node.get()].matter.moment_of_inertia();
+        if !(i > 0.0) {
+            return;
+        }
+        let parent = self.nodes[node.get()].parent;
+        let dw = dl.scale(1.0 / i);
+        let dw = if parent.is_none() { dw } else { self.facing(parent).conjugate().rotate(dw) };
+        self.nodes[node.get()].motion.spin_rate += dw;
+    }
+
+    /// The turn a structure's drawing is placed at: the facing of the thing
+    /// its layout is stated against. A tiled recipe states every level's cells
+    /// in its *planet's* axes (`Tiled::render_on_sphere`), so a patch is drawn
+    /// turned by its planet's facing; anything else is drawn in its own.
+    ///
+    /// Drawn unturned, a face of a turning Earth that nothing pins and is
+    /// redrawn each frame kept its layout where it was at the start: 0.0000 rad
+    /// turned in six hours against the ground's 1.57.
+    pub fn drawn_turn(&self, node: NodeIdx) -> crate::math::Quat {
+        let mut at = node;
+        loop {
+            let n = &self.nodes[at.get()];
+            match n.morphology.as_ref().and_then(|m| m.recipe.as_ref()) {
+                Some(crate::recipe::Recipe::Tiled(t)) if t.on_sphere() && !t.is_ball() && !n.parent.is_none() => {
+                    at = n.parent;
+                }
+                _ => return self.facing(at),
+            }
         }
     }
 
@@ -2680,7 +2793,8 @@ impl Tree {
                 offset,
                 velocity,
                 orientation: self.nodes[i.get()].motion.orientation,
-                spin_rate: matter.angular_velocity(),
+                // A piece of the node it split from, turning as it did.
+                spin_rate: self.nodes[i.get()].motion.spin_rate,
                 proper_time: self.nodes[i.get()].motion.proper_time,
             },
             bodies: Vec::new(),

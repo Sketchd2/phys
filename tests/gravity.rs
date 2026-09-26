@@ -256,11 +256,19 @@ fn orientation_composes_all_the_way_up_the_chain() {
     w.tree.nodes[node.get()].motion.orientation = a;
 
     let q = w.tree.axes_from(w.tree.root, node);
-    let composed = a.then(b);
+    // The child's turn and then the parent's: `a.then(b)` applies `b` first
+    // (`Quat::then`), so that is `b.then(a)`. Written `a.then(b)` here, this
+    // test once held the composition to the wrong order.
+    let composed = b.then(a);
     assert!(
         (q.conjugate().then(composed).angle()).abs() < 1e-12,
         "axes_from should be the child's turn then the parent's: {q:?} against {composed:?}"
     );
+    // And by a vector, so the order cannot slip back unnoticed: the node's own
+    // +z is the planet's +x after the child's quarter turn about y, and the
+    // planet's quarter turn about x leaves +x where it is.
+    let up = q.rotate(v3(0.0, 0.0, 1.0));
+    assert!((up - v3(1.0, 0.0, 0.0)).norm() < 1e-12, "the node's +z is {up:?} in the root's axes, not +x");
 
     // And the same vector carried down lands where the composition says.
     let v = v3(1.0, 0.0, 0.0);

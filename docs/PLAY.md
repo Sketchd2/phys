@@ -3036,22 +3036,30 @@ there a year later. Phase 4 built the mechanism and the conservation criterion
 that separates the two; what this phase supplies is the tide, and the granular
 strength that lets sand be sand.
 
-*Open, with the owner — a structure turns at a sphere's rate.* Ground is
-pieces held by gravity against stiffness (the owner's decision for this
-phase), and a promoted face of a turning Earth now holds together *as a node*:
-its centre stays within 0.28 m of where the planet draws it for a day. The
-pieces drawn inside it do not. A node's angular velocity is its angular
-momentum over `0.4 m r^2`, a uniform sphere of its radius, and a face is a
-slab: the sampler draws its pieces turning at 0.63 of the ground's rate,
-promotion gives the face 23x the ground's rate from its stand-in's radius, and
-the ground support is derived for the ground's own rate. Measured in the air
-test, the face's pieces slip over the turning ground at 5.6 to 8.2 km/s by the
-sixth hour; and a face nothing pins is redrawn each frame without turning at
-all, 0.0000 rad against the ground's 1.57 in six hours. Making them agree
-means deriving a structure's inertia from what is drawn — each part's own box
-or rod plus its place — for the sampler, for how `close_books` hands out the
-parts' own turning (by mass fraction now), and for a node's spin rate; an
-Earth drawn that way turns at about 0.95 of the rate `0.4 M R^2` states.
+*Decided by the owner — a node turns by an offset from its parent's.* Ground
+is pieces held by gravity against stiffness (the owner's decision for this
+phase), and making them hold showed that the engine read a node's turning as
+its angular momentum over `0.4 m r^2`, a uniform sphere of its radius. A face of
+a turning Earth is a slab: promotion gave it 23x the planet's rate from its
+stand-in's radius, the sampler drew its pieces at 0.63x, and they slipped over
+the turning ground at 5.6 to 8.2 km/s. `Motion::compose` had always declared a
+node's facing and turning as offsets from its parent's; nothing used it for
+turning. Asked, the owner chose the offset: `Tree::facing` and
+`Tree::angular_velocity` compose up the whole chain, root included; a part of a
+structure is promoted with no turning of its own; a structure is drawn at its
+turning and placed at the turn it has reached (`Tree::drawn_turn`); and angular
+momentum that arrives turns a node by `dL / I` (`Tree::turn_by`) — the one place
+the sphere's inertia is still used, and an approximation there for anything not
+round. Measured after: a redrawn face is 1.5e-8 rad from where the ground
+turned it after six hours and its pieces slip at 2.6e-4 m/s; a face solved
+under air rings at 8.1 m/s after a day, once its pieces pull each other exactly
+rather than through a Barnes-Hut tree whose error forced the ringing to 22.8.
+
+The same work found the composition order reversed in `Tree::axes_from`,
+`Motion::compose` and `Tiled::render_on_sphere` — `a.then(b)` applies `b` first
+— with the recipe's error cancelling `axes_from`'s, which is why ground was
+right; each is now right on its own. A child's `spin_rate` changed meaning, so
+`FORMAT_VERSION` is 22.
 
 **Phase 6 — Bodies.** *Was Phase 4.* D11's habit refactor; substructuring (D5);
 the creature genome; the actuation mechanism; derived-and-cached gait and grasp.

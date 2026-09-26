@@ -177,13 +177,8 @@ fn an_earth_with_a_face(seed: u64) -> (World, phys::ids::NodeIdx, phys::ids::Nod
 /// face met the planet's interior as a separate object, left at 76 m/s, and
 /// was 1.46x10^6 m further out six hours later.
 ///
-/// What this measures is the face *as a node* — its centre, against the
-/// planet. The pieces drawn inside it are a separate question: they are drawn
-/// turning at the rate a uniform sphere of the face's radius gives its
-/// angular momentum, 0.63 of the ground's, and the support that holds them is
-/// derived for the ground's; measured, the face's pieces slip over the
-/// turning ground at 5.6 to 8.2 km/s by the sixth hour of the air test. That
-/// is with the owner, in `docs/PLAY.md` §7.
+/// This is the face *as a node* — its centre, against the planet. What is
+/// drawn inside it is `a_face_of_a_turning_planet_is_drawn_turning_with_it`.
 #[test]
 fn a_turning_planets_ground_holds_together() {
     let (mut w, e, face) = an_earth_with_a_face(0xA1D);
@@ -205,4 +200,49 @@ fn a_turning_planets_ground_holds_together() {
     assert!(w.tree.nodes[e.get()].steps_taken > 0, "the Earth was never solved, so nothing here was tested");
     assert!(worst_r < 1.0, "the ground came apart: {worst_r} m");
     assert!(worst_slip < 0.01, "the face slid over its own planet at {worst_slip} m/s");
+}
+
+/// **A piece of a turning planet turns with it** — the owner's decision for
+/// Phase 5, that a node's turning is an offset from its parent's. A face
+/// promoted from a turning Earth and redrawn every frame is drawn where the
+/// ground has turned to, going round at the ground's rate.
+///
+/// Measured before, with a node's turning read as its angular momentum over a
+/// uniform sphere of its radius: the face turned at 23x the planet's rate, its
+/// pieces were drawn at 0.63x, and its layout was redrawn where it started —
+/// turned 0.0000 rad in six hours against the ground's 1.57.
+#[test]
+fn a_face_of_a_turning_planet_is_drawn_turning_with_it() {
+    let (mut w, e, face) = an_earth_with_a_face(0xA1D);
+    let spin = w.tree.nodes[e.get()].motion.spin_rate;
+    let own = (w.tree.angular_velocity(face) - spin).norm();
+    let across = |w: &World| {
+        let fc = &w.tree.nodes[face.get()];
+        (fc.bodies[63].pos - fc.bodies[0].pos).unit()
+    };
+    let before = across(&w);
+    let t0 = w.tree.nodes[face.get()].time;
+    let mut worst: f64 = 0.0;
+    for _ in 0..(6 * 60) {
+        w.step_frame(1.0e6);
+        let fc = &w.tree.nodes[face.get()];
+        let centre = w.tree.offset_at(e, face, fc.time);
+        let fv = w.tree.velocity_at(face, fc.time);
+        for b in fc.bodies.iter() {
+            worst = worst.max((fv + b.vel - spin.cross(centre + b.pos)).norm());
+        }
+    }
+    // Where the layout has turned to, against where the ground turning by the
+    // same angle takes the same two pieces.
+    let t = w.tree.nodes[face.get()].time - t0;
+    let expected = phys::math::Quat::from_rate(spin, t).rotate(before);
+    let off = across(&w).dot(expected).clamp(-1.0, 1.0).acos();
+    println!(
+        "  six hours: the face turns {own:.1e} rad/s apart from its planet; its layout is {off:.2e} rad \
+         from where the ground turned it ({:.4} rad); its pieces slip over the ground at {worst:.1e} m/s",
+        spin.norm() * t
+    );
+    assert!(own < 1e-12, "a piece of the planet turns on its own at {own} rad/s");
+    assert!(off < 1e-6, "the layout is {off} rad from where the ground turned to");
+    assert!(worst < 1e-2, "the face's pieces slip over their own ground at {worst} m/s");
 }

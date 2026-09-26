@@ -42,7 +42,11 @@
 //! the recipe draws is then an equilibrium: ground nobody disturbs stays where
 //! it is drawn and regenerates bit for bit, and a disturbance rings through the
 //! springs at the rock's own sound speed. Nothing damps it, which is what rock
-//! does over the time anything here watches it.
+//! does over the time anything here watches it. Measured, a face of a turning
+//! Earth solved under a mass of air for a day rings at 8.1 m/s at its worst
+//! piece, and does not grow over two — once the pieces pull each other pair by
+//! pair; through a Barnes-Hut tree the error changed as they turned through its
+//! cells, and drove the ringing to 27 m/s in two days.
 
 use crate::math::Vec3;
 use crate::solvers::gravity::{GravityParams, Octree};

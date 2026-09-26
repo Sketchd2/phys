@@ -217,6 +217,11 @@ pub fn sample(
 pub struct Setting {
     pub gravity: Vec3,
     pub rest_density: f64,
+    /// The angular velocity a structure's parts go round at, rad/s, in the
+    /// axes it is drawn in — the node's own turning (`Tree::angular_velocity`)
+    /// — or `None` for what its matter implies as a uniform sphere, which is
+    /// right only for something round.
+    pub turning: Option<Vec3>,
 }
 
 /// Where random loose packing sits: the fraction of a volume a pile of equal
@@ -722,7 +727,7 @@ pub fn sample_in(
         comps: sample_compositions(matter, spec, &masses_for_comp, world_seed, path_key, epoch),
         radii,
         kind: spec.kind,
-        own: crate::math::Mat3::zero(),
+        carried: None,
     };
     let bodies = close_books(matter, parts, resid, phi, random_ke_target, omega, ke_rot, scale, &mut report);
 
@@ -1220,11 +1225,11 @@ pub(crate) struct Parts {
     /// Per-part radii. Empty means "derive them from the spec".
     pub radii: Vec<f64>,
     pub kind: BodyKind,
-    /// The inertia the parts hold by turning about their own centres, summed,
-    /// so that what they carry by going round is `L - own w`. Zero for
-    /// parcels, which are points; for a structure it is the node's inertia
-    /// less the points'. See `sample_structured`.
-    pub own: crate::math::Mat3,
+    /// The angular momentum the parts carry by going round, or `None` for all
+    /// of it — parcels, which are points. What a structure's parts do not
+    /// carry by going round is their own turning, and rides in their spin
+    /// (`close_books`, step 6.5). See `sample_structured`.
+    pub carried: Option<Vec3>,
 }
 
 /// Project a set of parts onto the conserved-quantity constraint surface and
@@ -1247,7 +1252,7 @@ pub(crate) fn close_books(
     scale: f64,
     report: &mut SampleReport,
 ) -> Vec<Body> {
-    let Parts { pos, masses, comps, radii, kind, own } = parts;
+    let Parts { pos, masses, comps, radii, kind, carried } = parts;
     let n = pos.len();
     let spec = SampleSpec::new(n.max(1), Profile::Uniform, MassSpectrum::Equal, kind);
     let inertia = inertia_of_slices(&pos, &masses);
@@ -1285,7 +1290,7 @@ pub(crate) fn close_books(
     // Targets, stated in exactly the form `summarise` will measure them.
     let p_target = matter.momentum;
     // The points go round with what is not the parts' own turning.
-    let l_target = matter.spin - own.mul_vec(omega);
+    let l_target = carried.unwrap_or(matter.spin);
     let k_target = random_ke_target + crate::state::bulk_kinetic(matter.mass, matter.momentum);
 
     let mut vel = vec![Vec3::ZERO; n];
@@ -1471,7 +1476,7 @@ pub fn sample_structured(
         world_seed,
         path_key,
         epoch,
-        Setting { gravity, rest_density: 0.0 },
+        Setting { gravity, rest_density: 0.0, turning: None },
     )
 }
 
@@ -1737,10 +1742,17 @@ pub fn sample_structured_in(
     // stands for; the faces slid over their own planet at 321 m/s. The parts'
     // own turning rides in their spin (`close_books`, step 6.5), and the total
     // is exact either way.
-    let omega = matter.angular_velocity();
+    //
+    // **The angular velocity is the node's turning, not its angular momentum
+    // over a sphere's inertia** — the owner's decision for Phase 5, that a
+    // node turns by an offset from its parent's. A face of a planet is a
+    // slab, and `L / (0.4 m r^2)` of the equivalent sphere drew its pieces at
+    // 0.63 of the ground's rate; they slipped over the turning ground at 5.6
+    // to 8.2 km/s by the sixth hour of being solved.
+    let omega = setting.turning.unwrap_or_else(|| matter.angular_velocity());
     let slices = inertia_of_slices(&pos, &masses);
-    let own = crate::math::Mat3::identity().scaled(matter.moment_of_inertia()).add(slices.scaled(-1.0));
-    let ke_rot = 0.5 * omega.dot(slices.mul_vec(omega));
+    let carried = slices.mul_vec(omega);
+    let ke_rot = 0.5 * omega.dot(carried);
 
     let member_radii = radii.clone();
     let parts = Parts {
@@ -1749,7 +1761,7 @@ pub fn sample_structured_in(
         comps,
         radii,
         kind: morph.body_kind(),
-        own,
+        carried: Some(carried),
     };
     let bodies = close_books(
         matter,
