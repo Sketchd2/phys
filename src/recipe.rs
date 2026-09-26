@@ -1272,6 +1272,24 @@ impl Tiled {
     }
 
     /// The centre of mass of the shell of this patch between two radii.
+    /// The solid angle this patch covers, sr — the cube map's Jacobian,
+    /// `(1 + a^2 + b^2)^(-3/2)`, over its span, by the same quadrature as
+    /// `region_com`, so that the two agree about where its mass is.
+    pub fn solid_angle(&self) -> f64 {
+        let (ca, cb, half) = self.face_span();
+        const Q: usize = 8;
+        let cell = (2.0 * half / Q as f64).powi(2);
+        let mut total = 0.0;
+        for i in 0..Q {
+            for j in 0..Q {
+                let a = ca - half + 2.0 * half * (i as f64 + 0.5) / Q as f64;
+                let b = cb - half + 2.0 * half * (j as f64 + 0.5) / Q as f64;
+                total += (1.0 + a * a + b * b).powf(-1.5) * cell;
+            }
+        }
+        total
+    }
+
     pub fn region_com(&self, r0: f64, r1: f64) -> Vec3 {
         let (r0, r1) = (r0.min(r1).max(0.0), r0.max(r1).max(0.0));
         let radial = if r1 > r0 {
@@ -1379,10 +1397,51 @@ impl Tiled {
             );
             *sk.orientation.last_mut().unwrap() = *turn;
         }
-        // What is under them, as one body at its own centre of mass — which is
-        // *not* the patch's, because the cells are a skin on the outside of it
-        // and the substrate is everything else.
+        // What is under them. On a ball, one body — its whole interior, at its
+        // centre, which every face rests on straight down. On a patch, **a
+        // column under each cell**, reaching from the cell's underside to the
+        // patch's floor at the column's own centre of mass, so that each cell
+        // rests on what is directly beneath it. As one body at the patch's
+        // centre instead, a cell at a face's corner rested on it along a line
+        // mostly across the face rather than down, nothing held it up or down
+        // but its compressed neighbours, and the face buckled like a shell at
+        // its corners, 1.2e-6 s^-2.
         let under = (mine - covered).max(0.0);
+        if under > 0.0 && !self.is_ball() && covered > 0.0 {
+            let skin = self.side / self.cells() as f64 * SLAB_ASPECT;
+            let depth = 0.5 * (self.depth - skin).max(0.0);
+            // Each column's share by the solid angle it covers: a cell of a
+            // cube-mapped sphere near a face's corner covers less of it than
+            // one in the middle. Shared by the cells' flat areas instead, the
+            // columns' masses disagreed with where their centres are, every
+            // level of a descent was recentred by the difference, and an
+            // observer nine levels down read 9.1954 m/s^2 against 9.7055.
+            let angles: Vec<f64> = (0..cells.len()).map(|i| self.child(i).map(|c| c.solid_angle()).unwrap_or(0.0)).collect();
+            let all: f64 = angles.iter().sum();
+            // `under` is the patch's shell less its cells' shells; each
+            // column takes its share by the solid angle over it, which is the
+            // same shell of rock between the cells' floor and the patch's.
+            for (i, (_, side, _, turn)) in cells.iter().enumerate() {
+                let Some(child) = self.child(i) else { continue };
+                if !(all > 0.0) {
+                    continue;
+                }
+                let at = child.region_com(self.sphere - self.depth, self.sphere - skin) - here;
+                let up = turn.rotate(v3(0.0, 0.0, 1.0));
+                sk.push_box(
+                    at - up.scale(depth),
+                    at + up.scale(depth),
+                    v3(0.5 * side, 0.5 * side, depth),
+                    FREE_Z,
+                    under * angles[i] / all,
+                    0.5 * side,
+                    NO_SUPPORT,
+                    (count + i) as u32,
+                );
+                *sk.orientation.last_mut().unwrap() = *turn;
+            }
+            return sk;
+        }
         if under > 0.0 {
             let skin = if self.is_ball() {
                 self.sphere * FACE_SIDE * SLAB_ASPECT
@@ -1408,12 +1467,22 @@ impl Tiled {
         sk
     }
 
-    /// The volume this patch stands for, m^3.
+    /// The volume this patch stands for, m^3: the shell it cuts from its
+    /// sphere, `Omega (R^3 - (R - d)^3) / 3` over the solid angle it covers.
+    ///
+    /// **The volume of the shell, not of a flat slab of its side.** A cell
+    /// of a cube-mapped sphere near a face's corner covers a fifth of the
+    /// solid angle of one in its middle, and the same side. Weighed flat, the
+    /// cells' masses disagreed with where their centres are, and — once the
+    /// columns under them were weighed by their shells — a corner cell stood on
+    /// a column a fifth of the weight it expected, and a face under air
+    /// buckled at 9e-7 s^-2.
     pub fn volume(&self) -> f64 {
         if self.is_ball() {
             return 4.0 / 3.0 * std::f64::consts::PI * self.sphere.powi(3);
         }
-        self.side * self.side * self.depth
+        let inner = (self.sphere - self.depth).max(0.0);
+        self.solid_angle() * (self.sphere.powi(3) - inner.powi(3)) / 3.0
     }
 }
 
@@ -1435,6 +1504,17 @@ pub enum Touch {
 }
 
 impl Tiled {
+    /// The first of this ground's pieces that rest on what is outside it — the
+    /// columns at a patch's floor, which the rest of the planet holds up. A
+    /// ball rests on nothing, and every piece of it is its floor.
+    pub fn floor(&self) -> usize {
+        if !self.on_sphere() || self.is_ball() {
+            0
+        } else {
+            self.cells() * self.cells()
+        }
+    }
+
     /// Which pieces of this ground touch which, by the index of the body each
     /// is drawn as (`Tiled::render_on_sphere`), and how.
     ///
@@ -1459,23 +1539,43 @@ impl Tiled {
             }
             return out;
         }
+        // Two layers of the same lattice: the cells, and the columns under
+        // them (`render_on_sphere`), each cell resting on its own column.
         let n = self.cells();
         let count = n * n;
+        for layer in [0, count] {
+            for c in 0..count {
+                let (i, j) = (c % n, c / n);
+                if i + 1 < n {
+                    out.push((layer + c, layer + c + 1, Touch::Beside));
+                }
+                if j + 1 < n {
+                    out.push((layer + c, layer + c + n, Touch::Beside));
+                }
+                if i + 1 < n && j + 1 < n {
+                    out.push((layer + c, layer + c + n + 1, Touch::Across));
+                }
+                if i > 0 && j + 1 < n {
+                    out.push((layer + c, layer + c + n - 1, Touch::Across));
+                }
+            }
+        }
+        // Each cell on its own column, and across to the columns under its
+        // neighbours: the diagonals that carry shear between the two layers.
+        // Without them a layer of cells resting on compressed columns is a
+        // sheet of inverted pendulums, and slid over the columns under it at
+        // 2e-5 s^-2.
         for c in 0..count {
+            out.push((c, count + c, Touch::On));
             let (i, j) = (c % n, c / n);
             if i + 1 < n {
-                out.push((c, c + 1, Touch::Beside));
+                out.push((c, count + c + 1, Touch::Across));
+                out.push((c + 1, count + c, Touch::Across));
             }
             if j + 1 < n {
-                out.push((c, c + n, Touch::Beside));
+                out.push((c, count + c + n, Touch::Across));
+                out.push((c + n, count + c, Touch::Across));
             }
-            if i + 1 < n && j + 1 < n {
-                out.push((c, c + n + 1, Touch::Across));
-            }
-            if i > 0 && j + 1 < n {
-                out.push((c, c + n - 1, Touch::Across));
-            }
-            out.push((c, count, Touch::On));
         }
         out
     }

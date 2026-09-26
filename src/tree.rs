@@ -1981,6 +1981,18 @@ impl Tree {
     /// redrawn each frame kept its layout where it was at the start: 0.0000 rad
     /// turned in six hours against the ground's 1.57.
     pub fn drawn_turn(&self, node: NodeIdx) -> crate::math::Quat {
+        self.drawn_turn_at(node, self.nodes[node.get()].time)
+    }
+
+    /// [`Tree::drawn_turn`] at an instant: the facing of what the layout is
+    /// stated against, turned back from the instant that is carried to by its
+    /// own turning. **At the instant asked for, not at whatever instant the
+    /// facing's owner has reached**: a planet solved earlier in the same frame
+    /// is carried to the frame's end before a patch of it is solved from the
+    /// frame's start, and read there, a face's supports and anchors turned a
+    /// minute ahead of its pieces every time its Earth was solved — 1.5 km at
+    /// the corners, and 1.77 m/s^2 of pull on them.
+    pub fn drawn_turn_at(&self, node: NodeIdx, instant: f64) -> crate::math::Quat {
         let mut at = node;
         loop {
             let n = &self.nodes[at.get()];
@@ -1988,9 +2000,14 @@ impl Tree {
                 Some(crate::recipe::Recipe::Tiled(t)) if t.on_sphere() && !t.is_ball() && !n.parent.is_none() => {
                     at = n.parent;
                 }
-                _ => return self.facing(at),
+                _ => break,
             }
         }
+        let since = instant - self.nodes[at.get()].carried;
+        if since == 0.0 || !since.is_finite() {
+            return self.facing(at);
+        }
+        crate::math::Quat::from_rate(self.angular_velocity(at), since).then(self.facing(at)).unit()
     }
 
     /// Carry a vector expressed in `ancestor`'s axes into `node`'s own.

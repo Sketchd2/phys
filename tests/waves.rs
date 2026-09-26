@@ -294,21 +294,36 @@ fn a_stated_wind_raises_the_sea_it_outruns_and_pays_for_it() {
         }
         let mut lowest = f64::INFINITY;
         let mut highest = f64::NEG_INFINITY;
+        // The world's books, read where the planet, the ground holding the
+        // air and the world are at one instant.
+        let face = w.tree.nodes[air.get()].parent;
+        let mut first: Option<phys::state::Conserved> = None;
+        let (mut turned, mut moved) = (0.0f64, 0.0f64);
         for _ in 1..(DAY / 60.0) as usize {
             w.step_frame(1.0e6);
+            let (te, tf) = (w.tree.nodes[earth.get()].time, w.tree.nodes[face.get()].time);
+            if (te - tf).abs() < 1e-6 && (te - w.time).abs() < 1e-6 {
+                let c = w.conserved();
+                let c0 = *first.get_or_insert(c);
+                turned = turned.max((c.angular_momentum - c0.angular_momentum).norm() / c0.angular_momentum.norm());
+                moved = moved.max((c.momentum - c0.momentum).norm());
+            }
             let h = w.tree.offset_from(earth, air, Vec3::ZERO).value.norm() - w.tree.nodes[earth.get()].ocean.as_ref().unwrap().radius;
             lowest = lowest.min(h);
             highest = highest.max(h);
         }
-        (w, earth, air, u0, lowest, highest)
+        (w, earth, air, u0, lowest, highest, turned, moved)
     };
-    let (w, earth, air, u0, lowest, highest) = run(10.0);
+    let (w, earth, air, u0, lowest, highest, turned, moved) = run(10.0);
+    let carried = w.tree.nodes[air.get()].matter.mass * w.tree.velocity_from(earth, air).norm();
     let u1 = wind_of(&w, earth, air);
     // The ground the air is held by, solved every frame of it: its pieces go
-    // round with the planet, ringing a little about it. Drawn at the rate a
-    // uniform sphere of the face's radius gives its angular momentum, they
-    // slipped at 5.6 to 8.2 km/s; with that fixed and their pull on each
-    // other through a Barnes-Hut tree, the ringing grew to 22.8 m/s in a day.
+    // round with the planet. Drawn at the rate a uniform sphere of the face's
+    // radius gives its angular momentum, they slipped at 5.6 to 8.2 km/s; with
+    // their pull on each other through a Barnes-Hut tree, the ringing grew to
+    // 22.8 m/s in a day; carrying their weight as a stress, they buckled; and
+    // with a support turned to where the planet had been solved to rather
+    // than where they were, they slipped at 48 m/s.
     let slip = {
         let face = w.tree.nodes[air.get()].parent;
         let fc = &w.tree.nodes[face.get()];
@@ -326,7 +341,7 @@ fn a_stated_wind_raises_the_sea_it_outruns_and_pays_for_it() {
     let far = o.wave_height(o.cell_of(into.rotate(Vec3::ZERO - up)));
     let lit = (0..o.cells.len()).filter(|&k| o.wave_height(k) > 0.01).count();
     let limit = |u: f64| phys::ocean::outrun_height(u, o.depth, o.g, o.tension, o.density);
-    let (still, _, still_air, s0, _, _) = run(0.0);
+    let (still, _, still_air, s0, _, _, _, _) = run(0.0);
     let drift = wind_of(&still, still.tree.root, still_air) - s0;
     println!(
         "  a day of it: {under:.3} m of sea under the air against an outrun height of {:.3} to {:.3} m; \
@@ -336,11 +351,21 @@ fn a_stated_wind_raises_the_sea_it_outruns_and_pays_for_it() {
         o.cells.len()
     );
     println!("  the wind {u0:.4} -> {u1:.4} m/s; the same air with none drifted {drift:.1e} m/s");
-    println!("  the ground under it rings: its pieces slip over the turning planet at {slip:.2} m/s at worst");
+    println!("  the ground under it: its pieces slip over the turning planet at {slip:.1e} m/s at worst");
+    println!(
+        "  the world's books over the day: angular momentum moved {turned:.1e} of itself, momentum {moved:.1e} kg m/s ({:.1e} of the air's)",
+        moved / carried
+    );
     assert!(under > 0.97 * limit(u1) && under < 1.01 * limit(u0), "the sea is not the one the wind outruns: {under} m");
     assert!(far < 1e-3, "the far side of the planet has a sea: {far} m");
-    assert!(slip < 15.0, "the ground holding the air slips over its planet at {slip} m/s");
+    assert!(slip < 0.05, "the ground holding the air slips over its planet at {slip} m/s");
+    // Measured before: 1.5e-7 of the angular momentum and 5e19 kg m/s, 2% of
+    // the air's own, with the air's push on its planet kept on the face
+    // rather than passed to the planet's own bodies.
+    assert!(turned < 1e-7, "the world's angular momentum moved by {turned:.2e} of itself");
+    assert!(moved < 1e-2 * carried, "the world's momentum moved by {moved:.2e} kg m/s");
     assert!(lowest > 0.0 && highest < 50.0, "the air left its level: {lowest} to {highest} m");
     assert!(drift.abs() < 1e-3, "held air with no wind moved at {drift} m/s");
     assert!(u0 - u1 > 10.0 * drift.abs().max(1e-3), "the air paid nothing for the sea it raised: {u0} -> {u1}");
 }
+

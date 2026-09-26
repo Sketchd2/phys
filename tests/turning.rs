@@ -257,15 +257,22 @@ fn a_face_of_a_turning_planet_is_drawn_turning_with_it() {
 fn the_worlds_books_count_a_childs_motion() {
     let (mut w, e, face) = an_earth_with_a_face(0xA1D);
     let going_round = w.tree.nodes[face.get()].matter.mass * w.tree.velocity_from(e, face).norm();
-    let p0 = w.conserved().momentum;
-    let mut worst = p0.norm();
+    let c0 = w.conserved();
+    let mut worst = c0.momentum.norm();
+    let mut turned: f64 = 0.0;
     for _ in 0..(6 * 60) {
         w.step_frame(1.0e6);
-        worst = worst.max(w.conserved().momentum.norm());
+        let c = w.conserved();
+        worst = worst.max(c.momentum.norm());
+        turned = turned.max((c.angular_momentum - c0.angular_momentum).norm() / c0.angular_momentum.norm());
     }
     println!(
-        "  six hours: the world's momentum at most {worst:.2e} kg m/s, {:.1e} of one face's going round ({going_round:.2e})",
+        "  six hours: the world's momentum at most {worst:.2e} kg m/s, {:.1e} of one face's going round ({going_round:.2e}); its angular momentum moved {turned:.1e} of itself",
         worst / going_round
     );
     assert!(worst < 1e-9 * going_round, "the world has a momentum of {worst:.3e} kg m/s");
+    // The ground's weight carried as a stress between its pieces, along the
+    // line between them: central, so exact. As a force fixed per piece, and
+    // then as a stress along the line as drawn, it moved by 4e-7.
+    assert!(turned < 1e-12, "the world's angular momentum moved by {turned:.2e} of itself");
 }

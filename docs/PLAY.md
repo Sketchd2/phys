@@ -3062,35 +3062,56 @@ right; each is now right on its own. A child's `spin_rate` changed meaning, so
 `FORMAT_VERSION` is 22.
 
 *Decided by the owner — ground carries its weight as a stress between
-neighbours; open, with the owner — along which line.* With the world's books
+neighbours, along the pieces' current line.* With the world's books
 counting a promoted child's motion, a turning Earth with one face promoted
 moved its angular momentum by 4e-7 in six hours, because each piece's support
 was a fixed force. The owner chose a stress between neighbours
 (`ground::stress`): what holds the whole comes off as one rigid acceleration,
 and the rest — no net force, no net torque — is a tension or compression on
 each spring, solved by least squares, which the springs carry to 1.3e-16 of
-the need on the Earth and 6.5e-17 on a face. Shear diagonals of `G t` were added
-to a patch's lattice (`recipe::Touch::Across`). Building it found five more
+the need on the Earth and 6.5e-17 on a face. Shear diagonals were added to a
+patch's lattice (`recipe::Touch::Across`). Building it found five more
 things, each fixed with its measurement: a held patch's pieces sloshed against
 the patch (2.5 m/s, then 3e29 kg m^2/s of twist) until what holds them is what
 keeps their centre of mass and their turning with it (`Ground::held`); a held
-ground passes a push on to the node (`take_reaction`); a planet's ground takes
-a push whole, promoted pieces included, with the turn it makes; the fluid's
+ground passes a push on to what holds it (`take_reaction`); a planet's ground takes
+a push with the turn it makes about its bodies' centre of mass; the fluid's
 reaction is to the whole real force on what it holds, weight included, because
 gravity is a field and pulls nothing back; and `Tree::place` now adds what it
 places to the mass of everything holding it.
 
-What is left is which line the stress acts along. **Along the pieces' current
-line** it is central and exact: the bare Earth keeps its angular momentum to
-1.3e-15 over six hours. But a compression along a line that bends pushes
-sideways, and a face carrying its weight that way buckles — its pieces' slip
-grew from 0.02 to 0.77 m/s in the second hour, a hundredfold in elastic energy
-every twenty minutes, with the diagonals in. **Along the line as drawn, turned
-with the ground,** nothing buckles — a face under air rings at 10.7 m/s after a
-day, bounded — but it is central only at the drawn shape, and the angular
-momentum moves by 3.9e-7 over six hours on the bare Earth and swings by 1e-6
-under the air: no better than the fixed force it replaced. The second is what
-the code does now.
+Which line the stress acts along was the owner's too, and the answer was the
+pieces' current line — central, so exact — with the buckling it brought
+found and removed rather than traded away. Each cause was measured with the
+face's full Jacobian, finite-differenced from the solver itself:
+
+- the least-norm stress spread each cell's weight sideways and put the
+  face's surface into compression: **least strain energy** instead
+  (Menabrea), solved exactly by its dual, because conjugate gradients let in
+  self-stress at 2000 times what a spring carries;
+- one substrate body under a face left its corner cells resting along a
+  line mostly across the face: **a column under each cell**
+  (`Tiled::render_on_sphere`), with **shear diagonals** between the two
+  layers sized `G A / L` over the face they shear across;
+- the floor rested on nothing: **each floor piece bears its stack**, and
+  **rests on a foundation**, the rest of its planet (`Ground::foundation`);
+- the pieces of a patch pulled each other as points, a cell and the column
+  under it with the cell's whole weight: **a patch's pieces pull smoothly**,
+  as its loose contents did; a ball keeps exact pairwise pull;
+- the patch's pieces were weighed by flat area where they cover solid angle:
+  **every piece weighs its shell** (`Tiled::volume`), which also took the
+  observer at the bottom of Phase 4's descent from 9.7055 m/s^2 at 0.092 deg
+  to 9.8138 at 0.001 against a closed form of 9.8200;
+- the support was turned to where the planet had been solved to rather than
+  where the patch's contents were (`Tree::drawn_turn_at`);
+- the air's push on its planet was kept on the face, whose carry turned it
+  with the planet: it goes to the planet's own bodies.
+
+Measured after: a turning Earth with one face promoted holds its angular
+momentum to 1.8e-15 over six hours; the face, solved every frame under air
+for a day, slips over its ground at 2.4e-3 m/s at worst, and the world's
+angular momentum moves 1.3e-8 and its momentum 1.8e-4 of the air's.
+`FORMAT_VERSION` is 23, for the patch layout.
 
 **Phase 6 — Bodies.** *Was Phase 4.* D11's habit refactor; substructuring (D5);
 the creature genome; the actuation mechanism; derived-and-cached gait and grasp.
