@@ -246,3 +246,26 @@ fn a_face_of_a_turning_planet_is_drawn_turning_with_it() {
     assert!(off < 1e-6, "the layout is {off} rad from where the ground turned to");
     assert!(worst < 1e-2, "the face's pieces slip over their own ground at {worst} m/s");
 }
+
+/// **The world's books count what a child carries by moving** — the owner's
+/// call for Phase 5. A promoted child speaks for the body that stood in for
+/// it, and the books added what it holds in its own frame and never its going
+/// round. A turning Earth with one face promoted then read a world momentum of
+/// 1.9e26 kg m/s — exactly that face's — which moved by 2.2e26 in six hours as
+/// the Earth was solved; a planet at rest has none.
+#[test]
+fn the_worlds_books_count_a_childs_motion() {
+    let (mut w, e, face) = an_earth_with_a_face(0xA1D);
+    let going_round = w.tree.nodes[face.get()].matter.mass * w.tree.velocity_from(e, face).norm();
+    let p0 = w.conserved().momentum;
+    let mut worst = p0.norm();
+    for _ in 0..(6 * 60) {
+        w.step_frame(1.0e6);
+        worst = worst.max(w.conserved().momentum.norm());
+    }
+    println!(
+        "  six hours: the world's momentum at most {worst:.2e} kg m/s, {:.1e} of one face's going round ({going_round:.2e})",
+        worst / going_round
+    );
+    assert!(worst < 1e-9 * going_round, "the world has a momentum of {worst:.3e} kg m/s");
+}

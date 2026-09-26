@@ -3455,6 +3455,36 @@ impl Tree {
         self.sum_conserved(self.root)
     }
 
+    /// A child's totals, carried from its own frame into its parent's: what
+    /// it holds moves with it, so the parent sees it with the child's bulk
+    /// momentum added, the bulk's kinetic energy and its cross term with what
+    /// the child holds, and the angular momentum all of that has about the
+    /// parent's centre. Read where the child is at the parent's instant, which
+    /// is the instant the parent's own bodies are at.
+    ///
+    /// Without it the world's books left every promoted child's bulk motion
+    /// out — the stand-in body that carries it is not summed, because the child
+    /// speaks for it, and the child spoke only for its contents. Measured on a
+    /// turning Earth with one face promoted: the world's momentum read 1.9e26
+    /// kg m/s, exactly one face's going round, and moved by 1.2e26 each time
+    /// the Earth was solved.
+    fn in_parents_frame(&self, c: NodeIdx, t: crate::state::Conserved) -> crate::state::Conserved {
+        let n = &self.nodes[c.get()];
+        let instant = self.nodes[n.parent.get()].time;
+        let at = self.position_at(c, instant);
+        let v = self.velocity_at(c, instant);
+        let m = n.matter.mass.max(0.0);
+        let gamma = crate::coords::gamma(v);
+        let bulk = v.scale(m * gamma);
+        let momentum = t.momentum + bulk;
+        crate::state::Conserved {
+            energy: t.energy + (gamma - 1.0) * m * crate::units::C2 + v.dot(t.momentum),
+            momentum,
+            angular_momentum: t.angular_momentum + n.matter.com.scale(m).cross(v) + at.cross(momentum),
+            ..t
+        }
+    }
+
     fn sum_conserved(&self, i: NodeIdx) -> crate::state::Conserved {
         let n = &self.nodes[i.get()];
         if !n.is_materialised() {
@@ -3531,7 +3561,7 @@ impl Tree {
         for slot in 0..count {
             let c = n.child_of(slot);
             if !c.is_none() && self.nodes[c.get()].alive {
-                total = total.add(self.sum_conserved(c));
+                total = total.add(self.in_parents_frame(c, self.sum_conserved(c)));
             }
         }
         total.energy += n.potential;

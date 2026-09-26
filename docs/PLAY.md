@@ -3061,6 +3061,18 @@ The same work found the composition order reversed in `Tree::axes_from`,
 right; each is now right on its own. A child's `spin_rate` changed meaning, so
 `FORMAT_VERSION` is 22.
 
+*Open, with the owner — ground's support is a force, not a stress.* With the
+world's books counting a promoted child's motion (the owner's call, and
+`World::conserved` now does), a turning Earth with one face promoted keeps its
+momentum to 1.3e-12 of the face's going round but moves its angular momentum by
+4e-7 of itself in six hours, in steps exactly when the Earth's ground is
+solved. Each piece's support is a fixed force derived where the piece is
+drawn, turned with the ground; a stress between pieces sums to no force and no
+torque however they move, and a fixed force per piece does not once they ring
+off where they were drawn. Nothing here chooses between making the support a
+stress between neighbours, projecting it onto what internal forces can do, or
+accepting the drift at this size.
+
 **Phase 6 — Bodies.** *Was Phase 4.* D11's habit refactor; substructuring (D5);
 the creature genome; the actuation mechanism; derived-and-cached gait and grasp.
 Standing is contact against a surface that now exists.
