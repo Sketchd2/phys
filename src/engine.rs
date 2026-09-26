@@ -387,6 +387,10 @@ pub struct EngineStats {
     /// neighbours at all", which is the question a coupling that silently does
     /// nothing would otherwise pass every test on.
     pub exchange_crossings: u64,
+    /// Parcels of water drawn in from the sea across an open edge, and given
+    /// back to it, summed over nodes and frames. See `open_edge`.
+    pub parcels_from_sea: u64,
+    pub parcels_to_sea: u64,
 }
 
 /// Where the world clock's span per frame comes from.
@@ -453,6 +457,26 @@ pub fn flow_scale<'a>(
     let depth = if hi >= lo { (hi - lo).max(spacing) } else { spacing };
     let bulk = if mass > 0.0 { (sum / mass).sqrt() } else { 0.0 };
     bulk.max(drivers).max((2.0 * g * depth).sqrt())
+}
+
+/// The sea around a node whose water is drawn out of it. See `open_edge`.
+#[derive(Debug, Clone, Copy)]
+struct SeaAround {
+    sea: crate::ocean::Sea,
+    /// The body that describes it.
+    anc: NodeIdx,
+    /// The node's centre from that body's, root-aligned axes.
+    centre: Vec3,
+    /// How far the node's centre stands above the sea's mean surface, m.
+    height: f64,
+}
+
+/// What crossed a node's open edge in one solve. See `World::cross_edge`.
+#[derive(Debug, Clone, Default)]
+struct Crossed {
+    exchange: crate::solvers::hydro::Exchange,
+    left: Vec<crate::state::Body>,
+    arrived: Vec<crate::state::Body>,
 }
 
 /// The world.
@@ -3119,6 +3143,16 @@ impl World {
                 && crate::sampler::is_packed(&n.matter, n.rest_density)
         };
 
+        // The sea this node's water is drawn out of, where it is: the region
+        // has an open edge, and what crosses it is booked below. `open_edge`.
+        let sea = if liquid_node && ordered.is_some() && ground.is_none() && matches!(solvers::for_tier(tier), SolverKind::Hydro) {
+            self.sea_around(idx)
+        } else {
+            None
+        };
+        let start = self.tree.nodes[idx.get()].time;
+        let mut crossed = Crossed::default();
+
         let bodies = &mut self.tree.nodes[idx.get()].bodies;
         // Solve the disordered contents in place where there are no ordered
         // ones, which is every node that is not a structure and costs nothing.
@@ -3157,7 +3191,7 @@ impl World {
         // The same box with one loose body added moved 1.000000 m. A structure
         // whose members are not the solver's to move is not the same statement
         // as a node that is not there.
-        let report = if count == 0 {
+        let mut report = if count == 0 {
             solvers::SolveReport::default()
         } else if let Some(g) = &ground {
             solvers::ground::step(bodies, dt, g)
@@ -3254,7 +3288,7 @@ impl World {
                     let mut rest = 0.0;
                     for (q, (b, e)) in bodies.iter().zip(eos.iter()).enumerate() {
                         let slot = if partitioned { loose_of[q] } else { q };
-                        if stand_in.get(slot).copied().unwrap_or(false) {
+                        if stand_in.get(slot).copied().unwrap_or(false) || !(b.mass > 0.0) {
                             continue;
                         }
                         if let crate::eos::Eos::Condensed(c) = e {
@@ -3275,7 +3309,7 @@ impl World {
                         bodies
                             .iter()
                             .enumerate()
-                            .filter(|(k, _)| !walls.iter().any(|w| w.owner == Some(*k as u32)))
+                            .filter(|(k, b)| b.mass > 0.0 && !walls.iter().any(|w| w.owner == Some(*k as u32)))
                             .zip(eos.iter())
                             .filter(|(_, e)| priced(e))
                             .map(|((_, b), _)| b),
@@ -3327,9 +3361,79 @@ impl World {
                 let wanted = (dt / stable).ceil();
                 let substeps = (wanted.clamp(1.0, MAX_SUBSTEPS as f64) as u32).max(1);
                 let h = (dt / substeps as f64).min(stable);
+                // **An open edge, where the node's water is the sea's.** Its
+                // floor is the node's own ordered members, and a parcel of its
+                // own water is what crosses. See `open_edge`.
+                let open = match (sea, spacing) {
+                    (Some(here), Some(s)) => {
+                        let floor_walls: Vec<solvers::hydro::Wall> = walls.iter().filter(|w| w.owner.is_none()).copied().collect();
+                        let template = bodies.iter().enumerate().position(|(q, b)| {
+                            let slot = if partitioned { loose_of[q] } else { q };
+                            b.mass > 0.0 && !stand_in.get(slot).copied().unwrap_or(false) && priced(&eos[q])
+                        });
+                        template.map(|q| {
+                            let floor = crate::open_edge::Floor::of(&floor_walls, field, s, bodies[q].pos);
+                            // The field the parcels are held in is the one
+                            // the sea beyond them has to weigh in, or the edge
+                            // is out of balance by the difference.
+                            let up = if field.norm() > 0.0 { Vec3::ZERO - field.unit() } else { here.sea.up };
+                            let sea = crate::ocean::Sea { g: field.norm(), up, ..here.sea };
+                            (crate::open_edge::Edge::new(floor, sea, here.centre, here.height, 2.0 * params.h), bodies[q], eos[q])
+                        })
+                    }
+                    _ => None,
+                };
                 let mut total = solvers::SolveReport::default();
                 for k in 0..substeps {
-                    let r = solvers::hydro::step_with(bodies, h, params, &eos, &walls);
+                    let r = match &open {
+                        Some((edge, template, law)) => {
+                            let t = start + k as f64 * h / rate;
+                            let at = |p: f64| law.condensed().map(|c| c.density_at(p)).unwrap_or(0.0);
+                            let beyond = edge.beyond_at(t, template, &at);
+                            let ghosts = solvers::hydro::Ghosts { bodies: &beyond.bodies, pressure: &beyond.pressure, density: &beyond.density };
+                            let (r, ex) = solvers::hydro::step_open(bodies, h, params, &eos, &walls, Some(ghosts));
+                            crossed.exchange.impulse += ex.impulse;
+                            crossed.exchange.moment += ex.moment;
+                            crossed.exchange.energy += ex.energy;
+                            // What has left the region is the sea's again.
+                            for (q, b) in bodies.iter_mut().enumerate() {
+                                let slot = if partitioned { loose_of.get(q).copied().unwrap_or(usize::MAX) } else { q };
+                                if b.mass > 0.0 && !stand_in.get(slot).copied().unwrap_or(false) && priced(&eos[q]) && edge.left(b.pos) {
+                                    crossed.left.push(*b);
+                                    *b = crate::state::Body { mass: 0.0, ..Default::default() };
+                                }
+                            }
+                            // And where the sea stands over an empty site just
+                            // inside the edge, it comes in.
+                            let s = edge.floor.spacing;
+                            let grid = crate::neighbourhood::NeighbourGrid::build(bodies, s);
+                            let mut near = Vec::new();
+                            for (site, vel) in edge.inflow_sites(t + h / rate) {
+                                grid.neighbours(site, &mut near);
+                                let taken = near.iter().any(|&j| {
+                                    let b = &bodies[j as usize];
+                                    b.mass > 0.0 && (b.pos - site).norm() < 0.75 * s
+                                });
+                                if taken {
+                                    continue;
+                                }
+                                let parcel = crate::state::Body { pos: site, vel, ..*template };
+                                crossed.arrived.push(parcel);
+                                match bodies.iter().enumerate().position(|(q, b)| {
+                                    let slot = if partitioned { loose_of.get(q).copied().unwrap_or(usize::MAX) } else { q };
+                                    !(b.mass > 0.0) && !stand_in.get(slot).copied().unwrap_or(false)
+                                }) {
+                                    Some(q) => bodies[q] = parcel,
+                                    None => {
+                                        bodies.push(parcel);
+                                        eos.push(*law);
+                                    }
+                                }
+                            }
+                            r
+                        }
+                        None => solvers::hydro::step_with(bodies, h, params, &eos, &walls),
+                    };
                     if k == 0 {
                         total = r;
                     } else {
@@ -3337,6 +3441,7 @@ impl World {
                         total.steps += r.steps;
                         total.interactions += r.interactions;
                         total.non_mechanical_energy += r.non_mechanical_energy;
+                        total.outside += r.outside;
                         total.unrest = r.unrest;
                     }
                 }
@@ -3375,6 +3480,7 @@ impl World {
                         total.steps += r.steps;
                         total.interactions += r.interactions;
                         total.non_mechanical_energy += r.non_mechanical_energy;
+                        total.outside += r.outside;
                     }
                 }
                 total.dt_used = h * substeps as f64;
@@ -3397,7 +3503,9 @@ impl World {
             self.stats.eos_outside_validity_at = Some(self.tree.nodes[idx.get()].key);
         }
 
-        // The disordered contents were solved in a buffer; put them back.
+        // The disordered contents were solved in a buffer; put them back —
+        // and anything the sea brought in beyond the slots there were, in
+        // slots of its own.
         if partitioned {
             let n = &mut self.tree.nodes[idx.get()];
             for (k, &i) in loose_of.iter().enumerate() {
@@ -3405,6 +3513,17 @@ impl World {
                     *dst = *src;
                 }
             }
+            for src in loose.iter().skip(loose_of.len()) {
+                n.bodies.push(*src);
+                while n.children.len() < n.bodies.len() {
+                    n.children.push(NodeIdx::NONE);
+                }
+            }
+        }
+        if let Some(here) = &sea {
+            self.stats.parcels_from_sea += crossed.arrived.len() as u64;
+            self.stats.parcels_to_sea += crossed.left.len() as u64;
+            self.cross_edge(idx, here.anc, &crossed);
         }
 
         // ... and the force it computed on each stand-in is handed to the
@@ -3493,7 +3612,12 @@ impl World {
         // Whatever the solver has just driven into whatever else. Before the
         // exchange, so the heat a collision makes is there to be conducted
         // away in the same pass rather than a frame later.
+        // A member held in a field is immovable to a contact, so what a
+        // contact gives the rest is from outside them, and is counted as such
+        // (`SolveReport::outside`).
+        let held = self.contents_momentum(idx);
         self.contact_within(idx);
+        report.outside += self.contents_momentum(idx) - held;
 
         // Heat crosses the boundaries between the things this node holds, on
         // the same span the solver just integrated. After the solve rather than
@@ -4435,6 +4559,7 @@ impl World {
             before,
             after,
             non_mechanical_energy: released,
+            outside: after.momentum - before.momentum,
             unrest: 0.0,
         }
     }
@@ -6345,6 +6470,13 @@ impl World {
     /// Give a node's own contents an impulse at a place in root-aligned axes
     /// relative to its centre, and return the kinetic energy they took up, J.
     fn take_reaction(&mut self, idx: NodeIdx, dp: Vec3, at: Vec3) -> f64 {
+        self.take_wrench(idx, dp, at.cross(dp))
+    }
+
+    /// [`World::take_reaction`], for an impulse `dp` and an angular impulse
+    /// `dl` about the node's centre that need not be one push at one place:
+    /// what a sea does along a whole edge.
+    fn take_wrench(&mut self, idx: NodeIdx, dp: Vec3, dl: Vec3) -> f64 {
         // **Ground something holds passes it on to what holds it**, at its
         // place there. Its pieces' centre of mass stays with the node
         // (`ground::Ground::held`), so a push on them is a push on the node;
@@ -6356,8 +6488,8 @@ impl World {
         // the air and its planet was turned away and lost.
         let parent = self.tree.nodes[idx.get()].parent;
         if self.tree.nodes[idx.get()].ground.is_some() && !parent.is_none() {
-            let there = self.tree.offset_from(parent, idx, at).value;
-            return self.take_reaction(parent, dp, there);
+            let there = self.tree.offset_from(parent, idx, Vec3::ZERO).value;
+            return self.take_wrench(parent, dp, dl + there.cross(dp));
         }
         let (takers, mass): (Vec<(usize, f64, Vec3)>, f64) = {
             let n = &self.tree.nodes[idx.get()];
@@ -6388,7 +6520,7 @@ impl World {
                     }
                 }
             }
-            let turn = inertia.solve((at - centre).cross(dp)).unwrap_or(Vec3::ZERO);
+            let turn = inertia.solve(dl - centre.cross(dp)).unwrap_or(Vec3::ZERO);
             let mut gained = 0.0;
             for (s, _, pos) in takers {
                 let b = &mut self.tree.nodes[idx.get()].bodies[s];
@@ -6402,8 +6534,138 @@ impl World {
         let m = n.matter.mass.max(1e-300);
         let before = 0.5 * n.matter.momentum.norm2() / m;
         n.matter.momentum += dp;
-        n.matter.spin += at.cross(dp);
+        n.matter.spin += dl;
         0.5 * n.matter.momentum.norm2() / m - before
+    }
+
+    /// What a node's contents carry: its free bodies' momentum and its
+    /// children's bulk motion, kg m/s.
+    fn contents_momentum(&self, idx: NodeIdx) -> Vec3 {
+        let n = &self.tree.nodes[idx.get()];
+        (0..n.bodies.len())
+            .map(|s| match n.child_of(s) {
+                c if c.is_none() => n.bodies[s].momentum(),
+                c => {
+                    let m = &self.tree.nodes[c.get()];
+                    m.motion.velocity.scale(m.matter.mass)
+                }
+            })
+            .fold(Vec3::ZERO, |a, p| a + p)
+    }
+
+    /// The sea a node's water is drawn out of: the nearest ancestor that
+    /// describes an ocean, and that ocean's level, current and wave train in
+    /// the cell over the node, turned into root-aligned axes.
+    fn sea_around(&self, idx: NodeIdx) -> Option<SeaAround> {
+        let anc = self.describing(idx)?;
+        if anc == idx {
+            return None;
+        }
+        let ocean = self.tree.nodes[anc.get()].ocean.as_ref()?;
+        let centre = self.tree.offset_at(anc, idx, self.tree.nodes[idx.get()].time);
+        let facing = self.tree.facing(anc);
+        let cell = ocean.cell_of(facing.conjugate().rotate(centre).unit());
+        let c = ocean.cells[cell];
+        let train = crate::ocean::Train::of(
+            ocean.wave_height(cell),
+            facing.rotate(c.heading),
+            ocean.depth,
+            ocean.g,
+            ocean.tension,
+            ocean.density,
+        );
+        let sea = crate::ocean::Sea {
+            up: centre.unit(),
+            level: c.eta,
+            current: facing.rotate(c.velocity),
+            train,
+            density: ocean.density,
+            g: ocean.g,
+        };
+        Some(SeaAround { sea, anc, centre, height: centre.norm() - ocean.radius })
+    }
+
+    /// Book what crossed a node's open edge in one solve against the body
+    /// that describes its sea (`open_edge`), so the world's totals do not
+    /// move.
+    ///
+    /// **Every node between them holds the water that arrived**, as `place`
+    /// has it: its mass, its share of the centre of mass, and its mixture's
+    /// liquid. **The describing body's own contents give it up**, keeping
+    /// their momentum, and take the reaction to everything the water gained —
+    /// the sea's push along the edge and the motion of each parcel that came
+    /// in or went out — as one impulse and one angular impulse. What that
+    /// leaves in the energy is their heat, as the ground's reaction books it.
+    /// Measured as the world's books compose a child's motion into its
+    /// parent's (`Tree::in_parents_frame`): each level at its parent's
+    /// instant.
+    fn cross_edge(&mut self, idx: NodeIdx, anc: NodeIdx, crossed: &Crossed) {
+        if crossed.left.is_empty() && crossed.arrived.is_empty() && crossed.exchange == crate::solvers::hydro::Exchange::default() {
+            return;
+        }
+        let mut chain = Vec::new();
+        let (mut centre, mut moving) = (Vec3::ZERO, Vec3::ZERO);
+        let mut at = idx;
+        while at != anc && !at.is_none() {
+            let parent = self.tree.nodes[at.get()].parent;
+            let instant = self.tree.nodes[parent.get()].time;
+            // Where the node is within this level, before this level's own
+            // place is added: the offset its water has from this level's
+            // centre is the water's own place plus this.
+            chain.push((at, centre));
+            centre += self.tree.position_at(at, instant);
+            moving += self.tree.velocity_at(at, instant);
+            at = parent;
+        }
+        let ex = crossed.exchange;
+        let mut dp = Vec3::ZERO - ex.impulse;
+        let mut dl = Vec3::ZERO - (ex.moment + centre.cross(ex.impulse));
+        let mut energy = ex.energy;
+        let (mut dm, mut first) = (0.0, Vec3::ZERO);
+        let signed = crossed.arrived.iter().map(|b| (b, 1.0)).chain(crossed.left.iter().map(|b| (b, -1.0)));
+        for (b, sign) in signed {
+            let v = moving + b.vel;
+            let p = v.scale(b.mass * sign);
+            dm += sign * b.mass;
+            first += b.pos.scale(sign * b.mass);
+            dp -= p;
+            dl -= (centre + b.pos).cross(p);
+            energy += sign * (0.5 * b.mass * v.norm2() + b.internal_energy);
+        }
+        if dm != 0.0 {
+            for &(node, offset) in &chain {
+                let n = &mut self.tree.nodes[node.get()];
+                let mass = n.matter.mass;
+                let total = mass + dm;
+                if !(total > 0.0) {
+                    continue;
+                }
+                n.matter.com = (n.matter.com.scale(mass) + first + offset.scale(dm)).scale(1.0 / total);
+                let liquid = n.matter.mixture.in_phase(crate::chem::Phase::Liquid);
+                for p in n.matter.mixture.entries_mut() {
+                    let share = if p.phase == crate::chem::Phase::Liquid && liquid > 0.0 { dm * p.fraction / liquid } else { 0.0 };
+                    p.fraction = (p.fraction * mass + share) / total;
+                }
+                n.matter.mass = total;
+            }
+            // The describing body's contents give the water up, each by its
+            // share of their mass, keeping its momentum.
+            let n = &mut self.tree.nodes[anc.get()];
+            let free: Vec<usize> = (0..n.bodies.len()).filter(|&s| n.child_of(s).is_none() && n.bodies[s].mass > 0.0).collect();
+            let mass: f64 = free.iter().map(|&s| n.bodies[s].mass).sum();
+            if mass > 0.0 {
+                for &s in &free {
+                    let b = &mut n.bodies[s];
+                    let kept = b.mass - dm * b.mass / mass;
+                    let before = 0.5 * b.mass * b.vel.norm2();
+                    b.vel = b.vel.scale(b.mass / kept);
+                    b.mass = kept;
+                    energy += 0.5 * b.mass * b.vel.norm2() - before;
+                }
+            }
+        }
+        let taken = self.take_wrench(anc, dp, dl);
+        self.add_heat_to(anc, -(energy + taken));
     }
 
     /// Heat into a node's own contents, J: its free bodies by mass where it is

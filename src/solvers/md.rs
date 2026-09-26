@@ -198,6 +198,7 @@ pub fn step(
         before,
         after,
         non_mechanical_energy: thermostat_energy,
+        outside: after.momentum - before.momentum,
         unrest: 0.0,
     }
 }
@@ -1275,6 +1276,7 @@ pub fn step_bonded(
         before,
         after,
         non_mechanical_energy: 0.0,
+        outside: after.momentum - before.momentum,
         unrest: 0.0,
     }
 }

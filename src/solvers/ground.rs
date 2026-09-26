@@ -521,7 +521,7 @@ pub fn step(bodies: &mut [Body], dt: f64, ground: &Ground) -> SolveReport {
         unrest = unrest.max(a.norm());
     }
     let after = crate::solvers::measure(bodies, 0.0);
-    SolveReport { steps: 1, interactions: 0, dt_used: dt, before, after, non_mechanical_energy: 0.0, unrest }
+    SolveReport { steps: 1, interactions: 0, dt_used: dt, before, after, non_mechanical_energy: 0.0, outside: after.momentum - before.momentum, unrest }
 }
 
 /// The longest step the ground is stable at, s: a fraction of the fastest

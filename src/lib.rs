@@ -60,6 +60,7 @@ pub mod morph;
 pub mod neighbourhood;
 pub mod observe;
 pub mod ocean;
+pub mod open_edge;
 pub mod persist;
 pub mod sampler;
 pub mod shape;

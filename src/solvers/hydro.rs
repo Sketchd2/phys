@@ -175,6 +175,101 @@ impl Wall {
     }
 }
 
+/// The share of a kernel at `p` that lies inside the walls: what a wall
+/// stands in place of in a density sum.
+///
+/// **One plane, exactly; anything more, by integrating over the solid.** A
+/// single face within reach is a plane to the kernel and `beyond_plane` is
+/// its closed form. Where more than one face is near, adding a plane for each
+/// counts every one of them as reaching away to infinity, and a step two
+/// centimetres high in a floor of generated ground was priced as a whole wall:
+/// measured, 5500 m/s^2 on a parcel standing in a dip. So the kernel is
+/// integrated over the union itself, on `kernel_points`.
+fn inside_walls(walls: &[Wall], p: Vec3, i: usize, h: f64, points: &[(Vec3, f64)]) -> f64 {
+    let near = facing(walls, p, i, 2.0 * h);
+    // A wall that moves with a body is that body's own surface, and is the
+    // plane it always was: a thing floating in water is held up by exactly
+    // what this gives it, and `one_ball_floats_half_under` is measured on it.
+    let moving: f64 = near.iter().filter(|(k, _, _)| walls[*k].owner.is_some()).map(|(_, d, _)| beyond_plane(*d, h)).sum();
+    let fixed: Vec<&(usize, f64, Vec3)> = near.iter().filter(|(k, _, _)| walls[*k].owner.is_none()).collect();
+    moving
+        + match fixed.len() {
+            0 => 0.0,
+            1 => beyond_plane(fixed[0].1, h),
+            _ => {
+                let close: Vec<&Wall> = walls
+                    .iter()
+                    .filter(|w| w.owner.is_none() && (p - w.centre).norm() <= w.reach() + 2.0 * h)
+                    .collect();
+                points
+                    .iter()
+                    .filter(|(q, _)| close.iter().any(|w| w.distance(p + *q).0 < 0.0))
+                    .map(|(_, wt)| *wt)
+                    .sum()
+            }
+        }
+}
+
+/// A kernel's support as points on a cubic lattice at a quarter of its
+/// radius, each weighted by the kernel there, normalised so that the weights
+/// sum to one — the kernel's own integral.
+fn kernel_points(h: f64) -> Vec<(Vec3, f64)> {
+    let step = 0.5 * h;
+    let n = 4i32;
+    let mut out = Vec::new();
+    for x in -n..=n {
+        for y in -n..=n {
+            for z in -n..=n {
+                let q = crate::math::v3(x as f64, y as f64, z as f64).scale(step);
+                let w = kernel(q.norm(), h);
+                if w > 0.0 {
+                    out.push((q, w));
+                }
+            }
+        }
+    }
+    let total: f64 = out.iter().map(|p| p.1).sum();
+    out.into_iter().map(|(q, w)| (q, w / total)).collect()
+}
+
+/// The walls a body at `p` is within `reach` of, one per way the solid
+/// faces it: `(wall, distance, outward normal)`, nearest first.
+///
+/// **A kernel sees each face of the solid once**, however many walls the
+/// solid is built of. A floor of generated ground is thousands of columns a
+/// few centimetres across, and a parcel standing on it is within reach of
+/// twenty of them, every one facing it the same way; counted wall by wall,
+/// that is twenty floors' worth of missing kernel in its density and twenty
+/// springs under it. Measured over a patch of ground with water on it: a
+/// density several times rest, which Tait prices at 10^8 Pa, and a parcel
+/// flung at 1.2x10^5 m/s in the first substep. A wall that faces the body
+/// within 45 degrees of a nearer one is the same face of the union and is
+/// left out; a bucket's floor and its side, at right angles, are two faces
+/// and are both counted, as they always were. A wall that moves with a body
+/// is that body's own surface and always counts, so every push it gives
+/// still comes back to it.
+fn facing(walls: &[Wall], p: Vec3, i: usize, reach: f64) -> Vec<(usize, f64, Vec3)> {
+    let mut near: Vec<(usize, f64, Vec3)> = walls
+        .iter()
+        .enumerate()
+        .filter(|(_, w)| w.owner != Some(i as u32) && (p - w.centre).norm() <= w.reach() + reach)
+        .map(|(k, w)| {
+            let (d, n) = w.distance(p);
+            (k, d, n)
+        })
+        .filter(|(_, d, _)| *d < reach)
+        .collect();
+    near.sort_by(|a, b| a.1.total_cmp(&b.1).then(a.0.cmp(&b.0)));
+    let mut kept: Vec<(usize, f64, Vec3)> = Vec::with_capacity(near.len().min(6));
+    for (k, d, n) in near {
+        let moving = walls[k].owner.is_some();
+        if moving || !kept.iter().any(|&(j, _, m)| walls[j].owner.is_none() && m.dot(n) > std::f64::consts::FRAC_1_SQRT_2) {
+            kept.push((k, d, n));
+        }
+    }
+    kept
+}
+
 /// The fraction of the kernel's mass that lies beyond a plane `d` from its
 /// centre: `integral_{z > d} W dV`, for the cubic spline, as a function of
 /// `d / h` alone.
@@ -360,16 +455,68 @@ pub fn step_with(
     eos: &[Eos],
     walls: &[Wall],
 ) -> SolveReport {
+    step_open(bodies, dt, params, eos, walls, None).0
+}
+
+/// Water beyond a region's open edge, in the node's frame: parcels of the sea
+/// that describes the region, where the sea puts them and moving as it moves,
+/// at the pressure it has there.
+///
+/// **The region's parcels feel them as neighbours and they feel nothing
+/// back.** A parcel at the edge of a region drawn out of an ocean has water on
+/// every side, and the part of its kernel beyond the edge is the ocean's; left
+/// empty, the edge is a free surface standing on its side, and the water
+/// pours out of it. The ocean is far larger than anything the region can do to
+/// it, so what the region pushes on it does not move it: the push is handed,
+/// whole, to the body that describes the ocean — see [`Exchange`].
+#[derive(Debug, Clone, Copy)]
+pub struct Ghosts<'a> {
+    pub bodies: &'a [Body],
+    /// Gauge pressure of each, Pa: the sea's own, not a density sum's.
+    pub pressure: &'a [f64],
+    /// The density that pressure is carried at, kg/m^3.
+    pub density: &'a [f64],
+}
+
+/// What the sea beyond an open edge did to the region's parcels in one step:
+/// the impulse it gave them, its moment about the node's centre, and the
+/// energy — motion and heat — they took up from it. The sea's side of each is
+/// equal and opposite, and is its describing body's to take.
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+pub struct Exchange {
+    pub impulse: Vec3,
+    pub moment: Vec3,
+    pub energy: f64,
+}
+
+/// [`step_with`], with the sea beyond an open edge: see [`Ghosts`].
+///
+/// A body with no mass is a slot that water has left (`World::advance_node`),
+/// and takes no part.
+pub fn step_open(
+    bodies: &mut [Body],
+    dt: f64,
+    params: HydroParams,
+    eos: &[Eos],
+    walls: &[Wall],
+    ghosts: Option<Ghosts>,
+) -> (SolveReport, Exchange) {
     let before = crate::solvers::measure(bodies, 0.0);
     let n = bodies.len();
     if n == 0 || dt == 0.0 {
-        return SolveReport {
-            before,
-            after: before,
-            dt_used: dt,
-            ..Default::default()
-        };
+        return (
+            SolveReport {
+                before,
+                after: before,
+                dt_used: dt,
+                ..Default::default()
+            },
+            Exchange::default(),
+        );
     }
+    let absent: Vec<bool> = bodies.iter().map(|b| !(b.mass > 0.0)).collect();
+    let sea = ghosts.filter(|g| !g.bodies.is_empty());
+    let sea_grid = sea.map(|g| NeighbourGrid::build(g.bodies, 2.0 * params.h));
 
     // A body that is a wall is taken out of the pairwise sums: the fluid meets
     // it as a surface, not as a kernel's worth of its mass. See `Wall`.
@@ -393,6 +540,9 @@ pub fn step_with(
         let mut out = vec![0.0; n];
         let mut nb = Vec::with_capacity(128);
         for (i, b) in bodies.iter().enumerate() {
+            if absent[i] {
+                continue;
+            }
             grid.neighbours(b.pos, &mut nb);
             out[i] = nb
                 .iter()
@@ -400,6 +550,15 @@ pub fn step_with(
                 .filter(|&j| condensed[j] == condensed[i] && !is_wall[j])
                 .map(|j| bodies[j].mass * kernel((b.pos - bodies[j].pos).norm(), params.h))
                 .sum();
+            // The sea beyond the edge is condensed water too.
+            if let (true, Some(g), Some(sg)) = (condensed[i], sea, sea_grid.as_ref()) {
+                sg.neighbours(b.pos, &mut nb);
+                out[i] += nb
+                    .iter()
+                    .map(|&k| &g.bodies[k as usize])
+                    .map(|o| o.mass * kernel((b.pos - o.pos).norm(), params.h))
+                    .sum::<f64>();
+            }
         }
         out
     } else {
@@ -411,7 +570,11 @@ pub fn step_with(
     // Every parcel of one liquid shares a spacing, so the lattice sum is
     // worked out once per spacing rather than once per parcel per substep.
     let mut sums: Vec<(u64, f64)> = Vec::new();
+    let points = if walls.len() > 1 { kernel_points(params.h) } else { Vec::new() };
     for i in 0..n {
+        if absent[i] {
+            continue;
+        }
         if let Eos::Condensed(c) = eos_at(eos, i) {
             let spacing = (bodies[i].mass / c.rest_density).cbrt();
             let bits = spacing.to_bits();
@@ -424,13 +587,7 @@ pub fn step_with(
                 }
             };
             rho[i] /= sum;
-            for w in walls.iter() {
-                if w.owner == Some(i as u32) || (bodies[i].pos - w.centre).norm() > w.reach() + 2.0 * params.h {
-                    continue;
-                }
-                let (d, _) = w.distance(bodies[i].pos);
-                rho[i] += c.rest_density * beyond_plane(d, params.h);
-            }
+            rho[i] += c.rest_density * inside_walls(&walls, bodies[i].pos, i, params.h, &points);
         }
     }
     let mut pressure = vec![0.0; n];
@@ -449,15 +606,56 @@ pub fn step_with(
     let mut nb = Vec::with_capacity(128);
     let mut interactions = 0u64;
 
+    // What the sea gave each body, as an acceleration and as heating: kept
+    // apart so the exchange can be told from what the parcels did to each
+    // other.
+    let mut from_sea = vec![Vec3::ZERO; if sea.is_some() { n } else { 0 }];
+    let mut heat_from_sea = vec![0.0; if sea.is_some() { n } else { 0 }];
     for i in 0..n {
         grid.neighbours(bodies[i].pos, &mut nb);
         let bi = bodies[i];
-        if rho[i] <= 0.0 || is_wall[i] {
+        if rho[i] <= 0.0 || is_wall[i] || absent[i] {
             continue;
+        }
+        if let (Some(g), Some(sg)) = (sea, sea_grid.as_ref()) {
+            let mut near = Vec::new();
+            sg.neighbours(bi.pos, &mut near);
+            for &k in near.iter() {
+                let k = k as usize;
+                let o = &g.bodies[k];
+                let (po, ro) = (g.pressure[k], g.density[k]);
+                let d = bi.pos - o.pos;
+                let r = d.norm();
+                if r <= 0.0 || r >= 2.0 * params.h || !(ro > 0.0) {
+                    continue;
+                }
+                let grad = kernel_grad(r, params.h);
+                let dir = d.scale(1.0 / r);
+                let term = pressure[i] / (rho[i] * rho[i]) + po / (ro * ro);
+                let v_ij = bi.vel - o.vel;
+                let vr = v_ij.dot(d);
+                let visc = if vr < 0.0 {
+                    let h = params.h;
+                    let mu_ij = h * vr / (r * r + 0.01 * h * h);
+                    let rho_bar = 0.5 * (rho[i] + ro);
+                    (-params.alpha * cs[i] * mu_ij + params.beta * mu_ij * mu_ij) / rho_bar
+                } else {
+                    0.0
+                };
+                let f = o.mass * (term + visc) * grad;
+                acc[i] += dir.scale(-f);
+                from_sea[i] += dir.scale(-f);
+                let mut heat = 0.5 * o.mass * visc * grad * v_ij.dot(dir);
+                if matches!(eos_at(eos, i), Eos::Condensed(_)) {
+                    heat += pressure[i] / (rho[i] * rho[i]) * o.mass * grad * v_ij.dot(dir);
+                }
+                heat_from_sea[i] += heat;
+                interactions += 1;
+            }
         }
         for &jj in nb.iter() {
             let j = jj as usize;
-            if j == i || rho[j] <= 0.0 || is_wall[j] {
+            if j == i || rho[j] <= 0.0 || is_wall[j] || absent[j] {
                 continue;
             }
             let bj = bodies[j];
@@ -504,17 +702,20 @@ pub fn step_with(
     // wall that moves with a body, from that body, which takes the reaction.
     let gap = 0.5 * params.h / 1.3;
     let mut pushed = vec![Vec3::ZERO; n];
+    // The dashpot's share, kept apart: its work is heat, booked in `du`, but
+    // the momentum it takes is still from outside.
+    let mut damped = vec![Vec3::ZERO; n];
     for i in 0..n {
+        if absent[i] {
+            continue;
+        }
         acc[i] += params.gravity;
         if walls.is_empty() || is_wall[i] {
             continue;
         }
         let p = bodies[i].pos;
-        for w in walls.iter() {
-            if w.owner == Some(i as u32) || (p - w.centre).norm() > w.reach() + gap {
-                continue;
-            }
-            let (d, normal) = w.distance(p);
+        for (k, d, normal) in facing(&walls, p, i, gap) {
+            let w = &walls[k];
             if d < gap {
                 let c = cs[i].max(1e-30);
                 let spring = normal.scale(c * c * (gap - d) / (gap * gap));
@@ -533,6 +734,7 @@ pub fn step_with(
                 acc[i] += spring + damp;
                 if w.owner.is_none() {
                     pushed[i] += spring;
+                    damped[i] += damp;
                 }
                 du[i] += (c / gap) * vn * vn;
                 if let Some(o) = w.owner {
@@ -547,8 +749,19 @@ pub fn step_with(
 
     let mut radiated = 0.0;
     let mut external = 0.0;
+    let mut exchange = Exchange::default();
+    let mut impulse = Vec3::ZERO;
     for i in 0..n {
+        if absent[i] {
+            continue;
+        }
         let b = &mut bodies[i];
+        // What the sea gave it, before it moves: the push acts along the line
+        // to each parcel of the sea, so its moment about the node's centre is
+        // the sea's reaction's, reversed.
+        let sea_push = from_sea.get(i).map(|a| a.scale(b.mass * dt)).unwrap_or(Vec3::ZERO);
+        exchange.impulse += sea_push;
+        exchange.moment += b.pos.cross(sea_push);
         // Work done from outside: the field and the walls, less the pairwise
         // part, which is internal and conserves. Measured on the velocity the
         // step actually moves the body with.
@@ -559,6 +772,8 @@ pub fn step_with(
         let outside = params.gravity + pushed[i];
         b.vel += acc[i].scale(dt);
         external += b.mass * outside.dot(b.vel) * dt;
+        impulse += (outside + damped[i]).scale(b.mass * dt);
+        exchange.energy += sea_push.dot(b.vel) + heat_from_sea.get(i).copied().unwrap_or(0.0) * dt * b.mass;
         b.pos += b.vel.scale(dt);
         let heat = du[i] * dt * b.mass;
         b.internal_energy += heat + dw[i] * dt * b.mass;
@@ -581,18 +796,20 @@ pub fn step_with(
     }
 
     let after = crate::solvers::measure(bodies, 0.0);
-    SolveReport {
+    let report = SolveReport {
         steps: 1,
         interactions,
         dt_used: dt,
         before,
         after,
         non_mechanical_energy: external - radiated,
+        outside: impulse,
         // Including anything that is a wall: a ball put in water is out of
         // balance until the water holds it, and that is precisely the thing a
         // cadence has to see.
         unrest: (0..n).map(|i| acc[i].norm()).fold(0.0, f64::max),
-    }
+    };
+    (report, exchange)
 }
 
 /// Optically-thin cooling rate in W/m^3.

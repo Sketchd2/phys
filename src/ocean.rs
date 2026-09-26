@@ -390,6 +390,67 @@ impl Train {
         let across = (self.heading - up.scale(self.heading.dot(up))).unit();
         across.scale(self.amplitude * self.omega * along * theta.cos()) + up.scale(self.amplitude * self.omega * vertical * theta.sin())
     }
+
+    /// The pressure the wave adds to the still water's at `x`, `z` above the
+    /// still level, Pa — linear theory's `rho g a cosh k(z+d) / cosh kd
+    /// cos(theta)`, which is the surface's own weight at the surface and dies
+    /// away with depth as the motion does.
+    pub fn pressure(&self, x: Vec3, z: f64, t: f64) -> f64 {
+        let kd = self.k * self.depth;
+        let ratio = if kd > 20.0 {
+            (self.k * z.min(0.0)).exp()
+        } else {
+            (self.k * (z + self.depth).max(0.0)).cosh() / kd.cosh()
+        };
+        self.density * self.g * self.amplitude * ratio * self.phase(x, t).cos()
+    }
+}
+
+/// The sea at one place, as a region small beside the ocean's cells meets it:
+/// the ocean's level and current there, and the one wave its sea is
+/// (`Train`), carried into the water that place stands in.
+///
+/// Heights are above the ocean's mean surface, and `x` is from the planet's
+/// centre, all in one set of axes — whichever the caller turned `up`,
+/// `current` and the train's heading into.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Sea {
+    /// The local vertical, unit.
+    pub up: Vec3,
+    /// How far the ocean's surface stands above its mean there: the tide.
+    pub level: f64,
+    /// The ocean's depth-averaged current there, m/s.
+    pub current: Vec3,
+    /// The sea on it, if there is one, in the ocean's own depth.
+    pub train: Option<Train>,
+    pub density: f64,
+    pub g: f64,
+}
+
+impl Sea {
+    /// The train in water `depth` deep, if there is a train and water.
+    pub fn train_in(&self, depth: f64) -> Option<Train> {
+        self.train.and_then(|t| t.in_depth(depth))
+    }
+
+    /// The surface's height above the ocean's mean, m, where the train in
+    /// that depth of water puts it.
+    pub fn surface(&self, train: Option<&Train>, x: Vec3, t: f64) -> f64 {
+        self.level + train.map(|w| w.surface(x, t)).unwrap_or(0.0)
+    }
+
+    /// The water's velocity at `x`, `z` above the ocean's mean.
+    pub fn velocity(&self, train: Option<&Train>, x: Vec3, z: f64, t: f64) -> Vec3 {
+        self.current + train.map(|w| w.velocity(x, z - self.level, self.up, t)).unwrap_or(Vec3::ZERO)
+    }
+
+    /// The water's pressure at `x`, `z` above the ocean's mean, Pa, gauge:
+    /// the still water's weight above it and the wave's share. Never below
+    /// zero, which is what a free surface is.
+    pub fn pressure(&self, train: Option<&Train>, x: Vec3, z: f64, t: f64) -> f64 {
+        let still = self.density * self.g * (self.level - z);
+        (still + train.map(|w| w.pressure(x, z - self.level, t)).unwrap_or(0.0)).max(0.0)
+    }
 }
 
 /// The exact tidal potential at `x` of a mass `m` at `r`, both from the

@@ -3113,6 +3113,40 @@ for a day, slips over its ground at 2.4e-3 m/s at worst, and the world's
 angular momentum moves 1.3e-8 and its momentum 1.8e-4 of the air's.
 `FORMAT_VERSION` is 23, for the patch layout.
 
+*Decided by the owner — what crosses between the coarse ocean and water drawn
+as parcels is one derived wave train.* The ocean holds its sea as an energy
+and a heading, so what a patch of shore meets at its edge is the one wave that
+state says (`ocean::Train`): height `H_s / sqrt 2`, which carries the sea's
+energy exactly; length from the ocean's limiting steepness; period from the
+gravity-capillary dispersion relation; Airy's kinematics; shoaling by energy
+flux to McCowan's limit. The edge itself (`open_edge`) is where the region's
+floor ends, measured off the floor, and three things cross it: the sea's push,
+as parcels of the sea beyond the edge that the region's parcels feel and that
+feel nothing back (`hydro::Ghosts`); water leaving, over a column the floor does
+not cover; and water arriving, at an empty site just inside the edge under the
+sea's surface. Building it found two older defects in how water meets a
+floor, both fixed with their measurements: a floor of generated ground is
+thousands of columns, and **each wall was counted as a whole plane** in a
+parcel's density and its spring — twenty floors' worth under a parcel on
+ground, a parcel flung at 1.2e5 m/s in the first substep, where now one face is
+counted once and more than one is integrated over the solid itself
+(`hydro::inside_walls`); and **a wall's dashpot took momentum nothing
+reported**, so the momentum a node's contents gain from outside is now in
+`SolveReport::outside`, and with the edge off a patch of shore's world
+momentum moves by exactly it, to 4e-5 kg m/s.
+
+*Decided by the owner — the ocean becomes a child node of its planet.* The
+edge's books would not close against the planet: an Earth's bodies are
+7.5e23 kg moving at km/s, so a 3 kg parcel and a 50 kg m/s push round to
+nothing in them — measured, the planet's free bodies took exactly zero of what
+crossed, and the world's books drifted by all of it. Asked, the owner chose a
+ledger on the condition that **the ocean is treated as a normal node: there
+are no objects other than nodes and bodies**, and then chose that the ocean
+becomes a child node of the planet — a shell whose `Matter` is the sea's
+water, with the cell grid as its description — so that water crossing into a
+patch of shore moves between two nodes like any other transfer, and the
+ledger is the ocean node's own matter.
+
 **Phase 6 — The program.** *Inserted by the owner during Phase 5.* The whole
 system simulated and watched on the owner's own PC as a native executable —
 the owner's requirement, on the grounds that a web renderer's overhead would
