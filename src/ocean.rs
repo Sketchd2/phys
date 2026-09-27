@@ -149,6 +149,19 @@ impl Account {
     }
 }
 
+/// A planet's atmosphere at the scale of the planet: the gas its own matter
+/// holds, standing on its sea where it has one and on its ground where it has
+/// not. Everything else about it — how much there is, what it is made of, how
+/// warm it is — is its node's matter, so this holds only where it stands.
+///
+/// **A node like any other**, the owner's decision for Phase 5: the planet's
+/// child, as its sea is (`World::assess_atmosphere`).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Atmosphere {
+    /// Radius of the surface it stands on, m, from the planet's centre.
+    pub base: f64,
+}
+
 /// Von Kármán's constant, the log-law's one number: the universal slope of a
 /// turbulent boundary layer's velocity against the logarithm of height. The
 /// owner's decision for this phase is that the wind's stress is the log-law's,

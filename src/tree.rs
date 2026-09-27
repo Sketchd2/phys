@@ -190,6 +190,9 @@ pub struct Node {
     /// `shallow.rs`. State, like the ocean: persisted, and never drawn as
     /// bodies.
     pub sheet: Option<Box<crate::shallow::Sheet>>,
+    /// The atmosphere this node is, if it is one: where it stands. See
+    /// `ocean::Atmosphere`.
+    pub atmosphere: Option<crate::ocean::Atmosphere>,
     /// The world instant this node's *motion* has been carried to, s.
     ///
     /// **Not the same clock as `time`**, which is how far the node's contents
@@ -317,6 +320,14 @@ impl Node {
     /// Measured on a materialised tree: 510 joints carry a radius and 90 do
     /// not, against a reported `structural_parts` of 510 — the same split, from
     /// the half that survives a round trip.
+    /// Whether this node's contents are a description of the fluid it is —
+    /// a sea's grid, an atmosphere's profile, a sheet's columns — rather than
+    /// a drawing: it is never drawn as bodies, and its parent's solve leaves
+    /// it out. Not a kind of node: any node may carry one.
+    pub fn carries_fluid(&self) -> bool {
+        self.ocean.is_some() || self.sheet.is_some() || self.atmosphere.is_some()
+    }
+
     pub fn structural_mask(&self) -> Option<Vec<bool>> {
         let t = self.topology.as_ref()?;
         let mut any = false;
@@ -560,6 +571,7 @@ impl Tree {
             unrest: 0.0,
             ocean: None,
             sheet: None,
+            atmosphere: None,
             carried: 0.0,
             turning: Vec3::ZERO,
             ground: None,
@@ -657,7 +669,7 @@ impl Tree {
         // of water parcels the size of a planet, which it is not; where water
         // is wanted at a finer scale, it is a sheet over a patch of shore
         // (`shallow.rs`), which is a description the same way.
-        if self.nodes[i.get()].is_materialised() || self.nodes[i.get()].ocean.is_some() || self.nodes[i.get()].sheet.is_some() {
+        if self.nodes[i.get()].is_materialised() || self.nodes[i.get()].carries_fluid() {
             return &self.nodes[i.get()].bodies;
         }
         let key = self.nodes[i.get()].key;
@@ -713,14 +725,14 @@ impl Tree {
     }
 
     /// The children of a node that are the fluid over what it holds — its
-    /// sea, or its sheet of water — with their slots.
+    /// sea, its atmosphere, its sheet of water — with their slots.
     fn fluids(&self, i: NodeIdx) -> Vec<(usize, NodeIdx)> {
         self.nodes[i.get()]
             .children
             .iter()
             .enumerate()
             .filter(|(_, c)| {
-                !c.is_none() && self.nodes[c.get()].alive && (self.nodes[c.get()].ocean.is_some() || self.nodes[c.get()].sheet.is_some())
+                !c.is_none() && self.nodes[c.get()].alive && self.nodes[c.get()].carries_fluid()
             })
             .map(|(s, c)| (s, *c))
             .collect()
@@ -1070,6 +1082,7 @@ impl Tree {
             unrest: 0.0,
             ocean: None,
             sheet: None,
+            atmosphere: None,
             carried: self.nodes[i.get()].time,
             turning: Vec3::ZERO,
             ground: None,
@@ -2452,8 +2465,8 @@ impl Tree {
             &n.children,
             resolution,
             n.epoch,
-            // A sea or a sheet of water is a description of the fluid over
-            // what the node holds, not a solid among it, and its slot is left
+            // A sea, an atmosphere or a sheet of water is a description of the
+            // fluid over what the node holds, not a solid among it, and its slot is left
             // out of the index: as the sphere its stand-in is, a sheet as wide
             // as its patch made the index's cells the patch's size, and
             // finding the neighbours among a patch of ground's 2500 columns
@@ -2461,7 +2474,7 @@ impl Tree {
             |c| {
                 let child = self.nodes.get(c.get())?;
                 // Where it is at this node's instant: see `Node::carried`.
-                (child.alive && child.ocean.is_none() && child.sheet.is_none())
+                (child.alive && !child.carries_fluid())
                     .then(|| (self.position_at(c, n.time), child.matter.radius))
             },
         )
@@ -3025,6 +3038,7 @@ impl Tree {
             unrest: 0.0,
             ocean: None,
             sheet: None,
+            atmosphere: None,
             carried: time,
             turning: Vec3::ZERO,
             ground: None,

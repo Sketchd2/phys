@@ -196,3 +196,4 @@ fn waves_flow_through_a_channel_carved_in_the_sand() {
     assert!((carved.period / carved.train - 1.0).abs() < 0.02, "the channel's water does not move with the waves");
     assert!(carved.computing < carved.world, "not in real time: {:.3} s for {:.2} s", carved.computing, carved.world);
 }
+

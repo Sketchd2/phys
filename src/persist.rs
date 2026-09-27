@@ -1146,6 +1146,14 @@ pub(crate) fn put_node_payload(w: &mut Writer, n: &Node) {
     }
     // The water over a patch of ground, which is state the same way.
     put_sheet(w, &n.sheet);
+    // And where an atmosphere stands.
+    match &n.atmosphere {
+        Some(a) => {
+            w.bool(true);
+            w.f64(a.base);
+        }
+        None => w.bool(false),
+    }
 }
 
 fn put_sheet(w: &mut Writer, sheet: &Option<Box<crate::shallow::Sheet>>) {
@@ -1283,6 +1291,7 @@ pub(crate) fn get_node_payload(r: &mut Reader) -> Result<Node> {
         ground: None,
         ocean: get_ocean(r)?,
         sheet: get_sheet(r)?,
+        atmosphere: if r.bool()? { Some(crate::ocean::Atmosphere { base: r.f64()? }) } else { None },
         // Derived from the node's own contents, and regenerated on first use.
         // Storing it would be storing a derived value — the same reason
         // `last_report` is not written.

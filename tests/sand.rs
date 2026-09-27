@@ -119,3 +119,76 @@ fn a_squiggle_in_drowned_sand_goes_and_one_in_granite_stays() {
     assert!(on_sand > 0.0 && std::f64::consts::LN_2 / on_sand < 6.0 * 3600.0, "gone well inside a tide");
     assert_eq!(on_rock, 0.0, "and the rock is not touched");
 }
+
+/// A 5 cm cut, 5 cm across at half its depth, into the middle of a patch of
+/// ground; what the field holds afterwards, the steepest its surface is across
+/// the cut, and the depth it reaches.
+fn cut_into(w: &mut World, patch: NodeIdx) -> (Vec<phys::erode::Deviation>, f64, f64) {
+    let (half, density) = match w.tree.nodes[patch.get()].morphology.as_ref().and_then(|m| m.recipe.as_ref()) {
+        Some(phys::recipe::Recipe::Tiled(t)) => (0.5 * t.side, t.density),
+        _ => panic!("ground is tiled"),
+    };
+    let span = 0.05 / (2.0 * std::f64::consts::LN_2.sqrt());
+    let mark = phys::erode::Deviation::cut(0.0, 0.0, span, -0.05, 0.0);
+    let moved = density * mark.volume().abs();
+    w.interact(phys::observe::Interaction::Mark { target: patch, deviation: phys::erode::Deviation { moved, ..mark } });
+    let field = w.tree.nodes[patch.get()].morphology.as_ref().unwrap().field.clone();
+    let height = |x: f64| field.iter().map(|d| d.height_at(x / half, 0.0, half)).sum::<f64>();
+    let (mut steepest, mut deepest) = (0.0f64, 0.0f64);
+    let step = 1e-4;
+    let mut x = -0.3;
+    while x < 0.3 {
+        steepest = steepest.max(((height(x + step) - height(x)) / step).abs());
+        deepest = deepest.max(-height(x));
+        x += step;
+    }
+    (field, steepest, deepest)
+}
+
+/// **Sand collapses where nothing holds it up** — the owner's requirement for
+/// Phase 5 — and stands where something does.
+///
+/// The same 5 cm cut in the same sand three times, differing only in the
+/// water its pores hold. Dry, nothing holds a face steeper than the grains
+/// rest at, and it slumps until its steepest wall is at the angle of repose,
+/// keeping what it holds; damp, the menisci between the grains hold it up to
+/// Rankine's `4 c / rho g`, far more than 5 cm, and it stands as cut; drowned,
+/// the pores are full, there are no menisci, and it slumps.
+#[test]
+fn a_cut_in_dry_or_drowned_sand_slumps_and_one_in_damp_sand_stands() {
+    let mut rows = Vec::new();
+    for (name, water) in [("dry", 0.0), ("damp", 20.0), ("drowned", 400.0)] {
+        let (mut w, patch) = ground(0x5A4F, water);
+        let (field, steepest, deepest) = cut_into(&mut w, patch);
+        let volume: f64 = field.iter().map(|d| d.amplitude * d.span * d.span).sum();
+        let density = w.material_of(patch).unwrap().density;
+        rows.push((name, steepest, deepest, volume, density));
+    }
+    // The angle its grains rest at, from its own packing: its bulk density
+    // over its grains'.
+    let grain = phys::eos::Condensed::solid(&substances::silica()).unwrap().rest_density;
+    let packing = (rows[0].4 / grain).clamp(1e-3, phys::erode::CLOSE_PACKING);
+    let repose = pocket_friction(packing);
+    let cut_volume = {
+        let span = 0.05 / (2.0 * std::f64::consts::LN_2.sqrt());
+        -0.05 * span * span
+    };
+    for (name, steepest, deepest, volume, density) in &rows {
+        println!(
+            "  {name:>7}: steepest {steepest:.4} ({:.2} deg), {deepest:.4} m deep, volume {:.6} of the cut's; the sand at {density:.0} kg/m^3",
+            steepest.atan().to_degrees(),
+            volume / cut_volume
+        );
+    }
+    println!("  the angle its grains rest at, packed at {packing:.4}: {repose:.4} ({:.2} deg)", repose.atan().to_degrees());
+    let (_, dry, dry_depth, dry_volume, _) = rows[0];
+    let (_, damp, damp_depth, _, _) = rows[1];
+    let (_, drowned, _, drowned_volume, _) = rows[2];
+    assert!((damp_depth - 0.05).abs() < 1e-9 && damp > 1.0, "damp sand did not hold the cut as it was made");
+    assert!(dry_depth < 0.05, "dry sand held a face it cannot");
+    // Measured on the field's own profile, which the slump reads at the marks'
+    // centres; a single mark's steepest wall is the one it widens to.
+    assert!((dry / repose - 1.0).abs() < 0.01, "dry sand did not come to rest at its angle of repose: {dry}");
+    assert!((drowned / repose - 1.0).abs() < 0.01, "drowned sand did not come to rest at its angle of repose: {drowned}");
+    assert!((dry_volume / cut_volume - 1.0).abs() < 1e-12 && (drowned_volume / cut_volume - 1.0).abs() < 1e-12, "a collapse made or lost sand");
+}

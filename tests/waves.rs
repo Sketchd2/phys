@@ -200,6 +200,7 @@ fn an_earth_with_wind(wind: f64, r: f64) -> (World, NodeIdx, NodeIdx) {
     // still to be decided once the air is over it.
     assert!(w.assess_surface(earth), "an Earth is a body its gravity has rounded");
     assert!(w.assess_ocean(earth), "an Earth with water on its ground has an ocean");
+    assert!(w.assess_atmosphere(earth), "and nitrogen over it, air");
     w.tree.refine(earth);
 
 

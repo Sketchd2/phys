@@ -3013,22 +3013,29 @@ impl World {
         let promoted = self.tree.sync_children(idx);
         // **A sea is a shell round its planet, and the planet's solve leaves
         // it out** — and a sheet of water over a patch of ground is the same
-        // to the patch: its own solver moves it (`World::flow_sheet`). A shell pulls nothing inside it and is pulled by nothing
-        // inside it, and it goes where its planet goes; solved as the point
+        // to the patch: its own solver moves it (`World::flow_sheet`); so is
+        // an atmosphere to its planet. A shell pulls nothing inside it and is
+        // pulled by nothing inside it, and it goes where its planet goes; solved as the point
         // mass its stand-in is, an Earth's sea at the centre of eight lumps
         // moving at 5 km/s was thrown 2.8e7 m out in 3467 frames and left its
         // planet. It weighs nothing in the solve, takes no kick from it, and
         // shares the pushes its planet's contents take (`take_wrench`), which
         // keeps it moving with them from where it was made: at their centre of
         // mass, at their velocity (`Tree::withdraw`).
-        let sea_slot = self.sea_of(idx).or_else(|| self.sheet_of(idx)).map(|s| self.tree.nodes[s.get()].slot as usize);
-        let sea_body = sea_slot.and_then(|k| self.tree.nodes[idx.get()].bodies.get(k).copied());
-        if let Some(k) = sea_slot {
-            if let Some(b) = self.tree.nodes[idx.get()].bodies.get_mut(k) {
-                b.mass = 0.0;
-            }
+        let fluid_slots: Vec<(usize, crate::state::Body)> = {
+            let n = &self.tree.nodes[idx.get()];
+            (0..n.bodies.len())
+                .filter(|&k| {
+                    let c = n.child_of(k);
+                    !c.is_none() && self.tree.nodes[c.get()].alive && self.tree.nodes[c.get()].carries_fluid()
+                })
+                .map(|k| (k, n.bodies[k]))
+                .collect()
+        };
+        for &(k, _) in &fluid_slots {
+            self.tree.nodes[idx.get()].bodies[k].mass = 0.0;
         }
-        let promoted: Vec<usize> = promoted.into_iter().filter(|k| Some(*k) != sea_slot).collect();
+        let promoted: Vec<usize> = promoted.into_iter().filter(|k| !fluid_slots.iter().any(|(f, _)| f == k)).collect();
         let before = self.tree.stand_in_velocities(idx, &promoted);
         // The fluid around each promoted child where it is now, before the
         // solve moves it: where it felt its pull is where it is pushed.
@@ -3514,7 +3521,7 @@ impl World {
             }
         }
 
-        if let (Some(k), Some(b)) = (sea_slot, sea_body) {
+        for &(k, b) in &fluid_slots {
             if let Some(slot) = self.tree.nodes[idx.get()].bodies.get_mut(k) {
                 *slot = b;
             }
@@ -5542,17 +5549,10 @@ impl World {
         }
         self.disturb(target);
         // **Ground somebody is standing on changes when it is marked**, not
-        // when it is next drawn: its members are drawn again from the rule
-        // with the mark in it (`Tree::redraw_members`), and the water over
-        // it, if any, lies on the ground as it now is.
-        self.tree.redraw_members(target);
-        if let (Some(sheet), Some(floor)) = (self.sheet_of(target), self.floor_of(target)) {
-            let returned = self.tree.nodes[sheet.get()].sheet.as_mut().map(|s| s.rebed(&floor)).unwrap_or(0.0);
-            if let Some((anc, _)) = self.sea_around(target) {
-                let water = self.tree.nodes[sheet.get()].matter.mixture;
-                self.lend(target, anc, &water, -returned, Vec3::ZERO, Vec3::ZERO, Vec3::ZERO);
-            }
-            self.settle_sheet(sheet);
+        // when it is next drawn — and loose ground that the mark left
+        // unsupported falls at once, which takes a fraction of a second.
+        if !self.slump(target) {
+            self.reground(target);
         }
         true
     }
@@ -5643,6 +5643,11 @@ impl World {
             }
             if dropped > 0 {
                 self.tree.stats.deviations_forgotten += dropped;
+                self.disturb(idx);
+            }
+            // What held a face up can go: the tide comes over damp sand and
+            // its menisci with it.
+            if self.slump(idx) {
                 self.disturb(idx);
             }
         }
@@ -5756,6 +5761,10 @@ impl World {
         n.matter.mixture = water;
         n.ocean = Some(Box::new(ocean));
         self.refresh_rest_density(sea);
+        // Air already over the ground stands on the sea now.
+        if let Some(air) = self.air_of(idx) {
+            self.tree.nodes[air.get()].atmosphere = Some(crate::ocean::Atmosphere { base: radius });
+        }
         true
     }
 
@@ -5875,8 +5884,14 @@ impl World {
             if !self.tree.nodes[i].alive || self.tree.nodes[i].tier != crate::units::Tier::Planetary {
                 continue;
             }
-            // A sea is stepped by its planet, which is what it is the sea of.
-            if self.tree.nodes[i].ocean.is_some() || !self.assess_ocean(idx) {
+            // A sea is stepped by its planet, which is what it is the sea of;
+            // and a planet with ground under it has its air, whether or not it
+            // has a sea.
+            if self.tree.nodes[i].carries_fluid() {
+                continue;
+            }
+            self.assess_atmosphere(idx);
+            if !self.assess_ocean(idx) {
                 continue;
             }
             let local = span * self.local_rate(idx);
@@ -5948,7 +5963,7 @@ impl World {
         }
         for c in under {
             let air = &self.tree.nodes[c.get()];
-            if air.ocean.is_some() || air.matter.mixture.is_empty() || air.matter.mixture.in_phase(crate::chem::Phase::Gas) < 0.5 {
+            if air.carries_fluid() || air.matter.mixture.is_empty() || air.matter.mixture.in_phase(crate::chem::Phase::Gas) < 0.5 {
                 continue;
             }
             let r = air.matter.radius;
@@ -6079,33 +6094,101 @@ impl World {
     /// water or a cloud, already pushes on what is in it through its solver,
     /// and a second account of the same pressure would double it.
     pub fn atmosphere_of(&self, idx: NodeIdx) -> Option<(f64, f64, f64)> {
-        let n = &self.tree.nodes[idx.get()];
-        let base = match (self.ocean_of(idx), n.morphology.as_ref().and_then(|m| m.recipe.as_ref())) {
-            (Some(o), _) => o.radius,
-            (None, Some(crate::recipe::Recipe::Tiled(t))) if t.is_ball() => t.sphere,
-            _ => return None,
-        };
-        let (mut gas, mut per_molecule) = (0.0, 0.0);
+        let air = self.air_of(idx)?;
+        let n = &self.tree.nodes[air.get()];
+        let base = n.atmosphere?.base;
+        let mut per_molecule = 0.0;
         for p in n.matter.mixture.entries() {
             if p.phase != crate::chem::Phase::Gas {
                 continue;
             }
             let Some(sub) = self.substances.get(p.substance) else { continue };
-            if !(sub.props.unit_mass > 0.0) {
-                continue;
+            if sub.props.unit_mass > 0.0 {
+                per_molecule += p.fraction / sub.props.unit_mass;
             }
-            gas += p.fraction;
-            per_molecule += p.fraction / sub.props.unit_mass;
         }
+        let gas = n.matter.mixture.in_phase(crate::chem::Phase::Gas);
         if !(gas > 0.0) || !(per_molecule > 0.0) || !(base > 0.0) {
             return None;
         }
         let molecule = gas / per_molecule;
-        let mass = gas * n.matter.mass;
-        let g = crate::units::G * n.matter.mass / (base * base);
+        let mass = n.matter.mass;
+        let g = crate::units::G * self.tree.nodes[idx.get()].matter.mass / (base * base);
         let height = crate::units::K_B * n.matter.temperature.max(1.0) / (molecule * g);
         let density = mass / (4.0 * std::f64::consts::PI * base * base * height);
         (height > 0.0 && density > 0.0).then_some((base, density, height))
+    }
+
+    /// The node that is a planet's atmosphere, if it has one: its child that
+    /// carries one.
+    pub fn air_of(&self, idx: NodeIdx) -> Option<NodeIdx> {
+        self.tree.nodes[idx.get()]
+            .children
+            .iter()
+            .copied()
+            .find(|c| !c.is_none() && self.tree.nodes[c.get()].alive && self.tree.nodes[c.get()].atmosphere.is_some())
+    }
+
+    /// Give a planet the atmosphere its own matter describes, if it describes
+    /// one and has none yet. Returns whether it has one afterwards.
+    ///
+    /// **A node like any other** — the owner's decision for Phase 5, as the
+    /// sea is (`World::assess_ocean`): the planet's gas taken out of its own
+    /// bodies, each by its share and with what that share carries
+    /// (`Tree::hold_out`), and held as a child node whose matter is the gas.
+    /// It stands on the sea where there is one and on the ground where there
+    /// is not, so it is asked for once the planet's ground has been written
+    /// down, as a sea is.
+    pub fn assess_atmosphere(&mut self, idx: NodeIdx) -> bool {
+        if idx.is_none() || !self.tree.nodes[idx.get()].alive {
+            return false;
+        }
+        if self.air_of(idx).is_some() {
+            return true;
+        }
+        if self.tree.nodes[idx.get()].carries_fluid() || self.tree.nodes[idx.get()].tier != crate::units::Tier::Planetary {
+            return false;
+        }
+        // Where it stands: the sea, or the ground of a body its own gravity
+        // has rounded. A piece of a planet has its planet's air.
+        let ground = match self.tree.nodes[idx.get()].morphology.as_ref().and_then(|m| m.recipe.as_ref()) {
+            Some(crate::recipe::Recipe::Tiled(t)) if t.is_ball() => t.sphere,
+            Some(crate::recipe::Recipe::Granular(_)) => self.tree.nodes[idx.get()].matter.radius,
+            _ => return false,
+        };
+        let mut up = self.tree.nodes[idx.get()].parent;
+        while !up.is_none() {
+            if self.air_of(up).is_some() {
+                return false;
+            }
+            up = self.tree.nodes[up.get()].parent;
+        }
+        let base = self.ocean_of(idx).map(|o| o.radius).unwrap_or(ground);
+        let (gas, mass) = {
+            let n = &self.tree.nodes[idx.get()];
+            (n.matter.mixture.in_phase(crate::chem::Phase::Gas), n.matter.mass)
+        };
+        if !(gas > 0.0) || !(base > 0.0) {
+            return false;
+        }
+        let mut air = crate::chem::Mixture::new();
+        for p in self.tree.nodes[idx.get()].matter.mixture.entries() {
+            if p.phase == crate::chem::Phase::Gas {
+                air.add(p.substance, p.phase, p.fraction / gas);
+            }
+        }
+        let composition = air.composition(&self.substances).0;
+        let shell = base / (3.0f64 / 5.0).sqrt();
+        let spec = self.tree.nodes[idx.get()].spec;
+        let node = self.tree.hold_out(idx, gas * mass, composition, shell, spec);
+        if node.is_none() {
+            return false;
+        }
+        let n = &mut self.tree.nodes[node.get()];
+        n.matter.mixture = air;
+        n.atmosphere = Some(crate::ocean::Atmosphere { base });
+        self.refresh_rest_density(node);
+        true
     }
 
     /// The density of the fluid a node describes around itself at `r` from
@@ -6585,12 +6668,15 @@ impl World {
             let there = self.tree.offset_from(parent, idx, Vec3::ZERO).value;
             return self.take_wrench(parent, dp, dl + there.cross(dp));
         }
-        // Its free bodies, and its sea, which goes with the ground it is on.
-        let sea = self.sea_of(idx);
+        // Its free bodies, and its sea and its air, which go with the ground
+        // they are on.
+        let goes_with = |c: NodeIdx| {
+            !c.is_none() && self.tree.nodes[c.get()].alive && (self.tree.nodes[c.get()].ocean.is_some() || self.tree.nodes[c.get()].atmosphere.is_some())
+        };
         let (takers, mass): (Vec<(usize, f64, Vec3)>, f64) = {
             let n = &self.tree.nodes[idx.get()];
             let t: Vec<(usize, f64, Vec3)> = (0..n.bodies.len())
-                .filter(|&s| n.child_of(s).is_none() || Some(n.child_of(s)) == sea)
+                .filter(|&s| n.child_of(s).is_none() || goes_with(n.child_of(s)))
                 .map(|s| match n.child_of(s) {
                     c if c.is_none() => (s, n.bodies[s].mass, n.bodies[s].pos),
                     c => (s, self.tree.nodes[c.get()].matter.mass, self.tree.position_at(c, n.time)),
@@ -6755,6 +6841,184 @@ impl World {
             })
             .unwrap_or(0.0);
         Some((sheet.density, sea.sea.current.norm() + orbital))
+    }
+
+    /// Let a patch of loose ground's marks fall to what holds them up, and
+    /// return whether any moved — the owner's requirement for Phase 5 that
+    /// sand collapses where nothing supports it.
+    ///
+    /// **A face stands if it is no steeper than the grains rest at, or if
+    /// cohesion holds it up.** The slope a loose pile stands at is the one a
+    /// grain tips out of its pocket at (`erode::pocket_friction`, 22.5 degrees
+    /// at random loose packing); a face steeper than that stands only as high
+    /// as its cohesion can hold a vertical cut, Rankine's `4 c / rho g`, and
+    /// the cohesion of sand is its menisci (`erode::capillary_cohesion`), which
+    /// it has only where its pores hold both water and air: **damp** — above
+    /// the water and within the height capillarity lifts water through its
+    /// pores, `2 gamma / rho_w g r_h` with `r_h` the pores' hydraulic radius at
+    /// its packing, `(1 - phi) / phi D / 6`. Drowned, it has no menisci; dry,
+    /// none either. So a cut in damp beach sand stands and the same cut below
+    /// the tide or up in the dunes slumps, and nothing says which.
+    ///
+    /// **A face that does not stand slumps until it does**, keeping its own
+    /// volume: each mark widens and shallows, `span` up by `k` and amplitude
+    /// down by `k^2`, until the slope its depth — the field's, all marks
+    /// together — makes over its width is the angle of repose. The mass a cut
+    /// carried away stays carried away; a collapse moves what is left.
+    pub fn slump(&mut self, idx: NodeIdx) -> bool {
+        if idx.is_none() || !self.tree.nodes[idx.get()].alive || !self.is_loose(idx) {
+            return false;
+        }
+        let half = match self.tree.nodes[idx.get()].morphology.as_ref().and_then(|m| m.recipe.as_ref()) {
+            Some(crate::recipe::Recipe::Tiled(t)) if !t.on_sphere() => 0.5 * t.side,
+            _ => return false,
+        };
+        let field = match self.tree.nodes[idx.get()].morphology.as_ref() {
+            Some(m) if !m.field.is_empty() => m.field.clone(),
+            _ => return false,
+        };
+        let Some(material) = self.material_of(idx) else { return false };
+        let n = &self.tree.nodes[idx.get()];
+        let g = n.gravity.norm();
+        let (mut solid_mass, mut solid_volume) = (0.0, 0.0);
+        for p in n.matter.mixture.entries() {
+            if p.phase != crate::chem::Phase::Solid {
+                continue;
+            }
+            let Some(sub) = self.substances.get(p.substance) else { continue };
+            let Some(c) = crate::eos::Condensed::of(&sub.props, p.phase) else { continue };
+            solid_mass += p.fraction * n.matter.mass;
+            solid_volume += p.fraction * n.matter.mass / c.rest_density;
+        }
+        if !(solid_volume > 0.0) || !(g > 0.0) {
+            return false;
+        }
+        let grain_density = solid_mass / solid_volume;
+        let packing = (material.density / grain_density).clamp(1e-3, crate::erode::CLOSE_PACKING);
+        let grain = material.flaw_size;
+        let repose = crate::erode::pocket_friction(packing);
+        // The liquid that wets it: the sea it stands in where there is one,
+        // its own pores' otherwise.
+        let wetting = |w: &World, node: NodeIdx| -> (f64, f64) {
+            let m = &w.tree.nodes[node.get()].matter;
+            let (mut mass, mut tension, mut volume) = (0.0, 0.0, 0.0);
+            for p in m.mixture.entries() {
+                if p.phase != crate::chem::Phase::Liquid {
+                    continue;
+                }
+                let Some(sub) = w.substances.get(p.substance) else { continue };
+                let Some(c) = crate::eos::Condensed::liquid(&sub.props) else { continue };
+                mass += p.fraction;
+                tension += p.fraction * crate::erode::surface_tension(&sub.props);
+                volume += p.fraction / c.rest_density;
+            }
+            if mass > 0.0 { (tension / mass, mass / volume) } else { (0.0, 0.0) }
+        };
+        let sea = self.sea_around(idx).and_then(|(anc, _)| self.sea_of(anc));
+        let (tension, water_density) = match sea {
+            Some(node) => wetting(self, node),
+            None => wetting(self, idx),
+        };
+        let damp_cohesion = crate::erode::capillary_cohesion(tension, grain, packing);
+        let hydraulic = (1.0 - packing) / packing * grain / 6.0;
+        let rise = if water_density > 0.0 && hydraulic > 0.0 { 2.0 * tension / (water_density * g * hydraulic) } else { 0.0 };
+        // Where a mark stands against the water: its depth under it, or how
+        // far above it it is (negative), where a sea stands over the patch.
+        let wet: Vec<Option<f64>> = field.iter().map(|d| self.water_over(idx, d)).collect();
+        // Without a sea, its own pores say whether it is damp.
+        let pores_damp = {
+            let n = &self.tree.nodes[idx.get()];
+            let liquid: f64 = n.matter.mixture.entries().iter().filter(|p| p.phase == crate::chem::Phase::Liquid).map(|p| {
+                self.substances.get(p.substance).and_then(|s| crate::eos::Condensed::liquid(&s.props)).map(|c| p.fraction * n.matter.mass / c.rest_density).unwrap_or(0.0)
+            }).sum();
+            liquid > 0.0 && liquid < solid_volume * (1.0 / packing - 1.0)
+        };
+        let cohesion: Vec<f64> = wet
+            .iter()
+            .map(|w| match w {
+                Some(depth) if *depth > 0.0 => 0.0,
+                Some(depth) => if -depth < rise { damp_cohesion } else { 0.0 },
+                None => if pores_damp { damp_cohesion } else { 0.0 },
+            })
+            .collect();
+        // The steepest a Gaussian of half-width `w` and depth `a` is: `a / w`
+        // times this.
+        let steepest = (2.0 / std::f64::consts::E).sqrt();
+        let mut field = field;
+        let mut moved = false;
+        for _ in 0..64 {
+            let mut changed = false;
+            for k in 0..field.len() {
+                let d = field[k];
+                let depth: f64 = field.iter().map(|o| o.height_at(d.x, d.y, half)).sum::<f64>().abs();
+                if !(depth > 0.0) || !(d.span > 0.0) {
+                    continue;
+                }
+                let slope = steepest * depth / d.span;
+                let held = 4.0 * cohesion[k] / (material.density * g);
+                if slope <= repose * (1.0 + 1e-6) || depth <= held {
+                    continue;
+                }
+                let widen = (slope / repose).cbrt().min(2.0);
+                field[k].span *= widen;
+                field[k].amplitude /= widen * widen;
+                changed = true;
+            }
+            if !changed {
+                break;
+            }
+            moved = true;
+        }
+        if moved {
+            if let Some(m) = self.tree.nodes[idx.get()].morphology.as_mut() {
+                m.field = field;
+            }
+            self.reground(idx);
+        }
+        moved
+    }
+
+    /// The ground of a patch has changed under whoever is on it: its members
+    /// are drawn again from the rule in place (`Tree::redraw_members`), and
+    /// the water over it, if any, lies on it as it now is.
+    fn reground(&mut self, target: NodeIdx) {
+        self.tree.redraw_members(target);
+        if let (Some(sheet), Some(floor)) = (self.sheet_of(target), self.floor_of(target)) {
+            let returned = self.tree.nodes[sheet.get()].sheet.as_mut().map(|s| s.rebed(&floor)).unwrap_or(0.0);
+            if let Some((anc, _)) = self.sea_around(target) {
+                let water = self.tree.nodes[sheet.get()].matter.mixture;
+                self.lend(target, anc, &water, -returned, Vec3::ZERO, Vec3::ZERO, Vec3::ZERO);
+            }
+            self.settle_sheet(sheet);
+        }
+    }
+
+    /// How deep the sea stands over the ground a mark was made in, m —
+    /// negative for how far above the water that ground is — or `None` where
+    /// no sea stands over the patch or it holds no sheet to measure its bed
+    /// by.
+    ///
+    /// **The ground the mark was made in, not the bottom of the mark**: the
+    /// bed under the mark with every mark's depth there put back. What holds
+    /// a cut's walls up is the sand they are made of, and whether that sand
+    /// is damp is whether the beach it was cut into stands above the water —
+    /// a cut in damp sand whose bottom reaches below the water table fills
+    /// and still stands. Read at the bottom instead, every cut deep enough to
+    /// flood judged itself drowned: measured, a 5 cm channel cut from the
+    /// water up the beach slumped to 2 cm over the forty centimetres nearest
+    /// the water, including the part cut into sand above it.
+    fn water_over(&self, idx: NodeIdx, d: &crate::erode::Deviation) -> Option<f64> {
+        let (_, sea) = self.sea_around(idx)?;
+        let sheet = self.tree.nodes[self.sheet_of(idx)?.get()].sheet.as_ref()?;
+        let morph = self.tree.nodes[idx.get()].morphology.as_ref()?;
+        let half = match morph.recipe.as_ref()? {
+            crate::recipe::Recipe::Tiled(t) if !t.on_sphere() => 0.5 * t.side,
+            _ => return None,
+        };
+        let at = self.tree.drawn_turn(idx).rotate(crate::math::v3(d.x * half, d.y * half, 0.0));
+        let k = sheet.column_of(at)?;
+        let cut: f64 = morph.field.iter().map(|o| o.height_at(d.x, d.y, half)).sum();
+        Some(sea.sea.level - sea.height - (sheet.bed[k] - cut))
     }
 
     /// The floor a node's ordered members make, column by column down its
@@ -7725,7 +7989,7 @@ impl World {
             // A sea's surface is its planet's, which radiates for the whole:
             // a second sphere of its own round the same surface would radiate
             // it twice.
-            if self.tree.nodes[i].ocean.is_some() {
+            if self.tree.nodes[i].carries_fluid() {
                 continue;
             }
             let env = self.environment_at(idx);

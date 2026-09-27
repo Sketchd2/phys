@@ -100,7 +100,8 @@ fn nitrogen() -> Arrangement {
     Arrangement::molecule(vec![Element(7), Element(7)], vec![Bond::new(0, 1, Order::Triple)])
 }
 
-/// **An atmosphere is derived from the gas a planet holds.** The Earth's own
+/// **An atmosphere is derived from the gas a planet holds**, and is the
+/// planet's child node. The Earth's own
 /// mass of nitrogen over an Earth with a sea: the pressure at the sea is its
 /// weight over the area, the scale height `k T / m g`, and the density at the
 /// sea their ratio — against the real 1.225 kg/m^3 and 8.5 km.
@@ -126,6 +127,24 @@ fn an_atmosphere_is_the_gas_a_planet_holds() {
     assert!(w.atmosphere_of(e).is_none(), "no surface assessed, so nothing to stand the air on");
     assert!(w.assess_surface(e), "an Earth has ground to stand a sea on");
     assert!(w.assess_ocean(e));
+    // **The air is a node like any other** — the planet's child, holding
+    // the planet's own gas, taken out of the planet's bodies with what it
+    // carried, so the world's books do not move.
+    let before = w.conserved();
+    assert!(w.assess_atmosphere(e), "an Earth with nitrogen over its ground has air");
+    let after = w.conserved();
+    let node = w.air_of(e).expect("the air is the planet's child");
+    let held = w.tree.nodes[node.get()].matter.mass;
+    let p = before.momentum.norm().max(after.momentum.norm()).max(1.0);
+    println!(
+        "  the air is a node of {held:.4e} kg against the planet's {air:.4e}; the world's momentum moved {:.2e} of its {p:.2e} and its energy {:.2e} of itself",
+        (after.momentum - before.momentum).norm() / p,
+        (after.energy - before.energy).abs() / before.energy.abs()
+    );
+    assert!((held / air - 1.0).abs() < 1e-9, "the air node does not hold the planet's gas");
+    assert_eq!(w.tree.nodes[node.get()].parent, e);
+    assert!(w.tree.nodes[node.get()].bodies.is_empty(), "the air was drawn as bodies");
+    assert!((after.momentum - before.momentum).norm() <= 1e-12 * p, "taking the air out moved the world's momentum");
     let (base, rho, height) = w.atmosphere_of(e).expect("an Earth with nitrogen and a sea has an atmosphere");
     let up = w.ambient_density(e, base + height);
     println!(
