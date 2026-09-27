@@ -416,8 +416,8 @@ numbering below the insertion has moved: **Things**, **Crossings**, then Ground,
 Water, Bodies, Minds, Making, Sessions. Nothing below Ground changed relative to
 anything else. A third was inserted after Water during Phase 5, by the owner:
 **the program** — a native executable rendering on the GPU with wgpu, physics
-on the CPU — and a fourth after it, **test speed**, so Bodies is now Phase 8
-and Sessions Phase 11.
+on the CPU — and a fourth after it, **test speed**, so Bodies is now Phase 8.
+A fifth, **weather** (rain), went in after Bodies, so Sessions is Phase 12.
 
 **Phase 2 is done.** Its done-when was a wooden box that is *one node* with a
 recipe describing six walls, which responds as one box, loses a wall to a hard

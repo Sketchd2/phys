@@ -3300,6 +3300,52 @@ patch of ground are members joined by their rock, so they meet each other
 neither in contact nor in the per-solve heat exchange, as a structure's
 members already do.
 
+*Decided by the owner — what does not turn with its planet is not its
+child.* With a child's place in its parent's axes, a thing inside a spinning
+planet's node that is not going round with it — a parcel of gas far out at
+rest in space, a satellite, a rocket that has left the air — is carried
+correctly, along its straight line in space, but it is stated in axes that
+turn under it, and it is a child of a node whose frame it does not share. The
+owner's rule: **a thing not turning with its planet is a child of a
+non-turning node the planet shares with it**, and the split is what puts it
+there. Asked what decides it, the owner chose **motion**, and the four calls
+beneath that:
+
+- **Motion is its own question and the majority gate does not apply to it.**
+  `resolve_extent` separates a node only when no one component holds the bulk
+  of its mass, because every draw sheds stray bodies at its edges — nine
+  components on a 64-body planet. A lone parcel moving differently is a tiny
+  component beside a planet holding nearly all the mass, so under that gate it
+  never leaves. In a node that turns, anything whose motion is not the
+  frame's leaves for the system node however small it is.
+- **The frame's own speed is the scale.** Something moves with the frame when
+  its velocity against the frame is under half the frame's speed where it is,
+  `|omega x r|`: 465 m/s at an Earth's equator, so a thrown ball stays, a
+  rocket at 11 km/s leaves, and a parcel at rest in space is off by exactly
+  `omega x r` and leaves. One half is the point where it is nearer not turning
+  than turning.
+- **Only a node with a turn of its own asks it** — a spinning planet, not a
+  patch of its ground, which turns only because its parent does. A ball thrown
+  over the beach stays the beach's.
+- **The system node is made on the first split**, between the planet and its
+  parent, holding the planet and what left it, and it is folded back when it
+  holds the planet alone again, as `merge` inverts `split_off`. Its mass is
+  the planet's to within what left, at the planet's centre, so anything beside
+  the planet in it feels the planet through its ancestor as the Phase 3 rocket
+  did, with nothing changed in `gravity_at`.
+
+*Decided by the owner — where rivers, runoff and rain go.* The play space has
+named them since §4.3 and no phase scheduled any of them. **Runoff rides with
+lakes in this phase**: it is the sheet on ground fed by water arriving on it
+rather than by a sea at its edge, which is what lakes already generalise.
+**Rivers go with the sideways hand-off across patch edges**, in Phase 8,
+whose quadruped is that mechanism's first scenario; a river is the sheet
+running downhill across many patches, and at a planet's scale it also needs a
+coarse account of where the water drains, which §5.3 names and nothing yet
+represents. **Rain is a phase of its own after Bodies**, Phase 9 — Weather:
+vapour carried in an atmosphere node, condensation into drops that fall, the
+drops reaching the ground under the air, and water entering sand.
+
 **Phase 6 — The program.** *Inserted by the owner during Phase 5.* The whole
 system simulated and watched on the owner's own PC as a native executable —
 the owner's requirement, on the grounds that a web renderer's overhead would
@@ -3367,13 +3413,26 @@ Standing is contact against a surface that now exists.
 planets with different g, with no per-morphology code and no enum variant naming
 either of them.
 
-**Phase 9 — Minds.** *Was Phase 8.* Unchanged.
+**And rivers**, by the owner's placement during Phase 5: the sheet of water
+running downhill across patch edges is the same sideways hand-off the
+quadruped walks across, and it arrives with it.
 
-**Phase 10 — Making things.** *Was Phase 9.* Unchanged in content, and now
+**Phase 9 — Weather.** *Inserted by the owner during Phase 5.* Rain: vapour
+carried in an atmosphere node, condensation into drops that fall, the drops
+reaching the ground under the air, and water entering sand. Each is a law and
+not a table, and the first two carry `PHYSICS.md`-weight choices that are the
+owner's when the phase starts. §5.4's rule stands: a storm is a thing the air
+is doing, not a system.
+
+*Done when:* the owner's to state when the phase starts.
+
+**Phase 10 — Minds.** *Was Phase 9, and Phase 8 before that.* Unchanged.
+
+**Phase 11 — Making things.** *Was Phase 10.* Unchanged in content, and now
 standing on D15: a player-built thing is a recipe that grows as it is built,
 rather than a pile of placed nodes.
 
-**Phase 11 — Sessions.** *Was Phase 10.* Unchanged, apart from standing on the
+**Phase 12 — Sessions.** *Was Phase 11.* Unchanged, apart from standing on the
 program Phase 6 builds, which is already a server and a client in one process.
 
 ---
