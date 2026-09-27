@@ -338,6 +338,16 @@ pub struct EngineStats {
     /// 10^5 and 10^11 radii announce themselves once the measurement runs every
     /// frame.
     pub crossings_refused: u64,
+    /// Nodes re-homed out of a spinning planet because they were not turning
+    /// with it, and back into one because they were again — `docs/PLAY.md`
+    /// §7 Phase 5, the owner's rule that a thing not turning with its planet
+    /// is not its child.
+    pub parted: u64,
+    pub rejoined: u64,
+    /// System nodes made above a spinning planet, and folded back when it
+    /// held nothing but the planet again.
+    pub systems_made: u64,
+    pub systems_folded: u64,
     /// Nodes crossed by their **ensemble** rather than followed, summed over
     /// frames. `docs/PLAY.md` §3.7: the resolution floor is real and derivable,
     /// and the engine should *report* reaching it rather than silently dropping
@@ -1710,6 +1720,8 @@ impl World {
         // else in `coast_to` — so this is the first moment at which "where is
         // it" has one answer for the whole world. `docs/PLAY.md` D16.
         self.cross_boundaries();
+        // And what is not turning with the planet it is in, or is again.
+        self.part_from_turning();
         // And the same measurement one level down: a node whose contents have
         // stopped being one neighbourhood is describing two places at once.
         self.resolve_extents(&plan);
@@ -5929,49 +5941,58 @@ impl World {
     }
 
     /// The equilibrium elevation of each cell of a node's ocean — the tidal
-    /// potential over `-g` — from everything else the node's parent holds, at
-    /// where it is now, in the node's own axes.
+    /// potential over `-g` — from everything else each of the node's
+    /// ancestors holds, at where it is now, in the node's own axes.
     ///
-    /// Its parent's bodies where the parent is materialised, the planet's own
-    /// stand-in left out; the parent's mass at its own centre where it is not.
+    /// Each level's bodies where it is materialised, the stand-in of the level
+    /// the planet is in left out; its mass less that one at its own centre
+    /// where it is not.
     /// Exact, not the quadrupole: `ocean::tidal_potential` subtracts only what
     /// moves the whole planet.
     pub fn tidal_equilibrium(&self, idx: NodeIdx) -> Vec<f64> {
         let n = &self.tree.nodes[idx.get()];
         let Some(ocean) = self.ocean_of(idx) else { return Vec::new() };
-        let parent = n.parent;
         let mut sources: Vec<(Vec3, f64)> = Vec::new();
         // Offsets are in root-aligned axes, and what takes a vector derived
         // from them into the planet's frame is the whole composition to the
         // root (`Tree::gravity_at`), not the planet's own facing alone.
         let into = self.tree.facing(idx).conjugate();
-        if !parent.is_none() {
-            let p = &self.tree.nodes[parent.get()];
-            // The parent's contents and this node's place are in the
-            // parent's own axes, and turned out of them.
-            let out = self.tree.facing(parent);
-            let w = self.tree.own_turning(parent);
-            let into = into.then(out).unit();
+        // **Every level above, not the parent alone.** A planet whose system
+        // node was made above it (`Tree::insert_above`) has its moon or its
+        // star one level further up, and a tide read off the parent alone
+        // would stop the moment anything left the planet. Each level gives
+        // what it holds beside the one the planet is in.
+        let mut inner = idx;
+        let mut level = n.parent;
+        while !level.is_none() {
+            let p = &self.tree.nodes[level.get()];
+            let from = self.tree.offset_from(level, idx, Vec3::ZERO).value;
+            let slot = self.tree.nodes[inner.get()].slot as usize;
             if p.bodies.is_empty() {
-                let m = (p.matter.mass - n.matter.mass).max(0.0);
-                sources.push((into.rotate(Vec3::ZERO - n.motion.offset), m));
+                let m = (p.matter.mass - self.tree.nodes[inner.get()].matter.mass).max(0.0);
+                sources.push((into.rotate(Vec3::ZERO - from), m));
             } else {
-                // Where each body is at the planet's instant. The parent's
-                // bodies are at the time its contents were solved to, and the
-                // planet is carried to the world's (`Node::carried`); between
-                // the two, a body goes at its own velocity. Reading it where
-                // the last solve left it held a moon still — an Earth-moon
-                // pair's cadence is 3.7 days, and the tide it drove came out at
-                // half a sidereal day rather than half a lunar one.
+                // The level's contents are in its own axes, and turned out of
+                // them. Where each body is at the planet's instant: the
+                // level's bodies are at the time its contents were solved to,
+                // and the planet is carried to the world's (`Node::carried`);
+                // between the two, a body goes at its own velocity. Reading it
+                // where the last solve left it held a moon still — an
+                // Earth-moon pair's cadence is 3.7 days, and the tide it drove
+                // came out at half a sidereal day rather than half a lunar one.
+                let out = self.tree.facing(level);
+                let w = self.tree.own_turning(level);
                 let since = n.carried - p.time;
                 for (k, b) in p.bodies.iter().enumerate() {
-                    if k == n.slot as usize {
+                    if k == slot {
                         continue;
                     }
                     let at = crate::tree::carry_in(b.pos, b.vel, w, since, false).0;
-                    sources.push((into.rotate(at - n.motion.offset), b.mass));
+                    sources.push((into.rotate(out.rotate(at) - from), b.mass));
                 }
             }
+            inner = level;
+            level = p.parent;
         }
         ocean
             .cells
@@ -7687,10 +7708,23 @@ impl World {
         // Collected then reinserted, in two passes: within one move an old
         // address and a new one can name different nodes, so mutating in place
         // could overwrite an entry that had not been read yet.
+        self.migrate_addresses(&moved.keys);
+
+        // Both ends changed by hand, so both need their detail kept rather than
+        // regenerated, and their neighbours told.
+        self.disturb(moved.from);
+        self.disturb(moved.to);
+        self.disturb(moved.moved);
+        true
+    }
+
+    /// Carry what `World` keys by address to the addresses a move gave.
+    /// See [`World::reparent`] for why these three and no others.
+    fn migrate_addresses(&mut self, keys: &[(PathKey, PathKey)]) {
         macro_rules! migrate {
             ($table:expr) => {{
                 let mut taken = Vec::new();
-                for (old, new) in &moved.keys {
+                for (old, new) in keys {
                     if let Some(v) = $table.remove(old) {
                         taken.push((*new, v));
                     }
@@ -7703,13 +7737,212 @@ impl World {
         migrate!(self.identities);
         migrate!(self.clocks);
         migrate!(self.histories);
+    }
 
-        // Both ends changed by hand, so both need their detail kept rather than
-        // regenerated, and their neighbours told.
-        self.disturb(moved.from);
-        self.disturb(moved.to);
-        self.disturb(moved.moved);
-        true
+    /// Whether a slot of a node is one of its own members — a structure's
+    /// ordered member or a piece of its ground — whether or not it has been
+    /// promoted. A patch of a planet's ground is the planet.
+    fn member_slot(&self, idx: NodeIdx, slot: usize) -> bool {
+        let n = &self.tree.nodes[idx.get()];
+        if let Some(t) = n.topology.as_ref() {
+            return t.joints.get(slot).map(|j| j.radius > 0.0).unwrap_or(false);
+        }
+        self.ground_joints(idx)
+            .map(|j| slot < j.iter().map(|&(a, b, _)| a.max(b) + 1).max().unwrap_or(0))
+            .unwrap_or(false)
+    }
+
+    /// Whether a node's motion is its turning frame's, the owner's test in
+    /// `docs/PLAY.md` §7 Phase 5: its velocity against the frame, under half
+    /// the speed the frame's own turn gives where it is. `at` and `velocity`
+    /// are in the frame's axes, the velocity against its turning; `turn` is
+    /// the frame's own turn in the same axes.
+    fn moves_with(at: Vec3, velocity: Vec3, turn: Vec3) -> bool {
+        velocity.norm() <= 0.5 * turn.cross(at).norm()
+    }
+
+    /// Re-home what does not turn with the planet it is in, and what turns
+    /// with one again — `docs/PLAY.md` §7 Phase 5, the owner's rule that a
+    /// thing not turning with its planet is a child of a non-turning node the
+    /// planet shares with it.
+    ///
+    /// **Leaving.** A node inside a node with a turn of its own, which is
+    /// neither one of its members nor a description of its fluid, leaves when
+    /// its velocity against the frame is more than half what the turn gives
+    /// where it is ([`World::moves_with`]). However small it is: the majority
+    /// gate on a split is there for a draw's stray bodies, and this is a
+    /// question about motion. It goes to the planet's parent if that does not
+    /// turn and the planet holds the bulk of it — already the system node —
+    /// and to one made above the planet ([`Tree::insert_above`]) otherwise.
+    ///
+    /// **Arriving back** is the inverse: a node beside a planet in a system
+    /// node that is wholly inside what the planet holds and moving with its
+    /// frame is its child again. **And the system node folds back**
+    /// ([`Tree::fold_into_parent`]) when the planet is all it holds.
+    ///
+    /// Once a frame, after the crossings, like them an event: which nodes
+    /// were advanced does not decide it, and nothing is named by it.
+    fn part_from_turning(&mut self) -> usize {
+        let mut changed = 0;
+        // Leaving a planet: a child of a node with a turn of its own. Only
+        // such parents are looked at, and there are few of them.
+        let turning: Vec<NodeIdx> = (0..self.tree.nodes.len())
+            .map(|i| NodeIdx(i as u32))
+            .filter(|&p| {
+                let n = &self.tree.nodes[p.get()];
+                n.alive && !n.parent.is_none() && n.motion.spin_rate != Vec3::ZERO && n.children.iter().any(|c| !c.is_none())
+            })
+            .filter(|&p| self.turns_as_frame(p))
+            .collect();
+        for parent in turning {
+            if !self.tree.nodes[parent.get()].alive {
+                continue;
+            }
+            let turn = self.tree.own_turn(parent);
+            if turn == Vec3::ZERO {
+                continue;
+            }
+            let children: Vec<(usize, NodeIdx)> = self.tree.nodes[parent.get()]
+                .children
+                .iter()
+                .copied()
+                .enumerate()
+                .filter(|(_, c)| !c.is_none())
+                .collect();
+            for (slot, node) in children {
+                let n = &self.tree.nodes[node.get()];
+                if !n.alive || n.carries_fluid() || n.parent != parent {
+                    continue;
+                }
+                if Self::moves_with(n.motion.offset, n.motion.velocity, turn) || self.member_slot(parent, slot) {
+                    continue;
+                }
+                if let Some(system) = self.system_for(parent) {
+                    if self.reparent(node, system) {
+                        // A new thing among the system's contents is a new
+                        // balance, not yet measured (`Node::unrest`).
+                        self.tree.nodes[system.get()].unrest = f64::INFINITY;
+                        self.stats.parted += 1;
+                        changed += 1;
+                    }
+                }
+            }
+        }
+        // Arriving back, from beside a planet in its system node; and a system
+        // node that holds its planet alone again folds back.
+        let systems: Vec<(NodeIdx, NodeIdx)> = (0..self.tree.nodes.len())
+            .map(|i| NodeIdx(i as u32))
+            .filter(|s| self.tree.nodes[s.get()].alive)
+            .filter_map(|s| self.planet_of_system(s).map(|p| (s, p)))
+            .collect();
+        for (system, planet) in systems {
+            let beside: Vec<NodeIdx> = self.tree.nodes[system.get()]
+                .children
+                .iter()
+                .copied()
+                .filter(|c| !c.is_none() && *c != planet)
+                .collect();
+            for node in beside {
+                let n = &self.tree.nodes[node.get()];
+                if !n.alive || n.carries_fluid() {
+                    continue;
+                }
+                if self.back_with(planet, node) && self.reparent(node, planet) {
+                    self.stats.rejoined += 1;
+                    changed += 1;
+                }
+            }
+            if let Some((planet, keys)) = self.tree.fold_into_parent(system) {
+                self.migrate_addresses(&keys);
+                self.disturb(planet);
+                self.stats.systems_folded += 1;
+                changed += 1;
+            }
+        }
+        changed
+    }
+
+    /// Whether a node's own turn is a frame its contents go round in — the
+    /// owner's call in `docs/PLAY.md` §7 Phase 5, that a turn counts where the
+    /// node is held by its own gravity into turning as one. Measured as V/sigma
+    /// over its own contents: the mass-weighted rms speed its turn gives them,
+    /// against the rms speed they have against it, and a frame where the first
+    /// is the larger. Bodies standing in for children are left out: those are
+    /// what the frame is asked about.
+    ///
+    /// Every drawn node carries some turn, from whatever angular momentum its
+    /// draw happened to hold — a galaxy at 1.3e-16 rad/s, the clouds down a
+    /// ladder at 1e-18 to 5e-4 — and against a turn that small nothing moves
+    /// with the frame. Asked of every such node, 19 nodes of the ladder
+    /// `drill_to` builds left their parents in 25 frames and 12 system nodes
+    /// were made. A cloud's contents orbit at their own rates, and its turn is
+    /// a statistic of its draw rather than a frame.
+    fn turns_as_frame(&self, idx: NodeIdx) -> bool {
+        let n = &self.tree.nodes[idx.get()];
+        let turn = self.tree.own_turn(idx);
+        if turn == Vec3::ZERO {
+            return false;
+        }
+        let (mut mass, mut ordered, mut random) = (0.0f64, 0.0f64, 0.0f64);
+        for (k, b) in n.bodies.iter().enumerate() {
+            if !(b.mass > 0.0) || !n.child_of(k).is_none() {
+                continue;
+            }
+            mass += b.mass;
+            ordered += b.mass * turn.cross(b.pos).norm2();
+            random += b.mass * b.vel.norm2();
+        }
+        mass > 0.0 && ordered > random
+    }
+
+    /// The planet a node is the system node of: a live child whose turn is a
+    /// frame holding the bulk of the node's mass, in a node that does not turn
+    /// in space.
+    fn planet_of_system(&self, idx: NodeIdx) -> Option<NodeIdx> {
+        let n = &self.tree.nodes[idx.get()];
+        if n.parent.is_none() || n.children.is_empty() || self.tree.angular_velocity(idx) != Vec3::ZERO {
+            return None;
+        }
+        n.children.iter().copied().find(|c| {
+            !c.is_none() && {
+                let p = &self.tree.nodes[c.get()];
+                p.alive && p.matter.mass > 0.5 * n.matter.mass && self.turns_as_frame(*c)
+            }
+        })
+    }
+
+    /// Where what leaves a spinning planet goes: its parent, where that is
+    /// already the planet's system node, and one made above the planet
+    /// otherwise.
+    fn system_for(&mut self, planet: NodeIdx) -> Option<NodeIdx> {
+        let parent = self.tree.nodes[planet.get()].parent;
+        if !parent.is_none() && self.planet_of_system(parent) == Some(planet) {
+            return Some(parent);
+        }
+        let (system, keys) = self.tree.insert_above(planet)?;
+        self.migrate_addresses(&keys);
+        self.disturb(system);
+        self.stats.systems_made += 1;
+        Some(system)
+    }
+
+    /// Whether a node beside a planet in its system node belongs to the
+    /// planet again: wholly inside what the planet holds, and moving with its
+    /// frame, measured in the planet's axes.
+    fn back_with(&self, planet: NodeIdx, node: NodeIdx) -> bool {
+        let system = self.tree.nodes[planet.get()].parent;
+        let (p, n) = (&self.tree.nodes[planet.get()], &self.tree.nodes[node.get()]);
+        let claim = p.matter.radius.max(self.tree.contents_reach(planet, NodeIdx::NONE));
+        // The system node does not turn, so its offsets and velocities are
+        // as things are in space, in its axes; into the planet's from there.
+        let into = self.tree.facing(planet).conjugate().then(self.tree.facing(system)).unit();
+        let at = into.rotate(n.motion.offset - p.motion.offset);
+        if crate::crossing::standing(at, n.matter.radius, claim) != crate::crossing::Standing::Inside {
+            return false;
+        }
+        let turn = self.tree.own_turn(planet);
+        let velocity = into.rotate(n.motion.velocity - p.motion.velocity) - turn.cross(at);
+        Self::moves_with(at, velocity, turn)
     }
 
     /// Reconcile every node the frame advanced with what it is actually

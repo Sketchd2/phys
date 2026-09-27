@@ -3698,19 +3698,7 @@ impl Tree {
 
         let mut keys = Vec::new();
         self.rekey_subtree(node, new_key, new_depth, &mut keys);
-
-        // Pinned detail is `Tree`'s own path-keyed table, so it moves here.
-        // Collected first and reinserted after, because an old key and a new
-        // key can belong to different nodes in the same batch.
-        let mut moved_detail: Vec<(PathKey, Vec<Body>)> = Vec::new();
-        for (old, _) in &keys {
-            if let Some(bodies) = self.persisted.remove(old) {
-                moved_detail.push((*old, bodies));
-            }
-        }
-        for ((_, new), (_, bodies)) in keys.iter().zip(moved_detail.into_iter()) {
-            self.persisted.insert(*new, bodies);
-        }
+        self.migrate_persisted(&keys);
 
         // Both ends were changed by hand, so neither is what `sample` would
         // produce any more.
@@ -3718,6 +3706,216 @@ impl Tree {
         self.pin(node);
         self.stats.reparents += 1;
         Some(Rehomed { moved: node, from: old_parent, to: new_parent, keys })
+    }
+
+    /// Pinned detail is `Tree`'s own path-keyed table, so it follows a rekey
+    /// here. Collected first and reinserted after, because an old key and a
+    /// new key can belong to different nodes in the same batch.
+    fn migrate_persisted(&mut self, keys: &[(PathKey, PathKey)]) {
+        let mut moved_detail: Vec<(PathKey, Vec<Body>)> = Vec::new();
+        for (old, new) in keys {
+            if let Some(bodies) = self.persisted.remove(old) {
+                moved_detail.push((*new, bodies));
+            }
+        }
+        for (new, bodies) in moved_detail {
+            self.persisted.insert(new, bodies);
+        }
+    }
+
+    /// A node's own turn relative to its parent, rad/s, in its own axes: what
+    /// it turns by that its parent does not. A spinning planet has one; a
+    /// patch of its ground, which turns only because the planet does, has
+    /// none.
+    pub fn own_turn(&self, node: NodeIdx) -> Vec3 {
+        let n = &self.nodes[node.get()];
+        if n.motion.spin_rate == Vec3::ZERO {
+            return Vec3::ZERO;
+        }
+        n.motion.orientation.conjugate().rotate(n.motion.spin_rate)
+    }
+
+    /// Put a node that does not turn between a node and its parent — the
+    /// system node `docs/PLAY.md` §7 Phase 5 names, made when something first
+    /// leaves a spinning planet by not turning with it.
+    ///
+    /// It takes the planet's place: its slot in the parent, its address, its
+    /// motion there and its matter, since it holds exactly what the planet did.
+    /// The planet goes one level down, into its first slot, at its centre and
+    /// at rest against it, turned and turning as it was in space. Its axes are
+    /// root-aligned at the moment it is made and it does not turn in space,
+    /// so what it holds is carried along straight lines.
+    ///
+    /// Returns the new node and the `(old, new)` addresses of the planet and
+    /// everything under it, for `World` to carry what it keys by address.
+    pub fn insert_above(&mut self, node: NodeIdx) -> Option<(NodeIdx, Vec<(PathKey, PathKey)>)> {
+        if node.is_none() || !self.nodes[node.get()].alive {
+            return None;
+        }
+        let parent = self.nodes[node.get()].parent;
+        if parent.is_none() {
+            return None;
+        }
+        let slot = self.nodes[node.get()].slot as usize;
+        // Its axes: root-aligned, and not turning in space.
+        let orientation = self.facing(parent).conjugate();
+        let spin_rate = orientation.rotate(Vec3::ZERO - self.angular_velocity(parent));
+        // The planet in it: where it faces and how fast it turns in space,
+        // which are the same numbers in root-aligned axes.
+        let facing = self.facing(node);
+        let turning = self.angular_velocity(node);
+        let (key, depth) = (self.nodes[node.get()].key, self.nodes[node.get()].depth);
+        let n = &self.nodes[node.get()];
+        let stand_in = Body {
+            pos: Vec3::ZERO,
+            vel: Vec3::ZERO,
+            mass: n.matter.mass,
+            radius: n.matter.radius,
+            charge: n.matter.charge,
+            internal_energy: n.matter.internal_energy,
+            spin: n.matter.spin,
+            temperature: n.matter.temperature,
+            composition: n.matter.composition,
+            orientation: facing,
+            kind: self.nodes[parent.get()].bodies.get(slot).map(|b| b.kind).unwrap_or(crate::state::BodyKind::Grain),
+            ..Default::default()
+        };
+        let system = Node {
+            key,
+            parent,
+            slot: slot as u32,
+            depth,
+            tier: n.tier,
+            matter: n.matter,
+            motion: Motion {
+                offset: n.motion.offset,
+                velocity: n.motion.velocity,
+                orientation,
+                spin_rate,
+                proper_time: n.motion.proper_time,
+            },
+            bodies: vec![stand_in],
+            potential: 0.0,
+            gravity: Vec3::ZERO,
+            children: vec![node],
+            spec: n.spec,
+            epoch: 0,
+            time: n.time,
+            last_disturbed: n.time,
+            last_solved: n.time,
+            last_grown: n.time,
+            residency: n.residency,
+            // Nothing a draw would give: it holds what it holds.
+            pinned: true,
+            contains_edit: false,
+            rest_density: 0.0,
+            unrest: 0.0,
+            ocean: None,
+            sheet: None,
+            atmosphere: None,
+            carried: n.carried,
+            turning: Vec3::ZERO,
+            ground: None,
+            bubble: n.bubble,
+            alive: true,
+            morphology: None,
+            topology: None,
+            steps_taken: 0,
+            surface: None,
+            surface_epoch: u32::MAX,
+            last_report: SampleReport::default(),
+        };
+        let new = self.alloc(system);
+        self.nodes[parent.get()].children[slot] = new;
+        if let Some(b) = self.nodes[parent.get()].bodies.get_mut(slot) {
+            b.orientation = orientation;
+        }
+        {
+            let n = &mut self.nodes[node.get()];
+            n.parent = new;
+            n.slot = 0;
+            n.motion.offset = Vec3::ZERO;
+            n.motion.velocity = Vec3::ZERO;
+            n.motion.orientation = facing;
+            n.motion.spin_rate = turning;
+        }
+        let mut keys = Vec::new();
+        self.rekey_subtree(node, key.child(0), depth + 1, &mut keys);
+        self.migrate_persisted(&keys);
+        Some((new, keys))
+    }
+
+    /// Fold a level that holds one node and nothing else back into its
+    /// parent: [`Self::insert_above`] undone, when a system node holds its
+    /// planet alone again. The one node takes the level's slot and address,
+    /// with its place and motion re-expressed in the parent's axes, and the
+    /// level is freed. Refused for anything holding more than the one node.
+    pub fn fold_into_parent(&mut self, level: NodeIdx) -> Option<(NodeIdx, Vec<(PathKey, PathKey)>)> {
+        if level.is_none() || !self.nodes[level.get()].alive {
+            return None;
+        }
+        let parent = self.nodes[level.get()].parent;
+        if parent.is_none() {
+            return None;
+        }
+        let l = &self.nodes[level.get()];
+        let live: Vec<NodeIdx> = l.children.iter().copied().filter(|c| !c.is_none() && self.nodes[c.get()].alive).collect();
+        if live.len() != 1 {
+            return None;
+        }
+        let only = live[0];
+        let loose = l.bodies.iter().enumerate().any(|(k, b)| b.mass > 0.0 && l.child_of(k).is_none());
+        if loose {
+            return None;
+        }
+        // The one node in the parent's axes, through space: where it is from
+        // the level's centre, and how it moves, turned out of the level's axes
+        // and into the parent's.
+        let out = self.facing(level);
+        let into = self.facing(parent).conjugate();
+        let w_level = self.own_turning(level);
+        let w_parent = self.own_turning(parent);
+        let (at, v) = {
+            let o = &self.nodes[only.get()].motion;
+            let at_space = out.rotate(o.offset);
+            let v_space = out.rotate(o.velocity + w_level.cross(o.offset));
+            (at_space, v_space)
+        };
+        let (offset, velocity) = {
+            let l = &self.nodes[level.get()].motion;
+            let offset = l.offset + into.rotate(at);
+            let velocity = crate::coords::velocity_add(l.velocity, into.rotate(v) - w_parent.cross(into.rotate(at)));
+            (offset, velocity)
+        };
+        let orientation = into.then(self.facing(only)).unit();
+        let spin_rate = into.rotate(self.angular_velocity(only) - self.angular_velocity(parent));
+        let (key, depth, slot) = (self.nodes[level.get()].key, self.nodes[level.get()].depth, self.nodes[level.get()].slot);
+        let level_carried = self.nodes[level.get()].carried;
+        {
+            let n = &mut self.nodes[only.get()];
+            n.parent = parent;
+            n.slot = slot;
+            n.motion.offset = offset;
+            n.motion.velocity = velocity;
+            n.motion.orientation = orientation;
+            n.motion.spin_rate = spin_rate;
+            n.carried = n.carried.max(level_carried);
+        }
+        self.nodes[parent.get()].children[slot as usize] = only;
+        if let Some(b) = self.nodes[parent.get()].bodies.get_mut(slot as usize) {
+            b.orientation = orientation;
+        }
+        {
+            let l = &mut self.nodes[level.get()];
+            l.children.clear();
+            l.bodies.clear();
+            l.pinned = false;
+        }
+        self.release_subtree(level);
+        let mut keys = Vec::new();
+        self.rekey_subtree(only, key, depth, &mut keys);
+        self.migrate_persisted(&keys);
+        Some((only, keys))
     }
 
     /// Give a node and everything under it keys and depths for their new place.

@@ -3327,6 +3327,17 @@ beneath that:
 - **Only a node with a turn of its own asks it** — a spinning planet, not a
   patch of its ground, which turns only because its parent does. A ball thrown
   over the beach stays the beach's.
+- **And only where that turn is a frame: the node is held by its own gravity
+  into turning as one** — the owner's answer when building it found that every
+  drawn node carries some turn, from whatever angular momentum its draw
+  happened to hold: a galaxy at 1.3e-16 rad/s, the clouds down a ladder at
+  1e-18 to 5e-4. Against a turn that small nothing moves with the frame, and
+  asked of every such node, 19 nodes of the ladder `drill_to` builds left their
+  parents in 25 frames and 12 system nodes were made. Measured as V/sigma over
+  the node's own contents: the rms speed its turn gives them against the rms
+  speed they have against it, a frame where the first is the larger
+  (`World::turns_as_frame`). A cloud's turn is a statistic of its draw; a
+  planet's ground goes round with it.
 - **The system node is made on the first split**, between the planet and its
   parent, holding the planet and what left it, and it is folded back when it
   holds the planet alone again, as `merge` inverts `split_off`. Its mass is

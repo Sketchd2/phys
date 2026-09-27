@@ -488,6 +488,18 @@ pub fn step_leapfrog(bodies: &mut [Body], dt: f64, params: GravityParams) -> Sol
     }
     let interactions = tree.interactions + tree2.interactions;
     let after = crate::solvers::measure(bodies, 0.0);
+    // What the contents pull each other with, against the pull on their
+    // whole: contents at rest under it are out of balance all the same, and a
+    // node's cadence reads that from here (`Node::unrest`). Measured without
+    // it: a parcel at rest in space beside a planet, both in a node that does
+    // not turn, was never solved and never fell.
+    let total: f64 = bodies.iter().map(|b| b.mass).sum();
+    let mean = if total > 0.0 {
+        bodies.iter().zip(&acc2).fold(Vec3::ZERO, |s, (b, a)| s + a.scale(b.mass)).scale(1.0 / total)
+    } else {
+        Vec3::ZERO
+    };
+    let unrest = acc2.iter().map(|a| (*a - mean).norm()).fold(0.0f64, f64::max);
     SolveReport {
         steps: 1,
         interactions,
@@ -496,7 +508,7 @@ pub fn step_leapfrog(bodies: &mut [Body], dt: f64, params: GravityParams) -> Sol
         after,
         non_mechanical_energy: 0.0,
         outside: after.momentum - before.momentum,
-        unrest: 0.0,
+        unrest,
     }
 }
 

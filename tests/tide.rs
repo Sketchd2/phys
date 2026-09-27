@@ -176,3 +176,28 @@ fn a_frozen_seabed_is_rough_with_its_own_grain() {
     assert_eq!(o.drag, phys::ocean::log_law_drag(o.depth, grain));
     assert!(o.drag < 0.1 * flaw, "a grain-rough bed should drag far less than a kilometre-rough one");
 }
+
+/// **A system node above the planet does not take its tide away.** The owner's
+/// rule in `docs/PLAY.md` §7 Phase 5 puts a node that does not turn above a
+/// spinning planet when something leaves it, and the moon is then one level
+/// further up than the planet's parent. The tide is read from every level
+/// above; read off the parent alone, it went flat.
+#[test]
+fn a_system_node_above_the_planet_keeps_its_tide() {
+    let (mut w, earth) = earth_and_moon(0x71DE, 1.4e21);
+    w.step_frame(1_000_000.0);
+    let before = w.tidal_equilibrium(earth);
+    assert!(!before.is_empty(), "the Earth has no ocean to raise a tide in");
+    let range = |e: &[f64]| e.iter().fold(f64::NEG_INFINITY, |a, b| a.max(*b)) - e.iter().fold(f64::INFINITY, |a, b| a.min(*b));
+    let (system, _) = w.tree.insert_above(earth).expect("a level can be put above the Earth");
+    let after = w.tidal_equilibrium(earth);
+    let moved = before.iter().zip(&after).map(|(a, b)| (a - b).abs()).fold(0.0f64, f64::max);
+    println!(
+        "  the equilibrium tide spans {:.4} m, and {:.4} m with a system node {} above the Earth; the most any cell moved is {moved:.2e} m",
+        range(&before),
+        range(&after),
+        system.get()
+    );
+    assert!(range(&before) > 0.1, "there was no tide to keep: {} m", range(&before));
+    assert!(moved < 1e-6 * range(&before), "the tide moved by {moved} m when a level was put above the planet");
+}
