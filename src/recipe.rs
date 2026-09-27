@@ -1261,9 +1261,20 @@ impl Tiled {
     /// The integral separates: the radial factor is `int r^3 dr / int r^2 dr`
     /// over the patch's own depth, and the angular factor is the mean of the
     /// cube map's direction over the cell weighted by its Jacobian,
-    /// `(1 + a^2 + b^2)^(-3/2)`. Eight points a side is far finer than the
-    /// answer needs — the integrand has no structure — and it is deterministic,
-    /// which is what regenerating bit-for-bit requires.
+    /// `(1 + a^2 + b^2)^(-3/2)`, by Gauss-Legendre quadrature
+    /// ([`gauss_legendre`]) — deterministic, which is what regenerating
+    /// bit-for-bit requires.
+    ///
+    /// **To the precision the patch's children are placed at.** A patch's
+    /// cells are placed about this point and the sampler recentres what it
+    /// draws on its own centre of mass, so any difference between this and the
+    /// mass-weighted centre of its cells moves every level below it. Eight
+    /// midpoints a side was 2e-4 out over a whole face: at eight cells a side
+    /// that went unseen, and at 54 it put the patch under an observer standing
+    /// at the sea 1,377 m in the air. Sixteen Gauss points a side are 1e-13 out
+    /// over a face and at rounding over anything smaller, and the closed forms
+    /// the integrals have are no better, because on a patch a metre across
+    /// their four corners cancel to the last few digits.
     pub fn centre_of_mass_from_planet(&self) -> Vec3 {
         if self.is_ball() {
             return Vec3::ZERO;
@@ -1277,36 +1288,41 @@ impl Tiled {
     /// `region_com`, so that the two agree about where its mass is.
     pub fn solid_angle(&self) -> f64 {
         let (ca, cb, half) = self.face_span();
-        const Q: usize = 8;
-        let cell = (2.0 * half / Q as f64).powi(2);
+        let (x, w) = gauss_legendre();
         let mut total = 0.0;
-        for i in 0..Q {
-            for j in 0..Q {
-                let a = ca - half + 2.0 * half * (i as f64 + 0.5) / Q as f64;
-                let b = cb - half + 2.0 * half * (j as f64 + 0.5) / Q as f64;
-                total += (1.0 + a * a + b * b).powf(-1.5) * cell;
+        for i in 0..x.len() {
+            for j in 0..x.len() {
+                let a = ca + half * x[i];
+                let b = cb + half * x[j];
+                total += (1.0 + a * a + b * b).powf(-1.5) * w[i] * w[j];
             }
         }
-        total
+        total * half * half
     }
 
     pub fn region_com(&self, r0: f64, r1: f64) -> Vec3 {
         let (r0, r1) = (r0.min(r1).max(0.0), r0.max(r1).max(0.0));
         let radial = if r1 > r0 {
-            0.75 * (r1.powi(4) - r0.powi(4)) / (r1.powi(3) - r0.powi(3)).max(1e-300)
+            // `3/4 (r1^4 - r0^4) / (r1^3 - r0^3)` with the common factor
+            // `r1 - r0` taken out of both, which is exact algebra and the
+            // whole of the difference: at an Earth's radius a shell 4.8 mm
+            // thick is 3e-9 of it, the two differences kept the last few
+            // digits of numbers eight orders larger, and a patch's cells came
+            // out 0.1 m off their own columns.
+            0.75 * (r1 + r0) * (r1 * r1 + r0 * r0) / (r1 * r1 + r1 * r0 + r0 * r0).max(1e-300)
         } else {
             r1
         };
         let (ca, cb, half) = self.face_span();
-        const Q: usize = 8;
         let (right, up, out) = face_axes(self.face);
+        let (x, g) = gauss_legendre();
         let mut acc = Vec3::ZERO;
         let mut weight = 0.0;
-        for i in 0..Q {
-            for j in 0..Q {
-                let a = ca - half + 2.0 * half * (i as f64 + 0.5) / Q as f64;
-                let b = cb - half + 2.0 * half * (j as f64 + 0.5) / Q as f64;
-                let w = (1.0 + a * a + b * b).powf(-1.5);
+        for i in 0..x.len() {
+            for j in 0..x.len() {
+                let a = ca + half * x[i];
+                let b = cb + half * x[j];
+                let w = (1.0 + a * a + b * b).powf(-1.5) * g[i] * g[j];
                 acc = acc + (out + right.scale(a) + up.scale(b)).unit().scale(w);
                 weight += w;
             }
@@ -1316,6 +1332,42 @@ impl Tiled {
         }
         acc.scale(radial / weight)
     }
+}
+
+/// The nodes and weights of sixteen-point Gauss-Legendre quadrature on
+/// `[-1, 1]`: the roots of the Legendre polynomial `P_16`, by Newton's method
+/// from Tricomi's first guess, and `2 / ((1 - x^2) P_16'(x)^2)`. Found once
+/// and kept; the same arithmetic every time, so what is integrated with them
+/// regenerates bit-for-bit.
+pub fn gauss_legendre() -> &'static ([f64; 16], [f64; 16]) {
+    static RULE: std::sync::OnceLock<([f64; 16], [f64; 16])> = std::sync::OnceLock::new();
+    RULE.get_or_init(|| {
+        const N: usize = 16;
+        let mut x = [0.0f64; N];
+        let mut w = [0.0f64; N];
+        for i in 0..N {
+            let mut z = (std::f64::consts::PI * (i as f64 + 0.75) / (N as f64 + 0.5)).cos();
+            let mut dp = 0.0;
+            for _ in 0..100 {
+                // P_N and its derivative by the three-term recurrence.
+                let (mut p0, mut p1) = (1.0f64, z);
+                for k in 2..=N {
+                    let p2 = ((2 * k - 1) as f64 * z * p1 - (k - 1) as f64 * p0) / k as f64;
+                    p0 = p1;
+                    p1 = p2;
+                }
+                dp = N as f64 * (z * p1 - p0) / (z * z - 1.0);
+                let step = p1 / dp;
+                z -= step;
+                if step.abs() < 1e-16 {
+                    break;
+                }
+            }
+            x[i] = z;
+            w[i] = 2.0 / ((1.0 - z * z) * dp * dp);
+        }
+        (x, w)
+    })
 }
 
 /// Side of one face of a cubed sphere, as a fraction of the sphere's radius.
@@ -1354,7 +1406,7 @@ impl Tiled {
         let mine = self.volume();
         let mut covered = 0.0;
         let here = self.centre_of_mass_from_planet();
-        let mut cells: Vec<(Vec3, f64, f64, Quat)> = Vec::with_capacity(count);
+        let mut cells: Vec<(Vec3, f64, f64, Quat, (f64, f64))> = Vec::with_capacity(count);
         for c in 0..count {
             let Some(child) = self.child(c) else { continue };
             let Some((at, side)) = self.cell_offset(c) else { continue };
@@ -1364,15 +1416,26 @@ impl Tiled {
             // cell's axes by its frame, then into the patch's by the inverse of
             // the patch's. `a.then(b)` applies `b` first (`Quat::then`).
             let turn = self.frame().conjugate().then(child.frame());
-            cells.push((at, side, v, turn));
+            cells.push((at, side, v, turn, child.plan()));
         }
         let n_f = self.cells() as f64;
-        for (i, (at, side, v, turn)) in cells.iter().enumerate() {
+        let field_half = if self.is_ball() { 0.0 } else { self.field_half() };
+        // How far each cell was moved by what has happened to it, which the
+        // column under it follows.
+        let mut lifts = vec![0.0f64; cells.len()];
+        for (i, (at, side, v, turn, plan)) in cells.iter().enumerate() {
             let half = 0.5 * side;
             let depth = 0.5 * side * SLAB_ASPECT;
             // A cell is a slab, turned the way its own surface faces. Its
             // plan is the tiling's and may not move; its depth is what gives.
-            let up = turn.rotate(v3(0.0, 0.0, 1.0));
+            //
+            // **Up is the cell's own direction from the planet's centre, in
+            // the planet's axes, which is where its position is.** Its turn is
+            // stated against this patch's frame, and read as a direction in
+            // the planet's axes it is this patch's tilt out: nothing on a face
+            // whose middle is the planet's +z, and a quarter turn on the four
+            // faces round the side.
+            let up = self.child(i).map(|c| c.centre_direction()).unwrap_or_else(|| turn.rotate(v3(0.0, 0.0, 1.0)));
             // What has happened here that the rule does not describe, at this
             // cell's own place on the patch. A patch on a sphere is divided the
             // same way a flat one is, so the coordinates mean the same thing.
@@ -1381,14 +1444,15 @@ impl Tiled {
                 let u = -1.0 + 2.0 * ((i % self.cells()) as f64 + 0.5) / n_f;
                 let w = -1.0 + 2.0 * ((i / self.cells()) as f64 + 0.5) / n_f;
                 for d in field {
-                    lift += d.height_at(u, w, 0.5 * self.side);
+                    lift += d.height_at(u, w, field_half);
                 }
             }
+            lifts[i] = lift;
             let at = &(*at + up.scale(lift));
             sk.push_box(
                 *at - up.scale(depth),
                 *at + up.scale(depth),
-                v3(half, half, depth),
+                v3(0.5 * plan.0, 0.5 * plan.1, depth),
                 FREE_Z,
                 *v,
                 half,
@@ -1409,7 +1473,6 @@ impl Tiled {
         let under = (mine - covered).max(0.0);
         if under > 0.0 && !self.is_ball() && covered > 0.0 {
             let skin = self.side / self.cells() as f64 * SLAB_ASPECT;
-            let depth = 0.5 * (self.depth - skin).max(0.0);
             // Each column's share by the solid angle it covers: a cell of a
             // cube-mapped sphere near a face's corner covers less of it than
             // one in the middle. Shared by the cells' flat areas instead, the
@@ -1421,17 +1484,26 @@ impl Tiled {
             // `under` is the patch's shell less its cells' shells; each
             // column takes its share by the solid angle over it, which is the
             // same shell of rock between the cells' floor and the patch's.
-            for (i, (_, side, _, turn)) in cells.iter().enumerate() {
+            for (i, (_, side, _, turn, plan)) in cells.iter().enumerate() {
                 let Some(child) = self.child(i) else { continue };
                 if !(all > 0.0) {
                     continue;
                 }
-                let at = child.region_com(self.sphere - self.depth, self.sphere - skin) - here;
-                let up = turn.rotate(v3(0.0, 0.0, 1.0));
+                // **From the patch's floor to the underside of its own cell,
+                // wherever what has happened to the cell has put it.** Fixed
+                // at the cell's rest depth, a cut lowered a cell into the
+                // column under it and the ground's surface stayed where the
+                // column's top was: a 5 cm channel carved into a patch of an
+                // Earth's shore changed the water's floor by nothing at all.
+                let (r0, r1) = (self.sphere - self.depth, self.sphere - skin + lifts[i]);
+                let r1 = r1.max(r0 + 1e-9 * self.depth.max(1e-300));
+                let depth = 0.5 * (r1 - r0);
+                let at = child.region_com(r0, r1) - here;
+                let up = child.centre_direction();
                 sk.push_box(
                     at - up.scale(depth),
                     at + up.scale(depth),
-                    v3(0.5 * side, 0.5 * side, depth),
+                    v3(0.5 * plan.0, 0.5 * plan.1, depth),
                     FREE_Z,
                     under * angles[i] / all,
                     0.5 * side,
@@ -1467,6 +1539,47 @@ impl Tiled {
         sk
     }
 
+    /// Half the width of this patch, m, in the sense its field's coordinates
+    /// mean: a [`crate::erode::Deviation`] at `x = 1` is this far from the
+    /// middle, and its `span` in metres is measured against it. A flat patch's
+    /// half-side; a patch of a sphere's mean half-width across, from
+    /// [`Tiled::plan`], because its `side` is the face's mean and not its own.
+    pub fn field_half(&self) -> f64 {
+        let (a, b) = self.plan();
+        0.25 * (a + b)
+    }
+
+    /// How wide this patch is on its sphere's surface along its own frame's
+    /// two axes across ([`Tiled::frame`]), m: the chords between the
+    /// midpoints of its opposite edges.
+    ///
+    /// **Not `side`, which is the face's mean.** `side` is what a cell would
+    /// be if the cube map were equal-area, and it is not: a cell in the
+    /// middle of a face covers 1.91 times the solid angle `side^2` does, and
+    /// one at a corner a fifth as much. Drawn `side` wide, the middle of a
+    /// face was a lattice of slabs with gaps between them — and the sampler,
+    /// finding their boxes too small for the mass they hold, made every one
+    /// 1.9 times as deep, so the columns under a patch's cells stood up
+    /// through them.
+    pub fn plan(&self) -> (f64, f64) {
+        if self.is_ball() || !self.on_sphere() {
+            return (self.side, self.side);
+        }
+        let (ca, cb, half) = self.face_span();
+        let r = self.sphere;
+        let centre = cube_to_sphere(self.face, ca, cb).scale(r);
+        let frame = self.frame();
+        let (ex, ey) = (frame.rotate(v3(1.0, 0.0, 0.0)), frame.rotate(v3(0.0, 1.0, 0.0)));
+        let edges = [
+            cube_to_sphere(self.face, ca - half, cb).scale(r),
+            cube_to_sphere(self.face, ca + half, cb).scale(r),
+            cube_to_sphere(self.face, ca, cb - half).scale(r),
+            cube_to_sphere(self.face, ca, cb + half).scale(r),
+        ];
+        let across = |e: Vec3| 2.0 * edges.iter().map(|p| (*p - centre).dot(e).abs()).fold(0.0f64, f64::max);
+        (across(ex), across(ey))
+    }
+
     /// The volume this patch stands for, m^3: the shell it cuts from its
     /// sphere, `Omega (R^3 - (R - d)^3) / 3` over the solid angle it covers.
     ///
@@ -1482,7 +1595,11 @@ impl Tiled {
             return 4.0 / 3.0 * std::f64::consts::PI * self.sphere.powi(3);
         }
         let inner = (self.sphere - self.depth).max(0.0);
-        self.solid_angle() * (self.sphere.powi(3) - inner.powi(3)) / 3.0
+        // `R^3 - r^3` as `(R - r)(R^2 + R r + r^2)`, for the reason
+        // `region_com` gives: a thin shell far from the centre is a small
+        // difference of two large cubes.
+        let (big, small) = (self.sphere, inner);
+        self.solid_angle() * (big - small) * (big * big + big * small + small * small) / 3.0
     }
 }
 
@@ -1578,6 +1695,32 @@ impl Tiled {
             }
         }
         out
+    }
+}
+
+impl Tiled {
+    /// Where a point of this patch's field is, m: `(x, y)` in units of the
+    /// patch's half-side, as a [`crate::erode::Deviation`] states it, placed in
+    /// the axes the patch is drawn in and about its own centre of mass, on its
+    /// surface. `None` for the ball, which has no field of its own.
+    ///
+    /// **One convention for both habits.** A flat patch is drawn in its own
+    /// axes, its surface the plane `z = 0`; a patch of a sphere states its
+    /// cells in its planet's axes (see `cell_offset`), and a field point on it
+    /// is where the cube map puts that fraction of the patch's own span, on
+    /// the sphere. Either is then turned by `Tree::drawn_turn`. Read as a flat
+    /// patch's, a mark on a patch of an Earth landed on a point 1.9 million
+    /// metres from anything the patch holds.
+    pub fn field_point(&self, x: f64, y: f64) -> Option<Vec3> {
+        if self.is_ball() {
+            return None;
+        }
+        if !self.on_sphere() {
+            return Some(v3(x * 0.5 * self.side, y * 0.5 * self.side, 0.0));
+        }
+        let (ca, cb, half) = self.face_span();
+        let at = cube_to_sphere(self.face, ca + x * half, cb + y * half).scale(self.sphere);
+        Some(at - self.centre_of_mass_from_planet())
     }
 }
 

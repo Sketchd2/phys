@@ -844,7 +844,7 @@ impl World {
     /// structure with a recipe, so `World::collapsible` already says its detail
     /// may be released, and the scheduler releases it as soon as the observer's
     /// acuity on it drops.
-    fn approach(&mut self) {
+    pub fn approach(&mut self) {
         if self.observers.is_empty() {
             return;
         }
@@ -1194,8 +1194,11 @@ impl World {
         // How many cells a patch divides into, from the resolution policy the
         // node already carries. Fixed in the recipe rather than read from
         // whoever is looking, because the address has to mean the same thing at
-        // every level of detail.
-        let cells = ((spec_count as f64).sqrt().floor() as usize).clamp(2, 32) as u8;
+        // every level of detail. Bounded by what the address can hold: a
+        // patch's place on its face is `cells^level` in sixty-four bits, and
+        // at 64 a side that is ten levels, from a face to under a millimetre
+        // on an Earth.
+        let cells = ((spec_count as f64).sqrt().floor() as usize).clamp(2, 64) as u8;
         m.recipe = Some(crate::recipe::Recipe::Tiled(crate::recipe::Tiled {
             density: (mass / (4.0 / 3.0 * std::f64::consts::PI * radius.powi(3))).max(1e-9),
             sphere: radius,
@@ -3133,7 +3136,7 @@ impl World {
         // base to its tip otherwise — a body alone is a sphere or a box, and a
         // branch is neither.
         let (mut walls, field) = match &ordered {
-            Some(mask) => (self.member_walls(idx, mask), self.tree.nodes[idx.get()].gravity),
+            Some(mask) => (self.member_walls(idx, mask), self.tree.drawn_frame(idx).rotate(self.tree.nodes[idx.get()].gravity)),
             None => (Vec::new(), crate::math::Vec3::ZERO),
         };
         // Whether the node holds a liquid, and which of its bodies stand in for
@@ -3529,14 +3532,14 @@ impl World {
         // The water over it, over the span its contents covered — laid first
         // if the sea stands over a patch that has none, asked once for each
         // arrangement of the patch.
-        if ordered.is_some() && ground.is_none() && self.sheet_of(idx).is_none() {
+        if (ordered.is_some() || ground.is_some()) && self.sheet_of(idx).is_none() {
             let (key, epoch) = (self.tree.nodes[idx.get()].key, self.tree.nodes[idx.get()].epoch);
             if self.sheets_assessed.get(&key) != Some(&epoch) {
                 self.sheets_assessed.insert(key, epoch);
                 self.assess_sheet(idx);
             }
         }
-        if ordered.is_some() && ground.is_none() {
+        if ordered.is_some() || ground.is_some() {
             let covered = if report.dt_used.is_finite() && report.dt_used > 0.0 { report.dt_used.min(dt) } else { dt };
             if let Some((bed, flowed)) = self.flow_sheet(idx, covered, rate) {
                 report.outside += bed;
@@ -4061,10 +4064,6 @@ impl World {
         if nb.len() < 2 {
             return 0;
         }
-        let Some(overlaps) = nb.pairs(0.0) else { return 0 };
-        if overlaps.is_empty() {
-            return 0;
-        }
         // The material a plain body presents is its own node's: a structure's
         // members are made of what the structure is made of.
         let mine = self.surface_of(idx);
@@ -4187,6 +4186,14 @@ impl World {
         // They still meet everything else the node holds.
         let members = self.tree.nodes[idx.get()].structural_mask();
         let joined = |k: u32| members.as_ref().and_then(|m| m.get(k as usize).copied()).unwrap_or(false);
+        // Only pairs with something in them that is not a member or a piece
+        // of ground: the rest are skipped below, and are not worth finding.
+        let active = |i: usize| match nb.at(i) {
+            Some((Occupant::Body(k), _, _)) => !joined(k) && (k as usize) >= pieces,
+            Some((o, _, _)) => slot_of(self, o).map(|s| s >= pieces).unwrap_or(true),
+            None => false,
+        };
+        let Some(overlaps) = nb.pairs_where(0.0, active) else { return 0 };
         for (i, j) in overlaps {
             if let (Some((Occupant::Body(a), _, _)), Some((Occupant::Body(b), _, _))) = (nb.at(i), nb.at(j)) {
                 if joined(a) && joined(b) {
@@ -4382,12 +4389,6 @@ impl World {
         // `Neighbourhood::resolution`. Above this length the structure belongs
         // to the parent, and the parent's luminosity field — `environment_at`
         // — is already carrying it.
-        let Some(pairs) = nb.pairs(nb.resolution()) else {
-            return 0;
-        };
-        if pairs.is_empty() {
-            return 0;
-        }
 
         // Read every potential once, then let the walk move them.
         let mut side: Vec<Reservoir> = Vec::with_capacity(nb.len());
@@ -4439,7 +4440,7 @@ impl World {
         // move. The exchange is an exact relaxation between two reservoirs,
         // so a pair given the whole span it was owed takes it in one step.
         // Everything else the node holds exchanges every solve.
-        let members = self.tree.nodes[idx.get()].structural_mask();
+        let members = self.members(idx);
         let joined = |k: u32| members.as_ref().and_then(|m| m.get(k as usize).copied()).unwrap_or(false);
         let key = self.tree.nodes[idx.get()].key;
         let members_due = match &members {
@@ -4462,6 +4463,15 @@ impl World {
             }
         };
 
+        // Between members only when their heat is due; everything else every
+        // solve, found from its own side.
+        let pairs = match members_due {
+            Some(_) => nb.pairs(nb.resolution()),
+            None => nb.pairs_where(nb.resolution(), |i| !matches!(nb.at(i), Some((Occupant::Body(k), _, _)) if joined(k))),
+        };
+        let Some(pairs) = pairs else {
+            return 0;
+        };
         let mut crossings = 0u64;
         for (i, j) in pairs {
             let both = matches!((nb.at(i), nb.at(j)), (Some((Occupant::Body(a), _, _)), Some((Occupant::Body(b), _, _))) if joined(a) && joined(b));
@@ -6257,13 +6267,12 @@ impl World {
             } else {
                 self.tree.offset_at(n.parent, idx, n.time) - self.tree.offset_from(n.parent, idx, Vec3::ZERO).value
             };
-            n.bodies
-                .iter()
+            let at: Vec<Vec3> = n.bodies.iter().map(|b| b.pos + shift).collect();
+            let within = self.tree.field_within_all(idx, &at);
+            at.iter()
+                .zip(within)
                 .enumerate()
-                .map(|(i, b)| {
-                    let at = b.pos + shift;
-                    if i < pieces && n.parent.is_none() { self.tree.gravity_at_point(idx, at) } else { self.tree.field_within(idx, at) }
-                })
+                .map(|(i, (&p, f))| if i < pieces && n.parent.is_none() { self.tree.gravity_at_point(idx, p) } else { f })
                 .collect()
         };
         // **A body pulls its own pieces as the points they are drawn as; a
@@ -6786,6 +6795,9 @@ impl World {
     fn member_walls(&self, idx: NodeIdx, mask: &[bool]) -> Vec<solvers::hydro::Wall> {
         let n = &self.tree.nodes[idx.get()];
         let topo = n.topology.as_ref();
+        // A body's orientation is in the node's own axes and its position in
+        // the drawing's (`Tree::drawn_frame`).
+        let frame = self.tree.drawn_frame(idx);
         n.bodies
             .iter()
             .enumerate()
@@ -6797,7 +6809,11 @@ impl World {
                     Some((base, tip)) if !b.is_boxed() && (tip - base).norm() > 0.0 => {
                         solvers::hydro::Wall::capsule(base, tip, b.radius)
                     }
-                    _ => solvers::hydro::Wall::of(b),
+                    _ => {
+                        let mut w = solvers::hydro::Wall::of(b);
+                        w.orientation = frame.then(b.orientation).unit();
+                        w
+                    }
                 }
             })
             .collect()
@@ -6821,11 +6837,7 @@ impl World {
         let (_, sea) = self.sea_around(idx)?;
         let sheet_node = self.sheet_of(idx)?;
         let sheet = self.tree.nodes[sheet_node.get()].sheet.as_ref()?;
-        let half = match self.tree.nodes[idx.get()].morphology.as_ref()?.recipe.as_ref()? {
-            crate::recipe::Recipe::Tiled(t) if !t.on_sphere() => 0.5 * t.side,
-            _ => return None,
-        };
-        let at = self.tree.drawn_turn(idx).rotate(crate::math::v3(d.x * half, d.y * half, 0.0));
+        let at = self.field_point(idx, d.x, d.y)?;
         let k = sheet.column_of(at)?;
         let bed = sheet.bed[k];
         let depth = sea.sea.level - sea.height - bed;
@@ -6841,6 +6853,17 @@ impl World {
             })
             .unwrap_or(0.0);
         Some((sheet.density, sea.sea.current.norm() + orbital))
+    }
+
+    /// Where a point of a patch's field is, in the axes the patch's bodies are
+    /// in: [`crate::recipe::Tiled::field_point`], turned as the patch is drawn
+    /// (`Tree::drawn_turn`). `None` for anything that is not a patch of ground.
+    pub fn field_point(&self, idx: NodeIdx, x: f64, y: f64) -> Option<Vec3> {
+        let at = match self.tree.nodes[idx.get()].morphology.as_ref()?.recipe.as_ref()? {
+            crate::recipe::Recipe::Tiled(t) => t.field_point(x, y)?,
+            _ => return None,
+        };
+        Some(self.tree.drawn_turn(idx).rotate(at))
     }
 
     /// Let a patch of loose ground's marks fall to what holds them up, and
@@ -6870,7 +6893,7 @@ impl World {
             return false;
         }
         let half = match self.tree.nodes[idx.get()].morphology.as_ref().and_then(|m| m.recipe.as_ref()) {
-            Some(crate::recipe::Recipe::Tiled(t)) if !t.on_sphere() => 0.5 * t.side,
+            Some(crate::recipe::Recipe::Tiled(t)) if !t.is_ball() => t.field_half(),
             _ => return false,
         };
         let field = match self.tree.nodes[idx.get()].morphology.as_ref() {
@@ -6983,6 +7006,10 @@ impl World {
     /// the water over it, if any, lies on it as it now is.
     fn reground(&mut self, target: NodeIdx) {
         self.tree.redraw_members(target);
+        // A patch of a sphere's springs rest at the lengths it was drawn at
+        // and its supports hold it where it was drawn: both are derived again
+        // from the drawing as it now is, on its next solve.
+        self.tree.nodes[target.get()].ground = None;
         if let (Some(sheet), Some(floor)) = (self.sheet_of(target), self.floor_of(target)) {
             let returned = self.tree.nodes[sheet.get()].sheet.as_mut().map(|s| s.rebed(&floor)).unwrap_or(0.0);
             if let Some((anc, _)) = self.sea_around(target) {
@@ -7012,10 +7039,10 @@ impl World {
         let sheet = self.tree.nodes[self.sheet_of(idx)?.get()].sheet.as_ref()?;
         let morph = self.tree.nodes[idx.get()].morphology.as_ref()?;
         let half = match morph.recipe.as_ref()? {
-            crate::recipe::Recipe::Tiled(t) if !t.on_sphere() => 0.5 * t.side,
+            crate::recipe::Recipe::Tiled(t) if !t.is_ball() => t.field_half(),
             _ => return None,
         };
-        let at = self.tree.drawn_turn(idx).rotate(crate::math::v3(d.x * half, d.y * half, 0.0));
+        let at = self.field_point(idx, d.x, d.y)?;
         let k = sheet.column_of(at)?;
         let cut: f64 = morph.field.iter().map(|o| o.height_at(d.x, d.y, half)).sum();
         Some(sea.sea.level - sea.height - (sheet.bed[k] - cut))
@@ -7027,9 +7054,9 @@ impl World {
     /// tell apart what the bed does not. `None` for a node with no members or
     /// no field.
     fn floor_of(&self, idx: NodeIdx) -> Option<crate::shallow::Floor> {
-        let mask = self.tree.nodes[idx.get()].structural_mask()?;
+        let mask = self.members(idx)?;
         let walls = self.member_walls(idx, &mask);
-        let gravity = self.tree.nodes[idx.get()].gravity;
+        let gravity = self.tree.drawn_frame(idx).rotate(self.tree.nodes[idx.get()].gravity);
         let g = gravity.norm();
         if walls.is_empty() || !(g > 0.0) {
             return None;
@@ -7057,6 +7084,21 @@ impl World {
             .filter(|p| *p > 0.0)
             .fold(f64::INFINITY, f64::min);
         pitch.is_finite().then(|| crate::shallow::Floor::of(&walls, gravity, pitch, Vec3::ZERO))
+    }
+
+    /// Which of a node's bodies are its own members rather than loose among
+    /// them: a structure's ordered members, or a patch of a sphere's pieces
+    /// of ground — its cells and the columns under them, which its recipe's
+    /// joints name. `None` for a node with neither.
+    fn members(&self, idx: NodeIdx) -> Option<Vec<bool>> {
+        let n = &self.tree.nodes[idx.get()];
+        if let Some(mask) = n.structural_mask() {
+            return Some(mask);
+        }
+        let joints = self.ground_joints(idx)?;
+        let pieces = joints.iter().map(|&(a, b, _)| a.max(b) + 1).max().unwrap_or(0);
+        let mask: Vec<bool> = (0..n.bodies.len()).map(|i| i < pieces && n.child_of(i).is_none()).collect();
+        mask.iter().any(|m| *m).then_some(mask)
     }
 
     /// The node that is the water over a patch of ground, if it has one.
@@ -7089,6 +7131,21 @@ impl World {
         }
         let Some((anc, sea)) = self.sea_around(idx) else { return false };
         let Some(sea_node) = self.sea_of(anc) else { return false };
+        // **A sheet is the sea finer than the sea's own cells**, nested in the
+        // one it stands in and coupled to it by what crosses its edge. Where a
+        // patch is as wide as an ocean cell or wider, the ocean's grid is
+        // already the description of the water over it: laid a sheet as well,
+        // a face of a turning Earth 9,220 km across carried one of 54 columns
+        // a side under the sea's own 576 km cells, and the ground holding the
+        // air over it slipped at 750 m/s within a day.
+        let cell = self.ocean_of(anc).map(|o| (4.0 * std::f64::consts::PI * o.radius * o.radius / o.cells.len().max(1) as f64).sqrt()).unwrap_or(0.0);
+        let wide = match self.tree.nodes[idx.get()].morphology.as_ref().and_then(|m| m.recipe.as_ref()) {
+            Some(crate::recipe::Recipe::Tiled(t)) => t.plan().0.max(t.plan().1),
+            _ => 2.0 * self.tree.nodes[idx.get()].matter.radius,
+        };
+        if !(wide < cell) {
+            return false;
+        }
         let Some(floor) = self.floor_of(idx) else { return false };
         let density = self.ocean_of(anc).map(|o| o.density).unwrap_or(0.0);
         let grain = self.seabed_grain(idx);

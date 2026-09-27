@@ -3251,6 +3251,43 @@ a pond, is a sheet fed by the ground's own water. And **sand collapses where
 nothing holds it up**: a cut in dry or drowned sand is steeper than the angle
 its own grains rest at, and slumps.
 
+*Decided by the owner — the beach is the Earth's own ground.* The beach test
+had stood its sand on a patch placed at the sea's level as a node of its own,
+with nothing under it; solved as part of its Earth, the sea buoyed it (800 kg
+over its 0.6 m equivalent sphere is 884 kg/m^3) at 12 m/s^2 and the next solve
+threw it 1,060 km down, turning or not. Asked, the owner chose the Earth's own
+ground: a patch of it reached by `World::approach` under an observer at the
+water's edge, held and turned as ground is, with the sheet on it. **Down is
+relative to the parent**, the owner's statement of how the turn is handled: a
+child's frame is its parent's, so a thing standing on a turning planet goes
+round with it and nothing turns it by hand; a camera is linked to a node, and
+an actor has a node the camera links to. **A body of liquid is a sheet where
+shallow water is valid** — lying on a node's floor, and shallow against its
+width — and particles otherwise, which is the criterion lakes take.
+
+Building it found five defects in how an Earth's ground is drawn, each of
+which the eight-cell ground of Phase 4 was too coarse to show, and each fixed
+with its measurement in its commit: the centre of mass of a patch integrated
+by eight midpoints a side, 2e-4 out over a face and 1,377 m at the beach; the
+radial centre of a thin shell a difference of fourth powers, 0.1 m out for a
+shell 4.8 mm thick at an Earth's radius; cells drawn the face's mean width, so
+the middle of a face was a lattice of slabs with gaps that the sampler filled
+by making each 1.9 times as deep; the column under a cell fixed at the cell's
+rest depth, so that a cut lowered the cell into its column and the surface did
+not move; and a direction up taken from the patch's frame where the cell's
+position is in its planet's, a quarter turn out on four of the six faces. The
+stress solve went from dense to banded in a sweep order, 330 s to 2 s for a
+patch 54 cells a side.
+
+Three calls made inside the item, stated here rather than left in the code:
+ground, and anything else that neither grew nor was built, is not proportioned
+by the fully-stressed optimiser (`Morphology::proportions_itself`); a sheet is
+laid only on a patch narrower than the ocean cell it stands in, because wider
+than that the ocean's grid already describes the water; and the pieces of a
+patch of ground are members joined by their rock, so they meet each other
+neither in contact nor in the per-solve heat exchange, as a structure's
+members already do.
+
 **Phase 6 — The program.** *Inserted by the owner during Phase 5.* The whole
 system simulated and watched on the owner's own PC as a native executable —
 the owner's requirement, on the grounds that a web renderer's overhead would

@@ -304,46 +304,167 @@ pub fn support(bodies: &[Body], ground: &Ground, pieces: &[bool]) -> Vec<Vec3> {
         .collect()
 }
 
-/// Solve `A x = b` for a symmetric positive semi-definite `A` (row-major,
-/// `dim` square, overwritten) by Cholesky, with the null space a ground's
-/// free rigid motions leave regularised away at a part in 10^12 of its
-/// largest diagonal. `b` is in the range whenever it is a load the pieces'
+/// Solve `B B^T y = g` for the pieces' coordinates, where `B` puts a
+/// spring's weight vector `w` on its two ends: a symmetric positive
+/// semi-definite system, 3 unknowns a piece, by Cholesky, with the null space
+/// a ground's free rigid motions leave regularised away at a part in 10^12 of
+/// its largest diagonal. `g` is in the range whenever it is a load the pieces'
 /// own springs can carry, which is what `stress` hands it.
-fn solve_spd(a: &mut [f64], dim: usize, b: &[f64]) -> Vec<f64> {
-    let top = (0..dim).map(|i| a[i * dim + i]).fold(0.0f64, f64::max);
+///
+/// **Banded, in an order that keeps it banded.** A spring joins a piece to
+/// its neighbours only, so the matrix is a lattice's and nearly all zero; the
+/// pieces are renumbered by reverse Cuthill-McKee — breadth first from a
+/// piece of least degree, reversed — which puts every spring within a narrow
+/// band of the diagonal, and Cholesky never fills in outside the band. Dense,
+/// as it was, a patch of 32 cells a side — 2048 pieces, 6144 unknowns — took
+/// 7.7e10 operations and 60 s to solve once, and a descent to a beach drew
+/// five of them: 330 s before the first frame. The factor is the same one;
+/// only the zeros it no longer visits are gone.
+fn solve_lattice(n: usize, springs: &[(usize, usize, Vec3)], positions: &[Vec3], g: &[f64]) -> Vec<f64> {
+    let dim = 3 * n;
+    // The pieces' graph, and its reverse Cuthill-McKee order.
+    let mut adjacent: Vec<Vec<usize>> = vec![Vec::new(); n];
+    for &(a, b, _) in springs {
+        if a != b {
+            adjacent[a].push(b);
+            adjacent[b].push(a);
+        }
+    }
+    for list in adjacent.iter_mut() {
+        list.sort_unstable();
+        list.dedup();
+    }
+    let mut order: Vec<usize> = Vec::with_capacity(n);
+    let mut seen = vec![false; n];
+    let mut by_degree: Vec<usize> = (0..n).collect();
+    by_degree.sort_by_key(|&i| (adjacent[i].len(), i));
+    for &start in &by_degree {
+        if seen[start] {
+            continue;
+        }
+        seen[start] = true;
+        let first = order.len();
+        order.push(start);
+        let mut head = first;
+        while head < order.len() {
+            let here = order[head];
+            head += 1;
+            let mut next: Vec<usize> = adjacent[here].iter().copied().filter(|&j| !seen[j]).collect();
+            next.sort_by_key(|&j| (adjacent[j].len(), j));
+            for j in next {
+                seen[j] = true;
+                order.push(j);
+            }
+        }
+    }
+    order.reverse();
+    // **Or a sweep along the lattice's longest extent, whichever is
+    // narrower.** Breadth first from a corner of a square lattice runs in
+    // diagonal fronts, which are half as wide again as its rows: measured on
+    // a patch 54 cells a side, 214 pieces against a sweep's 110, and the
+    // factor goes as the square of that.
+    let sweep: Vec<usize> = {
+        let (mut lo, mut hi) = ([f64::INFINITY; 3], [f64::NEG_INFINITY; 3]);
+        for p in &positions[..n] {
+            for (k, c) in [p.x, p.y, p.z].into_iter().enumerate() {
+                lo[k] = lo[k].min(c);
+                hi[k] = hi[k].max(c);
+            }
+        }
+        let span = crate::math::v3(hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2]);
+        let axis = if span.x >= span.y && span.x >= span.z {
+            crate::math::v3(1.0, 0.0, 0.0)
+        } else if span.y >= span.z {
+            crate::math::v3(0.0, 1.0, 0.0)
+        } else {
+            crate::math::v3(0.0, 0.0, 1.0)
+        };
+        let mut s: Vec<usize> = (0..n).collect();
+        s.sort_by(|&a, &b| positions[a].dot(axis).total_cmp(&positions[b].dot(axis)).then(a.cmp(&b)));
+        s
+    };
+    let reach_of = |order: &[usize]| {
+        let mut place = vec![0usize; n];
+        for (new, &old) in order.iter().enumerate() {
+            place[old] = new;
+        }
+        let reach = springs.iter().map(|&(a, b, _)| place[a].abs_diff(place[b])).max().unwrap_or(0);
+        (place, reach)
+    };
+    let (by_front, front) = reach_of(&order);
+    let (by_sweep, swept) = reach_of(&sweep);
+    let (order, place, reach) = if swept < front { (sweep, by_sweep, swept) } else { (order, by_front, front) };
+    let band = 3 * reach + 2;
+    let width = band + 1;
+    // Row `i` holds columns `i - band ..= i`, at `i * width + (j + band - i)`.
+    let at = |i: usize, j: usize| i * width + (j + band - i);
+    let mut l = vec![0.0f64; dim * width];
+    for &(a, b, w) in springs {
+        let (pa, pb) = (place[a], place[b]);
+        let w = [w.x, w.y, w.z];
+        for r in 0..3 {
+            for c in 0..3 {
+                let x = w[r] * w[c];
+                let (ar, ac, br, bc) = (3 * pa + r, 3 * pa + c, 3 * pb + r, 3 * pb + c);
+                if ac <= ar {
+                    l[at(ar, ac)] += x;
+                }
+                if bc <= br {
+                    l[at(br, bc)] += x;
+                }
+                if bc <= ar {
+                    l[at(ar, bc)] -= x;
+                }
+                if ac <= br {
+                    l[at(br, ac)] -= x;
+                }
+            }
+        }
+    }
+    let top = (0..dim).map(|i| l[at(i, i)]).fold(0.0f64, f64::max);
     let eps = 1e-12 * top.max(1e-300);
     for i in 0..dim {
-        a[i * dim + i] += eps;
+        l[at(i, i)] += eps;
     }
+    // Each inner product runs along two rows' stored stretches, which are
+    // contiguous, so it is a dot product of two slices.
+    let dot = |a: &[f64], b: &[f64]| a.iter().zip(b).fold(0.0f64, |s, (x, y)| s + x * y);
     for j in 0..dim {
-        let mut d = a[j * dim + j];
-        for k in 0..j {
-            d -= a[j * dim + k] * a[j * dim + k];
-        }
+        let lo = j.saturating_sub(band);
+        let row_j = at(j, lo);
+        let d = l[at(j, j)] - dot(&l[row_j..row_j + (j - lo)], &l[row_j..row_j + (j - lo)]);
         let d = d.max(eps).sqrt();
-        a[j * dim + j] = d;
-        for i in (j + 1)..dim {
-            let mut v = a[i * dim + j];
-            for k in 0..j {
-                v -= a[i * dim + k] * a[j * dim + k];
-            }
-            a[i * dim + j] = v / d;
+        l[at(j, j)] = d;
+        for i in (j + 1)..(j + band + 1).min(dim) {
+            let from = i.saturating_sub(band);
+            let (ri, rj) = (at(i, from), at(j, from));
+            let v = l[at(i, j)] - dot(&l[ri..ri + (j - from)], &l[rj..rj + (j - from)]);
+            l[at(i, j)] = v / d;
         }
     }
-    let mut z = b.to_vec();
+    let mut z = vec![0.0f64; dim];
+    for p in 0..n {
+        let old = order[p];
+        z[3 * p..3 * p + 3].copy_from_slice(&g[3 * old..3 * old + 3]);
+    }
     for i in 0..dim {
-        for k in 0..i {
-            z[i] -= a[i * dim + k] * z[k];
+        for k in i.saturating_sub(band)..i {
+            z[i] -= l[at(i, k)] * z[k];
         }
-        z[i] /= a[i * dim + i];
+        z[i] /= l[at(i, i)];
     }
     for i in (0..dim).rev() {
-        for k in (i + 1)..dim {
-            z[i] -= a[k * dim + i] * z[k];
+        for k in (i + 1)..(i + band + 1).min(dim) {
+            z[i] -= l[at(k, i)] * z[k];
         }
-        z[i] /= a[i * dim + i];
+        z[i] /= l[at(i, i)];
     }
-    z
+    let mut y = vec![0.0f64; dim];
+    for p in 0..n {
+        let old = order[p];
+        y[3 * old..3 * old + 3].copy_from_slice(&z[3 * p..3 * p + 3]);
+    }
+    y
 }
 
 /// A net force and a torque about `centre`, shared among the pieces `on` as
@@ -452,23 +573,10 @@ pub fn stress(bodies: &[Body], springs: &[Spring], pieces: usize, floor: usize, 
     // self-stress — tensions that cancel at every piece and so move nothing
     // but soften every compressed line sideways — at 2000 times what a spring
     // carries at its own length, and a face buckled at 8e-2 s^-2.
-    let dim = 3 * n;
-    let mut normal = vec![0.0f64; dim * dim];
-    for u in usable.iter().flatten() {
-        let (a, b, w) = *u;
-        let w = [w.x, w.y, w.z];
-        for r in 0..3 {
-            for c in 0..3 {
-                let x = w[r] * w[c];
-                normal[(3 * a + r) * dim + 3 * a + c] += x;
-                normal[(3 * b + r) * dim + 3 * b + c] += x;
-                normal[(3 * a + r) * dim + 3 * b + c] -= x;
-                normal[(3 * b + r) * dim + 3 * a + c] -= x;
-            }
-        }
-    }
     let rhs: Vec<f64> = g.iter().flat_map(|v| [v.x, v.y, v.z]).collect();
-    let y = solve_spd(&mut normal, dim, &rhs);
+    let lattice: Vec<(usize, usize, Vec3)> = usable.iter().flatten().copied().collect();
+    let positions: Vec<Vec3> = bodies[..n].iter().map(|b| b.pos).collect();
+    let y = solve_lattice(n, &lattice, &positions, &rhs);
     let mut t: Vec<f64> = usable
         .iter()
         .map(|u| match u {

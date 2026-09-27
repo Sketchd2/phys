@@ -1949,27 +1949,71 @@ impl Tree {
     /// patch of ground stands in, rather than the pull of the patch's pieces as
     /// points. A ball includes itself by its own interior law.
     pub fn field_within(&self, idx: NodeIdx, local: Vec3) -> Vec3 {
-        let mut g = self.field_at(idx, local, true);
+        self.field_at(idx, local, true) + self.own_interior(idx, local)
+    }
+
+    /// A ball's own pull at a point inside or around it, by its interior law;
+    /// nothing for anything that is a piece of something.
+    fn own_interior(&self, idx: NodeIdx, local: Vec3) -> Vec3 {
         let n = &self.nodes[idx.get()];
         if n.parent.is_none() || matches!(n.morphology.as_ref().and_then(|m| m.recipe.as_ref()), Some(crate::recipe::Recipe::Tiled(t)) if t.is_ball()) {
             let d = local.norm();
             let (m, radius) = (n.matter.mass.max(0.0), n.matter.radius);
             if d > 0.0 && radius > 0.0 {
                 let enclosed = if d >= radius { m } else { m * (d / radius).powi(3) };
-                g += local.scale(-crate::units::G * enclosed / (d * d * d));
+                return local.scale(-crate::units::G * enclosed / (d * d * d));
             }
         }
-        g
+        Vec3::ZERO
     }
 
     fn field_at(&self, idx: NodeIdx, local: Vec3, whole: bool) -> Vec3 {
         if idx.is_none() || !self.nodes[idx.get()].alive {
             return Vec3::ZERO;
         }
+        self.field_at_shells(idx, local, whole, &self.shells_above(idx))
+    }
+
+    /// For each ancestor of `idx` in turn, where the centre of mass of the
+    /// piece of a sphere it is sits from that sphere's centre — `None` for an
+    /// ancestor that is not one. What [`Tree::field_at`] needs of each level
+    /// that does not depend on the point it is asked at, and an integral over
+    /// the patch each time: asked once per point, it was most of a step of a
+    /// patch of ground 54 cells a side, 5832 pieces times five levels.
+    fn shells_above(&self, idx: NodeIdx) -> Vec<Option<Vec3>> {
+        let mut out = Vec::new();
+        let mut anc = self.nodes[idx.get()].parent;
+        while !anc.is_none() {
+            out.push(self.nodes[anc.get()].morphology.as_ref().and_then(|mo| {
+                let Some(crate::recipe::Recipe::Tiled(t)) = mo.recipe.as_ref() else {
+                    return None;
+                };
+                if t.is_ball() {
+                    return None;
+                }
+                Some(t.centre_of_mass_from_planet())
+            }));
+            anc = self.nodes[anc.get()].parent;
+        }
+        out
+    }
+
+    /// [`Tree::field_within`] at many points of one node, each level above it
+    /// measured once.
+    pub fn field_within_all(&self, idx: NodeIdx, points: &[Vec3]) -> Vec<Vec3> {
+        if idx.is_none() || !self.nodes[idx.get()].alive {
+            return vec![Vec3::ZERO; points.len()];
+        }
+        let shells = self.shells_above(idx);
+        points.iter().map(|&p| self.field_at_shells(idx, p, true, &shells) + self.own_interior(idx, p)).collect()
+    }
+
+    fn field_at_shells(&self, idx: NodeIdx, local: Vec3, whole: bool, shells: &[Option<Vec3>]) -> Vec3 {
         let mut g = Vec3::ZERO;
         let mut inner = idx;
         let mut anc = self.nodes[idx.get()].parent;
         let mut first = true;
+        let mut level = 0;
         while !anc.is_none() {
             let a = &self.nodes[anc.get()];
             let r = self.offset_from(anc, idx, local).value;
@@ -2009,15 +2053,8 @@ impl Tree {
             // telescope: each contributes what it holds beyond the one below,
             // all along the same radius, and the sum is the field the planet's
             // whole mass makes.
-            let shell = self.nodes[anc.get()].morphology.as_ref().and_then(|mo| {
-                let Some(crate::recipe::Recipe::Tiled(t)) = mo.recipe.as_ref() else {
-                    return None;
-                };
-                if t.is_ball() {
-                    return None;
-                }
-                Some(t.centre_of_mass_from_planet())
-            });
+            let shell = shells.get(level).copied().flatten();
+            level += 1;
             let (r, d, radius) = match shell {
                 Some(com) => {
                     let from_centre = r + com;
@@ -2181,6 +2218,17 @@ impl Tree {
     /// minute ahead of its pieces every time its Earth was solved — 1.5 km at
     /// the corners, and 1.77 m/s^2 of pull on them.
     pub fn drawn_turn_at(&self, node: NodeIdx, instant: f64) -> crate::math::Quat {
+        let at = self.layout_anchor(node);
+        let since = instant - self.nodes[at.get()].carried;
+        if since == 0.0 || !since.is_finite() {
+            return self.facing(at);
+        }
+        crate::math::Quat::from_rate(self.angular_velocity(at), since).then(self.facing(at)).unit()
+    }
+
+    /// The node whose facing a node's layout is stated against: the node
+    /// itself, or for a patch of a sphere the ball it is a piece of.
+    fn layout_anchor(&self, node: NodeIdx) -> NodeIdx {
         let mut at = node;
         loop {
             let n = &self.nodes[at.get()];
@@ -2191,11 +2239,29 @@ impl Tree {
                 _ => break,
             }
         }
-        let since = instant - self.nodes[at.get()].carried;
-        if since == 0.0 || !since.is_finite() {
-            return self.facing(at);
+        at
+    }
+
+    /// The turn that takes a vector in a node's own axes — its stored
+    /// gravity, a body's orientation — into the axes its drawing is placed
+    /// in, which is where its bodies' positions are: [`Tree::drawn_turn`],
+    /// and the node's own facing against the thing its layout is stated
+    /// against.
+    ///
+    /// **The two are the same turn only for a node whose layout is stated in
+    /// its own axes.** A patch of a sphere states its cells where its planet
+    /// puts them and faces the way its own surface does, so its gravity and
+    /// its cells' orientations are its own frame's while their positions are
+    /// the planet's: on a patch 0.025 rad from the planet's axis, the water
+    /// over it took its down from the one and its floor from the other, and
+    /// the floor came out tilted by exactly that.
+    pub fn drawn_frame(&self, node: NodeIdx) -> crate::math::Quat {
+        let at = self.layout_anchor(node);
+        if at == node {
+            return self.drawn_turn(node);
         }
-        crate::math::Quat::from_rate(self.angular_velocity(at), since).then(self.facing(at)).unit()
+        let own = self.facing(at).conjugate().then(self.facing(node)).unit();
+        self.drawn_turn(node).then(own).unit()
     }
 
     /// Carry a vector expressed in `ancestor`'s axes into `node`'s own.

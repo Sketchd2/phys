@@ -378,6 +378,39 @@ impl Neighbourhood {
         }
         Some(out)
     }
+
+    /// [`Self::pairs`], leaving out every pair of which neither occupant is
+    /// `active`: the same pairs in the same order, found by looking only
+    /// around the active ones. A patch of ground is thousands of pieces joined
+    /// to each other and a handful of things among them, and it is the handful
+    /// whose pairs are wanted; found from every piece, the pairs cost a patch
+    /// 54 cells a side 0.16 s of every step.
+    pub fn pairs_where(&self, within: f64, active: impl Fn(usize) -> bool) -> Option<Vec<(usize, usize)>> {
+        if within > self.grid.spacing() {
+            return None;
+        }
+        let mut out = Vec::new();
+        let mut candidates = Vec::new();
+        for i in 0..self.occupants.len() {
+            if !active(i) {
+                continue;
+            }
+            self.grid.neighbours(self.positions[i], &mut candidates);
+            for j in candidates.iter().map(|c| *c as usize) {
+                // Each pair once: from its lower end when both are active.
+                if j == i || (j < i && active(j)) {
+                    continue;
+                }
+                let gap =
+                    (self.positions[j] - self.positions[i]).norm() - self.radii[i] - self.radii[j];
+                if gap <= within {
+                    out.push((i.min(j), i.max(j)));
+                }
+            }
+        }
+        out.sort_unstable();
+        Some(out)
+    }
 }
 
 // ---------------------------------------------------------------------------

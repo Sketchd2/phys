@@ -1561,7 +1561,13 @@ pub fn sample_structured_in(
     // with its height derived from how much liquid there is and what shape the
     // structure is, and nothing stored for it.
     let liquid = matter.mixture.in_phase(crate::chem::Phase::Liquid);
-    let laid = if residual > 0.0 && setting.rest_density > 0.0 && liquid >= 0.5 * residual_frac {
+    // Below a part in 10^12 of the node there is no remainder, only the
+    // rounding of the one subtracted from the other — the same floor the
+    // litter below has. Laid as a free surface, the rounding left by taking a
+    // patch of shore's water back out of it before a redraw had parcels
+    // 1e-5 m apart, and a floor gridded at that across a metre and a half ran
+    // the machine out of memory.
+    let laid = if residual > 0.0 && residual_frac > 1e-12 && setting.rest_density > 0.0 && liquid >= 0.5 * residual_frac {
         let n_res = ((budget as f64) * litter_share).round().max(1.0) as usize;
         let spacing = (residual / n_res as f64 / setting.rest_density).cbrt();
         let ground = Ground::of(&Solid::of(morph, &skel_geom), gravity, spacing);
@@ -1840,6 +1846,16 @@ pub fn sample_structured_in(
                 }
             }
         }
+        return (bodies, topo, report);
+    }
+    // **Nor is ground, or anything else that neither grew nor was built.**
+    // It is the shape its recipe states: a patch of an Earth's ground
+    // proportioned against two and a half gravities and a design wind came
+    // back with every cell and every column under it half as deep again, each
+    // about its own middle, so that the columns stood 5.7 cm up through the
+    // cells they were meant to be under and the surface water lay on was
+    // theirs.
+    if !morph.proportions_itself() {
         return (bodies, topo, report);
     }
     let (cases, passes) = if topo.is_determinate() {

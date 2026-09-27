@@ -485,6 +485,24 @@ impl Morphology {
     }
 
     /// Is this thing's shape a list of parts somebody placed?
+    /// Whether this thing proportions itself to what it carries: a grown
+    /// thing has put material where the load is, and a built one was sized by
+    /// whoever built it to stand. Ground and a packing of grains did neither —
+    /// they are laid out by what the planet or the freezing did, and they are
+    /// the shape their recipe states. The same split `advance` makes, for the
+    /// same reason.
+    pub fn proportions_itself(&self) -> bool {
+        matches!(
+            self.recipe.as_ref(),
+            Some(
+                crate::recipe::Recipe::Branching(_)
+                    | crate::recipe::Recipe::Coursed(_)
+                    | crate::recipe::Recipe::Framed(_)
+                    | crate::recipe::Recipe::Subdivided(_)
+            )
+        )
+    }
+
     pub fn is_assembled(&self) -> bool {
         self.assembly().is_some_and(|a| !a.is_empty())
     }
