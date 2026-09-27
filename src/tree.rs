@@ -763,30 +763,34 @@ impl Tree {
         // Less the water its sea or its sheet holds.
         let mut matter = matter;
         for (_, c) in self.fluids(i) {
-            let at = self.position_at(c, self.nodes[i.get()].time);
-            let v = self.velocity_at(c, self.nodes[i.get()].time);
+            let at = self.place_at(c, self.nodes[i.get()].time);
+            let v = self.motion_at(c, self.nodes[i.get()].time);
             matter = without(&matter, &self.nodes[c.get()].matter, at, v);
         }
         let matter = matter;
-        // A structure is drawn at the node's own turning, in the axes its
-        // layout is stated in, and the drawing then placed at the turn it has
-        // reached (`Tree::drawn_turn`) — so what is redrawn is where the thing
-        // has turned to, going round at the rate it turns.
-        let turn = self.drawn_turn(i);
+        // **Drawn in the axes the layout is stated in, and kept in the
+        // node's own** (`Tree::out_of_own`): a structure's recipe states it in
+        // its own axes, or for a patch of a sphere in its planet's
+        // (`Tree::drawn_turn`); anything sampled is drawn in the node's own.
+        // It is drawn going round at the node's turning, which is what closes
+        // it against the matter's angular momentum, and kept against it.
+        let instant = self.nodes[i.get()].time;
+        let facing = self.facing_at(i, instant);
+        let turn = if morph.is_some() { self.drawn_turn(i) } else { facing };
         let turning = turn.conjugate().rotate(self.angular_velocity(i));
         let setting = crate::sampler::Setting {
             gravity,
             rest_density: self.nodes[i.get()].rest_density,
             turning: Some(turning),
         };
-        let (bodies, topo, report) = match &morph {
+        // Everything the drawing is closed against, in the axes it is drawn in.
+        let mut drawn = matter;
+        if turn != crate::math::Quat::IDENTITY {
+            drawn.spin = turn.conjugate().rotate(matter.spin);
+            drawn.com = turn.conjugate().rotate(matter.com);
+        }
+        let (mut bodies, mut topo, report) = match &morph {
             Some(m) => {
-                // Everything the drawing is closed against, in its own axes.
-                let mut drawn = matter;
-                if turn != crate::math::Quat::IDENTITY {
-                    drawn.spin = turn.conjugate().rotate(matter.spin);
-                    drawn.com = turn.conjugate().rotate(matter.com);
-                }
                 let (b, t, r) = crate::sampler::sample_structured_in(
                     &drawn,
                     m,
@@ -796,22 +800,30 @@ impl Tree {
                     epoch,
                     setting,
                 );
-                let mut b = b;
-                if turn != crate::math::Quat::IDENTITY {
-                    for body in b.iter_mut() {
-                        body.pos = turn.rotate(body.pos);
-                        body.vel = turn.rotate(body.vel);
-                        body.spin = turn.rotate(body.spin);
-                    }
-                }
                 (b, Some(t), r)
             }
             None => {
                 let (b, r) =
-                    crate::sampler::sample_in(&matter, spec, self.world_seed, key.0, epoch, setting);
+                    crate::sampler::sample_in(&drawn, spec, self.world_seed, key.0, epoch, setting);
                 (b, None, r)
             }
         };
+        // From the axes it was drawn in into the node's own, and its motion
+        // against the node's turning.
+        let into = facing.conjugate().then(turn).unit();
+        let w = self.own_turning(i);
+        for b in bodies.iter_mut() {
+            b.pos = into.rotate(b.pos);
+            b.vel = into.rotate(b.vel) - w.cross(b.pos);
+            b.spin = into.rotate(b.spin);
+        }
+        if let Some(t) = topo.as_mut() {
+            if into != crate::math::Quat::IDENTITY {
+                for p in t.base.iter_mut().chain(t.tip.iter_mut()) {
+                    *p = into.rotate(*p);
+                }
+            }
+        }
         (bodies, topo, report)
     }
 
@@ -868,7 +880,14 @@ impl Tree {
     /// face carrying it — 2.7e20 kg m/s between two solves of the Earth.
     pub fn place(&mut self, parent: NodeIdx, body: Body, spec: SampleSpec) -> NodeIdx {
         self.refine(parent);
-        self.nodes[parent.get()].matter.momentum += body.momentum();
+        // The body is stated in the parent's own axes; the parent's matter is
+        // root-aligned and counts it as it moves in space.
+        let space = {
+            let mut b = [body];
+            self.out_of_own(parent, self.nodes[parent.get()].time, &mut b);
+            b[0]
+        };
+        self.nodes[parent.get()].matter.momentum += space.momentum();
         let mut up = parent;
         while !up.is_none() {
             self.nodes[up.get()].matter.mass += body.mass;
@@ -932,6 +951,16 @@ impl Tree {
         composition: crate::state::Composition,
         radius: f64,
     ) -> Option<Body> {
+        // Gathered as they move in space, and the gathering kept in the
+        // node's own axes: in its turning ones, a share of a turning planet's
+        // bodies has no angular momentum about its own centre and the books
+        // would lose the part it has by turning with them.
+        let instant = self.nodes[parent.get()].time;
+        let space = {
+            let mut b = self.nodes[parent.get()].bodies.clone();
+            self.out_of_own(parent, instant, &mut b);
+            b
+        };
         let n = &mut self.nodes[parent.get()];
         let free: Vec<usize> = (0..n.bodies.len()).filter(|&s| n.child_of(s).is_none() && n.bodies[s].mass > 0.0).collect();
         let total: f64 = free.iter().map(|&s| n.bodies[s].mass).sum();
@@ -941,12 +970,13 @@ impl Tree {
         let (mut p, mut x, mut l, mut u) = (Vec3::ZERO, Vec3::ZERO, Vec3::ZERO, 0.0);
         let mut temperature = 0.0;
         for &s in &free {
+            let seen = &space[s];
             let b = &mut n.bodies[s];
             let share = mass * b.mass / total;
             let f = share / b.mass;
-            p += b.vel.scale(share);
-            x += b.pos.scale(share);
-            l += b.pos.cross(b.vel.scale(share)) + b.spin.scale(f);
+            p += seen.vel.scale(share);
+            x += seen.pos.scale(share);
+            l += seen.pos.cross(seen.vel.scale(share)) + seen.spin.scale(f);
             u += b.internal_energy * f;
             temperature += b.temperature * share;
             b.mass -= share;
@@ -954,7 +984,7 @@ impl Tree {
             b.spin = b.spin.scale(1.0 - f);
         }
         let (at, v) = (x.scale(1.0 / mass), p.scale(1.0 / mass));
-        Some(Body {
+        let mut out = [Body {
             pos: at,
             vel: v,
             mass,
@@ -964,7 +994,9 @@ impl Tree {
             internal_energy: u,
             spin: l - at.cross(p),
             ..Default::default()
-        })
+        }];
+        self.into_own(parent, instant, &mut out);
+        Some(out[0])
     }
 
     pub fn promote(&mut self, i: NodeIdx, slot: usize, spec: SampleSpec) -> NodeIdx {
@@ -1011,7 +1043,8 @@ impl Tree {
 
         let mut matter = Matter::neutral(body.mass, body.radius.max(1e-30), body.temperature, body.composition);
         matter.charge = body.charge;
-        matter.spin = body.spin;
+        // A body's spin is in its node's own axes, a node's matter root-aligned.
+        matter.spin = self.facing_at(i, self.nodes[i.get()].time).rotate(body.spin);
         // What the parent is made of is what its contents are made of.
         // `docs/PLAY.md` D17's downward half: a `Body` carries no speciation of
         // its own — 200 bytes on a 184-byte struct is not a trade §5A.5 makes —
@@ -1236,7 +1269,7 @@ impl Tree {
             return err;
         }
 
-        self.adopt(i, matter);
+        self.adopt(i, matter, true);
         self.nodes[i.get()].children.clear();
         self.stats.coarsenings += 1;
         self.stats.worst_conservation_error = self.stats.worst_conservation_error.max(err);
@@ -1298,7 +1331,7 @@ impl Tree {
             self.stats.settled_idempotent += 1;
             return err;
         }
-        self.adopt(i, matter);
+        self.adopt(i, matter, false);
         self.stats.settled += 1;
         self.stats.worst_conservation_error = self.stats.worst_conservation_error.max(err);
         err
@@ -1324,7 +1357,14 @@ impl Tree {
         child_mass: f64,
         held: f64,
     ) -> (Matter, f64) {
-        let mut matter = summarise(bodies, potential);
+        // What the bodies are in space: they are kept in the node's own
+        // turning axes, and its matter is root-aligned.
+        let space = {
+            let mut b = bodies.to_vec();
+            self.out_of_own(i, self.nodes[i.get()].time, &mut b);
+            b
+        };
+        let mut matter = summarise(&space, potential);
         // What the stand-ins could not carry. See `Tree::unrepresented`.
         matter.internal_energy += held;
         matter.external_potential = self.nodes[i.get()].matter.external_potential;
@@ -1366,7 +1406,7 @@ impl Tree {
     /// `summarise` can see: its tier, its spec and its identity are not
     /// measurements of its contents, and two of the quantities that are need a
     /// rule of their own.
-    fn adopt(&mut self, i: NodeIdx, matter: Matter) {
+    fn adopt(&mut self, i: NodeIdx, matter: Matter, turn: bool) {
         let arrived = matter.spin - self.nodes[i.get()].matter.spin;
         let n = &mut self.nodes[i.get()];
         // Preserve the node's own frame-level bookkeeping: `summarise` measures
@@ -1417,8 +1457,14 @@ impl Tree {
         }
         // The matter this node holds has just been rewritten from its own
         // detail, and whatever angular momentum its contents gained or lost
-        // since turns it by that much (`Tree::turn_by`).
-        self.turn_by(i, arrived);
+        // since turns it by that much (`Tree::turn_by`) — where the detail is
+        // going. Where it stays, as in `settle`, its contents are kept in the
+        // node's turning axes and already are what they are: a turn would
+        // have to re-express them, and a save that rewrote the detail it was
+        // saving would not be a save.
+        if turn {
+            self.turn_by(i, arrived);
+        }
     }
 
     /// The energy a node has that the body standing in for it cannot carry.
@@ -1480,6 +1526,9 @@ impl Tree {
         let at = self.position_at(child, self.nodes[parent.get()].time);
         let self_velocity_at = self.velocity_at(child, self.nodes[parent.get()].time);
         let _ = frame.offset;
+        // The child's matter is root-aligned, its parent's bodies in the
+        // parent's own axes.
+        let spin = self.facing_at(parent, self.nodes[parent.get()].time).conjugate().rotate(spin);
         let p = &mut self.nodes[parent.get()];
         if let Some(b) = p.bodies.get_mut(slot) {
             b.mass = mass;
@@ -1506,18 +1555,87 @@ impl Tree {
     /// at constant velocity and spin. The only thing that moves a node's
     /// motion forward. See `Node::carried`.
     pub fn carry(&mut self, i: NodeIdx, instant: f64) {
-        let about = self.turning_about(i, self.nodes[i.get()].carried);
+        let w = self.own_turning(self.nodes[i.get()].parent);
         let n = &mut self.nodes[i.get()];
         let dt = instant - n.carried;
         if dt > 0.0 && dt.is_finite() {
             let (offset, velocity) = (n.motion.offset, n.motion.velocity);
             n.motion.advance(dt);
-            if n.turning != Vec3::ZERO {
-                let (at, v) = turning_carry_about(n.turning, about, offset, velocity, dt);
-                n.motion.offset = at;
-                n.motion.velocity = v;
-            }
+            let (at, v) = carry_in(offset, velocity, w, dt, n.turning != Vec3::ZERO);
+            n.motion.offset = at;
+            n.motion.velocity = v;
             n.carried = instant;
+        }
+    }
+
+    /// How fast a node's frame turns, rad/s, in its own axes: what a thing
+    /// held still in it goes round at, and what a thing loose in it is
+    /// carried against. Zero for the absence of a node.
+    pub fn own_turning(&self, node: NodeIdx) -> Vec3 {
+        if node.is_none() || !self.nodes[node.get()].alive {
+            return Vec3::ZERO;
+        }
+        let w = self.angular_velocity(node);
+        if w == Vec3::ZERO {
+            return w;
+        }
+        self.facing(node).conjugate().rotate(w)
+    }
+
+    /// Which way a node faces at an instant, root-aligned: [`Tree::facing`]
+    /// carried from where each level has been carried to.
+    pub fn facing_at(&self, node: NodeIdx, instant: f64) -> crate::math::Quat {
+        if node.is_none() {
+            return crate::math::Quat::IDENTITY;
+        }
+        let n = &self.nodes[node.get()];
+        let since = instant - n.carried;
+        let own = if n.motion.spin_rate != Vec3::ZERO && since.is_finite() && since != 0.0 {
+            crate::math::Quat::from_rate(n.motion.spin_rate, since).then(n.motion.orientation).unit()
+        } else {
+            n.motion.orientation
+        };
+        if n.parent.is_none() {
+            own
+        } else {
+            self.facing_at(n.parent, instant).then(own).unit()
+        }
+    }
+
+    /// A node's contents, turned out of its own axes into root-aligned ones
+    /// at `instant`, and moving as they do without its turning: positions and
+    /// velocities from its centre, spins and orientations. The inverse of
+    /// [`Tree::into_own`], and what every solver sees — the contents as they
+    /// are in space, which is what the laws they integrate are written for.
+    pub fn out_of_own(&self, node: NodeIdx, instant: f64, bodies: &mut [crate::state::Body]) {
+        let f = self.facing_at(node, instant);
+        let w = self.own_turning(node);
+        if f == crate::math::Quat::IDENTITY && w == Vec3::ZERO {
+            return;
+        }
+        for b in bodies.iter_mut() {
+            let v = b.vel + w.cross(b.pos);
+            b.pos = f.rotate(b.pos);
+            b.vel = f.rotate(v);
+            b.spin = f.rotate(b.spin);
+            b.orientation = f.then(b.orientation).unit();
+        }
+    }
+
+    /// A node's contents as [`Tree::out_of_own`] gives them, back into its
+    /// own axes at `instant`, moving relative to its turning.
+    pub fn into_own(&self, node: NodeIdx, instant: f64, bodies: &mut [crate::state::Body]) {
+        let f = self.facing_at(node, instant);
+        let w = self.own_turning(node);
+        if f == crate::math::Quat::IDENTITY && w == Vec3::ZERO {
+            return;
+        }
+        let back = f.conjugate();
+        for b in bodies.iter_mut() {
+            b.pos = back.rotate(b.pos);
+            b.vel = back.rotate(b.vel) - w.cross(b.pos);
+            b.spin = back.rotate(b.spin);
+            b.orientation = back.then(b.orientation).unit();
         }
     }
 
@@ -1531,54 +1649,50 @@ impl Tree {
         if !dt.is_finite() {
             return n.motion.offset;
         }
-        if n.turning != Vec3::ZERO {
-            return turning_carry_about(n.turning, self.turning_about(i, n.carried), n.motion.offset, n.motion.velocity, dt).0;
-        }
-        n.motion.offset + n.motion.velocity.scale(dt)
+        carry_in(n.motion.offset, n.motion.velocity, self.own_turning(n.parent), dt, n.turning != Vec3::ZERO).0
     }
 
-    /// Where a held node's parent's centre is at an instant, relative to the
-    /// centre the node goes round, m, root-aligned: zero where the parent is
-    /// the turning body itself, and otherwise the parent's own place at that
-    /// instant from the same centre. A thing held by a patch of ground goes
-    /// round the planet, not the patch — measured with its great circle taken
-    /// about the patch's centre, air over a face of an Earth fell 955 km while
-    /// the face caught up 1200 s — and where the patch is has to be read at
-    /// the same instant: a copy taken at the frame's start was 21 km of turning
-    /// out by its end.
-    pub fn turning_about(&self, i: NodeIdx, instant: f64) -> Vec3 {
-        let n = &self.nodes[i.get()];
-        if n.turning == Vec3::ZERO || n.parent.is_none() {
-            return Vec3::ZERO;
-        }
-        let p = n.parent;
-        if self.nodes[p.get()].turning == Vec3::ZERO {
-            return Vec3::ZERO;
-        }
-        self.turning_about(p, instant) + self.position_at(p, instant)
-    }
-
-    /// Where a node is at an instant relative to an ancestor: its place and
-    /// each of its ancestors' up to that one, all read at the same instant —
+    /// Where a node is at an instant relative to an ancestor, root-aligned:
+    /// its place and each of its ancestors' up to that one, all read at the
+    /// same instant and each turned by the facing of what holds it then —
     /// [`Tree::offset_from`] as it was then rather than as it has been carried.
     pub fn offset_at(&self, ancestor: NodeIdx, mut node: NodeIdx, instant: f64) -> Vec3 {
         let mut at = Vec3::ZERO;
         while node != ancestor && !node.is_none() {
-            at += self.position_at(node, instant);
-            node = self.nodes[node.get()].parent;
+            let parent = self.nodes[node.get()].parent;
+            at += self.facing_at(parent, instant).rotate(self.position_at(node, instant));
+            node = parent;
         }
         at
     }
 
-    /// How fast a node is going at an instant, in its parent's frame — the
-    /// companion of [`Tree::position_at`], carried the same way.
+    /// How fast a node is going at an instant, in its parent's own axes and
+    /// against its parent's turning — the companion of [`Tree::position_at`],
+    /// carried the same way.
     pub fn velocity_at(&self, i: NodeIdx, instant: f64) -> Vec3 {
         let n = &self.nodes[i.get()];
         let dt = instant - n.carried;
-        if dt.is_finite() && n.turning != Vec3::ZERO {
-            return turning_carry_about(n.turning, self.turning_about(i, n.carried), n.motion.offset, n.motion.velocity, dt).1;
+        if !dt.is_finite() {
+            return n.motion.velocity;
         }
-        n.motion.velocity
+        carry_in(n.motion.offset, n.motion.velocity, self.own_turning(n.parent), dt, n.turning != Vec3::ZERO).1
+    }
+
+    /// Where a node is at an instant from its parent's centre, root-aligned.
+    pub fn place_at(&self, i: NodeIdx, instant: f64) -> Vec3 {
+        let parent = self.nodes[i.get()].parent;
+        self.facing_at(parent, instant).rotate(self.position_at(i, instant))
+    }
+
+    /// How fast a node is going at an instant from its parent's centre,
+    /// root-aligned and as it moves in space: its velocity in its parent's
+    /// turning axes, turned out of them, with the parent's turning at its
+    /// place added.
+    pub fn motion_at(&self, i: NodeIdx, instant: f64) -> Vec3 {
+        let parent = self.nodes[i.get()].parent;
+        let f = self.facing_at(parent, instant);
+        let at = f.rotate(self.position_at(i, instant));
+        f.rotate(self.velocity_at(i, instant)) + self.angular_velocity(parent).cross(at)
     }
 
     /// Change a node's velocity by `dv`, a change that happened at `instant`
@@ -1591,18 +1705,15 @@ impl Tree {
             return;
         }
         let since = self.nodes[i.get()].carried - instant;
-        let turning = self.nodes[i.get()].turning;
-        if turning == Vec3::ZERO || !(since.abs() > 0.0) || !since.is_finite() {
+        if !(since.abs() > 0.0) || !since.is_finite() {
             let n = &mut self.nodes[i.get()];
             n.motion.velocity = n.motion.velocity + dv;
-            if since.is_finite() {
-                n.motion.offset = n.motion.offset + dv.scale(since.max(0.0));
-            }
             return;
         }
         let (at, v) = (self.position_at(i, instant), self.velocity_at(i, instant));
-        let about = self.turning_about(i, instant);
-        let (at, v) = turning_carry_about(turning, about, at, v + dv, since);
+        let w = self.own_turning(self.nodes[i.get()].parent);
+        let held = self.nodes[i.get()].turning != Vec3::ZERO;
+        let (at, v) = carry_in(at, v + dv, w, since, held);
         let n = &mut self.nodes[i.get()];
         n.motion.offset = at;
         n.motion.velocity = v;
@@ -1809,7 +1920,7 @@ impl Tree {
         if !pos.is_finite() || !vel.is_finite() {
             return;
         }
-        let about = self.turning_about(i, instant);
+        let w = self.own_turning(self.nodes[i.get()].parent);
         let n = &mut self.nodes[i.get()];
         let since = n.carried - instant;
         if !(since > 0.0) || !since.is_finite() {
@@ -1818,14 +1929,9 @@ impl Tree {
             n.carried = n.carried.max(instant);
             return;
         }
-        if n.turning == Vec3::ZERO {
-            n.motion.offset = pos + vel.scale(since);
-            n.motion.velocity = vel;
-        } else {
-            let (at, v) = turning_carry_about(n.turning, about, pos, vel, since);
-            n.motion.offset = at;
-            n.motion.velocity = v;
-        }
+        let (at, v) = carry_in(pos, vel, w, since, n.turning != Vec3::ZERO);
+        n.motion.offset = at;
+        n.motion.velocity = v;
     }
 
     /// The velocities of the bodies standing in for promoted children, so the
@@ -2192,9 +2298,54 @@ impl Tree {
             return;
         }
         let parent = self.nodes[node.get()].parent;
-        let dw = dl.scale(1.0 / i);
-        let dw = if parent.is_none() { dw } else { self.facing(parent).conjugate().rotate(dw) };
+        let dw_root = dl.scale(1.0 / i);
+        let dw = if parent.is_none() { dw_root } else { self.facing(parent).conjugate().rotate(dw_root) };
         self.nodes[node.get()].motion.spin_rate += dw;
+        self.keep_in_space(node, dw_root);
+    }
+
+    /// A node's frame turns `dw` (root-aligned) faster than it did, and what
+    /// it holds stays as it was in space.
+    ///
+    /// **A node's turning is which way it faces, and changing it moves
+    /// nothing.** Its contents and its children are kept in its own turning
+    /// axes, so a change in the turning, left alone, would turn them with it:
+    /// measured, a patch of silica hit by the parcels of the planet under it
+    /// was handed their angular momentum, turned faster, was settled from
+    /// contents that had turned with it and so had more, and span up from
+    /// 1e-5 to 11 rad/s in six seconds. So each body and each loose child is
+    /// re-expressed against the new turning, `v -= dw x r`, and a free child's
+    /// own turning relative to the node likewise. A child the node holds goes
+    /// round with it, by the rule for what is held, and is left as it is.
+    fn keep_in_space(&mut self, node: NodeIdx, dw_root: Vec3) {
+        if dw_root == Vec3::ZERO || !dw_root.is_finite() {
+            return;
+        }
+        let dw = self.facing(node).conjugate().rotate(dw_root);
+        // A structure's members and a patch's pieces of ground are the node:
+        // they turn with it, which is what its turning is.
+        let members = self.nodes[node.get()].structural_mask();
+        let pieces = match self.nodes[node.get()].morphology.as_ref().and_then(|m| m.recipe.as_ref()) {
+            Some(crate::recipe::Recipe::Tiled(t)) if t.on_sphere() => t.joints().iter().map(|&(a, b, _)| a.max(b) + 1).max().unwrap_or(0),
+            _ => 0,
+        };
+        let n = &mut self.nodes[node.get()];
+        for (slot, b) in n.bodies.iter_mut().enumerate() {
+            let stand_in = n.children.get(slot).map(|c| !c.is_none()).unwrap_or(false);
+            let member = slot < pieces || members.as_ref().map(|m| m.get(slot).copied().unwrap_or(false)).unwrap_or(false);
+            if !stand_in && !member {
+                b.vel -= dw.cross(b.pos);
+            }
+        }
+        let children: Vec<NodeIdx> = n.children.iter().copied().filter(|c| !c.is_none()).collect();
+        for c in children {
+            let child = &mut self.nodes[c.get()];
+            if !child.alive || child.turning != Vec3::ZERO {
+                continue;
+            }
+            child.motion.velocity -= dw.cross(child.motion.offset);
+            child.motion.spin_rate -= dw;
+        }
     }
 
     /// The turn a structure's drawing is placed at: the facing of the thing
@@ -2240,28 +2391,6 @@ impl Tree {
             }
         }
         at
-    }
-
-    /// The turn that takes a vector in a node's own axes — its stored
-    /// gravity, a body's orientation — into the axes its drawing is placed
-    /// in, which is where its bodies' positions are: [`Tree::drawn_turn`],
-    /// and the node's own facing against the thing its layout is stated
-    /// against.
-    ///
-    /// **The two are the same turn only for a node whose layout is stated in
-    /// its own axes.** A patch of a sphere states its cells where its planet
-    /// puts them and faces the way its own surface does, so its gravity and
-    /// its cells' orientations are its own frame's while their positions are
-    /// the planet's: on a patch 0.025 rad from the planet's axis, the water
-    /// over it took its down from the one and its floor from the other, and
-    /// the floor came out tilted by exactly that.
-    pub fn drawn_frame(&self, node: NodeIdx) -> crate::math::Quat {
-        let at = self.layout_anchor(node);
-        if at == node {
-            return self.drawn_turn(node);
-        }
-        let own = self.facing(at).conjugate().then(self.facing(node)).unit();
-        self.drawn_turn(node).then(own).unit()
     }
 
     /// Carry a vector expressed in `ancestor`'s axes into `node`'s own.
@@ -3000,16 +3129,20 @@ impl Tree {
         if leaving.is_empty() {
             return None;
         }
-        let matter = summarise(&leaving, 0.0);
+        // Its matter as it is in space, which is what a node's matter is; its
+        // centre and its motion as the node sees them, in the node's own
+        // turning axes, which are where its bodies are.
+        let space = {
+            let mut b = leaving.clone();
+            self.out_of_own(i, self.nodes[i.get()].time, &mut b);
+            b
+        };
+        let matter = summarise(&space, 0.0);
         if !(matter.mass > 0.0) {
             return None;
         }
-        let com = matter.com;
-        let bulk = if matter.mass > 0.0 {
-            matter.momentum.scale(1.0 / matter.mass)
-        } else {
-            Vec3::ZERO
-        };
+        let com = leaving.iter().fold(Vec3::ZERO, |a, b| a + b.pos.scale(b.mass)).scale(1.0 / matter.mass);
+        let bulk = leaving.iter().fold(Vec3::ZERO, |a, b| a + b.vel.scale(b.mass)).scale(1.0 / matter.mass);
 
         // The departing detail, about its own centre and in its own frame.
         let mut bodies: Vec<Body> = Vec::with_capacity(leaving.len());
@@ -3031,15 +3164,19 @@ impl Tree {
             return None;
         }
 
+        // Into the parent's axes: the node's own are turned by its
+        // orientation there, and turn at its spin relative to it.
         let (offset, velocity, spec, time) = {
             let n = &self.nodes[i.get()];
+            let at = n.motion.orientation.rotate(com);
             (
-                n.motion.offset + com,
-                crate::coords::velocity_add(n.motion.velocity, bulk),
+                n.motion.offset + at,
+                crate::coords::velocity_add(n.motion.velocity, n.motion.orientation.rotate(bulk) + n.motion.spin_rate.cross(at)),
                 n.spec,
                 n.time,
             )
         };
+        let spin_here = self.facing_at(parent, self.nodes[parent.get()].time).conjugate().rotate(matter.spin);
         let radius = matter.radius.max(1e-30);
         let tier = tier_for(radius, self.nodes[parent.get()].tier);
         let spec = spec_for(tier, spec);
@@ -3056,7 +3193,7 @@ impl Tree {
                 radius,
                 charge: matter.charge,
                 internal_energy: matter.internal_energy,
-                spin: matter.spin,
+                spin: spin_here,
                 temperature: matter.temperature,
                 composition: matter.composition,
                 kind: leaving.first().map(|b| b.kind).unwrap_or(crate::state::BodyKind::Grain),
@@ -3162,7 +3299,9 @@ impl Tree {
             let kids = self.nodes[i.get()].children.clone();
             {
                 let n = &mut self.nodes[i.get()];
-                n.motion.offset += com;
+                let at = n.motion.orientation.rotate(com);
+                n.motion.offset += at;
+                n.motion.velocity += n.motion.spin_rate.cross(at);
                 for b in n.bodies.iter_mut() {
                     if b.mass > 0.0 {
                         b.pos -= com;
@@ -3376,28 +3515,25 @@ impl Tree {
             return false;
         }
         let parent = self.nodes[a.get()].parent;
-        let shift = self.nodes[b.get()].motion.offset - self.nodes[a.get()].motion.offset;
-        let relative = crate::coords::velocity_add(
-            -self.nodes[a.get()].motion.velocity,
-            self.nodes[b.get()].motion.velocity,
-        );
+        // Through space: each node's bodies are in its own turning axes, so
+        // `b`'s are turned out of its, moved to `a`'s centre as the two are in
+        // space, and turned into `a`'s.
+        let instant = self.nodes[parent.get()].time;
+        let shift = self.place_at(b, instant) - self.place_at(a, instant);
+        let relative = crate::coords::velocity_add(-self.motion_at(a, instant), self.motion_at(b, instant));
         // Promoted children first, while `b` still has the slots they sit in.
         for c in self.nodes[b.get()].children.clone() {
             if !c.is_none() && self.nodes[c.get()].alive {
                 self.reparent(c, a);
             }
         }
-        let incoming: Vec<Body> = self.nodes[b.get()]
-            .bodies
-            .iter()
-            .filter(|x| x.mass > 0.0)
-            .map(|x| {
-                let mut x = *x;
-                x.pos += shift;
-                x.vel = crate::coords::velocity_add(relative, x.vel);
-                x
-            })
-            .collect();
+        let mut incoming: Vec<Body> = self.nodes[b.get()].bodies.iter().filter(|x| x.mass > 0.0).copied().collect();
+        self.out_of_own(b, self.nodes[b.get()].time, &mut incoming);
+        for x in incoming.iter_mut() {
+            x.pos += shift;
+            x.vel = crate::coords::velocity_add(relative, x.vel);
+        }
+        self.into_own(a, self.nodes[a.get()].time, &mut incoming);
         {
             let n = &mut self.nodes[a.get()];
             n.bodies.extend(incoming);
@@ -3481,6 +3617,16 @@ impl Tree {
         // else in the engine, so the inverse uses it too rather than inventing
         // a second convention.
         let velocity = crate::coords::velocity_add(-v_parent, v_node);
+        // Into the new parent's own turning axes, which is what a node's
+        // offset and velocity are stated in: its place turned into them, its
+        // motion against their turning, and which way it faces and how fast it
+        // turns relative to them.
+        let into = self.facing(new_parent).conjugate();
+        let w_new = self.own_turning(new_parent);
+        let offset = into.rotate(offset);
+        let velocity = into.rotate(velocity) - w_new.cross(offset);
+        let orientation = into.then(self.facing(node)).unit();
+        let spin_rate = into.rotate(self.angular_velocity(node) - self.angular_velocity(new_parent));
 
         // The new parent needs a body list to hold a slot in.
         self.refine(new_parent);
@@ -3519,9 +3665,10 @@ impl Tree {
                 radius: n.matter.radius,
                 charge: n.matter.charge,
                 internal_energy: n.matter.internal_energy,
-                spin: n.matter.spin,
+                spin: into.rotate(n.matter.spin),
                 temperature: n.matter.temperature,
                 composition: n.matter.composition,
+                orientation,
                 kind,
                 ..Default::default()
             }
@@ -3545,6 +3692,8 @@ impl Tree {
             n.slot = new_slot as u32;
             n.motion.offset = offset;
             n.motion.velocity = velocity;
+            n.motion.orientation = orientation;
+            n.motion.spin_rate = spin_rate;
         }
 
         let mut keys = Vec::new();
@@ -3691,7 +3840,9 @@ impl Tree {
         let mut acc = Bounded::exact(local);
         while node != ancestor && !node.is_none() {
             let n = &self.nodes[node.get()];
-            acc = acc.add(Bounded::exact(n.motion.offset));
+            // An offset is in its parent's own axes (`Motion::offset`), and
+            // what is summed is root-aligned.
+            acc = acc.add(Bounded::exact(self.facing(n.parent).rotate(n.motion.offset)));
             node = n.parent;
         }
         acc
@@ -3715,8 +3866,13 @@ impl Tree {
     pub fn velocity_from(&self, ancestor: NodeIdx, mut node: NodeIdx) -> Vec3 {
         let mut chain = Vec::new();
         while node != ancestor && !node.is_none() {
-            chain.push(self.nodes[node.get()].motion.velocity);
-            node = self.nodes[node.get()].parent;
+            // Each level as it moves in space: its velocity in its parent's
+            // turning axes turned out of them, and the parent's turning at
+            // its place.
+            let n = &self.nodes[node.get()];
+            let f = self.facing(n.parent);
+            chain.push(f.rotate(n.motion.velocity) + self.angular_velocity(n.parent).cross(f.rotate(n.motion.offset)));
+            node = n.parent;
         }
         let mut v = Vec3::ZERO;
         for u in chain.iter().rev() {
@@ -3763,8 +3919,8 @@ impl Tree {
     fn in_parents_frame(&self, c: NodeIdx, t: crate::state::Conserved) -> crate::state::Conserved {
         let n = &self.nodes[c.get()];
         let instant = self.nodes[n.parent.get()].time;
-        let at = self.position_at(c, instant);
-        let v = self.velocity_at(c, instant);
+        let at = self.place_at(c, instant);
+        let v = self.motion_at(c, instant);
         let m = n.matter.mass.max(0.0);
         let gamma = crate::coords::gamma(v);
         let bulk = v.scale(m * gamma);
@@ -3787,6 +3943,14 @@ impl Tree {
                 None => n.matter.conserved(),
             };
         }
+        // The contents as they move in space, root-aligned: a node's bodies
+        // are kept in its own turning axes (`Tree::out_of_own`).
+        let owned = {
+            let mut b = n.bodies.clone();
+            self.out_of_own(i, n.time, &mut b);
+            b
+        };
+        let n_bodies = &owned;
         let count = n.bodies.len();
         // A slot whose child speaks for it contributes nothing here; the child's
         // own total is added below.
@@ -3805,36 +3969,36 @@ impl Tree {
         // grouped its terms this way; this is the other account learning the
         // same lesson.
         let rest = crate::math::det_sum_by(count, &|s| {
-            if stood_for(s) { 0.0 } else { n.bodies[s].mass }
+            if stood_for(s) { 0.0 } else { n_bodies[s].mass }
         });
         let non_rest = crate::math::det_sum_by(count, &|s| {
             if stood_for(s) {
                 0.0
             } else {
-                let b = &n.bodies[s];
+                let b = &n_bodies[s];
                 (crate::coords::gamma(b.vel) - 1.0) * b.mass * crate::units::C2
                     + b.internal_energy
             }
         });
         let momentum = crate::math::det_sum_v3_by(count, &|s| {
-            if stood_for(s) { Vec3::ZERO } else { n.bodies[s].momentum() }
+            if stood_for(s) { Vec3::ZERO } else { n_bodies[s].momentum() }
         });
         let angular = crate::math::det_sum_v3_by(count, &|s| {
             if stood_for(s) {
                 Vec3::ZERO
             } else {
-                let b = &n.bodies[s];
+                let b = &n_bodies[s];
                 b.pos.cross(b.momentum()) + b.spin
             }
         });
         let charge = crate::math::det_sum_by(count, &|s| {
-            if stood_for(s) { 0.0 } else { n.bodies[s].charge }
+            if stood_for(s) { 0.0 } else { n_bodies[s].charge }
         });
         let baryon = crate::math::det_sum_by(count, &|s| {
             if stood_for(s) {
                 0.0
             } else {
-                let b = &n.bodies[s];
+                let b = &n_bodies[s];
                 b.mass * b.composition.nucleons_per_kg()
             }
         });
@@ -3842,7 +4006,7 @@ impl Tree {
             if stood_for(s) {
                 0.0
             } else {
-                let b = &n.bodies[s];
+                let b = &n_bodies[s];
                 b.mass * b.composition.nucleons_per_kg() * b.composition.electrons_per_nucleon()
                     - b.charge / crate::units::E_CHARGE
             }
@@ -3923,17 +4087,23 @@ pub fn turning_carry(w: Vec3, r: Vec3, v: Vec3, dt: f64) -> (Vec3, Vec3) {
     (at, w.cross(at) + turn.rotate(rel))
 }
 
-/// [`turning_carry`] for a thing whose parent's centre is at `about` from the
-/// centre it goes round: carried about that centre, and handed back relative to
-/// where its parent's centre has gone round to. The parent is taken to be going
-/// round rigidly, which is what a held parent is.
-pub fn turning_carry_about(w: Vec3, about: Vec3, r: Vec3, v: Vec3, dt: f64) -> (Vec3, Vec3) {
-    if about == Vec3::ZERO {
-        return turning_carry(w, r, v, dt);
+/// Carry a place and a velocity in a frame turning at `w` (in its own axes)
+/// by `dt`, both in that frame's axes and the velocity against its turning.
+///
+/// **Held, it stays in the frame**: a straight line at its velocity there,
+/// which for a thing at rest on the ground is not moving at all. **Loose, it
+/// goes the straight line it goes in space** — its velocity with the frame's
+/// turning at its place, carried along it, and the whole read in the frame
+/// as it has turned by then. Exact in both directions of `dt`.
+pub fn carry_in(x: Vec3, v: Vec3, w: Vec3, dt: f64, held: bool) -> (Vec3, Vec3) {
+    if held || w == Vec3::ZERO || dt == 0.0 {
+        return (x + v.scale(dt), v);
     }
-    let (at, vel) = turning_carry(w, about + r, w.cross(about) + v, dt);
-    let about = crate::math::Quat::from_rate(w, dt).rotate(about);
-    (at - about, vel - w.cross(about))
+    let v_space = v + w.cross(x);
+    let x_space = x + v_space.scale(dt);
+    let back = crate::math::Quat::from_rate(w, dt).conjugate();
+    let at = back.rotate(x_space);
+    (at, back.rotate(v_space) - w.cross(at))
 }
 
 // ---------------------------------------------------------------------------

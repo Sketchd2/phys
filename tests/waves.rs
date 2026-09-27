@@ -229,7 +229,9 @@ fn an_earth_with_wind(wind: f64, r: f64) -> (World, NodeIdx, NodeIdx) {
         w.tree.refine(face);
         face
     };
-    let at = at - w.tree.offset_from(earth, face, Vec3::ZERO).value;
+    // From the face's centre, in the face's own axes, which is where a
+    // node's contents are stated.
+    let at = w.tree.facing(face).conjugate().rotate(at - w.tree.offset_from(earth, face, Vec3::ZERO).value);
     let composition = air_mix.composition(&w.substances).0;
     let body = phys::state::Body {
         pos: at,
@@ -244,12 +246,11 @@ fn an_earth_with_wind(wind: f64, r: f64) -> (World, NodeIdx, NodeIdx) {
     // this is air.
     w.tree.nodes[air.get()].matter = Matter::neutral(mass, r, 290.0, composition);
     w.set_mixture(air, air_mix);
-    // Relative to the face, which goes round with the Earth: the ground under
-    // the air moves at the Earth's spin crossed with where the air is, less
-    // what the face itself is doing there.
-    let world_at = w.tree.offset_from(earth, air, Vec3::ZERO).value;
-    let ground = w.tree.nodes[earth.get()].motion.spin_rate.cross(world_at) - w.tree.velocity_from(earth, face);
-    w.tree.nodes[air.get()].motion.velocity = ground + v3(0.0, wind, 0.0);
+    // Relative to the face, in the face's own turning axes: the ground under
+    // the air goes round with it, so what the air is doing there is the wind
+    // and nothing else.
+    let into = w.tree.facing(face).conjugate();
+    w.tree.nodes[air.get()].motion.velocity = into.rotate(v3(0.0, wind, 0.0));
     w.pace_fixed(60.0);
     (w, earth, air)
 }
@@ -297,14 +298,25 @@ fn a_stated_wind_raises_the_sea_it_outruns_and_pays_for_it() {
         let mut lowest = f64::INFINITY;
         let mut highest = f64::NEG_INFINITY;
         // The world's books, read where the planet, the ground holding the
-        // air and the world are at one instant.
+        // air and the world are at one instant. At rest in its own turning
+        // axes the planet is due only every two and a third hours, and never
+        // at an instant the face shares, so once an hour it is brought up to
+        // the world's instant at its own step (`World::advance_to`) and the
+        // books are read there. In one `advance_node` over the hour instead,
+        // the ground solve took 3660 s as a single step, handed the face
+        // 29.9 m/s, and the air left it for the planet two hours later.
         let face = w.tree.nodes[air.get()].parent;
         let mut first: Option<phys::state::Conserved> = None;
+        let mut read = 0;
         let (mut turned, mut moved) = (0.0f64, 0.0f64);
-        for _ in 1..(DAY / 60.0) as usize {
+        for frame in 1..(DAY / 60.0) as usize {
             w.step_frame(1.0e6);
+            if frame % 60 == 0 {
+                w.advance_to(earth, w.time, 10_000);
+            }
             let (te, tf) = (w.tree.nodes[earth.get()].time, w.tree.nodes[face.get()].time);
             if (te - tf).abs() < 1e-6 && (te - w.time).abs() < 1e-6 {
+                read += 1;
                 let c = w.conserved();
                 let c0 = *first.get_or_insert(c);
                 turned = turned.max((c.angular_momentum - c0.angular_momentum).norm() / c0.angular_momentum.norm());
@@ -314,6 +326,8 @@ fn a_stated_wind_raises_the_sea_it_outruns_and_pays_for_it() {
             lowest = lowest.min(h);
             highest = highest.max(h);
         }
+        assert!(read > 5, "the world's books were read {read} times in a day");
+        println!("  the world's books were read {read} times");
         (w, earth, air, u0, lowest, highest, turned, moved)
     };
     let (w, earth, air, u0, lowest, highest, turned, moved) = run(10.0);
@@ -331,10 +345,14 @@ fn a_stated_wind_raises_the_sea_it_outruns_and_pays_for_it() {
         let fc = &w.tree.nodes[face.get()];
         let spin = w.tree.nodes[earth.get()].motion.spin_rate;
         let centre = w.tree.offset_at(earth, face, fc.time);
-        let fv = w.tree.velocity_at(face, fc.time);
+        let fv = w.tree.motion_at(face, fc.time);
         let pieces = fc.ground.as_ref().map(|g| g.pieces).unwrap_or(0);
         assert!(pieces > 0, "the face holding the air was never solved as ground");
-        fc.bodies[..pieces].iter().map(|b| (fv + b.vel - spin.cross(centre + b.pos)).norm()).fold(0.0f64, f64::max)
+        // As they move in space: a node's bodies are kept in its own turning
+        // axes.
+        let mut bodies = fc.bodies[..pieces].to_vec();
+        w.tree.out_of_own(face, fc.time, &mut bodies);
+        bodies.iter().map(|b| (fv + b.vel - spin.cross(centre + b.pos)).norm()).fold(0.0f64, f64::max)
     };
     let o = w.ocean_of(earth).unwrap();
     let up = w.tree.offset_from(earth, air, Vec3::ZERO).value.unit();

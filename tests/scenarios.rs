@@ -65,7 +65,15 @@ fn every_scenario_steps() {
             let report = world.advance_node(root, dt);
             worst_drift = worst_drift.max(report.drift());
         }
-        let bodies = &world.tree.nodes[root.get()].bodies;
+        // As they move in space: a node's bodies are kept in its own turning
+        // axes, where a parcel of a planet's tail 1e13 m out goes at 7.5e8
+        // m/s because the axes do, and at 8 km/s in fact.
+        let bodies = {
+            let mut b = world.tree.nodes[root.get()].bodies.clone();
+            world.tree.out_of_own(root, world.tree.nodes[root.get()].time, &mut b);
+            b
+        };
+        let bodies = &bodies;
         let fastest = bodies.iter().map(|b| b.vel.norm()).fold(0.0f64, f64::max);
         println!(
             "  {:<16} dt {:.3e} s   worst drift {:.2e}   fastest body {:.3e} m/s ({:.4} c)",

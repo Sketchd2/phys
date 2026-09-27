@@ -1954,8 +1954,11 @@ impl World {
         let mut guard = 0;
         while !cur.is_none() && guard < 64 {
             let n = &self.tree.nodes[cur.get()];
+            // As it moves in space relative to what holds it, not relative to
+            // that thing's turning.
+            let moving = if n.parent.is_none() { n.motion.velocity } else { self.tree.motion_at(cur, n.carried) };
             let mut here = crate::dilation::physical_rate(
-                n.motion.velocity,
+                moving,
                 n.matter.external_potential,
                 n.matter.mass,
             );
@@ -2064,7 +2067,22 @@ impl World {
             // often than its own stars could justify. Sampling samples
             // thermal motion into the bodies already, so where a sound speed is
             // meaningful it is in here anyway.
-            let v = n.bodies.iter().map(|b| b.vel.norm()).fold(0.0f64, f64::max);
+            // In the node's own turning axes, where its contents are kept and
+            // stay put while nothing moves them. **But as they move in space
+            // wherever it holds children**: what passes between a node and the
+            // children it holds — a push, a reaction, a step's worth of either's
+            // books — is a vector taken at each one's instant, and the node's
+            // turning between the two turns one against the other. Measured
+            // with the node's own axes alone: an Earth whose ground stood still
+            // on it was due once in centuries, and the reaction to the air over
+            // its equator, handed to it a day behind, moved the world's
+            // momentum by twice the air's.
+            let w = if n.children.iter().any(|c| !c.is_none() && self.tree.nodes[c.get()].alive) {
+                self.tree.own_turning(idx)
+            } else {
+                Vec3::ZERO
+            };
+            let v = n.bodies.iter().map(|b| (b.vel + w.cross(b.pos)).norm()).fold(0.0f64, f64::max);
             let moving = if v > 0.0 { h / v } else { f64::INFINITY };
             // **And anything out of balance, which speeds alone cannot see.**
             // Contents at rest under a net force cover a resolution element in
@@ -3061,6 +3079,21 @@ impl World {
             self.tree.nodes[idx.get()].bodies[k].mass = 0.0;
         }
         let promoted: Vec<usize> = promoted.into_iter().filter(|k| !fluid_slots.iter().any(|(f, _)| f == k)).collect();
+        // **Solved as it is in space.** A node's contents are kept in its own
+        // turning axes — the owner's decision in Phase 5, that a child's place
+        // is in its parent's — and every solver is written for things as they
+        // move in space, so the contents are turned out of the node's axes at
+        // its instant for the solve and back into them at the instant it
+        // reaches (`Tree::out_of_own`, `Tree::into_own`). What the solve did to
+        // each stand-in is measured in the axes its child is kept in.
+        let before_own = self.tree.stand_in_velocities(idx, &promoted);
+        let solve_from = self.tree.nodes[idx.get()].time;
+        let own_before = self.tree.nodes[idx.get()].bodies.clone();
+        {
+            let mut bodies = std::mem::take(&mut self.tree.nodes[idx.get()].bodies);
+            self.tree.out_of_own(idx, solve_from, &mut bodies);
+            self.tree.nodes[idx.get()].bodies = bodies;
+        }
         let before = self.tree.stand_in_velocities(idx, &promoted);
         // The fluid around each promoted child where it is now, before the
         // solve moves it: where it felt its pull is where it is pushed.
@@ -3158,7 +3191,12 @@ impl World {
         // base to its tip otherwise — a body alone is a sphere or a box, and a
         // branch is neither.
         let (mut walls, field) = match &ordered {
-            Some(mask) => (self.member_walls(idx, mask), self.tree.drawn_frame(idx).rotate(self.tree.nodes[idx.get()].gravity)),
+            // The contents are root-aligned for the solve (`Tree::out_of_own`)
+            // and the node's gravity is in its own axes.
+            Some(mask) => (
+                self.member_walls(idx, mask),
+                self.tree.facing_at(idx, self.tree.nodes[idx.get()].time).rotate(self.tree.nodes[idx.get()].gravity),
+            ),
             None => (Vec::new(), crate::math::Vec3::ZERO),
         };
         // Whether the node holds a liquid, and which of its bodies stand in for
@@ -3487,24 +3525,48 @@ impl World {
         }
 
 
+        // The pull each child received, before it is handed on: what the
+        // fluid around it pushes back against. See `buoy_children`. As it is
+        // in space, before the contents go back into the node's own axes.
+        let pulls: Vec<(NodeIdx, Vec3)> = {
+            let n = &self.tree.nodes[idx.get()];
+            before
+                .iter()
+                .filter_map(|(slot, was)| {
+                    let c = n.children.get(*slot).copied()?;
+                    let now = n.bodies.get(*slot)?.vel;
+                    (!c.is_none()).then_some((c, now - *was))
+                })
+                .collect()
+        };
+        let solved = {
+            let reached = solve_from + if report.dt_used.is_finite() && report.dt_used > 0.0 { report.dt_used.min(dt) } else { dt } / rate;
+            let mut bodies = std::mem::take(&mut self.tree.nodes[idx.get()].bodies);
+            let copy = bodies.clone();
+            self.tree.into_own(idx, reached, &mut bodies);
+            // A structure's members are not the solver's to move, and they come
+            // back exactly as they were rather than through the round trip,
+            // which would move them by its rounding.
+            if let Some(mask) = &ordered {
+                let n = &self.tree.nodes[idx.get()];
+                for (k, b) in bodies.iter_mut().enumerate() {
+                    if mask.get(k).copied().unwrap_or(false) && n.child_of(k).is_none() {
+                        if let Some(was) = own_before.get(k) {
+                            *b = *was;
+                        }
+                    }
+                }
+            }
+            self.tree.nodes[idx.get()].bodies = bodies;
+            copy
+        };
+        let before = before_own;
+
         // ... and the force it computed on each stand-in is handed to the
         // child it stands for. Without this the force lands on the body and is
         // discarded by the next sync, which is why two promoted things could
         // not affect each other at all.
         if !before.is_empty() {
-            // The pull each child received, before it is handed on: what the
-            // fluid around it pushes back against. See `buoy_children`.
-            let pulls: Vec<(NodeIdx, Vec3)> = {
-                let n = &self.tree.nodes[idx.get()];
-                before
-                    .iter()
-                    .filter_map(|(slot, was)| {
-                        let c = n.children.get(*slot).copied()?;
-                        let now = n.bodies.get(*slot)?.vel;
-                        (!c.is_none()).then_some((c, now - *was))
-                    })
-                    .collect()
-            };
             // A ground solve integrated its stand-ins whole, and hands them
             // back whole, at the instant its step reached. See
             // `Tree::hand_back`.
@@ -3529,14 +3591,14 @@ impl World {
                     let centre = self.tree.offset_at(anc, idx, self.tree.nodes[idx.get()].time);
                     for (slot, _) in &before {
                         let lift = g.lift.get(*slot).copied().unwrap_or(0.0);
-                        let (Some(b), Some(f)) = (self.tree.nodes[idx.get()].bodies.get(*slot).copied(), g.field.get(*slot).copied()) else { continue };
+                        let (Some(b), Some(f)) = (solved.get(*slot).copied(), g.field.get(*slot).copied()) else { continue };
                         if lift == 0.0 {
                             continue;
                         }
                         let at = centre + b.pos;
                         let dp = (f + (spin.cross(spin.cross(at)) - f).scale(lift)).scale(b.mass * covered);
                         let gained = b.vel.dot(dp) - 0.5 * dp.norm2() / b.mass.max(1e-300);
-                        let taken = self.take_reaction(anc, Vec3::ZERO - dp, at);
+                        let taken = self.take_reaction(anc, Vec3::ZERO - dp, at, self.tree.nodes[anc.get()].time);
                         self.add_heat_to(anc, -(gained + taken));
                     }
                 }
@@ -3605,7 +3667,8 @@ impl World {
         // (`SolveReport::outside`).
         let held = self.contents_momentum(idx);
         self.contact_within(idx);
-        report.outside += self.contents_momentum(idx) - held;
+        // In the node's own axes, and reported as it is in space.
+        report.outside += self.tree.facing_at(idx, self.tree.nodes[idx.get()].time).rotate(self.contents_momentum(idx) - held);
 
         // Heat crosses the boundaries between the things this node holds, on
         // the same span the solver just integrated. After the solve rather than
@@ -5437,14 +5500,23 @@ impl World {
             .tree
             .nodes
             .iter()
-            .filter(|n| n.alive && n.residency.rank() >= Residency::Causal.rank())
-            .map(|n| {
+            .enumerate()
+            .filter(|(_, n)| n.alive && n.residency.rank() >= Residency::Causal.rank())
+            .map(|(i, n)| {
+                // As it is in space from what holds it, which is what an
+                // observer looking back along the light reads.
+                let (offset, velocity) = if n.parent.is_none() {
+                    (n.motion.offset, n.motion.velocity)
+                } else {
+                    let i = NodeIdx(i as u32);
+                    (self.tree.place_at(i, n.carried), self.tree.motion_at(i, n.carried))
+                };
                 (
                     n.key,
                     Moment {
                         t: self.time,
-                        offset: n.motion.offset,
-                        velocity: n.motion.velocity,
+                        offset,
+                        velocity,
                         mass: n.matter.mass,
                         luminosity: n.matter.luminosity,
                         temperature: n.matter.temperature,
@@ -5875,6 +5947,11 @@ impl World {
         let into = self.tree.facing(idx).conjugate();
         if !parent.is_none() {
             let p = &self.tree.nodes[parent.get()];
+            // The parent's contents and this node's place are in the
+            // parent's own axes, and turned out of them.
+            let out = self.tree.facing(parent);
+            let w = self.tree.own_turning(parent);
+            let into = into.then(out).unit();
             if p.bodies.is_empty() {
                 let m = (p.matter.mass - n.matter.mass).max(0.0);
                 sources.push((into.rotate(Vec3::ZERO - n.motion.offset), m));
@@ -5891,7 +5968,7 @@ impl World {
                     if k == n.slot as usize {
                         continue;
                     }
-                    let at = b.pos + b.vel.scale(since);
+                    let at = crate::tree::carry_in(b.pos, b.vel, w, since, false).0;
                     sources.push((into.rotate(at - n.motion.offset), b.mass));
                 }
             }
@@ -6079,7 +6156,7 @@ impl World {
                 None => return,
             };
             let to_root = self.tree.facing(idx);
-            let centre = self.tree.position_at(sea, self.tree.nodes[idx.get()].time);
+            let centre = self.tree.place_at(sea, self.tree.nodes[idx.get()].time);
             for ((w, air), b) in winds.iter().zip(blown.iter()) {
                 let dp = to_root.rotate(b.momentum);
                 if !(dp.norm() > 0.0) {
@@ -6089,12 +6166,17 @@ impl World {
                     let o = self.ocean_of(idx).expect("the sea was just blown on");
                     to_root.rotate(o.cells[w.cell].up.scale(o.radius))
                 };
-                // The air.
+                // The air: what it loses as it moves in space, taken from its
+                // velocity in the axes of what holds it.
+                let (v0, into) = {
+                    let p = self.tree.nodes[air.get()].parent;
+                    let carried = self.tree.nodes[air.get()].carried;
+                    (self.tree.motion_at(*air, carried), self.tree.facing(p).conjugate())
+                };
                 let a = &mut self.tree.nodes[air.get()];
                 let m = a.matter.mass.max(1e-300);
-                let v0 = a.motion.velocity;
                 let v1 = v0 - dp.scale(1.0 / m);
-                a.motion.velocity = v1;
+                a.motion.velocity = a.motion.velocity - into.rotate(dp.scale(1.0 / m));
                 let lost = 0.5 * m * (v0.norm2() - v1.norm2());
                 // The sea.
                 let Some(o) = self.ocean_of_mut(idx) else { continue };
@@ -6662,7 +6744,9 @@ impl World {
             if !self.tree.nodes[c.get()].alive || !pull.is_finite() {
                 continue;
             }
-            let at = self.tree.position_at(c, self.tree.nodes[idx.get()].time);
+            // As it is in space: the pull and the reaction are, and the kick is
+            // turned into the axes the child is kept in.
+            let at = self.tree.place_at(c, self.tree.nodes[idx.get()].time);
             let rho = ambient.iter().find(|(a, _)| *a == c).map(|(_, r)| *r).unwrap_or(0.0);
             let volume = self.tree.nodes[c.get()].matter.volume();
             if !(rho > 0.0) || !(volume > 0.0) {
@@ -6673,25 +6757,30 @@ impl World {
             // parent's, or the end of a step that handed back its whole state.
             let then = reached.unwrap_or(self.tree.nodes[idx.get()].time);
             let m = self.tree.nodes[c.get()].matter.mass.max(1e-300);
-            let v0 = self.tree.velocity_at(c, then);
+            let v0 = self.tree.motion_at(c, then);
             let v1 = v0 + dp.scale(1.0 / m);
             let gained = 0.5 * m * (v1.norm2() - v0.norm2());
-            self.tree.kick(c, dp.scale(1.0 / m), then);
-            let taken = self.take_reaction(idx, Vec3::ZERO - dp, at);
+            let into = self.tree.facing_at(idx, then).conjugate();
+            self.tree.kick(c, into.rotate(dp.scale(1.0 / m)), then);
+            let taken = self.take_reaction(idx, Vec3::ZERO - dp, at, self.tree.nodes[idx.get()].time);
             self.add_heat_to(idx, -(gained + taken));
         }
     }
 
     /// Give a node's own contents an impulse at a place in root-aligned axes
     /// relative to its centre, and return the kinetic energy they took up, J.
-    fn take_reaction(&mut self, idx: NodeIdx, dp: Vec3, at: Vec3) -> f64 {
-        self.take_wrench(idx, dp, at.cross(dp))
+    fn take_reaction(&mut self, idx: NodeIdx, dp: Vec3, at: Vec3, instant: f64) -> f64 {
+        self.take_wrench(idx, dp, at.cross(dp), instant)
     }
 
     /// [`World::take_reaction`], for an impulse `dp` and an angular impulse
     /// `dl` about the node's centre that need not be one push at one place:
     /// what a sea does along a whole edge.
-    fn take_wrench(&mut self, idx: NodeIdx, dp: Vec3, dl: Vec3) -> f64 {
+    /// A push `dp` and a twist `dl` about `idx`'s centre, both as they are in
+    /// space, taken into the node's own axes at `instant` — the instant its
+    /// contents have been solved to, which is the state the push is applied
+    /// to, so that it is what it was in space when they are next solved.
+    fn take_wrench(&mut self, idx: NodeIdx, dp: Vec3, dl: Vec3, instant: f64) -> f64 {
         // **Ground something holds passes it on to what holds it**, at its
         // place there. Its pieces' centre of mass stays with the node
         // (`ground::Ground::held`), so a push on them is a push on the node;
@@ -6704,8 +6793,14 @@ impl World {
         let parent = self.tree.nodes[idx.get()].parent;
         if self.tree.nodes[idx.get()].ground.is_some() && !parent.is_none() {
             let there = self.tree.offset_from(parent, idx, Vec3::ZERO).value;
-            return self.take_wrench(parent, dp, dl + there.cross(dp));
+            return self.take_wrench(parent, dp, dl + there.cross(dp), self.tree.nodes[parent.get()].time);
         }
+        // The push as it is in space, turned into the axes the node's
+        // contents are kept in as they were when it was given; what they gain
+        // is measured as they move in space.
+        let facing = self.tree.facing_at(idx, instant);
+        let w = self.tree.own_turning(idx);
+        let (dp, dl) = (facing.conjugate().rotate(dp), facing.conjugate().rotate(dl));
         // Its free bodies, and its sea and its air, which go with the ground
         // they are on.
         let goes_with = |c: NodeIdx| {
@@ -6750,18 +6845,19 @@ impl World {
                 let child = self.tree.nodes[idx.get()].child_of(s);
                 if child.is_none() {
                     let b = &mut self.tree.nodes[idx.get()].bodies[s];
-                    let before = 0.5 * b.mass * b.vel.norm2();
+                    let v = b.vel + w.cross(b.pos);
+                    gained += 0.5 * b.mass * ((v + kick).norm2() - v.norm2());
                     b.vel += kick;
-                    gained += 0.5 * b.mass * b.vel.norm2() - before;
                 } else {
                     let then = self.tree.nodes[idx.get()].time;
-                    let v0 = self.tree.velocity_at(child, then);
+                    let v0 = self.tree.velocity_at(child, then) + w.cross(pos);
                     self.tree.kick(child, kick, then);
                     gained += 0.5 * m * ((v0 + kick).norm2() - v0.norm2());
                 }
             }
             return gained;
         }
+        let (dp, dl) = (facing.rotate(dp), facing.rotate(dl));
         let n = &mut self.tree.nodes[idx.get()];
         let m = n.matter.mass.max(1e-300);
         let before = 0.5 * n.matter.momentum.norm2() / m;
@@ -6824,9 +6920,6 @@ impl World {
     fn member_walls(&self, idx: NodeIdx, mask: &[bool]) -> Vec<solvers::hydro::Wall> {
         let n = &self.tree.nodes[idx.get()];
         let topo = n.topology.as_ref();
-        // A body's orientation is in the node's own axes and its position in
-        // the drawing's (`Tree::drawn_frame`).
-        let frame = self.tree.drawn_frame(idx);
         n.bodies
             .iter()
             .enumerate()
@@ -6838,11 +6931,7 @@ impl World {
                     Some((base, tip)) if !b.is_boxed() && (tip - base).norm() > 0.0 => {
                         solvers::hydro::Wall::capsule(base, tip, b.radius)
                     }
-                    _ => {
-                        let mut w = solvers::hydro::Wall::of(b);
-                        w.orientation = frame.then(b.orientation).unit();
-                        w
-                    }
+                    _ => solvers::hydro::Wall::of(b),
                 }
             })
             .collect()
@@ -6894,7 +6983,10 @@ impl World {
             crate::recipe::Recipe::Tiled(t) => t.field_point(x, y)?,
             _ => return None,
         };
-        Some(self.tree.drawn_frame(idx).conjugate().then(self.tree.drawn_turn(idx)).rotate(at))
+        // From the axes the layout is stated in into the node's own, the turn
+        // `Tree::draw` places its drawing with.
+        let instant = self.tree.nodes[idx.get()].time;
+        Some(self.tree.facing_at(idx, instant).conjugate().then(self.tree.drawn_turn(idx)).rotate(at))
     }
 
     /// Let a patch of loose ground's marks fall to what holds them up, and
@@ -7086,16 +7178,9 @@ impl World {
     /// no field.
     fn floor_of(&self, idx: NodeIdx) -> Option<crate::shallow::Floor> {
         let mask = self.members(idx)?;
-        // **In the node's own axes**, as its gravity is: the water over a
-        // patch of a turning planet goes round with the patch, and the floor
-        // it lies on is the one the patch holds, whichever way the drawing
-        // has turned since (`Tree::drawn_frame`).
-        let back = self.tree.drawn_frame(idx).conjugate();
-        let walls: Vec<solvers::hydro::Wall> = self
-            .member_walls(idx, &mask)
-            .into_iter()
-            .map(|w| solvers::hydro::Wall { centre: back.rotate(w.centre), orientation: back.then(w.orientation).unit(), axis: back.rotate(w.axis), ..w })
-            .collect();
+        // **In the node's own axes**, as its gravity and its bodies are: the
+        // water over a patch of a turning planet goes round with the patch.
+        let walls = self.member_walls(idx, &mask);
         let gravity = self.tree.nodes[idx.get()].gravity;
         let g = gravity.norm();
         if walls.is_empty() || !(g > 0.0) {
@@ -7262,7 +7347,7 @@ impl World {
         }
         // The sea in the patch's own axes, which the sheet is in, and what
         // crosses back out of them into the drawing's.
-        let frame = self.tree.drawn_frame(idx);
+        let frame = self.tree.facing_at(idx, start);
         let sea = sea.turned(frame.conjugate());
         let sea = crate::shallow::SeaAtEdge { sea: crate::ocean::Sea { up: sheet.up, g, ..sea.sea }, ..sea };
         let mut total = crate::shallow::Crossing { mass: -returned, ..Default::default() };
@@ -7296,13 +7381,14 @@ impl World {
         // Out of the patch's own axes, where the sheet is, into those its
         // node's matter is stated in.
         let patch = self.tree.nodes[node.get()].parent;
-        let frame = if patch.is_none() { crate::math::Quat::IDENTITY } else { self.tree.drawn_frame(patch) };
+        let frame = if patch.is_none() { crate::math::Quat::IDENTITY } else { self.tree.facing_at(patch, self.tree.nodes[patch.get()].time) };
         let n = &mut self.tree.nodes[node.get()];
         let Some(sheet) = n.sheet.as_ref() else { return };
         let (mass, p, l, com, heat) = (sheet.mass(), frame.rotate(sheet.momentum()), frame.rotate(sheet.angular_momentum()), frame.rotate(sheet.centre_of_mass()), sheet.heat);
         // The sheet is laid out from its patch's centre, and its node sits
-        // where it was drawn in the patch: that offset is taken off.
-        let at = n.motion.offset;
+        // where it was drawn in the patch: that offset is taken off, turned
+        // out of the patch's axes as everything else here is.
+        let at = frame.rotate(n.motion.offset);
         let (radius, temperature, composition, mixture) = (n.matter.radius, n.matter.temperature, n.matter.composition, n.matter.mixture);
         let mut matter = crate::state::Matter::neutral(mass.max(1e-300), radius, temperature, composition);
         matter.mixture = mixture;
@@ -8496,6 +8582,9 @@ fn apply_contact(
                 let at = w.tree.nodes[parent.get()].time;
                 w.tree.kick(c, impulse.scale(1.0 / m), at);
             }
+            // The couple was found in the parent's own axes; a node's matter
+            // and its turning are root-aligned.
+            let spin = w.tree.facing_at(parent, w.tree.nodes[parent.get()].time).rotate(spin);
             w.tree.nodes[c.get()].matter.spin += spin;
             // Angular momentum arrived, so the node turns by that much more.
             // Without this the node banks the momentum and never turns, which

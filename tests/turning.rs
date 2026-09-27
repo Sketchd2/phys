@@ -85,7 +85,10 @@ fn a_spinning_planets_faces_move_with_its_ground() {
     let omega = n.motion.spin_rate;
     let mut worst: f64 = 0.0;
     let mut l = Vec3::ZERO;
-    for b in &n.bodies {
+    // A node's bodies are kept in its own turning axes; as they move in space:
+    let mut bodies = n.bodies.clone();
+    w.tree.out_of_own(e, n.time, &mut bodies);
+    for b in &bodies {
         worst = worst.max((b.vel - omega.cross(b.pos)).norm());
         l += b.pos.cross(b.momentum()) + b.spin;
     }
@@ -207,6 +210,12 @@ fn a_turning_planets_ground_holds_together() {
     let mut worst_slip: f64 = 0.0;
     for _ in 0..(DAY / 60.0) as usize {
         w.step_frame(1.0e6);
+        // Solved every frame, which is what this is about: at rest in its own
+        // turning axes the planet is never due, and goes round unsolved.
+        let owed = w.time - w.tree.nodes[e.get()].time;
+        if owed > 0.0 {
+            w.advance_node(e, owed);
+        }
         let at = w.tree.offset_from(e, face, Vec3::ZERO).value;
         let v = w.tree.velocity_from(e, face);
         let spin = w.tree.nodes[e.get()].motion.spin_rate;
@@ -236,19 +245,27 @@ fn a_face_of_a_turning_planet_is_drawn_turning_with_it() {
     let (mut w, e, face) = an_earth_with_a_face(0xA1D);
     let spin = w.tree.nodes[e.get()].motion.spin_rate;
     let own = (w.tree.angular_velocity(face) - spin).norm();
-    let across = |w: &World| {
+    // The face's pieces as they are in space: a node's bodies are kept in
+    // its own turning axes, and a face nothing needs is released and drawn
+    // again when asked.
+    let in_space = |w: &mut World| {
+        w.tree.refine(face);
         let fc = &w.tree.nodes[face.get()];
-        (fc.bodies[63].pos - fc.bodies[0].pos).unit()
+        let mut b = fc.bodies.clone();
+        w.tree.out_of_own(face, fc.time, &mut b);
+        b
     };
-    let before = across(&w);
+    let across = |b: &[phys::state::Body]| (b[63].pos - b[0].pos).unit();
+    let before = across(&in_space(&mut w));
     let t0 = w.tree.nodes[face.get()].time;
     let mut worst: f64 = 0.0;
     for _ in 0..(6 * 60) {
         w.step_frame(1.0e6);
-        let fc = &w.tree.nodes[face.get()];
-        let centre = w.tree.offset_at(e, face, fc.time);
-        let fv = w.tree.velocity_at(face, fc.time);
-        for b in fc.bodies.iter() {
+        let bodies = in_space(&mut w);
+        let time = w.tree.nodes[face.get()].time;
+        let centre = w.tree.offset_at(e, face, time);
+        let fv = w.tree.motion_at(face, time);
+        for b in bodies.iter() {
             worst = worst.max((fv + b.vel - spin.cross(centre + b.pos)).norm());
         }
     }
@@ -256,7 +273,7 @@ fn a_face_of_a_turning_planet_is_drawn_turning_with_it() {
     // same angle takes the same two pieces.
     let t = w.tree.nodes[face.get()].time - t0;
     let expected = phys::math::Quat::from_rate(spin, t).rotate(before);
-    let off = across(&w).dot(expected).clamp(-1.0, 1.0).acos();
+    let off = across(&in_space(&mut w)).dot(expected).clamp(-1.0, 1.0).acos();
     println!(
         "  six hours: the face turns {own:.1e} rad/s apart from its planet; its layout is {off:.2e} rad \
          from where the ground turned it ({:.4} rad); its pieces slip over the ground at {worst:.1e} m/s",

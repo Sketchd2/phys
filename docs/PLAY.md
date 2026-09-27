@@ -3265,6 +3265,18 @@ an actor has a node the camera links to. **A body of liquid is a sheet where
 shallow water is valid** — lying on a node's floor, and shallow against its
 width — and particles otherwise, which is the criterion lakes take.
 
+*Decided by the owner — a child's position is in its parent's axes.* Run at a
+tide's pace, 300 s a frame, a patch of an Earth's ground 2.8 cm to a cell
+cannot be stepped — its stable step is 1e-5 s — and a node nobody solves is
+carried along a straight line at its last velocity: the beach was 2.4 km
+underground after two and a half hours, and at five the chain tore and a
+crossing re-homed it 169,000 km out. Asked how far "down is relative to the
+parent" goes, the owner chose the whole of it: **every child's position and
+velocity are stated in its parent's own turning axes**, so anything held
+still in something turning goes round with it without being solved, and the
+solvers of a turning node's contents answer to the frame's turning. The tree's
+position arithmetic, gravity, crossings and the save all move with it.
+
 Building it found five defects in how an Earth's ground is drawn, each of
 which the eight-cell ground of Phase 4 was too coarse to show, and each fixed
 with its measurement in its commit: the centre of mass of a patch integrated

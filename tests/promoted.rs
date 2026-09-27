@@ -376,10 +376,13 @@ fn a_childs_binding_survives_being_folded_back_in() {
     // The stand-ins have to be current first, or the comparison is against a
     // different body list: `settle` syncs them before it summarises anything.
     w.tree.sync_children(root);
-    let naive = phys::state::summarise(
-        &w.tree.nodes[root.get()].bodies,
-        w.tree.nodes[root.get()].potential,
-    );
+    // As they are in space: a node's bodies are kept in its own turning axes,
+    // and its matter is what they are in space.
+    let naive = {
+        let mut bodies = w.tree.nodes[root.get()].bodies.clone();
+        w.tree.out_of_own(root, w.tree.nodes[root.get()].time, &mut bodies);
+        phys::state::summarise(&bodies, w.tree.nodes[root.get()].potential)
+    };
     // Pinned, so `settle` writes the summary rather than taking the idempotent
     // early return that keeps an undisturbed node bit-for-bit as it was.
     w.tree.pin(root);

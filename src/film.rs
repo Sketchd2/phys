@@ -116,10 +116,13 @@ pub fn of_node(world: &World, node: NodeIdx) -> Scene {
         let sep = world.tree.separation(node, Vec3::ZERO, child, Vec3::ZERO);
         let q = world.tree.axes_from(node, child);
         scene.err = scene.err.max(sep.err);
+        // The node's contents are in its own axes and a separation is
+        // root-aligned, so the separation is turned into them.
+        let at = world.tree.facing(node).conjugate().rotate(sep.value);
         let moved: Vec<Body> = sub
             .bodies
             .iter()
-            .map(|b| Body { pos: sep.value + q.rotate(b.pos), ..*b })
+            .map(|b| Body { pos: at + q.rotate(b.pos), ..*b })
             .collect();
         placed.push((slot, moved));
     }
