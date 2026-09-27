@@ -478,6 +478,17 @@ pub struct Sea {
 }
 
 impl Sea {
+    /// The same sea described in axes turned by `q`: every direction in it
+    /// carried by the turn.
+    pub fn turned(&self, q: crate::math::Quat) -> Sea {
+        Sea {
+            up: q.rotate(self.up),
+            current: q.rotate(self.current),
+            train: self.train.map(|t| Train { heading: q.rotate(t.heading), ..t }),
+            ..*self
+        }
+    }
+
     /// The train in water `depth` deep, if there is a train and water.
     pub fn train_in(&self, depth: f64) -> Option<Train> {
         self.train.and_then(|t| t.in_depth(depth))

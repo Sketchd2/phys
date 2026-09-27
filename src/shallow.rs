@@ -547,6 +547,11 @@ pub struct SeaAtEdge {
 }
 
 impl SeaAtEdge {
+    /// The same sea at the same edge, described in axes turned by `q`.
+    pub fn turned(&self, q: crate::math::Quat) -> SeaAtEdge {
+        SeaAtEdge { sea: self.sea.turned(q), centre: q.rotate(self.centre), height: self.height }
+    }
+
     fn train_at(&self, depth: f64) -> Option<Train> {
         if depth > DRY { self.sea.train_in(depth) } else { None }
     }

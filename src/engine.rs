@@ -849,7 +849,7 @@ impl World {
             return;
         }
         for i in 0..self.observers.len() {
-            let obs = self.observers[i];
+            let obs = self.resolved(&self.observers[i]);
             let mut here = obs.anchor;
             // Where the observer is, as a direction from the centre of the
             // body it is over. A patch's address is in the planet's own axes,
@@ -1636,6 +1636,27 @@ impl World {
         self.identity_of(self.tree.nodes[idx.get()].key)
     }
 
+    /// An observer as the world sees it: its offset, the way it looks and
+    /// its velocity turned out of its anchor's own axes into root-aligned
+    /// ones, and the motion standing still on a turning anchor gives it.
+    ///
+    /// **A camera is linked to a node, and its perspective is that node's** —
+    /// the owner's decision in Phase 5. Read as root-aligned, an observer
+    /// anchored to a patch of a turning Earth stayed where it was in space
+    /// while the ground it was watching went round out from under it.
+    pub fn resolved(&self, obs: &Observer) -> Observer {
+        if obs.anchor.is_none() || obs.anchor.get() >= self.tree.nodes.len() {
+            return *obs;
+        }
+        let q = self.tree.facing(obs.anchor);
+        if q == crate::math::Quat::IDENTITY {
+            return *obs;
+        }
+        let offset = q.rotate(obs.offset);
+        let spin = self.tree.angular_velocity(obs.anchor);
+        Observer { offset, look: q.rotate(obs.look), velocity: q.rotate(obs.velocity) + spin.cross(offset), ..*obs }
+    }
+
     pub fn add_observer(&mut self, o: Observer) -> usize {
         self.observers.push(o);
         self.observers.len() - 1
@@ -2390,6 +2411,7 @@ impl World {
             let mut urgency = 0.0f64;
             let mut wanted_tier = tier;
             for obs in &self.observers {
+                let obs = &self.resolved(obs);
                 let sep = self
                     .tree
                     .separation(obs.anchor, obs.offset, idx, Vec3::ZERO);
@@ -5558,6 +5580,13 @@ impl World {
             n.matter.mass = (n.matter.mass - moved).max(0.0);
         }
         self.disturb(target);
+        // **A mark is an edit** (`docs/PLAY.md` D19) — one the rule can
+        // express, so the node may still release its detail, but it and
+        // everything above it are no longer a fresh draw. Unrecorded, a patch
+        // of an Earth's shore with a channel in it was folded back into the
+        // patch above it within ten frames of nobody looking, and the channel
+        // with it.
+        self.tree.record_edit(target);
         // **Ground somebody is standing on changes when it is marked**, not
         // when it is next drawn — and loose ground that the mark left
         // unsupported falls at once, which takes a fraction of a second.
@@ -6855,15 +6884,17 @@ impl World {
         Some((sheet.density, sea.sea.current.norm() + orbital))
     }
 
-    /// Where a point of a patch's field is, in the axes the patch's bodies are
-    /// in: [`crate::recipe::Tiled::field_point`], turned as the patch is drawn
-    /// (`Tree::drawn_turn`). `None` for anything that is not a patch of ground.
+    /// Where a point of a patch's field is, in the patch's own axes — the
+    /// axes its gravity and the water over it are in: [`crate::recipe::Tiled::field_point`],
+    /// turned as the patch is drawn (`Tree::drawn_turn`) and back out of the
+    /// drawing's axes into the node's (`Tree::drawn_frame`). `None` for
+    /// anything that is not a patch of ground.
     pub fn field_point(&self, idx: NodeIdx, x: f64, y: f64) -> Option<Vec3> {
         let at = match self.tree.nodes[idx.get()].morphology.as_ref()?.recipe.as_ref()? {
             crate::recipe::Recipe::Tiled(t) => t.field_point(x, y)?,
             _ => return None,
         };
-        Some(self.tree.drawn_turn(idx).rotate(at))
+        Some(self.tree.drawn_frame(idx).conjugate().then(self.tree.drawn_turn(idx)).rotate(at))
     }
 
     /// Let a patch of loose ground's marks fall to what holds them up, and
@@ -7055,8 +7086,17 @@ impl World {
     /// no field.
     fn floor_of(&self, idx: NodeIdx) -> Option<crate::shallow::Floor> {
         let mask = self.members(idx)?;
-        let walls = self.member_walls(idx, &mask);
-        let gravity = self.tree.drawn_frame(idx).rotate(self.tree.nodes[idx.get()].gravity);
+        // **In the node's own axes**, as its gravity is: the water over a
+        // patch of a turning planet goes round with the patch, and the floor
+        // it lies on is the one the patch holds, whichever way the drawing
+        // has turned since (`Tree::drawn_frame`).
+        let back = self.tree.drawn_frame(idx).conjugate();
+        let walls: Vec<solvers::hydro::Wall> = self
+            .member_walls(idx, &mask)
+            .into_iter()
+            .map(|w| solvers::hydro::Wall { centre: back.rotate(w.centre), orientation: back.then(w.orientation).unit(), axis: back.rotate(w.axis), ..w })
+            .collect();
+        let gravity = self.tree.nodes[idx.get()].gravity;
         let g = gravity.norm();
         if walls.is_empty() || !(g > 0.0) {
             return None;
@@ -7220,6 +7260,10 @@ impl World {
             returned = sheet.rebed(&f);
             sheet.epoch = epoch;
         }
+        // The sea in the patch's own axes, which the sheet is in, and what
+        // crosses back out of them into the drawing's.
+        let frame = self.tree.drawn_frame(idx);
+        let sea = sea.turned(frame.conjugate());
         let sea = crate::shallow::SeaAtEdge { sea: crate::ocean::Sea { up: sheet.up, g, ..sea.sea }, ..sea };
         let mut total = crate::shallow::Crossing { mass: -returned, ..Default::default() };
         let mut done = 0.0;
@@ -7240,18 +7284,22 @@ impl World {
         }
         self.tree.nodes[node.get()].sheet = Some(sheet);
         let water = self.tree.nodes[node.get()].matter.mixture;
-        self.lend(idx, anc, &water, total.mass, total.momentum, total.moment, Vec3::ZERO);
+        self.lend(idx, anc, &water, total.mass, frame.rotate(total.momentum), frame.rotate(total.moment), Vec3::ZERO);
         self.settle_sheet(node);
-        Some((total.bed, done))
+        Some((frame.rotate(total.bed), done))
     }
 
     /// Make a sheet's node hold exactly what its sheet does: its mass, its
     /// momentum, its angular momentum about the node's centre, its centre of
     /// mass, and the heat its bed's drag has made.
     fn settle_sheet(&mut self, node: NodeIdx) {
+        // Out of the patch's own axes, where the sheet is, into those its
+        // node's matter is stated in.
+        let patch = self.tree.nodes[node.get()].parent;
+        let frame = if patch.is_none() { crate::math::Quat::IDENTITY } else { self.tree.drawn_frame(patch) };
         let n = &mut self.tree.nodes[node.get()];
         let Some(sheet) = n.sheet.as_ref() else { return };
-        let (mass, p, l, com, heat) = (sheet.mass(), sheet.momentum(), sheet.angular_momentum(), sheet.centre_of_mass(), sheet.heat);
+        let (mass, p, l, com, heat) = (sheet.mass(), frame.rotate(sheet.momentum()), frame.rotate(sheet.angular_momentum()), frame.rotate(sheet.centre_of_mass()), sheet.heat);
         // The sheet is laid out from its patch's centre, and its node sits
         // where it was drawn in the patch: that offset is taken off.
         let at = n.motion.offset;
@@ -7436,7 +7484,7 @@ impl World {
     /// Distance from the primary observer to a node — the light-travel distance
     /// an interaction has to cross before it takes effect.
     fn observer_distance(&self, target: NodeIdx) -> f64 {
-        match self.observers.first() {
+        match self.observers.first().map(|o| self.resolved(o)) {
             Some(o) => self
                 .tree
                 .separation(o.anchor, o.offset, target, Vec3::ZERO)
@@ -7460,7 +7508,7 @@ impl World {
             let n = &self.tree.nodes[target.get()];
             (n.key, n.matter, n.epoch)
         };
-        let obs = *self.observers.first()?;
+        let obs = self.resolved(self.observers.first()?);
         let sep = self.tree.separation(obs.anchor, obs.offset, target, Vec3::ZERO);
         let d = sep.value.norm().max(1e-30);
 
@@ -8160,7 +8208,7 @@ impl World {
     /// Everything the given observer can currently see, nearest first.
     pub fn look(&mut self, observer: usize, instrument: Instrument) -> Vec<Sighting> {
         let obs = match self.observers.get(observer) {
-            Some(o) => *o,
+            Some(o) => self.resolved(o),
             None => return Vec::new(),
         };
         let mut out = Vec::new();
