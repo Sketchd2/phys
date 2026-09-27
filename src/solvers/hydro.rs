@@ -197,12 +197,15 @@ pub struct Solid {
     points: Vec<(Vec3, f64)>,
     /// How far into or out of the walls nothing moves each point of a
     /// lattice round them is — negative inside — on the kernel points' own
-    /// spacing: `step` apart, from the point at `corner`, `dims` of them each
-    /// way.
+    /// spacing, `step` apart: worked out the first time a kernel asks about a
+    /// point and kept for the solve. Only a parcel with more than one face in
+    /// reach asks at all, which is a corner of a bucket or a step in ground;
+    /// filled whole instead, the lattice round a bucket cost 27 ms a solve
+    /// against the solve's own 9.
     step: f64,
-    corner: (i64, i64, i64),
-    dims: (usize, usize, usize),
-    distance: Vec<f64>,
+    fine: Cells,
+    walls: Vec<Wall>,
+    distance: std::cell::RefCell<std::collections::HashMap<(i64, i64, i64), f64>>,
 }
 
 /// Indices filed under every cell a box touches.
@@ -288,46 +291,15 @@ impl Solid {
         let moving = walls.iter().enumerate().filter(|(_, w)| w.owner.is_some()).map(|(k, _)| k).collect();
         let points = kernel_points(h);
         let step = 0.5 * h;
-        // Every cube a kernel touching a fixed wall could ask about: the
-        // walls' own bounds and a kernel's support round them.
-        let (mut lo, mut hi) = (Vec3::ZERO, Vec3::ZERO);
-        for (n, (_, a, b)) in boxes.iter().enumerate() {
-            if n == 0 {
-                (lo, hi) = (*a, *b);
-            } else {
-                lo = crate::math::v3(lo.x.min(a.x), lo.y.min(a.y), lo.z.min(a.z));
-                hi = crate::math::v3(hi.x.max(b.x), hi.y.max(b.y), hi.z.max(b.z));
-            }
+        Solid {
+            coarse: Cells::of(&boxes, 2.0 * h),
+            fine: Cells::of(&boxes, 2.0 * step),
+            moving,
+            points,
+            step,
+            walls: walls.to_vec(),
+            distance: Default::default(),
         }
-        let cube = |x: f64| (x / step).round() as i64;
-        let (corner, dims, distance) = if boxes.is_empty() {
-            ((0, 0, 0), (0, 0, 0), Vec::new())
-        } else {
-            let pad = 2.0 * h + step;
-            let a = (cube(lo.x - pad), cube(lo.y - pad), cube(lo.z - pad));
-            let b = (cube(hi.x + pad), cube(hi.y + pad), cube(hi.z + pad));
-            let dims = ((b.0 - a.0 + 1) as usize, (b.1 - a.1 + 1) as usize, (b.2 - a.2 + 1) as usize);
-            // Only the nearby walls matter to a point, and nothing past two
-            // steps from a surface needs its distance exactly.
-            let fine = Cells::of(&boxes, 2.0 * step);
-            let far = 2.0 * step;
-            let r = crate::math::v3(far, far, far);
-            let mut distance = vec![far; dims.0 * dims.1 * dims.2];
-            let mut near = Vec::new();
-            for z in 0..dims.2 {
-                for y in 0..dims.1 {
-                    for x in 0..dims.0 {
-                        let c = crate::math::v3((a.0 + x as i64) as f64, (a.1 + y as i64) as f64, (a.2 + z as i64) as f64).scale(step);
-                        near.clear();
-                        fine.within(c - r, c + r, &mut near);
-                        let d = near.iter().map(|&k| walls[k].distance(c).0).fold(far, f64::min);
-                        distance[(z * dims.1 + y) * dims.0 + x] = d.max(-far);
-                    }
-                }
-            }
-            (a, dims, distance)
-        };
-        Solid { coarse: Cells::of(&boxes, 2.0 * h), moving, points, step, corner, dims, distance }
     }
 
     /// The walls whose surfaces could be within `reach` of `p`.
@@ -350,13 +322,19 @@ impl Solid {
     /// out by the nearest point instead, a floor came out a fifth of a kernel
     /// off the plane's closed form.
     fn solid_at(&self, p: Vec3) -> f64 {
+        // Nothing past two steps from a surface needs its distance exactly.
         let far = 2.0 * self.step;
         let at = |x: i64, y: i64, z: i64| -> f64 {
-            let (x, y, z) = (x - self.corner.0, y - self.corner.1, z - self.corner.2);
-            if x < 0 || y < 0 || z < 0 || x as usize >= self.dims.0 || y as usize >= self.dims.1 || z as usize >= self.dims.2 {
-                return far;
+            if let Some(d) = self.distance.borrow().get(&(x, y, z)) {
+                return *d;
             }
-            self.distance[(z as usize * self.dims.1 + y as usize) * self.dims.0 + x as usize]
+            let c = crate::math::v3(x as f64, y as f64, z as f64).scale(self.step);
+            let r = crate::math::v3(far, far, far);
+            let mut near = Vec::new();
+            self.fine.within(c - r, c + r, &mut near);
+            let d = near.iter().map(|&k| self.walls[k].distance(c).0).fold(far, f64::min).max(-far);
+            self.distance.borrow_mut().insert((x, y, z), d);
+            d
         };
         let (fx, fy, fz) = (p.x / self.step, p.y / self.step, p.z / self.step);
         let (x0, y0, z0) = (fx.floor(), fy.floor(), fz.floor());
@@ -377,20 +355,20 @@ impl Solid {
 /// The share of a kernel at `p` that lies inside the walls: what a wall
 /// stands in place of in a density sum.
 ///
-/// **One face, exactly; more than one, by integrating over the solid.** A
-/// single face within reach is a plane to the kernel and `beyond_plane` is
-/// its closed form — and exactness matters here more than anywhere: weakly
-/// compressible, a liquid carries its weight on a per cent of its density, so
-/// an error of a per cent in what a wall stands in for is an error the size
-/// of the whole column's weight in the pressure. Where more than one face is
-/// near, adding a plane for each counts every one of them as reaching away to
-/// infinity, and a step two centimetres high in a floor of generated ground
-/// was priced as a whole wall: measured, 5500 m/s^2 on a parcel standing in a
-/// dip. There the kernel is integrated over the union itself, on
-/// `kernel_points` against the distance to it (`Solid`), which is within
-/// 0.0153 of a kernel of the closed form on a floor
-/// (`a_floor_integrated_is_the_plane`) and which the closed form is kept
-/// ahead of wherever it applies.
+/// **A wide face, exactly; a narrow wall, by integrating over the solid.** A
+/// face wider than the kernel's reach is a plane to the kernel and
+/// `beyond_plane` is its closed form — and exactness matters here more than
+/// anywhere: weakly compressible, a liquid carries its weight on a per cent of
+/// its density, so an error of a per cent in what a wall stands in for is an
+/// error the size of the whole column's weight in the pressure. A wall
+/// narrower than that has faces that end inside the kernel, and a plane for
+/// each counts every one of them as reaching away to infinity: a step two
+/// centimetres high in a floor of generated ground was priced as a whole wall,
+/// 5500 m/s^2 on a parcel standing in a dip. There the kernel is integrated
+/// over the union itself, on `kernel_points` against the distance to it
+/// (`Solid`), which is within 0.0153 of a kernel of the closed form on a floor
+/// (`a_floor_integrated_is_the_plane`). Integrating wherever two faces met
+/// instead — a bucket's every edge — took its solve from 10 ms to 28.
 fn inside_walls(solid: &Solid, walls: &[Wall], p: Vec3, i: usize, h: f64) -> f64 {
     let near = facing(solid, walls, p, i, 2.0 * h);
     // A wall that moves with a body is that body's own surface, and is the
@@ -398,11 +376,24 @@ fn inside_walls(solid: &Solid, walls: &[Wall], p: Vec3, i: usize, h: f64) -> f64
     // what this gives it, and `one_ball_floats_half_under` is measured on it.
     let moving: f64 = near.iter().filter(|(k, _, _)| walls[*k].owner.is_some()).map(|(_, d, _)| beyond_plane(*d, h)).sum();
     let fixed: Vec<&(usize, f64, Vec3)> = near.iter().filter(|(k, _, _)| walls[*k].owner.is_none()).collect();
+    // A face wider than the kernel's reach is a plane to it, and so is every
+    // face of a bucket; a wall narrower than that — a column of ground a few
+    // centimetres across — has faces that end inside the kernel, and only
+    // integrating over the solid prices it.
+    let wide = |w: &Wall| {
+        let reach = 2.0 * h;
+        if w.half == Vec3::ZERO {
+            return w.radius >= reach;
+        }
+        let mut e = [w.half.x, w.half.y, w.half.z];
+        e.sort_by(|a, b| b.total_cmp(a));
+        e[1] >= reach
+    };
     moving
-        + match fixed.len() {
-            0 => 0.0,
-            1 => beyond_plane(fixed[0].1, h),
-            _ => solid.integrated(p),
+        + if fixed.iter().all(|(k, _, _)| wide(&walls[*k])) {
+            fixed.iter().map(|(_, d, _)| beyond_plane(*d, h)).sum()
+        } else {
+            solid.integrated(p)
         }
 }
 
