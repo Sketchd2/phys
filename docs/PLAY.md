@@ -3238,6 +3238,19 @@ ground under it. Pairwise, as a sphere, it was never right, and it now does
 not happen at all; column by column in the sheet's own step is where it
 belongs.
 
+*Decided by the owner — everything is a node or a body*, now an axiom in
+`CLAUDE.md`: no side table standing in for a region, no description of one
+region living on another, no specialty node. Asked what that meant for the
+sea's grid and the sheet's columns, the owner chose **nodes are just nodes**:
+a node carries whatever description its fluid needs, and none is a different
+kind of node. It follows, and the owner asked for both: **a planet's
+atmosphere is its child node**, as its sea is, rather than a profile read off
+the planet's gas pool; and **the method is not the sea's alone** — any body of
+fluid is a node, and water standing on ground that no sea lends it, a lake or
+a pond, is a sheet fed by the ground's own water. And **sand collapses where
+nothing holds it up**: a cut in dry or drowned sand is steeper than the angle
+its own grains rest at, and slumps.
+
 **Phase 6 — The program.** *Inserted by the owner during Phase 5.* The whole
 system simulated and watched on the owner's own PC as a native executable —
 the owner's requirement, on the grounds that a web renderer's overhead would
@@ -3260,7 +3273,44 @@ keep it from running at speed. Decided with it:
 
 *Done when:* the owner's to state when the phase starts.
 
-**Phase 7 — Bodies.** *Was Phase 6.* D11's habit refactor; substructuring (D5);
+**Phase 7 — Test speed.** *Inserted by the owner during Phase 5, on Claude's
+proposal.* The suite took 7 m 14 s of wall clock and 7 m 57 s of processor on a
+four-core machine: cargo runs the test binaries one after another, so the
+suite is as slow as the sum of its slowest tests, and eight tests were five of
+those minutes. Measured, each alone:
+
+```text
+water::one_ball_floats_half_under_and_one_sinks_to_the_floor   132 s  (35.8 s
+      before Phase 5's wall work; a regression, fixed in Phase 5: 40 s for
+      the whole binary)
+scenarios::stepping_does_not_heat_a_node                         62 s  every
+      scenario, built and stepped for six frames
+adjacency::a_ball_loose_in_a_box_conserves_momentum...           41 s  4800
+      frames of a ball in a box
+simultaneity::touched_detail_is_not_regenerated                  25 s  a galaxy
+      ladder advanced to a deep node
+reparent::identity_does_not_depend_on_how_fast_the_machine_is    22 s  frames
+      against 5 ms, 0.2 ms and 1 us budgets, three times over
+accretion::a_loose_ball_of_matter_in_orbit_becomes_a_planet      19 s
+adjacency::a_hot_node_beside_a_cold_one_equilibrates             13 s
+beach, tide, waves                                           12-14 s each
+```
+
+What the phase is for: **the suite as fast as its claims allow, with nothing
+weakened.** Run the binaries in parallel, so the floor is the longest single
+test rather than the sum; profile each long test and take out what it spends
+on anything other than what it asserts — a scenario built for every test that
+only needs one, frames stepped past the point the measurement settles —
+keeping every assertion and every printed number; and split a fast tier, run
+on every commit, from a full tier holding the long physics runs, with both
+named in the commands above. No test is skipped, disabled or loosened to get
+there (`CLAUDE.md`, "Whose decision it is").
+
+*Done when:* the owner's to state when the phase starts; the natural one is
+the full suite under a stated wall time on the owner's machine with every
+assertion intact.
+
+**Phase 8 — Bodies.** *Was Phase 7, and Phase 6 before that.* D11's habit refactor; substructuring (D5);
 the creature genome; the actuation mechanism; derived-and-cached gait and grasp.
 Standing is contact against a surface that now exists.
 
@@ -3268,13 +3318,13 @@ Standing is contact against a surface that now exists.
 planets with different g, with no per-morphology code and no enum variant naming
 either of them.
 
-**Phase 8 — Minds.** *Was Phase 7.* Unchanged.
+**Phase 9 — Minds.** *Was Phase 8.* Unchanged.
 
-**Phase 9 — Making things.** *Was Phase 8.* Unchanged in content, and now
+**Phase 10 — Making things.** *Was Phase 9.* Unchanged in content, and now
 standing on D15: a player-built thing is a recipe that grows as it is built,
 rather than a pile of placed nodes.
 
-**Phase 10 — Sessions.** *Was Phase 9.* Unchanged, apart from standing on the
+**Phase 11 — Sessions.** *Was Phase 10.* Unchanged, apart from standing on the
 program Phase 6 builds, which is already a server and a client in one process.
 
 ---

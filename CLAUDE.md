@@ -83,6 +83,16 @@ design rests on — see `tests/consistency.rs`.
 work because the laws compose. Salt dissolving, a season ending, and a town
 half-built are all the same handful of mechanisms seen from different angles.
 
+**Everything is a node or a body.** There is no third kind of thing: no side
+table standing in for a region, no description of one region living on
+another, and no specialty node that the engine treats as a different kind of
+node. A planet's sea and its atmosphere are its children, and the water over a
+patch of shore is the patch's child — each a node like any other, carrying the
+description its fluid needs (a sea's grid, an atmosphere's profile, a sheet's
+columns), holding its own matter, and counted in the world's books as a node
+is. What a thing *is* is measured off its matter, never off which kind of node
+it was made as. The owner's axiom, added in Phase 5.
+
 ## The model
 
 A `Node` is a region of space at a `Tier`, holding a `Matter` — mass, momentum,
@@ -406,7 +416,8 @@ numbering below the insertion has moved: **Things**, **Crossings**, then Ground,
 Water, Bodies, Minds, Making, Sessions. Nothing below Ground changed relative to
 anything else. A third was inserted after Water during Phase 5, by the owner:
 **the program** — a native executable rendering on the GPU with wgpu, physics
-on the CPU — so Bodies is now Phase 7 and Sessions Phase 10.
+on the CPU — and a fourth after it, **test speed**, so Bodies is now Phase 8
+and Sessions Phase 11.
 
 **Phase 2 is done.** Its done-when was a wooden box that is *one node* with a
 recipe describing six walls, which responds as one box, loses a wall to a hard
@@ -622,7 +633,7 @@ Left deliberately undone, each with a measurement and a trigger in
   gone, so what is left is the line of policy its entry describes.
 - **Sideways handoff across a patch edge** has never been exercised in anger.
   The mechanism is Phase 3's and the tiling is Phase 4's; what is missing is a
-  scenario, and the first one is Phase 7's quadruped.
+  scenario, and the first one is Phase 8's quadruped.
 
 **Scheduled rather than left**, and `PLAY.md` §7 is where they live — none of
 them is a backlog entry to be picked up on a whim:
