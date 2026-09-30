@@ -3584,6 +3584,28 @@ impl World {
             // `Tree::hand_back`.
             if ground.is_some() {
                 let reached = self.tree.nodes[idx.get()].time + report.dt_used.min(dt) / rate;
+                // **What a ground solve measures of a piece of the ground that
+                // has a node of its own is ringing, not travel.** Ground is
+                // held in its parent's turning frame, and a solve of it
+                // comes out of the step with its pieces at rest in that frame
+                // and a velocity that is the solver's noise — 3.7e-6 m/s on a
+                // 2 cm patch of a beach, at a step of 1e-4 s. Carried across a
+                // lag of days to the world's instant it grows by the lag and
+                // feeds back: 4e-3 m/s on day 15, 1 m/s on day 18, 935 m/s on
+                // day 23, out of the Earth on day 23 with the beach. So such a
+                // child keeps the place the solve left it and comes out at
+                // rest in the frame — the owner's decision. What stands on it
+                // or flows over it is not one of its pieces, and keeps what it
+                // was given.
+                if let Some(g) = &ground {
+                    let pieces = g.pieces;
+                    let n = &mut self.tree.nodes[idx.get()];
+                    for slot in 0..pieces.min(n.bodies.len()) {
+                        if !n.children.get(slot).copied().unwrap_or(NodeIdx::NONE).is_none() {
+                            n.bodies[slot].vel = Vec3::ZERO;
+                        }
+                    }
+                }
                 self.tree.hand_back(idx, &before, Some(reached));
                 // The real forces on a loose child within the solve are its
                 // weight and the fluid's push — against the weight, and toward
@@ -6453,17 +6475,12 @@ impl World {
         // what it held.
         let field: Vec<Vec3> = {
             let n = &self.tree.nodes[idx.get()];
-            let shift = if n.parent.is_none() {
-                Vec3::ZERO
-            } else {
-                self.tree.offset_at(n.parent, idx, n.time) - self.tree.offset_from(n.parent, idx, Vec3::ZERO).value
-            };
             let at: Vec<Vec3> = n.bodies.iter().map(|b| b.pos).collect();
-            let within = self.tree.field_within_all(idx, &at, shift);
+            let within = self.tree.field_within_all(idx, &at, n.time);
             at.iter()
                 .zip(within)
                 .enumerate()
-                .map(|(i, (&p, f))| if i < pieces && n.parent.is_none() { self.tree.gravity_at_point(idx, p + shift) } else { f })
+                .map(|(i, (&p, f))| if i < pieces && n.parent.is_none() { self.tree.gravity_at_point(idx, p) } else { f })
                 .collect()
         };
         // **A body pulls its own pieces as the points they are drawn as; a
@@ -6990,8 +7007,15 @@ impl World {
             return None;
         }
         let ocean = self.ocean_of(anc)?;
-        let centre = self.tree.offset_at(anc, idx, self.tree.nodes[idx.get()].time);
-        let facing = self.tree.facing(anc);
+        // Where the patch is and which way the planet faces, **at the same
+        // instant**: the patch's own. Its place read at its own clock and the
+        // planet's frame read now put a patch a day behind the world a day's
+        // turn from its own sea — a beach on the equator read the sea 14,400 s
+        // of turning away, where the wind had raised none and the swell it
+        // had raised was not there.
+        let instant = self.tree.nodes[idx.get()].time;
+        let centre = self.tree.offset_at(anc, idx, instant);
+        let facing = self.tree.facing_at(anc, instant);
         let cell = ocean.cell_of(facing.conjugate().rotate(centre).unit());
         let c = ocean.cells[cell];
         let train = crate::ocean::Train::of(

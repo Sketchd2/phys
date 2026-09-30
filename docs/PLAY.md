@@ -3357,6 +3357,36 @@ represents. **Rain is a phase of its own after Bodies**, Phase 9 — Weather:
 vapour carried in an atmosphere node, condensation into drops that fall, the
 drops reaching the ground under the air, and water entering sand.
 
+*The tidal done-when, measured (`tests/tidal_beach.rs`, a year, filmable).*
+A beach under a tide for 365 days: the day's drift is 0.41 m and the year
+raises no crossing. **A channel that redirects drainage is still there a year
+later**: the 5 cm cut slumps to its angle of repose when it is made (owner's
+call: keep 5 cm and let it slump), 19.8 kg stays out, and the marks that
+remain do not move. **The squiggle clause is unmet, reported as such at the
+owner's direction.** A squiggle is 15% of its amplitude (1.5 mm) after one
+tide and gone within the year, but not by the next tide: bed flows of 0.3 to
+0.5 m/s are below the grain threshold, the waves break at depth so a stated
+wind does not change it, and what would erase it is swash on the beach face,
+a law the engine does not have. **Swash goes on the plan for a later phase**
+as the owner directed; the phase is the owner's to name (Phase 9 — Weather is
+the nearest neighbour, as it is the first phase to put water on a slope from
+above).
+
+Found and fixed on the way, each a mixed-instant or frame defect: the sea
+cell read 14,400 s of turning away from the beach (`sea_around` took place and
+facing at different instants); a ladder's field was taken with a chain
+evaluated at one instant and offsets at another (`field_within_all`); a ground
+piece's own pull did not turn with it; a child's mass growing 1% by the tide
+sheet made a kid accelerate (`regrip` re-derives support from stress); and
+ground held by nodes came out of a solve with a speed and ran away to 935 m/s
+(owner's rule: held ground stays put).
+
+*Open, not decided:* the beach wanders 89.6 m over its sea across the year
+because the 7-piece Earth's ground flexes under the moon (the real solid tide
+is 0.3 m); loose air in a lagging face gains about 2 m/s and leaves its face
+within 41 days (the test takes the air away after the tide; the sideways
+hand-off is Phase 8). Whether these go on the plan is the owner's call.
+
 **Phase 6 — The program.** *Inserted by the owner during Phase 5.* The whole
 system simulated and watched on the owner's own PC as a native executable —
 the owner's requirement, on the grounds that a web renderer's overhead would

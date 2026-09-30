@@ -904,6 +904,38 @@ impl Tree {
         self.promote(parent, slot, spec)
     }
 
+    /// Take back what [`Tree::place`] put in: a node stated into the scene as
+    /// something loose among its parent's contents, with its mass and
+    /// momentum counted out of every node above it again and its slot left
+    /// empty. For a scene that states a thing for a while — a wind's air over
+    /// a sea for a tide — and then does not. Refused, returning `false`, for
+    /// anything that is not a live child of `parent`.
+    pub fn take_away(&mut self, parent: NodeIdx, child: NodeIdx) -> bool {
+        if child.is_none() || !self.nodes[child.get()].alive || self.nodes[child.get()].parent != parent {
+            return false;
+        }
+        let slot = self.nodes[child.get()].slot as usize;
+        let mass = self.nodes[child.get()].matter.mass;
+        let space = {
+            let mut b = [self.nodes[parent.get()].bodies.get(slot).copied().unwrap_or_default()];
+            self.out_of_own(parent, self.nodes[parent.get()].time, &mut b);
+            b[0]
+        };
+        self.release_subtree(child);
+        let p = &mut self.nodes[parent.get()];
+        if slot < p.bodies.len() {
+            p.bodies[slot] = Body::default();
+            p.children[slot] = NodeIdx::NONE;
+        }
+        p.matter.momentum -= space.momentum();
+        let mut up = parent;
+        while !up.is_none() {
+            self.nodes[up.get()].matter.mass -= mass;
+            up = self.nodes[up.get()].parent;
+        }
+        true
+    }
+
     /// Take `mass` out of a node's free bodies, each by its share of their
     /// mass, and hold it as a child of its own: what that share carried —
     /// momentum, angular momentum, internal energy — goes with it, so the
@@ -2077,7 +2109,7 @@ impl Tree {
         if idx.is_none() || !self.nodes[idx.get()].alive {
             return Vec3::ZERO;
         }
-        self.field_at_shells(idx, local, whole, &self.shells_above(idx))
+        self.field_at_shells(idx, local, whole, &self.shells_above(idx), None)
     }
 
     /// For each ancestor of `idx` in turn, where the centre of mass of the
@@ -2105,25 +2137,27 @@ impl Tree {
     }
 
     /// [`Tree::field_within`] at many points of one node, each level above it
-    /// measured once, with the node itself `shift` from where it is carried:
-    /// the field from outside is read where the node will be, and the node's
-    /// own pull is about its own centre wherever that is.
+    /// measured once, with the node where it is at `instant`: the field from
+    /// outside is read at the place every level of the chain above the node
+    /// has carried it to, and the node's own pull is about its own centre
+    /// wherever that is.
     ///
-    /// **The shift is for what is outside.** Applied to the points for both,
-    /// the node's own smooth pull was read about a centre `shift` away from
-    /// its own, and a ball a frame behind in its orbit was pulled toward
-    /// where it had been: a face of an Earth solved 8,928 s behind the world,
-    /// carried 1.1e5 m on, felt 0.17 m/s^2 sideways where the field is 3e-5
-    /// there.
-    pub fn field_within_all(&self, idx: NodeIdx, points: &[Vec3], shift: Vec3) -> Vec<Vec3> {
+    /// **The whole chain, and the node's own pull about its own centre.**
+    /// Carried only from its parent, a node five levels down a turning planet
+    /// read the field where its ancestors were and not where they had turned
+    /// to: a beach solved 86,400 s behind its clock felt the pull 0.07 rad
+    /// off, 5e-3 m/s^2 of it differential across its pieces, and its piece
+    /// rang 100 m. And the own pull read about a centre away from its own
+    /// pulled a face of an Earth 0.17 m/s^2 sideways where the field is 3e-5.
+    pub fn field_within_all(&self, idx: NodeIdx, points: &[Vec3], instant: f64) -> Vec<Vec3> {
         if idx.is_none() || !self.nodes[idx.get()].alive {
             return vec![Vec3::ZERO; points.len()];
         }
         let shells = self.shells_above(idx);
-        points.iter().map(|&p| self.field_at_shells(idx, p + shift, true, &shells) + self.own_interior(idx, p)).collect()
+        points.iter().map(|&p| self.field_at_shells(idx, p, true, &shells, Some(instant)) + self.own_interior(idx, p)).collect()
     }
 
-    fn field_at_shells(&self, idx: NodeIdx, local: Vec3, whole: bool, shells: &[Option<Vec3>]) -> Vec3 {
+    fn field_at_shells(&self, idx: NodeIdx, local: Vec3, whole: bool, shells: &[Option<Vec3>], instant: Option<f64>) -> Vec3 {
         let mut g = Vec3::ZERO;
         let mut inner = idx;
         let mut anc = self.nodes[idx.get()].parent;
@@ -2131,7 +2165,13 @@ impl Tree {
         let mut level = 0;
         while !anc.is_none() {
             let a = &self.nodes[anc.get()];
-            let r = self.offset_from(anc, idx, local).value;
+            // Where the point is from this ancestor's centre: now, or at the
+            // instant the contents are at — every level of the chain carried
+            // to it, not only the last.
+            let r = match instant {
+                Some(t) => local + self.offset_at(anc, idx, t),
+                None => self.offset_from(anc, idx, local).value,
+            };
             let d = r.norm();
             let (m, radius) = (a.matter.mass.max(0.0), a.matter.radius);
             // **What this ancestor holds beyond the one below it.** An
