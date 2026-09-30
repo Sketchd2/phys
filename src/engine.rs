@@ -3600,8 +3600,57 @@ impl World {
                 if let Some(g) = &ground {
                     let pieces = g.pieces;
                     let n = &mut self.tree.nodes[idx.get()];
-                    for slot in 0..pieces.min(n.bodies.len()) {
-                        if !n.children.get(slot).copied().unwrap_or(NodeIdx::NONE).is_none() {
+                    // What is taken off them is momentum, and momentum is
+                    // not the solve's to discard: it goes to what the solve
+                    // left free, by mass, so the node's total is unmoved.
+                    let held = |n: &crate::tree::Node, slot: usize| {
+                        slot < pieces && !n.children.get(slot).copied().unwrap_or(NodeIdx::NONE).is_none()
+                    };
+                    // Only the ground's own pieces share it: what stands on
+                    // the ground or flows over it keeps what it was given.
+                    let shares = |n: &crate::tree::Node, slot: usize| slot < pieces && !held(n, slot);
+                    let mut taken = Vec3::ZERO;
+                    let mut spin = Vec3::ZERO;
+                    let mut free = 0.0;
+                    let mut centre = Vec3::ZERO;
+                    for slot in 0..n.bodies.len() {
+                        let b = &n.bodies[slot];
+                        if held(n, slot) {
+                            taken += b.vel * b.mass;
+                            spin += b.pos.cross(b.vel) * b.mass;
+                        } else if shares(n, slot) {
+                            free += b.mass;
+                            centre += b.pos * b.mass;
+                        }
+                    }
+                    if free > 0.0 {
+                        centre = centre / free;
+                        // A push `a` on all of them carries the momentum, and
+                        // a turn `w` about their centre carries what is left
+                        // of the angular momentum: the inertia tensor of the
+                        // free bodies about it, solved for.
+                        let mut inertia = crate::math::Mat3::zero();
+                        for b in n.bodies.iter().enumerate().filter(|(i, _)| shares(n, *i)).map(|(_, b)| b) {
+                            let r = b.pos - centre;
+                            let r2 = r.dot(r);
+                            for i in 0..3 {
+                                for j in 0..3 {
+                                    let d = if i == j { r2 } else { 0.0 };
+                                    inertia.0[i][j] += b.mass * (d - [r.x, r.y, r.z][i] * [r.x, r.y, r.z][j]);
+                                }
+                            }
+                        }
+                        let a = taken / free;
+                        let w = inertia.solve(spin - centre.cross(taken)).unwrap_or(Vec3::ZERO);
+                        for slot in 0..n.bodies.len() {
+                            if shares(n, slot) {
+                                let r = n.bodies[slot].pos - centre;
+                                n.bodies[slot].vel += a + w.cross(r);
+                            }
+                        }
+                    }
+                    for slot in 0..n.bodies.len() {
+                        if held(n, slot) {
                             n.bodies[slot].vel = Vec3::ZERO;
                         }
                     }
