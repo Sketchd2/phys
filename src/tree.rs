@@ -2105,13 +2105,22 @@ impl Tree {
     }
 
     /// [`Tree::field_within`] at many points of one node, each level above it
-    /// measured once.
-    pub fn field_within_all(&self, idx: NodeIdx, points: &[Vec3]) -> Vec<Vec3> {
+    /// measured once, with the node itself `shift` from where it is carried:
+    /// the field from outside is read where the node will be, and the node's
+    /// own pull is about its own centre wherever that is.
+    ///
+    /// **The shift is for what is outside.** Applied to the points for both,
+    /// the node's own smooth pull was read about a centre `shift` away from
+    /// its own, and a ball a frame behind in its orbit was pulled toward
+    /// where it had been: a face of an Earth solved 8,928 s behind the world,
+    /// carried 1.1e5 m on, felt 0.17 m/s^2 sideways where the field is 3e-5
+    /// there.
+    pub fn field_within_all(&self, idx: NodeIdx, points: &[Vec3], shift: Vec3) -> Vec<Vec3> {
         if idx.is_none() || !self.nodes[idx.get()].alive {
             return vec![Vec3::ZERO; points.len()];
         }
         let shells = self.shells_above(idx);
-        points.iter().map(|&p| self.field_at_shells(idx, p, true, &shells) + self.own_interior(idx, p)).collect()
+        points.iter().map(|&p| self.field_at_shells(idx, p + shift, true, &shells) + self.own_interior(idx, p)).collect()
     }
 
     fn field_at_shells(&self, idx: NodeIdx, local: Vec3, whole: bool, shells: &[Option<Vec3>]) -> Vec3 {

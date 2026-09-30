@@ -6372,6 +6372,65 @@ impl World {
     /// acceleration its place in the turning ground needs, `w x (w x r)`, less
     /// what gravity and the springs give it there. Kept in the node's own
     /// axes, so that it turns with the ground.
+    /// Carry the weight a node's ground has gained or lost since its support
+    /// was derived — a stand-in whose mass has changed, as the water a sheet
+    /// lends it does with the tide — through the same stress, from the ground
+    /// as it was drawn.
+    ///
+    /// **From the drawing, never from where the pieces are now.** Derived
+    /// again from the pieces as they have rung to, the support would hold
+    /// them where they had got to and the ground would ratchet away from its
+    /// drawing a little at every change; the pieces' places as drawn are kept
+    /// with the support (`ground::Cache::drawn`) for this. The lattice's
+    /// factor, seconds to make and milliseconds to solve against, is made the
+    /// first time a weight changes and kept (`ground::Lattice`).
+    fn regrip(&mut self, idx: NodeIdx, floor: usize) {
+        use crate::solvers::ground::{stress_with, Lattice};
+        let n = &self.tree.nodes[idx.get()];
+        let Some(cache) = n.ground.as_ref() else { return };
+        let pieces = cache.pieces.min(n.bodies.len());
+        let changed = (0..pieces).any(|i| {
+            let (m, r) = (n.bodies[i].mass, cache.mass.get(i).copied().unwrap_or(0.0));
+            r > 0.0 && (m - r).abs() > 1e-9 * r
+        });
+        if !changed {
+            return;
+        }
+        let mut cache = self.tree.nodes[idx.get()].ground.take().expect("checked above");
+        let n = &self.tree.nodes[idx.get()];
+        // The drawing, with the masses the pieces have now.
+        let drawn: Vec<Body> = (0..cache.drawn.len())
+            .map(|i| Body { pos: cache.drawn[i], mass: n.bodies.get(i).map(|b| b.mass).unwrap_or(0.0), ..Default::default() })
+            .collect();
+        if cache.lattice.is_none() {
+            cache.lattice = Some(Box::new(Lattice::of(&drawn, &cache.springs, pieces)));
+        }
+        // What each needs is its weight, and so goes as its mass.
+        for i in 0..pieces {
+            let (m, r) = (drawn[i].mass, cache.mass[i]);
+            if r > 0.0 {
+                cache.need[i] = cache.need[i].scale(m / r);
+            }
+            cache.mass[i] = m;
+        }
+        let need: Vec<Vec3> = cache.need.iter().map(|f| cache.frame.rotate(*f)).collect();
+        let lattice = cache.lattice.as_ref().expect("made above");
+        let (tensions, outside, unresolved) = stress_with(lattice, &drawn, &cache.springs, pieces, floor, &cache.bears, &need);
+        for (s, t) in cache.springs.iter_mut().zip(&tensions) {
+            s.tension = *t;
+        }
+        let back = cache.frame.conjugate();
+        cache.outside = outside.iter().map(|f| back.rotate(*f)).collect();
+        cache.unresolved = unresolved;
+        cache.support = (0..cache.outside.len())
+            .map(|i| {
+                let m = drawn.get(i).map(|b| b.mass).unwrap_or(0.0);
+                if m > 0.0 && i < pieces { cache.outside[i].scale(1.0 / m) } else { Vec3::ZERO }
+            })
+            .collect();
+        self.tree.nodes[idx.get()].ground = Some(cache);
+    }
+
     fn ground_of(&mut self, idx: NodeIdx, dt: f64) -> Option<crate::solvers::ground::Ground> {
         use crate::solvers::ground::{Cache, Ground, Spring};
         let joints = self.ground_joints(idx)?;
@@ -6399,12 +6458,12 @@ impl World {
             } else {
                 self.tree.offset_at(n.parent, idx, n.time) - self.tree.offset_from(n.parent, idx, Vec3::ZERO).value
             };
-            let at: Vec<Vec3> = n.bodies.iter().map(|b| b.pos + shift).collect();
-            let within = self.tree.field_within_all(idx, &at);
+            let at: Vec<Vec3> = n.bodies.iter().map(|b| b.pos).collect();
+            let within = self.tree.field_within_all(idx, &at, shift);
             at.iter()
                 .zip(within)
                 .enumerate()
-                .map(|(i, (&p, f))| if i < pieces && n.parent.is_none() { self.tree.gravity_at_point(idx, p) } else { f })
+                .map(|(i, (&p, f))| if i < pieces && n.parent.is_none() { self.tree.gravity_at_point(idx, p + shift) } else { f })
                 .collect()
         };
         // **A body pulls its own pieces as the points they are drawn as; a
@@ -6435,6 +6494,9 @@ impl World {
                 quadrupole: false,
             }
         };
+        // A weight that has arrived since the support was derived is carried
+        // by the stress the way the rest was.
+        self.regrip(idx, floor);
         if self.tree.nodes[idx.get()].ground.is_none() {
             let stiffness = self.material_of(idx).map(|m| m.stiffness).unwrap_or(0.0);
             let n = &self.tree.nodes[idx.get()];
@@ -6518,7 +6580,22 @@ impl World {
                     })
                     .collect()
             };
-            self.tree.nodes[idx.get()].ground = Some(Box::new(Cache { springs, support, pieces, unresolved, foundation }));
+            let own = |v: &[Vec3]| -> Vec<Vec3> { v.iter().map(|f| facing.conjugate().rotate(*f)).collect() };
+            let cache = Cache {
+                springs,
+                support,
+                pieces,
+                unresolved,
+                foundation,
+                frame: facing,
+                need: own(&need),
+                outside: own(&outside),
+                mass: n.bodies.iter().map(|b| b.mass).collect(),
+                bears,
+                drawn: n.bodies.iter().map(|b| b.pos).collect(),
+                lattice: None,
+            };
+            self.tree.nodes[idx.get()].ground = Some(Box::new(cache));
         }
         let n = &self.tree.nodes[idx.get()];
         let cache = n.ground.as_ref()?;
@@ -6570,7 +6647,8 @@ impl World {
         });
         let springs: Vec<Spring> = cache.springs.iter().map(|s| Spring { along: facing.rotate(s.along), ..*s }).collect();
         let foundation: Vec<(usize, Vec3, f64)> = cache.foundation.iter().map(|&(i, at, k)| (i, facing.rotate(at), k)).collect();
-        Some(Ground { foundation, springs, field, preload, gravity: if pairwise { Some(gravity) } else { None }, pieces: cache.pieces, turn, lift, swirl, held: !self.tree.nodes[idx.get()].parent.is_none(), floor })
+        let out = Ground { foundation, springs, field, preload, gravity: if pairwise { Some(gravity) } else { None }, pieces: cache.pieces, turn, lift, swirl, held: !self.tree.nodes[idx.get()].parent.is_none(), floor };
+        Some(out)
     }
 
     /// The radius of the surface a node describes — its sea's where it has
@@ -6972,7 +7050,7 @@ impl World {
     /// measures; and where that is under water, the ocean's current there and
     /// the peak speed its wave train reaches at the bed in that depth,
     /// `a omega / sinh kd`.
-    fn sea_over(&self, idx: NodeIdx, d: &crate::erode::Deviation) -> Option<(f64, f64)> {
+    pub fn sea_over(&self, idx: NodeIdx, d: &crate::erode::Deviation) -> Option<(f64, f64)> {
         let (_, sea) = self.sea_around(idx)?;
         let sheet_node = self.sheet_of(idx)?;
         let sheet = self.tree.nodes[sheet_node.get()].sheet.as_ref()?;

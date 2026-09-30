@@ -90,7 +90,7 @@ pub struct Spring {
 /// kept until it is drawn again: the springs, with the lengths they rest at,
 /// and each piece's support in the node's own axes, so that it turns with it.
 /// Not persisted — it is derived from the drawing, and a reload draws again.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct Cache {
     pub springs: Vec<Spring>,
     /// Support per body, m/s^2, in the node's own axes; zero past the pieces.
@@ -103,6 +103,25 @@ pub struct Cache {
     /// Where each floor piece rests on what is under the ground, in the
     /// node's own axes, and how stiffly (`Ground::foundation`).
     pub foundation: Vec<(usize, Vec3, f64)>,
+    /// **What the support was derived from**, kept so that a weight that
+    /// arrives later can be carried the way the rest was rather than left
+    /// unsupported: the turn from the node's own axes into the axes it was
+    /// derived in; each piece's need and what holds it from outside, in
+    /// newtons in the node's own axes; the mass each had then; which floor
+    /// piece bears each; and where the pieces were drawn, from which the
+    /// lattice is factored the first time it is wanted (`Lattice`).
+    ///
+    /// Measured without it: a tide's water added 1.0% to the weight of the
+    /// first-level piece of a face of an Earth, 6.7e16 kg on 6.5e18, and
+    /// nothing supported it — 0.098 m/s^2, so that the piece and the beach
+    /// on it were tens of kilometres from where they had been in a day.
+    pub frame: crate::math::Quat,
+    pub need: Vec<Vec3>,
+    pub outside: Vec<Vec3>,
+    pub mass: Vec<f64>,
+    pub bears: Vec<usize>,
+    pub drawn: Vec<Vec3>,
+    pub lattice: Option<Box<Lattice>>,
 }
 
 /// Everything a ground solve needs besides the bodies.
@@ -206,7 +225,15 @@ fn accelerations_at(bodies: &[Body], ground: &Ground, elapsed: f64) -> Vec<Vec3>
     let mut acc: Vec<Vec3> = (0..bodies.len())
         .map(|i| {
             let lift = ground.lift.get(i).copied().unwrap_or(0.0);
-            let mut a = ground.field.get(i).copied().unwrap_or(Vec3::ZERO).scale(1.0 - lift);
+            // **The pull on a piece turns with it**: the ground's own weight
+            // is toward its planet's centre wherever the piece has gone round
+            // to, as its support does (`preload`). Held at the direction it
+            // had when the step began while the support turned, an Earth's
+            // pieces were pushed out at 6e-6 m/s^2 by the mismatch and rang
+            // 70 m about where they were drawn in a day — the 1.8e-4 of the
+            // pull that a step's turn leaves — and now 2e-8.
+            let pull = ground.field.get(i).copied().unwrap_or(Vec3::ZERO);
+            let mut a = if i < ground.pieces { turned(ground.turn, pull) } else { pull }.scale(1.0 - lift);
             if let (Some((w, centre, frame)), true) = (swirl, i >= ground.pieces) {
                 let at = centre + bodies[i].pos;
                 a += w.cross(w.cross(at)).scale(lift) - frame;
@@ -304,7 +331,49 @@ pub fn support(bodies: &[Body], ground: &Ground, pieces: &[bool]) -> Vec<Vec3> {
         .collect()
 }
 
-/// Solve `B B^T y = g` for the pieces' coordinates, where `B` puts a
+/// The factor of a ground's lattice — `B B^T` for its springs, banded and in
+/// the order that keeps it so — kept, because the stress is linear in the
+/// load: a weight that arrives after the support was derived (tide water, a
+/// boulder, something built) is one more right-hand side against the same
+/// factor, milliseconds where the factor was seconds. Derived from the ground
+/// as drawn and good for as long as the springs are the ones it was made of.
+#[derive(Debug, Clone)]
+pub struct Lattice {
+    n: usize,
+    order: Vec<usize>,
+    band: usize,
+    l: Vec<f64>,
+    /// Each spring's ends and its weight vector `sqrt(k) d / |d|` along the
+    /// line as drawn, in the order of the springs it was made of — `None` for
+    /// one that carries nothing.
+    usable: Vec<Option<(usize, usize, Vec3)>>,
+}
+
+impl Lattice {
+    /// The lattice of a ground's pieces as they are drawn.
+    pub fn of(bodies: &[Body], springs: &[Spring], pieces: usize) -> Lattice {
+        let n = pieces.min(bodies.len());
+        let usable: Vec<Option<(usize, usize, Vec3)>> = springs
+            .iter()
+            .map(|s| {
+                let (a, b) = (s.a as usize, s.b as usize);
+                if a >= n || b >= n || !(s.k > 0.0) {
+                    return None;
+                }
+                let d = bodies[b].pos - bodies[a].pos;
+                let len = d.norm();
+                (len > 0.0).then(|| (a, b, d.scale(s.k.sqrt() / len)))
+            })
+            .collect();
+        let edges: Vec<(usize, usize, Vec3)> = usable.iter().flatten().copied().collect();
+        let positions: Vec<Vec3> = bodies[..n].iter().map(|b| b.pos).collect();
+        let mut lattice = factor_lattice(n, &edges, &positions);
+        lattice.usable = usable;
+        lattice
+    }
+}
+
+/// Factor `B B^T` for the pieces' coordinates, where `B` puts a
 /// spring's weight vector `w` on its two ends: a symmetric positive
 /// semi-definite system, 3 unknowns a piece, by Cholesky, with the null space
 /// a ground's free rigid motions leave regularised away at a part in 10^12 of
@@ -320,7 +389,7 @@ pub fn support(bodies: &[Body], ground: &Ground, pieces: &[bool]) -> Vec<Vec3> {
 /// 7.7e10 operations and 60 s to solve once, and a descent to a beach drew
 /// five of them: 330 s before the first frame. The factor is the same one;
 /// only the zeros it no longer visits are gone.
-fn solve_lattice(n: usize, springs: &[(usize, usize, Vec3)], positions: &[Vec3], g: &[f64]) -> Vec<f64> {
+fn factor_lattice(n: usize, springs: &[(usize, usize, Vec3)], positions: &[Vec3]) -> Lattice {
     let dim = 3 * n;
     // The pieces' graph, and its reverse Cuthill-McKee order.
     let mut adjacent: Vec<Vec<usize>> = vec![Vec::new(); n];
@@ -442,29 +511,41 @@ fn solve_lattice(n: usize, springs: &[(usize, usize, Vec3)], positions: &[Vec3],
             l[at(i, j)] = v / d;
         }
     }
-    let mut z = vec![0.0f64; dim];
-    for p in 0..n {
-        let old = order[p];
-        z[3 * p..3 * p + 3].copy_from_slice(&g[3 * old..3 * old + 3]);
-    }
-    for i in 0..dim {
-        for k in i.saturating_sub(band)..i {
-            z[i] -= l[at(i, k)] * z[k];
+    Lattice { n, order, band, l, usable: Vec::new() }
+}
+
+impl Lattice {
+    /// Solve `B B^T y = g` against the factor, `g` and `y` in the pieces' own
+    /// numbering.
+    pub fn solve(&self, g: &[f64]) -> Vec<f64> {
+        let (n, order, band, l) = (self.n, &self.order, self.band, &self.l);
+        let dim = 3 * n;
+        let width = band + 1;
+        let at = |i: usize, j: usize| i * width + (j + band - i);
+        let mut z = vec![0.0f64; dim];
+        for p in 0..n {
+            let old = order[p];
+            z[3 * p..3 * p + 3].copy_from_slice(&g[3 * old..3 * old + 3]);
         }
-        z[i] /= l[at(i, i)];
-    }
-    for i in (0..dim).rev() {
-        for k in (i + 1)..(i + band + 1).min(dim) {
-            z[i] -= l[at(k, i)] * z[k];
+        for i in 0..dim {
+            for k in i.saturating_sub(band)..i {
+                z[i] -= l[at(i, k)] * z[k];
+            }
+            z[i] /= l[at(i, i)];
         }
-        z[i] /= l[at(i, i)];
+        for i in (0..dim).rev() {
+            for k in (i + 1)..(i + band + 1).min(dim) {
+                z[i] -= l[at(k, i)] * z[k];
+            }
+            z[i] /= l[at(i, i)];
+        }
+        let mut y = vec![0.0f64; dim];
+        for p in 0..n {
+            let old = order[p];
+            y[3 * old..3 * old + 3].copy_from_slice(&z[3 * p..3 * p + 3]);
+        }
+        y
     }
-    let mut y = vec![0.0f64; dim];
-    for p in 0..n {
-        let old = order[p];
-        y[3 * old..3 * old + 3].copy_from_slice(&z[3 * p..3 * p + 3]);
-    }
-    y
 }
 
 /// A net force and a torque about `centre`, shared among the pieces `on` as
@@ -515,6 +596,13 @@ fn rigid_share(bodies: &[Body], on: &[usize], centre: Vec3, force: Vec3, torque:
 /// they were drawn: a turning Earth with one face promoted moved its angular
 /// momentum by 4e-7 of itself in six hours, in steps at each ground solve.
 pub fn stress(bodies: &[Body], springs: &[Spring], pieces: usize, floor: usize, bears: &[usize], need: &[Vec3]) -> (Vec<f64>, Vec<Vec3>, f64) {
+    let lattice = Lattice::of(bodies, springs, pieces);
+    stress_with(&lattice, bodies, springs, pieces, floor, bears, need)
+}
+
+/// [`stress`] against a lattice already factored: the same load paths, so the
+/// stress of a change in the load is the stress of the change.
+pub fn stress_with(lattice: &Lattice, bodies: &[Body], springs: &[Spring], pieces: usize, floor: usize, bears: &[usize], need: &[Vec3]) -> (Vec<f64>, Vec<Vec3>, f64) {
     let n = pieces.min(bodies.len()).min(need.len());
     let mut outside = vec![Vec3::ZERO; need.len()];
     if n == 0 {
@@ -555,18 +643,7 @@ pub fn stress(bodies: &[Body], springs: &[Spring], pieces: usize, floor: usize, 
     // own plane, and it buckled like a shell: two modes of the face grew at
     // 6.4e-6 s^-2, a tenfold every fifteen minutes.
     let g: Vec<Vec3> = (0..n).map(|i| need[i] - outside[i]).collect();
-    let usable: Vec<Option<(usize, usize, Vec3)>> = springs
-        .iter()
-        .map(|s| {
-            let (a, b) = (s.a as usize, s.b as usize);
-            if a >= n || b >= n || !(s.k > 0.0) {
-                return None;
-            }
-            let d = bodies[b].pos - bodies[a].pos;
-            let len = d.norm();
-            (len > 0.0).then(|| (a, b, d.scale(s.k.sqrt() / len)))
-        })
-        .collect();
+    let usable = &lattice.usable;
     // Exactly, by the dual: `B B^T y = g` over the pieces' coordinates, with
     // `B` putting `sqrt(k) s` on a spring's two ends, and then `s = B^T y`.
     // Solving for the tensions directly by conjugate gradients instead let in
@@ -574,9 +651,7 @@ pub fn stress(bodies: &[Body], springs: &[Spring], pieces: usize, floor: usize, 
     // but soften every compressed line sideways — at 2000 times what a spring
     // carries at its own length, and a face buckled at 8e-2 s^-2.
     let rhs: Vec<f64> = g.iter().flat_map(|v| [v.x, v.y, v.z]).collect();
-    let lattice: Vec<(usize, usize, Vec3)> = usable.iter().flatten().copied().collect();
-    let positions: Vec<Vec3> = bodies[..n].iter().map(|b| b.pos).collect();
-    let y = solve_lattice(n, &lattice, &positions, &rhs);
+    let y = lattice.solve(&rhs);
     let mut t: Vec<f64> = usable
         .iter()
         .map(|u| match u {
