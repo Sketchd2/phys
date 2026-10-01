@@ -3386,6 +3386,47 @@ is 0.3 m); loose air in a lagging face gains about 2 m/s and leaves its face
 within 41 days (the test takes the air away after the tide; the sideways
 hand-off is Phase 8). Whether these go on the plan is the owner's call.
 
+*Decided by the owner — stable things are clocked slowly, and an event wakes
+what it concerns.* Asked how a lake could settle at one second per second when
+its patch's ground rings at 1.6e-7 s (2.8 mm pieces), and so its clock crept
+1.6e-6 s a frame, the owner stated the rule: **what is not moving and not acted
+on needs no update, and something happening in a neighbouring node — a meteor,
+an earthquake — brings it forward ahead of its queue**, which is a necessary
+optimisation at a planet's scale, let alone a galaxy's. And **at rest means no
+motion relative to its parent**. `World::at_rest` is that, measured: held
+ground, balanced at its last solve (`Node::unrest` zero), nothing in it and
+the node against its parent, turning included, moving a thousandth of its
+smallest piece in the span, no sea acting on it, and nothing standing on it or
+held in it but its own pieces. Such a node is carried to the world's clock and
+not integrated, with the foundation's reaction still booked from a probe step.
+`World::wake_around` marks what is at rest, and what is beside it and in it,
+not yet measured, at an event; the next solve takes one step and measures it.
+The first version of the rule broke five tests and each was a real condition
+it had skipped (recorded in the commit): a bucket's water is not a lake; a
+planet turns against its parent; a sea acting on a patch is an interaction;
+what a node holds must be quiet; a woken node is not at rest. A lone Earth's
+solve cadence measures 1.35e16 s, which is never, with its clock equal to the
+world's every frame.
+
+**Lakes and runoff, built.** Water standing on ground no sea reaches is a
+sheet on the patch's own floor with a wall at its edge. `Interaction::Pour`
+puts liquid on a node and everything above it; what stands is *measured* as the
+liquid beyond what the ground's pores hold at its packing
+(`World::standing_water`, the damp-against-drowned criterion that was already
+there), and it is laid as a film over every column (`Sheet::arrive`), which the
+slope runs downhill. `tests/lake.rs`: 382 kg poured on a basin in a 1.7 t
+patch, 367 kg soaked in, 14.8 kg stood; the film that landed on 2,969 columns
+ran into 1,303 of them, flat to 4.3e-7 m, volume 0.00895 m^3 for 14.80 kg,
+unchanged a year on, with a film of it in `PHYS_FILM`. Rivers wait for Phase
+8's sideways hand-off and rain for Phase 9, as decided above.
+
+**Phase 5 is closed, with the beach test and the channel clause met and the
+squiggle clause unmet by the owner's decision**, and swash scheduled in Phase
+9. Left open and not decided: the beach moves 209.4 m over its sea in the
+year (it was 89.6 m before the at-rest rule; both are the 7-piece Earth's
+ground flexing under the moon, where a real solid tide is 0.3 m), and loose
+air in a lagging face leaves it within about 41 days.
+
 **Phase 6 — The program.** *Inserted by the owner during Phase 5.* The whole
 system simulated and watched on the owner's own PC as a native executable —
 the owner's requirement, on the grounds that a web renderer's overhead would

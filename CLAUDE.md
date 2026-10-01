@@ -271,6 +271,19 @@ unmaterialised *with* promoted children, because the wire format writes
 `children` and no bodies. Dropping them leaves a live node nothing can reach and
 nothing will ever free.
 
+**At rest means no motion relative to the parent, and the first rule for it
+missed four things.** `World::at_rest` skipped a planet's own turning (a planet
+is not at rest, its ground is), a sea acting on a patch, anything standing on
+or held in the node, and a woken node. Each broke a test that had nothing to do
+with lakes (turning, the tidal beach, waves, water) and each showed up only in
+the full suite. Run the whole suite after changing when a node is solved.
+
+**A solve that covers `dt_used` is a clock.** A ground patch's pieces ring at
+1.6e-7 s for 2.8 mm and the cap is `MAX_SUBSTEPS`, so a patch that has to be
+integrated advances 1.6e-6 s a frame at one second per second, and everything
+that runs on its clock (its water) with it. That is what the at-rest rule is
+for; a patch that is not at rest still has the problem.
+
 **Wire format encodes enum *positions*.** Renaming a variant is safe; reordering
 or inserting silently reinterprets old saves. Append only. `FORMAT_VERSION` in
 `wire.rs`; `tests/persistence.rs` catches size changes but not reorderings.
@@ -398,7 +411,7 @@ They are load-bearing; keep them that way.
 
 ## Current frontier
 
-**Phases 1 to 4 of `docs/PLAY.md` §7 are done, and §7 has been reordered.**
+**Phases 1 to 5 of `docs/PLAY.md` §7 are done, and §7 has been reordered.**
 The engine used to model what happens *inside* a node very well and what
 happens *between* nodes barely at all; Phase 1 closed that. Phase 2 gave a
 thing a shape and something to be made of, neither of which depends any more on
@@ -610,7 +623,31 @@ leaves the sampler with a temperature and an internal energy that disagree by
 whatever the binding term is — 1739.50 K while holding 2430.79 K of energy on a
 planet, which the first save turns into a 40% step.
 
-### What Phase 5 will meet first
+**Phase 5 is closed: the beach test and the channel clause met, the squiggle
+clause unmet by the owner's decision.** Water. A sea, an atmosphere and a sheet
+of water over a patch of shore are nodes like any others; sand collapses where
+nothing holds it up; a node's turning is an offset from its parent's; a thing
+that does not turn with its planet is a child of a *system node* the planet
+shares with it; a lake is a sheet on ground no sea reaches, fed by liquid the
+ground cannot hold in its pores, and runoff is a film that the slope runs into
+it. Measured, each in its commit and in `PLAY.md` §7: the beach flows through a
+5 cm channel in real time; a year of tide leaves the channel and a squiggle's
+15% (1.5 mm) after one tide, gone within the year; a 14.8 kg lake stands flat
+to 4.3e-7 m and unchanged for a year; a lone Earth's solve cadence is never.
+Two things are left open there, and are the owner's to schedule: the beach
+wanders 209.4 m over its sea in a year (the 7-piece Earth's ground flexing
+under the moon, real solid tide 0.3 m), and loose air in a lagging face
+leaves it in about 41 days. Swash, which is what the squiggle clause needs,
+is Phase 9's.
+
+**The owner's rule for time, which Phase 5 built: stable things are clocked
+slowly and an event wakes what it concerns** (`World::at_rest`,
+`World::wake_around`). A node that is held, balanced, not moving against its
+parent (turning included), with no sea acting on it and nothing on it but its
+own pieces, is carried to the world's clock and not integrated. It is only
+ever woken by an *event*, never by the scheduler.
+
+### What Phase 4 left, some of which Phase 5 met
 
 Left deliberately undone, each with a measurement and a trigger in
 `docs/BACKLOG.md`. Read those entries before touching any of it:
