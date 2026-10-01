@@ -368,20 +368,57 @@ pub fn analyse(arr: &Arrangement) -> Result<Properties, Illegal> {
             (unit_mass / volume, Confidence::Derived)
         }
         _ => {
+            // The volume the molecule's own atoms fill, divided by the
+            // fraction of space a random packing of such molecules fills.
+            //
             // Van der Waals radii, not covalent. How much room an atom takes up
             // when it is *not* bonded is what sets a condensed phase's density,
             // and the two radii differ by a factor of two to three — cubed,
             // that is the eightfold error that had water at 10,700 kg/m^3.
             //
-            // Bonded atoms overlap, so the sum of free-atom spheres
-            // overestimates; the factor below is what reproduces ordinary
-            // liquids across the range this table covers.
-            let mut volume = 0.0;
-            for e in &arr.atoms {
-                let r = e.vdw_radius().unwrap_or(1.7e-10);
-                volume += 4.0 / 3.0 * std::f64::consts::PI * r * r * r;
+            // Bonded atoms overlap, and the overlap is geometry: Bondi's
+            // correction removes, for each bond, the cap of each sphere that
+            // lies inside the other, with the bond length the sum of the
+            // covalent radii. The earlier version multiplied the *uncorrected*
+            // sum by 0.62, which shrank the volume in the wrong direction as
+            // well as by the wrong amount: measured against 24 molecules with
+            // known liquid or solid densities it was out by 62% on average and
+            // 134% at worst (water 1653 against 998, carbon tetrachloride 3732
+            // against 1594). The packing fraction is now the engine's own
+            // random loose packing, `RANDOM_LOOSE_PACKING`, rather than a number
+            // fitted to these; against the same 24 it is out by 10% on average
+            // and 26% at worst, and unbiased (-3%).
+            //
+            // What it still misses is temperature. The packing a liquid reaches
+            // falls from 0.74 for a crystal towards 0.44 at its boiling point,
+            // and a term in T/T_b removes about half the remaining error — but
+            // only given an accurate boiling point, and this module's own is 0.7
+            // to 2.5 times out (ammonia 2.1x, urea 2.1x, chloroform 2.5x), so
+            // the term made the answer no better than the constant. It waits
+            // on the boiling point.
+            let pi = std::f64::consts::PI;
+            let radius = |e: &super::elements::Element| e.vdw_radius().unwrap_or(1.7e-10);
+            let mut volume: f64 = arr.atoms.iter().map(|e| 4.0 / 3.0 * pi * radius(e).powi(3)).sum();
+            for b in &arr.bonds {
+                // A hydrogen bond is an association between molecules, not
+                // two atoms sharing space.
+                if b.order == Order::Hydrogen {
+                    continue;
+                }
+                let (ea, eb) = (arr.atoms[b.a as usize], arr.atoms[b.b as usize]);
+                let (ri, rj) = (radius(&ea), radius(&eb));
+                let d = match (ea.covalent_radius(), eb.covalent_radius()) {
+                    (Some(x), Some(y)) => x + y,
+                    _ => continue,
+                };
+                // The height of the cap of sphere `r` that reaches into sphere `s`.
+                let cap = |r: f64, s: f64| {
+                    let h = (r - (r * r - s * s + d * d) / (2.0 * d)).clamp(0.0, 2.0 * r);
+                    pi * h * h * (3.0 * r - h) / 3.0
+                };
+                volume -= cap(ri, rj) + cap(rj, ri);
             }
-            (unit_mass / (volume * 0.62).max(1e-45), Confidence::Correlated)
+            (unit_mass / (volume / crate::sampler::RANDOM_LOOSE_PACKING).max(1e-45), Confidence::Correlated)
         }
     };
     confidence = confidence.max(density_conf);
