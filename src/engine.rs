@@ -2488,10 +2488,17 @@ impl World {
         if self.sheet_of(idx).is_some() && self.sea_around(idx).is_some() {
             return false;
         }
-        for c in n.children.iter().copied().filter(|c| !c.is_none() && self.tree.nodes[c.get()].alive) {
+        let pieces = n.ground.as_ref().map(|g| g.pieces).unwrap_or(0);
+        for (slot, c) in n.children.iter().copied().enumerate().filter(|(_, c)| !c.is_none() && self.tree.nodes[c.get()].alive) {
             let k = &self.tree.nodes[c.get()];
             let quiet = if k.sheet.is_some() {
                 true
+            } else if slot >= pieces {
+                // Something standing on it or held in it — the air over a
+                // face, a ball — is carried by what the node does to it each
+                // solve (`buoy_children`, `hand_back`), and that is an
+                // interaction whether or not it is moving yet.
+                false
             } else if k.ground.is_some() && !k.bodies.is_empty() {
                 self.at_rest(c, span)
             } else {
