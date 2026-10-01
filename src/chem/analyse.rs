@@ -214,15 +214,30 @@ impl Properties {
     /// Linear in temperature about [`REFERENCE_TEMPERATURE`], which is exact
     /// for a molecular liquid (its density is proportional to a packing that is
     /// itself linear in `T / T_b`) and a first-order expansion for a crystal.
-    /// Held above a tenth of the reference so that a far extrapolation cannot
-    /// reach zero or go negative.
+    ///
+    /// **Bounded by what is physically possible**, because a line does not
+    /// know that. A molecular liquid's packing is held to `[0.3, 0.74]` as
+    /// [`packing_at`] holds it: the reference packing comes back out of the
+    /// stored slope (`phi = THERMAL_SLOPE / (T_b alpha)`), and the density
+    /// cannot go past what close packing allows. Unbounded, a patch of ground
+    /// that had radiated down to 2.7 K priced its pore water 29% denser than
+    /// at 293 K, which shrank the volume the pores held and pushed the water
+    /// back out onto the surface (`tests/lake.rs`). A crystal is held to 0.5
+    /// to 1.5 of its reference.
     pub fn density_at(&self, temperature: f64) -> f64 {
         let reference = if self.crystalline {
             REFERENCE_TEMPERATURE
         } else {
             REFERENCE_TEMPERATURE.min(self.boiling_point)
         };
-        (self.density * (1.0 - self.expansion * (temperature - reference))).max(0.1 * self.density)
+        let ratio = 1.0 - self.expansion * (temperature - reference);
+        let (lo, hi) = if !self.crystalline && self.expansion > 0.0 {
+            let packing = THERMAL_SLOPE / (self.boiling_point.max(1.0) * self.expansion);
+            (0.3 / packing, 0.74 / packing)
+        } else {
+            (0.5, 1.5)
+        };
+        self.density * ratio.clamp(lo.min(1.0), hi.max(1.0))
     }
 }
 
