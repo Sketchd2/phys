@@ -3463,7 +3463,60 @@ against, which is a `PHYSICS.md`-weight choice about how light is modelled
 (what is derived from a material and what is a stored shortcut, as everywhere
 else).
 
-*Done when:* the owner's to state when the phase starts.
+*Done when, stated by the owner at the start of the phase:* one program draws
+**three scenarios** — a lake, the beach under a tide, and a planet from origin —
+through **one code path**, with no scenario-specific case in the renderer, from
+**decoded bytes alone** (D10's seam; the renderer never holds a `World`). The
+frame rate it must hold is **not yet stated**. It is verified here by rendering
+offscreen on a software adapter (llvmpipe, Vulkan) and asserting on pixels,
+because the build container has no display; the window itself is compiled and
+checked but only the owner's PC runs it.
+
+*Light, decided by the owner:* how a thing looks is **derived from matter, with no
+stored table**, and a constant is derived once per substance and stored, as
+everywhere else.
+
+*The seam is widened, append-only, by the owner's decision.* `Scene` did not
+carry what a renderer needs — a node's mixture and phase, a body's orientation
+and half-extents, a sheet's level, a sea's description — so they are added to
+the wire format (`FORMAT_VERSION` bumped, variants appended), and the renderer
+stays on decoded bytes.
+
+*The program is its own crate* (`program/`, a workspace member), so that the
+core crate keeps no dependencies and its wasm32 build.
+
+**Open, and the owner's: an optics law.** Nothing in the engine says how a
+material reflects, refracts or absorbs light — only black-body emission, with
+emissivity fixed at one (`neighbourhood.rs`). "Derived from matter" needs one,
+and the owner chose to plan it as its own item *before* any colour is drawn.
+Three candidates were measured against the refractive indices of six
+substances, using only what `chem` already derives (valence electron density
+from the arrangement and the engine's own density, bond lengths from covalent
+radii, cohesive energy per atom). **None is usable:**
+
+```text
+                 n measured   Penn, gap = cohesive/atom   Phillips homopolar gap   Lorentz-Lorenz, vdW sphere
+water            1.333        8.23                        1.08                     diverges
+quartz           1.544        4.37                        2.25                     diverges
+calcite          1.59         4.51                        2.79                     diverges
+cellulose        1.47         6.04                        1.19                     diverges
+rock salt        1.544        6.79                        6.51                     diverges
+diamond          2.417        8.75                        1.49                     5.50
+```
+
+Penn with the cohesive gap is 2 to 6 times too high for every dielectric. The
+Phillips homopolar gap carries two fitted constants (39.74 and 2.48), so it is
+not derived, and it still misses water by 20% and rock salt by a factor of four
+because it has no ionic term. A conducting sphere of the van der Waals radius is
+a metal's polarisability and fills the whole cell, so Lorentz-Lorenz has no
+solution for anything but diamond. Separately, the engine's own derived
+densities enter every one of these and are off (water 1653 against 1000,
+diamond 879 against 3510), so part of each error is not optics. What is left
+unmeasured is the reflectance of a metal (Drude gives a plasma energy of
+18.7 eV for iron, so it reflects across the visible, which is right, and
+nothing about its colour), and absorption, which needs a band gap the engine
+does not derive. **Not chosen**: which law, how much error is acceptable, and
+whether a derived density has to be fixed first.
 
 **Phase 7 — Test speed.** *Inserted by the owner during Phase 5, on Claude's
 proposal.* The suite took 7 m 14 s of wall clock and 7 m 57 s of processor on a
