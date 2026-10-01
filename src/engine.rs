@@ -7361,21 +7361,25 @@ impl World {
         let Some(material) = self.material_of(idx) else { return false };
         let n = &self.tree.nodes[idx.get()];
         let g = n.gravity.norm();
-        let (mut solid_mass, mut solid_volume) = (0.0, 0.0);
+        let (mut solid_mass, mut solid_volume, mut solid_volume_ref) = (0.0, 0.0, 0.0);
         for p in n.matter.mixture.entries() {
             if p.phase != crate::chem::Phase::Solid {
                 continue;
             }
             let Some(sub) = self.substances.get(p.substance) else { continue };
             let Some(c) = crate::eos::Condensed::of(&sub.props, p.phase, n.matter.temperature) else { continue };
+            let Some(r) = crate::eos::Condensed::of(&sub.props, p.phase, crate::chem::analyse::REFERENCE_TEMPERATURE) else { continue };
             solid_mass += p.fraction * n.matter.mass;
             solid_volume += p.fraction * n.matter.mass / c.rest_density;
+            solid_volume_ref += p.fraction * n.matter.mass / r.rest_density;
         }
         if !(solid_volume > 0.0) || !(g > 0.0) {
             return false;
         }
         let grain_density = solid_mass / solid_volume;
-        let packing = (material.density / grain_density).clamp(1e-3, crate::erode::CLOSE_PACKING);
+        // Packing is a ratio of two densities and has to be taken at one
+        // temperature: `material.density` is the reference temperature's.
+        let packing = (material.density / (solid_mass / solid_volume_ref)).clamp(1e-3, crate::erode::CLOSE_PACKING);
         let grain = material.flaw_size;
         let repose = crate::erode::pocket_friction(packing);
         // The liquid that wets it: the sea it stands in where there is one,
@@ -7579,14 +7583,19 @@ impl World {
     /// has none, and holds nothing in it.
     pub fn standing_water(&self, idx: NodeIdx) -> Option<(f64, crate::chem::Mixture)> {
         let n = &self.tree.nodes[idx.get()];
-        let (mut solid_volume, mut liquid_volume, mut liquid_mass) = (0.0, 0.0, 0.0);
+        let (mut solid_volume, mut solid_volume_ref, mut liquid_volume, mut liquid_mass) = (0.0, 0.0, 0.0, 0.0);
         let mut water = crate::chem::Mixture::new();
         for p in n.matter.mixture.entries() {
             let Some(sub) = self.substances.get(p.substance) else { continue };
             let Some(c) = crate::eos::Condensed::of(&sub.props, p.phase, n.matter.temperature) else { continue };
             let m = p.fraction * n.matter.mass;
             match p.phase {
-                crate::chem::Phase::Solid => solid_volume += m / c.rest_density,
+                crate::chem::Phase::Solid => {
+                    solid_volume += m / c.rest_density;
+                    if let Some(r) = crate::eos::Condensed::of(&sub.props, p.phase, crate::chem::analyse::REFERENCE_TEMPERATURE) {
+                        solid_volume_ref += m / r.rest_density;
+                    }
+                }
                 crate::chem::Phase::Liquid => {
                     liquid_volume += m / c.rest_density;
                     liquid_mass += m;
@@ -7600,7 +7609,9 @@ impl World {
         }
         let pores = match self.material_of(idx) {
             Some(m) if self.is_loose(idx) && solid_volume > 0.0 => {
-                let grain = n.matter.mixture.entries().iter().filter(|p| p.phase == crate::chem::Phase::Solid).map(|p| p.fraction).sum::<f64>() * n.matter.mass / solid_volume;
+                // The packing is a ratio of densities and is taken at one
+                // temperature, the reference one `m.density` is at.
+                let grain = n.matter.mixture.entries().iter().filter(|p| p.phase == crate::chem::Phase::Solid).map(|p| p.fraction).sum::<f64>() * n.matter.mass / solid_volume_ref.max(1e-300);
                 solid_volume * (1.0 / (m.density / grain).clamp(1e-3, crate::erode::CLOSE_PACKING) - 1.0)
             }
             _ => 0.0,
@@ -7982,7 +7993,7 @@ impl World {
         }
         let n = &self.tree.nodes[idx.get()];
         let mix = &n.matter.mixture;
-        let (mut solid_mass, mut solid_volume) = (0.0, 0.0);
+        let (mut solid_mass, mut solid_volume, mut solid_volume_ref) = (0.0, 0.0, 0.0);
         let (mut liquid_mass, mut liquid_volume, mut tension) = (0.0, 0.0, 0.0);
         for p in mix.entries() {
             let Some(sub) = self.substances.get(p.substance) else { continue };
@@ -7992,6 +8003,9 @@ impl World {
                 crate::chem::Phase::Solid => {
                     solid_mass += m;
                     solid_volume += m / c.rest_density;
+                    if let Some(r) = crate::eos::Condensed::of(&sub.props, p.phase, crate::chem::analyse::REFERENCE_TEMPERATURE) {
+                        solid_volume_ref += m / r.rest_density;
+                    }
                 }
                 crate::chem::Phase::Liquid => {
                     liquid_mass += m;
@@ -8005,7 +8019,7 @@ impl World {
             return None;
         }
         let grain_density = solid_mass / solid_volume;
-        let packing = (material.density / grain_density).clamp(1e-3, crate::erode::CLOSE_PACKING);
+        let packing = (material.density / (solid_mass / solid_volume_ref.max(1e-300))).clamp(1e-3, crate::erode::CLOSE_PACKING);
         let g = n.gravity.norm();
         let pores = solid_volume * (1.0 / packing - 1.0);
         let damp = liquid_volume > 0.0 && liquid_volume < pores;
