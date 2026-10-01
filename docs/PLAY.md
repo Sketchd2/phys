@@ -3506,9 +3506,77 @@ the start of the phase, ahead of the renderer**. In order:
    from the axioms.** `T_b = 139.7 sqrt(N) + 79.0 H_O + 25.6 H_N + 54.4 P +
    42.2 W/N`, five coefficients fitted to the same 45 molecules: 6.1% mean,
    25% worst in-sample, 7.1% and 27% left-one-out, against the previous law's
-   35% and 112%. The investigation of why the old law was wrong and what
-   derivation would replace the fit is the next piece of work, and its
-   findings are recorded under it.
+   35% and 112%. **Investigated; the derivation is proposed below and the
+   choice is the owner's.**
+
+   *Why the boiling points were wrong.* Thermodynamics fixes the structure:
+   a liquid boils where its vapour pressure is one atmosphere, so
+   `T_b = dH_vap(T_b) / dS_vap(T_b)`, and any law has to supply both. Split
+   with the measured `dH_vap` of the 45 molecules, **90% of the original law's
+   (squared log) error is in the enthalpy** (biased +45%) and 10% in the
+   entropy: Trouton's constant alone is within 4.2% for the non-associated
+   molecules. The enthalpy was wrong for four reasons, each visible in the
+   residuals: dispersion was priced by *mass* (carbon tetrachloride +163%,
+   chloroform +113% — chlorine is heavy and not correspondingly
+   polarisable); hydrogen bonds were counted per *donor*, but a bond needs an
+   acceptor, and nitrogen has one lone pair for three N-H (ammonia +141%,
+   the amines +86 to +100%); the dipole term used a derived dipole that is
+   itself wrong (item 6); and `dH_vap` was treated as a constant, where it
+   falls as the liquid expands towards its boiling point. The fitted law
+   that replaced it has the same structure with coefficients set against
+   the answers, which is why it is accurate and why it is not derived.
+
+   *What a derivation is, tested at four levels, no constant fitted in any:*
+
+   ```text
+   dU_vap derived / measured                           hydrocarbons   CCl4      carbonyls
+   continuum of atoms beyond vdW contact (analytic)    4.2 - 6.7x     1.16x     2.5 - 3.3x
+   whole molecules as spheres (analytic)               0.56 - 1.30x   0.31x     0.45 - 0.52x
+   liquid sampled (Monte Carlo, engine's conformers),
+     free-atom London C6, contact at vdW radii         4.2 - 4.9x     0.90x     -
+   the same, atoms scaled by the share of their vdW
+     sphere not buried in bonded neighbours            2.1 - 3.3x     0.65x     0.93 - 1.13x
+   ```
+
+   The two analytic routes bracket the truth from opposite sides, which says
+   the *shape* of the molecules and the *structure* of the liquid matter and
+   cannot be had in closed form; sampling the liquid is the right machinery.
+   What sampling cannot fix is the input: an atom's polarisability, its
+   dispersion coefficient and its size **inside its molecule**. Free atoms
+   overbind hydrocarbons fivefold while getting carbon tetrachloride right,
+   because a bonded hydrogen loses most of its polarisability and a bonded
+   chlorine almost none; methane's measured polarisability is 2.59 A^3
+   against 4.43 summed over its free atoms, and its measured C6 77 eV A^6
+   against 186. A purely geometric correction halves the error and no more.
+   Those numbers are properties of the molecule's **electron density**, and
+   an element table cannot supply them to better than a factor of two to
+   three.
+
+   *The derivation proposed.* Once per substance, when it is interned:
+   (1) the molecule's electron density from an electronic-structure
+   calculation (Hartree-Fock or density functional, minimal basis is enough
+   for this purpose); (2) that density partitioned among the atoms
+   (Hirshfeld), giving each atom's in-molecule volume, hence its
+   polarisability, C6 and radius (Tkatchenko-Scheffler), and its charge and
+   higher moments (so hydrogen bonds and dipoles come out of electrostatics
+   rather than being counted); (3) the liquid and its vapour sampled with that
+   site-site potential, liquid-vapour coexistence giving the vapour-pressure
+   curve, hence `T_b`, `dH_vap`, the density at every temperature and the
+   expansion, all from one derivation and stored as the substance's
+   shortcut. This would retire the fitted density packing of item 1 as well
+   as the fitted boiling law, and items 3, 4 and 6 fall out of the same
+   calculation (a solid is the same potential sampled colder; the dipole is
+   a moment of the same density). It needs an electronic-structure solver,
+   which the engine does not have (`solvers/quantum.rs` covers measurement,
+   tunnelling and radiation, not bound electrons in molecules) — a
+   `PHYSICS.md`-weight addition. Published force fields derived this way
+   reach about 5-10% in `dH_vap` and a few per cent in density; that figure is
+   from the literature and has not been reproduced here.
+
+   *Prerequisites found on the way:* `chem::geometry::embed` does not close
+   rings (benzene's atoms 1 and 2, bonded, sit 5.1 A apart, which is likely
+   item 6's 0.52 D for benzene) and its bonds are short (water's O-H 0.86 A
+   against 0.96), and every derivation above is evaluated on its conformers.
 3. **Melting point is `0.6 T_b`.** Water melts at 229 K (real 273), so a lake
    freezes 44 K too cold. The ratio really runs 0.45 to 0.81.
 4. **Ice and liquid water share one density law.** Extrapolated, ice comes
