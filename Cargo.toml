@@ -73,3 +73,9 @@ path = "src/bin/rehome.rs"
 opt-level = 2
 debug-assertions = true
 overflow-checks = true
+
+# The program (Phase 6) is a separate crate so that this one keeps its two
+# properties: no dependencies, and a wasm32 build. A window and a GPU are
+# dependencies; the engine is not allowed to have them.
+[workspace]
+members = ["program"]
