@@ -3368,9 +3368,8 @@ tide and gone within the year, but not by the next tide: bed flows of 0.3 to
 0.5 m/s are below the grain threshold, the waves break at depth so a stated
 wind does not change it, and what would erase it is swash on the beach face,
 a law the engine does not have. **Swash goes on the plan for a later phase**
-as the owner directed; the phase is the owner's to name (Phase 9 — Weather is
-the nearest neighbour, as it is the first phase to put water on a slope from
-above).
+as the owner directed, **in Phase 9 — Weather**, the first phase to put water
+on a slope from above.
 
 Found and fixed on the way, each a mixed-instant or frame defect: the sea
 cell read 14,400 s of turning away from the beach (`sea_around` took place and
@@ -3460,7 +3459,10 @@ quadruped walks across, and it arrives with it.
 
 **Phase 9 — Weather.** *Inserted by the owner during Phase 5.* Rain: vapour
 carried in an atmosphere node, condensation into drops that fall, the drops
-reaching the ground under the air, and water entering sand. Each is a law and
+reaching the ground under the air, and water entering sand. **Swash** — the
+water running up and back down a beach face, which is what erases a mark
+above the waterline by the next tide (the tidal done-when's squiggle clause,
+unmet in Phase 5) — goes here by the owner's decision. Each is a law and
 not a table, and the first two carry `PHYSICS.md`-weight choices that are the
 owner's when the phase starts. §5.4's rule stands: a storm is a thing the air
 is doing, not a system.
