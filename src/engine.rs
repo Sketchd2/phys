@@ -1526,6 +1526,7 @@ impl World {
         self.tree.bump_epoch(composite);
         self.tree.record_edit(composite);
         self.disturb(composite);
+        self.wake_around(composite);
         self.tree.stats.joins += 1;
         Some(site)
     }
@@ -1600,6 +1601,7 @@ impl World {
         self.identify(child);
         self.tree.record_edit(composite);
         self.disturb(composite);
+        self.wake_around(composite);
         self.tree.stats.detachments += 1;
         child
     }
@@ -2419,6 +2421,53 @@ impl World {
         }
     }
 
+    /// Something has happened to a node — an event, a part coming off,
+    /// something arriving — and it, what it holds and what stands beside it
+    /// must be looked at now rather than when they were queued.
+    ///
+    /// **Stable things are clocked slowly** (`World::at_rest`): nothing moving
+    /// and nothing acting on it is nothing to update. That is only safe if an
+    /// event wakes what it might concern, ahead of the schedule, which is
+    /// this: the node's balance is marked not yet measured (`Node::unrest`,
+    /// which `node_cadence` reads as due now), and so is every node in the
+    /// same parent and every node it holds. An earthquake does not wait for
+    /// the next time a quiet neighbour was due. Only an *event* wakes — never
+    /// the scheduler, whose choices depend on a wall-clock allowance.
+    pub fn wake_around(&mut self, idx: NodeIdx) {
+        if idx.is_none() || idx.get() >= self.tree.nodes.len() {
+            return;
+        }
+        let mut woken = vec![idx];
+        woken.extend(self.tree.nodes[idx.get()].children.iter().copied().filter(|c| !c.is_none()));
+        let parent = self.tree.nodes[idx.get()].parent;
+        if !parent.is_none() {
+            woken.extend(self.tree.nodes[parent.get()].children.iter().copied().filter(|c| !c.is_none()));
+        }
+        for n in woken {
+            if self.tree.nodes[n.get()].alive {
+                self.tree.nodes[n.get()].unrest = f64::INFINITY;
+            }
+        }
+    }
+
+    /// Whether a node's ground is at rest and nothing is acting on it: it is
+    /// held in its frame (`ground`), its balance has been measured at nothing
+    /// (`Node::unrest` is zero, and an event sets it to not-yet-measured), and
+    /// nothing it holds moves more than a thousandth of its smallest piece in
+    /// `span`. Such a node is not integrated: nothing in it would change, and
+    /// the step its springs ring at — 1.6e-7 s for a 2.8 mm piece — is a cost
+    /// paid to learn that. Its clock is carried to the world's and what flows
+    /// over it (`flow_sheet`) runs on its own stable step.
+    fn at_rest(&self, idx: NodeIdx, span: f64) -> bool {
+        let n = &self.tree.nodes[idx.get()];
+        if n.ground.is_none() || n.unrest != 0.0 || n.bodies.is_empty() || !(span > 0.0) {
+            return false;
+        }
+        let piece = n.bodies.iter().filter(|b| b.half != Vec3::ZERO).map(|b| 2.0 * b.half.z).fold(f64::INFINITY, f64::min);
+        let fastest = n.bodies.iter().map(|b| b.vel.norm()).fold(0.0f64, f64::max);
+        piece.is_finite() && fastest * span < 1.0e-3 * piece
+    }
+
     fn lateness_report(&self) -> (f64, usize) {
         let mut worst = 0.0f64;
         let mut overdue = 0;
@@ -2722,7 +2771,7 @@ impl World {
         let mut steps = 0u32;
         while self.tree.nodes[idx.get()].time < horizon && steps < allowance {
             let remaining = horizon - self.tree.nodes[idx.get()].time;
-            let h = (self.node_dt(idx) / rate).min(remaining);
+            let h = if self.at_rest(idx, remaining) { remaining } else { (self.node_dt(idx) / rate).min(remaining) };
             if !(h > 0.0) {
                 break;
             }
@@ -3268,6 +3317,7 @@ impl World {
             }
         }
         let partitioned = ordered.is_some();
+        let resting = ground.is_some() && self.at_rest(idx, dt);
         let bodies: &mut Vec<crate::state::Body> = if partitioned {
             &mut loose
         } else {
@@ -3298,6 +3348,9 @@ impl World {
         let mut report = if count == 0 {
             solvers::SolveReport::default()
         } else if !bodies.iter().any(|b| b.mass > 0.0) {
+            solvers::SolveReport { dt_used: dt, ..Default::default() }
+        } else if resting {
+            // At rest and acted on by nothing: carried, not integrated.
             solvers::SolveReport { dt_used: dt, ..Default::default() }
         } else if let Some(g) = &ground {
             solvers::ground::step(bodies, dt, g)
@@ -5695,6 +5748,7 @@ impl World {
                 self.tree.pin(target);
                 self.tree.bump_epoch(target);
                 self.disturb(target);
+                self.wake_around(target);
             }
             Interaction::Measure {
                 target,
@@ -5706,6 +5760,7 @@ impl World {
             Interaction::Pin { target } => {
                 self.tree.pin(target);
                 self.disturb(target);
+                self.wake_around(target);
             }
             Interaction::Author {
                 target,
@@ -5741,6 +5796,7 @@ impl World {
                 self.tree.nodes[target.get()].unrest = f64::INFINITY;
                 self.tree.pin(target);
                 self.disturb(target);
+                self.wake_around(target);
             }
             Interaction::Mark { target, deviation } => {
                 self.mark(target, deviation);
@@ -5777,6 +5833,7 @@ impl World {
             n.matter.mass = (n.matter.mass - moved).max(0.0);
         }
         self.disturb(target);
+        self.wake_around(target);
         // **A mark is an edit** (`docs/PLAY.md` D19) — one the rule can
         // express, so the node may still release its detail, but it and
         // everything above it are no longer a fresh draw. Unrecorded, a patch
@@ -8023,8 +8080,11 @@ impl World {
         // Both ends changed by hand, so both need their detail kept rather than
         // regenerated, and their neighbours told.
         self.disturb(moved.from);
+        self.wake_around(moved.from);
         self.disturb(moved.to);
+        self.wake_around(moved.to);
         self.disturb(moved.moved);
+        self.wake_around(moved.moved);
         true
     }
 
@@ -8290,7 +8350,9 @@ impl World {
             if let Some(new) = self.tree.resolve_extent(node) {
                 self.stats.splits += 1;
                 self.disturb(node);
+                self.wake_around(node);
                 self.disturb(new);
+                self.wake_around(new);
                 changed += 1;
                 continue;
             }
