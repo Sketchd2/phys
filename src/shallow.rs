@@ -228,6 +228,24 @@ impl Sheet {
         })
     }
 
+    /// `mass` of water arriving evenly over every column the floor covers,
+    /// kg: a film, which the slope then runs downhill into whatever holds
+    /// it. This is what runoff is — water that lands where it lands and goes
+    /// where the ground sends it — and the sheet's own dynamics are all that
+    /// decide where it ends up.
+    pub fn arrive(&mut self, mass: f64) {
+        let covered = (0..self.bed.len()).filter(|&k| self.holds(k)).count();
+        if covered == 0 || !(mass > 0.0) {
+            return;
+        }
+        let film = mass / (self.density * self.dx * self.dx * covered as f64);
+        for k in 0..self.bed.len() {
+            if self.holds(k) {
+                self.depth[k] += film;
+            }
+        }
+    }
+
     /// Lay the sheet on a floor that has changed under it — the ground was
     /// carved, or filled — keeping the water each column holds: a channel
     /// cut into a flooded flat is empty the moment it is cut, and the water
@@ -365,7 +383,7 @@ impl Sheet {
 
     /// Advance by `dt` in a field of `g`, with the sea beyond the edge; `t`
     /// is the time the sea is read at. Returns what crossed.
-    pub fn step(&mut self, dt: f64, g: f64, sea: &SeaAtEdge, t: f64) -> Crossing {
+    pub fn step(&mut self, dt: f64, g: f64, edge: Option<&SeaAtEdge>, t: f64) -> Crossing {
         let (nx, ny) = (self.nx as i64, self.ny as i64);
         let a = self.dx * self.dx;
         let rho = self.density;
@@ -392,22 +410,43 @@ impl Sheet {
                         Some(k) => side(k),
                         None => {
                             let z = self.bed[r.unwrap()];
-                            let (h, v) = self.beyond(sea, face, z, t);
-                            (z, h, [v[0] * h, v[1] * h])
+                            match edge {
+                                Some(sea) => {
+                                    let (h, v) = self.beyond(sea, face, z, t);
+                                    (z, h, [v[0] * h, v[1] * h])
+                                }
+                                // No sea: a wall. The water beyond it is the
+                                // water inside, with the flow across it
+                                // reversed.
+                                None => {
+                                    let (_, h, mut q) = side(r.unwrap());
+                                    q[axis] = -q[axis];
+                                    (z, h, q)
+                                }
+                            }
                         }
                     };
                     let (zr, hr, qr) = match r {
                         Some(k) => side(k),
                         None => {
                             let z = self.bed[l.unwrap()];
-                            let (h, v) = self.beyond(sea, face, z, t);
-                            (z, h, [v[0] * h, v[1] * h])
+                            match edge {
+                                Some(sea) => {
+                                    let (h, v) = self.beyond(sea, face, z, t);
+                                    (z, h, [v[0] * h, v[1] * h])
+                                }
+                                None => {
+                                    let (_, h, mut q) = side(l.unwrap());
+                                    q[axis] = -q[axis];
+                                    (z, h, q)
+                                }
+                            }
                         }
                     };
                     let (mut hl, mut hr, mut ql, mut qr) = (hl, hr, ql, qr);
                     // At an open face, what the sea offers meets what the
                     // sheet sends out on the invariants each carries.
-                    if l.is_none() || r.is_none() {
+                    if (l.is_none() || r.is_none()) && edge.is_some() {
                         let inside_left = r.is_none();
                         let (hi, qi, ho, qo) = if inside_left { (hl, ql, hr, qr) } else { (hr, qr, hl, ql) };
                         let n = if inside_left { 1.0 } else { -1.0 };
@@ -465,8 +504,17 @@ impl Sheet {
                         dq[k][1 - axis] += per * ft;
                         out.bed += normal.scale(rho * a * per * pr);
                     }
+                    // Against a wall, what it gave the column is the world
+                    // outside the water's: as the bed's is, and nothing
+                    // crosses it (the reflected side has the mass flux of
+                    // the inside one reversed, and so none).
+                    if edge.is_none() && (l.is_none() || r.is_none()) {
+                        let n = if l.is_none() { 1.0 } else { -1.0 };
+                        let across = if axis == 0 { self.v } else { self.u };
+                        out.bed += (normal.scale(fn_) + across.scale(ft)).scale(n * rho * self.dx * dt);
+                    }
                     // Across an open face, the sea's side of the books.
-                    if l.is_none() || r.is_none() {
+                    if (l.is_none() || r.is_none()) && edge.is_some() {
                         let n = if l.is_none() { 1.0 } else { -1.0 };
                         let mass = n * rho * self.dx * dt * fm;
                         let across = if axis == 0 { self.v } else { self.u };

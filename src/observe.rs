@@ -464,6 +464,13 @@ pub enum Interaction {
     /// node's conserved tuple, which is a measurement. See
     /// [`crate::erode::Deviation`].
     Mark { target: NodeIdx, deviation: crate::erode::Deviation },
+    /// Water arriving on ground: `mass` kg of `liquid` landing on a node,
+    /// and on everything above it, as a rain shower or a burst main would
+    /// put it. What stands and what soaks in is measured afterwards from the
+    /// node's own matter (`World::standing_water`), and where it goes is
+    /// decided by the slope (`shallow::Sheet::arrive`): this is the one thing
+    /// that is stated, and it is an event, because it adds matter.
+    Pour { target: NodeIdx, mass: f64, liquid: crate::chem::Mixture },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

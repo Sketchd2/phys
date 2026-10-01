@@ -2118,9 +2118,25 @@ impl World {
             } else {
                 f64::INFINITY
             };
-            return moving.min(pushed).min(coupled).min(self.floated(idx));
+            return moving.min(pushed).min(coupled).min(self.floated(idx)).min(self.lake_cadence(idx));
         }
         n.matter.characteristic_time(n.matter.radius)
+    }
+
+    /// How long a patch of ground may go between solves while water stands on
+    /// it that no sea holds, s: the span its sheet covers in its own stable
+    /// step budget. Ground at rest asks for nothing, and a lake on it is
+    /// moving by its own laws.
+    fn lake_cadence(&self, idx: NodeIdx) -> f64 {
+        let Some(node) = self.sheet_of(idx) else { return f64::INFINITY };
+        if self.sea_around(idx).is_some() {
+            return f64::INFINITY;
+        }
+        let g = self.tree.nodes[idx.get()].gravity.norm();
+        match self.tree.nodes[node.get()].sheet.as_ref() {
+            Some(s) if g > 0.0 => s.stable_step(g) * MAX_SUBSTEPS as f64,
+            _ => f64::INFINITY,
+        }
     }
 
     /// How long a node's floating children may go between its solves, s.
@@ -3705,6 +3721,11 @@ impl World {
                 self.sheets_assessed.insert(key, epoch);
                 self.assess_sheet(idx);
             }
+        }
+        // Water on ground no sea reaches: asked every frame, because water
+        // arrives when it arrives and what it adds is measured, not scheduled.
+        if (ordered.is_some() || ground.is_some()) && self.tree.nodes[idx.get()].matter.mixture.entries().iter().any(|p| p.phase == crate::chem::Phase::Liquid) {
+            self.assess_lake(idx);
         }
         if ordered.is_some() || ground.is_some() {
             let covered = if report.dt_used.is_finite() && report.dt_used > 0.0 { report.dt_used.min(dt) } else { dt };
@@ -5700,6 +5721,27 @@ impl World {
             Interaction::Dilate { target, rate } => {
                 self.dilate(target, rate);
             }
+            Interaction::Pour { target, mass, liquid } => {
+                if target.is_none() || !self.tree.nodes[target.get()].alive || !(mass > 0.0) {
+                    return;
+                }
+                // Every node from the one it lands on up to the root holds it.
+                let mut node = target;
+                while !node.is_none() {
+                    let n = &mut self.tree.nodes[node.get()];
+                    let before = n.matter.mass;
+                    n.matter.mixture = with_water(&n.matter.mixture, before, &liquid, mass);
+                    n.matter.mass = before + mass;
+                    node = n.parent;
+                }
+                let key = self.tree.nodes[target.get()].key;
+                self.sheets_assessed.remove(&key);
+                // Not yet measured is due now (`node_cadence`): water has
+                // arrived on ground nothing was solving.
+                self.tree.nodes[target.get()].unrest = f64::INFINITY;
+                self.tree.pin(target);
+                self.disturb(target);
+            }
             Interaction::Mark { target, deviation } => {
                 self.mark(target, deviation);
             }
@@ -7407,6 +7449,117 @@ impl World {
             .find(|c| !c.is_none() && self.tree.nodes[c.get()].alive && self.tree.nodes[c.get()].sheet.is_some())
     }
 
+    /// Liquid a node holds beyond what its ground's pores can, kg, and what it
+    /// is made of: the water that stands over it rather than in it.
+    ///
+    /// **Measured**, by the criterion `loose_grain_strength` already takes for
+    /// damp against drowned: the liquid's volume against the pore space its
+    /// solid leaves at its packing. Ground with no stated packing — a rock —
+    /// has none, and holds nothing in it.
+    pub fn standing_water(&self, idx: NodeIdx) -> Option<(f64, crate::chem::Mixture)> {
+        let n = &self.tree.nodes[idx.get()];
+        let (mut solid_volume, mut liquid_volume, mut liquid_mass) = (0.0, 0.0, 0.0);
+        let mut water = crate::chem::Mixture::new();
+        for p in n.matter.mixture.entries() {
+            let Some(sub) = self.substances.get(p.substance) else { continue };
+            let Some(c) = crate::eos::Condensed::of(&sub.props, p.phase) else { continue };
+            let m = p.fraction * n.matter.mass;
+            match p.phase {
+                crate::chem::Phase::Solid => solid_volume += m / c.rest_density,
+                crate::chem::Phase::Liquid => {
+                    liquid_volume += m / c.rest_density;
+                    liquid_mass += m;
+                    water.add(p.substance, p.phase, p.fraction);
+                }
+                _ => {}
+            }
+        }
+        if !(liquid_mass > 0.0) {
+            return None;
+        }
+        let pores = match self.material_of(idx) {
+            Some(m) if self.is_loose(idx) && solid_volume > 0.0 => {
+                let grain = n.matter.mixture.entries().iter().filter(|p| p.phase == crate::chem::Phase::Solid).map(|p| p.fraction).sum::<f64>() * n.matter.mass / solid_volume;
+                solid_volume * (1.0 / (m.density / grain).clamp(1e-3, crate::erode::CLOSE_PACKING) - 1.0)
+            }
+            _ => 0.0,
+        };
+        let excess = liquid_volume - pores;
+        if !(excess > 0.0) {
+            return None;
+        }
+        let total: f64 = water.entries().iter().map(|p| p.fraction).sum();
+        let mut out = crate::chem::Mixture::new();
+        for p in water.entries() {
+            out.add(p.substance, p.phase, p.fraction / total);
+        }
+        Some((excess * liquid_mass / liquid_volume, out))
+    }
+
+    /// Water standing on ground that no sea reaches, laid as a sheet on the
+    /// patch's own floor, or added to the one it has: a lake or a pool, and
+    /// the runoff running down into it. Returns whether the patch has one
+    /// afterwards.
+    ///
+    /// What the sheet holds is the patch's own matter's liquid beyond its
+    /// pores (`World::standing_water`), already part of the patch's mass, and
+    /// it arrives as a film over every column: the slope sends it where it
+    /// goes. A patch a sea reaches is the sea's (`World::assess_sheet`).
+    pub fn assess_lake(&mut self, idx: NodeIdx) -> bool {
+        if idx.is_none() || !self.tree.nodes[idx.get()].alive || self.sea_around(idx).is_some() {
+            return false;
+        }
+        let Some((standing, water)) = self.standing_water(idx) else { return self.sheet_of(idx).is_some() };
+        if let Some(node) = self.sheet_of(idx) {
+            let held = self.tree.nodes[node.get()].sheet.as_ref().map(|s| s.mass()).unwrap_or(0.0);
+            let more = standing - held;
+            if more > 1e-6 * standing {
+                if let Some(s) = self.tree.nodes[node.get()].sheet.as_mut() {
+                    s.arrive(more);
+                }
+                self.settle_sheet(node);
+            }
+            return true;
+        }
+        let Some(floor) = self.floor_of(idx) else { return false };
+        let density = {
+            let c = water.entries().first().and_then(|p| self.substances.get(p.substance).and_then(|s| crate::eos::Condensed::of(&s.props, p.phase)));
+            c.map(|c| c.rest_density).unwrap_or(0.0)
+        };
+        let grain = self.seabed_grain(idx);
+        let Some(mut sheet) = crate::shallow::Sheet::on(&floor, f64::MIN, density, grain) else { return false };
+        sheet.arrive(standing);
+        let mass = sheet.mass();
+        if !(mass > 0.0) {
+            return false;
+        }
+        let (composition, temperature) = (water.composition(&self.substances).0, self.tree.nodes[idx.get()].matter.temperature);
+        let radius = self.tree.nodes[idx.get()].matter.radius;
+        let body = crate::state::Body { mass, radius, temperature, composition, ..Default::default() };
+        let slot = {
+            let p = &mut self.tree.nodes[idx.get()];
+            p.bodies.push(body);
+            while p.children.len() < p.bodies.len() {
+                p.children.push(NodeIdx::NONE);
+            }
+            p.bodies.len() - 1
+        };
+        let spec = self.tree.nodes[idx.get()].spec;
+        let node = self.tree.promote(idx, slot, spec);
+        if node.is_none() {
+            return false;
+        }
+        let epoch = self.tree.nodes[idx.get()].epoch;
+        {
+            let n = &mut self.tree.nodes[node.get()];
+            n.matter.mixture = water;
+            n.sheet = Some(Box::new(crate::shallow::Sheet { epoch, ..sheet }));
+        }
+        self.refresh_rest_density(node);
+        self.settle_sheet(node);
+        true
+    }
+
     /// Lay the sea over a patch of ground, if the patch stands in one and
     /// has none yet: a sheet of water on the patch's own floor, filled to the
     /// sea's level, lent by the sea (`ocean::Account`). Returns whether it has
@@ -7499,7 +7652,9 @@ impl World {
     /// does (`World::settle_sheet`).
     fn flow_sheet(&mut self, idx: NodeIdx, span: f64, rate: f64) -> Option<(Vec3, f64)> {
         let node = self.sheet_of(idx)?;
-        let (anc, sea) = self.sea_around(idx)?;
+        // Water with no sea round it is a lake's: a wall at its edge, and
+        // nothing lent.
+        let around = self.sea_around(idx);
         let g = self.tree.nodes[idx.get()].gravity.norm();
         if !(g > 0.0) || !(span > 0.0) {
             return None;
@@ -7520,8 +7675,10 @@ impl World {
         // The sea in the patch's own axes, which the sheet is in, and what
         // crosses back out of them into the drawing's.
         let frame = self.tree.facing_at(idx, start);
-        let sea = sea.turned(frame.conjugate());
-        let sea = crate::shallow::SeaAtEdge { sea: crate::ocean::Sea { up: sheet.up, g, ..sea.sea }, ..sea };
+        let edge = around.as_ref().map(|(_, sea)| {
+            let sea = sea.turned(frame.conjugate());
+            crate::shallow::SeaAtEdge { sea: crate::ocean::Sea { up: sheet.up, g, ..sea.sea }, ..sea }
+        });
         let mut total = crate::shallow::Crossing { mass: -returned, ..Default::default() };
         let mut done = 0.0;
         let mut steps = 0;
@@ -7530,7 +7687,7 @@ impl World {
             if !(dt > 0.0) || !dt.is_finite() {
                 break;
             }
-            let c = sheet.step(dt, g, &sea, start + done / rate);
+            let c = sheet.step(dt, g, edge.as_ref(), start + done / rate);
             total.mass += c.mass;
             total.momentum += c.momentum;
             total.moment += c.moment;
@@ -7541,7 +7698,9 @@ impl World {
         }
         self.tree.nodes[node.get()].sheet = Some(sheet);
         let water = self.tree.nodes[node.get()].matter.mixture;
-        self.lend(idx, anc, &water, total.mass, frame.rotate(total.momentum), frame.rotate(total.moment), Vec3::ZERO);
+        if let Some((anc, _)) = around {
+            self.lend(idx, anc, &water, total.mass, frame.rotate(total.momentum), frame.rotate(total.moment), Vec3::ZERO);
+        }
         self.settle_sheet(node);
         Some((frame.rotate(total.bed), done))
     }

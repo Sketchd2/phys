@@ -42,7 +42,7 @@ fn run(sheet: &mut Sheet, sea: &SeaAtEdge, span: f64) -> (f64, phys::shallow::Cr
     let mut total = phys::shallow::Crossing::default();
     while t < span {
         let dt = sheet.stable_step(G).min(span - t);
-        let c = sheet.step(dt, G, sea, t);
+        let c = sheet.step(dt, G, Some(sea), t);
         total.mass += c.mass;
         total.momentum += c.momentum;
         total.bed += c.bed;
@@ -148,7 +148,7 @@ fn the_seas_wave_comes_in_through_the_edge() {
     let span = 6.0 * there.period();
     while t < span {
         let dt = sheet.stable_step(G).min(0.01);
-        sheet.step(dt, G, &edge, t);
+        sheet.step(dt, G, Some(&edge), t);
         t += dt;
         trace.push((t, sheet.depth[middle] - depth));
     }
