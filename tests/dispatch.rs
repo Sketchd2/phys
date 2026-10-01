@@ -43,7 +43,11 @@ fn a_tree_on_a_planet() -> (World, phys::ids::NodeIdx) {
     let node = w.tree.promote(planet, 0, default_spec(Tier::Continuum));
     {
         let n = &mut w.tree.nodes[node.get()];
-        n.matter = Matter::neutral(900.0, 6.0, 291.0, Composition::organic());
+        // 1100 kg, not the 900 it was: after forty years the tree is 874 kg
+        // when wood is derived at 1612 kg/m^3 and 981 kg at the 1431 it is now,
+        // and a node whose structure is all of it has no loose contents for the
+        // tests below to find. The old figure left 26 kg, 3%, of margin.
+        n.matter = Matter::neutral(1100.0, 6.0, 291.0, Composition::organic());
         n.spec.count = 600;
         n.motion.offset = v3(0.0, 0.0, EARTH_RADIUS);
     }

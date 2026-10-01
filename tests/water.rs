@@ -219,6 +219,13 @@ fn conductivity_is_a_law_per_phase() {
 
 /// An open oak box — a floor and four sides — standing on an Earth's +z pole,
 /// with `water` kg of water in it. Its own -z is down.
+/// `water` is in kilograms, and what the scenarios mean by it is a *volume*:
+/// the draw lays parcels on a lattice whose spacing is `(mass / rest density)^(1/3)`,
+/// and whether the top layer is full, and so whether the surface is level to
+/// the last bit, is a property of that spacing. The two callers were written
+/// when the engine had water at 1653 kg/m^3 (250 kg and 600 kg, 0.151 m^3 and
+/// 0.363 m^3); at the 990 it now derives they are 150 and 360, which draw the
+/// same lattice.
 fn a_bucket(seed: u64, half: f64, water: f64, count: usize) -> World {
     use phys::assembly::{Assembly, Join};
     use phys::math::v3;
@@ -277,7 +284,7 @@ fn a_bucket(seed: u64, half: f64, water: f64, count: usize) -> World {
 /// sinking into the floor, not leaving, and settling rather than ringing.
 #[test]
 fn water_lies_level_in_a_bucket_and_stays_there() {
-    let mut w = a_bucket(0x3E7, 0.5, 250.0, 800);
+    let mut w = a_bucket(0x3E7, 0.5, 150.0, 800);
     let key = w.tree.nodes.iter().find(|n| n.alive && n.morphology.is_some()).unwrap().key;
     let node = |w: &World| {
         phys::ids::NodeIdx(w.tree.nodes.iter().position(|n| n.alive && n.key == key).unwrap() as u32)
@@ -446,7 +453,7 @@ fn two_touching_things_reach_the_same_temperature() {
 #[test]
 fn one_ball_floats_half_under_and_one_sinks_to_the_floor() {
     use phys::math::v3;
-    let mut w = a_bucket(0xF10A7, 0.5, 600.0, 6000);
+    let mut w = a_bucket(0xF10A7, 0.5, 360.0, 6000);
     let key = w.tree.nodes.iter().find(|n| n.alive && n.morphology.is_some()).unwrap().key;
     let bucket =
         phys::ids::NodeIdx(w.tree.nodes.iter().position(|n| n.alive && n.key == key).unwrap() as u32);

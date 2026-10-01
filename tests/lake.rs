@@ -96,7 +96,10 @@ fn rain_on_a_basin_stands_as_a_lake() {
     }
     assert!(the_lake(&w, patch).is_none(), "water stands on a dry patch");
     let before = w.tree.nodes[patch.get()].matter.mass;
-    let mass = 382.0;
+    // The bowl is 3 cm deep and the pour is a *volume* of water, 0.231 m^3:
+    // 382 kg when the engine had water at 1653 kg/m^3, 229 at the 990 it
+    // derives now. The same 382 kg is 0.386 m^3 and overflows the bowl.
+    let mass = 229.0;
     w.interact(Interaction::Pour { target: patch, mass, liquid: water });
     w.step_frame(1.0e6);
     let after = w.tree.nodes[patch.get()].matter.mass;
