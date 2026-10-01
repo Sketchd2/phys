@@ -3016,3 +3016,49 @@ is fixed.
 per-body phase change, a radiating body, a contact that burns. Today the
 readers are `hydro`'s pressure term, `Paint::Temperature` and the exchange
 reservoirs, and the first two are already inside the decoupling described above.
+
+---
+
+## A beach on a coarse Earth wanders over its sea
+
+**Noticed:** Phase 5, the tidal done-when. **Owner's call:** the backlog, with
+a trigger, rather than the plan.
+**Where:** `tests/tidal_beach.rs`, its second `NOT MET` line.
+
+A patch of an Earth's ground on its equator, under a moon, moves against the
+sea in front of it: **89.6 m over a year**, and 209.4 m after the at-rest rule
+(`World::at_rest`) went in, where a day is 0.41 m. The Earth's solid tide is
+0.3 m. The Earth in the test is **7 pieces** of ground flexing under the moon's
+tide, which is the likely cause, and nothing was measured to say so: the
+changed number says that when a node is solved moves it, and not why.
+
+```text
+the beach over its sea     0.41 m in a day, 89.6 m in a year
+after the at-rest rule     209.4 m in a year (the test passes; it only prints)
+the solid Earth's tide     0.3 m
+```
+
+**Trigger:** anything that stands on a planet under a moon for longer than a
+day and must stay where it is put — a settlement, a harbour, the Phase 8
+quadruped over a long run. A lunar-orbit-free planet does not show it.
+
+## Loose air in a lagging face leaves its face within about 41 days
+
+**Noticed:** Phase 5, the tidal done-when. **Owner's call:** the backlog, with
+a trigger, rather than the plan.
+**Where:** `tests/tidal_beach.rs`, which takes the air away after the first
+tide (`Tree::take_away`) so that a year can run.
+
+Air held loose in a face of ground goes where the face goes, in the face's own
+axes. When the face's clock lags the world's — at a day a frame it lags by days
+— the air gains about 2 m/s from the lag and leaves its face, as a crossing,
+within about 41 days. **At one second per second the lag is under a frame, so
+the gain should be negligible; that was reasoned and not measured.** The cure
+for what remains is the sideways hand-off across a patch's edge, which is
+Phase 8's and already has an entry (`Sideways handoff across a patch edge has
+never been exercised in anger`).
+
+**Trigger:** a scenario that holds air, or anything else loose, in a patch of
+ground over a lagging clock for weeks — a long run at a large pace with a
+weather or a campfire on it. Measure the gain at one second per second before
+anything else.

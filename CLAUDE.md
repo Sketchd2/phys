@@ -635,8 +635,8 @@ it. Measured, each in its commit and in `PLAY.md` §7: the beach flows through a
 15% (1.5 mm) after one tide, gone within the year; a 14.8 kg lake stands flat
 to 4.3e-7 m and unchanged for a year; a lone Earth's solve cadence is never.
 Suite at the end of Phase 5: **485 passed, 1 ignored**, and the wasm check and
-five demos run. Two things are left open there, and are the owner's to schedule: the beach
-wanders 209.4 m over its sea in a year (the 7-piece Earth's ground flexing
+five demos run. Two things were left open there and went in `docs/BACKLOG.md` at the owner's
+call: the beach wanders 209.4 m over its sea in a year (the 7-piece Earth's ground flexing
 under the moon, real solid tide 0.3 m), and loose air in a lagging face
 leaves it in about 41 days. Swash, which is what the squiggle clause needs,
 is Phase 9's.

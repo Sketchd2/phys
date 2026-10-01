@@ -3422,7 +3422,8 @@ unchanged a year on, with a film of it in `PHYS_FILM`. Rivers wait for Phase
 
 **Phase 5 is closed, with the beach test and the channel clause met and the
 squiggle clause unmet by the owner's decision**, and swash scheduled in Phase
-9. Left open and not decided: the beach moves 209.4 m over its sea in the
+9. Two findings were left, **and went in `docs/BACKLOG.md` at the owner's call**
+with their numbers and triggers: the beach moves 209.4 m over its sea in the
 year (it was 89.6 m before the at-rest rule; both are the 7-piece Earth's
 ground flexing under the moon, where a real solid tide is 0.3 m), and loose
 air in a lagging face leaves it within about 41 days.
