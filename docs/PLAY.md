@@ -3406,6 +3406,21 @@ keep it from running at speed. Decided with it:
   depend on the renderer (`GPU.md`, "What is not planned"), and this keeps it
   so.
 
+*Decided by the owner — it draws any scenario it is loaded into, as a
+realistic visualisation.* No scenario is special to the renderer: whatever
+world the program is given, whether a lake, a beach under a tide, a planet
+from origin or one nobody has built yet, it is drawn from what the world
+holds, as it would look, and a new scenario is not a new case in the renderer.
+That is the axioms applied to a picture. Nothing is told to it what a thing is
+(`if is_lake` is as wrong here as anywhere): how a thing looks is measured off
+its matter — what it is made of, its phase, its temperature, what light does
+at its surface — and a sheet of water is drawn as a surface at its level and
+not as the ball it is stood in for. **Not yet stated, and the owner's to
+state when the phase starts:** the done-when, and what "realistic" is measured
+against, which is a `PHYSICS.md`-weight choice about how light is modelled
+(what is derived from a material and what is a stored shortcut, as everywhere
+else).
+
 *Done when:* the owner's to state when the phase starts.
 
 **Phase 7 — Test speed.** *Inserted by the owner during Phase 5, on Claude's
