@@ -102,14 +102,6 @@ fn rain_on_a_basin_stands_as_a_lake() {
     let after = w.tree.nodes[patch.get()].matter.mass;
     println!("  poured {mass} kg: the world's mass moved {:.3} kg", after - before);
     assert!((after - before - mass).abs() < 1e-6 * mass, "the world's books did not take the water");
-    println!("  standing {:?}, sheet {:?}, alive {}, liquid entries {}, loose {}", w.standing_water(patch).map(|s| s.0), w.sheet_of(patch), w.tree.nodes[patch.get()].alive, w.tree.nodes[patch.get()].matter.mixture.entries().len(), w.is_loose(patch));
-    println!("  patch mass {:.1} kg, radius {:.3}", w.tree.nodes[patch.get()].matter.mass, w.tree.nodes[patch.get()].matter.radius);
-    println!("  patch time {:.3} world {:.3} unrest {:e} alive {}", w.tree.nodes[patch.get()].time, w.time, w.tree.nodes[patch.get()].unrest, w.tree.nodes[patch.get()].alive);
-    for i in 0..6 {
-        w.step_frame(1.0e6);
-        let n = &w.tree.nodes[patch.get()];
-        println!("  frame {i}: patch time {:.4} world {:.3} unrest {:e} gravity {:?} lateness {:.3} deferred {} run {} overdue {} last {:.0}us", n.time, w.time, n.unrest, n.gravity, w.lateness(patch, w.time), w.stats.tasks_deferred, w.stats.tasks_run, w.stats.overdue, w.stats.last_frame_us);
-    }
     let mut shown = 0;
     for f in 0..600 {
         w.step_frame(1.0e6);

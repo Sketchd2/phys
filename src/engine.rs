@@ -2444,7 +2444,11 @@ impl World {
             woken.extend(self.tree.nodes[parent.get()].children.iter().copied().filter(|c| !c.is_none()));
         }
         for n in woken {
-            if self.tree.nodes[n.get()].alive {
+            // Only what is at rest is being carried rather than solved, and
+            // only that needs bringing forward: a node already being solved
+            // is looked at on its own cadence, and marking it due would
+            // change when everything else is.
+            if self.tree.nodes[n.get()].alive && self.tree.nodes[n.get()].unrest == 0.0 {
                 self.tree.nodes[n.get()].unrest = f64::INFINITY;
             }
         }
@@ -2460,14 +2464,50 @@ impl World {
     /// over it (`flow_sheet`) runs on its own stable step.
     fn at_rest(&self, idx: NodeIdx, span: f64) -> bool {
         let n = &self.tree.nodes[idx.get()];
-        if n.ground.is_none() || n.unrest != 0.0 || n.bodies.is_empty() || !(span > 0.0) {
+        if n.ground.is_none() || n.bodies.is_empty() || !(span > 0.0) {
+            return false;
+        }
+        // Measured balanced at its last solve. An event marks it not yet
+        // measured (`wake_around`), which is not at rest: the next solve
+        // takes one step, which is the look, and measures it again.
+        if n.unrest != 0.0 {
             return false;
         }
         let piece = n.bodies.iter().filter(|b| b.half != Vec3::ZERO).map(|b| 2.0 * b.half.z).fold(f64::INFINITY, f64::min);
+        // **A node that holds something is acted on by it**: the stand-in of
+        // each child carries its weight to the child and the reaction back
+        // (`hand_back`), and skipping that moved the world's momentum by
+        // 2.1e18 kg m/s in six hours with one face promoted, against 8e12
+        // solved. Water over it is the exception, since the sheet's own
+        // solver moves it (`flow_sheet`) and its weight is the patch's.
+        // **A sea acting on it is acting on it**: the tide pumps the water
+        // over the bed and the bed pushes back, which is the interaction a
+        // lake has none of. And what it holds must itself be quiet: a child
+        // that is ground is at rest in its own right, and any other child
+        // keeps still against it.
+        if self.sheet_of(idx).is_some() && self.sea_around(idx).is_some() {
+            return false;
+        }
+        for c in n.children.iter().copied().filter(|c| !c.is_none() && self.tree.nodes[c.get()].alive) {
+            let k = &self.tree.nodes[c.get()];
+            let quiet = if k.sheet.is_some() {
+                true
+            } else if k.ground.is_some() && !k.bodies.is_empty() {
+                self.at_rest(c, span)
+            } else {
+                k.motion.velocity.norm() * span < 1.0e-3 * piece && k.motion.spin_rate.norm() * k.matter.radius * span < 1.0e-3 * piece
+            };
+            if !quiet {
+                return false;
+            }
+        }
         // Its contents against it, and **it against its parent**: a node
         // moving in its parent's axes is not at rest whatever its pieces do
         // inside it.
-        let fastest = n.bodies.iter().map(|b| b.vel.norm()).fold(n.motion.velocity.norm(), f64::max);
+        // and its own turning against it: a planet is turning against what it
+        // is in, and a patch of its ground is not.
+        let turning = n.motion.spin_rate.norm() * n.matter.radius;
+        let fastest = n.bodies.iter().map(|b| b.vel.norm()).fold(n.motion.velocity.norm().max(turning), f64::max);
         piece.is_finite() && fastest * span < 1.0e-3 * piece
     }
 
@@ -2774,7 +2814,7 @@ impl World {
         let mut steps = 0u32;
         while self.tree.nodes[idx.get()].time < horizon && steps < allowance {
             let remaining = horizon - self.tree.nodes[idx.get()].time;
-            let h = if self.at_rest(idx, remaining) { remaining } else { (self.node_dt(idx) / rate).min(remaining) };
+            let h = if self.tree.nodes[idx.get()].unrest == 0.0 && self.at_rest(idx, remaining) { remaining } else { (self.node_dt(idx) / rate).min(remaining) };
             if !(h > 0.0) {
                 break;
             }
@@ -3352,9 +3392,21 @@ impl World {
             solvers::SolveReport::default()
         } else if !bodies.iter().any(|b| b.mass > 0.0) {
             solvers::SolveReport { dt_used: dt, ..Default::default() }
-        } else if resting {
-            // At rest and acted on by nothing: carried, not integrated.
-            solvers::SolveReport { dt_used: dt, ..Default::default() }
+        } else if let (true, Some(g)) = (resting, &ground) {
+            // At rest: carried, not integrated. What the foundation gives the
+            // contents against the field is still booked, at its rate over
+            // one probe step of a copy — the contents stay where they are —
+            // since the node it stands in counts on that reaction.
+            let h = solvers::ground::stable_step(bodies, &g.springs, &g.foundation).min(dt);
+            let mut probe = bodies.clone();
+            // The ground's own pieces: what stands on it is held by what it
+            // stands on, as in a solve, and weighs nothing here.
+            for b in probe.iter_mut().skip(g.pieces) {
+                b.mass = 0.0;
+            }
+            let r = solvers::ground::step(&mut probe, h, g);
+            let scale = if h > 0.0 { dt / h } else { 0.0 };
+            solvers::SolveReport { dt_used: dt, outside: r.outside.scale(scale), ..Default::default() }
         } else if let Some(g) = &ground {
             solvers::ground::step(bodies, dt, g)
         } else if rigid {
@@ -3780,7 +3832,9 @@ impl World {
         }
         // Water on ground no sea reaches: asked every frame, because water
         // arrives when it arrives and what it adds is measured, not scheduled.
-        if (ordered.is_some() || ground.is_some()) && self.tree.nodes[idx.get()].matter.mixture.entries().iter().any(|p| p.phase == crate::chem::Phase::Liquid) {
+        // Ground only: the water in a bucket is the bucket's own, drawn as
+        // the liquid it is, and stands over nothing.
+        if ground.is_some() && self.tree.nodes[idx.get()].matter.mixture.entries().iter().any(|p| p.phase == crate::chem::Phase::Liquid) {
             self.assess_lake(idx);
         }
         if ordered.is_some() || ground.is_some() {
