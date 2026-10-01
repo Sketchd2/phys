@@ -515,6 +515,7 @@ fn put_properties(w: &mut Writer, p: &crate::chem::Properties) {
     w.u32(p.atoms_per_unit);
     w.f64(p.electronegativity);
     w.bool(p.crystalline);
+    w.f64(p.expansion);
 }
 
 fn get_properties(r: &mut Reader) -> Result<crate::chem::Properties> {
@@ -535,6 +536,7 @@ fn get_properties(r: &mut Reader) -> Result<crate::chem::Properties> {
         atoms_per_unit: r.u32()?,
         electronegativity: r.f64()?,
         crystalline: r.bool()?,
+        expansion: r.f64()?,
     })
 }
 

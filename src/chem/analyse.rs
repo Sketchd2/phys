@@ -186,8 +186,15 @@ pub struct Properties {
     /// quartz; what differs is that iron's electrons are shared by everybody,
     /// which is what low electronegativity across the board means.
     pub electronegativity: f64,
-    /// Estimated density, kg/m^3.
+    /// Estimated density, kg/m^3, at [`REFERENCE_TEMPERATURE`] — or at the
+    /// boiling point, for a substance that is a gas by then. Read it at a
+    /// temperature with [`Properties::density_at`]; a substance is not equally
+    /// dense hot and cold, and water at 373 K is 4% lighter than at 273.
     pub density: f64,
+    /// How fast that density falls as it warms, `-d(ln rho)/dT`, per kelvin.
+    /// For a liquid from the packing law in [`packing_at`]; for a crystal from
+    /// the Gruneisen relation `alpha = gamma c_v rho / K` with `gamma = 2`.
+    pub expansion: f64,
     /// Estimated melting point, K.
     pub melting_point: f64,
     /// Estimated boiling point, K.
@@ -199,6 +206,24 @@ pub struct Properties {
     pub water_solubility: f64,
     /// The weakest link in the numbers above.
     pub confidence: Confidence,
+}
+
+impl Properties {
+    /// Density at `temperature`, kg/m^3.
+    ///
+    /// Linear in temperature about [`REFERENCE_TEMPERATURE`], which is exact
+    /// for a molecular liquid (its density is proportional to a packing that is
+    /// itself linear in `T / T_b`) and a first-order expansion for a crystal.
+    /// Held above a tenth of the reference so that a far extrapolation cannot
+    /// reach zero or go negative.
+    pub fn density_at(&self, temperature: f64) -> f64 {
+        let reference = if self.crystalline {
+            REFERENCE_TEMPERATURE
+        } else {
+            REFERENCE_TEMPERATURE.min(self.boiling_point)
+        };
+        (self.density * (1.0 - self.expansion * (temperature - reference))).max(0.1 * self.density)
+    }
 }
 
 /// Check an arrangement holds together, and say why if it does not.
@@ -358,9 +383,17 @@ pub fn analyse(arr: &Arrangement) -> Result<Properties, Illegal> {
     let dipole = super::geometry::dipole(arr, &conformer);
     let _ = dipole_sum;
 
+    // Melting and boiling are set by how much energy holds one unit *in place*,
+    // and for a molecular substance that is not its bonds — it is the much
+    // weaker forces between whole molecules. Getting that distinction right is
+    // why salt melts at 1074 K and sugar at 460 K.
+    let (melting_point, boiling_point) = phase_points(arr, cohesive);
+    confidence = confidence.max(Confidence::Correlated);
+
     // Density from how much space the atoms take up. For a lattice the cell
     // says so directly; for a molecule, from the covalent volume with a packing
     // fraction that reproduces ordinary liquids and solids.
+    let mut expansion = 0.0;
     let (density, density_conf) = match arr.lattice {
         Lattice::Cubic { a } if a > 0.0 => (unit_mass / (a * a * a), Confidence::Derived),
         Lattice::Hexagonal { a, c } if a > 0.0 && c > 0.0 => {
@@ -418,17 +451,63 @@ pub fn analyse(arr: &Arrangement) -> Result<Properties, Illegal> {
                 };
                 volume -= cap(ri, rj) + cap(rj, ri);
             }
-            (unit_mass / (volume / crate::sampler::RANDOM_LOOSE_PACKING).max(1e-45), Confidence::Correlated)
+            // The packing a molecule reaches depends on how far it is from
+            // boiling and on whether it hydrogen-bonds, and both are measured:
+            //
+            //   phi = RANDOM_LOOSE_PACKING + 0.0425 H_O - 0.222 (T / T_b - 0.8)
+            //
+            // The first term is the engine's own constant, which is where the
+            // fit put it with nothing fixed (0.559). The second is what an
+            // O-H or F-H does: a molecule that holds its neighbours by a
+            // directional bond packs 0.043 tighter. The third is thermal
+            // expansion, in units of the boiling point, and it is a
+            // *within-substance* slope: hexane, benzene, acetone, methanol,
+            // ethanol and carbon tetrachloride each fall by 0.19 to 0.27 per
+            // unit of T/T_b, and the pooled value is 0.222. Fitted across
+            // molecules instead it comes out 0.15, because it then absorbs
+            // differences between substances that are not temperature.
+            //
+            // Against 45 molecules of known density, each predicted by a fit
+            // that never saw it: 6.7% on average, 25% at worst (methane).
+            // Water is 989 against 998 at 293 K, where this module gave 1653
+            // before the bond-overlap correction and 847 after it. The 847 was
+            // a packing correct on average sitting at the wrong T/T_b.
+            //
+            // Where it fails: water expands less than half as fast as an
+            // ordinary liquid (0.09 per unit of T/T_b against 0.22) because
+            // heating collapses its open hydrogen-bonded network while it
+            // expands the rest. Derived here, water loses 8% of its density
+            // between 293 K and 373 K where it really loses 4%, and the
+            // maximum at 277 K is absent. No other liquid in the set does
+            // this, and one series is not a law, so it is left as a miss.
+            let reference = REFERENCE_TEMPERATURE.min(boiling_point);
+            let (strong, _) = hydrogen_bond_donor_split(arr);
+            let packing = packing_at(reference, boiling_point, strong);
+            let rho = unit_mass * packing / volume.max(1e-45);
+            expansion = THERMAL_SLOPE / (boiling_point * packing);
+            (rho, Confidence::Correlated)
         }
     };
     confidence = confidence.max(density_conf);
-
-    // Melting and boiling are set by how much energy holds one unit *in place*,
-    // and for a molecular substance that is not its bonds — it is the much
-    // weaker forces between whole molecules. Getting that distinction right is
-    // why salt melts at 1074 K and sugar at 460 K.
-    let (melting_point, boiling_point) = phase_points(arr, &conformer, unit_mass, dipole, cohesive);
-    confidence = confidence.max(Confidence::Correlated);
+    if arr.lattice != Lattice::Molecular {
+        // Gruneisen: a crystal expands because its vibrations are anharmonic,
+        // and how much is the heat it holds per unit volume over how hard it is
+        // to compress. The heat is Dulong and Petit's `3 k_B` an atom and the
+        // stiffness is the one `material::dense_stiffness` derives, so nothing
+        // here is new. `gamma` is 2 where measured values run from 1.5 to 2.5.
+        //
+        // It inherits that stiffness's error, and says so: iron comes out at
+        // 1.1e-4 against a real 3.5e-5 and calcite at 3.8e-5 against 1.4e-5,
+        // about 3x high, because the cohesive energy of a metal is 2.3x low
+        // (`substances::iron`) and stiffness goes with it. Quartz, whose
+        // cohesive energy is nearer, is within a few per cent.
+        let atoms = arr.atoms.len().max(1) as f64;
+        let volume_atom = (unit_mass / (density * atoms)).max(1e-45);
+        let youngs = 3.0 * (cohesive / atoms).max(0.0) / volume_atom;
+        let bulk = youngs / (3.0 * (1.0 - 2.0 * 0.3));
+        let c_v = 3.0 * crate::units::K_B * atoms / unit_mass.max(1e-30);
+        expansion = if bulk > 0.0 { 2.0 * c_v * density / bulk } else { 0.0 };
+    }
 
     let polarity = polarity_of(arr, ionicity, dipole);
     // Zero for a molecule: there is no lattice to take apart before it can
@@ -489,6 +568,7 @@ pub fn analyse(arr: &Arrangement) -> Result<Properties, Illegal> {
         ionicity,
         dipole,
         density,
+        expansion,
         melting_point,
         boiling_point,
         water_solubility,
@@ -496,22 +576,23 @@ pub fn analyse(arr: &Arrangement) -> Result<Properties, Illegal> {
     })
 }
 
-/// Trouton's constant: entropy of vaporisation, J/(mol K). A liquid whose
-/// molecules are not associated loses about this much order when it boils,
-/// whatever it is made of, which is what makes a boiling point derivable from
-/// a vaporisation enthalpy at all.
-const TROUTON: f64 = 88.0;
-/// Hydrogen-bonded liquids are more ordered to begin with, so they lose more.
-/// This is the standard exception to Trouton's rule, and without it water
-/// boils at 462 K.
-const TROUTON_ASSOCIATED: f64 = 110.0;
-/// Vaporisation enthalpy per gram per mole, kJ/mol, from dispersion alone.
-/// Calibrated on the non-associating substances in `tests/chem.rs`; dispersion
-/// scales with polarisability, which scales with how many electrons there are,
-/// which for ordinary matter tracks molar mass closely enough to use it.
-const DISPERSION_KJ_PER_G: f64 = 0.51;
-/// One hydrogen bond's worth, kJ/mol.
-const HBOND_KJ: f64 = 15.5;
+/// The temperature a substance's stored density is at: ordinary room
+/// temperature, or its boiling point for something that is a gas by then.
+pub const REFERENCE_TEMPERATURE: f64 = 293.15;
+/// How fast a molecular liquid's packing falls with temperature, per unit of
+/// `T / T_b`. The pooled within-substance slope over six liquids.
+const THERMAL_SLOPE: f64 = 0.222;
+
+/// The fraction of space a molecular liquid fills at `temperature`, from its
+/// boiling point and how many strong hydrogen-bond donors it has.
+///
+/// Held to `[0.3, 0.74]`: below the first there is no liquid to speak of, and
+/// the second is `erode::CLOSE_PACKING`, which nothing of equal spheres beats.
+pub fn packing_at(temperature: f64, boiling_point: f64, strong_donors: usize) -> f64 {
+    let x = temperature / boiling_point.max(1.0);
+    (crate::sampler::RANDOM_LOOSE_PACKING + 0.0425 * strong_donors as f64 - THERMAL_SLOPE * (x - 0.8))
+        .clamp(0.3, 0.74)
+}
 
 /// How many hydrogen-bond donors an arrangement has: hydrogens bonded to
 /// nitrogen, oxygen or fluorine.
@@ -536,35 +617,133 @@ pub fn hydrogen_bond_donors(arr: &Arrangement) -> usize {
     n
 }
 
+/// Hydrogen-bond donors, split by how hard they hold: a hydrogen on oxygen or
+/// fluorine, and a hydrogen on nitrogen.
+///
+/// The split exists because they are not worth the same. Fitted separately, an
+/// O-H raises a boiling point by 98 K and an N-H by 37, which is the whole of
+/// why ammonia boils 133 K below water and methylamine 106 K below methanol.
+/// Counted together, as `hydrogen_bond_donors` does, the fit cannot get both.
+pub fn hydrogen_bond_donor_split(arr: &Arrangement) -> (usize, usize) {
+    let adj = arr.neighbours();
+    let (mut strong, mut weak) = (0, 0);
+    for (i, e) in arr.atoms.iter().enumerate() {
+        if *e != Element::HYDROGEN {
+            continue;
+        }
+        for (j, _) in &adj[i] {
+            match arr.atoms[*j].z() {
+                8 | 9 => strong += 1,
+                7 => weak += 1,
+                _ => {}
+            }
+        }
+    }
+    (strong, weak)
+}
+
+/// How many hydrogen bonds a molecule can make with copies of itself: the
+/// fewer of its donors and its acceptor sites (two lone pairs on oxygen, one on
+/// nitrogen, three on fluorine).
+///
+/// Water is the case that needs it. Two donors and two acceptor sites pair off
+/// completely, so every bond has a partner and the network is cooperative, and
+/// a single heavy atom carries all of it. Ethanol has one donor to two sites
+/// and leaves a lone pair unused.
+pub fn hydrogen_bond_network(arr: &Arrangement) -> usize {
+    let (strong, weak) = hydrogen_bond_donor_split(arr);
+    let sites: usize = arr
+        .atoms
+        .iter()
+        .map(|e| match e.z() {
+            8 => 2,
+            7 => 1,
+            9 => 3,
+            _ => 0,
+        })
+        .sum();
+    (strong + weak).min(sites)
+}
+
+/// How polar the multiple bonds are: `(order - 1) * |electronegativity
+/// difference|` summed over them.
+///
+/// A pi bond to a more electronegative atom is a large dipole that the engine's
+/// per-bond ionicity does not see (it takes no account of bond order), and it
+/// is why acetonitrile boils at 355 K when its size and lack of hydrogen
+/// bonds say 250. Derived from the arrangement and nothing else.
+pub fn polar_multiple_bonds(arr: &Arrangement) -> f64 {
+    arr.bonds
+        .iter()
+        .map(|b| {
+            let extra = match b.order {
+                Order::Double => 1.0,
+                Order::Triple => 2.0,
+                _ => 0.0,
+            };
+            let (ea, eb) = (arr.atoms[b.a as usize], arr.atoms[b.b as usize]);
+            extra * (ea.electronegativity().unwrap_or(0.0) - eb.electronegativity().unwrap_or(0.0)).abs()
+        })
+        .sum()
+}
+
 /// Melting and boiling points, K.
 ///
-/// For a molecular substance: estimate the vaporisation enthalpy from
-/// dispersion (scaling with mass), the dipole, and hydrogen bonding, then
-/// divide by Trouton's constant. For a lattice there is nothing to vaporise
-/// as a unit — the bonds themselves must go — so it scales with the cohesive
-/// energy instead.
+/// # A molecule
+///
+/// `T_b = 139.7 sqrt(N) + 79.0 H_O + 25.6 H_N + 54.4 P + 42.2 W / N`, with `N`
+/// the atoms that are not hydrogen, `H_O` and `H_N` the hydrogens on oxygen or
+/// fluorine and on nitrogen, `P` the polarity of the multiple bonds
+/// ([`polar_multiple_bonds`]) and `W` the hydrogen bonds a molecule can make
+/// with itself ([`hydrogen_bond_network`]). Dispersion grows as the square root
+/// of how many atoms there are to attract, not linearly: along the alkanes each
+/// carbon raises the boiling point by 73, 46, 42, 36, 33, 30 and 27 K, and the
+/// molecule coils so that its surface does not keep up with its length.
+///
+/// The five coefficients are **fitted**, to 45 molecules with measured boiling
+/// points (`tests/liquids.rs`). In-sample the error is 6.1% on average and 25%
+/// at worst; predicting each molecule from a fit that never saw it, 7.1% and
+/// 27%. The law this replaced was `0.51 M + 15.5 H + 1.6 mu^2` divided by a
+/// Trouton constant, calibrated on a handful of substances, and over the same
+/// 45 it was out by **35% on average and 112% at worst** (ammonia 510 K against
+/// 240, octane 662 against 399), biased 32% high because dispersion by mass is
+/// linear and the real thing is not.
+///
+/// **The last term rests on one molecule, and that should be known.** Without
+/// it water, which has one heavy atom, comes out 10% low at 335 K — and a world
+/// whose water boils at 335 K has hot springs that are steam, which
+/// `cooling_a_solution_precipitates` found by equilibrating at 350 K. With it
+/// water is within 3%, but water is the only molecule that distinguishes the
+/// term from the O-H one, and left out of the fit it is predicted 12% *high*.
+/// The term is physical (a network in which every bond has a partner) and it
+/// costs nothing elsewhere, but its coefficient is one measurement.
+///
+/// What it still gets wrong: carbonyl and nitrile groups and the polyhalides,
+/// 15 to 25% low (acetonitrile 294 K against 355, dichloromethane 241 against
+/// 313); the smallest molecules, methane and ethylene, 16 to 24% high. A term
+/// in the dipole did not help, and the dipole this module derives is itself
+/// poor (acetonitrile 0.46 D against 3.9, ethylene glycol 0.00 against 2.3,
+/// benzene 0.52 against 0), which is why it is not used here.
 ///
 /// The melting point is taken as a fixed fraction of the boiling point. That
 /// fraction really does vary from 0.45 to 0.81 across ordinary substances, so
 /// it is the weakest number this module produces and is marked accordingly.
-fn phase_points(
-    arr: &Arrangement,
-    _conformer: &[crate::math::Vec3],
-    unit_mass: f64,
-    dipole: f64,
-    cohesive: f64,
-) -> (f64, f64) {
+///
+/// # A lattice
+///
+/// There is nothing to vaporise as a unit — the bonds themselves must go — so
+/// it scales with the cohesive energy instead.
+fn phase_points(arr: &Arrangement, cohesive: f64) -> (f64, f64) {
     match arr.lattice {
         Lattice::Molecular => {
-            let grams_per_mol = unit_mass * N_AVOGADRO * 1e3;
-            let donors = hydrogen_bond_donors(arr);
-            // Keesom: dipole-dipole attraction, in the same units.
-            let debye = dipole / 3.33564e-30;
-            let vap_kj =
-                DISPERSION_KJ_PER_G * grams_per_mol + HBOND_KJ * donors as f64 + 1.6 * debye * debye;
-            let trouton = if donors > 0 { TROUTON_ASSOCIATED } else { TROUTON };
-            let boiling = (vap_kj * 1e3 / trouton).clamp(2.0, 4000.0);
-            (boiling * 0.6, boiling)
+            let heavy = arr.atoms.iter().filter(|e| **e != Element::HYDROGEN).count() as f64;
+            let (strong, weak) = hydrogen_bond_donor_split(arr);
+            let boiling = 139.708 * heavy.sqrt()
+                + 78.99 * strong as f64
+                + 25.581 * weak as f64
+                + 54.444 * polar_multiple_bonds(arr)
+                + 42.237 * hydrogen_bond_network(arr) as f64 / heavy.max(1.0);
+            (boiling.clamp(2.0, 4000.0) * 0.6, boiling.clamp(2.0, 4000.0))
         }
         _ => {
             let per_atom = if arr.atoms.is_empty() {
