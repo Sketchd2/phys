@@ -2453,8 +2453,8 @@ impl World {
     /// Whether a node's ground is at rest and nothing is acting on it: it is
     /// held in its frame (`ground`), its balance has been measured at nothing
     /// (`Node::unrest` is zero, and an event sets it to not-yet-measured), and
-    /// nothing it holds moves more than a thousandth of its smallest piece in
-    /// `span`. Such a node is not integrated: nothing in it would change, and
+    /// nothing it holds, and it against its parent, moves more than a thousandth
+    /// of its smallest piece in `span`. Such a node is not integrated: nothing in it would change, and
     /// the step its springs ring at — 1.6e-7 s for a 2.8 mm piece — is a cost
     /// paid to learn that. Its clock is carried to the world's and what flows
     /// over it (`flow_sheet`) runs on its own stable step.
@@ -2464,7 +2464,10 @@ impl World {
             return false;
         }
         let piece = n.bodies.iter().filter(|b| b.half != Vec3::ZERO).map(|b| 2.0 * b.half.z).fold(f64::INFINITY, f64::min);
-        let fastest = n.bodies.iter().map(|b| b.vel.norm()).fold(0.0f64, f64::max);
+        // Its contents against it, and **it against its parent**: a node
+        // moving in its parent's axes is not at rest whatever its pieces do
+        // inside it.
+        let fastest = n.bodies.iter().map(|b| b.vel.norm()).fold(n.motion.velocity.norm(), f64::max);
         piece.is_finite() && fastest * span < 1.0e-3 * piece
     }
 
