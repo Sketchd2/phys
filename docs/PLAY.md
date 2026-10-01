@@ -3485,6 +3485,68 @@ stays on decoded bytes.
 *The program is its own crate* (`program/`, a workspace member), so that the
 core crate keeps no dependencies and its wasm32 build.
 
+**Phase 6 begins with the chemistry the picture stands on, by the owner's
+decision.** Drawing a thing as it looks needs what it is made of to be right
+first, and measuring the optics law (below) found that it was not: water
+derived at 1653 kg/m^3. The owner ordered the density fixed first, then the
+boiling point, and then had **everything found on the way scheduled here, at
+the start of the phase, ahead of the renderer**. In order:
+
+1. **Density of a molecular substance — done.** The molecular branch of
+   `analyse` multiplied the *uncorrected* sum of van der Waals spheres by
+   0.62. It now removes each bond's overlapping caps (Bondi, bond length the
+   sum of covalent radii) and divides by a packing. Against 45 molecules of
+   measured density: 62% mean error and 134% worst before, 6.6% and 25% now;
+   water 1653 -> 990 (real 998). `Properties::density_at(T)` and a stored
+   `expansion` carry it across temperature (a liquid by the packing's slope, a
+   crystal by Gruneisen), and every consumer prices a pool at its matter's own
+   temperature. **But the packing has two fitted coefficients** (0.0425 per
+   O-H, 0.222 per unit of `T/T_b`) and so carries the same objection as item 2.
+2. **Boiling point — fitted, and the owner has flagged that as a deviation
+   from the axioms.** `T_b = 139.7 sqrt(N) + 79.0 H_O + 25.6 H_N + 54.4 P +
+   42.2 W/N`, five coefficients fitted to the same 45 molecules: 6.1% mean,
+   25% worst in-sample, 7.1% and 27% left-one-out, against the previous law's
+   35% and 112%. The investigation of why the old law was wrong and what
+   derivation would replace the fit is the next piece of work, and its
+   findings are recorded under it.
+3. **Melting point is `0.6 T_b`.** Water melts at 229 K (real 273), so a lake
+   freezes 44 K too cold. The ratio really runs 0.45 to 0.81.
+4. **Ice and liquid water share one density law.** Extrapolated, ice comes
+   out about 1030 kg/m^3 where it is 917 and floats; a molecular solid's
+   packing and the jump at melting are not modelled.
+5. **A dissolved solute carries no volume.** `Eos::of_mixture` skips
+   `Phase::Dissolved`, so brine rests at pure water's density — seawater
+   about 3% light. Read from the code, not yet measured.
+6. **The derived dipole is poor**: acetonitrile 0.46 D (real 3.9), ethylene
+   glycol 0.00 (2.3), benzene 0.52 (0). Per-bond ionicity takes no account of
+   bond order, and the conformer is not symmetric where it should be.
+7. **Water expands about half as fast as an ordinary liquid** (its network
+   collapses as it warms); derived, it loses 8% of its density from 293 to
+   373 K where it really loses 4%, and the maximum at 277 K is absent.
+8. **A crystal's expansion inherits the stiffness's error**: iron 1.1e-4 /K
+   against 3.5e-5, calcite 3.8e-5 against 1.4e-5, because a metal's cohesive
+   energy is 2.3x low (`substances::iron`). Quartz is right.
+9. **Three tests fail and each wants the owner's decision.**
+   `chem.rs boiling_points_are_right_to_about_a_quarter` — methane +25.07%
+   against a 25% bound. `fragments.rs a_branch_lands_on_the_next_tree`,
+   Phase 1's done-when — falling limbs now load the struck tree to 0.72 of
+   failure and break nothing, because wood is derived 27% stiffer (packing
+   0.37 -> 0.42 against cellulose; real wood about 0.40).
+   `lake.rs rain_on_a_basin_stands_as_a_lake` — over a year with no light the
+   ground patch radiates to 2.7 K while still booking its pore water as
+   liquid; priced at that temperature the pores hold all of it and the lake
+   spreads to every column. Bisected over the ten temperature-aware sites:
+   only `standing_water`'s pricing of the liquid does it. The question is a
+   heat source for the scenario or phases that follow temperature.
+10. **An optics law**, below — the owner's answer is that the law to use is
+    whichever gives the most accurate result per material and surface,
+    computed thoroughly once and stored as that material's shortcut when the
+    material comes into existence.
+
+Four test scenarios were recalibrated because they named a water *mass* where
+they meant a *volume* (bucket 250 -> 150 kg and 600 -> 360, a pour 382 ->
+229), and one tree node was given room (900 -> 1100 kg); each is in its commit.
+
 **Open, and the owner's: an optics law.** Nothing in the engine says how a
 material reflects, refracts or absorbs light — only black-body emission, with
 emissivity fixed at one (`neighbourhood.rs`). "Derived from matter" needs one,
@@ -3492,7 +3554,9 @@ and the owner chose to plan it as its own item *before* any colour is drawn.
 Three candidates were measured against the refractive indices of six
 substances, using only what `chem` already derives (valence electron density
 from the arrangement and the engine's own density, bond lengths from covalent
-radii, cohesive energy per atom). **None is usable:**
+radii, cohesive energy per atom). **None is usable** (the rock-salt and
+diamond rows were computed from wrongly-stated unit cells, so those two are
+the probe's error as well as the law's):
 
 ```text
                  n measured   Penn, gap = cohesive/atom   Phillips homopolar gap   Lorentz-Lorenz, vdW sphere
@@ -3510,13 +3574,13 @@ not derived, and it still misses water by 20% and rock salt by a factor of four
 because it has no ionic term. A conducting sphere of the van der Waals radius is
 a metal's polarisability and fills the whole cell, so Lorentz-Lorenz has no
 solution for anything but diamond. Separately, the engine's own derived
-densities enter every one of these and are off (water 1653 against 1000,
-diamond 879 against 3510), so part of each error is not optics. What is left
+densities enter every one of these, and water's was 1653 against 1000 when
+this was measured (item 1 above), so part of each error is not optics. What is left
 unmeasured is the reflectance of a metal (Drude gives a plasma energy of
 18.7 eV for iron, so it reflects across the visible, which is right, and
 nothing about its colour), and absorption, which needs a band gap the engine
-does not derive. **Not chosen**: which law, how much error is acceptable, and
-whether a derived density has to be fixed first.
+does not derive. The owner has since answered all three: the density first (item 1), and
+then whichever law is most accurate per material, computed once and stored.
 
 **Phase 7 — Test speed.** *Inserted by the owner during Phase 5, on Claude's
 proposal.* The suite took 7 m 14 s of wall clock and 7 m 57 s of processor on a
