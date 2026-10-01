@@ -25,7 +25,7 @@ const DAY: f64 = 86_164.0;
 /// The engine's own water: its rest density and its surface tension.
 fn water() -> (f64, f64) {
     let props = substances::water();
-    let rho = phys::eos::Condensed::liquid(&props).expect("water is a liquid").rest_density;
+    let rho = phys::eos::Condensed::liquid(&props, phys::chem::analyse::REFERENCE_TEMPERATURE).expect("water is a liquid").rest_density;
     (rho, phys::erode::surface_tension(&props))
 }
 

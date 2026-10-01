@@ -93,9 +93,15 @@ pub struct Condensed {
 }
 
 impl Condensed {
-    /// A substance's liquid, from its vaporisation energy density.
-    pub fn liquid(props: &Properties) -> Option<Condensed> {
-        let rho = props.density;
+    /// A substance's liquid at `temperature`, from its vaporisation energy
+    /// density.
+    ///
+    /// The rest density is the substance's density *at that temperature*
+    /// ([`Properties::density_at`]): water at 373 K rests 4% lighter than at
+    /// 273 K, and a sea that is told it is at one temperature while its matter
+    /// is at another is wrong by that much in its buoyancy and its wave speed.
+    pub fn liquid(props: &Properties, temperature: f64) -> Option<Condensed> {
+        let rho = props.density_at(temperature);
         let l = crate::chem::react::heat_of_vaporisation(props);
         let k = l * rho;
         (rho > 0.0 && k > 0.0 && k.is_finite()).then_some(Condensed {
@@ -105,9 +111,14 @@ impl Condensed {
         })
     }
 
-    /// A substance's solid, from the stiffness `Material::of` derives.
-    pub fn solid(props: &Properties) -> Option<Condensed> {
-        let rho = props.density;
+    /// A substance's solid at `temperature`, from the stiffness `Material::of`
+    /// derives.
+    ///
+    /// The rest density follows temperature; the stiffness is the one derived
+    /// at the reference temperature, which for a solid moves by a few per cent
+    /// over the range a solid is one and is not modelled.
+    pub fn solid(props: &Properties, temperature: f64) -> Option<Condensed> {
+        let rho = props.density_at(temperature);
         let e = crate::material::dense_stiffness(props);
         let k = e / (3.0 * (1.0 - 2.0 * POISSON));
         (rho > 0.0 && k > 0.0 && k.is_finite()).then_some(Condensed {
@@ -119,10 +130,10 @@ impl Condensed {
 
     /// The phase a substance is in, as a condensed equation of state, or `None`
     /// for a gas.
-    pub fn of(props: &Properties, phase: Phase) -> Option<Condensed> {
+    pub fn of(props: &Properties, phase: Phase, temperature: f64) -> Option<Condensed> {
         match phase {
-            Phase::Liquid => Condensed::liquid(props),
-            Phase::Solid => Condensed::solid(props),
+            Phase::Liquid => Condensed::liquid(props, temperature),
+            Phase::Solid => Condensed::solid(props, temperature),
             _ => None,
         }
     }
@@ -187,7 +198,7 @@ impl Eos {
     /// blend as a Reuss average — compliances add by volume, which is what
     /// pressure equal in every phase means — and the rest density is the mass
     /// over the volume the pools fill.
-    pub fn of_mixture(mix: &Mixture, reg: &Registry) -> Eos {
+    pub fn of_mixture(mix: &Mixture, reg: &Registry, temperature: f64) -> Eos {
         if mix.is_empty() {
             return Eos::Gas;
         }
@@ -199,7 +210,7 @@ impl Eos {
         for pool in mix.entries() {
             total += pool.fraction;
             let Some(s) = reg.get(pool.substance) else { continue };
-            let Some(c) = Condensed::of(&s.props, pool.phase) else { continue };
+            let Some(c) = Condensed::of(&s.props, pool.phase, temperature) else { continue };
             let v = pool.fraction / c.rest_density;
             mass += pool.fraction;
             volume += v;
@@ -224,18 +235,18 @@ impl Eos {
     /// out. A patch of ground with water on it has loose contents that are
     /// water, and pricing them as the blend priced them at 2436 kg/m^3 of
     /// rest density where water rests at 1653.
-    pub fn of_loose(mix: &Mixture, reg: &Registry) -> Eos {
+    pub fn of_loose(mix: &Mixture, reg: &Registry, temperature: f64) -> Eos {
         let mut loose = Mixture::new();
         for p in mix.entries() {
             if p.phase != Phase::Solid {
                 loose.add(p.substance, p.phase, p.fraction);
             }
         }
-        Eos::of_mixture(&loose, reg)
+        Eos::of_mixture(&loose, reg, temperature)
     }
 
     pub fn of_matter(m: &Matter, reg: &Registry) -> Eos {
-        Eos::of_mixture(&m.mixture, reg)
+        Eos::of_mixture(&m.mixture, reg, m.temperature)
     }
 
     pub fn condensed(&self) -> Option<Condensed> {

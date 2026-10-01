@@ -77,7 +77,7 @@ fn what_holds_a_grain_of_sand_is_not_a_bond() {
     let bonded = dry_m.strength_of(grain, 290.0);
     let air = 1.225;
     let water = substances::water();
-    let water_rho = phys::eos::Condensed::liquid(&water).unwrap().rest_density;
+    let water_rho = phys::eos::Condensed::liquid(&water, phys::chem::analyse::REFERENCE_TEMPERATURE).unwrap().rest_density;
     let gamma = phys::erode::surface_tension(&water);
     let dry_s = dry_w.loose_grain_strength(dry, &dry_m, air).expect("emplaced ground is loose");
     let damp_s = damp_w.loose_grain_strength(damp, &damp_w.material_of(damp).unwrap(), air).unwrap();
@@ -104,7 +104,7 @@ fn what_holds_a_grain_of_sand_is_not_a_bond() {
 #[test]
 fn a_squiggle_in_drowned_sand_goes_and_one_in_granite_stays() {
     let (w, wet) = ground(0x5A4E, 400.0);
-    let water_rho = phys::eos::Condensed::liquid(&substances::water()).unwrap().rest_density;
+    let water_rho = phys::eos::Condensed::liquid(&substances::water(), phys::chem::analyse::REFERENCE_TEMPERATURE).unwrap().rest_density;
     let m = w.material_of(wet).unwrap();
     let sand = w.loose_grain_strength(wet, &m, water_rho).unwrap();
     let granite = m.strength_of(m.flaw_size, 290.0);
@@ -166,7 +166,7 @@ fn a_cut_in_dry_or_drowned_sand_slumps_and_one_in_damp_sand_stands() {
     }
     // The angle its grains rest at, from its own packing: its bulk density
     // over its grains'.
-    let grain = phys::eos::Condensed::solid(&substances::silica()).unwrap().rest_density;
+    let grain = phys::eos::Condensed::solid(&substances::silica(), phys::chem::analyse::REFERENCE_TEMPERATURE).unwrap().rest_density;
     let packing = (rows[0].4 / grain).clamp(1e-3, phys::erode::CLOSE_PACKING);
     let repose = pocket_friction(packing);
     let cut_volume = {

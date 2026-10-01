@@ -52,7 +52,7 @@ fn ball_of(
 #[test]
 fn water_is_priced_by_what_holds_it_together() {
     let water = substances::water();
-    let liquid = Condensed::liquid(&water).expect("water has a liquid");
+    let liquid = Condensed::liquid(&water, phys::chem::analyse::REFERENCE_TEMPERATURE).expect("water has a liquid");
     let solid_rule = phys::material::dense_stiffness(&water) / 1.2;
     let c = liquid.sound_speed(liquid.rest_density);
     println!(
@@ -77,7 +77,7 @@ fn water_is_priced_by_what_holds_it_together() {
     let back = liquid.density_at(p1);
     assert!((back / (1.01 * liquid.rest_density) - 1.0).abs() < 1e-12);
 
-    let silica = Condensed::solid(&substances::silica()).expect("silica has a solid");
+    let silica = Condensed::solid(&substances::silica(), phys::chem::analyse::REFERENCE_TEMPERATURE).expect("silica has a solid");
     println!(
         "  silica: rest {:.1} kg/m^3, K {:.3e} Pa, c {:.0} m/s",
         silica.rest_density,

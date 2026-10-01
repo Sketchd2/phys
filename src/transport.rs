@@ -62,7 +62,7 @@ use crate::units::{K_B, N_AVOGADRO};
 /// Thermal conductivity of one substance in one phase, W/m/K.
 pub fn conductivity(props: &Properties, phase: Phase, temperature: f64) -> f64 {
     match phase {
-        Phase::Solid | Phase::Liquid => match Condensed::of(props, phase) {
+        Phase::Solid | Phase::Liquid => match Condensed::of(props, phase, temperature) {
             Some(c) => minimum_conductivity(props, &c),
             None => 0.0,
         },
@@ -113,7 +113,7 @@ pub fn conductivity_of(mix: &Mixture, reg: &Registry, temperature: f64) -> Optio
     let mut sum = 0.0;
     for pool in mix.entries() {
         let Some(s) = reg.get(pool.substance) else { continue };
-        let rho = match Condensed::of(&s.props, pool.phase) {
+        let rho = match Condensed::of(&s.props, pool.phase, temperature) {
             Some(c) => c.rest_density,
             // A gas pool's volume is whatever the node gives it; weight it by
             // the ideal-gas volume of its mass at this temperature and one

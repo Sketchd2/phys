@@ -2320,7 +2320,7 @@ impl World {
         }
         let mask = n.structural_mask();
         let eos = if mask.is_some() {
-            crate::eos::Eos::of_loose(&n.matter.mixture, &self.substances)
+            crate::eos::Eos::of_loose(&n.matter.mixture, &self.substances, n.matter.temperature)
         } else {
             crate::eos::Eos::of_matter(&n.matter, &self.substances)
         };
@@ -3290,7 +3290,7 @@ impl World {
             // A structure is its solids, so what is loose around it is the
             // rest of the mixture.
             let own = if ordered.is_some() {
-                crate::eos::Eos::of_loose(&n.matter.mixture, &self.substances)
+                crate::eos::Eos::of_loose(&n.matter.mixture, &self.substances, n.matter.temperature)
             } else {
                 crate::eos::Eos::of_matter(&n.matter, &self.substances)
             };
@@ -6080,7 +6080,7 @@ impl World {
                 continue;
             }
             let Some(sub) = self.substances.get(p.substance) else { continue };
-            let Some(c) = crate::eos::Condensed::liquid(&sub.props) else { continue };
+            let Some(c) = crate::eos::Condensed::liquid(&sub.props, self.tree.nodes[idx.get()].matter.temperature) else { continue };
             let m = p.fraction * mass;
             volume += m / c.rest_density;
             liquid_mass += m;
@@ -7367,7 +7367,7 @@ impl World {
                 continue;
             }
             let Some(sub) = self.substances.get(p.substance) else { continue };
-            let Some(c) = crate::eos::Condensed::of(&sub.props, p.phase) else { continue };
+            let Some(c) = crate::eos::Condensed::of(&sub.props, p.phase, n.matter.temperature) else { continue };
             solid_mass += p.fraction * n.matter.mass;
             solid_volume += p.fraction * n.matter.mass / c.rest_density;
         }
@@ -7388,7 +7388,7 @@ impl World {
                     continue;
                 }
                 let Some(sub) = w.substances.get(p.substance) else { continue };
-                let Some(c) = crate::eos::Condensed::liquid(&sub.props) else { continue };
+                let Some(c) = crate::eos::Condensed::liquid(&sub.props, m.temperature) else { continue };
                 mass += p.fraction;
                 tension += p.fraction * crate::erode::surface_tension(&sub.props);
                 volume += p.fraction / c.rest_density;
@@ -7410,7 +7410,7 @@ impl World {
         let pores_damp = {
             let n = &self.tree.nodes[idx.get()];
             let liquid: f64 = n.matter.mixture.entries().iter().filter(|p| p.phase == crate::chem::Phase::Liquid).map(|p| {
-                self.substances.get(p.substance).and_then(|s| crate::eos::Condensed::liquid(&s.props)).map(|c| p.fraction * n.matter.mass / c.rest_density).unwrap_or(0.0)
+                self.substances.get(p.substance).and_then(|s| crate::eos::Condensed::liquid(&s.props, n.matter.temperature)).map(|c| p.fraction * n.matter.mass / c.rest_density).unwrap_or(0.0)
             }).sum();
             liquid > 0.0 && liquid < solid_volume * (1.0 / packing - 1.0)
         };
@@ -7583,7 +7583,7 @@ impl World {
         let mut water = crate::chem::Mixture::new();
         for p in n.matter.mixture.entries() {
             let Some(sub) = self.substances.get(p.substance) else { continue };
-            let Some(c) = crate::eos::Condensed::of(&sub.props, p.phase) else { continue };
+            let Some(c) = crate::eos::Condensed::of(&sub.props, p.phase, n.matter.temperature) else { continue };
             let m = p.fraction * n.matter.mass;
             match p.phase {
                 crate::chem::Phase::Solid => solid_volume += m / c.rest_density,
@@ -7644,7 +7644,7 @@ impl World {
         }
         let Some(floor) = self.floor_of(idx) else { return false };
         let density = {
-            let c = water.entries().first().and_then(|p| self.substances.get(p.substance).and_then(|s| crate::eos::Condensed::of(&s.props, p.phase)));
+            let c = water.entries().first().and_then(|p| self.substances.get(p.substance).and_then(|s| crate::eos::Condensed::of(&s.props, p.phase, self.tree.nodes[idx.get()].matter.temperature)));
             c.map(|c| c.rest_density).unwrap_or(0.0)
         };
         let grain = self.seabed_grain(idx);
@@ -7986,7 +7986,7 @@ impl World {
         let (mut liquid_mass, mut liquid_volume, mut tension) = (0.0, 0.0, 0.0);
         for p in mix.entries() {
             let Some(sub) = self.substances.get(p.substance) else { continue };
-            let Some(c) = crate::eos::Condensed::of(&sub.props, p.phase) else { continue };
+            let Some(c) = crate::eos::Condensed::of(&sub.props, p.phase, n.matter.temperature) else { continue };
             let m = p.fraction * n.matter.mass;
             match p.phase {
                 crate::chem::Phase::Solid => {
@@ -8761,7 +8761,7 @@ impl World {
                     let (mut mass, mut volume) = (0.0, 0.0);
                     for p in m.mixture.entries().iter().filter(|p| p.phase == want) {
                         let Some(s) = self.substances.get(p.substance) else { continue };
-                        let Some(c) = crate::eos::Condensed::of(&s.props, want) else { continue };
+                        let Some(c) = crate::eos::Condensed::of(&s.props, want, m.temperature) else { continue };
                         mass += p.fraction;
                         volume += p.fraction / c.rest_density;
                     }

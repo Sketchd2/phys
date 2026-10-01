@@ -241,3 +241,27 @@ fn a_crystal_expands_by_the_gruneisen_relation() {
     println!("  hexane: {:.2e} /K (real 1.4e-3)", hexane.expansion);
     assert!(hexane.expansion > 1.0e-3 && hexane.expansion < 1.8e-3, "a liquid expands about 40x a crystal");
 }
+
+/// The consumers of density read it at the matter's own temperature. Without
+/// this a sea told it is at 373 K rests exactly as heavy as one at 273 K, and
+/// the `density_at` law above is correct and unused.
+#[test]
+fn the_equation_of_state_follows_the_temperature() {
+    use phys::chem::{Mixture, Phase, Registry};
+    use phys::eos::{Condensed, Eos};
+    let mut reg = Registry::new();
+    let h2o = reg.intern(mol(&[8], &[])).unwrap();
+    let mut mix = Mixture::new();
+    mix.add(h2o, Phase::Liquid, 1.0);
+    let rest = |t: f64| match Eos::of_mixture(&mix, &reg, t) {
+        Eos::Condensed(c) => c.rest_density,
+        Eos::Gas => panic!("liquid water is not a gas at {t} K"),
+    };
+    let (cold, hot) = (rest(280.0), rest(370.0));
+    let props = &reg.get(h2o).unwrap().props;
+    println!("  water rests at {cold:.1} kg/m^3 at 280 K and {hot:.1} at 370 K (density_at: {:.1}, {:.1})", props.density_at(280.0), props.density_at(370.0));
+    assert!(hot < 0.95 * cold, "{hot} at 370 K against {cold} at 280 K");
+    assert!(relative(cold, props.density_at(280.0)) < 1e-12);
+    // And the single-substance form agrees with the mixture form.
+    assert!(relative(Condensed::liquid(props, 370.0).unwrap().rest_density, hot) < 1e-12);
+}
