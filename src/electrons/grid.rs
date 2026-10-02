@@ -110,14 +110,41 @@ fn becke_s(mu: f64) -> f64 {
 /// adjustment made the grid's overlap error 27x larger at the same points
 /// (2.5e-5 against 9.3e-7). The size is used where it helps, in the radial map.
 pub fn molecular(atoms: &[([f64; 3], f64)], n_radial: usize, n_theta: usize) -> Grid {
-    let (sph, sw) = sphere(n_theta);
+    molecular_pruned(atoms, n_radial, n_theta, false)
+}
+
+/// The angular order used at radius `r` on an atom of size `size`, pruned near
+/// the nucleus, where the density is nearly spherical.
+///
+/// **Not far out**, although the density is smooth there too: measured on
+/// water with the derived basis, halving the order beyond five atomic sizes
+/// moved the energy 1.3e-5 Ha, because hydrogen's diffuse d functions (down to
+/// an exponent of 0.011) still have angular structure at three bohr. Pruning
+/// the core alone moves it under 1e-6.
+pub fn pruned_theta(n_theta: usize, r: f64, size: f64) -> usize {
+    let x = r / size;
+    let f = if x < 0.25 {
+        1.0 / 3.0
+    } else if x < 0.5 {
+        0.5
+    } else {
+        1.0
+    };
+    ((n_theta as f64 * f).ceil() as usize).max(4).min(n_theta)
+}
+
+/// As [`molecular`], optionally pruned by [`pruned_theta`].
+pub fn molecular_pruned(atoms: &[([f64; 3], f64)], n_radial: usize, n_theta: usize, prune: bool) -> Grid {
+    let mut spheres: std::collections::HashMap<usize, (Vec<[f64; 3]>, Vec<f64>)> = std::collections::HashMap::new();
     let n = atoms.len();
     let dist = |a: [f64; 3], b: [f64; 3]| ((a[0] - b[0]).powi(2) + (a[1] - b[1]).powi(2) + (a[2] - b[2]).powi(2)).sqrt();
     let mut grid = Grid::default();
     for (ia, (centre, size)) in atoms.iter().enumerate() {
         let (rr, rw) = radial(n_radial, *size);
         for (r, wr) in rr.iter().zip(&rw) {
-            for (d, wa) in sph.iter().zip(&sw) {
+            let nt = if prune { pruned_theta(n_theta, *r, *size) } else { n_theta };
+            let (sph, sw) = spheres.entry(nt).or_insert_with(|| sphere(nt));
+            for (d, wa) in sph.iter().zip(sw.iter()) {
                 let p = [centre[0] + r * d[0], centre[1] + r * d[1], centre[2] + r * d[2]];
                 // Becke weight of atom ia at p.
                 let mut cell = vec![1.0; n];

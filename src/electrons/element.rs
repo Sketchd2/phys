@@ -67,8 +67,24 @@ impl ElementBasis {
     /// angular momentum `L` a product of two of its functions can carry, an
     /// even-tempered set spanning the exponents such products have
     /// (`a_i + a_j`), at ratio `AUXILIARY_RATIO`.
-    pub fn auxiliary_at(&self, centre: [f64; 3]) -> Vec<super::basis::Shell> {
-        self.auxiliary_up_to(centre, usize::MAX)
+    ///
+    /// **Capped at the orbital basis's own highest angular momentum**, not at
+    /// twice it as products could carry. Measured on water (derived basis, f
+    /// the highest): auxiliary L <= 6, 1745 functions, 1.4e-6 Ha from exact
+    /// Coulomb in 155 s of integrals; L <= 4, 1402, 1.2e-6 in 63 s; L <= 3, 937,
+    /// 1.8e-7 in 21 s. The high-L functions were nearly dependent and added
+    /// round-off rather than fit.
+    ///
+    /// The cap is the highest angular momentum in the *whole molecule's*
+    /// basis, which a single element does not know: capping hydrogen at its own
+    /// d left water 5.4e-6 Ha below exact. So this takes it as an argument.
+    pub fn auxiliary_at(&self, centre: [f64; 3], molecule_lmax: usize) -> Vec<super::basis::Shell> {
+        self.auxiliary_up_to(centre, molecule_lmax)
+    }
+
+    /// The highest angular momentum among its functions.
+    pub fn lmax(&self) -> usize {
+        self.contracted.iter().map(|c| c.0).chain(self.free.iter().chain(&self.polarisation).map(|c| c.0)).max().unwrap_or(0)
     }
 
     /// As [`auxiliary_at`], with angular momenta above `cap` left out.

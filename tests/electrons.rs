@@ -390,7 +390,7 @@ fn atoms_agree_with_an_independent_implementation() {
     ];
     let mut worst: f64 = 0.0;
     for (name, z, a, b, f, reference) in cases {
-        let p = Problem { basis: atom_basis(), nuclei: vec![(z, [0.0; 3])], sizes: vec![1.0], alpha: a, beta: b, functional: f, radial: 100, theta: 8, auxiliary: None };
+        let p = Problem { basis: atom_basis(), nuclei: vec![(z, [0.0; 3])], sizes: vec![1.0], alpha: a, beta: b, functional: f, radial: 100, theta: 8, auxiliary: None, prune: false };
         let s = solve(&p, 100, 1e-10);
         assert!(s.converged, "{name} {f:?} did not converge");
         let e = (s.energy - reference).abs();
@@ -424,6 +424,7 @@ fn water_agrees_with_an_independent_implementation() {
         radial: 70,
         theta: 16,
         auxiliary: None,
+        prune: false,
     };
     let s = solve(&p, 100, 1e-10);
     println!("  water, PBE: {:.8} against -75.81621481 ({:.1e}), {} iterations", s.energy, (s.energy + 75.81621481).abs(), s.iterations);
@@ -461,7 +462,7 @@ fn the_radial_atom_is_the_three_dimensional_one() {
     for (name, z, a, b) in [("H", 1.0, 1.0, 0.0), ("C", 6.0, 4.0, 2.0), ("Ne", 10.0, 5.0, 5.0)] {
         let mut sh: Vec<Shell> = s.iter().map(|e| Shell::primitive([0.0; 3], 0, *e)).collect();
         sh.extend(p.iter().map(|e| Shell::primitive([0.0; 3], 1, *e)));
-        let d3 = solve(&Problem { basis: Basis::new(sh), nuclei: vec![(z, [0.0; 3])], sizes: vec![1.0], alpha: a, beta: b, functional: Functional::Pbe, radial: 100, theta: 8, auxiliary: None }, 200, 1e-11);
+        let d3 = solve(&Problem { basis: Basis::new(sh), nuclei: vec![(z, [0.0; 3])], sizes: vec![1.0], alpha: a, beta: b, functional: Functional::Pbe, radial: 100, theta: 8, auxiliary: None, prune: false }, 200, 1e-11);
         let r = atom::solve(z, a, b, &[s.clone(), p.clone()], Functional::Pbe, 500, 1e-11);
         let d = (r.energy - d3.energy).abs();
         worst = worst.max(d);

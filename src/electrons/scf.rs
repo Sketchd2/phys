@@ -16,10 +16,9 @@
 
 use super::basis::Basis;
 use super::functional::{evaluate, Functional};
-use super::grid::{molecular, Grid};
+use super::grid::Grid;
 use super::integrals::{eri_block, one_electron};
 use super::linalg::{generalised, orthogonaliser, Matrix};
-use super::values::at;
 
 /// What to solve.
 #[derive(Debug, Clone)]
@@ -37,6 +36,8 @@ pub struct Problem {
     /// An auxiliary basis for fitting the Coulomb potential, or `None` for the
     /// exact four-index repulsion.
     pub auxiliary: Option<Basis>,
+    /// Prune the grid's angular order near nuclei and far out.
+    pub prune: bool,
 }
 
 /// What came out.
@@ -351,8 +352,9 @@ fn density(c: &[f64], m: usize, n: usize, occ: &[f64]) -> Matrix {
 
 /// Points grouped by where they are, and the basis functions that matter there.
 pub struct Batches {
-    /// `(points, weights, functions that are not negligible over them)`.
-    batches: Vec<(Vec<[f64; 3]>, Vec<f64>, Vec<usize>)>,
+    /// `(points, weights, functions that are not negligible over them, and
+    /// the shells those functions belong to)`.
+    batches: Vec<(Vec<[f64; 3]>, Vec<f64>, Vec<usize>, Vec<usize>)>,
 }
 
 /// Below this a function's (or its gradient's) magnitude is taken as zero.
@@ -395,6 +397,7 @@ impl Batches {
                 }
             }
             let mut funcs = Vec::new();
+            let mut shell_list = Vec::new();
             for (is, sh) in basis.shells.iter().enumerate() {
                 let mut d2 = 0.0;
                 for d in 0..3 {
@@ -405,12 +408,13 @@ impl Batches {
                 let dist = d2.sqrt();
                 let bound: f64 = sh.exponents.iter().zip(&sh.coefficients).map(|(a, c)| shell_bound(sh.l, *a, *c, dist)).sum();
                 if bound > NEGLIGIBLE {
+                    shell_list.push(is);
                     for k in 0..sh.size() {
                         funcs.push(basis.offsets[is] + k);
                     }
                 }
             }
-            batches.push((pts, ws, funcs));
+            batches.push((pts, ws, funcs, shell_list));
             start = end;
         }
         Batches { batches }
@@ -419,7 +423,7 @@ impl Batches {
     /// Mean number of functions a point sees, against the basis size.
     pub fn mean_functions(&self) -> f64 {
         let (mut n, mut w) = (0.0, 0.0);
-        for (p, _, f) in &self.batches {
+        for (p, _, f, _) in &self.batches {
             n += (p.len() * f.len()) as f64;
             w += p.len() as f64;
         }
@@ -427,13 +431,53 @@ impl Batches {
     }
 }
 
+/// `out[p][j] = sum_i a[p][i] m[i][j]`: `a` is `rows x k`, `m` is `k x k`.
+fn rows_times(a: &[f64], m: &[f64], rows: usize, k: usize, out: &mut [f64]) {
+    for o in out.iter_mut() {
+        *o = 0.0;
+    }
+    for p in 0..rows {
+        let ar = &a[p * k..p * k + k];
+        let or = &mut out[p * k..p * k + k];
+        for (i, &x) in ar.iter().enumerate() {
+            if x == 0.0 {
+                continue;
+            }
+            let mr = &m[i * k..i * k + k];
+            for (o, &y) in or.iter_mut().zip(mr) {
+                *o += x * y;
+            }
+        }
+    }
+}
+
+/// `out[i][j] += sum_p a[p][i] b[p][j] + b[p][i] a[p][j]`, symmetric.
+fn add_symmetric_products(a: &[f64], b: &[f64], rows: usize, k: usize, out: &mut [f64]) {
+    for p in 0..rows {
+        let ar = &a[p * k..p * k + k];
+        let br = &b[p * k..p * k + k];
+        for i in 0..k {
+            let (ai, bi) = (ar[i], br[i]);
+            let orow = &mut out[i * k..i * k + k];
+            for j in 0..k {
+                orow[j] += ai * br[j] + bi * ar[j];
+            }
+        }
+    }
+}
+
 /// One batch's contribution: exchange-correlation energy, and the two
 /// potential matrices restricted to the batch's functions.
-fn xc_batch(basis: &Basis, f: Functional, da: &Matrix, db: &Matrix, pts: &[[f64; 3]], ws: &[f64], funcs: &[usize]) -> (f64, Vec<f64>, Vec<f64>) {
+///
+/// Organised as dense products over the whole batch — basis values `Phi`
+/// (`points x k`), `X = Phi D`, then `V += Phi^T A + A^T Phi` — rather than
+/// point by point. The arithmetic is the same; done as matrix-matrix work the
+/// inner loops are contiguous and vectorise.
+fn xc_batch(basis: &Basis, f: Functional, da: &Matrix, db: &Matrix, pts: &[[f64; 3]], ws: &[f64], funcs: &[usize], shells: &[usize]) -> (f64, Vec<f64>, Vec<f64>) {
     let n = basis.size;
     let k = funcs.len();
+    let b = pts.len();
     let grad = f.needs_gradient();
-    // Densities restricted to the batch's functions.
     let mut sa = vec![0.0; k * k];
     let mut sb = vec![0.0; k * k];
     for (i, &fi) in funcs.iter().enumerate() {
@@ -442,80 +486,66 @@ fn xc_batch(basis: &Basis, f: Functional, da: &Matrix, db: &Matrix, pts: &[[f64;
             sb[i * k + j] = db.a[fi * n + fj];
         }
     }
-    let mut va = vec![0.0; k * k];
-    let mut vb = vec![0.0; k * k];
+    // Basis values and gradients over the batch.
+    let mut phi = vec![0.0; b * k];
+    let mut gx = vec![0.0; b * k];
+    let mut gy = vec![0.0; b * k];
+    let mut gz = vec![0.0; b * k];
+    let mut g3 = vec![0.0; 3 * k];
+    for (p, pt) in pts.iter().enumerate() {
+        super::values::at_shells(basis, shells, *pt, &mut phi[p * k..p * k + k], if grad { Some(&mut g3) } else { None });
+        if grad {
+            for i in 0..k {
+                gx[p * k + i] = g3[3 * i];
+                gy[p * k + i] = g3[3 * i + 1];
+                gz[p * k + i] = g3[3 * i + 2];
+            }
+        }
+    }
+    let mut xa = vec![0.0; b * k];
+    let mut xb = vec![0.0; b * k];
+    rows_times(&phi, &sa, b, k, &mut xa);
+    rows_times(&phi, &sb, b, k, &mut xb);
+    let dotk = |u: &[f64], v: &[f64]| u.iter().zip(v).map(|(a, b)| a * b).sum::<f64>();
     let mut exc = 0.0;
-    let mut phi_all = vec![0.0; n];
-    let mut dphi_all = vec![0.0; 3 * n];
-    let mut phi = vec![0.0; k];
-    let mut dphi = vec![0.0; 3 * k];
-    let mut xa = vec![0.0; k];
-    let mut xb = vec![0.0; k];
-    let mut aa = vec![0.0; k];
-    let mut ab = vec![0.0; k];
-    let dot = |u: [f64; 3], v: [f64; 3]| u[0] * v[0] + u[1] * v[1] + u[2] * v[2];
-    for (p, &w) in pts.iter().zip(ws) {
-        at(basis, *p, &mut phi_all, if grad { Some(&mut dphi_all) } else { None });
-        for (i, &fi) in funcs.iter().enumerate() {
-            phi[i] = phi_all[fi];
-            if grad {
-                dphi[3 * i] = dphi_all[3 * fi];
-                dphi[3 * i + 1] = dphi_all[3 * fi + 1];
-                dphi[3 * i + 2] = dphi_all[3 * fi + 2];
-            }
-        }
-        for i in 0..k {
-            let (ra, rb) = (&sa[i * k..i * k + k], &sb[i * k..i * k + k]);
-            let (mut x, mut y) = (0.0, 0.0);
-            for j in 0..k {
-                x += ra[j] * phi[j];
-                y += rb[j] * phi[j];
-            }
-            xa[i] = x;
-            xb[i] = y;
-        }
-        let (mut ra, mut rb) = (0.0, 0.0);
-        let (mut ga, mut gb) = ([0.0; 3], [0.0; 3]);
-        for i in 0..k {
-            ra += phi[i] * xa[i];
-            rb += phi[i] * xb[i];
-            if grad {
-                for d in 0..3 {
-                    ga[d] += 2.0 * dphi[3 * i + d] * xa[i];
-                    gb[d] += 2.0 * dphi[3 * i + d] * xb[i];
-                }
-            }
-        }
+    let mut aa = vec![0.0; b * k];
+    let mut ab = vec![0.0; b * k];
+    for p in 0..b {
+        let r = p * k..p * k + k;
+        let ra = dotk(&phi[r.clone()], &xa[r.clone()]);
+        let rb = dotk(&phi[r.clone()], &xb[r.clone()]);
         if ra + rb < 1e-14 {
             continue;
         }
+        let (mut ga, mut gb) = ([0.0; 3], [0.0; 3]);
+        if grad {
+            for (d, g) in [&gx, &gy, &gz].iter().enumerate() {
+                ga[d] = 2.0 * dotk(&g[r.clone()], &xa[r.clone()]);
+                gb[d] = 2.0 * dotk(&g[r.clone()], &xb[r.clone()]);
+            }
+        }
+        let dot = |u: [f64; 3], v: [f64; 3]| u[0] * v[0] + u[1] * v[1] + u[2] * v[2];
         let (e, de) = evaluate(f, ra, rb, dot(ga, ga), dot(ga, gb), dot(gb, gb));
+        let w = ws[p];
         exc += w * e;
         let wa = [2.0 * de[2] * ga[0] + de[3] * gb[0], 2.0 * de[2] * ga[1] + de[3] * gb[1], 2.0 * de[2] * ga[2] + de[3] * gb[2]];
         let wb = [2.0 * de[4] * gb[0] + de[3] * ga[0], 2.0 * de[4] * gb[1] + de[3] * ga[1], 2.0 * de[4] * gb[2] + de[3] * ga[2]];
         for i in 0..k {
-            let mut a = 0.5 * de[0] * phi[i];
-            let mut b = 0.5 * de[1] * phi[i];
+            let q = p * k + i;
+            let mut a = 0.5 * de[0] * phi[q];
+            let mut c = 0.5 * de[1] * phi[q];
             if grad {
-                let g = [dphi[3 * i], dphi[3 * i + 1], dphi[3 * i + 2]];
-                a += dot(wa, g);
-                b += dot(wb, g);
+                a += wa[0] * gx[q] + wa[1] * gy[q] + wa[2] * gz[q];
+                c += wb[0] * gx[q] + wb[1] * gy[q] + wb[2] * gz[q];
             }
-            aa[i] = w * a;
-            ab[i] = w * b;
-        }
-        for i in 0..k {
-            let (ai, bi, pi) = (aa[i], ab[i], phi[i]);
-            let rowa = &mut va[i * k..i * k + k];
-            for j in 0..k {
-                rowa[j] += ai * phi[j] + pi * aa[j];
-            }
-            let rowb = &mut vb[i * k..i * k + k];
-            for j in 0..k {
-                rowb[j] += bi * phi[j] + pi * ab[j];
-            }
+            aa[q] = w * a;
+            ab[q] = w * c;
         }
     }
+    let mut va = vec![0.0; k * k];
+    let mut vb = vec![0.0; k * k];
+    add_symmetric_products(&phi, &aa, b, k, &mut va);
+    add_symmetric_products(&phi, &ab, b, k, &mut vb);
     (exc, va, vb)
 }
 
@@ -533,11 +563,11 @@ pub fn exchange_correlation(basis: &Basis, batches: &Batches, f: Functional, da:
         let mut va = Matrix::zeros(n);
         let mut vb = Matrix::zeros(n);
         let mut exc = 0.0;
-        for (pts, ws, funcs) in &work[range] {
+        for (pts, ws, funcs, shells) in &work[range] {
             if funcs.is_empty() {
                 continue;
             }
-            let (e, a, b) = xc_batch(basis, f, da, db, pts, ws, funcs);
+            let (e, a, b) = xc_batch(basis, f, da, db, pts, ws, funcs, shells);
             exc += e;
             let k = funcs.len();
             for (i, &fi) in funcs.iter().enumerate() {
@@ -610,7 +640,7 @@ pub fn solve(problem: &Problem, max_iterations: usize, tolerance: f64) -> Soluti
     timing[0] = clock.elapsed().as_secs_f64();
     let clock = std::time::Instant::now();
     let atoms: Vec<([f64; 3], f64)> = problem.nuclei.iter().zip(&problem.sizes).map(|((_, p), r)| (*p, *r)).collect();
-    let grid = molecular(&atoms, problem.radial, problem.theta);
+    let grid = super::grid::molecular_pruned(&atoms, problem.radial, problem.theta, problem.prune);
     let batches = Batches::new(basis, &grid);
     timing[1] = clock.elapsed().as_secs_f64();
     let mut e_nn = 0.0;
