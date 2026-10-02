@@ -496,6 +496,36 @@ fn candidates(mol: &Molecule, ladders: &[Ladder], chosen: &[Rung]) -> (Vec<Rung>
     (rungs, shells)
 }
 
+/// Which atoms are the same as which: a class number per atom, equal for
+/// atoms of one element whose distances to every other atom (each with its
+/// element) agree to the length tolerance. Water's two hydrogens are one class;
+/// a relaxed molecule is symmetric only to the relaxation's residual, so
+/// "agree" is to the tolerance rather than exactly.
+pub fn equivalent_atoms(mol: &Molecule) -> Vec<usize> {
+    let n = mol.z.len();
+    let signature = |a: usize| {
+        let mut d: Vec<(u32, f64)> = (0..n).filter(|&b| b != a).map(|b| (mol.z[b], norm(sub(mol.positions[a], mol.positions[b])))).collect();
+        d.sort_by(|x, y| x.0.cmp(&y.0).then(x.1.total_cmp(&y.1)));
+        d
+    };
+    let sigs: Vec<Vec<(u32, f64)>> = (0..n).map(signature).collect();
+    let mut class = vec![usize::MAX; n];
+    let mut next = 0;
+    for a in 0..n {
+        if class[a] != usize::MAX {
+            continue;
+        }
+        class[a] = next;
+        for b in a + 1..n {
+            if class[b] == usize::MAX && mol.z[a] == mol.z[b] && sigs[a].iter().zip(&sigs[b]).all(|(x, y)| x.0 == y.0 && (x.1 - y.1).abs() <= LENGTH_TOLERANCE * x.1.max(y.1)) {
+                class[b] = next;
+            }
+        }
+        next += 1;
+    }
+    class
+}
+
 /// The candidates a round would consider, exposed for the tests.
 pub fn candidates_for_test(mol: &Molecule, ladders: &[Ladder], chosen: &[Rung]) -> (Vec<Rung>, Vec<Shell>) {
     candidates(mol, ladders, chosen)
@@ -579,30 +609,34 @@ pub fn grow_reporting(start: &Molecule, bonds: &[(usize, usize)], f: Functional,
             converged = true;
             break;
         }
-        // The best `picks` distinct candidates, each with any symmetry partner
-        // (same element, angular momentum and exponent, and the same predicted
-        // effect to a part in a thousand).
-        let key = |i: usize| {
-            let lad = &lads[rungs[i].ladder];
-            (mol.z[lad.atom], lad.l, lad.exponent(rungs[i].k), score(&pred[i]))
-        };
-        let same = |a: (u32, usize, f64, f64), b: (u32, usize, f64, f64)| a.0 == b.0 && a.1 == b.1 && (a.2 / b.2 - 1.0).abs() < 1e-9 && (a.3 - b.3).abs() <= 1e-3 * a.3.max(b.3);
-        let mut groups: Vec<(u32, usize, f64, f64)> = Vec::new();
-        let mut added = Vec::new();
+        // The best `picks` distinct candidates, each added on every atom
+        // equivalent to its own, so a symmetric molecule stays symmetric.
+        let class = equivalent_atoms(&mol);
+        let mut groups: Vec<(usize, usize, i32)> = Vec::new();
+        let mut added: Vec<Rung> = Vec::new();
         for &i in &order {
-            let k = key(i);
-            if k.3 <= 0.0 {
+            if score(&pred[i]) <= 0.0 {
                 break;
             }
-            if !groups.iter().any(|g| same(*g, k)) {
-                if groups.len() >= picks {
-                    break;
-                }
-                groups.push(k);
+            let lad = lads[rungs[i].ladder].clone();
+            let group = (class[lad.atom], lad.l, rungs[i].k);
+            if groups.contains(&group) {
+                continue;
             }
-            added.push(rungs[i]);
+            if groups.len() >= picks {
+                break;
+            }
+            groups.push(group);
+            for (li, other) in lads.iter().enumerate() {
+                if other.l == lad.l && class[other.atom] == class[lad.atom] && (other.exponent(rungs[i].k) / lad.exponent(rungs[i].k) - 1.0).abs() < 1e-9 {
+                    let r = Rung { ladder: li, k: rungs[i].k };
+                    if !chosen.contains(&r) && !added.contains(&r) {
+                        added.push(r);
+                    }
+                }
+            }
         }
-        let predicted: Vec<f64> = (0..coords.len()).map(|c| added.iter().map(|r| pred[rungs.iter().position(|x| x == r).expect("added from the list")][c]).sum()).collect();
+        let predicted: Vec<f64> = (0..coords.len()).map(|c| added.iter().filter_map(|r| rungs.iter().position(|x| x == r)).map(|i| pred[i][c]).sum()).collect();
         rounds.push(Round { functions, energy: s0.energy, values, added: added.clone(), predicted, left });
         report(rounds.last().expect("just pushed"), &coords);
         if added.is_empty() {

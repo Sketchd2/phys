@@ -80,3 +80,22 @@ fn the_cheap_estimate_tracks_adding_a_function_and_solving() {
         assert!(est[i] / actual < 2.5 && est[i] / actual > 0.4, "estimate {} against {}", est[i], actual);
     }
 }
+
+/// Water's two hydrogens are one class and its oxygen another; stretch one
+/// bond past the length tolerance and they are no longer the same.
+#[test]
+fn equivalent_atoms_are_found_from_the_geometry() {
+    use phys::electrons::grow::equivalent_atoms;
+    let w = water(0.97, 104.2);
+    let c = equivalent_atoms(&w);
+    assert_eq!(c[1], c[2]);
+    assert_ne!(c[0], c[1]);
+    let mut bent = w.clone();
+    bent.positions[1][0] *= 1.002;
+    let c = equivalent_atoms(&bent);
+    assert_ne!(c[1], c[2], "a 0.2% longer bond is a different hydrogen");
+    let mut nearly = w.clone();
+    nearly.positions[1][0] *= 1.0002;
+    let c = equivalent_atoms(&nearly);
+    assert_eq!(c[1], c[2], "a 0.02% difference is inside the tolerance");
+}
