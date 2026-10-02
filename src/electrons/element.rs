@@ -132,7 +132,7 @@ pub const CONTRACTION_TOLERANCE: f64 = 1e-4;
 
 /// How closely a contracted polarisation set must reproduce the ions'
 /// response to a field, relatively.
-pub const POLARISATION_TOLERANCE: f64 = 1e-2;
+pub const POLARISATION_TOLERANCE: f64 = 1e-3;
 
 /// An even-tempered range: the most diffuse exponent, the ratio, the count.
 #[derive(Debug, Clone, Copy, PartialEq)]

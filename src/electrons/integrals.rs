@@ -75,19 +75,30 @@ impl Hermite {
 /// Hermite Coulomb integrals `R^0_tuv(p, PC)` for `t + u + v <= lmax`, flat as
 /// `[(t * (lmax+1) + u) * (lmax+1) + v]`.
 pub(crate) fn hermite_coulomb(lmax: usize, p: f64, pc: [f64; 3]) -> Vec<f64> {
+    let mut scratch = Vec::new();
+    let mut out = Vec::new();
+    hermite_coulomb_into(lmax, p, pc, &mut scratch, &mut out);
+    out
+}
+
+/// As [`hermite_coulomb`], into `out`, with `scratch` reused between calls:
+/// this runs once per primitive quartet, and allocating two vectors each time
+/// was a measurable part of building the integrals.
+pub(crate) fn hermite_coulomb_into(lmax: usize, p: f64, pc: [f64; 3], scratch: &mut Vec<f64>, out: &mut Vec<f64>) {
     let n1 = lmax + 1;
     let r2 = pc[0] * pc[0] + pc[1] * pc[1] + pc[2] * pc[2];
-    let mut f = vec![0.0; n1];
-    boys(lmax, p * r2, &mut f);
-    // r[n][t][u][v]
+    let mut f = [0.0f64; 32];
+    boys(lmax, p * r2, &mut f[..n1]);
     let at = |n: usize, t: usize, u: usize, v: usize| ((n * n1 + t) * n1 + u) * n1 + v;
-    let mut r = vec![0.0; n1 * n1 * n1 * n1];
+    let need = n1 * n1 * n1 * n1;
+    scratch.clear();
+    scratch.resize(need, 0.0);
+    let r = scratch;
     let mut m2p = 1.0;
     for n in 0..=lmax {
         r[at(n, 0, 0, 0)] = m2p * f[n];
         m2p *= -2.0 * p;
     }
-    // Build down from n = lmax: level n needs t+u+v <= lmax - n.
     for n in (0..lmax).rev() {
         let top = lmax - n;
         for t in 0..=top {
@@ -111,11 +122,12 @@ pub(crate) fn hermite_coulomb(lmax: usize, p: f64, pc: [f64; 3]) -> Vec<f64> {
             }
         }
     }
-    r[..n1 * n1 * n1].to_vec()
+    out.clear();
+    out.extend_from_slice(&r[..n1 * n1 * n1]);
 }
 
 /// A primitive pair: the Hermite tables and the product's exponent and centre.
-struct Pair {
+pub(crate) struct Pair {
     p: f64,
     /// The second shell's exponent, which the kinetic integral needs.
     beta: f64,
@@ -126,7 +138,7 @@ struct Pair {
     hz: Hermite,
 }
 
-fn pairs(a: &Shell, b: &Shell, extra_j: usize) -> Vec<Pair> {
+pub(crate) fn pairs(a: &Shell, b: &Shell, extra_j: usize) -> Vec<Pair> {
     let ab = [a.centre[0] - b.centre[0], a.centre[1] - b.centre[1], a.centre[2] - b.centre[2]];
     let mut out = Vec::with_capacity(a.exponents.len() * b.exponents.len());
     for (ea, ca) in a.exponents.iter().zip(&a.coefficients) {
@@ -231,18 +243,24 @@ pub fn one_electron(basis: &Basis, nuclei: &[(f64, [f64; 3])]) -> (Matrix, Matri
 /// The electron-repulsion block `(ab|cd)` for four shells, in chemists'
 /// notation, flat over `[ka][kb][kc][kd]` components.
 pub fn eri_block(a: &Shell, b: &Shell, c: &Shell, d: &Shell) -> Vec<f64> {
+    eri_from_pairs(&pairs(a, b, 0), &pairs(c, d, 0), [a.l, b.l, c.l, d.l])
+}
+
+/// As [`eri_block`], from primitive pairs already built — so that one bra pair
+/// against many kets builds its Hermite tables once, not once per ket.
+pub(crate) fn eri_from_pairs(bra: &[Pair], ket: &[Pair], ls: [usize; 4]) -> Vec<f64> {
     let pi = std::f64::consts::PI;
-    let (ca, cb, cc, cd) = (components(a.l), components(b.l), components(c.l), components(d.l));
-    let bra = pairs(a, b, 0);
-    let ket = pairs(c, d, 0);
-    let ltot = a.l + b.l + c.l + d.l;
+    let (ca, cb, cc, cd) = (components(ls[0]), components(ls[1]), components(ls[2]), components(ls[3]));
+    let ltot = ls[0] + ls[1] + ls[2] + ls[3];
     let w = ltot + 1;
     let mut out = vec![0.0; ca.len() * cb.len() * cc.len() * cd.len()];
-    for p in &bra {
-        for q in &ket {
+    let mut scratch = Vec::new();
+    let mut r = Vec::new();
+    for p in bra {
+        for q in ket {
             let alpha = p.p * q.p / (p.p + q.p);
             let pq = [p.centre[0] - q.centre[0], p.centre[1] - q.centre[1], p.centre[2] - q.centre[2]];
-            let r = hermite_coulomb(ltot, alpha, pq);
+            hermite_coulomb_into(ltot, alpha, pq, &mut scratch, &mut r);
             let pre = 2.0 * pi.powf(2.5) / (p.p * q.p * (p.p + q.p).sqrt()) * p.coef * q.coef;
             let mut o = 0;
             for x in &ca {
@@ -296,13 +314,12 @@ pub fn eri_block(a: &Shell, b: &Shell, c: &Shell, d: &Shell) -> Vec<f64> {
             }
         }
     }
-    // Component normalisation.
     let mut o = 0;
     for x in &ca {
         for y in &cb {
             for z in &cc {
                 for wv in &cd {
-                    out[o] *= component_scale(a.l, *x) * component_scale(b.l, *y) * component_scale(c.l, *z) * component_scale(d.l, *wv);
+                    out[o] *= component_scale(ls[0], *x) * component_scale(ls[1], *y) * component_scale(ls[2], *z) * component_scale(ls[3], *wv);
                     o += 1;
                 }
             }

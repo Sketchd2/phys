@@ -218,13 +218,16 @@ impl Fitted {
             let r2: f64 = (0..3).map(|d| (sa.centre[d] - sb.centre[d]).powi(2)).sum();
             sa.exponents.iter().any(|x| sb.exponents.iter().any(|y| (-(x * y) / (x + y) * r2).exp() > 1e-14))
         }).collect();
+        // Each auxiliary shell's pair with the unit function, built once.
+        let kets: Vec<Vec<super::integrals::Pair>> = aux.shells.iter().map(|p| super::integrals::pairs(p, &unit, 0)).collect();
         let job = |range: std::ops::Range<usize>| {
             let mut out: Vec<(usize, usize, Vec<f64>)> = Vec::new();
             for &(a, b) in &pairs[range] {
                 let (sa, sb) = (&shells[a], &shells[b]);
+                let bra = super::integrals::pairs(sa, sb, 0);
                 let mut vals = vec![vec![0.0; na]; sa.size() * sb.size()];
                 for (ip, p) in aux.shells.iter().enumerate() {
-                    let block = eri_block(sa, sb, p, &unit);
+                    let block = super::integrals::eri_from_pairs(&bra, &kets[ip], [sa.l, sb.l, p.l, 0]);
                     for i in 0..sa.size() {
                         for j in 0..sb.size() {
                             for k in 0..p.size() {
