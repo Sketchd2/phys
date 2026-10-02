@@ -3645,7 +3645,20 @@ the start of the phase, ahead of the renderer**. In order:
      the 45-molecule set at that cost per atom is hours to days.
      *Where the error is:* at PySCF's geometry the engine's force is 1.0e-3
      Ha/bohr whether the grid is 70/16 pruned or 100/24 full, so it is not the
-     grid; it is the size of both optimisers' stopping thresholds. Against
+     grid. *Corrected:* this was first put down to both optimisers' stopping
+     thresholds, which was wrong — with PySCF's thresholds at 1e-5 its
+     optimum stays at 0.96912 A, and the engine stopped at a residual worth
+     1e-4 A. PySCF given the engine's own derived basis computes -1.08e-3
+     Ha/bohr there (the engine -1.01e-3); aug-cc-pVQZ -2.7e-5 and
+     aug-cc-pV5Z +1.2e-4. So the engine's PBE is right and **its derived
+     basis puts the bond 0.10% long**: an energy between quadruple and
+     quintuple zeta (-76.387738 against -76.386477 and -76.388278, exact
+     Coulomb), but a force 40x further from zero than quadruple zeta's,
+     because the basis was derived on the free atom's energy and that does
+     not converge a bond. PBE's own basis convergence (PySCF, water, r A /
+     angle): cc-pVDZ 0.97701 / 101.67, aug-cc-pVDZ 0.97321 / 103.81, cc-pVTZ
+     0.96970 / 103.53, aug-cc-pVTZ 0.97027 / 104.16, cc-pVQZ 0.96873 /
+     103.91, aug-cc-pVQZ 0.96912 / 104.19. Against
      experiment the functional dominates, measured in PySCF on the same
      water (r A, angle deg): PBE 0.9691, 104.20; PBE0 0.9578, 104.79; SCAN
      0.9585, 104.92; CCSD(T)/aug-cc-pVTZ frozen core 0.9616, 104.18;
@@ -3688,6 +3701,16 @@ the start of the phase, ahead of the renderer**. In order:
      energy 6e-8 (a better fit, which in the Coulomb metric can only raise
      it). *Read as in scope:* the 45 molecules, which reach octane (26
      atoms) and chlorine; "larger molecules" as those beyond the set.
+     *Measured after:* water relaxes in 67 s (was 1080), seven steps, the
+     same shape. One step on ethanol (9 atoms, 602 functions, 2811
+     auxiliary) is 326 s and on benzene (12 atoms, 840 and 4254) 1116 s, of
+     which exchange-correlation is about half and the dense algebra on the
+     auxiliary and orbital matrices most of the rest. The derived sets are
+     54 functions for H, 86 for C and 106 for O, larger than aug-cc-pVQZ's
+     (46, 80, 80): at ten to twenty steps a relaxation, benzene is hours and
+     octane far more. **Open, the owner's:** what a basis is derived
+     against — the free atom's energy, as now, is both larger than a bond
+     needs for its cost and, on water, not enough for its length.
    - **E6, properties.** Dipole, Hirshfeld partition (in-molecule volumes,
      charges), polarisability. Done when dipoles match experiment.
    - **E7, dispersion.** PBE has none at long range. **Open, the owner's:**
