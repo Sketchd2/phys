@@ -51,6 +51,7 @@ pub mod coords;
 pub mod crossing;
 pub mod dilation;
 pub mod engine;
+pub mod electrons;
 pub mod eos;
 pub mod erode;
 pub mod ids;

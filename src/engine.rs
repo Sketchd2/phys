@@ -7376,7 +7376,6 @@ impl World {
         if !(solid_volume > 0.0) || !(g > 0.0) {
             return false;
         }
-        let grain_density = solid_mass / solid_volume;
         // Packing is a ratio of two densities and has to be taken at one
         // temperature: `material.density` is the reference temperature's.
         let packing = (material.density / (solid_mass / solid_volume_ref)).clamp(1e-3, crate::erode::CLOSE_PACKING);

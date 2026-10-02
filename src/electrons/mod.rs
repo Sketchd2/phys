@@ -1,0 +1,15 @@
+//! Electrons in molecules: the electronic-structure route of `docs/PLAY.md`
+//! Phase 6, item 2.
+//!
+//! What a substance does in bulk — how it boils, how dense it is, how it bends
+//! light — is set by its electrons, and the engine had no way to ask them. This
+//! module is that way: density-functional theory, solved once per substance when
+//! it is interned and stored as the substance's shortcut, from the Schrodinger
+//! equation, a non-empirical functional, and a basis the engine derives itself.
+//!
+//! Atomic units throughout (bohr, hartree), converted at the boundary.
+
+pub mod basis;
+pub mod boys;
+pub mod integrals;
+pub mod linalg;

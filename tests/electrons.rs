@@ -1,0 +1,278 @@
+//! The electronic-structure numerics (`docs/PLAY.md` Phase 6, stage E1),
+//! against results that are exact.
+
+use phys::electrons::basis::{Basis, Shell};
+use phys::electrons::boys::boys;
+use phys::electrons::integrals::{eri_block, one_electron};
+use phys::electrons::linalg::{eigh, generalised, orthogonaliser, Matrix};
+
+const PI: f64 = std::f64::consts::PI;
+
+/// `F_n(T)` by direct quadrature, Simpson's rule on a fine grid.
+fn boys_by_quadrature(n: usize, t: f64) -> f64 {
+    let m = 200_000;
+    let h = 1.0 / m as f64;
+    let f = |x: f64| x.powi(2 * n as i32) * (-t * x * x).exp();
+    let mut s = f(0.0) + f(1.0);
+    for k in 1..m {
+        s += f(k as f64 * h) * if k % 2 == 1 { 4.0 } else { 2.0 };
+    }
+    s * h / 3.0
+}
+
+#[test]
+fn the_boys_function_is_the_integral_it_names() {
+    let mut worst: f64 = 0.0;
+    let mut out = [0.0; 13];
+    for &t in &[0.0, 1e-9, 0.3, 1.0, 7.5, 24.0, 49.9, 50.1, 120.0] {
+        boys(12, t, &mut out);
+        for n in 0..=12 {
+            let q = boys_by_quadrature(n, t);
+            let e = (out[n] - q).abs() / q.max(1e-300);
+            worst = worst.max(e);
+        }
+    }
+    println!("  F_0..F_12 over T in [0, 120]: worst relative error {worst:.2e}");
+    assert!(worst < 1e-10, "{worst}");
+}
+
+/// One normalised Gaussian on a proton: `E(a) = 3a/2 - 2 sqrt(2a/pi)`, least at
+/// `a = 8/(9 pi)` where it is `-4/(3 pi)`.
+#[test]
+fn one_gaussian_on_a_proton() {
+    let a = 8.0 / (9.0 * PI);
+    let basis = Basis::new(vec![Shell::primitive([0.0; 3], 0, a)]);
+    let (s, t, v) = one_electron(&basis, &[(1.0, [0.0; 3])]);
+    let e = t.get(0, 0) + v.get(0, 0);
+    println!("  S = {:.15}, E = {e:.15} against {:.15}", s.get(0, 0), -4.0 / (3.0 * PI));
+    assert!((s.get(0, 0) - 1.0).abs() < 1e-14);
+    assert!((t.get(0, 0) - 1.5 * a).abs() < 1e-14);
+    assert!((e + 4.0 / (3.0 * PI)).abs() < 1e-14);
+}
+
+fn even_tempered(centre: [f64; 3], l: usize, first: f64, ratio: f64, count: usize) -> Vec<Shell> {
+    (0..count).map(|k| Shell::primitive(centre, l, first * ratio.powi(k as i32))).collect()
+}
+
+fn lowest(basis: &Basis, nuclei: &[(f64, [f64; 3])]) -> (f64, usize) {
+    let (s, t, v) = one_electron(basis, nuclei);
+    let mut h = t.clone();
+    for k in 0..h.a.len() {
+        h.a[k] += v.a[k];
+    }
+    let (x, m) = orthogonaliser(&s, 1e-9);
+    let (e, _) = generalised(&h, &x, m);
+    (e[0], m)
+}
+
+/// The hydrogen atom, whose ground state is exactly -1/2 hartree, in an
+/// even-tempered set of s Gaussians.
+#[test]
+fn the_hydrogen_atom_converges_to_a_half() {
+    for count in [8, 14, 20, 26] {
+        let basis = Basis::new(even_tempered([0.0; 3], 0, 0.01, 2.5, count));
+        let (e, m) = lowest(&basis, &[(1.0, [0.0; 3])]);
+        println!("  {count:2} s functions ({m} kept): E = {e:.10}, error {:.2e}", e + 0.5);
+        if count == 26 {
+            assert!((e + 0.5).abs() < 1e-6, "{e}");
+        }
+    }
+}
+
+/// Two Gaussian charge clouds of unit charge repel exactly as
+/// `erf(sqrt(g) R) / R`, `g = 2a 2c / (2a + 2c)`.
+#[test]
+fn two_gaussian_charges_repel_by_coulombs_law() {
+    let (a, c) = (0.8, 1.7);
+    for r in [0.0, 0.4, 1.3, 6.0] {
+        let sa = Shell::primitive([0.0; 3], 0, a);
+        let sc = Shell::primitive([0.0, 0.0, r], 0, c);
+        let j = eri_block(&sa, &sa, &sc, &sc)[0];
+        let g: f64 = (2.0 * a) * (2.0 * c) / (2.0 * a + 2.0 * c);
+        let exact = if r == 0.0 { 2.0 * (g / PI).sqrt() } else { erf(g.sqrt() * r) / r };
+        println!("  R = {r}: (aa|cc) = {j:.14} against {exact:.14}");
+        assert!((j - exact).abs() < 1e-12);
+    }
+}
+
+/// erf by its Taylor series (small argument) and continued-fraction tail.
+fn erf(x: f64) -> f64 {
+    if x < 3.0 {
+        let mut term = x;
+        let mut sum = x;
+        let mut n = 0;
+        loop {
+            n += 1;
+            term *= -x * x / n as f64;
+            let add = term / (2 * n + 1) as f64;
+            sum += add;
+            if add.abs() < 1e-18 {
+                break;
+            }
+        }
+        2.0 / PI.sqrt() * sum
+    } else {
+        // erfc by Lentz continued fraction.
+        let mut f = x;
+        let mut c = x;
+        let mut d = 0.0;
+        for k in 1..300 {
+            let an = k as f64 / 2.0;
+            d = x + an * d;
+            d = 1.0 / d;
+            c = x + an / c;
+            let delta = c * d;
+            f *= delta;
+            if (delta - 1.0).abs() < 1e-16 {
+                break;
+            }
+        }
+        1.0 - (-x * x).exp() / PI.sqrt() / f
+    }
+}
+
+/// Permutational symmetry of `(ab|cd)` with `p` and `d` shells, which is where a
+/// slip in the Hermite recursion would show.
+#[test]
+fn electron_repulsion_has_its_eightfold_symmetry() {
+    let a = Shell::primitive([0.1, -0.2, 0.3], 1, 0.9);
+    let b = Shell::primitive([1.0, 0.4, -0.5], 2, 0.6);
+    let c = Shell::primitive([-0.7, 0.2, 0.8], 1, 1.3);
+    let d = Shell::primitive([0.3, -1.1, 0.0], 0, 0.45);
+    let abcd = eri_block(&a, &b, &c, &d);
+    let bacd = eri_block(&b, &a, &c, &d);
+    let cdab = eri_block(&c, &d, &a, &b);
+    let (na, nb, nc, nd) = (a.size(), b.size(), c.size(), d.size());
+    let mut worst: f64 = 0.0;
+    for i in 0..na {
+        for j in 0..nb {
+            for k in 0..nc {
+                for l in 0..nd {
+                    let x = abcd[((i * nb + j) * nc + k) * nd + l];
+                    let y = bacd[((j * na + i) * nc + k) * nd + l];
+                    let z = cdab[((k * nd + l) * na + i) * nb + j];
+                    worst = worst.max((x - y).abs()).max((x - z).abs());
+                }
+            }
+        }
+    }
+    println!("  (pd|ps) against (dp|ps) and (ps|pd): worst {worst:.2e}");
+    assert!(worst < 1e-13);
+}
+
+fn rotate(p: [f64; 3], r: &[[f64; 3]; 3]) -> [f64; 3] {
+    [
+        r[0][0] * p[0] + r[0][1] * p[1] + r[0][2] * p[2],
+        r[1][0] * p[0] + r[1][1] * p[1] + r[1][2] * p[2],
+        r[2][0] * p[0] + r[2][1] * p[1] + r[2][2] * p[2],
+    ]
+}
+
+/// A molecule turned in space has the same spectrum. Cartesian shells span
+/// rotations of themselves, so every level of the one-electron Hamiltonian in
+/// the overlap's metric must be identical before and after.
+///
+/// Not the overlap's own eigenvalues: the change of basis a rotation makes
+/// among Cartesian `d` functions is not orthogonal (`xx` and `xy` normalise
+/// differently), so those move — by 0.31 here — while the physics does not. The
+/// first version of this test asserted that and failed for exactly that reason.
+#[test]
+fn turning_the_molecule_changes_nothing() {
+    let atoms = [(8.0, [0.0, 0.0, 0.0]), (1.0, [0.0, 1.43, 1.1]), (1.0, [0.0, -1.43, 1.1])];
+    let build = |rot: &[[f64; 3]; 3]| {
+        let mut shells = Vec::new();
+        let mut nuclei = Vec::new();
+        for (z, p) in atoms {
+            let q = rotate(p, rot);
+            nuclei.push((z, q));
+            for l in 0..=2 {
+                for e in [0.3, 1.1, 4.0] {
+                    shells.push(Shell::primitive(q, l, e));
+                }
+            }
+        }
+        let basis = Basis::new(shells);
+        let (s, t, v) = one_electron(&basis, &nuclei);
+        let mut h = t.clone();
+        for k in 0..h.a.len() {
+            h.a[k] += v.a[k];
+        }
+        let (x, m) = orthogonaliser(&s, 1e-9);
+        (generalised(&h, &x, m).0, h)
+    };
+    let (c, s) = (0.6f64.cos(), 0.6f64.sin());
+    let (c2, s2) = (1.1f64.cos(), 1.1f64.sin());
+    let rx = [[1.0, 0.0, 0.0], [0.0, c, -s], [0.0, s, c]];
+    let rz = [[c2, -s2, 0.0], [s2, c2, 0.0], [0.0, 0.0, 1.0]];
+    let mut r = [[0.0; 3]; 3];
+    for i in 0..3 {
+        for j in 0..3 {
+            for k in 0..3 {
+                r[i][j] += rz[i][k] * rx[k][j];
+            }
+        }
+    }
+    let id = [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]];
+    let (e0, h0) = build(&id);
+    let (e1, _) = build(&r);
+    assert_eq!(e0.len(), e1.len());
+    let worst = e0.iter().zip(&e1).map(|(a, b)| (a - b).abs() / a.abs().max(1.0)).fold(0.0, f64::max);
+    println!("  {} one-electron levels, lowest {:.12}; turned, the worst moved {worst:.2e}", e0.len(), e0[0]);
+    assert!(h0.asymmetry() < 1e-12, "the Hamiltonian is symmetric");
+    assert!(worst < 1e-9);
+}
+
+/// H2+ at 2 bohr: one electron, two protons, and an exact electronic energy of
+/// -1.1026342144949 hartree (Bates, Ledsham and Stewart; Peek).
+#[test]
+fn the_hydrogen_molecular_ion() {
+    let centres = [[0.0, 0.0, -1.0], [0.0, 0.0, 1.0]];
+    let nuclei: Vec<(f64, [f64; 3])> = centres.iter().map(|c| (1.0, *c)).collect();
+    let mut last = 0.0;
+    for (ns, np, nd) in [(10, 0, 0), (14, 4, 0), (18, 6, 4)] {
+        let mut shells = Vec::new();
+        for c in centres {
+            shells.extend(even_tempered(c, 0, 0.02, 2.6, ns));
+            shells.extend(even_tempered(c, 1, 0.1, 2.6, np));
+            shells.extend(even_tempered(c, 2, 0.2, 2.6, nd));
+        }
+        let basis = Basis::new(shells);
+        let (e, m) = lowest(&basis, &nuclei);
+        println!("  s{ns} p{np} d{nd} per centre ({} functions, {m} kept): E = {e:.10}, error {:.2e}", basis.size, e + 1.1026342144949);
+        last = e;
+    }
+    assert!((last + 1.1026342144949).abs() < 2e-4, "{last}");
+    assert!(last > -1.1026342144949 - 1e-9, "variational: a basis can only lie above the exact answer");
+}
+
+#[test]
+fn the_eigensolver_solves() {
+    // A random symmetric matrix: A v = l v for every pair, and V orthonormal.
+    let n = 40;
+    let mut m = Matrix::zeros(n);
+    let mut x: u64 = 12345;
+    for i in 0..n {
+        for j in 0..=i {
+            x = x.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+            let v = ((x >> 11) as f64 / (1u64 << 53) as f64) - 0.5;
+            m.set(i, j, v);
+            m.set(j, i, v);
+        }
+    }
+    let (vals, vecs) = eigh(&m);
+    let mut worst: f64 = 0.0;
+    for k in 0..n {
+        for i in 0..n {
+            let mut av = 0.0;
+            for j in 0..n {
+                av += m.get(i, j) * vecs.get(j, k);
+            }
+            worst = worst.max((av - vals[k] * vecs.get(i, k)).abs());
+        }
+    }
+    let vtv = vecs.transpose().mul(&vecs);
+    let ortho = (0..n * n).map(|k| (vtv.a[k] - if k % (n + 1) == 0 { 1.0 } else { 0.0 }).abs()).fold(0.0, f64::max);
+    println!("  40x40: residual {worst:.2e}, orthonormality {ortho:.2e}");
+    assert!(worst < 1e-12 && ortho < 1e-12);
+    assert!(vals.windows(2).all(|w| w[0] <= w[1]));
+}
