@@ -57,6 +57,13 @@ pub struct Solution {
     /// Seconds spent: one-electron and repulsion integrals, building the grid,
     /// Coulomb builds, exchange-correlation builds, diagonalisation.
     pub timing: [f64; 5],
+    /// Each iteration's energy and largest commutator error, for diagnosing
+    /// convergence.
+    pub history: Vec<(f64, f64)>,
+    /// Basis functions kept by the orthogonaliser, and the overlap's smallest
+    /// eigenvalue.
+    pub kept: usize,
+    pub smallest_overlap: f64,
 }
 
 /// Electron repulsion, packed by its eightfold symmetry: `(ij|kl)` with
@@ -278,6 +285,9 @@ impl Fitted {
         j
     }
 }
+
+/// A commutator `FDS - SDF` smaller than this is a converged density.
+pub const COMMUTATOR_CONVERGED: f64 = 1e-7;
 
 /// Eigenvalues of the fitting metric below this fraction of the largest are
 /// dropped rather than inverted. See [`Fitted::new`].
@@ -591,6 +601,8 @@ pub fn solve(problem: &Problem, max_iterations: usize, tolerance: f64) -> Soluti
         h.a[k] += v.a[k];
     }
     let (x, m) = orthogonaliser(&s, 1e-8);
+    let smallest_overlap = super::linalg::eigh(&s).0.first().cloned().unwrap_or(0.0);
+    let mut history = Vec::new();
     let eri = match &problem.auxiliary {
         None => Coulomb::Exact(Repulsion::new(basis)),
         Some(aux) => Coulomb::Fitted(Fitted::new(basis, aux, &s)),
@@ -653,7 +665,12 @@ pub fn solve(problem: &Problem, max_iterations: usize, tolerance: f64) -> Soluti
         let mut e = err(&fa, &da);
         e.extend(err(&fb, &db));
         let emax = e.iter().fold(0.0f64, |a, b| a.max(b.abs()));
-        if (energy - last).abs() < tolerance && emax < tolerance.sqrt() {
+        history.push((energy, emax));
+        // Converged when the energy has stopped moving with the commutator
+        // small, or when the commutator alone is negligible: the energy has a
+        // numerical floor near 1e-7 hartree on a finite grid, and water once
+        // spent 68 iterations after converging chasing it below 1e-9.
+        if ((energy - last).abs() < tolerance && emax < tolerance.sqrt()) || emax < COMMUTATOR_CONVERGED {
             converged = true;
             break;
         }
@@ -688,6 +705,9 @@ pub fn solve(problem: &Problem, max_iterations: usize, tolerance: f64) -> Soluti
         exchange_correlation: parts.2,
         nuclear_repulsion: e_nn,
         timing,
+        history,
+        kept: m,
+        smallest_overlap,
     }
 }
 

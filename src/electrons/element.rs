@@ -68,6 +68,11 @@ impl ElementBasis {
     /// even-tempered set spanning the exponents such products have
     /// (`a_i + a_j`), at ratio `AUXILIARY_RATIO`.
     pub fn auxiliary_at(&self, centre: [f64; 3]) -> Vec<super::basis::Shell> {
+        self.auxiliary_up_to(centre, usize::MAX)
+    }
+
+    /// As [`auxiliary_at`], with angular momenta above `cap` left out.
+    pub fn auxiliary_up_to(&self, centre: [f64; 3], cap: usize) -> Vec<super::basis::Shell> {
         let mut prims: Vec<(usize, f64)> = Vec::new();
         for (l, terms) in &self.contracted {
             prims.extend(terms.iter().map(|t| (*l, t.0)));
@@ -77,7 +82,7 @@ impl ElementBasis {
         }
         let lmax = prims.iter().map(|p| p.0).max().unwrap_or(0);
         let mut out = Vec::new();
-        for big_l in 0..=2 * lmax {
+        for big_l in 0..=(2 * lmax).min(cap) {
             let (mut lo, mut hi) = (f64::INFINITY, 0.0f64);
             for &(la, a) in &prims {
                 for &(lb, b) in &prims {
@@ -404,8 +409,9 @@ pub fn derive(z: u32, f: Functional, tolerance: f64) -> ElementBasis {
             k += 1;
         }
         // If every primitive had to be freed the contracted function is an
-        // exact combination of them, and keeping it makes the basis singular:
-        // measured, water then took 87 iterations to converge instead of 20.
+        // exact combination of them and adds nothing but a dependency. (This
+        // was first written as the cause of water's 87 SCF iterations; it was
+        // not — the same run without it took 87 too.)
         if k < exps.len() {
             contracted.push((*channel, shape));
         }
