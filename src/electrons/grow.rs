@@ -210,8 +210,15 @@ fn union_fock(problem: &Problem, solution: &Solution, cands: &[Shell]) -> UnionF
 
 /// Below this fraction of its own norm left once the current functions are
 /// taken out, a candidate is the current space over again, and its estimate is
-/// round-off amplified by normalising what is left.
-const DEPENDENT: f64 = 1e-2;
+/// round-off amplified by normalising what is left. The same level the
+/// solve's own orthogonaliser drops at. It was 1e-2 once, carried over from a
+/// prototype whose bad estimates had another cause, and at 1e-2 it cut through
+/// the middle of real functions: a diffuse d on water's oxygen lost a
+/// component sitting at the cut, which one depending on round-off, so the
+/// estimate changed by 0.5% when the molecule was turned 30 degrees, and the
+/// difference read as a pull on one O-H bond and not the other. At 1e-8 it
+/// is the same at both orientations and 37% larger.
+const DEPENDENT: f64 = 1e-8;
 
 /// The cheap estimate: for each candidate shell, the second-order lowering of
 /// the energy if it were mixed into the occupied orbitals —
@@ -461,6 +468,9 @@ pub struct Round {
     /// estimate predicted for it.
     pub added: Vec<Rung>,
     pub predicted: Vec<f64>,
+    /// Each added function — atom, angular momentum, exponent — and its own
+    /// predicted move of each coordinate.
+    pub added_detail: Vec<(usize, usize, f64, Vec<f64>)>,
     /// The largest of the remaining candidates' predicted moves, each over its
     /// coordinate's tolerance, summed: what is left to do, as the estimate
     /// sees it.
@@ -604,7 +614,7 @@ pub fn grow_reporting(start: &Molecule, bonds: &[(usize, usize)], f: Functional,
             })
         };
         if settled_steps && left < 1.0 {
-            rounds.push(Round { functions, energy: s0.energy, values, added: Vec::new(), predicted: vec![0.0; coords.len()], left });
+            rounds.push(Round { functions, energy: s0.energy, values, added: Vec::new(), predicted: vec![0.0; coords.len()], added_detail: Vec::new(), left });
             report(rounds.last().expect("just pushed"), &coords);
             converged = true;
             break;
@@ -637,7 +647,12 @@ pub fn grow_reporting(start: &Molecule, bonds: &[(usize, usize)], f: Functional,
             }
         }
         let predicted: Vec<f64> = (0..coords.len()).map(|c| added.iter().filter_map(|r| rungs.iter().position(|x| x == r)).map(|i| pred[i][c]).sum()).collect();
-        rounds.push(Round { functions, energy: s0.energy, values, added: added.clone(), predicted, left });
+        let added_detail = added.iter().map(|r| {
+            let lad = &lads[r.ladder];
+            let p = rungs.iter().position(|x| x == r).map(|i| pred[i].clone()).unwrap_or_else(|| vec![0.0; coords.len()]);
+            (lad.atom, lad.l, lad.exponent(r.k), p)
+        }).collect();
+        rounds.push(Round { functions, energy: s0.energy, values, added: added.clone(), predicted, added_detail, left });
         report(rounds.last().expect("just pushed"), &coords);
         if added.is_empty() {
             break;

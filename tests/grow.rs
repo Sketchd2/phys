@@ -99,3 +99,29 @@ fn equivalent_atoms_are_found_from_the_geometry() {
     let c = equivalent_atoms(&nearly);
     assert_eq!(c[1], c[2], "a 0.02% difference is inside the tolerance");
 }
+
+/// The estimate does not depend on which way the molecule faces: water as it
+/// is and turned 30 degrees, for a compact and a diffuse candidate on its
+/// oxygen. The diffuse one moved by 0.5% when the estimate cut its candidates'
+/// remainders at 1% of their norm.
+#[test]
+fn the_estimate_does_not_depend_on_which_way_the_molecule_faces() {
+    use phys::electrons::basis::Shell;
+    let base = water(0.97724, 104.354).positions;
+    let f = Functional::Pbe;
+    let extra = vec![vec![(3usize, 0.54896)], vec![(0usize, 0.32365), (0, 2.09499)], vec![(0usize, 0.32365), (0, 2.09499)]];
+    let mut out = Vec::new();
+    for phi in [0.0f64, 30f64.to_radians()] {
+        let (c, s) = (phi.cos(), phi.sin());
+        let p: Vec<[f64; 3]> = base.iter().map(|v| [c * v[0] - s * v[1], s * v[0] + c * v[1], v[2]]).collect();
+        let m = Molecule { z: vec![8, 1, 1], positions: p.clone(), charge: 0, unpaired: 0 };
+        let prob = m.problem_with(f, Some(&extra));
+        let sol = solve(&prob, 200, 1e-10);
+        out.push(estimate(&prob, &sol, &[Shell::primitive(p[0], 2, 0.1), Shell::primitive(p[0], 2, 0.3)]));
+    }
+    for k in 0..2 {
+        let rel = (out[0][k] / out[1][k] - 1.0).abs();
+        println!("  candidate {k}: {:.10e} against {:.10e}, {rel:.1e}", out[0][k], out[1][k]);
+        assert!(rel < 1e-4, "candidate {k} changed by {rel:e} when turned");
+    }
+}
