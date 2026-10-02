@@ -637,6 +637,56 @@ pub(crate) fn eri_three_gradient(bra: &[Pair], ket: &[Pair], la: usize, lb: usiz
     (ga, gb)
 }
 
+/// `sum_k c_k (ab|k)` over one auxiliary shell's components: the potential of
+/// a fitted density between two functions, laid out `[ka][kb]`. The fitted
+/// coefficients are summed into one Hermite potential first, as in
+/// [`eri_three_gradient`], so the auxiliary side costs one pass per primitive
+/// quartet.
+pub(crate) fn eri_three_contracted(bra: &[Pair], ket: &[Pair], la: usize, lb: usize, lp: usize, c: &[f64]) -> Vec<f64> {
+    let pi = std::f64::consts::PI;
+    let (ca, cb, cp) = (components(la), components(lb), components(lp));
+    let lab = la + lb;
+    let ltot = lab + lp;
+    let w = ltot + 1;
+    let h = lab + 1;
+    let nb = cb.len();
+    let mut out = vec![0.0; ca.len() * nb];
+    let mut scratch = Vec::new();
+    let mut r = Vec::new();
+    let mut g = vec![0.0; h * h * h];
+    let pscale: Vec<f64> = cp.iter().map(|z| component_scale(lp, *z)).collect();
+    for p in bra {
+        for q in ket {
+            let alpha = p.p * q.p / (p.p + q.p);
+            let pq = [p.centre[0] - q.centre[0], p.centre[1] - q.centre[1], p.centre[2] - q.centre[2]];
+            hermite_coulomb_into(ltot, alpha, pq, &mut scratch, &mut r);
+            let pre = 2.0 * pi.powf(2.5) / (p.p * q.p * (p.p + q.p).sqrt()) * p.coef * q.coef;
+            g.iter_mut().for_each(|x| *x = 0.0);
+            for (kk, z) in cp.iter().enumerate() {
+                if c[kk] != 0.0 {
+                    add_hermite_potential(q, *z, c[kk] * pscale[kk], &r, w, lab, &mut g);
+                }
+            }
+            for (ia, x) in ca.iter().enumerate() {
+                for (ib, y) in cb.iter().enumerate() {
+                    out[ia * nb + ib] += pre * bra_contract(p, *x, *y, &g, lab);
+                }
+            }
+        }
+    }
+    for (ia, x) in ca.iter().enumerate() {
+        for (ib, y) in cb.iter().enumerate() {
+            out[ia * nb + ib] *= component_scale(la, *x) * component_scale(lb, *y);
+        }
+    }
+    out
+}
+
+/// [`eri_three_contracted`] for three shells.
+pub fn eri_three_contracted_block(a: &Shell, b: &Shell, aux: &Shell, c: &[f64]) -> Vec<f64> {
+    eri_three_contracted(&pairs(a, b, 0), &pairs(aux, &Shell::unit(), 0), a.l, b.l, aux.l, c)
+}
+
 /// [`eri_three`] for three shells: `(ab|P)`.
 pub fn eri_three_block(a: &Shell, b: &Shell, aux: &Shell) -> Vec<f64> {
     eri_three(&pairs(a, b, 0), &pairs(aux, &Shell::unit(), 0), a.l, b.l, aux.l)

@@ -100,28 +100,52 @@ impl ElementBasis {
         for (l, exps) in self.free.iter().chain(&self.polarisation) {
             prims.extend(exps.iter().map(|e| (*l, *e)));
         }
-        let lmax = prims.iter().map(|p| p.0).max().unwrap_or(0);
-        let mut out = Vec::new();
-        for big_l in 0..=(2 * lmax).min(cap) {
-            let (mut lo, mut hi) = (f64::INFINITY, 0.0f64);
-            for &(la, a) in &prims {
-                for &(lb, b) in &prims {
-                    if la + lb >= big_l && (la + lb - big_l) % 2 == 0 {
-                        lo = lo.min(a + b);
-                        hi = hi.max(a + b);
-                    }
+        auxiliary_for(&prims, centre, cap)
+    }
+
+    /// Its contracted functions alone: the free atom's own orbitals and its
+    /// contracted response to a field — where a basis grown for a molecule
+    /// starts (`grow`).
+    pub fn contracted_at(&self, centre: [f64; 3]) -> Vec<super::basis::Shell> {
+        use super::basis::Shell;
+        self.contracted.iter().map(|(l, terms)| Shell::contracted(centre, *l, terms.iter().map(|t| t.0).collect(), terms.iter().map(|t| t.1).collect())).collect()
+    }
+
+    /// The primitives of its contracted functions, `(l, exponent)`.
+    pub fn contracted_primitives(&self) -> Vec<(usize, f64)> {
+        self.contracted.iter().flat_map(|(l, terms)| terms.iter().map(move |t| (*l, t.0))).collect()
+    }
+}
+
+/// Auxiliary functions for fitting densities made of the primitives `prims`
+/// (`(l, exponent)`) on one centre: for each angular momentum `L` a product of
+/// two of them can carry, up to `cap`, an even-tempered set spanning the
+/// exponents such products have (`a_i + a_j`), at ratio `AUXILIARY_RATIO`.
+pub fn auxiliary_for(prims: &[(usize, f64)], centre: [f64; 3], cap: usize) -> Vec<super::basis::Shell> {
+    let lmax = prims.iter().map(|p| p.0).max().unwrap_or(0);
+    let mut out = Vec::new();
+    for big_l in 0..=(2 * lmax).min(cap) {
+        let (mut lo, mut hi) = (f64::INFINITY, 0.0f64);
+        for &(la, a) in prims {
+            for &(lb, b) in prims {
+                if la + lb >= big_l && (la + lb - big_l) % 2 == 0 {
+                    lo = lo.min(a + b);
+                    hi = hi.max(a + b);
                 }
             }
-            if !(hi > 0.0) {
-                continue;
-            }
-            let count = ((hi / lo).ln() / AUXILIARY_RATIO.ln()).ceil() as usize + 1;
-            for k in 0..count {
-                out.push(super::basis::Shell::primitive(centre, big_l, lo * AUXILIARY_RATIO.powi(k as i32)));
-            }
         }
-        out
+        if !(hi > 0.0) {
+            continue;
+        }
+        let count = ((hi / lo).ln() / AUXILIARY_RATIO.ln()).ceil() as usize + 1;
+        for k in 0..count {
+            out.push(super::basis::Shell::primitive(centre, big_l, lo * AUXILIARY_RATIO.powi(k as i32)));
+        }
     }
+    out
+}
+
+impl ElementBasis {
 
     /// Every primitive uncontracted: the basis the contraction is measured against.
     pub fn primitive_shells_at(&self, centre: [f64; 3]) -> Vec<super::basis::Shell> {

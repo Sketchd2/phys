@@ -711,3 +711,34 @@ fn the_blocked_product_is_the_plain_loop_exactly() {
         }
     }
 }
+
+/// The fitted density's potential between two functions is the three-centre
+/// integrals contracted with the coefficients — checked against contracting
+/// the general routine's integrals by hand.
+#[test]
+fn a_fitted_potential_is_the_contracted_three_centre_integrals() {
+    use phys::electrons::integrals::eri_three_contracted_block;
+    let unit = Shell::unit();
+    let mut worst = 0.0f64;
+    for la in 0..=3 {
+        for lb in 0..=2 {
+            for lp in 0..=4 {
+                let a = Shell::contracted([0.1, -0.2, 0.3], la, vec![3.0, 0.7], vec![0.6, 0.5]);
+                let b = Shell::primitive([-0.5, 0.4, 0.9], lb, 1.3);
+                let p = Shell::primitive([0.3, 0.8, -0.4], lp, 0.9);
+                let c: Vec<f64> = (0..p.size()).map(|i| ((i * 5 + 2) % 7) as f64 / 7.0 - 0.3).collect();
+                let fast = eri_three_contracted_block(&a, &b, &p, &c);
+                let slow = eri_block(&a, &b, &p, &unit);
+                let (nb, np) = (b.size(), p.size());
+                for i in 0..a.size() {
+                    for j in 0..nb {
+                        let v: f64 = (0..np).map(|k| c[k] * slow[(i * nb + j) * np + k]).sum();
+                        worst = worst.max((fast[i * nb + j] - v).abs());
+                    }
+                }
+            }
+        }
+    }
+    println!("fitted potential: worst {worst:.1e}");
+    assert!(worst < 1e-12, "{worst:e}");
+}

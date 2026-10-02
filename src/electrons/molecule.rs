@@ -65,16 +65,40 @@ impl Molecule {
     /// the molecule's highest angular momentum, grid scales from each atom's
     /// covalent radius, and a starting density made of the free atoms' own.
     pub fn problem(&self, f: Functional) -> Problem {
+        self.problem_with(f, None)
+    }
+
+    /// The problem in a chosen basis: each atom's contracted functions (its
+    /// own orbitals and contracted responses) followed by `extra[atom]`, a list
+    /// of `(l, exponent)` primitives — or, given `None`, each element's whole
+    /// free-atom set as derived at E4. The auxiliary set is derived from the
+    /// primitives each atom actually carries, so it follows the basis.
+    pub fn problem_with(&self, f: Functional, extra: Option<&[Vec<(usize, f64)>]>) -> Problem {
         let bases: Vec<ElementBasis> = self.z.iter().map(|&z| element_basis(z, f)).collect();
-        let lmax = bases.iter().map(|b| b.lmax()).max().unwrap_or(0);
+        let per_atom: Vec<(Vec<Shell>, Vec<(usize, f64)>)> = bases.iter().zip(&self.positions).enumerate().map(|(i, (b, p))| match extra {
+            None => {
+                let mut prims = b.contracted_primitives();
+                for (l, exps) in b.free.iter().chain(&b.polarisation) {
+                    prims.extend(exps.iter().map(|e| (*l, *e)));
+                }
+                (b.shells_at(*p), prims)
+            }
+            Some(extra) => {
+                let mut sh = b.contracted_at(*p);
+                sh.extend(extra[i].iter().map(|(l, e)| Shell::primitive(*p, *l, *e)));
+                let mut prims = b.contracted_primitives();
+                prims.extend(extra[i].iter().cloned());
+                (sh, prims)
+            }
+        }).collect();
+        let lmax = per_atom.iter().flat_map(|(sh, _)| sh.iter().map(|s| s.l)).max().unwrap_or(0);
         let mut shells: Vec<Shell> = Vec::new();
         let mut aux: Vec<Shell> = Vec::new();
         let mut sizes = Vec::new();
         // (offset of each contracted function, its l, alpha and beta electrons)
         let mut guess_entries: Vec<(usize, usize, f64, f64)> = Vec::new();
         let mut offset = 0;
-        for (b, p) in bases.iter().zip(&self.positions) {
-            let these = b.shells_at(*p);
+        for ((b, p), (these, prims)) in bases.iter().zip(&self.positions).zip(per_atom) {
             for (k, sh) in these.iter().enumerate() {
                 if k < b.contracted.len() {
                     let (oa, ob) = b.occupation[k];
@@ -83,7 +107,7 @@ impl Molecule {
                 offset += sh.size();
             }
             shells.extend(these);
-            aux.extend(b.auxiliary_at(*p, lmax));
+            aux.extend(super::element::auxiliary_for(&prims, *p, lmax));
             let r = crate::chem::elements::Element(b.z as u8).covalent_radius().unwrap_or(1.0e-10) * BOHR_PER_METRE;
             sizes.push(r.max(0.5));
         }
@@ -132,7 +156,13 @@ impl Molecule {
     /// relaxation, which is nearly converged already. The basis functions
     /// keep their order as the atoms move, so the matrix carries over.
     pub fn energy_and_gradient_from(&self, f: Functional, start: Option<(Matrix, Matrix)>) -> (Solution, Vec<[f64; 3]>) {
-        let mut p = self.problem(f);
+        self.energy_and_gradient_in(f, None, start)
+    }
+
+    /// As [`Molecule::energy_and_gradient_from`], in the basis
+    /// [`Molecule::problem_with`] builds from `extra`.
+    pub fn energy_and_gradient_in(&self, f: Functional, extra: Option<&[Vec<(usize, f64)>]>, start: Option<(Matrix, Matrix)>) -> (Solution, Vec<[f64; 3]>) {
+        let mut p = self.problem_with(f, extra);
         if start.is_some() {
             p.guess = start;
         }
@@ -164,6 +194,14 @@ const TRUST: f64 = 0.3;
 /// energy scatters by a few times 1e-7 hartree between nearby geometries, too
 /// much to steer a line search by, while the gradient is smooth.
 pub fn relax(start: &Molecule, f: Functional, max_steps: usize) -> (Molecule, Vec<Step>, bool) {
+    relax_in(start, f, None, max_steps, (FORCE_CONVERGED, MOVE_CONVERGED))
+}
+
+/// As [`relax`], in the basis [`Molecule::problem_with`] builds from `extra`,
+/// stopping when the largest force and the largest move fall below
+/// `threshold` (hartree/bohr, bohr) — which a caller comparing one relaxed
+/// shape with the next sets well inside the difference it is looking for.
+pub fn relax_in(start: &Molecule, f: Functional, extra: Option<&[Vec<(usize, f64)>]>, max_steps: usize, threshold: (f64, f64)) -> (Molecule, Vec<Step>, bool) {
     let mut mol = start.clone();
     let n = 3 * mol.z.len();
     let flat = |g: &[[f64; 3]]| g.iter().flat_map(|v| v.iter().cloned()).collect::<Vec<f64>>();
@@ -172,7 +210,7 @@ pub fn relax(start: &Molecule, f: Functional, max_steps: usize) -> (Molecule, Ve
     for i in 0..n {
         hinv[i * n + i] = 1.0;
     }
-    let (mut sol, g0) = mol.energy_and_gradient(f);
+    let (mut sol, g0) = mol.energy_and_gradient_in(f, extra, None);
     let mut g = flat(&g0);
     let mut steps = Vec::new();
     let mut converged = false;
@@ -188,7 +226,7 @@ pub fn relax(start: &Molecule, f: Functional, max_steps: usize) -> (Molecule, Ve
         }
         let dmax = dx.iter().fold(0.0f64, |a, b| a.max(b.abs()));
         steps.push(Step { energy: sol.energy, largest_force: fmax, largest_move: dmax, iterations: sol.iterations });
-        if fmax < FORCE_CONVERGED && dmax < MOVE_CONVERGED {
+        if fmax < threshold.0 && dmax < threshold.1 {
             converged = true;
             break;
         }
@@ -197,7 +235,7 @@ pub fn relax(start: &Molecule, f: Functional, max_steps: usize) -> (Molecule, Ve
                 p[k] += dx[3 * a + k];
             }
         }
-        let (s2, g2) = mol.energy_and_gradient_from(f, Some((sol.density_alpha.clone(), sol.density_beta.clone())));
+        let (s2, g2) = mol.energy_and_gradient_in(f, extra, Some((sol.density_alpha.clone(), sol.density_beta.clone())));
         let g2 = flat(&g2);
         // BFGS update of the inverse Hessian, skipped if the curvature is not
         // positive along the step.

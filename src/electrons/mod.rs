@@ -15,6 +15,7 @@ pub mod element;
 pub mod boys;
 pub mod functional;
 pub mod gradient;
+pub mod grow;
 pub mod grid;
 pub mod integrals;
 pub mod linalg;
