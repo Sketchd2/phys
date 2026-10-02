@@ -3744,6 +3744,20 @@ the start of the phase, ahead of the renderer**. In order:
      and the comparison is redone on those then; water first, since a
      non-polar liquid is barely held together by PBE and its comparison
      waits on E7.
+     **Dissolved compounds, raised by the owner:** salt water is not
+     molecules meeting molecules but charged ions among them, and three
+     things change. The pull is stronger and reaches further (a charge's
+     field falls off as 1/r, a neutral molecule's much faster), so a shell of
+     neighbours is not the whole story: the water beyond it still screens the
+     charge. The crowd effects that A approximates are larger around an ion,
+     which polarises its shell hard. And an anion's cloud is loose (chloride
+     holds its extra electron weakly), so it needs functions reaching far out,
+     which the per-molecule rule will find for itself. The A-against-B
+     comparison therefore includes an ion in water (Na+ and Cl-) as well as
+     pure water. **Open, the owner's:** how the water beyond a cluster is
+     represented for a charged solute — larger clusters extrapolated, the
+     cluster set in a continuum whose screening is itself derived from the
+     engine's own simulated water, or a periodic box.
      **Still open, the owner's:** what the 0.1% is measured against. PBE is
      1.24% long on water against experiment, so against experiment it is
      out of reach for PBE; against PBE's own converged answer it is not.
