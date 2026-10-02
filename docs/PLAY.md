@@ -3787,10 +3787,24 @@ the start of the phase, ahead of the renderer**. In order:
      holds its extra electron weakly), so it needs functions reaching far out,
      which the per-molecule rule will find for itself. The A-against-B
      comparison therefore includes an ion in water (Na+ and Cl-) as well as
-     pure water. **Open, the owner's:** how the water beyond a cluster is
-     represented for a charged solute — larger clusters extrapolated, the
-     cluster set in a continuum whose screening is itself derived from the
-     engine's own simulated water, or a periodic box.
+     pure water. **The owner's answer:** larger clusters, extrapolated in
+     size; each cluster **in the solution's own ratio** of its components and
+     **solved with all of them** — for salt water, the water, sodium and
+     chloride together, not a single ion in water. Mixtures fall under the
+     backlog's thorough-derivation-behind-a-quick-one. **And the ratio is
+     bucketed, experimentally:** a property is derived at a set of ratios,
+     and how far apart those must be is measured — the bucket is as wide as
+     the ratio can move without the derived behaviour changing by more than
+     the tolerance — so that a world does not hold a derivation for every
+     ratio when neighbouring ones are indistinguishable. Done for salt in
+     water over its range, and for mixtures of the 45 substances.
+     **Scale, measured against what the engine does now:** seawater is about
+     one NaCl to 93 waters (35 g/kg), so the smallest cluster in seawater's
+     ratio holding one of each ion is about 190 molecules and 560 atoms — on
+     the order of 20,000 functions at water's present 122, where benzene's
+     840 take 19 minutes a step. A near-saturated brine (about 1 to 9) is a
+     30-atom cluster. Raised with the owner rather than assumed: how dilute
+     solutions are reached at that size.
      **The owner's answers (after the prototype below):** bond angles count
      as well as lengths — 0.1% on a length and 0.1 deg on an angle. **The
      tolerance is on the next step, not on a reference:** nothing is told

@@ -3095,6 +3095,13 @@ world is never held up waiting, and becomes more accurate as the work finishes.
   refinement can report how converged it is at every point, not only at the
   end.
 
+**Mixtures are the same case, and larger.** At the owner's direction a
+solution is derived with all its components in its own ratio (salt water as
+water, sodium and chloride together), in clusters grown until the result stops
+changing, and over ratio buckets whose width is measured. Those are the
+derivations most likely to run behind: the smallest seawater-ratio cluster is
+about 560 atoms.
+
 **Trigger:** the first substance whose quick derivation the engine uses while
 its thorough one is still missing — at the latest, E9, when derived substances
 go into the registry.
