@@ -35,6 +35,10 @@ pub struct ElementBasis {
     /// What a molecule is given: for each occupied angular momentum, the free
     /// atom's own orbitals as contracted functions, `(l, [(exponent, c)])`...
     pub contracted: Vec<(usize, Vec<(f64, f64)>)>,
+    /// The free atom's electrons in each contracted function, `(alpha, beta)`
+    /// — a whole level, shared over its `2l + 1` orientations. Zero for a
+    /// polarisation response. What a molecule's first density is built from.
+    pub occupation: Vec<(f64, f64)>,
     /// ...the most diffuse primitives of that `l` left free, `(l, exponents)`...
     pub free: Vec<(usize, Vec<f64>)>,
     /// ...and, above the occupied angular momenta, the polarisation sets'
@@ -322,6 +326,7 @@ pub fn derive(z: u32, f: Functional, tolerance: f64) -> ElementBasis {
     // one, to `CONTRACTION_TOLERANCE`.
     let occupied: Vec<(usize, Range)> = ranges.iter().filter(|(l, _)| *l <= top).cloned().collect();
     let mut contracted: Vec<(usize, Vec<(f64, f64)>)> = Vec::new();
+    let mut occupation: Vec<(f64, f64)> = Vec::new();
     for (l, r) in &occupied {
         let exps = r.exponents();
         let alpha: Vec<&(usize, usize, f64, Vec<f64>)> = atom.coefficients.iter().filter(|c| c.0 == *l && c.1 == 0).collect();
@@ -340,6 +345,7 @@ pub fn derive(z: u32, f: Functional, tolerance: f64) -> ElementBasis {
                 *ci /= w;
             }
             contracted.push((*l, exps.iter().cloned().zip(c).collect()));
+            occupation.push((a.2, beta.get(i).map(|b| b.2).unwrap_or(0.0)));
         }
     }
     let ion = |q: f64| -> (f64, f64) {
@@ -430,6 +436,7 @@ pub fn derive(z: u32, f: Functional, tolerance: f64) -> ElementBasis {
         // not — the same run without it took 87 too.)
         if k < exps.len() {
             contracted.push((*channel, shape));
+            occupation.push((0.0, 0.0));
         }
         polarisation.push((*channel, exps[..k].to_vec()));
     }
@@ -440,6 +447,7 @@ pub fn derive(z: u32, f: Functional, tolerance: f64) -> ElementBasis {
         energy,
         evaluations,
         contracted,
+        occupation,
         free,
         polarisation,
         contraction_error: err,

@@ -38,6 +38,8 @@ pub struct Problem {
     pub auxiliary: Option<Basis>,
     /// Prune the grid's angular order near nuclei and far out.
     pub prune: bool,
+    /// A starting density per spin, or `None` for the bare nuclei's.
+    pub guess: Option<(Matrix, Matrix)>,
 }
 
 /// What came out.
@@ -690,8 +692,10 @@ pub fn solve(problem: &Problem, max_iterations: usize, tolerance: f64) -> Soluti
     }
     // Start from the bare-nucleus Hamiltonian.
     let (ea0, c0) = generalised(&h, &x, m);
-    let mut da = density(&c0, m, n, &occupy(&ea0, problem.alpha));
-    let mut db = density(&c0, m, n, &occupy(&ea0, problem.beta));
+    let (mut da, mut db) = match &problem.guess {
+        Some((a, b)) => (a.clone(), b.clone()),
+        None => (density(&c0, m, n, &occupy(&ea0, problem.alpha)), density(&c0, m, n, &occupy(&ea0, problem.beta))),
+    };
     let mut wa = weighted(&c0, m, n, &occupy(&ea0, problem.alpha), &ea0);
     let mut wb = weighted(&c0, m, n, &occupy(&ea0, problem.beta), &ea0);
     let mut levels_a = ea0.clone();

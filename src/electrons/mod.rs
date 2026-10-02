@@ -18,5 +18,6 @@ pub mod gradient;
 pub mod grid;
 pub mod integrals;
 pub mod linalg;
+pub mod molecule;
 pub mod scf;
 pub mod values;
