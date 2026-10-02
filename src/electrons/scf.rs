@@ -183,11 +183,17 @@ impl Fitted {
                 }
             }
         }
+        // The metric of a dense even-tempered set is nearly singular, and
+        // inverting its smallest eigenvalues amplifies round-off past the fit
+        // itself. Measured on water's Coulomb matrix, 1575 auxiliary
+        // functions: dropping below 1e-9 of the largest, relative error 1.8e-8;
+        // below 1e-14, 6e-4 and a "fitted" energy *above* the exact one, which
+        // a Coulomb-metric fit cannot honestly give; below 1e-16, 6%.
         let (vals, vecs) = super::linalg::eigh(&v);
         let mut vinv = Matrix::zeros(na);
         let top = vals.last().cloned().unwrap_or(1.0);
         for k in 0..na {
-            if vals[k] <= 1e-14 * top {
+            if vals[k] <= METRIC_CUTOFF * top {
                 continue;
             }
             for i in 0..na {
@@ -269,6 +275,10 @@ impl Fitted {
         j
     }
 }
+
+/// Eigenvalues of the fitting metric below this fraction of the largest are
+/// dropped rather than inverted. See [`Fitted::new`].
+pub const METRIC_CUTOFF: f64 = 1e-9;
 
 enum Coulomb {
     Exact(Repulsion),
