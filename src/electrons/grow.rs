@@ -505,6 +505,13 @@ pub fn candidates_for_test(mol: &Molecule, ladders: &[Ladder], chosen: &[Rung]) 
 /// moving. `max_rounds` bounds it; `picks` is how many distinct candidates
 /// (each with its symmetry partners) are added a round.
 pub fn grow(start: &Molecule, bonds: &[(usize, usize)], f: Functional, max_rounds: usize, picks: usize) -> Growth {
+    grow_reporting(start, bonds, f, max_rounds, picks, &mut |_, _| {})
+}
+
+/// As [`grow`], handing each round to `report` as it finishes — a run on a
+/// large molecule takes hours, and what it has found should not wait for the
+/// end.
+pub fn grow_reporting(start: &Molecule, bonds: &[(usize, usize)], f: Functional, max_rounds: usize, picks: usize, report: &mut dyn FnMut(&Round, &[Coordinate])) -> Growth {
     let coords = coordinates(bonds);
     let mut lads = ladders(start, f);
     let mut chosen: Vec<Rung> = Vec::new();
@@ -568,6 +575,7 @@ pub fn grow(start: &Molecule, bonds: &[(usize, usize)], f: Functional, max_round
         };
         if settled_steps && left < 1.0 {
             rounds.push(Round { functions, energy: s0.energy, values, added: Vec::new(), predicted: vec![0.0; coords.len()], left });
+            report(rounds.last().expect("just pushed"), &coords);
             converged = true;
             break;
         }
@@ -596,6 +604,7 @@ pub fn grow(start: &Molecule, bonds: &[(usize, usize)], f: Functional, max_round
         }
         let predicted: Vec<f64> = (0..coords.len()).map(|c| added.iter().map(|r| pred[rungs.iter().position(|x| x == r).expect("added from the list")][c]).sum()).collect();
         rounds.push(Round { functions, energy: s0.energy, values, added: added.clone(), predicted, left });
+        report(rounds.last().expect("just pushed"), &coords);
         if added.is_empty() {
             break;
         }
