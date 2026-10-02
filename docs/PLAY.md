@@ -3729,6 +3729,21 @@ the start of the phase, ahead of the renderer**. In order:
      solving again with the candidates added — for all 45 substances in
      `tests/liquids.rs`, and the estimate is shown to be trustworthy there;
      and water's bond lands on PBE's converged length.
+     *Prototype, in PySCF on water (exact Coulomb, PBE):* seeded with each
+     atom's own contracted orbitals (41 functions, r 1.001 A), candidates an
+     even-tempered pool per angular momentum, ranked by a second-order energy
+     estimate from one Fock build with the current density. Grown by energy,
+     the set reached r 0.97025 A at 104 functions (what the free-atom set
+     gives at 214), 0.96912 A at 207 (PBE's converged length), and stopped at
+     214 functions with an energy of -76.388607 — 0.87 mHa below the
+     free-atom set of the same size and below aug-cc-pV5Z (287, -76.388278).
+     **But energy is the wrong thing to rank by:** the bond's last 0.0011 A
+     came between 176 and 207 functions, while the energy moved 1.6e-4 Ha. So
+     the estimate is being changed to predict each candidate's move of the
+     bond lengths (its estimated gain at the bond stretched and compressed,
+     over the bond's stiffness), with the full relaxation alongside for the
+     comparison. Found on the way: PySCF orders an atom's shells by angular
+     momentum, which the first version of the prototype did not expect.
      **Molecules meeting, the owner's answer:** compare the two ways of
      getting what holds a liquid together and measure what the cheaper one
      misses — (A) the interaction built from pairs and threes of molecules,
