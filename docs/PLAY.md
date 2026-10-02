@@ -3744,6 +3744,24 @@ the start of the phase, ahead of the renderer**. In order:
      over the bond's stiffness), with the full relaxation alongside for the
      comparison. Found on the way: PySCF orders an atom's shells by angular
      momentum, which the first version of the prototype did not expect.
+     *Ranked by predicted bond move* (each round: relax, then each candidate's
+     estimated gain at the O-H bond +-0.005 A over the bond's stiffness),
+     water, functions / r A / angle deg, with the move the estimate predicted
+     for what was added against the move the relaxation then made:
+     41 / 1.00102 / 102.45; 57 / 0.97739 / 104.13 (predicted -0.052,
+     made -0.024); 84 / 0.97019 / 104.18 (-0.0113, -0.0072); 122 / 0.96916 /
+     104.10 (-0.0014, -0.0010); 145 / 0.96887 / 104.19 (-0.00043,
+     -0.00029); 175 / 0.96904, 0.96900 / 104.21. PBE's limit is about 0.9690
+     (aug-cc-pVQZ 0.96912, aug-cc-pV5Z's force putting its minimum near
+     0.9690). So **122 functions put the bond within 0.03% of the limit**,
+     where ranking by energy needed 207 and the free-atom set of 214 is 0.10%
+     off. The estimate points the right way every round and overstates by
+     1.4-2.2x, because candidates are summed as if independent while
+     neighbouring functions share their work. Past 145 functions the picks
+     turned to very diffuse functions with large estimates and broke the
+     molecule's symmetry by 4e-5 A — below the tolerance, stopped there. The
+     angle is not in the criterion and wandered 104.10-104.21 against a
+     converged 104.19.
      **Molecules meeting, the owner's answer:** compare the two ways of
      getting what holds a liquid together and measure what the cheaper one
      misses — (A) the interaction built from pairs and threes of molecules,
