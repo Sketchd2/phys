@@ -17,7 +17,7 @@
 //! **And the ground state's spin**, by trying each multiplicity the electron
 //! count allows and keeping the lowest — Hund's first rule as a consequence.
 
-use super::atom::{response, solve, Atom};
+use super::atom::{response, response_functions, solve, solve_functions, Atom};
 use super::functional::Functional;
 
 /// A derived basis for one element: exponents per angular momentum.
@@ -32,11 +32,74 @@ pub struct ElementBasis {
     pub energy: f64,
     /// Self-consistent-field runs it took to derive.
     pub evaluations: usize,
+    /// What a molecule is given: for each occupied angular momentum, the free
+    /// atom's own orbitals as contracted functions, `(l, [(exponent, c)])`...
+    pub contracted: Vec<(usize, Vec<(f64, f64)>)>,
+    /// ...the most diffuse primitives of that `l` left free, `(l, exponents)`...
+    pub free: Vec<(usize, Vec<f64>)>,
+    /// ...and, above the occupied angular momenta, the polarisation sets'
+    /// diffuse primitives left free beside their contracted response orbital
+    /// (which is in `contracted`), `(l, exponents)`.
+    pub polarisation: Vec<(usize, Vec<f64>)>,
+    /// How far the contracted basis puts the atom's ions (+-1/2 e) from the
+    /// uncontracted one, hartree.
+    pub contraction_error: f64,
 }
 
 impl ElementBasis {
-    /// Its shells, placed at `centre` (bohr).
+    /// Its shells for a molecule, placed at `centre` (bohr): contracted atomic
+    /// orbitals, free diffuse primitives, polarisation sets.
     pub fn shells_at(&self, centre: [f64; 3]) -> Vec<super::basis::Shell> {
+        use super::basis::Shell;
+        let mut out = Vec::new();
+        for (l, terms) in &self.contracted {
+            out.push(Shell::contracted(centre, *l, terms.iter().map(|t| t.0).collect(), terms.iter().map(|t| t.1).collect()));
+        }
+        for (l, exps) in self.free.iter().chain(&self.polarisation) {
+            for e in exps {
+                out.push(Shell::primitive(centre, *l, *e));
+            }
+        }
+        out
+    }
+
+    /// Auxiliary functions for fitting this element's densities: for each
+    /// angular momentum `L` a product of two of its functions can carry, an
+    /// even-tempered set spanning the exponents such products have
+    /// (`a_i + a_j`), at ratio `AUXILIARY_RATIO`.
+    pub fn auxiliary_at(&self, centre: [f64; 3]) -> Vec<super::basis::Shell> {
+        let mut prims: Vec<(usize, f64)> = Vec::new();
+        for (l, terms) in &self.contracted {
+            prims.extend(terms.iter().map(|t| (*l, t.0)));
+        }
+        for (l, exps) in self.free.iter().chain(&self.polarisation) {
+            prims.extend(exps.iter().map(|e| (*l, *e)));
+        }
+        let lmax = prims.iter().map(|p| p.0).max().unwrap_or(0);
+        let mut out = Vec::new();
+        for big_l in 0..=2 * lmax {
+            let (mut lo, mut hi) = (f64::INFINITY, 0.0f64);
+            for &(la, a) in &prims {
+                for &(lb, b) in &prims {
+                    if la + lb >= big_l && (la + lb - big_l) % 2 == 0 {
+                        lo = lo.min(a + b);
+                        hi = hi.max(a + b);
+                    }
+                }
+            }
+            if !(hi > 0.0) {
+                continue;
+            }
+            let count = ((hi / lo).ln() / AUXILIARY_RATIO.ln()).ceil() as usize + 1;
+            for k in 0..count {
+                out.push(super::basis::Shell::primitive(centre, big_l, lo * AUXILIARY_RATIO.powi(k as i32)));
+            }
+        }
+        out
+    }
+
+    /// Every primitive uncontracted: the basis the contraction is measured against.
+    pub fn primitive_shells_at(&self, centre: [f64; 3]) -> Vec<super::basis::Shell> {
         let mut out = Vec::new();
         for (l, exps) in &self.shells {
             for e in exps {
@@ -46,6 +109,30 @@ impl ElementBasis {
         out
     }
 }
+
+/// The radial functions of a contracted basis, per `l`, for the atom solver.
+fn radial_functions(contracted: &[(usize, Vec<(f64, f64)>)], free: &[(usize, Vec<f64>)], lmax: usize) -> Vec<Vec<Vec<(f64, f64)>>> {
+    let mut out: Vec<Vec<Vec<(f64, f64)>>> = vec![Vec::new(); lmax + 1];
+    for (l, terms) in contracted {
+        out[*l].push(terms.clone());
+    }
+    for (l, exps) in free {
+        for e in exps {
+            out[*l].push(vec![(*e, 1.0)]);
+        }
+    }
+    out
+}
+
+/// Spacing of the auxiliary (density-fitting) exponents.
+pub const AUXILIARY_RATIO: f64 = 2.0;
+
+/// How closely the contracted basis must reproduce the atom's ions, hartree.
+pub const CONTRACTION_TOLERANCE: f64 = 1e-4;
+
+/// How closely a contracted polarisation set must reproduce the ions'
+/// response to a field, relatively.
+pub const POLARISATION_TOLERANCE: f64 = 1e-2;
 
 /// An even-tempered range: the most diffuse exponent, the ratio, the count.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -206,11 +293,128 @@ pub fn derive(z: u32, f: Functional, tolerance: f64) -> ElementBasis {
         }
         ranges.push((channel, pol));
     }
+    // Contraction. Each occupied level becomes one function: its alpha and
+    // beta orbitals averaged, weighted by their electrons, signs aligned. Then
+    // diffuse primitives are freed, one angular momentum at a time, until the
+    // atom's ions — what a molecule does to an atom is mostly move charge on
+    // or off it — come out of the contracted basis as they do out of the full
+    // one, to `CONTRACTION_TOLERANCE`.
+    let occupied: Vec<(usize, Range)> = ranges.iter().filter(|(l, _)| *l <= top).cloned().collect();
+    let mut contracted: Vec<(usize, Vec<(f64, f64)>)> = Vec::new();
+    for (l, r) in &occupied {
+        let exps = r.exponents();
+        let alpha: Vec<&(usize, usize, f64, Vec<f64>)> = atom.coefficients.iter().filter(|c| c.0 == *l && c.1 == 0).collect();
+        let beta: Vec<&(usize, usize, f64, Vec<f64>)> = atom.coefficients.iter().filter(|c| c.0 == *l && c.1 == 1).collect();
+        for (i, a) in alpha.iter().enumerate() {
+            let mut c = a.3.iter().map(|x| x * a.2).collect::<Vec<f64>>();
+            let mut w = a.2;
+            if let Some(b) = beta.get(i) {
+                let sign = if a.3.iter().zip(&b.3).map(|(x, y)| x * y).sum::<f64>() < 0.0 { -1.0 } else { 1.0 };
+                for (ci, bi) in c.iter_mut().zip(&b.3) {
+                    *ci += sign * b.2 * bi;
+                }
+                w += b.2;
+            }
+            for ci in &mut c {
+                *ci /= w;
+            }
+            contracted.push((*l, exps.iter().cloned().zip(c).collect()));
+        }
+    }
+    let ion = |q: f64| -> (f64, f64) {
+        let n = zf - q;
+        let (a0, b0) = ((zf + unpaired as f64) / 2.0, (zf - unpaired as f64) / 2.0);
+        let mut b = b0 - q / 2.0;
+        let mut a = a0 - q / 2.0;
+        if b < 0.0 {
+            a += b;
+            b = 0.0;
+        }
+        let _ = n;
+        (a, b)
+    };
+    let full: Vec<Vec<Vec<(f64, f64)>>> = radial_functions(&[], &occupied.iter().map(|(l, r)| (*l, r.exponents())).collect::<Vec<_>>(), top);
+    let ions: Vec<Atom> = [0.5, -0.5].iter().map(|&q| {
+        let (a, b) = ion(q);
+        solve_functions(zf, a, b, &full, f, 500, 1e-10)
+    }).collect();
+    let reference: Vec<f64> = ions.iter().map(|a| a.energy).collect();
+    evaluations += 2;
+    let mut free_count: Vec<usize> = vec![1; occupied.len()];
+    let free_of = |counts: &[usize]| -> Vec<(usize, Vec<f64>)> {
+        occupied.iter().zip(counts).map(|((l, r), &k)| (*l, r.exponents()[..k.min(r.count)].to_vec())).collect()
+    };
+    let error_of = |counts: &[usize], evaluations: &mut usize| -> f64 {
+        let funcs = radial_functions(&contracted, &free_of(counts), top);
+        [0.5, -0.5].iter().zip(&reference).map(|(&q, r)| {
+            *evaluations += 1;
+            let (a, b) = ion(q);
+            (solve_functions(zf, a, b, &funcs, f, 500, 1e-10).energy - r).abs()
+        }).fold(0.0, f64::max)
+    };
+    let mut err = error_of(&free_count, &mut evaluations);
+    while err > CONTRACTION_TOLERANCE {
+        let mut best: Option<(usize, f64)> = None;
+        for k in 0..free_count.len() {
+            if free_count[k] >= occupied[k].1.count {
+                continue;
+            }
+            let mut t = free_count.clone();
+            t[k] += 1;
+            let e = error_of(&t, &mut evaluations);
+            if best.map_or(true, |(_, b)| e < b) {
+                best = Some((k, e));
+            }
+        }
+        match best {
+            Some((k, e)) => {
+                free_count[k] += 1;
+                err = e;
+            }
+            None => break,
+        }
+    }
+    let free = free_of(&free_count);
+    // The polarisation sets contract the same way, into the response orbital
+    // itself: the first-order change of the occupied orbitals in a field, which
+    // is the optimal function of its angular momentum by construction. On the
+    // neutral atom that reproduces the full set's response exactly, so whether
+    // it is *flexible* enough is judged on the ions again: diffuse primitives
+    // are freed until each ion's response agrees with the full set's to
+    // `POLARISATION_TOLERANCE`, relatively.
+    let mut polarisation: Vec<(usize, Vec<f64>)> = Vec::new();
+    for (order, (channel, r)) in ranges.iter().filter(|(l, _)| *l > top).enumerate() {
+        let order = order + 1;
+        let exps = r.exponents();
+        let prims: Vec<Vec<(f64, f64)>> = exps.iter().map(|&a| vec![(a, 1.0)]).collect();
+        let (_, orbital) = response_functions(&atom, *channel, order, &prims);
+        let shape: Vec<(f64, f64)> = exps.iter().cloned().zip(orbital).collect();
+        let full: Vec<f64> = ions.iter().map(|ion| response_functions(ion, *channel, order, &prims).0).collect();
+        let mut k = 0;
+        loop {
+            let mut funcs = vec![shape.clone()];
+            funcs.extend(exps[..k].iter().map(|&a| vec![(a, 1.0)]));
+            let worst = ions.iter().zip(&full).map(|(ion, e)| {
+                let c = response_functions(ion, *channel, order, &funcs).0;
+                ((c - e) / e).abs()
+            }).fold(0.0, f64::max);
+            if worst <= POLARISATION_TOLERANCE || k >= exps.len() {
+                break;
+            }
+            k += 1;
+        }
+        contracted.push((*channel, shape));
+        polarisation.push((*channel, exps[..k].to_vec()));
+    }
     ElementBasis {
         z,
         shells: ranges.iter().map(|(l, r)| (*l, r.exponents())).collect(),
         unpaired,
         energy,
         evaluations,
+        contracted,
+        free,
+        polarisation,
+        contraction_error: err,
     }
 }

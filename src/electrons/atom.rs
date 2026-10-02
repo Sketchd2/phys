@@ -35,6 +35,9 @@ pub struct Atom {
     potential: [(Vec<f64>, Vec<f64>); 2],
     /// Occupied orbitals: `(l, spin, level, electrons, radial values)`.
     orbitals: Vec<(usize, usize, f64, f64, Vec<f64>)>,
+    /// The same orbitals' coefficients over the radial functions solved in:
+    /// `(l, spin, electrons, coefficients)`.
+    pub coefficients: Vec<(usize, usize, f64, Vec<f64>)>,
     z: f64,
 }
 
@@ -142,23 +145,29 @@ pub const RADIAL_POINTS: usize = 600;
 /// Solve the atom of charge `z` with `alpha` and `beta` electrons, in the
 /// radial functions with exponents `exponents[l]`.
 pub fn solve(z: f64, alpha: f64, beta: f64, exponents: &[Vec<f64>], f: Functional, max_iter: usize, tol: f64) -> Atom {
+    let functions: Vec<Vec<Vec<(f64, f64)>>> = exponents.iter().map(|ex| ex.iter().map(|&a| vec![(a, 1.0)]).collect()).collect();
+    solve_functions(z, alpha, beta, &functions, f, max_iter, tol)
+}
+
+/// As [`solve`], with each radial function of angular momentum `l` any
+/// combination `sum c_k chi_k` of normalised primitives, given as
+/// `functions[l][i] = [(exponent, c), ...]` — a contracted basis.
+pub fn solve_functions(z: f64, alpha: f64, beta: f64, functions: &[Vec<Vec<(f64, f64)>>], f: Functional, max_iter: usize, tol: f64) -> Atom {
     let g = radial_grid(RADIAL_POINTS, 1.0);
     let n = g.r.len();
     let table = Series::new(n);
-    let lmax = exponents.len();
+    let lmax = functions.len();
     let mut chi: Vec<Vec<Vec<f64>>> = Vec::new();
     let mut dchi: Vec<Vec<Vec<f64>>> = Vec::new();
-    for (l, exps) in exponents.iter().enumerate() {
+    for (l, funcs) in functions.iter().enumerate() {
         let li = l as i32;
-        chi.push(exps.iter().map(|&a| {
-            let nn = radial_norm(a, l);
-            g.r.iter().map(|&x| nn * x.powi(li) * (-a * x * x).exp()).collect()
+        chi.push(funcs.iter().map(|terms| {
+            g.r.iter().map(|&x| terms.iter().map(|&(a, c)| c * radial_norm(a, l) * x.powi(li) * (-a * x * x).exp()).sum()).collect()
         }).collect());
-        dchi.push(exps.iter().map(|&a| {
-            let nn = radial_norm(a, l);
+        dchi.push(funcs.iter().map(|terms| {
             g.r.iter().map(|&x| {
                 let lead = if l > 0 { l as f64 * x.powi(li - 1) } else { 0.0 };
-                nn * (-a * x * x).exp() * (lead - 2.0 * a * x.powi(li + 1))
+                terms.iter().map(|&(a, c)| c * radial_norm(a, l) * (-a * x * x).exp() * (lead - 2.0 * a * x.powi(li + 1))).sum()
             }).collect()
         }).collect());
     }
@@ -192,6 +201,7 @@ pub fn solve(z: f64, alpha: f64, beta: f64, exponents: &[Vec<f64>], f: Functiona
     let mut drho = [vec![0.0; n], vec![0.0; n]];
     let mut levels = Vec::new();
     let mut orbitals: Vec<(usize, usize, f64, f64, Vec<f64>)> = Vec::new();
+    let mut coefficients: Vec<(usize, usize, f64, Vec<f64>)> = Vec::new();
     let mut potential = [(vec![0.0; n], vec![0.0; n]), (vec![0.0; n], vec![0.0; n])];
     let mut energy = 0.0;
     let mut last = f64::INFINITY;
@@ -244,6 +254,7 @@ pub fn solve(z: f64, alpha: f64, beta: f64, exponents: &[Vec<f64>], f: Functiona
         let mut one_e = 0.0;
         levels.clear();
         orbitals.clear();
+        coefficients.clear();
         for spin in 0..2 {
             potential[spin] = ((0..n).map(|p| vh[p] + vx[spin][p]).collect(), wx[spin].clone());
         }
@@ -262,6 +273,7 @@ pub fn solve(z: f64, alpha: f64, beta: f64, exponents: &[Vec<f64>], f: Functiona
                 }
                 let m = c.len();
                 orbitals.push((l, spin, e, take, (0..n).map(|p| (0..m).map(|i| c[i] * chi[l][i][p]).sum()).collect()));
+                coefficients.push((l, spin, take, c.clone()));
                 let mut hc = 0.0;
                 for i in 0..m {
                     for j in 0..m {
@@ -306,7 +318,7 @@ pub fn solve(z: f64, alpha: f64, beta: f64, exponents: &[Vec<f64>], f: Functiona
             break;
         }
     }
-    Atom { energy, converged, iterations, levels, potential, orbitals, z }
+    Atom { energy, converged, iterations, levels, potential, orbitals, coefficients, z }
 }
 
 /// How strongly the atom's occupied orbitals of angular momentum
@@ -322,20 +334,26 @@ pub fn solve(z: f64, alpha: f64, beta: f64, exponents: &[Vec<f64>], f: Functiona
 /// state's), which is enough to tell which functions are needed. Arbitrary
 /// units: the angular factor of the dipole operator is common to every term.
 pub fn response(atom: &Atom, channel: usize, order: usize, exponents: &[f64]) -> f64 {
+    let functions: Vec<Vec<(f64, f64)>> = exponents.iter().map(|&a| vec![(a, 1.0)]).collect();
+    response_functions(atom, channel, order, &functions).0
+}
+
+/// As [`response`], over contracted functions `[(exponent, c)]`, also giving
+/// the first-order response orbital as coefficients over those functions,
+/// averaged over the source orbitals by their electrons.
+pub fn response_functions(atom: &Atom, channel: usize, order: usize, functions: &[Vec<(f64, f64)>]) -> (f64, Vec<f64>) {
     let g = radial_grid(RADIAL_POINTS, 1.0);
     let n = g.r.len();
     let l = channel;
-    let m = exponents.len();
+    let m = functions.len();
     let li = l as i32;
-    let chi: Vec<Vec<f64>> = exponents.iter().map(|&a| {
-        let nn = radial_norm(a, l);
-        g.r.iter().map(|&x| nn * x.powi(li) * (-a * x * x).exp()).collect()
+    let chi: Vec<Vec<f64>> = functions.iter().map(|terms| {
+        g.r.iter().map(|&x| terms.iter().map(|&(a, c)| c * radial_norm(a, l) * x.powi(li) * (-a * x * x).exp()).sum()).collect()
     }).collect();
-    let dchi: Vec<Vec<f64>> = exponents.iter().map(|&a| {
-        let nn = radial_norm(a, l);
+    let dchi: Vec<Vec<f64>> = functions.iter().map(|terms| {
         g.r.iter().map(|&x| {
             let lead = if l > 0 { l as f64 * x.powi(li - 1) } else { 0.0 };
-            nn * (-a * x * x).exp() * (lead - 2.0 * a * x.powi(li + 1))
+            terms.iter().map(|&(a, c)| c * radial_norm(a, l) * (-a * x * x).exp() * (lead - 2.0 * a * x.powi(li + 1))).sum()
         }).collect()
     }).collect();
     let cent = (l * (l + 1)) as f64;
@@ -349,6 +367,8 @@ pub fn response(atom: &Atom, channel: usize, order: usize, exponents: &[f64]) ->
     }
     let (x, mm) = orthogonaliser(&s, 1e-10);
     let mut total = 0.0;
+    let mut orbital = vec![0.0; m];
+    let mut weight = 0.0;
     for spin in 0..2 {
         let (v, w) = &atom.potential[spin];
         let mut f = Matrix::zeros(m);
@@ -371,14 +391,29 @@ pub fn response(atom: &Atom, channel: usize, order: usize, exponents: &[f64]) ->
             }
             // <chi_k | r^order | orbital>
             let b: Vec<f64> = (0..m).map(|k| (0..n).map(|p| g.w[p] * chi[k][p] * g.r[p].powi(order as i32) * radial[p]).sum()).collect();
+            let mut psi = vec![0.0; m];
             for j in 0..mm {
                 let proj: f64 = (0..m).map(|k| c[k * mm + j] * b[k]).sum();
                 let gap = levels[j] - eps;
                 if gap > 0.0 {
                     total -= electrons * proj * proj / gap;
+                    for k in 0..m {
+                        psi[k] -= c[k * mm + j] * proj / gap;
+                    }
                 }
             }
+            // Accumulate with a consistent sign, weighted by electrons.
+            let sign = if orbital.iter().zip(&psi).map(|(a, b)| a * b).sum::<f64>() < 0.0 { -1.0 } else { 1.0 };
+            for k in 0..m {
+                orbital[k] += sign * electrons * psi[k];
+            }
+            weight += electrons;
         }
     }
-    total
+    if weight > 0.0 {
+        for o in &mut orbital {
+            *o /= weight;
+        }
+    }
+    (total, orbital)
 }
