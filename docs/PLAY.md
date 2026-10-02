@@ -3573,6 +3573,55 @@ the start of the phase, ahead of the renderer**. In order:
    reach about 5-10% in `dH_vap` and a few per cent in density; that figure is
    from the literature and has not been reproduced here.
 
+   **The owner chose the electronic-structure route**, and with it:
+   **density-functional theory with a non-empirical functional** (PBE: built
+   from exact constraints, not fitted to molecules); **a basis the engine
+   derives itself**, by optimising an even-tempered Gaussian set against the
+   free atom's energy, once per element, rather than a published table;
+   **run in the core crate when a substance is interned**, stored on the
+   substance and persisted, so the crate stays dependency-free and wasm-built;
+   and **every element the element table has**, to Z = 94.
+
+   *Built in stages, each with its own measurement:*
+
+   - **E1, the numerics.** Dense symmetric eigensolver and generalised
+     eigenproblem; Gaussian integrals of any angular momentum (overlap,
+     kinetic, nuclear attraction, electron repulsion; McMurchie-Davidson);
+     the Boys function. Done when the integrals reproduce closed forms (a
+     single Gaussian on hydrogen, `E = -4/(3 pi)` Ha at its optimum) and are
+     invariant under rotation.
+   - **E2, the grid.** Atom-centred quadrature (Becke's partition, radial
+     and angular rules generated rather than tabulated) for the
+     exchange-correlation integral. Done when it integrates a molecule's
+     electron count to 1e-6.
+   - **E3, Kohn-Sham.** Self-consistent field with LDA, then PBE, with
+     convergence acceleration. Done when free-atom total energies match
+     published reference values for the same functional to 1e-4 Ha
+     across H to Ar.
+   - **E4, the derived basis.** Per element, even-tempered exponents optimised
+     variationally on the free atom and stored. Done when the atoms' energies
+     converge as the set grows, and a molecule's energy is within a stated
+     margin of the basis-set limit.
+   - **E5, molecules.** Analytic gradients and geometry optimisation, which
+     replaces `embed` (open rings, short bonds). Done when bond lengths of
+     the 45-molecule set match experiment to a stated tolerance.
+   - **E6, properties.** Dipole, Hirshfeld partition (in-molecule volumes,
+     charges), polarisability. Done when dipoles match experiment.
+   - **E7, dispersion.** PBE has none at long range. **Open, the owner's:**
+     every common correction (TS, XDM, VV10, MBD) carries a fitted damping
+     parameter; the non-empirical options are a non-local functional (vdW-DF1)
+     or the random-phase approximation, both expensive.
+   - **E8, the liquid.** Site-site potential from E6/E7, liquid-vapour
+     coexistence sampled, giving `T_b`, `dH_vap`, the density at every
+     temperature and the expansion. Done when the 45 molecules are reproduced
+     without any coefficient fitted to them; this retires the fitted laws of
+     items 1 and 2.
+   - **E9, into the registry.** At intern, memoised by the arrangement's
+     fingerprint so a test suite or a world pays once per substance, persisted.
+   - **E10, heavy elements.** Beyond about Z = 36 a scalar-relativistic
+     treatment is needed for the answer to be right. **Open, the owner's**,
+     at that stage: which one.
+
    *Prerequisites found on the way:* `chem::geometry::embed` does not close
    rings (benzene's atoms 1 and 2, bonded, sit 5.1 A apart, which is likely
    item 6's 0.52 D for benzene) and its bonds are short (water's O-H 0.86 A
