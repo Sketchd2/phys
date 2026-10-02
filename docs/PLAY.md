@@ -3630,6 +3630,19 @@ the start of the phase, ahead of the renderer**. In order:
    - **E5, molecules.** Analytic gradients and geometry optimisation, which
      replaces `embed` (open rings, short bonds). Done when bond lengths of
      the 45-molecule set match experiment to a stated tolerance.
+     *Status:* forces are analytic and every term was checked against its
+     own energy; `electrons::molecule` assembles a molecule from its elements'
+     derived bases with a starting density made of the free atoms', and
+     `relax` follows the forces (BFGS, trust 0.3 bohr). Water started at
+     r(OH) 1.05 and 0.90 A, 115 deg, and relaxed in 7 gradient evaluations to
+     0.9702 / 0.9700 A, 104.13 deg. PBE at aug-cc-pVQZ (PySCF, pyberny) puts
+     it at 0.9691 A, 104.20 deg, and experiment at 0.9572 A, 104.52 deg — so
+     the engine is 0.001 A and 0.07 deg from its own functional's answer,
+     and the functional is 0.013 A from experiment. **Not met:** the
+     tolerance is not stated (PBE's own error against experiment is larger
+     than the engine's against PBE, so it decides what "match" can mean),
+     and the cost is 1080 s for water with a second job sharing the machine;
+     the 45-molecule set at that cost per atom is hours to days.
    - **E6, properties.** Dipole, Hirshfeld partition (in-molecule volumes,
      charges), polarisability. Done when dipoles match experiment.
    - **E7, dispersion.** PBE has none at long range. **Open, the owner's:**
