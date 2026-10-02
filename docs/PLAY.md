@@ -3643,6 +3643,18 @@ the start of the phase, ahead of the renderer**. In order:
      than the engine's against PBE, so it decides what "match" can mean),
      and the cost is 1080 s for water with a second job sharing the machine;
      the 45-molecule set at that cost per atom is hours to days.
+     *Where the error is:* at PySCF's geometry the engine's force is 1.0e-3
+     Ha/bohr whether the grid is 70/16 pruned or 100/24 full, so it is not the
+     grid; it is the size of both optimisers' stopping thresholds. Against
+     experiment the functional dominates, measured in PySCF on the same
+     water (r A, angle deg): PBE 0.9691, 104.20; PBE0 0.9578, 104.79; SCAN
+     0.9585, 104.92; CCSD(T)/aug-cc-pVTZ frozen core 0.9616, 104.18;
+     experiment 0.9572, 104.52. *Where the time is:* one step on an idle
+     4-core machine is 135 s — the SCF 49 s (13 s building the fitted
+     three-index integrals, 34 s exchange-correlation over 9 iterations) and
+     the gradient 86 s. PySCF does the same step, density-fitted, in 4.6 + 2.3
+     s on the same machine, so the gap is the implementation (about 20x), not
+     the hardware.
    - **E6, properties.** Dipole, Hirshfeld partition (in-molecule volumes,
      charges), polarisability. Done when dipoles match experiment.
    - **E7, dispersion.** PBE has none at long range. **Open, the owner's:**
