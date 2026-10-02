@@ -499,3 +499,30 @@ fn each_element_derives_its_own_basis() {
         assert_eq!(b.shells.iter().map(|(l, _)| *l).collect::<Vec<_>>(), (0..ls + 2).collect::<Vec<_>>());
     }
 }
+
+/// Stage E4's done-when for molecules: a molecule in the engine's derived,
+/// contracted basis, with density fitting and the pruned grid, is no worse
+/// than a published quadruple-zeta set. H2 at 1.4 bohr, PBE, against PySCF:
+/// aug-cc-pVQZ -1.16654088, aug-cc-pV5Z -1.16667410. Measured: -1.16654368
+/// with 108 functions (5Z has 160). Water told the same story: -76.38748642
+/// with 214 functions, below aug-cc-pVQZ (-76.38610) and 0.42 mHa above
+/// aug-cc-pV5Z (-76.38791, 287 functions); it takes about a minute, so it is
+/// recorded in `docs/PLAY.md` rather than run here.
+#[test]
+fn a_molecule_in_the_derived_basis_is_quadruple_zeta() {
+    use phys::electrons::element::derive;
+    let h = derive(1, Functional::Pbe, 1e-5);
+    let (a, b) = ([0.0, 0.0, -0.7], [0.0, 0.0, 0.7]);
+    let lmax = h.lmax();
+    let mut sh = h.shells_at(a);
+    sh.extend(h.shells_at(b));
+    let mut ax = h.auxiliary_at(a, lmax);
+    ax.extend(h.auxiliary_at(b, lmax));
+    let p = Problem { basis: Basis::new(sh), nuclei: vec![(1.0, a), (1.0, b)], sizes: vec![0.6, 0.6], alpha: 1.0, beta: 1.0, functional: Functional::Pbe, radial: 70, theta: 16, auxiliary: Some(Basis::new(ax)), prune: true };
+    let s = solve(&p, 100, 1e-9);
+    let (qz, fz) = (-1.16654088, -1.16667410);
+    println!("  H2: {:.8} with {} functions; aug-cc-pVQZ {qz}, aug-cc-pV5Z {fz}", s.energy, p.basis.size);
+    assert!(s.converged);
+    assert!(s.energy < qz + 1e-6, "no worse than quadruple zeta");
+    assert!(s.energy > fz - 1e-5, "and not below a larger basis, which would mean an error");
+}

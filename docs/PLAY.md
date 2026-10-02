@@ -3611,6 +3611,22 @@ the start of the phase, ahead of the renderer**. In order:
      variationally on the free atom and stored. Done when the atoms' energies
      converge as the set grows, and a molecule's energy is within a stated
      margin of the basis-set limit.
+     *Status, met:* H to Ar each derive their basis from the free atom and
+     reach the basis-limit PBE energy to 1.7e-5 Ha (references: PySCF with
+     large even-tempered sets), with every ground-state spin Hund's and the
+     shell structure (s to Be, s+p after) discovered rather than stated.
+     Polarisation functions come from the atom's response to a field (dipole)
+     and to a field gradient (quadrupole). Occupied shells are contracted into
+     the atom's own orbitals, with diffuse primitives freed until the ions
+     (+-1/2 e) agree to 1e-4 Ha; contracting the polarisation sets too cost
+     0.8 mHa at a 1% tolerance and nothing at 0.1%, so they stay free. Density
+     fitting with an auxiliary set derived from the exponents' products,
+     capped at the molecule's highest angular momentum, is 1.8e-7 Ha from
+     exact Coulomb. **Margin:** at least published quadruple-zeta quality —
+     H2 -1.16654368 against aug-cc-pVQZ -1.16654088 and aug-cc-pV5Z
+     -1.16667410; water -76.38748642 against -76.38610 and -76.38791. Water
+     went from 709 s to about 70 s on the way (screened and batched
+     exchange-correlation, core-pruned grid, convergence on the commutator).
    - **E5, molecules.** Analytic gradients and geometry optimisation, which
      replaces `embed` (open rings, short bonds). Done when bond lengths of
      the 45-molecule set match experiment to a stated tolerance.
