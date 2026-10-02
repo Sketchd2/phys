@@ -3729,9 +3729,21 @@ the start of the phase, ahead of the renderer**. In order:
      solving again with the candidates added — for all 45 substances in
      `tests/liquids.rs`, and the estimate is shown to be trustworthy there;
      and water's bond lands on PBE's converged length.
-     **Not started, by the owner's instruction,** until the second half of
-     the question is answered: how the functions are chosen when molecules
-     meet (two or more side by side, as E8's liquid needs).
+     **Molecules meeting, the owner's answer:** compare the two ways of
+     getting what holds a liquid together and measure what the cheaper one
+     misses — (A) the interaction built from pairs and threes of molecules,
+     each group with functions chosen for it, then used as a law; and (B) a
+     molecule worked out directly inside a shell of its neighbours. The same
+     rule chooses the functions for a group, with the interaction energy as
+     the quantity that must stop changing — which is what removes the
+     borrowing error (a molecule using its neighbour's functions to patch
+     its own cloud, which reads as attraction). Order: E5b on one molecule
+     and the 45-substance check; the rule on groups; A against B on water.
+     Chosen within the item, and the owner's to overrule: clusters are
+     relaxed ones until E8 can draw arrangements from a simulated liquid,
+     and the comparison is redone on those then; water first, since a
+     non-polar liquid is barely held together by PBE and its comparison
+     waits on E7.
      **Still open, the owner's:** what the 0.1% is measured against. PBE is
      1.24% long on water against experiment, so against experiment it is
      out of reach for PBE; against PBE's own converged answer it is not.
