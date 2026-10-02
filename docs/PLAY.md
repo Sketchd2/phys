@@ -3708,9 +3708,33 @@ the start of the phase, ahead of the renderer**. In order:
      auxiliary and orbital matrices most of the rest. The derived sets are
      54 functions for H, 86 for C and 106 for O, larger than aug-cc-pVQZ's
      (46, 80, 80): at ten to twenty steps a relaxation, benzene is hours and
-     octane far more. **Open, the owner's:** what a basis is derived
-     against — the free atom's energy, as now, is both larger than a bond
-     needs for its cost and, on water, not enough for its length.
+     octane far more. **Decided, the owner's:** what a basis is derived
+     against — see E5b.
+   - **E5b, a basis chosen for the molecule.** *The owner's decision:* the
+     functions a molecule's electrons are expanded in are chosen for that
+     molecule, not per element. E4's per-element derivation was a
+     convention carried over from software that publishes one set per
+     element for reuse on molecules nobody has seen; here each substance is
+     derived once and stored, so the question is what this molecule needs.
+     Derived on the free atom's energy, the set is larger than a bond needs
+     (benzene 840 functions) and still leaves water's bond 0.10% long.
+     The method: start from a modest set on each atom; estimate cheaply,
+     without solving again, how much each candidate function would change
+     the answer where it would sit; add the ones that matter; solve; stop
+     when no remaining candidate moves a bond length by more than a small
+     fraction of the 0.1% tolerance. The functions still sit on atoms; which
+     and how many is the molecule's. Each stored substance carries its own
+     measured convergence.
+     **Done when:** the cheap estimate is compared against the full check —
+     solving again with the candidates added — for all 45 substances in
+     `tests/liquids.rs`, and the estimate is shown to be trustworthy there;
+     and water's bond lands on PBE's converged length.
+     **Not started, by the owner's instruction,** until the second half of
+     the question is answered: how the functions are chosen when molecules
+     meet (two or more side by side, as E8's liquid needs).
+     **Still open, the owner's:** what the 0.1% is measured against. PBE is
+     1.24% long on water against experiment, so against experiment it is
+     out of reach for PBE; against PBE's own converged answer it is not.
    - **E6, properties.** Dipole, Hirshfeld partition (in-molecule volumes,
      charges), polarisability. Done when dipoles match experiment.
    - **E7, dispersion.** PBE has none at long range. **Open, the owner's:**
