@@ -11,7 +11,9 @@
 
 pub mod basis;
 pub mod boys;
+pub mod functional;
 pub mod grid;
 pub mod integrals;
 pub mod linalg;
+pub mod scf;
 pub mod values;

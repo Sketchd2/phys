@@ -3598,6 +3598,15 @@ the start of the phase, ahead of the renderer**. In order:
      convergence acceleration. Done when free-atom total energies match
      published reference values for the same functional to 1e-4 Ha
      across H to Ar.
+     *Status:* the self-consistent field, LDA and PBE, spin-polarised, agrees
+     with an independent implementation (PySCF with libxc) on the *same* basis
+     to 1e-8 Ha for H, He, Be, N and Ne and to 4e-7 for water. The clause
+     against published basis-limit energies is checked at E4, since it is a
+     property of the basis. **Found:** water takes 13-38 s, nearly all of it
+     the exchange-correlation grid rebuilt every iteration (310 000 points at
+     full accuracy); molecules of the 45-substance set's size need screening,
+     pruned grids and density fitting before they are practical, and the
+     test suite's cost has to be watched as this grows.
    - **E4, the derived basis.** Per element, even-tempered exponents optimised
      variationally on the free atom and stored. Done when the atoms' energies
      converge as the set grows, and a molecule's energy is within a stated

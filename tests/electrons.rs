@@ -351,3 +351,95 @@ fn basis_gradients_are_derivatives() {
     println!("  s, p, d, f: worst gradient error {worst:.2e}");
     assert!(worst < 1e-8);
 }
+
+// ---------------------------------------------------------------------------
+// Stage E3: Kohn-Sham, against an independent implementation
+// ---------------------------------------------------------------------------
+//
+// The reference numbers are PySCF 2.14 with libxc ("slater,pw_mod" and
+// "pbe,pbe"), unrestricted, Cartesian, on *exactly these basis sets*, grid
+// level 9 and conv_tol 1e-11. Same basis, same functional: the only things
+// that can differ are the grid and the code, so agreement says the integrals,
+// the functional, its potential and the self-consistency are all right. How
+// far either is from the basis-set limit is stage E4's question, not this one.
+
+use phys::electrons::functional::Functional;
+use phys::electrons::scf::{solve, Problem};
+
+fn atom_basis() -> Basis {
+    let mut shells = Vec::new();
+    shells.extend(even_tempered([0.0; 3], 0, 0.05, 3.0, 12));
+    shells.extend(even_tempered([0.0; 3], 1, 0.1, 3.0, 6));
+    shells.extend(even_tempered([0.0; 3], 2, 0.3, 3.0, 2));
+    Basis::new(shells)
+}
+
+#[test]
+fn atoms_agree_with_an_independent_implementation() {
+    let cases = [
+        ("H", 1.0, 1.0, 0.0, Functional::Lda, -0.47870014),
+        ("H", 1.0, 1.0, 0.0, Functional::Pbe, -0.49997908),
+        ("He", 2.0, 1.0, 1.0, Functional::Lda, -2.83443563),
+        ("He", 2.0, 1.0, 1.0, Functional::Pbe, -2.89291612),
+        ("Be", 4.0, 2.0, 2.0, Functional::Lda, -14.44617263),
+        ("Be", 4.0, 2.0, 2.0, Functional::Pbe, -14.62961013),
+        ("N", 7.0, 5.0, 2.0, Functional::Lda, -54.13047335),
+        ("N", 7.0, 5.0, 2.0, Functional::Pbe, -54.53188572),
+        ("Ne", 10.0, 5.0, 5.0, Functional::Lda, -128.17827154),
+        ("Ne", 10.0, 5.0, 5.0, Functional::Pbe, -128.81428838),
+    ];
+    let mut worst: f64 = 0.0;
+    for (name, z, a, b, f, reference) in cases {
+        let p = Problem { basis: atom_basis(), nuclei: vec![(z, [0.0; 3])], sizes: vec![1.0], alpha: a, beta: b, functional: f, radial: 100, theta: 8 };
+        let s = solve(&p, 100, 1e-10);
+        assert!(s.converged, "{name} {f:?} did not converge");
+        let e = (s.energy - reference).abs();
+        worst = worst.max(e);
+        println!("  {name:2} {f:?}: {:.8} against {reference:.8} ({e:.1e}), {} iterations", s.energy, s.iterations);
+    }
+    assert!(worst < 2e-8, "{worst}");
+}
+
+/// A molecule: the Becke partition, two-centre integrals and the nuclei's own
+/// repulsion all enter. Reference -75.81621481 (PySCF, same basis).
+#[test]
+fn water_agrees_with_an_independent_implementation() {
+    let o = [0.0, 0.0, 0.0];
+    let h1 = [0.0, 1.43, 1.1];
+    let h2 = [0.0, -1.43, 1.1];
+    let mut sh = even_tempered(o, 0, 0.1, 3.0, 8);
+    sh.extend(even_tempered(o, 1, 0.15, 3.0, 4));
+    sh.push(Shell::primitive(o, 2, 0.8));
+    for c in [h1, h2] {
+        sh.extend(even_tempered(c, 0, 0.06, 3.0, 5));
+        sh.push(Shell::primitive(c, 1, 0.7));
+    }
+    let p = Problem {
+        basis: Basis::new(sh),
+        nuclei: vec![(8.0, o), (1.0, h1), (1.0, h2)],
+        sizes: vec![1.0, 0.6, 0.6],
+        alpha: 5.0,
+        beta: 5.0,
+        functional: Functional::Pbe,
+        radial: 70,
+        theta: 16,
+    };
+    let s = solve(&p, 100, 1e-10);
+    println!("  water, PBE: {:.8} against -75.81621481 ({:.1e}), {} iterations", s.energy, (s.energy + 75.81621481).abs(), s.iterations);
+    assert!(s.converged);
+    assert!((s.energy + 75.81621481).abs() < 1e-6);
+}
+
+#[test]
+fn degenerate_levels_share_their_electrons() {
+    use phys::electrons::scf::occupy;
+    // 1s, 2s, three 2p: carbon's alpha electrons, four of them.
+    let occ = occupy(&[-10.0, -0.5, -0.2, -0.2, -0.2, 0.3], 4.0);
+    println!("  {occ:?}");
+    assert_eq!(occ[0], 1.0);
+    assert_eq!(occ[1], 1.0);
+    for o in &occ[2..5] {
+        assert!((o - 2.0 / 3.0).abs() < 1e-15);
+    }
+    assert_eq!(occ[5], 0.0);
+}
