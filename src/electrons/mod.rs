@@ -9,7 +9,9 @@
 //!
 //! Atomic units throughout (bohr, hartree), converted at the boundary.
 
+pub mod atom;
 pub mod basis;
+pub mod element;
 pub mod boys;
 pub mod functional;
 pub mod grid;

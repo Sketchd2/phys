@@ -443,3 +443,54 @@ fn degenerate_levels_share_their_electrons() {
     }
     assert_eq!(occ[5], 0.0);
 }
+
+// ---------------------------------------------------------------------------
+// Stage E4: the spherical atom, and each element's basis derived from it
+// ---------------------------------------------------------------------------
+
+/// The radial solver is the three-dimensional one restricted to a spherical
+/// atom, so on the same s and p functions they must agree. Measured: H to
+/// 4e-11, Ne to 6e-8 at 600 radial points (9e-7 at 300, which is why it is 600).
+#[test]
+fn the_radial_atom_is_the_three_dimensional_one() {
+    use phys::electrons::atom;
+    let s: Vec<f64> = (0..12).map(|k| 0.05 * 3f64.powi(k)).collect();
+    let p: Vec<f64> = (0..6).map(|k| 0.1 * 3f64.powi(k)).collect();
+    let mut worst: f64 = 0.0;
+    for (name, z, a, b) in [("H", 1.0, 1.0, 0.0), ("C", 6.0, 4.0, 2.0), ("Ne", 10.0, 5.0, 5.0)] {
+        let mut sh: Vec<Shell> = s.iter().map(|e| Shell::primitive([0.0; 3], 0, *e)).collect();
+        sh.extend(p.iter().map(|e| Shell::primitive([0.0; 3], 1, *e)));
+        let d3 = solve(&Problem { basis: Basis::new(sh), nuclei: vec![(z, [0.0; 3])], sizes: vec![1.0], alpha: a, beta: b, functional: Functional::Pbe, radial: 100, theta: 8 }, 200, 1e-11);
+        let r = atom::solve(z, a, b, &[s.clone(), p.clone()], Functional::Pbe, 500, 1e-11);
+        let d = (r.energy - d3.energy).abs();
+        worst = worst.max(d);
+        println!("  {name:2}: three-dimensional {:.9}, radial {:.9}, {d:.1e}", d3.energy, r.energy);
+    }
+    assert!(worst < 2e-7, "{worst}");
+}
+
+/// Stage E4's done-when for atoms, and E3's clause against the basis limit:
+/// each element's own derived basis gives its free-atom PBE energy to 1e-4 Ha
+/// of the limit. The limits are PySCF with even-tempered s/p sets of 32 and 26
+/// functions at ratio 1.9 — large enough that the next size changes them by
+/// 1e-7 (H) to 1.2e-4 (Ar). Measured over H to Ar: worst 1.7e-5 (B).
+///
+/// Three things the derivation decides by itself are checked as well: the
+/// ground state's spin (Hund's first rule, not told), and which angular momenta
+/// an element needs (only s up to beryllium, s and p after: the periodic
+/// table's shell structure, not told).
+#[test]
+fn each_element_derives_its_own_basis() {
+    use phys::electrons::element::derive;
+    // (Z, basis-limit PBE energy, unpaired, angular momenta)
+    let cases: [(u32, f64, u32, usize); 4] = [(1, -0.4999904, 1, 1), (4, -14.6299392, 0, 1), (6, -37.7936834, 2, 2), (10, -128.8664256, 0, 2)];
+    for (z, limit, unpaired, ls) in cases {
+        let b = derive(z, Functional::Pbe, 1e-5);
+        let counts: Vec<String> = b.shells.iter().map(|(l, e)| format!("l={l}: {}", e.len())).collect();
+        println!("  Z = {z:2}: {:.7} against a limit of {limit:.7} ({:+.1e}); {} unpaired; {}; {} atoms solved", b.energy, b.energy - limit, b.unpaired, counts.join(", "), b.evaluations);
+        assert!((b.energy - limit).abs() < 1e-4);
+        assert!(b.energy > limit - 2e-5, "a finite basis cannot go far below the limit");
+        assert_eq!(b.unpaired, unpaired, "the ground state's spin");
+        assert_eq!(b.shells.len(), ls, "the angular momenta it needs");
+    }
+}
