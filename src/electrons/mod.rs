@@ -11,5 +11,7 @@
 
 pub mod basis;
 pub mod boys;
+pub mod grid;
 pub mod integrals;
 pub mod linalg;
+pub mod values;

@@ -276,3 +276,78 @@ fn the_eigensolver_solves() {
     assert!(worst < 1e-12 && ortho < 1e-12);
     assert!(vals.windows(2).all(|w| w[0] <= w[1]));
 }
+
+/// Stage E2: the grid reproduces the analytic overlap of a water molecule's
+/// basis, s to d, every pair — a stricter test than integrating an electron
+/// count, which is one sum of these. With Becke's size adjustment the same
+/// grid reached only 2.5e-5; see `grid::molecular`.
+#[test]
+fn the_grid_integrates_a_molecules_functions() {
+    use phys::electrons::grid::molecular;
+    use phys::electrons::values::at;
+    let atoms = [(8.0, [0.0, 0.0, 0.0], 1.2), (1.0, [0.0, 1.43, 1.1], 0.6), (1.0, [0.0, -1.43, 1.1], 0.6)];
+    let mut shells = Vec::new();
+    for (_, p, _) in atoms {
+        for l in 0..=2 {
+            for e in [0.15, 0.6, 2.5, 10.0] {
+                shells.push(Shell::primitive(p, l, e));
+            }
+        }
+    }
+    let basis = Basis::new(shells);
+    let (s, _, _) = one_electron(&basis, &atoms.map(|(z, p, _)| (z, p)));
+    let n = basis.size;
+    for (nr, nt) in [(40, 12), (60, 18), (90, 24)] {
+        let grid = molecular(&atoms.map(|(_, p, r)| (p, r)), nr, nt);
+        let mut g = vec![0.0; n * n];
+        let mut v = vec![0.0; n];
+        for (p, w) in grid.points.iter().zip(&grid.weights) {
+            at(&basis, *p, &mut v, None);
+            for i in 0..n {
+                let wi = w * v[i];
+                for j in 0..n {
+                    g[i * n + j] += wi * v[j];
+                }
+            }
+        }
+        let worst = (0..n * n).map(|k| (g[k] - s.a[k]).abs()).fold(0.0, f64::max);
+        println!("  {nr} radial x {} angular per atom, {} points: worst overlap error {worst:.2e}", 2 * nt * nt, grid.points.len());
+        if nr == 90 {
+            assert!(worst < 1e-6, "{worst}");
+        }
+    }
+}
+
+/// Gradients of the basis functions agree with finite differences.
+#[test]
+fn basis_gradients_are_derivatives() {
+    use phys::electrons::values::at;
+    let basis = Basis::new(vec![
+        Shell::primitive([0.1, 0.2, -0.3], 0, 0.7),
+        Shell::primitive([0.1, 0.2, -0.3], 1, 1.3),
+        Shell::primitive([-0.4, 0.0, 0.5], 2, 0.9),
+        Shell::primitive([0.0, 0.3, 0.0], 3, 0.5),
+    ]);
+    let n = basis.size;
+    let p = [0.35, -0.2, 0.6];
+    let mut v = vec![0.0; n];
+    let mut g = vec![0.0; 3 * n];
+    at(&basis, p, &mut v, Some(&mut g));
+    let h = 1e-6;
+    let mut worst: f64 = 0.0;
+    for d in 0..3 {
+        let mut pp = p;
+        let mut pm = p;
+        pp[d] += h;
+        pm[d] -= h;
+        let mut vp = vec![0.0; n];
+        let mut vm = vec![0.0; n];
+        at(&basis, pp, &mut vp, None);
+        at(&basis, pm, &mut vm, None);
+        for i in 0..n {
+            worst = worst.max(((vp[i] - vm[i]) / (2.0 * h) - g[3 * i + d]).abs());
+        }
+    }
+    println!("  s, p, d, f: worst gradient error {worst:.2e}");
+    assert!(worst < 1e-8);
+}
