@@ -8,3 +8,6 @@ Cargo.lock
 world.phys
 *.world
 scenes.phys
+
+# A scratch probe used while developing; never part of the suite.
+tests/zz.rs
