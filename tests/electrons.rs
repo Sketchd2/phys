@@ -526,3 +526,116 @@ fn a_molecule_in_the_derived_basis_is_quadruple_zeta() {
     assert!(s.energy < qz + 1e-6, "no worse than quadruple zeta");
     assert!(s.energy > fz - 1e-5, "and not below a larger basis, which would mean an error");
 }
+
+// ---------------------------------------------------------------------------
+// Stage E5: forces
+// ---------------------------------------------------------------------------
+
+fn small_molecule(atoms: &[(f64, [f64; 3])]) -> Problem {
+    let mut sh = Vec::new();
+    let mut ax = Vec::new();
+    let mut sizes = Vec::new();
+    for (z, c) in atoms {
+        if *z > 1.5 {
+            sh.extend(even_tempered(*c, 0, 0.1, 3.0, 8));
+            sh.extend(even_tempered(*c, 1, 0.15, 3.0, 4));
+            sh.push(Shell::primitive(*c, 2, 0.8));
+            sizes.push(1.0);
+        } else {
+            sh.extend(even_tempered(*c, 0, 0.06, 3.0, 5));
+            sh.push(Shell::primitive(*c, 1, 0.7));
+            sizes.push(0.6);
+        }
+        for l in 0..=2 {
+            ax.extend(even_tempered(*c, l, 0.12, 3.0, if l == 0 { 9 } else { 7 }));
+        }
+    }
+    let ne: f64 = atoms.iter().map(|a| a.0).sum();
+    Problem { basis: Basis::new(sh), nuclei: atoms.to_vec(), sizes, alpha: ne / 2.0, beta: ne / 2.0, functional: Functional::Pbe, radial: 50, theta: 12, auxiliary: Some(Basis::new(ax)), prune: false }
+}
+
+/// H2: the analytic force against finite differences of the whole
+/// self-consistent energy. Measured 4e-6, which is the differences' own noise
+/// (their x and y components, zero by symmetry, come out 3e-6).
+#[test]
+fn the_force_on_a_stretched_bond_is_the_slope_of_its_energy() {
+    use phys::electrons::gradient::gradient;
+    let atoms = vec![(1.0, [0.0, 0.0, -0.8]), (1.0, [0.0, 0.0, 0.8])];
+    let p = small_molecule(&atoms);
+    let s = solve(&p, 200, 1e-11);
+    let g = gradient(&p, &s);
+    let h = 1e-3;
+    let e = |dz: f64| {
+        let mut a = atoms.clone();
+        a[1].1[2] += dz;
+        solve(&small_molecule(&a), 200, 1e-11).energy
+    };
+    let fd = (e(h) - e(-h)) / (2.0 * h);
+    println!("  H2 stretched to 1.6 bohr: analytic {:+.7}, finite difference {fd:+.7}", g[1][2]);
+    assert!((g[1][2] - fd).abs() < 2e-5);
+    assert!(g[1][2] > 0.0, "a bond stretched past its length pulls back");
+    assert!((g[0][2] + g[1][2]).abs() < 1e-10, "and pulls both ends equally");
+}
+
+/// Each term of the force is the derivative of its own energy at a fixed
+/// density — which is how the gradient was debugged, and what would catch it
+/// going wrong. The total cannot be checked as tightly against finite
+/// differences: the self-consistent energy scatters by 2.7e-7 Ha between
+/// geometries 1e-3 bohr apart (measured), which is 1e-4 in a difference. The
+/// fitted Coulomb energy is the noisy one, so its check uses a larger step.
+/// And the forces sum to zero: translating the molecule does nothing, which
+/// held only once the grid's own motion was included.
+#[test]
+fn every_term_of_the_force_is_the_slope_of_its_energy() {
+    use phys::electrons::gradient::gradient_parts;
+    use phys::electrons::integrals::{one_electron, one_electron_gradient};
+    use phys::electrons::linalg::Matrix;
+    use phys::electrons::scf::{exchange_correlation, Batches, Fitted};
+    let atoms = vec![(8.0, [0.05, -0.03, 0.02]), (1.0, [0.0, 1.43, 1.1]), (1.0, [0.1, -1.43, 1.0])];
+    let p = small_molecule(&atoms);
+    let s = solve(&p, 200, 1e-11);
+    let n = p.basis.size;
+    let mut d = s.density_alpha.clone();
+    let mut w = s.weighted_alpha.clone();
+    for k in 0..n * n {
+        d.a[k] += s.density_beta.a[k];
+        w.a[k] += s.weighted_beta.a[k];
+    }
+    let owner: Vec<usize> = p.basis.shells.iter().map(|sh| atoms.iter().position(|(_, c)| (0..3).all(|k| (c[k] - sh.centre[k]).abs() < 1e-10)).unwrap()).collect();
+    let zero = Matrix::zeros(n);
+    let gh = one_electron_gradient(&p.basis, &p.nuclei, &owner, &d, &zero);
+    let gs = one_electron_gradient(&p.basis, &p.nuclei, &owner, &zero, &w);
+    let parts = gradient_parts(&p, &s);
+    for (name, part) in ["nuclear", "one-electron", "coulomb", "xc"].iter().zip(&parts) {
+        let sum: f64 = (0..3).map(|k| part.iter().map(|v| v[k]).sum::<f64>().abs()).sum();
+        println!("  {name}: forces sum to {sum:.1e}");
+        assert!(sum < 1e-9, "{name}");
+    }
+    let terms = |q: &Problem| -> [f64; 4] {
+        let (sm, t, v) = one_electron(&q.basis, &q.nuclei);
+        let mut hm = t.clone();
+        for k in 0..n * n {
+            hm.a[k] += v.a[k];
+        }
+        let fit = Fitted::new(&q.basis, q.auxiliary.as_ref().unwrap(), &sm);
+        let at: Vec<([f64; 3], f64)> = q.nuclei.iter().zip(&q.sizes).map(|((_, pp), r)| (*pp, *r)).collect();
+        let grid = phys::electrons::grid::molecular_pruned(&at, q.radial, q.theta, q.prune);
+        let (exc, _, _) = exchange_correlation(&q.basis, &Batches::new(&q.basis, &grid), q.functional, &s.density_alpha, &s.density_beta);
+        [hm.dot(&d), -sm.dot(&w), 0.5 * fit.coulomb(&d).dot(&d), exc]
+    };
+    let (a, dd) = (1usize, 0usize);
+    let fd = |h: f64| {
+        let mut pl = atoms.clone();
+        pl[a].1[dd] += h;
+        let mut mi = atoms.clone();
+        mi[a].1[dd] -= h;
+        let (tp, tm) = (terms(&small_molecule(&pl)), terms(&small_molecule(&mi)));
+        (0..4).map(|k| (tp[k] - tm[k]) / (2.0 * h)).collect::<Vec<f64>>()
+    };
+    let (f4, f2) = (fd(1e-4), fd(1e-2));
+    let checks = [("D dH", gh[a][dd], f4[0], 1e-6), ("-W dS", gs[a][dd], f4[1], 1e-6), ("Coulomb", parts[2][a][dd], f2[2], 1e-5), ("XC", parts[3][a][dd], f4[3], 1e-6)];
+    for (name, analytic, numeric, tol) in checks {
+        println!("  {name}: analytic {analytic:+.8}, finite difference {numeric:+.8}");
+        assert!((analytic - numeric).abs() < tol, "{name}");
+    }
+}

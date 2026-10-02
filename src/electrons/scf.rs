@@ -50,6 +50,11 @@ pub struct Solution {
     pub levels_beta: Vec<f64>,
     pub density_alpha: Matrix,
     pub density_beta: Matrix,
+    /// Energy-weighted densities `sum_i n_i e_i c_i c_i^T`, per spin: what the
+    /// gradient's overlap (Pulay) term needs, because the basis moves with the
+    /// atoms.
+    pub weighted_alpha: Matrix,
+    pub weighted_beta: Matrix,
     /// The parts of the energy, hartree.
     pub kinetic_and_nuclear: f64,
     pub coulomb: f64,
@@ -171,6 +176,7 @@ pub struct Fitted {
     three: Vec<(usize, usize, Vec<f64>)>,
     /// Pseudo-inverse of `V` by eigenvalues, dropping the near-dependent ones.
     vinv: Matrix,
+    dropped: usize,
 }
 
 impl Fitted {
@@ -200,8 +206,10 @@ impl Fitted {
         let (vals, vecs) = super::linalg::eigh(&v);
         let mut vinv = Matrix::zeros(na);
         let top = vals.last().cloned().unwrap_or(1.0);
+        let mut dropped = 0;
         for k in 0..na {
             if vals[k] <= METRIC_CUTOFF * top {
+                dropped += 1;
                 continue;
             }
             for i in 0..na {
@@ -256,7 +264,28 @@ impl Fitted {
             out
         };
         let three: Vec<(usize, usize, Vec<f64>)> = parallel(pairs.len(), &job).into_iter().flatten().collect();
-        Fitted { n, three, vinv }
+        Fitted { n, three, vinv, dropped }
+    }
+
+    /// Auxiliary directions the metric's cutoff dropped.
+    pub fn dropped(&self) -> usize {
+        self.dropped
+    }
+
+    /// The fit's coefficients `c = V^-1 d` for density `d`.
+    pub fn coefficients(&self, d: &Matrix) -> Vec<f64> {
+        let na = self.vinv.n;
+        let mut dp = vec![0.0; na];
+        for (m, nn, vals) in &self.three {
+            let w = if m == nn { d.get(*m, *m) } else { d.get(*m, *nn) + d.get(*nn, *m) };
+            if w == 0.0 {
+                continue;
+            }
+            for (x, v) in dp.iter_mut().zip(vals) {
+                *x += w * v;
+            }
+        }
+        (0..na).map(|i| self.vinv.a[i * na..i * na + na].iter().zip(&dp).map(|(a, b)| a * b).sum()).collect()
     }
 
     pub fn coulomb(&self, d: &Matrix) -> Matrix {
@@ -331,6 +360,11 @@ pub fn occupy(levels: &[f64], count: f64) -> Vec<f64> {
     occ
 }
 
+fn weighted(c: &[f64], m: usize, n: usize, occ: &[f64], levels: &[f64]) -> Matrix {
+    let w: Vec<f64> = occ.iter().zip(levels).map(|(o, e)| o * e).collect();
+    density(c, m, n, &w)
+}
+
 fn density(c: &[f64], m: usize, n: usize, occ: &[f64]) -> Matrix {
     let mut d = Matrix::zeros(n);
     for (k, &o) in occ.iter().enumerate() {
@@ -354,7 +388,9 @@ fn density(c: &[f64], m: usize, n: usize, occ: &[f64]) -> Matrix {
 pub struct Batches {
     /// `(points, weights, functions that are not negligible over them, and
     /// the shells those functions belong to)`.
-    batches: Vec<(Vec<[f64; 3]>, Vec<f64>, Vec<usize>, Vec<usize>)>,
+    pub(crate) batches: Vec<(Vec<[f64; 3]>, Vec<f64>, Vec<usize>, Vec<usize>)>,
+    /// For each batch, its points' indices in the grid it was built from.
+    pub(crate) indices: Vec<Vec<usize>>,
 }
 
 /// Below this a function's (or its gradient's) magnitude is taken as zero.
@@ -378,6 +414,7 @@ impl Batches {
         let cell = |p: [f64; 3]| [(p[0] / Self::BOX).floor() as i64, (p[1] / Self::BOX).floor() as i64, (p[2] / Self::BOX).floor() as i64];
         order.sort_by_key(|&i| cell(grid.points[i]));
         let mut batches = Vec::new();
+        let mut indices = Vec::new();
         let mut start = 0;
         while start < order.len() {
             let c0 = cell(grid.points[order[start]]);
@@ -415,9 +452,10 @@ impl Batches {
                 }
             }
             batches.push((pts, ws, funcs, shell_list));
+            indices.push(order[start..end].to_vec());
             start = end;
         }
-        Batches { batches }
+        Batches { batches, indices }
     }
 
     /// Mean number of functions a point sees, against the basis size.
@@ -654,6 +692,8 @@ pub fn solve(problem: &Problem, max_iterations: usize, tolerance: f64) -> Soluti
     let (ea0, c0) = generalised(&h, &x, m);
     let mut da = density(&c0, m, n, &occupy(&ea0, problem.alpha));
     let mut db = density(&c0, m, n, &occupy(&ea0, problem.beta));
+    let mut wa = weighted(&c0, m, n, &occupy(&ea0, problem.alpha), &ea0);
+    let mut wb = weighted(&c0, m, n, &occupy(&ea0, problem.beta), &ea0);
     let mut levels_a = ea0.clone();
     let mut levels_b = ea0;
     // DIIS history: Fock pair and error vector.
@@ -716,8 +756,11 @@ pub fn solve(problem: &Problem, max_iterations: usize, tolerance: f64) -> Soluti
         };
         let (ea, ca) = generalised(&fa_x, &x, m);
         let (eb, cb) = generalised(&fb_x, &x, m);
-        da = density(&ca, m, n, &occupy(&ea, problem.alpha));
-        db = density(&cb, m, n, &occupy(&eb, problem.beta));
+        let (oa, ob) = (occupy(&ea, problem.alpha), occupy(&eb, problem.beta));
+        da = density(&ca, m, n, &oa);
+        db = density(&cb, m, n, &ob);
+        wa = weighted(&ca, m, n, &oa, &ea);
+        wb = weighted(&cb, m, n, &ob, &eb);
         timing[4] += clock.elapsed().as_secs_f64();
         levels_a = ea;
         levels_b = eb;
@@ -728,6 +771,8 @@ pub fn solve(problem: &Problem, max_iterations: usize, tolerance: f64) -> Soluti
         iterations,
         levels_alpha: levels_a,
         levels_beta: levels_b,
+        weighted_alpha: wa,
+        weighted_beta: wb,
         density_alpha: da,
         density_beta: db,
         kinetic_and_nuclear: parts.0,

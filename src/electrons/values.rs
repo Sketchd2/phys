@@ -67,3 +67,53 @@ pub fn at(basis: &Basis, p: [f64; 3], out: &mut [f64], mut grad: Option<&mut [f6
         }
     }
 }
+
+/// Values, gradients and second derivatives of the listed shells' functions at
+/// `p`, packed in list order: `hess` holds six per function
+/// (`xx, yy, zz, xy, xz, yz`). What a gradient-corrected functional's force
+/// needs, since its potential already involves first derivatives.
+pub fn at_shells_hessian(basis: &Basis, shells: &[usize], p: [f64; 3], val: &mut [f64], grad: &mut [f64], hess: &mut [f64]) {
+    let mut o = 0;
+    for &is in shells {
+        let sh = &basis.shells[is];
+        let d = [p[0] - sh.centre[0], p[1] - sh.centre[1], p[2] - sh.centre[2]];
+        let r2 = d[0] * d[0] + d[1] * d[1] + d[2] * d[2];
+        for c in components(sh.l).iter() {
+            let scale = component_scale(sh.l, *c);
+            let (mut v, mut g, mut h) = (0.0, [0.0; 3], [0.0; 6]);
+            for (a, coef) in sh.exponents.iter().zip(&sh.coefficients) {
+                let e = coef * (-a * r2).exp();
+                // Per axis: f, f', f'' of x^n exp(-a x^2) without the common factor.
+                let axis = |x: f64, n: usize| {
+                    let pw = |k: i32| if k < 0 { 0.0 } else { x.powi(k) };
+                    let n_ = n as i32;
+                    let f0 = pw(n_);
+                    let f1 = n as f64 * pw(n_ - 1) - 2.0 * a * pw(n_ + 1);
+                    let f2 = (n * n.saturating_sub(1)) as f64 * pw(n_ - 2) - 2.0 * a * (2 * n + 1) as f64 * pw(n_) + 4.0 * a * a * pw(n_ + 2);
+                    (f0, f1, f2)
+                };
+                let (x0, x1, x2) = axis(d[0], c[0]);
+                let (y0, y1, y2) = axis(d[1], c[1]);
+                let (z0, z1, z2) = axis(d[2], c[2]);
+                v += e * x0 * y0 * z0;
+                g[0] += e * x1 * y0 * z0;
+                g[1] += e * x0 * y1 * z0;
+                g[2] += e * x0 * y0 * z1;
+                h[0] += e * x2 * y0 * z0;
+                h[1] += e * x0 * y2 * z0;
+                h[2] += e * x0 * y0 * z2;
+                h[3] += e * x1 * y1 * z0;
+                h[4] += e * x1 * y0 * z1;
+                h[5] += e * x0 * y1 * z1;
+            }
+            val[o] = scale * v;
+            for k in 0..3 {
+                grad[3 * o + k] = scale * g[k];
+            }
+            for k in 0..6 {
+                hess[6 * o + k] = scale * h[k];
+            }
+            o += 1;
+        }
+    }
+}

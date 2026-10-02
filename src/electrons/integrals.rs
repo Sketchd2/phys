@@ -129,6 +129,9 @@ pub(crate) fn hermite_coulomb_into(lmax: usize, p: f64, pc: [f64; 3], scratch: &
 /// A primitive pair: the Hermite tables and the product's exponent and centre.
 pub(crate) struct Pair {
     p: f64,
+    /// The first shell's exponent, which a derivative with respect to its
+    /// centre needs.
+    alpha: f64,
     /// The second shell's exponent, which the kinetic integral needs.
     beta: f64,
     centre: [f64; 3],
@@ -139,6 +142,12 @@ pub(crate) struct Pair {
 }
 
 pub(crate) fn pairs(a: &Shell, b: &Shell, extra_j: usize) -> Vec<Pair> {
+    pairs_ext(a, b, 0, extra_j)
+}
+
+/// Primitive pairs with Hermite tables reaching `extra_i` above the first
+/// shell's angular momentum and `extra_j` above the second's.
+pub(crate) fn pairs_ext(a: &Shell, b: &Shell, extra_i: usize, extra_j: usize) -> Vec<Pair> {
     let ab = [a.centre[0] - b.centre[0], a.centre[1] - b.centre[1], a.centre[2] - b.centre[2]];
     let mut out = Vec::with_capacity(a.exponents.len() * b.exponents.len());
     for (ea, ca) in a.exponents.iter().zip(&a.coefficients) {
@@ -151,12 +160,13 @@ pub(crate) fn pairs(a: &Shell, b: &Shell, extra_j: usize) -> Vec<Pair> {
             ];
             out.push(Pair {
                 p,
+                alpha: *ea,
                 beta: *eb,
                 centre,
                 coef: ca * cb,
-                hx: Hermite::new(a.l, b.l + extra_j, *ea, *eb, ab[0]),
-                hy: Hermite::new(a.l, b.l + extra_j, *ea, *eb, ab[1]),
-                hz: Hermite::new(a.l, b.l + extra_j, *ea, *eb, ab[2]),
+                hx: Hermite::new(a.l + extra_i, b.l + extra_j, *ea, *eb, ab[0]),
+                hy: Hermite::new(a.l + extra_i, b.l + extra_j, *ea, *eb, ab[1]),
+                hz: Hermite::new(a.l + extra_i, b.l + extra_j, *ea, *eb, ab[2]),
             });
         }
     }
@@ -326,4 +336,242 @@ pub(crate) fn eri_from_pairs(bra: &[Pair], ket: &[Pair], ls: [usize; 4]) -> Vec<
         }
     }
     out
+}
+
+
+/// The Hermite sum of one electron-repulsion integral over *unnormalised*
+/// Cartesian components `x y | z w`, for one primitive quartet, given the
+/// Hermite Coulomb table `r` of width `w`.
+#[allow(clippy::too_many_arguments)]
+#[inline]
+fn eri_raw(p: &Pair, q: &Pair, x: [usize; 3], y: [usize; 3], z: [usize; 3], wv: [usize; 3], r: &[f64], w: usize) -> f64 {
+    let mut sum = 0.0;
+    for t in 0..=(x[0] + y[0]) {
+        let e1 = p.hx.get(x[0], y[0], t);
+        if e1 == 0.0 {
+            continue;
+        }
+        for u in 0..=(x[1] + y[1]) {
+            let e2 = e1 * p.hy.get(x[1], y[1], u);
+            if e2 == 0.0 {
+                continue;
+            }
+            for v in 0..=(x[2] + y[2]) {
+                let e3 = e2 * p.hz.get(x[2], y[2], v);
+                if e3 == 0.0 {
+                    continue;
+                }
+                for tau in 0..=(z[0] + wv[0]) {
+                    let f1 = q.hx.get(z[0], wv[0], tau);
+                    if f1 == 0.0 {
+                        continue;
+                    }
+                    for nu in 0..=(z[1] + wv[1]) {
+                        let f2 = f1 * q.hy.get(z[1], wv[1], nu);
+                        if f2 == 0.0 {
+                            continue;
+                        }
+                        for phi in 0..=(z[2] + wv[2]) {
+                            let f3 = f2 * q.hz.get(z[2], wv[2], phi);
+                            if f3 == 0.0 {
+                                continue;
+                            }
+                            let sign = if (tau + nu + phi) % 2 == 0 { 1.0 } else { -1.0 };
+                            sum += e3 * sign * f3 * r[((t + tau) * w + (u + nu)) * w + (v + phi)];
+                        }
+                    }
+                }
+            }
+        }
+    }
+    sum
+}
+
+/// `d/dA (ab|cd)` along x, y and z, `A` the centre of `a`: three blocks laid
+/// out as [`eri_block`]'s.
+///
+/// Moving a Gaussian's centre is shifting its power:
+/// `d/dA_x [x^i exp(-a x^2)] = 2a x^(i+1) exp(..) - i x^(i-1) exp(..)`
+/// (with `x` measured from `A`), so the derivative is two integrals one
+/// angular momentum either side, with the same normalisation as the original.
+pub fn eri_derivative(a: &Shell, b: &Shell, c: &Shell, d: &Shell) -> [Vec<f64>; 3] {
+    let pi = std::f64::consts::PI;
+    let (ca, cb, cc, cd) = (components(a.l), components(b.l), components(c.l), components(d.l));
+    let bra = pairs_ext(a, b, 1, 0);
+    let ket = pairs(c, d, 0);
+    let ltot = a.l + 1 + b.l + c.l + d.l;
+    let w = ltot + 1;
+    let size = ca.len() * cb.len() * cc.len() * cd.len();
+    let mut out = [vec![0.0; size], vec![0.0; size], vec![0.0; size]];
+    let mut scratch = Vec::new();
+    let mut r = Vec::new();
+    for p in &bra {
+        for q in &ket {
+            let alpha = p.p * q.p / (p.p + q.p);
+            let pq = [p.centre[0] - q.centre[0], p.centre[1] - q.centre[1], p.centre[2] - q.centre[2]];
+            hermite_coulomb_into(ltot, alpha, pq, &mut scratch, &mut r);
+            let pre = 2.0 * pi.powf(2.5) / (p.p * q.p * (p.p + q.p).sqrt()) * p.coef * q.coef;
+            let mut o = 0;
+            for x in &ca {
+                for y in &cb {
+                    for z in &cc {
+                        for wv in &cd {
+                            for dir in 0..3 {
+                                let mut up = *x;
+                                up[dir] += 1;
+                                let mut val = 2.0 * p.alpha * eri_raw(p, q, up, *y, *z, *wv, &r, w);
+                                if x[dir] > 0 {
+                                    let mut down = *x;
+                                    down[dir] -= 1;
+                                    val -= x[dir] as f64 * eri_raw(p, q, down, *y, *z, *wv, &r, w);
+                                }
+                                out[dir][o] += pre * val;
+                            }
+                            o += 1;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    let mut o = 0;
+    for x in &ca {
+        for y in &cb {
+            for z in &cc {
+                for wv in &cd {
+                    let sc = component_scale(a.l, *x) * component_scale(b.l, *y) * component_scale(c.l, *z) * component_scale(d.l, *wv);
+                    for dir in 0..3 {
+                        out[dir][o] *= sc;
+                    }
+                    o += 1;
+                }
+            }
+        }
+    }
+    out
+}
+
+/// Gradient contributions of the one-electron energy, given the total density
+/// `d` and energy-weighted density `w`: for each nucleus,
+/// `sum D dH/dR - sum W dS/dR`, where `H` is kinetic plus nuclear attraction
+/// and the derivative includes both the moving basis functions and the
+/// nucleus's own pull (Hellmann-Feynman). `owner[s]` is the nucleus shell `s`
+/// sits on.
+pub fn one_electron_gradient(basis: &Basis, nuclei: &[(f64, [f64; 3])], owner: &[usize], d: &Matrix, w: &Matrix) -> Vec<[f64; 3]> {
+    let pi = std::f64::consts::PI;
+    let n = basis.size;
+    let mut g = vec![[0.0; 3]; nuclei.len()];
+    for (ia, a) in basis.shells.iter().enumerate() {
+        for (ib, b) in basis.shells.iter().enumerate() {
+            let ca = components(a.l);
+            let cb = components(b.l);
+            let prs = pairs_ext(a, b, 1, 2);
+            let lsum = a.l + 1 + b.l;
+            for (ka, x) in ca.iter().enumerate() {
+                for (kb, y) in cb.iter().enumerate() {
+                    let (mu, nu) = (basis.offsets[ia] + ka, basis.offsets[ib] + kb);
+                    let (dmn, wmn) = (d.a[mu * n + nu], w.a[mu * n + nu]);
+                    let sc = component_scale(a.l, *x) * component_scale(b.l, *y);
+                    for pr in &prs {
+                        let norm = (pi / pr.p).powf(1.5);
+                        let s1 = |h: &Hermite, i: usize, j: usize| h.get(i, j, 0);
+                        let kin = |h: &Hermite, i: usize, l: usize| {
+                            let beta = pr.beta;
+                            let mut r = beta * (2 * l + 1) as f64 * h.get(i, l, 0) - 2.0 * beta * beta * h.get(i, l + 2, 0);
+                            if l >= 2 {
+                                r -= 0.5 * (l * (l - 1)) as f64 * h.get(i, l - 2, 0);
+                            }
+                            r
+                        };
+                        // Raw overlap and kinetic for a bra of powers `c`.
+                        let st = |c: [usize; 3]| {
+                            let (sx, sy, sz) = (s1(&pr.hx, c[0], y[0]), s1(&pr.hy, c[1], y[1]), s1(&pr.hz, c[2], y[2]));
+                            let (tx, ty, tz) = (kin(&pr.hx, c[0], y[0]), kin(&pr.hy, c[1], y[1]), kin(&pr.hz, c[2], y[2]));
+                            (sx * sy * sz * norm, (tx * sy * sz + sx * ty * sz + sx * sy * tz) * norm)
+                        };
+                        // Raw nuclear attraction to every nucleus.
+                        let vn = |c: [usize; 3], r: &[f64], wd: usize| {
+                            let mut sum = 0.0;
+                            for t in 0..=(c[0] + y[0]) {
+                                let ex = pr.hx.get(c[0], y[0], t);
+                                if ex == 0.0 {
+                                    continue;
+                                }
+                                for u in 0..=(c[1] + y[1]) {
+                                    let ey = pr.hy.get(c[1], y[1], u);
+                                    if ey == 0.0 {
+                                        continue;
+                                    }
+                                    for v in 0..=(c[2] + y[2]) {
+                                        sum += ex * ey * pr.hz.get(c[2], y[2], v) * r[(t * wd + u) * wd + v];
+                                    }
+                                }
+                            }
+                            sum
+                        };
+                        let tables: Vec<Vec<f64>> = nuclei.iter().map(|(_, cpos)| {
+                            hermite_coulomb(lsum + 1, pr.p, [pr.centre[0] - cpos[0], pr.centre[1] - cpos[1], pr.centre[2] - cpos[2]])
+                        }).collect();
+                        let wd = lsum + 2;
+                        for dir in 0..3 {
+                            // Basis-function derivative on the bra (a's nucleus).
+                            let mut up = *x;
+                            up[dir] += 1;
+                            let (mut ds, mut dt) = st(up);
+                            ds *= 2.0 * pr.alpha;
+                            dt *= 2.0 * pr.alpha;
+                            let mut dv = 0.0;
+                            for (k, (z, _)) in nuclei.iter().enumerate() {
+                                dv -= z * 2.0 * pi / pr.p * 2.0 * pr.alpha * vn(up, &tables[k], wd);
+                            }
+                            if x[dir] > 0 {
+                                let mut down = *x;
+                                down[dir] -= 1;
+                                let (s0, t0) = st(down);
+                                ds -= x[dir] as f64 * s0;
+                                dt -= x[dir] as f64 * t0;
+                                for (k, (z, _)) in nuclei.iter().enumerate() {
+                                    dv += z * 2.0 * pi / pr.p * x[dir] as f64 * vn(down, &tables[k], wd);
+                                }
+                            }
+                            // Both the bra and the ket move with their atoms; the
+                            // full double loop over shells counts each once as the
+                            // bra, so the factor is 2 for a symmetric density.
+                            g[owner[ia]][dir] += 2.0 * pr.coef * sc * (dmn * (dt + dv) - wmn * ds);
+                        }
+                        // Hellmann-Feynman: the nucleus's own pull on the pair,
+                        // dV/dC = +Z (2 pi / p) sum E E E R_(t+1).
+                        for (k, (z, _)) in nuclei.iter().enumerate() {
+                            for dir in 0..3 {
+                                let mut sum = 0.0;
+                                for t in 0..=(x[0] + y[0]) {
+                                    let ex = pr.hx.get(x[0], y[0], t);
+                                    if ex == 0.0 {
+                                        continue;
+                                    }
+                                    for u in 0..=(x[1] + y[1]) {
+                                        let ey = pr.hy.get(x[1], y[1], u);
+                                        if ey == 0.0 {
+                                            continue;
+                                        }
+                                        for v in 0..=(x[2] + y[2]) {
+                                            let ez = pr.hz.get(x[2], y[2], v);
+                                            let (tt, uu, vv) = match dir {
+                                                0 => (t + 1, u, v),
+                                                1 => (t, u + 1, v),
+                                                _ => (t, u, v + 1),
+                                            };
+                                            sum += ex * ey * ez * tables[k][(tt * wd + uu) * wd + vv];
+                                        }
+                                    }
+                                }
+                                g[k][dir] += dmn * pr.coef * sc * z * 2.0 * pi / pr.p * sum;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    g
 }
