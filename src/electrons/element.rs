@@ -17,7 +17,7 @@
 //! **And the ground state's spin**, by trying each multiplicity the electron
 //! count allows and keeping the lowest — Hund's first rule as a consequence.
 
-use super::atom::{solve, Atom};
+use super::atom::{response, solve, Atom};
 use super::functional::Functional;
 
 /// A derived basis for one element: exponents per angular momentum.
@@ -32,6 +32,19 @@ pub struct ElementBasis {
     pub energy: f64,
     /// Self-consistent-field runs it took to derive.
     pub evaluations: usize,
+}
+
+impl ElementBasis {
+    /// Its shells, placed at `centre` (bohr).
+    pub fn shells_at(&self, centre: [f64; 3]) -> Vec<super::basis::Shell> {
+        let mut out = Vec::new();
+        for (l, exps) in &self.shells {
+            for e in exps {
+                out.push(super::basis::Shell::primitive(centre, *l, *e));
+            }
+        }
+        out
+    }
 }
 
 /// An even-tempered range: the most diffuse exponent, the ratio, the count.
@@ -152,6 +165,46 @@ pub fn derive(z: u32, f: Functional, tolerance: f64) -> ElementBasis {
         if !improved {
             break;
         }
+    }
+    // Polarisation. The free atom has no use for functions above its highest
+    // occupied angular momentum — they lower its energy by nothing — but a
+    // molecule's field is what they are for, so they are derived from the
+    // atom's response to one: one step up from a uniform field (dipole), two
+    // from a field gradient (quadrupole). Each set is extended while that
+    // response still grows by more than a part in a thousand.
+    let atom = atom_energy(z, &ranges, unpaired, f);
+    evaluations += 1;
+    let top = ranges.iter().map(|(l, _)| *l).max().unwrap_or(0);
+    for order in 1..=2 {
+        let channel = top + order;
+        let mut pol = Range { first: 0.1, ratio: 3.0, count: 3 };
+        let relative = 1e-3;
+        let mut e2 = response(&atom, channel, order, &pol.exponents());
+        loop {
+            let mut improved = false;
+            let mut trials = vec![
+                Range { first: pol.first / pol.ratio, ratio: pol.ratio, count: pol.count + 1 },
+                Range { first: pol.first, ratio: pol.ratio, count: pol.count + 1 },
+            ];
+            if pol.ratio > 1.6 {
+                let span = pol.ratio.powi(pol.count as i32 - 1);
+                let ratio = pol.ratio.powf(0.85);
+                trials.push(Range { first: pol.first, ratio, count: (span.ln() / ratio.ln()).ceil() as usize + 1 });
+            }
+            for t in trials {
+                let e = response(&atom, channel, order, &t.exponents());
+                if e < e2 - relative * e2.abs() {
+                    pol = t;
+                    e2 = e;
+                    improved = true;
+                    break;
+                }
+            }
+            if !improved {
+                break;
+            }
+        }
+        ranges.push((channel, pol));
     }
     ElementBasis {
         z,

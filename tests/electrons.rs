@@ -491,6 +491,9 @@ fn each_element_derives_its_own_basis() {
         assert!((b.energy - limit).abs() < 1e-4);
         assert!(b.energy > limit - 2e-5, "a finite basis cannot go far below the limit");
         assert_eq!(b.unpaired, unpaired, "the ground state's spin");
-        assert_eq!(b.shells.len(), ls, "the angular momenta it needs");
+        // The occupied angular momenta, then two polarisation sets derived from
+        // the atom's response to a field and to a field gradient.
+        assert_eq!(b.shells.len(), ls + 2, "the angular momenta it needs");
+        assert_eq!(b.shells.iter().map(|(l, _)| *l).collect::<Vec<_>>(), (0..ls + 2).collect::<Vec<_>>());
     }
 }

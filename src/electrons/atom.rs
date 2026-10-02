@@ -30,6 +30,12 @@ pub struct Atom {
     pub iterations: usize,
     /// `(l, spin, level, occupation per orbital)`.
     pub levels: Vec<(usize, usize, f64, f64)>,
+    /// The converged effective potential, per spin, on the radial grid:
+    /// `(Hartree + exchange-correlation, gradient term)`.
+    potential: [(Vec<f64>, Vec<f64>); 2],
+    /// Occupied orbitals: `(l, spin, level, electrons, radial values)`.
+    orbitals: Vec<(usize, usize, f64, f64, Vec<f64>)>,
+    z: f64,
 }
 
 const PI: f64 = std::f64::consts::PI;
@@ -185,6 +191,8 @@ pub fn solve(z: f64, alpha: f64, beta: f64, exponents: &[Vec<f64>], f: Functiona
     let mut rho = [vec![0.0; n], vec![0.0; n]];
     let mut drho = [vec![0.0; n], vec![0.0; n]];
     let mut levels = Vec::new();
+    let mut orbitals: Vec<(usize, usize, f64, f64, Vec<f64>)> = Vec::new();
+    let mut potential = [(vec![0.0; n], vec![0.0; n]), (vec![0.0; n], vec![0.0; n])];
     let mut energy = 0.0;
     let mut last = f64::INFINITY;
     let mut converged = false;
@@ -235,6 +243,10 @@ pub fn solve(z: f64, alpha: f64, beta: f64, exponents: &[Vec<f64>], f: Functiona
         let mut new_drho = [vec![0.0; n], vec![0.0; n]];
         let mut one_e = 0.0;
         levels.clear();
+        orbitals.clear();
+        for spin in 0..2 {
+            potential[spin] = ((0..n).map(|p| vh[p] + vx[spin][p]).collect(), wx[spin].clone());
+        }
         for spin in 0..2 {
             let mut idx: Vec<usize> = (0..all.len()).filter(|&k| all[k].1 == spin).collect();
             idx.sort_by(|&a, &b| all[a].2.total_cmp(&all[b].2));
@@ -249,6 +261,7 @@ pub fn solve(z: f64, alpha: f64, beta: f64, exponents: &[Vec<f64>], f: Functiona
                     continue;
                 }
                 let m = c.len();
+                orbitals.push((l, spin, e, take, (0..n).map(|p| (0..m).map(|i| c[i] * chi[l][i][p]).sum()).collect()));
                 let mut hc = 0.0;
                 for i in 0..m {
                     for j in 0..m {
@@ -293,5 +306,79 @@ pub fn solve(z: f64, alpha: f64, beta: f64, exponents: &[Vec<f64>], f: Functiona
             break;
         }
     }
-    Atom { energy, converged, iterations, levels }
+    Atom { energy, converged, iterations, levels, potential, orbitals, z }
+}
+
+/// How strongly the atom's occupied orbitals of angular momentum
+/// `channel - order` respond to a weak field of multipole `order` (1 a uniform
+/// field, 2 a field gradient), through functions of angular momentum `channel`
+/// with these exponents: the Hylleraas second-order energy, summed over those
+/// orbitals and weighted by their electrons.
+///
+/// **Variational in the functions**: a larger set can only make it more
+/// negative, so the polarisation functions a molecule needs can be derived the
+/// way the occupied ones are — extended while the response still grows — from
+/// the free atom alone. Uncoupled (the potential is held at the ground
+/// state's), which is enough to tell which functions are needed. Arbitrary
+/// units: the angular factor of the dipole operator is common to every term.
+pub fn response(atom: &Atom, channel: usize, order: usize, exponents: &[f64]) -> f64 {
+    let g = radial_grid(RADIAL_POINTS, 1.0);
+    let n = g.r.len();
+    let l = channel;
+    let m = exponents.len();
+    let li = l as i32;
+    let chi: Vec<Vec<f64>> = exponents.iter().map(|&a| {
+        let nn = radial_norm(a, l);
+        g.r.iter().map(|&x| nn * x.powi(li) * (-a * x * x).exp()).collect()
+    }).collect();
+    let dchi: Vec<Vec<f64>> = exponents.iter().map(|&a| {
+        let nn = radial_norm(a, l);
+        g.r.iter().map(|&x| {
+            let lead = if l > 0 { l as f64 * x.powi(li - 1) } else { 0.0 };
+            nn * (-a * x * x).exp() * (lead - 2.0 * a * x.powi(li + 1))
+        }).collect()
+    }).collect();
+    let cent = (l * (l + 1)) as f64;
+    let mut s = Matrix::zeros(m);
+    for i in 0..m {
+        for j in 0..=i {
+            let v: f64 = (0..n).map(|p| g.w[p] * chi[i][p] * chi[j][p]).sum();
+            s.set(i, j, v);
+            s.set(j, i, v);
+        }
+    }
+    let (x, mm) = orthogonaliser(&s, 1e-10);
+    let mut total = 0.0;
+    for spin in 0..2 {
+        let (v, w) = &atom.potential[spin];
+        let mut f = Matrix::zeros(m);
+        for i in 0..m {
+            for j in 0..=i {
+                let mut e = 0.0;
+                for p in 0..n {
+                    let ab = chi[i][p] * chi[j][p];
+                    let dab = dchi[i][p] * chi[j][p] + chi[i][p] * dchi[j][p];
+                    e += g.w[p] * (0.5 * (dchi[i][p] * dchi[j][p] + cent / (g.r[p] * g.r[p]) * ab) - atom.z / g.r[p] * ab + v[p] * ab + w[p] * dab);
+                }
+                f.set(i, j, e);
+                f.set(j, i, e);
+            }
+        }
+        let (levels, c) = generalised(&f, &x, mm);
+        for (lo, sp, eps, electrons, radial) in &atom.orbitals {
+            if *sp != spin || lo + order != l {
+                continue;
+            }
+            // <chi_k | r^order | orbital>
+            let b: Vec<f64> = (0..m).map(|k| (0..n).map(|p| g.w[p] * chi[k][p] * g.r[p].powi(order as i32) * radial[p]).sum()).collect();
+            for j in 0..mm {
+                let proj: f64 = (0..m).map(|k| c[k * mm + j] * b[k]).sum();
+                let gap = levels[j] - eps;
+                if gap > 0.0 {
+                    total -= electrons * proj * proj / gap;
+                }
+            }
+        }
+    }
+    total
 }
