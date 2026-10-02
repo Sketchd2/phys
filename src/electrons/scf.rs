@@ -72,6 +72,10 @@ pub struct Solution {
     /// eigenvalue.
     pub kept: usize,
     pub smallest_overlap: f64,
+    /// The fitted density's coefficients over the auxiliary set, for the
+    /// final density; empty when Coulomb was exact. The gradient reads them
+    /// rather than building the three-centre integrals a second time.
+    pub fitted: Vec<f64>,
 }
 
 /// Electron repulsion, packed by its eightfold symmetry: `(ij|kl)` with
@@ -176,8 +180,12 @@ pub struct Fitted {
     n: usize,
     /// `(mn|P)` for each kept pair `m >= n`: `(m, n, values over P)`.
     three: Vec<(usize, usize, Vec<f64>)>,
-    /// Pseudo-inverse of `V` by eigenvalues, dropping the near-dependent ones.
-    vinv: Matrix,
+    /// The auxiliary functions the fit uses, and the Cholesky factor of the
+    /// metric over them (see [`Fitted::new`]).
+    kept: Vec<usize>,
+    factor: Vec<f64>,
+    /// `V` itself, which the robust energy needs (see [`Fitted::coulomb_and_energy`]).
+    metric: Matrix,
     dropped: usize,
 }
 
@@ -199,28 +207,18 @@ impl Fitted {
                 }
             }
         }
-        // The metric of a dense even-tempered set is nearly singular, and
-        // inverting its smallest eigenvalues amplifies round-off past the fit
-        // itself. Measured on water's Coulomb matrix, 1575 auxiliary
-        // functions: dropping below 1e-9 of the largest, relative error 1.8e-8;
-        // below 1e-14, 6e-4 and a "fitted" energy *above* the exact one, which
-        // a Coulomb-metric fit cannot honestly give; below 1e-16, 6%.
-        let (vals, vecs) = super::linalg::eigh(&v);
-        let mut vinv = Matrix::zeros(na);
-        let top = vals.last().cloned().unwrap_or(1.0);
-        let mut dropped = 0;
-        for k in 0..na {
-            if vals[k] <= METRIC_CUTOFF * top {
-                dropped += 1;
-                continue;
-            }
-            for i in 0..na {
-                let f = vecs.get(i, k) / vals[k];
-                for j in 0..na {
-                    vinv.a[i * na + j] += f * vecs.get(j, k);
-                }
-            }
-        }
+        // The metric of a dense even-tempered set is nearly singular: of
+        // water's 937 auxiliary functions, the others represent 230 to within
+        // round-off. Factorised with pivoting, the factorisation takes the
+        // most independent function left at each step and stops where what is
+        // left is already represented, so the fit works in a well-conditioned
+        // subset instead of inverting through the dependence. It replaced an
+        // eigenvalue pseudo-inverse, which cost 3.1 s of a 4.8 s setup on
+        // water against 0.3 s for this, and whose energy depended on where its
+        // cut fell until the energy was put in the robust form
+        // (`coulomb_and_energy`).
+        let (kept, factor) = super::linalg::pivoted_cholesky(&v, METRIC_CUTOFF);
+        let dropped = na - kept.len();
         // Three-centre integrals over shell pairs whose product is not
         // negligible anywhere. Not by overlap: an s and a p function on the
         // same atom overlap by exactly zero, and their product is a dipole
@@ -238,14 +236,14 @@ impl Fitted {
         }).collect();
         // Each auxiliary shell's pair with the unit function, built once.
         let kets: Vec<Vec<super::integrals::Pair>> = aux.shells.iter().map(|p| super::integrals::pairs(p, &unit, 0)).collect();
-        let job = |range: std::ops::Range<usize>| {
+        let job = |indices: &mut dyn Iterator<Item = usize>| {
             let mut out: Vec<(usize, usize, Vec<f64>)> = Vec::new();
-            for &(a, b) in &pairs[range] {
+            for (a, b) in indices.map(|i| pairs[i]) {
                 let (sa, sb) = (&shells[a], &shells[b]);
                 let bra = super::integrals::pairs(sa, sb, 0);
                 let mut vals = vec![vec![0.0; na]; sa.size() * sb.size()];
                 for (ip, p) in aux.shells.iter().enumerate() {
-                    let block = super::integrals::eri_from_pairs(&bra, &kets[ip], [sa.l, sb.l, p.l, 0]);
+                    let block = super::integrals::eri_three(&bra, &kets[ip], sa.l, sb.l, p.l);
                     for i in 0..sa.size() {
                         for j in 0..sb.size() {
                             for k in 0..p.size() {
@@ -265,8 +263,8 @@ impl Fitted {
             }
             out
         };
-        let three: Vec<(usize, usize, Vec<f64>)> = parallel(pairs.len(), &job).into_iter().flatten().collect();
-        Fitted { n, three, vinv, dropped }
+        let three: Vec<(usize, usize, Vec<f64>)> = parallel_interleaved(pairs.len(), &job).into_iter().flatten().collect();
+        Fitted { n, three, kept, factor, metric: v, dropped }
     }
 
     /// Auxiliary directions the metric's cutoff dropped.
@@ -276,7 +274,7 @@ impl Fitted {
 
     /// The fit's coefficients `c = V^-1 d` for density `d`.
     pub fn coefficients(&self, d: &Matrix) -> Vec<f64> {
-        let na = self.vinv.n;
+        let na = self.metric.n;
         let mut dp = vec![0.0; na];
         for (m, nn, vals) in &self.three {
             let w = if m == nn { d.get(*m, *m) } else { d.get(*m, *nn) + d.get(*nn, *m) };
@@ -287,30 +285,57 @@ impl Fitted {
                 *x += w * v;
             }
         }
-        (0..na).map(|i| self.vinv.a[i * na..i * na + na].iter().zip(&dp).map(|(a, b)| a * b).sum()).collect()
+        let b: Vec<f64> = self.kept.iter().map(|&i| dp[i]).collect();
+        let ck = super::linalg::cholesky_solve(&self.factor, self.kept.len(), &b);
+        let mut c = vec![0.0; na];
+        for (&i, x) in self.kept.iter().zip(ck) {
+            c[i] = x;
+        }
+        c
+    }
+
+    /// The Coulomb matrix and the fitted Coulomb energy together.
+    ///
+    /// The energy is Dunlap's *robust* form, `b.c - 1/2 c.V.c` with
+    /// `b = (mn|P) D`, rather than `1/2 b.c`: the two agree when `c` solves
+    /// `V c = b` exactly, but the robust one is stationary in `c`, so an error
+    /// in the coefficients enters only at second order and weighted by `V`.
+    /// That matters because `V` is nearly singular — the coefficients along its
+    /// smallest kept eigenvalues carry round-off amplified by `1/lambda`.
+    /// Measured on a water molecule at a fixed density along a 2.4e-2 bohr
+    /// path, `1/2 b.c` scattered by 2.2e-7 Ha about a smooth curve and the
+    /// robust form by 1.1e-12, at the same distance from exact Coulomb; and
+    /// the robust form no longer depends on where the metric is cut. The
+    /// analytic gradient, `c.d(mn|P) D - 1/2 c.dV c`, was always the derivative
+    /// of the robust form, and the Coulomb matrix is the same for both, since
+    /// the extra term is stationary.
+    pub fn coulomb_and_energy(&self, d: &Matrix) -> (Matrix, f64) {
+        let c = self.coefficients(d);
+        let j = self.coulomb_from(&c);
+        let na = self.metric.n;
+        let mut cvc = 0.0;
+        for i in 0..na {
+            let row = &self.metric.a[i * na..i * na + na];
+            cvc += c[i] * row.iter().zip(&c).map(|(a, b)| a * b).sum::<f64>();
+        }
+        let e = j.dot(d) - 0.5 * cvc;
+        (j, e)
+    }
+
+    /// The fitted Coulomb energy for density `d`, in the robust form.
+    pub fn energy(&self, d: &Matrix) -> f64 {
+        self.coulomb_and_energy(d).1
     }
 
     pub fn coulomb(&self, d: &Matrix) -> Matrix {
+        self.coulomb_from(&self.coefficients(d))
+    }
+
+    fn coulomb_from(&self, c: &[f64]) -> Matrix {
         let n = self.n;
-        let na = self.vinv.n;
-        let mut dp = vec![0.0; na];
-        for (m, nn, vals) in &self.three {
-            let w = if m == nn { d.get(*m, *m) } else { d.get(*m, *nn) + d.get(*nn, *m) };
-            if w == 0.0 {
-                continue;
-            }
-            for (x, v) in dp.iter_mut().zip(vals) {
-                *x += w * v;
-            }
-        }
-        let mut c = vec![0.0; na];
-        for i in 0..na {
-            let row = &self.vinv.a[i * na..i * na + na];
-            c[i] = row.iter().zip(&dp).map(|(a, b)| a * b).sum();
-        }
         let mut j = Matrix::zeros(n);
         for (m, nn, vals) in &self.three {
-            let x: f64 = vals.iter().zip(&c).map(|(a, b)| a * b).sum();
+            let x: f64 = vals.iter().zip(c).map(|(a, b)| a * b).sum();
             j.set(*m, *nn, x);
             j.set(*nn, *m, x);
         }
@@ -321,9 +346,15 @@ impl Fitted {
 /// A commutator `FDS - SDF` smaller than this is a converged density.
 pub const COMMUTATOR_CONVERGED: f64 = 1e-7;
 
-/// Eigenvalues of the fitting metric below this fraction of the largest are
-/// dropped rather than inverted. See [`Fitted::new`].
-pub const METRIC_CUTOFF: f64 = 1e-9;
+/// The pivoted factorisation of the fitting metric stops when the largest
+/// diagonal left falls below this fraction of the largest there was. See
+/// [`Fitted::new`]. Measured on water (937 auxiliary functions), the energy
+/// at 1e-9 / 1e-11 / 1e-13 / nothing dropped: -76.387918596 / ...537 / ...535
+/// / ...535 with 126 / 50 / 17 / 0 dropped — a fit in the Coulomb metric can
+/// only rise towards the exact energy as functions are added, and 1e-11 is
+/// 2e-9 from where it stops rising while still leaving out the fifty most
+/// dependent.
+pub const METRIC_CUTOFF: f64 = 1e-11;
 
 enum Coulomb {
     Exact(Repulsion),
@@ -331,10 +362,15 @@ enum Coulomb {
 }
 
 impl Coulomb {
-    fn build(&self, d: &Matrix) -> Matrix {
+    /// The Coulomb matrix and the Coulomb energy.
+    fn build(&self, d: &Matrix) -> (Matrix, f64) {
         match self {
-            Coulomb::Exact(r) => r.coulomb(d),
-            Coulomb::Fitted(f) => f.coulomb(d),
+            Coulomb::Exact(r) => {
+                let j = r.coulomb(d);
+                let e = 0.5 * j.dot(d);
+                (j, e)
+            }
+            Coulomb::Fitted(f) => f.coulomb_and_energy(d),
         }
     }
 }
@@ -390,7 +426,7 @@ fn density(c: &[f64], m: usize, n: usize, occ: &[f64]) -> Matrix {
 pub struct Batches {
     /// `(points, weights, functions that are not negligible over them, and
     /// the shells those functions belong to)`.
-    pub(crate) batches: Vec<(Vec<[f64; 3]>, Vec<f64>, Vec<usize>, Vec<usize>)>,
+    pub batches: Vec<(Vec<[f64; 3]>, Vec<f64>, Vec<usize>, Vec<usize>)>,
     /// For each batch, its points' indices in the grid it was built from.
     pub(crate) indices: Vec<Vec<usize>>,
 }
@@ -407,25 +443,47 @@ fn shell_bound(l: usize, a: f64, coef: f64, d: f64) -> f64 {
 }
 
 impl Batches {
-    /// Box size for grouping points, bohr.
-    const BOX: f64 = 1.5;
-    const MAX_POINTS: usize = 256;
+    /// Most points in one batch.
+    const MAX_POINTS: usize = 128;
 
+    /// Points split by recursive bisection — each group halved at its median
+    /// along its widest extent until it holds at most `MAX_POINTS` — and each
+    /// batch given the shells that are not negligible anywhere in its box.
+    ///
+    /// Bisection rather than a fixed lattice of boxes: water's 72,986 points
+    /// in 1.5-bohr boxes made 17,136 batches of 4.3 points on average, since
+    /// a radial grid thins out away from its nucleus, and gathering and
+    /// scattering a batch's 174 x 174 slice of the density for four points
+    /// cost far more than the arithmetic on them.
     pub fn new(basis: &Basis, grid: &Grid) -> Batches {
-        let mut order: Vec<usize> = (0..grid.points.len()).collect();
-        let cell = |p: [f64; 3]| [(p[0] / Self::BOX).floor() as i64, (p[1] / Self::BOX).floor() as i64, (p[2] / Self::BOX).floor() as i64];
-        order.sort_by_key(|&i| cell(grid.points[i]));
-        let mut batches = Vec::new();
-        let mut indices = Vec::new();
-        let mut start = 0;
-        while start < order.len() {
-            let c0 = cell(grid.points[order[start]]);
-            let mut end = start + 1;
-            while end < order.len() && end - start < Self::MAX_POINTS && cell(grid.points[order[end]]) == c0 {
-                end += 1;
+        let mut groups: Vec<Vec<usize>> = Vec::new();
+        let mut stack: Vec<Vec<usize>> = vec![(0..grid.points.len()).collect()];
+        while let Some(mut idx) = stack.pop() {
+            if idx.len() <= Self::MAX_POINTS {
+                if !idx.is_empty() {
+                    groups.push(idx);
+                }
+                continue;
             }
-            let pts: Vec<[f64; 3]> = order[start..end].iter().map(|&i| grid.points[i]).collect();
-            let ws: Vec<f64> = order[start..end].iter().map(|&i| grid.weights[i]).collect();
+            let mut lo = [f64::INFINITY; 3];
+            let mut hi = [f64::NEG_INFINITY; 3];
+            for &i in &idx {
+                for d in 0..3 {
+                    lo[d] = lo[d].min(grid.points[i][d]);
+                    hi[d] = hi[d].max(grid.points[i][d]);
+                }
+            }
+            let axis = (0..3).max_by(|&a, &b| (hi[a] - lo[a]).total_cmp(&(hi[b] - lo[b]))).unwrap_or(0);
+            idx.sort_by(|&a, &b| grid.points[a][axis].total_cmp(&grid.points[b][axis]).then(a.cmp(&b)));
+            let upper = idx.split_off(idx.len() / 2);
+            stack.push(upper);
+            stack.push(idx);
+        }
+        let mut batches = Vec::with_capacity(groups.len());
+        let mut indices = Vec::with_capacity(groups.len());
+        for group in groups {
+            let pts: Vec<[f64; 3]> = group.iter().map(|&i| grid.points[i]).collect();
+            let ws: Vec<f64> = group.iter().map(|&i| grid.weights[i]).collect();
             // Bounding box of the batch.
             let mut lo = [f64::INFINITY; 3];
             let mut hi = [f64::NEG_INFINITY; 3];
@@ -454,8 +512,7 @@ impl Batches {
                 }
             }
             batches.push((pts, ws, funcs, shell_list));
-            indices.push(order[start..end].to_vec());
-            start = end;
+            indices.push(group);
         }
         Batches { batches, indices }
     }
@@ -471,41 +528,6 @@ impl Batches {
     }
 }
 
-/// `out[p][j] = sum_i a[p][i] m[i][j]`: `a` is `rows x k`, `m` is `k x k`.
-fn rows_times(a: &[f64], m: &[f64], rows: usize, k: usize, out: &mut [f64]) {
-    for o in out.iter_mut() {
-        *o = 0.0;
-    }
-    for p in 0..rows {
-        let ar = &a[p * k..p * k + k];
-        let or = &mut out[p * k..p * k + k];
-        for (i, &x) in ar.iter().enumerate() {
-            if x == 0.0 {
-                continue;
-            }
-            let mr = &m[i * k..i * k + k];
-            for (o, &y) in or.iter_mut().zip(mr) {
-                *o += x * y;
-            }
-        }
-    }
-}
-
-/// `out[i][j] += sum_p a[p][i] b[p][j] + b[p][i] a[p][j]`, symmetric.
-fn add_symmetric_products(a: &[f64], b: &[f64], rows: usize, k: usize, out: &mut [f64]) {
-    for p in 0..rows {
-        let ar = &a[p * k..p * k + k];
-        let br = &b[p * k..p * k + k];
-        for i in 0..k {
-            let (ai, bi) = (ar[i], br[i]);
-            let orow = &mut out[i * k..i * k + k];
-            for j in 0..k {
-                orow[j] += ai * br[j] + bi * ar[j];
-            }
-        }
-    }
-}
-
 /// One batch's contribution: exchange-correlation energy, and the two
 /// potential matrices restricted to the batch's functions.
 ///
@@ -513,17 +535,19 @@ fn add_symmetric_products(a: &[f64], b: &[f64], rows: usize, k: usize, out: &mut
 /// (`points x k`), `X = Phi D`, then `V += Phi^T A + A^T Phi` — rather than
 /// point by point. The arithmetic is the same; done as matrix-matrix work the
 /// inner loops are contiguous and vectorise.
-fn xc_batch(basis: &Basis, f: Functional, da: &Matrix, db: &Matrix, pts: &[[f64; 3]], ws: &[f64], funcs: &[usize], shells: &[usize]) -> (f64, Vec<f64>, Vec<f64>) {
+fn xc_batch(basis: &Basis, f: Functional, da: &Matrix, db: &Matrix, same: bool, pts: &[[f64; 3]], ws: &[f64], funcs: &[usize], shells: &[usize]) -> (f64, Vec<f64>, Vec<f64>) {
+    use super::linalg::{product_nt, transpose};
     let n = basis.size;
     let k = funcs.len();
     let b = pts.len();
     let grad = f.needs_gradient();
-    let mut sa = vec![0.0; k * k];
-    let mut sb = vec![0.0; k * k];
-    for (i, &fi) in funcs.iter().enumerate() {
-        for (j, &fj) in funcs.iter().enumerate() {
-            sa[i * k + j] = da.a[fi * n + fj];
-            sb[i * k + j] = db.a[fi * n + fj];
+    let spins = if same { 1 } else { 2 };
+    let mut sub = [vec![0.0; k * k], vec![0.0; k * k]];
+    for (s, dm) in [da, db].iter().enumerate().take(spins) {
+        for (i, &fi) in funcs.iter().enumerate() {
+            for (j, &fj) in funcs.iter().enumerate() {
+                sub[s][i * k + j] = dm.a[fi * n + fj];
+            }
         }
     }
     // Basis values and gradients over the batch.
@@ -542,26 +566,26 @@ fn xc_batch(basis: &Basis, f: Functional, da: &Matrix, db: &Matrix, pts: &[[f64;
             }
         }
     }
-    let mut xa = vec![0.0; b * k];
-    let mut xb = vec![0.0; b * k];
-    rows_times(&phi, &sa, b, k, &mut xa);
-    rows_times(&phi, &sb, b, k, &mut xb);
+    // X = Phi D, one per spin (the density is symmetric, so its rows serve).
+    let mut x = [vec![0.0; b * k], vec![0.0; b * k]];
+    for s in 0..spins {
+        product_nt(&phi, &sub[s], b, k, k, &mut x[s]);
+    }
     let dotk = |u: &[f64], v: &[f64]| u.iter().zip(v).map(|(a, b)| a * b).sum::<f64>();
     let mut exc = 0.0;
-    let mut aa = vec![0.0; b * k];
-    let mut ab = vec![0.0; b * k];
+    let mut weights = [vec![0.0; b * k], vec![0.0; b * k]];
     for p in 0..b {
         let r = p * k..p * k + k;
-        let ra = dotk(&phi[r.clone()], &xa[r.clone()]);
-        let rb = dotk(&phi[r.clone()], &xb[r.clone()]);
+        let ra = dotk(&phi[r.clone()], &x[0][r.clone()]);
+        let rb = if same { ra } else { dotk(&phi[r.clone()], &x[1][r.clone()]) };
         if ra + rb < 1e-14 {
             continue;
         }
         let (mut ga, mut gb) = ([0.0; 3], [0.0; 3]);
         if grad {
             for (d, g) in [&gx, &gy, &gz].iter().enumerate() {
-                ga[d] = 2.0 * dotk(&g[r.clone()], &xa[r.clone()]);
-                gb[d] = 2.0 * dotk(&g[r.clone()], &xb[r.clone()]);
+                ga[d] = 2.0 * dotk(&g[r.clone()], &x[0][r.clone()]);
+                gb[d] = if same { ga[d] } else { 2.0 * dotk(&g[r.clone()], &x[1][r.clone()]) };
             }
         }
         let dot = |u: [f64; 3], v: [f64; 3]| u[0] * v[0] + u[1] * v[1] + u[2] * v[2];
@@ -570,24 +594,39 @@ fn xc_batch(basis: &Basis, f: Functional, da: &Matrix, db: &Matrix, pts: &[[f64;
         exc += w * e;
         let wa = [2.0 * de[2] * ga[0] + de[3] * gb[0], 2.0 * de[2] * ga[1] + de[3] * gb[1], 2.0 * de[2] * ga[2] + de[3] * gb[2]];
         let wb = [2.0 * de[4] * gb[0] + de[3] * ga[0], 2.0 * de[4] * gb[1] + de[3] * ga[1], 2.0 * de[4] * gb[2] + de[3] * ga[2]];
-        for i in 0..k {
-            let q = p * k + i;
-            let mut a = 0.5 * de[0] * phi[q];
-            let mut c = 0.5 * de[1] * phi[q];
-            if grad {
-                a += wa[0] * gx[q] + wa[1] * gy[q] + wa[2] * gz[q];
-                c += wb[0] * gx[q] + wb[1] * gy[q] + wb[2] * gz[q];
+        for (s, (vr, wv)) in [(de[0], wa), (de[1], wb)].iter().enumerate().take(spins) {
+            for i in 0..k {
+                let q = p * k + i;
+                let mut a = 0.5 * vr * phi[q];
+                if grad {
+                    a += wv[0] * gx[q] + wv[1] * gy[q] + wv[2] * gz[q];
+                }
+                weights[s][q] = w * a;
             }
-            aa[q] = w * a;
-            ab[q] = w * c;
         }
     }
-    let mut va = vec![0.0; k * k];
-    let mut vb = vec![0.0; k * k];
-    add_symmetric_products(&phi, &aa, b, k, &mut va);
-    add_symmetric_products(&phi, &ab, b, k, &mut vb);
+    // V = Phi^T A + A^T Phi, as M + M^T with M = Phi^T A.
+    let mut phit = vec![0.0; k * b];
+    transpose(&phi, b, k, &mut phit);
+    let mut at = vec![0.0; k * b];
+    let mut m = vec![0.0; k * k];
+    let mut v = [vec![0.0; k * k], Vec::new()];
+    for s in 0..spins {
+        transpose(&weights[s], b, k, &mut at);
+        product_nt(&phit, &at, k, k, b, &mut m);
+        let mut out = vec![0.0; k * k];
+        for i in 0..k {
+            for j in 0..k {
+                out[i * k + j] = m[i * k + j] + m[j * k + i];
+            }
+        }
+        v[s] = out;
+    }
+    let [va, vb] = v;
+    let vb = if same { va.clone() } else { vb };
     (exc, va, vb)
 }
+
 
 /// Exchange-correlation energy and the two spin potentials' matrices.
 ///
@@ -595,31 +634,36 @@ fn xc_batch(basis: &Basis, f: Functional, da: &Matrix, db: &Matrix, pts: &[[f64;
 /// are not negligible over its batch's box (oxygen's tightest `s` function is
 /// zero a hundredth of a bohr from the nucleus and used to be computed at every
 /// one of a hundred thousand points). Batches are spread over threads where
-/// there are threads; on wasm32 they run in turn.
+/// there are threads; on wasm32 they run in turn. When the two spins' densities
+/// are the same to the last bit — a closed shell, which the solve keeps exactly
+/// so — one spin's work is done once and serves both.
 pub fn exchange_correlation(basis: &Basis, batches: &Batches, f: Functional, da: &Matrix, db: &Matrix) -> (f64, Matrix, Matrix) {
     let n = basis.size;
     let work = &batches.batches;
-    let run = |range: std::ops::Range<usize>| {
+    let same = da.a == db.a;
+    let run = |indices: &mut dyn Iterator<Item = usize>| {
         let mut va = Matrix::zeros(n);
         let mut vb = Matrix::zeros(n);
         let mut exc = 0.0;
-        for (pts, ws, funcs, shells) in &work[range] {
+        for bi in indices {
+            let (pts, ws, funcs, shells) = &work[bi];
             if funcs.is_empty() {
                 continue;
             }
-            let (e, a, b) = xc_batch(basis, f, da, db, pts, ws, funcs, shells);
+            let (e, a, b) = xc_batch(basis, f, da, db, same, pts, ws, funcs, shells);
             exc += e;
             let k = funcs.len();
             for (i, &fi) in funcs.iter().enumerate() {
+                let (row_a, row_b) = (&a[i * k..i * k + k], &b[i * k..i * k + k]);
                 for (j, &fj) in funcs.iter().enumerate() {
-                    va.a[fi * n + fj] += a[i * k + j];
-                    vb.a[fi * n + fj] += b[i * k + j];
+                    va.a[fi * n + fj] += row_a[j];
+                    vb.a[fi * n + fj] += row_b[j];
                 }
             }
         }
         (exc, va, vb)
     };
-    let parts = parallel(work.len(), &run);
+    let parts = parallel_interleaved(work.len(), &run);
     let mut va = Matrix::zeros(n);
     let mut vb = Matrix::zeros(n);
     let mut exc = 0.0;
@@ -634,28 +678,32 @@ pub fn exchange_correlation(basis: &Basis, batches: &Batches, f: Functional, da:
     (exc, va, vb)
 }
 
-/// Split `0..len` into one contiguous range per worker and run `job` on each,
-/// returning the results in range order: deterministic whatever the threads do.
-pub fn parallel<T: Send>(len: usize, job: &(dyn Fn(std::ops::Range<usize>) -> T + Sync)) -> Vec<T> {
+/// Run `job` on one share of `0..len` per worker, returning the results in
+/// worker order. Each worker takes every `workers`-th item rather than a
+/// contiguous block. Batches of grid points are sorted by place, so a block
+/// holds the dense, expensive ones near a nucleus or the sparse cheap ones far
+/// out, and contiguous blocks left three workers idle while the fourth
+/// finished: 35 thread-seconds of work took 20 s on four threads. Which
+/// worker takes which item depends only on the worker count, so the result is
+/// the same however the threads are scheduled.
+pub fn parallel_interleaved<T: Send>(len: usize, job: &(dyn Fn(&mut dyn Iterator<Item = usize>) -> T + Sync)) -> Vec<T> {
     #[cfg(not(target_arch = "wasm32"))]
     let workers = std::thread::available_parallelism().map(|n| n.get()).unwrap_or(1).min(len.max(1));
     #[cfg(target_arch = "wasm32")]
     let workers = 1;
-    let chunk = len.div_ceil(workers.max(1)).max(1);
-    let ranges: Vec<std::ops::Range<usize>> = (0..workers).map(|w| (w * chunk).min(len)..((w + 1) * chunk).min(len)).collect();
     if workers <= 1 {
-        return ranges.into_iter().map(job).collect();
+        return vec![job(&mut (0..len))];
     }
     #[cfg(not(target_arch = "wasm32"))]
     {
         std::thread::scope(|scope| {
-            let handles: Vec<_> = ranges.into_iter().map(|r| scope.spawn(move || job(r))).collect();
+            let handles: Vec<_> = (0..workers).map(|w| scope.spawn(move || job(&mut (w..len).step_by(workers)))).collect();
             handles.into_iter().map(|h| h.join().expect("a worker panicked")).collect()
         })
     }
     #[cfg(target_arch = "wasm32")]
     {
-        ranges.into_iter().map(job).collect()
+        vec![job(&mut (0..len))]
     }
 }
 
@@ -714,7 +762,7 @@ pub fn solve(problem: &Problem, max_iterations: usize, tolerance: f64) -> Soluti
             dt.a[k] += db.a[k];
         }
         let clock = std::time::Instant::now();
-        let j = eri.build(&dt);
+        let (j, ej) = eri.build(&dt);
         timing[2] += clock.elapsed().as_secs_f64();
         let clock = std::time::Instant::now();
         let (exc, vxa, vxb) = exchange_correlation(basis, &batches, problem.functional, &da, &db);
@@ -727,7 +775,6 @@ pub fn solve(problem: &Problem, max_iterations: usize, tolerance: f64) -> Soluti
             fb.a[k] += j.a[k] + vxb.a[k];
         }
         let e1 = h.dot(&dt);
-        let ej = 0.5 * j.dot(&dt);
         energy = e1 + ej + exc + e_nn;
         parts = (e1, ej, exc);
         // Error FDS - SDF for each spin, together.
@@ -769,6 +816,16 @@ pub fn solve(problem: &Problem, max_iterations: usize, tolerance: f64) -> Soluti
         levels_a = ea;
         levels_b = eb;
     }
+    let fitted = match &eri {
+        Coulomb::Fitted(f) => {
+            let mut dt = da.clone();
+            for k in 0..n * n {
+                dt.a[k] += db.a[k];
+            }
+            f.coefficients(&dt)
+        }
+        Coulomb::Exact(_) => Vec::new(),
+    };
     Solution {
         energy,
         converged,
@@ -787,6 +844,7 @@ pub fn solve(problem: &Problem, max_iterations: usize, tolerance: f64) -> Soluti
         history,
         kept: m,
         smallest_overlap,
+        fitted,
     }
 }
 

@@ -7,16 +7,15 @@
 //! overlap term (Pulay) that a moving basis brings, weighted by the
 //! energy-weighted density; the density-fitted Coulomb energy through its
 //! three- and two-centre integrals; and exchange-correlation through the
-//! moving basis functions. What is left out is the grid's own motion — the
-//! integration weights depend on where the nuclei are — and
-//! `tests/electrons.rs` measures how much that leaves out against finite
-//! differences of the energy, rather than assuming it is small.
+//! moving basis functions, the grid's points moving with their atoms, and
+//! Becke's partition changing as the atoms move. `tests/electrons.rs` checks
+//! each against finite differences of its own energy.
 
 use super::basis::{Basis, Shell};
 use super::functional::evaluate;
-use super::integrals::{eri_derivative, one_electron_gradient};
-use super::linalg::Matrix;
-use super::scf::{parallel, Batches, Fitted, Problem, Solution};
+use super::integrals::{eri_derivative, eri_three_gradient, one_electron_gradient, pairs as pairs_of, pairs_ext, Pair};
+use super::linalg::{product_nt, Matrix};
+use super::scf::{parallel_interleaved, Batches, Problem, Solution};
 
 /// Which nucleus each shell sits on, by position.
 fn owners(shells: &[Shell], nuclei: &[(f64, [f64; 3])]) -> Vec<usize> {
@@ -72,17 +71,17 @@ pub fn gradient_parts(problem: &Problem, solution: &Solution) -> [Vec<[f64; 3]>;
             }
         }
     }
-    [g, one_electron_gradient(basis, nuc, &owner, &d, &w), coulomb_gradient(problem, &owner, &d), xc_gradient(problem, &owner, solution)]
+    [g, one_electron_gradient(basis, nuc, &owner, &d, &w), coulomb_gradient(problem, &owner, &d, &solution.fitted), xc_gradient(problem, &owner, solution)]
 }
 
-/// The density-fitted Coulomb energy's gradient: `c . d(mn|P) D - 1/2 c . dV c`.
-fn coulomb_gradient(problem: &Problem, owner: &[usize], d: &Matrix) -> Vec<[f64; 3]> {
+/// The density-fitted Coulomb energy's gradient: `c . d(mn|P) D - 1/2 c . dV c`,
+/// with `c` the coefficients the solve already fitted.
+fn coulomb_gradient(problem: &Problem, owner: &[usize], d: &Matrix, c: &[f64]) -> Vec<[f64; 3]> {
     let basis = &problem.basis;
     let nuc = &problem.nuclei;
     let aux = problem.auxiliary.as_ref().expect("the gradient is for density-fitted Coulomb");
+    assert_eq!(c.len(), aux.size, "the solution carries no fit for this auxiliary set");
     let aux_owner = owners(&aux.shells, nuc);
-    let (s, _, _) = super::integrals::one_electron(basis, &[]);
-    let c = Fitted::new(basis, aux, &s).coefficients(d);
     let unit = Shell::unit();
     let shells = &basis.shells;
     let n = basis.size;
@@ -91,40 +90,44 @@ fn coulomb_gradient(problem: &Problem, owner: &[usize], d: &Matrix) -> Vec<[f64;
         let r2: f64 = (0..3).map(|k| (sa.centre[k] - sb.centre[k]).powi(2)).sum();
         sa.exponents.iter().any(|x| sb.exponents.iter().any(|y| (-(x * y) / (x + y) * r2).exp() > 1e-14))
     }).collect();
-    let job = |range: std::ops::Range<usize>| {
+    let kets: Vec<Vec<Pair>> = aux.shells.iter().map(|p| pairs_of(p, &unit, 0)).collect();
+    let job = |indices: &mut dyn Iterator<Item = usize>| {
         let mut g = vec![[0.0; 3]; nuc.len()];
-        for &(a, b) in &pairs[range] {
+        for (a, b) in indices.map(|i| pairs[i]) {
             let (sa, sb) = (&shells[a], &shells[b]);
             let f = if a == b { 1.0 } else { 2.0 };
+            let (na_, nb_) = (sa.size(), sb.size());
+            let mut dm = vec![0.0; na_ * nb_];
+            for i in 0..na_ {
+                for j in 0..nb_ {
+                    dm[i * nb_ + j] = d.a[(basis.offsets[a] + i) * n + basis.offsets[b] + j];
+                }
+            }
+            if dm.iter().all(|x| *x == 0.0) {
+                continue;
+            }
+            let bra = pairs_ext(sa, sb, 1, 1);
             for (ip, p) in aux.shells.iter().enumerate() {
-                let da = eri_derivative(sa, sb, p, &unit);
-                let db = eri_derivative(sb, sa, p, &unit);
-                let (na_, nb_, np_) = (sa.size(), sb.size(), p.size());
+                // All three centres on one atom: the three derivatives sum to
+                // zero (moving the atom moves all of them together), so the
+                // atom's net is nothing. These are the tightest and most
+                // expensive quartets there are.
+                if owner[a] == owner[b] && owner[a] == aux_owner[ip] {
+                    continue;
+                }
+                let cp = &c[aux.offsets[ip]..aux.offsets[ip] + p.size()];
+                let (ta, tb) = eri_three_gradient(&bra, &kets[ip], sa.l, sb.l, p.l, &dm, cp);
                 for dir in 0..3 {
-                    let (mut ta, mut tb) = (0.0, 0.0);
-                    for i in 0..na_ {
-                        for j in 0..nb_ {
-                            let dm = d.a[(basis.offsets[a] + i) * n + basis.offsets[b] + j];
-                            if dm == 0.0 {
-                                continue;
-                            }
-                            for k in 0..np_ {
-                                let ck = c[aux.offsets[ip] + k];
-                                ta += dm * ck * da[dir][(i * nb_ + j) * np_ + k];
-                                tb += dm * ck * db[dir][(j * na_ + i) * np_ + k];
-                            }
-                        }
-                    }
-                    g[owner[a]][dir] += f * ta;
-                    g[owner[b]][dir] += f * tb;
-                    g[aux_owner[ip]][dir] -= f * (ta + tb);
+                    g[owner[a]][dir] += f * ta[dir];
+                    g[owner[b]][dir] += f * tb[dir];
+                    g[aux_owner[ip]][dir] -= f * (ta[dir] + tb[dir]);
                 }
             }
         }
         g
     };
     let mut g = vec![[0.0; 3]; nuc.len()];
-    for part in parallel(pairs.len(), &job) {
+    for part in parallel_interleaved(pairs.len(), &job) {
         for (a, b) in g.iter_mut().zip(&part) {
             for k in 0..3 {
                 a[k] += b[k];
@@ -176,50 +179,76 @@ fn xc_gradient(problem: &Problem, owner: &[usize], solution: &Solution) -> Vec<[
     }
     let work = &batches.batches;
     let positions: Vec<[f64; 3]> = nuc.iter().map(|(_, p)| *p).collect();
-    let job = |range: std::ops::Range<usize>| {
+    let same = da.a == db.a;
+    let spins = if same { 1 } else { 2 };
+    // hessian index of (e, dir)
+    let hidx = |a: usize, b: usize| match (a.min(b), a.max(b)) {
+        (0, 0) => 0,
+        (1, 1) => 1,
+        (2, 2) => 2,
+        (0, 1) => 3,
+        (0, 2) => 4,
+        _ => 5,
+    };
+    let job = |batch_ids: &mut dyn Iterator<Item = usize>| {
         let mut g = vec![[0.0; 3]; nuc.len()];
-        for b in range {
+        for b in batch_ids {
             let (pts, ws, funcs, shells) = &work[b];
             let idx = &batches.indices[b];
             let k = funcs.len();
+            let np = pts.len();
             if k == 0 {
                 continue;
             }
-            let mut val = vec![0.0; k];
-            let mut gr = vec![0.0; 3 * k];
-            let mut he = vec![0.0; 6 * k];
-            for (q, (pt, &wt)) in pts.iter().zip(ws).enumerate() {
-                let gi = idx[q];
-                super::values::at_shells_hessian(basis, shells, *pt, &mut val, &mut gr, &mut he);
-                let mut x = [vec![0.0; k], vec![0.0; k]];
-                let mut y = [vec![0.0; 3 * k], vec![0.0; 3 * k]];
-                for (s, dm) in [da, db].iter().enumerate() {
-                    for (i, &fi) in funcs.iter().enumerate() {
-                        let row = &dm.a[fi * n..fi * n + n];
-                        let (mut xv, mut yv) = (0.0, [0.0; 3]);
-                        for (j, &fj) in funcs.iter().enumerate() {
-                            let dij = row[fj];
-                            xv += dij * val[j];
-                            for e in 0..3 {
-                                yv[e] += dij * gr[3 * j + e];
-                            }
-                        }
-                        x[s][i] = xv;
-                        for e in 0..3 {
-                            y[s][3 * i + e] = yv[e];
-                        }
+            // Values, gradients and second derivatives over the whole batch,
+            // laid out point by function so that `X = Phi D` and
+            // `Y_e = (d_e Phi) D` are four dense products.
+            let mut val = vec![0.0; np * k];
+            let mut gr = [vec![0.0; np * k], vec![0.0; np * k], vec![0.0; np * k]];
+            let mut he: Vec<Vec<f64>> = vec![vec![0.0; np * k]; 6];
+            let (mut v1, mut g1, mut h1) = (vec![0.0; k], vec![0.0; 3 * k], vec![0.0; 6 * k]);
+            for (q, pt) in pts.iter().enumerate() {
+                super::values::at_shells_hessian(basis, shells, *pt, &mut v1, &mut g1, &mut h1);
+                for i in 0..k {
+                    val[q * k + i] = v1[i];
+                    for e in 0..3 {
+                        gr[e][q * k + i] = g1[3 * i + e];
+                    }
+                    for e in 0..6 {
+                        he[e][q * k + i] = h1[6 * i + e];
                     }
                 }
-                let rho: Vec<f64> = (0..2).map(|s| (0..k).map(|i| val[i] * x[s][i]).sum()).collect();
+            }
+            let mut x: Vec<Vec<f64>> = Vec::new();
+            let mut y: Vec<[Vec<f64>; 3]> = Vec::new();
+            for dm in [da, db].iter().take(spins) {
+                let mut sub = vec![0.0; k * k];
+                for (i, &fi) in funcs.iter().enumerate() {
+                    for (j, &fj) in funcs.iter().enumerate() {
+                        sub[i * k + j] = dm.a[fi * n + fj];
+                    }
+                }
+                let mut xs = vec![0.0; np * k];
+                product_nt(&val, &sub, np, k, k, &mut xs);
+                let mut ys = [vec![0.0; np * k], vec![0.0; np * k], vec![0.0; np * k]];
+                for e in 0..3 {
+                    product_nt(&gr[e], &sub, np, k, k, &mut ys[e]);
+                }
+                x.push(xs);
+                y.push(ys);
+            }
+            for (q, (pt, &wt)) in pts.iter().zip(ws).enumerate() {
+                let gi = idx[q];
+                let r = q * k..q * k + k;
+                let sp = |s: usize| s.min(spins - 1);
+                let rho: Vec<f64> = (0..2).map(|s| val[r.clone()].iter().zip(&x[sp(s)][r.clone()]).map(|(a, b)| a * b).sum()).collect();
                 if rho[0] + rho[1] < 1e-14 {
                     continue;
                 }
                 let gvec: Vec<[f64; 3]> = (0..2).map(|s| {
                     let mut v = [0.0; 3];
-                    for i in 0..k {
-                        for e in 0..3 {
-                            v[e] += 2.0 * gr[3 * i + e] * x[s][i];
-                        }
+                    for e in 0..3 {
+                        v[e] = 2.0 * gr[e][r.clone()].iter().zip(&x[sp(s)][r.clone()]).map(|(a, b)| a * b).sum::<f64>();
                     }
                     v
                 }).collect();
@@ -230,26 +259,19 @@ fn xc_gradient(problem: &Problem, owner: &[usize], solution: &Solution) -> Vec<[
                     [2.0 * de[4] * gvec[1][0] + de[3] * gvec[0][0], 2.0 * de[4] * gvec[1][1] + de[3] * gvec[0][1], 2.0 * de[4] * gvec[1][2] + de[3] * gvec[0][2]],
                 ];
                 let vr = [de[0], de[1]];
-                // hessian index of (e, dir)
-                let hidx = |a: usize, b: usize| match (a.min(b), a.max(b)) {
-                    (0, 0) => 0,
-                    (1, 1) => 1,
-                    (2, 2) => 2,
-                    (0, 1) => 3,
-                    (0, 2) => 4,
-                    _ => 5,
-                };
                 // The basis functions moving with their atoms, at a fixed point.
                 let mut moved = [0.0; 3];
                 for i in 0..k {
                     let atom = fowner[funcs[i]];
+                    let qi = q * k + i;
                     for dir in 0..3 {
                         let mut t = 0.0;
                         for s in 0..2 {
-                            t += vr[s] * gr[3 * i + dir] * x[s][i];
+                            let xs = x[sp(s)][qi];
+                            t += vr[s] * gr[dir][qi] * xs;
                             if grad {
                                 for e in 0..3 {
-                                    t += wv[s][e] * (he[6 * i + hidx(e, dir)] * x[s][i] + gr[3 * i + dir] * y[s][3 * i + e]);
+                                    t += wv[s][e] * (he[hidx(e, dir)][qi] * xs + gr[dir][qi] * y[sp(s)][e][qi]);
                                 }
                             }
                         }
@@ -276,7 +298,7 @@ fn xc_gradient(problem: &Problem, owner: &[usize], solution: &Solution) -> Vec<[
         g
     };
     let mut g = vec![[0.0; 3]; nuc.len()];
-    for part in parallel(work.len(), &job) {
+    for part in parallel_interleaved(work.len(), &job) {
         for (a, b) in g.iter_mut().zip(&part) {
             for k in 0..3 {
                 a[k] += b[k];

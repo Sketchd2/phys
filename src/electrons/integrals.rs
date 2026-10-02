@@ -451,6 +451,202 @@ pub fn eri_derivative(a: &Shell, b: &Shell, c: &Shell, d: &Shell) -> [Vec<f64>; 
     out
 }
 
+/// Hermite potential of one auxiliary component at every bra Hermite index:
+/// `g[t,u,v] = sum_(tau nu phi) (-1)^(tau+nu+phi) f_(tau nu phi) R_(t+tau, u+nu, v+phi)`
+/// for `t + u + v <= lab`, laid out `(t * (lab+1) + u) * (lab+1) + v`. `f` is
+/// the component's own Hermite expansion, `z` its powers, and `scale` is
+/// folded in as a weight so that several components can be summed into one.
+#[inline]
+fn add_hermite_potential(q: &Pair, z: [usize; 3], scale: f64, r: &[f64], w: usize, lab: usize, g: &mut [f64]) {
+    let h = lab + 1;
+    for tau in 0..=z[0] {
+        let f1 = q.hx.get(z[0], 0, tau);
+        if f1 == 0.0 {
+            continue;
+        }
+        for nu in 0..=z[1] {
+            let f2 = f1 * q.hy.get(z[1], 0, nu);
+            if f2 == 0.0 {
+                continue;
+            }
+            for phi in 0..=z[2] {
+                let f3 = f2 * q.hz.get(z[2], 0, phi);
+                if f3 == 0.0 {
+                    continue;
+                }
+                let sign = if (tau + nu + phi) % 2 == 0 { scale } else { -scale };
+                let c = sign * f3;
+                for t in 0..=lab {
+                    for u in 0..=(lab - t) {
+                        let row = ((t + tau) * w + (u + nu)) * w + phi;
+                        let base = (t * h + u) * h;
+                        for v in 0..=(lab - t - u) {
+                            g[base + v] += c * r[row + v];
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// `sum_tuv E^x_t E^y_u E^z_v g[t,u,v]` for bra powers `x` on the first
+/// centre and `y` on the second: the bra's half of a Hermite contraction.
+#[inline]
+fn bra_contract(p: &Pair, x: [usize; 3], y: [usize; 3], g: &[f64], lab: usize) -> f64 {
+    let h = lab + 1;
+    let mut sum = 0.0;
+    for t in 0..=(x[0] + y[0]) {
+        let e1 = p.hx.get(x[0], y[0], t);
+        if e1 == 0.0 {
+            continue;
+        }
+        for u in 0..=(x[1] + y[1]) {
+            let e2 = e1 * p.hy.get(x[1], y[1], u);
+            if e2 == 0.0 {
+                continue;
+            }
+            let base = (t * h + u) * h;
+            let mut s3 = 0.0;
+            for v in 0..=(x[2] + y[2]) {
+                s3 += p.hz.get(x[2], y[2], v) * g[base + v];
+            }
+            sum += e2 * s3;
+        }
+    }
+    sum
+}
+
+/// Three-centre integrals `(ab|P)` of a bra pair against an auxiliary shell
+/// (paired with the unit function), laid out as [`eri_block`]'s
+/// `[ka][kb][kp]` — the same numbers as `eri_from_pairs` with
+/// `ls = [la, lb, lp, 0]`.
+///
+/// Organised so the auxiliary side is summed once per primitive quartet: each
+/// auxiliary component becomes a Hermite *potential* over the bra's Hermite
+/// indices, which every bra component then reads. Done the other way round —
+/// the full six-deep sum per pair of components — the same work was repeated
+/// for every bra component, and was most of the time it took to set up a
+/// fitted Coulomb matrix and nearly all of its gradient.
+pub(crate) fn eri_three(bra: &[Pair], ket: &[Pair], la: usize, lb: usize, lp: usize) -> Vec<f64> {
+    let pi = std::f64::consts::PI;
+    let (ca, cb, cp) = (components(la), components(lb), components(lp));
+    let lab = la + lb;
+    let ltot = lab + lp;
+    let w = ltot + 1;
+    let h = lab + 1;
+    let (na, nb, np) = (ca.len(), cb.len(), cp.len());
+    let mut out = vec![0.0; na * nb * np];
+    let mut scratch = Vec::new();
+    let mut r = Vec::new();
+    let mut g = vec![0.0; h * h * h];
+    for p in bra {
+        for q in ket {
+            let alpha = p.p * q.p / (p.p + q.p);
+            let pq = [p.centre[0] - q.centre[0], p.centre[1] - q.centre[1], p.centre[2] - q.centre[2]];
+            hermite_coulomb_into(ltot, alpha, pq, &mut scratch, &mut r);
+            let pre = 2.0 * pi.powf(2.5) / (p.p * q.p * (p.p + q.p).sqrt()) * p.coef * q.coef;
+            for (kk, z) in cp.iter().enumerate() {
+                g.iter_mut().for_each(|x| *x = 0.0);
+                add_hermite_potential(q, *z, 1.0, &r, w, lab, &mut g);
+                for (ia, x) in ca.iter().enumerate() {
+                    for (ib, y) in cb.iter().enumerate() {
+                        out[(ia * nb + ib) * np + kk] += pre * bra_contract(p, *x, *y, &g, lab);
+                    }
+                }
+            }
+        }
+    }
+    for (ia, x) in ca.iter().enumerate() {
+        for (ib, y) in cb.iter().enumerate() {
+            for (kk, z) in cp.iter().enumerate() {
+                out[(ia * nb + ib) * np + kk] *= component_scale(la, *x) * component_scale(lb, *y) * component_scale(lp, *z);
+            }
+        }
+    }
+    out
+}
+
+/// The derivatives, with respect to the two bra centres, of
+/// `sum_(mu nu k) D_(mu nu) c_k (mu nu|k)` for one bra shell pair and one
+/// auxiliary shell: `d` is the density over the pair's components
+/// (`[ka][kb]`) and `c` the fitted coefficients over the auxiliary shell's.
+///
+/// `bra` must be built with Hermite tables one higher on both centres
+/// (`pairs_ext(a, b, 1, 1)`). The fitted coefficients are summed into one
+/// Hermite potential before anything touches the bra, so the auxiliary side
+/// costs one pass per primitive quartet whatever its angular momentum.
+pub(crate) fn eri_three_gradient(bra: &[Pair], ket: &[Pair], la: usize, lb: usize, lp: usize, d: &[f64], c: &[f64]) -> ([f64; 3], [f64; 3]) {
+    let pi = std::f64::consts::PI;
+    let (ca, cb, cp) = (components(la), components(lb), components(lp));
+    let lab = la + lb + 1;
+    let ltot = lab + lp;
+    let w = ltot + 1;
+    let h = lab + 1;
+    let nb = cb.len();
+    let mut ga = [0.0; 3];
+    let mut gb = [0.0; 3];
+    let mut scratch = Vec::new();
+    let mut r = Vec::new();
+    let mut g = vec![0.0; h * h * h];
+    let pscale: Vec<f64> = cp.iter().map(|z| component_scale(lp, *z)).collect();
+    let abscale: Vec<f64> = ca.iter().flat_map(|x| cb.iter().map(move |y| component_scale(la, *x) * component_scale(lb, *y))).collect();
+    for p in bra {
+        for q in ket {
+            let alpha = p.p * q.p / (p.p + q.p);
+            let pq = [p.centre[0] - q.centre[0], p.centre[1] - q.centre[1], p.centre[2] - q.centre[2]];
+            hermite_coulomb_into(ltot, alpha, pq, &mut scratch, &mut r);
+            let pre = 2.0 * pi.powf(2.5) / (p.p * q.p * (p.p + q.p).sqrt()) * p.coef * q.coef;
+            g.iter_mut().for_each(|x| *x = 0.0);
+            for (kk, z) in cp.iter().enumerate() {
+                if c[kk] != 0.0 {
+                    add_hermite_potential(q, *z, c[kk] * pscale[kk], &r, w, lab, &mut g);
+                }
+            }
+            for (ia, x) in ca.iter().enumerate() {
+                for (ib, y) in cb.iter().enumerate() {
+                    let dm = d[ia * nb + ib];
+                    if dm == 0.0 {
+                        continue;
+                    }
+                    let wt = pre * dm * abscale[ia * nb + ib];
+                    for dir in 0..3 {
+                        let mut up = *x;
+                        up[dir] += 1;
+                        let mut va = 2.0 * p.alpha * bra_contract(p, up, *y, &g, lab);
+                        if x[dir] > 0 {
+                            let mut down = *x;
+                            down[dir] -= 1;
+                            va -= x[dir] as f64 * bra_contract(p, down, *y, &g, lab);
+                        }
+                        let mut up = *y;
+                        up[dir] += 1;
+                        let mut vb = 2.0 * p.beta * bra_contract(p, *x, up, &g, lab);
+                        if y[dir] > 0 {
+                            let mut down = *y;
+                            down[dir] -= 1;
+                            vb -= y[dir] as f64 * bra_contract(p, *x, down, &g, lab);
+                        }
+                        ga[dir] += wt * va;
+                        gb[dir] += wt * vb;
+                    }
+                }
+            }
+        }
+    }
+    (ga, gb)
+}
+
+/// [`eri_three`] for three shells: `(ab|P)`.
+pub fn eri_three_block(a: &Shell, b: &Shell, aux: &Shell) -> Vec<f64> {
+    eri_three(&pairs(a, b, 0), &pairs(aux, &Shell::unit(), 0), a.l, b.l, aux.l)
+}
+
+/// [`eri_three_gradient`] for three shells.
+pub fn eri_three_gradient_block(a: &Shell, b: &Shell, aux: &Shell, d: &[f64], c: &[f64]) -> ([f64; 3], [f64; 3]) {
+    eri_three_gradient(&pairs_ext(a, b, 1, 1), &pairs(aux, &Shell::unit(), 0), a.l, b.l, aux.l, d, c)
+}
+
 /// Gradient contributions of the one-electron energy, given the total density
 /// `d` and energy-weighted density `w`: for each nucleus,
 /// `sum D dH/dR - sum W dS/dR`, where `H` is kinetic plus nuclear attraction

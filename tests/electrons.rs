@@ -580,12 +580,12 @@ fn the_force_on_a_stretched_bond_is_the_slope_of_its_energy() {
 
 /// Each term of the force is the derivative of its own energy at a fixed
 /// density — which is how the gradient was debugged, and what would catch it
-/// going wrong. The total cannot be checked as tightly against finite
-/// differences: the self-consistent energy scatters by 2.7e-7 Ha between
-/// geometries 1e-3 bohr apart (measured), which is 1e-4 in a difference. The
-/// fitted Coulomb energy is the noisy one, so its check uses a larger step.
-/// And the forces sum to zero: translating the molecule does nothing, which
-/// held only once the grid's own motion was included.
+/// going wrong. The fitted Coulomb energy is the robust form
+/// (`Fitted::coulomb_and_energy`): written as `1/2 b.c` it scattered by
+/// 2.2e-7 Ha between geometries 2e-3 bohr apart, which once forced this check
+/// onto a larger step and a looser bound and then failed it on round-off
+/// alone. And the forces sum to zero: translating the molecule does nothing,
+/// which held only once the grid's own motion was included.
 #[test]
 fn every_term_of_the_force_is_the_slope_of_its_energy() {
     use phys::electrons::gradient::gradient_parts;
@@ -622,7 +622,7 @@ fn every_term_of_the_force_is_the_slope_of_its_energy() {
         let at: Vec<([f64; 3], f64)> = q.nuclei.iter().zip(&q.sizes).map(|((_, pp), r)| (*pp, *r)).collect();
         let grid = phys::electrons::grid::molecular_pruned(&at, q.radial, q.theta, q.prune);
         let (exc, _, _) = exchange_correlation(&q.basis, &Batches::new(&q.basis, &grid), q.functional, &s.density_alpha, &s.density_beta);
-        [hm.dot(&d), -sm.dot(&w), 0.5 * fit.coulomb(&d).dot(&d), exc]
+        [hm.dot(&d), -sm.dot(&w), fit.energy(&d), exc]
     };
     let (a, dd) = (1usize, 0usize);
     let fd = |h: f64| {
@@ -633,10 +633,81 @@ fn every_term_of_the_force_is_the_slope_of_its_energy() {
         let (tp, tm) = (terms(&small_molecule(&pl)), terms(&small_molecule(&mi)));
         (0..4).map(|k| (tp[k] - tm[k]) / (2.0 * h)).collect::<Vec<f64>>()
     };
-    let (f4, f2) = (fd(1e-4), fd(1e-2));
-    let checks = [("D dH", gh[a][dd], f4[0], 1e-6), ("-W dS", gs[a][dd], f4[1], 1e-6), ("Coulomb", parts[2][a][dd], f2[2], 1e-5), ("XC", parts[3][a][dd], f4[3], 1e-6)];
+    let f4 = fd(1e-4);
+    let checks = [("D dH", gh[a][dd], f4[0], 1e-6), ("-W dS", gs[a][dd], f4[1], 1e-6), ("Coulomb", parts[2][a][dd], f4[2], 1e-6), ("XC", parts[3][a][dd], f4[3], 1e-6)];
     for (name, analytic, numeric, tol) in checks {
         println!("  {name}: analytic {analytic:+.8}, finite difference {numeric:+.8}");
         assert!((analytic - numeric).abs() < tol, "{name}");
+    }
+}
+
+/// The three-centre integrals reorganised for speed are the same numbers as
+/// the general four-centre routine with a unit function, and their contracted
+/// derivative is the same as contracting the general derivative — over every
+/// pairing of angular momenta up to f on the bra and g on the auxiliary side.
+#[test]
+fn three_centre_integrals_match_the_general_routine() {
+    use phys::electrons::integrals::{eri_derivative, eri_three_block, eri_three_gradient_block};
+    let unit = Shell::unit();
+    let mut worst = 0.0f64;
+    let mut worst_g = 0.0f64;
+    for la in 0..=3 {
+        for lb in 0..=2 {
+            for lp in 0..=4 {
+                let a = Shell::contracted([0.1, -0.2, 0.3], la, vec![3.0, 0.7], vec![0.6, 0.5]);
+                let b = Shell::primitive([-0.5, 0.4, 0.9], lb, 1.3);
+                let p = Shell::primitive([0.3, 0.8, -0.4], lp, 0.9);
+                let fast = eri_three_block(&a, &b, &p);
+                let slow = eri_block(&a, &b, &p, &unit);
+                for (x, y) in fast.iter().zip(&slow) {
+                    worst = worst.max((x - y).abs());
+                }
+                // A density and coefficients with no structure.
+                let d: Vec<f64> = (0..a.size() * b.size()).map(|i| ((i * 7 + 3) % 11) as f64 / 11.0 - 0.4).collect();
+                let c: Vec<f64> = (0..p.size()).map(|i| ((i * 5 + 2) % 7) as f64 / 7.0 - 0.3).collect();
+                let (ga, gb) = eri_three_gradient_block(&a, &b, &p, &d, &c);
+                let da = eri_derivative(&a, &b, &p, &unit);
+                let db = eri_derivative(&b, &a, &p, &unit);
+                let (na, nb, np) = (a.size(), b.size(), p.size());
+                for dir in 0..3 {
+                    let (mut ra, mut rb) = (0.0, 0.0);
+                    for i in 0..na {
+                        for j in 0..nb {
+                            for k in 0..np {
+                                ra += d[i * nb + j] * c[k] * da[dir][(i * nb + j) * np + k];
+                                rb += d[i * nb + j] * c[k] * db[dir][(j * na + i) * np + k];
+                            }
+                        }
+                    }
+                    worst_g = worst_g.max((ga[dir] - ra).abs()).max((gb[dir] - rb).abs());
+                }
+            }
+        }
+    }
+    println!("three-centre: worst {worst:.1e}, gradient worst {worst_g:.1e}");
+    assert!(worst < 1e-12, "three-centre integrals differ by {worst:e}");
+    assert!(worst_g < 1e-11, "three-centre gradient differs by {worst_g:e}");
+}
+
+/// The blocked product is the plain triple loop to the last bit — on shapes
+/// that are not multiples of its block, and whichever vector width the
+/// processor chose — because it sums each element in the same order.
+#[test]
+fn the_blocked_product_is_the_plain_loop_exactly() {
+    use phys::electrons::linalg::product_nt;
+    for (m, n, kd) in [(1, 1, 1), (3, 5, 7), (4, 4, 4), (9, 13, 31), (17, 6, 256)] {
+        let a: Vec<f64> = (0..m * kd).map(|i| ((i * 37 + 11) % 101) as f64 / 7.0 - 6.0).collect();
+        let b: Vec<f64> = (0..n * kd).map(|i| ((i * 53 + 5) % 97) as f64 / 3.0 - 15.0).collect();
+        let mut fast = vec![0.0; m * n];
+        product_nt(&a, &b, m, n, kd, &mut fast);
+        for i in 0..m {
+            for j in 0..n {
+                let mut t = 0.0;
+                for p in 0..kd {
+                    t += a[i * kd + p] * b[j * kd + p];
+                }
+                assert_eq!(fast[i * n + j].to_bits(), t.to_bits(), "{m}x{n}x{kd} at ({i},{j})");
+            }
+        }
     }
 }

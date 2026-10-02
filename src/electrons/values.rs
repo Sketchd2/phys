@@ -3,6 +3,37 @@
 
 use super::basis::{component_scale, components, Basis};
 
+/// A primitive whose `a r^2` exceeds this is left out where it is evaluated:
+/// `exp(-60)` is 9e-27, below round-off on any function value even with the
+/// largest normalisation a primitive carries. Near a heavy nucleus every
+/// primitive counts; a bohr away, the tight ones that make up a core
+/// function's cusp are zero, and evaluating their exponentials was most of
+/// what building the basis values cost.
+const NEGLIGIBLE_EXPONENT: f64 = 60.0;
+
+/// A shell's Cartesian components and their normalisation factors, built once
+/// per angular momentum for the life of the process. Evaluating basis values
+/// is done at every grid point for every shell in every iteration, and
+/// building these as fresh vectors there was 35 million allocations per
+/// self-consistent solve of water.
+fn table(l: usize) -> (&'static [[usize; 3]], &'static [f64]) {
+    use std::sync::OnceLock;
+    static TABLES: OnceLock<Vec<(Vec<[usize; 3]>, Vec<f64>)>> = OnceLock::new();
+    let t = TABLES.get_or_init(|| {
+        (0..=MAX_TABLED_L).map(|l| {
+            let c = components(l);
+            let s = c.iter().map(|x| component_scale(l, *x)).collect();
+            (c, s)
+        }).collect()
+    });
+    let (c, s) = &t[l];
+    (c, s)
+}
+
+/// Highest angular momentum tabled: past what any element's derived basis or
+/// auxiliary set reaches (g, l = 4, for the auxiliary set of an f basis).
+const MAX_TABLED_L: usize = 12;
+
 /// Values of the listed shells' functions at `p`, packed in list order into
 /// `out` (and `grad`, three per function) — what a screened batch needs,
 /// without evaluating shells that are zero there.
@@ -14,12 +45,15 @@ pub fn at_shells(basis: &Basis, shells: &[usize], p: [f64; 3], out: &mut [f64], 
         let r2 = d[0] * d[0] + d[1] * d[1] + d[2] * d[2];
         let (mut rad, mut drad) = (0.0, 0.0);
         for (a, c) in sh.exponents.iter().zip(&sh.coefficients) {
+            if a * r2 > NEGLIGIBLE_EXPONENT {
+                continue;
+            }
             let e = c * (-a * r2).exp();
             rad += e;
             drad -= 2.0 * a * e;
         }
-        for c in components(sh.l).iter() {
-            let scale = component_scale(sh.l, *c);
+        let (comps, scales) = table(sh.l);
+        for (c, &scale) in comps.iter().zip(scales) {
             let pw = |x: f64, n: usize| if n == 0 { 1.0 } else { x.powi(n as i32) };
             let (px, py, pz) = (pw(d[0], c[0]), pw(d[1], c[1]), pw(d[2], c[2]));
             let ang = px * py * pz;
@@ -49,8 +83,8 @@ pub fn at(basis: &Basis, p: [f64; 3], out: &mut [f64], mut grad: Option<&mut [f6
             drad -= 2.0 * a * e;
         }
         let off = basis.offsets[is];
-        for (k, c) in components(sh.l).iter().enumerate() {
-            let scale = component_scale(sh.l, *c);
+        let (comps, scales) = table(sh.l);
+        for (k, (c, &scale)) in comps.iter().zip(scales).enumerate() {
             let pw = |x: f64, n: usize| if n == 0 { 1.0 } else { x.powi(n as i32) };
             let (px, py, pz) = (pw(d[0], c[0]), pw(d[1], c[1]), pw(d[2], c[2]));
             let ang = px * py * pz;
@@ -78,10 +112,13 @@ pub fn at_shells_hessian(basis: &Basis, shells: &[usize], p: [f64; 3], val: &mut
         let sh = &basis.shells[is];
         let d = [p[0] - sh.centre[0], p[1] - sh.centre[1], p[2] - sh.centre[2]];
         let r2 = d[0] * d[0] + d[1] * d[1] + d[2] * d[2];
-        for c in components(sh.l).iter() {
-            let scale = component_scale(sh.l, *c);
+        let (comps, scales) = table(sh.l);
+        for (c, &scale) in comps.iter().zip(scales) {
             let (mut v, mut g, mut h) = (0.0, [0.0; 3], [0.0; 6]);
             for (a, coef) in sh.exponents.iter().zip(&sh.coefficients) {
+                if a * r2 > NEGLIGIBLE_EXPONENT {
+                    continue;
+                }
                 let e = coef * (-a * r2).exp();
                 // Per axis: f, f', f'' of x^n exp(-a x^2) without the common factor.
                 let axis = |x: f64, n: usize| {

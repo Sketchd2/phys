@@ -124,7 +124,18 @@ impl Molecule {
 
     /// Energy, its gradient, and the solution behind them.
     pub fn energy_and_gradient(&self, f: Functional) -> (Solution, Vec<[f64; 3]>) {
-        let p = self.problem(f);
+        self.energy_and_gradient_from(f, None)
+    }
+
+    /// As [`Molecule::energy_and_gradient`], starting from a given density
+    /// pair rather than the free atoms' — a neighbouring geometry's, in a
+    /// relaxation, which is nearly converged already. The basis functions
+    /// keep their order as the atoms move, so the matrix carries over.
+    pub fn energy_and_gradient_from(&self, f: Functional, start: Option<(Matrix, Matrix)>) -> (Solution, Vec<[f64; 3]>) {
+        let mut p = self.problem(f);
+        if start.is_some() {
+            p.guess = start;
+        }
         let s = solve(&p, 200, 1e-10);
         let g = gradient(&p, &s);
         (s, g)
@@ -137,6 +148,8 @@ pub struct Step {
     pub energy: f64,
     pub largest_force: f64,
     pub largest_move: f64,
+    /// Self-consistent iterations the step's energy took.
+    pub iterations: usize,
 }
 
 /// Largest force, hartree/bohr, at which a shape counts as relaxed.
@@ -174,7 +187,7 @@ pub fn relax(start: &Molecule, f: Functional, max_steps: usize) -> (Molecule, Ve
             }
         }
         let dmax = dx.iter().fold(0.0f64, |a, b| a.max(b.abs()));
-        steps.push(Step { energy: sol.energy, largest_force: fmax, largest_move: dmax });
+        steps.push(Step { energy: sol.energy, largest_force: fmax, largest_move: dmax, iterations: sol.iterations });
         if fmax < FORCE_CONVERGED && dmax < MOVE_CONVERGED {
             converged = true;
             break;
@@ -184,7 +197,7 @@ pub fn relax(start: &Molecule, f: Functional, max_steps: usize) -> (Molecule, Ve
                 p[k] += dx[3 * a + k];
             }
         }
-        let (s2, g2) = mol.energy_and_gradient(f);
+        let (s2, g2) = mol.energy_and_gradient_from(f, Some((sol.density_alpha.clone(), sol.density_beta.clone())));
         let g2 = flat(&g2);
         // BFGS update of the inverse Hessian, skipped if the curvature is not
         // positive along the step.

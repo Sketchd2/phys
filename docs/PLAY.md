@@ -3655,6 +3655,39 @@ the start of the phase, ahead of the renderer**. In order:
      the gradient 86 s. PySCF does the same step, density-fitted, in 4.6 + 2.3
      s on the same machine, so the gap is the implementation (about 20x), not
      the hardware.
+     **The owner's decisions after this measurement:** speed first, because
+     the 45 molecules would time out otherwise; **PBE** for the small
+     molecules; **a tolerance of 0.1%** on bond lengths, to be verified
+     against the boiling points it produces; and lattices and larger
+     molecules later, scheduled after the small-molecule set rather than
+     dropped. **Open, the owner's:** PBE is 1.24% long on water's O-H against
+     experiment, so 0.1% against experiment is not reachable with PBE;
+     against PBE's own converged answer it is (the engine is 0.11% off with
+     the present stopping threshold).
+   - **E5a, speed.** One water step measured by part (75 s in the run that
+     was profiled): the fitted Coulomb force's three-centre derivatives 34 s,
+     a second fit inside the force 7 s, exchange-correlation over nine
+     iterations 20 s, the three-centre setup 7 s, the rest 5 s.
+     *Status:* about 10 s a step (SCF about 7, forces about 3; this machine
+     varies by 20% run to run), with the energy and forces unchanged except
+     where a defect was found. Each change is in its commit with its number:
+     three-centre integrals summed once per auxiliary component and shared
+     across the bra (34 s -> 3 s in the force); the solve's fit handed to the
+     force; exchange-correlation batches spread across threads interleaved,
+     closed shells done once, products in a blocked kernel at the vector
+     width's peak (bit-identical to the plain loop), and batches made by
+     bisection (17,136 batches of 4.3 points -> 1,024 of 71); the metric
+     factorised by pivoted Cholesky (3.1 s -> 0.3 s); same-atom force
+     quartets skipped, since they cancel exactly.
+     **Found on the way, and fixed because the force test failed on it:** the
+     fitted Coulomb energy, written `1/2 b.c`, scattered by 2.2e-7 Ha at a
+     fixed density, which was the "energy noise" recorded at E3/E5. The
+     robust form `b.c - 1/2 c.V.c` scatters by 1e-12, the force was always
+     its derivative, and the force test is now held at 1e-6 with a 1e-4 step
+     rather than 1e-5 with a 1e-2 step. The cut on the metric moved the
+     energy 6e-8 (a better fit, which in the Coulomb metric can only raise
+     it). *Read as in scope:* the 45 molecules, which reach octane (26
+     atoms) and chlorine; "larger molecules" as those beyond the set.
    - **E6, properties.** Dipole, Hirshfeld partition (in-molecule volumes,
      charges), polarisability. Done when dipoles match experiment.
    - **E7, dispersion.** PBE has none at long range. **Open, the owner's:**
