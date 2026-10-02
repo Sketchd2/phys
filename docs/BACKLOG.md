@@ -3062,3 +3062,39 @@ never been exercised in anger`).
 ground over a lagging clock for weeks — a long run at a large pace with a
 weather or a campfire on it. Measure the gain at one second per second before
 anything else.
+
+---
+
+## A substance is used at its quick derivation while a thorough one runs behind
+
+**Noticed:** Phase 6, E5b, while choosing how far to converge a molecule's
+electronic structure. **Owner's call:** the backlog.
+**Where:** `src/electrons/`, and the registry intern that E9 will build.
+
+Deriving a substance thoroughly takes minutes to hours: water's shape relaxes
+in 67 s, one step on benzene is about 19 minutes, octane is far beyond that, and
+a liquid sampled from the result (E8) costs more again. The owner's direction:
+the engine uses a quick derivation of a substance as soon as the substance
+comes into existence, and a part of the system runs the intensive calculation
+separately and updates the substance's stored values when it completes — so the
+world is never held up waiting, and becomes more accurate as the work finishes.
+
+**What has to be decided when it is built, and is not decided here:**
+
+- **Regeneration.** Anything regenerable must regenerate bit-identically
+  (`tests/consistency.rs`). A node drawn from a substance's properties before
+  the refinement and redrawn after it would come back different. The likely
+  answer is that a substance's values carry a version, a node records the
+  version it was drawn under, and a refinement takes effect at a defined event
+  rather than mid-frame; but that is a design decision, not this entry's.
+- **Where it runs.** On the machine running the world, in idle time, or
+  somewhere else whose results are fetched — and the core crate builds for
+  wasm32 with no threads of its own.
+- **What "complete" means.** Each stage stops when the next step moves its
+  result by less than the owner's tolerance (see `PLAY.md` E5b), so a
+  refinement can report how converged it is at every point, not only at the
+  end.
+
+**Trigger:** the first substance whose quick derivation the engine uses while
+its thorough one is still missing — at the latest, E9, when derived substances
+go into the registry.

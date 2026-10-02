@@ -3791,9 +3791,20 @@ the start of the phase, ahead of the renderer**. In order:
      represented for a charged solute — larger clusters extrapolated, the
      cluster set in a continuum whose screening is itself derived from the
      engine's own simulated water, or a periodic box.
-     **Still open, the owner's:** what the 0.1% is measured against. PBE is
-     1.24% long on water against experiment, so against experiment it is
-     out of reach for PBE; against PBE's own converged answer it is not.
+     **The owner's answers (after the prototype below):** bond angles count
+     as well as lengths — 0.1% on a length and 0.1 deg on an angle. **The
+     tolerance is on the next step, not on a reference:** nothing is told
+     the answer, so a stage is done when one more step (one more round of
+     functions) moves every length by less than 0.1% and every angle by less
+     than 0.1 deg — with care for a result that oscillates rather than
+     settles, which a single small step would mistake for convergence.
+     Whether 0.1% / 0.1 deg is enough or more than is needed is to be
+     settled by what it does to the melting and boiling points of the 45
+     substances, once E8 can derive them: converge them at the tolerance and
+     at a looser one, and the tolerance is enough when tightening it no
+     longer moves those. A thorough derivation running behind a quick one,
+     with the substance updated when it completes, is in `BACKLOG.md` at the
+     owner's call.
    - **E6, properties.** Dipole, Hirshfeld partition (in-molecule volumes,
      charges), polarisability. Done when dipoles match experiment.
    - **E7, dispersion.** PBE has none at long range. **Open, the owner's:**
