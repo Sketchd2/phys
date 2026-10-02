@@ -3100,7 +3100,11 @@ solution is derived with all its components in its own ratio (salt water as
 water, sodium and chloride together), in clusters grown until the result stops
 changing, and over ratio buckets whose width is measured. Those are the
 derivations most likely to run behind: the smallest seawater-ratio cluster is
-about 560 atoms.
+about 560 atoms. Until something scales to that, a dilute solution's ions and
+nearest shells are solved in full and the rest of the cluster through the
+derived pair-and-three law (`PLAY.md` E5b); the thorough step for mixtures is a
+method that solves the whole cluster — by fragments, or at a cost linear in
+its size.
 
 **Trigger:** the first substance whose quick derivation the engine uses while
 its thorough one is still missing — at the latest, E9, when derived substances

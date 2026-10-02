@@ -3803,8 +3803,14 @@ the start of the phase, ahead of the renderer**. In order:
      ratio holding one of each ion is about 190 molecules and 560 atoms — on
      the order of 20,000 functions at water's present 122, where benzene's
      840 take 19 minutes a step. A near-saturated brine (about 1 to 9) is a
-     30-atom cluster. Raised with the owner rather than assumed: how dilute
-     solutions are reached at that size.
+     30-atom cluster. **The owner's answer for dilute solutions:** the ions
+     and their nearest shells solved in full, the rest of the cluster — still
+     present, still in the solution's ratio — through the pair-and-three law
+     derived by A, and checked against fully solved clusters at the
+     concentrated ratios where those are affordable. Methods that scale to
+     the full cluster (fragment-based, or linear in size) are the thorough
+     step in `BACKLOG.md`. **Buckets:** measured first on representative
+     mixtures, not only pairs — three or more components in some.
      **The owner's answers (after the prototype below):** bond angles count
      as well as lengths — 0.1% on a length and 0.1 deg on an angle. **The
      tolerance is on the next step, not on a reference:** nothing is told
