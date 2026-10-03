@@ -37,8 +37,9 @@
 //! the same extend-while-it-helps rule E4 used, applied to the molecule.
 
 use super::basis::{Basis, Shell};
+use std::sync::atomic::{AtomicUsize, Ordering};
 use super::functional::Functional;
-use super::integrals::{eri_three_contracted, one_electron, pairs, Pair};
+use super::integrals::{eri_three_contracted, one_electron_where, pairs, Pair};
 use super::linalg::{eigh, generalised, orthogonaliser, Matrix};
 use super::molecule::{element_basis, relax_in, Molecule};
 use super::scf::{exchange_correlation, occupy, parallel_interleaved, solve, Batches, Problem, Solution};
@@ -146,13 +147,21 @@ fn union_fock(problem: &Problem, solution: &Solution, cands: &[Shell]) -> UnionF
     let union = Basis::new(shells);
     let n = union.size;
     let ranges: Vec<std::ops::Range<usize>> = (problem.basis.shells.len()..union.shells.len()).map(|i| union.offsets[i]..union.offsets[i] + union.shells[i].size()).collect();
-    let (s, t, v) = one_electron(&union, &problem.nuclei);
+    // A candidate is estimated against the current functions and itself and
+    // never against another candidate: what lands in a block between two of
+    // them is only ever multiplied by a zero coefficient. So those blocks are
+    // not built, and each estimate is bit-identical to building them. At
+    // water's round 9 (404 functions, 130 candidates, a union of 2049) they
+    // were most of the one-electron and Coulomb work.
+    let n_cur_shells = problem.basis.shells.len();
+    let needed = |a: usize, b: usize| b < n_cur_shells || a == b;
+    let (s, t, v) = one_electron_where(&union, &problem.nuclei, &needed);
     let aux = problem.auxiliary.as_ref().expect("a grown basis is solved with fitted Coulomb");
     let c = &solution.fitted;
     let unit = Shell::unit();
     let kets: Vec<Vec<Pair>> = aux.shells.iter().map(|p| pairs(p, &unit, 0)).collect();
     let sh = &union.shells;
-    let shell_pairs: Vec<(usize, usize)> = (0..sh.len()).flat_map(|a| (0..=a).map(move |b| (a, b))).filter(|&(a, b)| {
+    let shell_pairs: Vec<(usize, usize)> = (0..sh.len()).flat_map(|a| (0..=a).map(move |b| (a, b))).filter(|&(a, b)| needed(a, b)).filter(|&(a, b)| {
         let r2: f64 = (0..3).map(|k| (sh[a].centre[k] - sh[b].centre[k]).powi(2)).sum();
         sh[a].exponents.iter().any(|x| sh[b].exponents.iter().any(|y| (-(x * y) / (x + y) * r2).exp() > 1e-14))
     }).collect();
@@ -290,8 +299,16 @@ pub fn estimate_ticking(problem: &Problem, solution: &Solution, cands: &[Shell],
         }).collect();
         spins.push((s, occupied.iter().map(|&k| (levels[k], occ[k])).collect::<Vec<(f64, f64)>>(), fc, gap));
     }
-    u.ranges.iter().enumerate().map(|(done, range)| {
-        let _tick = Ticked(tick, done + 1);
+    // Each candidate is independent of every other and only reads what is
+    // above, so they are spread across threads; each one's arithmetic is the
+    // same wherever it runs, so the estimates are bit-identical to doing them
+    // in turn. This was taken for the reason round 9 ran on one core and was
+    // not: measured, it is about 4 s of an estimate's 382 at water's round 9,
+    // and the one core was `one_electron` over the union (152 s, now threaded
+    // and limited to the blocks a candidate reads).
+    let done = AtomicUsize::new(0);
+    let one = |range: &std::ops::Range<usize>| -> f64 {
+        let _tick = Ticked(tick, &done);
         let sz = range.len();
         // Each candidate function with the current space taken out:
         // y = e_j - S_cur^-1 S_(cur, j).
@@ -343,7 +360,15 @@ pub fn estimate_ticking(problem: &Problem, solution: &Solution, cands: &[Shell],
             }
         }
         total
-    }).collect()
+    };
+    let parts = parallel_interleaved(u.ranges.len(), &|which: &mut dyn Iterator<Item = usize>| {
+        which.map(|i| (i, one(&u.ranges[i]))).collect::<Vec<(usize, f64)>>()
+    });
+    let mut out = vec![0.0; u.ranges.len()];
+    for (i, v) in parts.into_iter().flatten() {
+        out[i] = v;
+    }
+    out
 }
 
 /// An internal coordinate: a bond's length, or the angle at `b` between `a`
@@ -562,13 +587,14 @@ pub enum Progress {
     Probe { probe: usize, probes: usize, done: usize, candidates: usize },
 }
 
-/// Calls its tick with its count when dropped, so a candidate is counted as
-/// done on every way out of its estimate, early returns included.
-struct Ticked<'a>(&'a (dyn Fn(usize) + Sync), usize);
+/// Counts a candidate as done when dropped, and calls the tick with how many
+/// are, so a candidate is counted on every way out of its estimate, early
+/// returns included, whichever thread it ran on.
+struct Ticked<'a>(&'a (dyn Fn(usize) + Sync), &'a AtomicUsize);
 
 impl Drop for Ticked<'_> {
     fn drop(&mut self) {
-        (self.0)(self.1);
+        (self.0)(self.1.fetch_add(1, Ordering::Relaxed) + 1);
     }
 }
 

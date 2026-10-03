@@ -176,21 +176,46 @@ pub(crate) fn pairs_ext(a: &Shell, b: &Shell, extra_i: usize, extra_j: usize) ->
 /// Overlap, kinetic and nuclear-attraction matrices. `nuclei` are
 /// `(charge, position)` in atomic units.
 pub fn one_electron(basis: &Basis, nuclei: &[(f64, [f64; 3])]) -> (Matrix, Matrix, Matrix) {
+    one_electron_where(basis, nuclei, &|_, _| true)
+}
+
+/// As [`one_electron`], for only the shell pairs `(a, b)`, `b <= a`, that
+/// `keep` accepts; the rest of each matrix is left zero. A basis grown for a
+/// molecule estimates each candidate against the current functions and itself
+/// and never against another candidate, and the blocks between candidates
+/// were most of the work.
+///
+/// Shell pairs are spread across threads, and the nuclear attraction's Hermite
+/// Coulomb table is built once per primitive pair and nucleus rather than once
+/// per component pair as well: it does not depend on the components, and for
+/// a d against an f it was being built sixty times over. Each element is the
+/// same sum in the same order as before, so the matrices are bit-identical.
+pub fn one_electron_where(basis: &Basis, nuclei: &[(f64, [f64; 3])], keep: &(dyn Fn(usize, usize) -> bool + Sync)) -> (Matrix, Matrix, Matrix) {
     let n = basis.size;
-    let mut s = Matrix::zeros(n);
-    let mut t = Matrix::zeros(n);
-    let mut v = Matrix::zeros(n);
     let pi = std::f64::consts::PI;
-    for (ia, a) in basis.shells.iter().enumerate() {
-        for (ib, b) in basis.shells.iter().enumerate().take(ia + 1) {
+    let shell_pairs: Vec<(usize, usize)> = (0..basis.shells.len()).flat_map(|a| (0..=a).map(move |b| (a, b))).filter(|&(a, b)| keep(a, b)).collect();
+    let job = |idx: &mut dyn Iterator<Item = usize>| {
+        let mut out: Vec<(usize, usize, Vec<[f64; 3]>)> = Vec::new();
+        for (ia, ib) in idx.map(|i| shell_pairs[i]) {
+            let (a, b) = (&basis.shells[ia], &basis.shells[ib]);
             let ca = components(a.l);
             let cb = components(b.l);
             let prs = pairs(a, b, 2);
+            let lsum = a.l + b.l;
+            let w = lsum + 1;
+            // Per primitive pair, per nucleus: the Hermite Coulomb table.
+            let rs: Vec<Vec<Vec<f64>>> = prs.iter().map(|pr| {
+                nuclei.iter().map(|(_, c)| {
+                    let pc = [pr.centre[0] - c[0], pr.centre[1] - c[1], pr.centre[2] - c[2]];
+                    hermite_coulomb(lsum, pr.p, pc)
+                }).collect()
+            }).collect();
+            let mut block = vec![[0.0; 3]; ca.len() * cb.len()];
             for (ka, ka3) in ca.iter().enumerate() {
                 for (kb, kb3) in cb.iter().enumerate() {
                     let scale = component_scale(a.l, *ka3) * component_scale(b.l, *kb3);
                     let (mut ss, mut tt, mut vv) = (0.0, 0.0, 0.0);
-                    for pr in &prs {
+                    for (pi_, pr) in prs.iter().enumerate() {
                         let (i, j, k) = (ka3[0], ka3[1], ka3[2]);
                         let (l, m, nn) = (kb3[0], kb3[1], kb3[2]);
                         let ex = |d: &Hermite, i: usize, j: usize| d.get(i, j, 0);
@@ -214,11 +239,8 @@ pub fn one_electron(basis: &Basis, nuclei: &[(f64, [f64; 3])]) -> (Matrix, Matri
                         let tz = kin(&pr.hz, k, nn, beta);
                         tt += pr.coef * (tx * sy * sz + sx * ty * sz + sx * sy * tz) * norm;
                         // Nuclear attraction.
-                        let lsum = a.l + b.l;
-                        for (zc, c) in nuclei {
-                            let pc = [pr.centre[0] - c[0], pr.centre[1] - c[1], pr.centre[2] - c[2]];
-                            let r = hermite_coulomb(lsum, pr.p, pc);
-                            let w = lsum + 1;
+                        for (ci, (zc, _)) in nuclei.iter().enumerate() {
+                            let r = &rs[pi_][ci];
                             let mut sum = 0.0;
                             for tt_ in 0..=(i + l) {
                                 let etx = pr.hx.get(i, l, tt_);
@@ -238,10 +260,26 @@ pub fn one_electron(basis: &Basis, nuclei: &[(f64, [f64; 3])]) -> (Matrix, Matri
                             vv -= zc * 2.0 * pi / pr.p * sum * pr.coef;
                         }
                     }
+                    block[ka * cb.len() + kb] = [ss * scale, tt * scale, vv * scale];
+                }
+            }
+            out.push((ia, ib, block));
+        }
+        out
+    };
+    let mut s = Matrix::zeros(n);
+    let mut t = Matrix::zeros(n);
+    let mut v = Matrix::zeros(n);
+    for part in super::scf::parallel_interleaved(shell_pairs.len(), &job) {
+        for (ia, ib, block) in part {
+            let nb = basis.shells[ib].size();
+            for ka in 0..basis.shells[ia].size() {
+                for kb in 0..nb {
                     let (row, col) = (basis.offsets[ia] + ka, basis.offsets[ib] + kb);
-                    for (m_, val) in [(&mut s, ss), (&mut t, tt), (&mut v, vv)] {
-                        m_.set(row, col, val * scale);
-                        m_.set(col, row, val * scale);
+                    let [x, y, z] = block[ka * nb + kb];
+                    for (m_, val) in [(&mut s, x), (&mut t, y), (&mut v, z)] {
+                        m_.set(row, col, val);
+                        m_.set(col, row, val);
                     }
                 }
             }
