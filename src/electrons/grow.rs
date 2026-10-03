@@ -545,18 +545,48 @@ pub fn candidates_for_test(mol: &Molecule, ladders: &[Ladder], chosen: &[Rung]) 
 /// moving. `max_rounds` bounds it; `picks` is how many distinct candidates
 /// (each with its symmetry partners) are added a round.
 pub fn grow(start: &Molecule, bonds: &[(usize, usize)], f: Functional, max_rounds: usize, picks: usize) -> Growth {
-    grow_reporting(start, bonds, f, max_rounds, picks, &mut |_, _| {})
+    grow_reporting(start, bonds, f, max_rounds, picks, &mut |_| {})
 }
 
 /// As [`grow`], handing each round to `report` as it finishes — a run on a
 /// large molecule takes hours, and what it has found should not wait for the
 /// end.
-pub fn grow_reporting(start: &Molecule, bonds: &[(usize, usize)], f: Functional, max_rounds: usize, picks: usize, report: &mut dyn FnMut(&Round, &[Coordinate])) -> Growth {
+pub fn grow_reporting(start: &Molecule, bonds: &[(usize, usize)], f: Functional, max_rounds: usize, picks: usize, report: &mut dyn FnMut(&Snapshot)) -> Growth {
+    grow_from(start, bonds, f, max_rounds, picks, None, report)
+}
+
+/// Where a growth stopped, to carry on from: its ladders, what it had chosen,
+/// the shape it had reached, and the coordinates' values in the rounds
+/// before (which the stopping rule compares against).
+#[derive(Debug, Clone, PartialEq)]
+pub struct Resume {
+    pub ladders: Vec<Ladder>,
+    pub chosen: Vec<Rung>,
+    pub positions: Vec<[f64; 3]>,
+    pub history: Vec<Vec<f64>>,
+}
+
+/// What a round hands to its report: the round, and everything a [`Resume`]
+/// needs to carry on from the end of it.
+pub struct Snapshot<'a> {
+    pub round: &'a Round,
+    pub coordinates: &'a [Coordinate],
+    pub ladders: &'a [Ladder],
+    pub chosen: &'a [Rung],
+    pub positions: &'a [[f64; 3]],
+    pub history: &'a [Vec<f64>],
+}
+
+/// As [`grow_reporting`], carrying on from `resume` if given. A run on one
+/// molecule can take longer than the machine it runs on stays up; each round's
+/// snapshot is enough to start again from the end of it.
+pub fn grow_from(start: &Molecule, bonds: &[(usize, usize)], f: Functional, max_rounds: usize, picks: usize, resume: Option<Resume>, report: &mut dyn FnMut(&Snapshot)) -> Growth {
     let coords = coordinates(bonds);
-    let mut lads = ladders(start, f);
-    let mut chosen: Vec<Rung> = Vec::new();
+    let (mut lads, mut chosen, mut mol, mut history) = match resume {
+        Some(r) => (r.ladders, r.chosen, Molecule { positions: r.positions, ..start.clone() }, r.history),
+        None => (ladders(start, f), Vec::new(), start.clone(), Vec::new()),
+    };
     let mut rounds: Vec<Round> = Vec::new();
-    let mut mol = start.clone();
     let mut converged = false;
     for _ in 0..max_rounds {
         let extra = extras(&mol, &lads, &chosen);
@@ -605,17 +635,18 @@ pub fn grow_reporting(start: &Molecule, bonds: &[(usize, usize)], f: Functional,
         // Settled: two steps running inside every tolerance, the swing over
         // the last three inside it too, and what is predicted to be left
         // inside it.
-        let settled_steps = rounds.len() >= 2 && {
-            let n = rounds.len();
+        let settled_steps = history.len() >= 2 && {
+            let n = history.len();
             let step_ok = |a: &Vec<f64>, b: &Vec<f64>| a.iter().zip(b).zip(&tols).all(|((x, y), t)| (x - y).abs() < *t);
-            step_ok(&values, &rounds[n - 1].values) && step_ok(&rounds[n - 1].values, &rounds[n - 2].values) && (0..coords.len()).all(|i| {
-                let w = [values[i], rounds[n - 1].values[i], rounds[n - 2].values[i]];
+            step_ok(&values, &history[n - 1]) && step_ok(&history[n - 1], &history[n - 2]) && (0..coords.len()).all(|i| {
+                let w = [values[i], history[n - 1][i], history[n - 2][i]];
                 w.iter().cloned().fold(f64::NEG_INFINITY, f64::max) - w.iter().cloned().fold(f64::INFINITY, f64::min) < tols[i]
             })
         };
         if settled_steps && left < 1.0 {
             rounds.push(Round { functions, energy: s0.energy, values, added: Vec::new(), predicted: vec![0.0; coords.len()], added_detail: Vec::new(), left });
-            report(rounds.last().expect("just pushed"), &coords);
+            history.push(rounds.last().expect("just pushed").values.clone());
+            report(&Snapshot { round: rounds.last().expect("just pushed"), coordinates: &coords, ladders: &lads, chosen: &chosen, positions: &mol.positions, history: &history });
             converged = true;
             break;
         }
@@ -653,8 +684,9 @@ pub fn grow_reporting(start: &Molecule, bonds: &[(usize, usize)], f: Functional,
             (lad.atom, lad.l, lad.exponent(r.k), p)
         }).collect();
         rounds.push(Round { functions, energy: s0.energy, values, added: added.clone(), predicted, added_detail, left });
-        report(rounds.last().expect("just pushed"), &coords);
+        history.push(rounds.last().expect("just pushed").values.clone());
         if added.is_empty() {
+            report(&Snapshot { round: rounds.last().expect("just pushed"), coordinates: &coords, ladders: &lads, chosen: &chosen, positions: &mol.positions, history: &history });
             break;
         }
         // Extend any ladder picked at an end, and open the next angular
@@ -673,6 +705,7 @@ pub fn grow_reporting(start: &Molecule, bonds: &[(usize, usize)], f: Functional,
             }
         }
         chosen.extend(added);
+        report(&Snapshot { round: rounds.last().expect("just pushed"), coordinates: &coords, ladders: &lads, chosen: &chosen, positions: &mol.positions, history: &history });
     }
     Growth { molecule: mol, ladders: lads, chosen, rounds, coordinates: coords, converged }
 }
