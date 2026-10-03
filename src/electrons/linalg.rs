@@ -469,6 +469,15 @@ pub fn transpose(a: &[f64], m: usize, n: usize, out: &mut [f64]) {
     }
 }
 
+/// A step of a pivoted Cholesky runs on one thread unless it has at least this
+/// much work in it (rows left times columns so far): starting the threads for
+/// a step costs about 0.7 ms, and a step smaller than this is done sooner on
+/// one. Measured threading every step against none, on near-full-rank metrics:
+/// 256 rows 0.175 s against 0.003, 2048 rows 1.53 against 1.37, 4096 rows 4.9
+/// against 10.9 — the early steps of any factorisation are small, and the late
+/// steps of a large one are not.
+const PARALLEL_CHOLESKY_WORK: usize = 2_000_000;
+
 /// Pivoted Cholesky of a symmetric positive semi-definite matrix: at each step
 /// the row with the largest remaining diagonal is taken, and the factorisation
 /// stops when that falls to `cutoff` times the largest diagonal there was.
@@ -503,19 +512,45 @@ pub fn pivoted_cholesky(v: &Matrix, cutoff: f64) -> (Vec<usize>, Vec<f64>) {
         let k = kept.len();
         kept.push(p);
         let lp = l[p].clone();
-        for i in 0..n {
-            if taken[i] && i != p {
-                continue;
+        // Each row's update reads only its own row, the pivot's and the
+        // metric, so a large step's rows are split across threads; every
+        // element is the same expression either way, so the factor is
+        // bit-identical. Serial, a 5566-function metric (water's grown basis
+        // at round 9) took 28 s of a 305 s solve.
+        let update = |base: usize, rows: &mut [Vec<f64>], diag: &mut [f64]| {
+            for (o, (li, di)) in rows.iter_mut().zip(diag.iter_mut()).enumerate() {
+                let i = base + o;
+                if taken[i] && i != p {
+                    continue;
+                }
+                let x = if i == p {
+                    lkk
+                } else {
+                    let s: f64 = li.iter().zip(&lp).map(|(a, b)| a * b).sum();
+                    (v.a[i * n + p] - s) / lkk
+                };
+                li.push(x);
+                if i != p {
+                    *di -= x * x;
+                }
             }
-            let x = if i == p {
-                lkk
-            } else {
-                let s: f64 = l[i].iter().zip(&lp).map(|(a, b)| a * b).sum();
-                (v.a[i * n + p] - s) / lkk
-            };
-            l[i].push(x);
-            if i != p {
-                d[i] -= x * x;
+        };
+        #[cfg(not(target_arch = "wasm32"))]
+        let workers = if (n - k) * k >= PARALLEL_CHOLESKY_WORK { std::thread::available_parallelism().map(|w| w.get()).unwrap_or(1) } else { 1 };
+        #[cfg(target_arch = "wasm32")]
+        let workers = 1;
+        if workers <= 1 {
+            update(0, &mut l, &mut d);
+        } else {
+            #[cfg(not(target_arch = "wasm32"))]
+            {
+                let chunk = n.div_ceil(workers);
+                let update = &update;
+                std::thread::scope(|scope| {
+                    for (c, (rows, diag)) in l.chunks_mut(chunk).zip(d.chunks_mut(chunk)).enumerate() {
+                        scope.spawn(move || update(c * chunk, rows, diag));
+                    }
+                });
             }
         }
         debug_assert_eq!(l[p].len(), k + 1);
