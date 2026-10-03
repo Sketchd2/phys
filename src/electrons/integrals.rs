@@ -587,11 +587,14 @@ pub(crate) struct ThreeScratch {
     g: Vec<f64>,
     /// `components(l)` for every `l` up to the highest asked for so far.
     comps: Vec<Vec<[usize; 3]>>,
+    /// Per-component scale factors, auxiliary and bra.
+    ps: Vec<f64>,
+    ab: Vec<f64>,
 }
 
 impl ThreeScratch {
     pub(crate) fn new() -> ThreeScratch {
-        ThreeScratch { scratch: Vec::new(), r: Vec::new(), g: Vec::new(), comps: Vec::new() }
+        ThreeScratch { scratch: Vec::new(), r: Vec::new(), g: Vec::new(), comps: Vec::new(), ps: Vec::new(), ab: Vec::new() }
     }
 
     fn reach(&mut self, l: usize) {
@@ -607,7 +610,7 @@ impl ThreeScratch {
 pub(crate) fn eri_three_into(bra: &[Pair], ket: &[Pair], la: usize, lb: usize, lp: usize, s: &mut ThreeScratch, out: &mut Vec<f64>) {
     let pi = std::f64::consts::PI;
     s.reach(la.max(lb).max(lp));
-    let ThreeScratch { scratch, r, g, comps } = s;
+    let ThreeScratch { scratch, r, g, comps, .. } = s;
     let (ca, cb, cp) = (&comps[la], &comps[lb], &comps[lp]);
     let lab = la + lb;
     let ltot = lab + lp;
@@ -654,8 +657,17 @@ pub(crate) fn eri_three_into(bra: &[Pair], ket: &[Pair], la: usize, lb: usize, l
 /// Hermite potential before anything touches the bra, so the auxiliary side
 /// costs one pass per primitive quartet whatever its angular momentum.
 pub(crate) fn eri_three_gradient(bra: &[Pair], ket: &[Pair], la: usize, lb: usize, lp: usize, d: &[f64], c: &[f64]) -> ([f64; 3], [f64; 3]) {
+    eri_three_gradient_with(bra, ket, la, lb, lp, d, c, &mut ThreeScratch::new())
+}
+
+/// [`eri_three_gradient`] using `s` for its working space (see
+/// [`ThreeScratch`]). The same sums in the same order.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn eri_three_gradient_with(bra: &[Pair], ket: &[Pair], la: usize, lb: usize, lp: usize, d: &[f64], c: &[f64], s: &mut ThreeScratch) -> ([f64; 3], [f64; 3]) {
     let pi = std::f64::consts::PI;
-    let (ca, cb, cp) = (components(la), components(lb), components(lp));
+    s.reach(la.max(lb).max(lp));
+    let ThreeScratch { scratch, r, g, comps, ps: pscale, ab: abscale } = s;
+    let (ca, cb, cp) = (&comps[la], &comps[lb], &comps[lp]);
     let lab = la + lb + 1;
     let ltot = lab + lp;
     let w = ltot + 1;
@@ -663,21 +675,22 @@ pub(crate) fn eri_three_gradient(bra: &[Pair], ket: &[Pair], la: usize, lb: usiz
     let nb = cb.len();
     let mut ga = [0.0; 3];
     let mut gb = [0.0; 3];
-    let mut scratch = Vec::new();
-    let mut r = Vec::new();
-    let mut g = vec![0.0; h * h * h];
-    let pscale: Vec<f64> = cp.iter().map(|z| component_scale(lp, *z)).collect();
-    let abscale: Vec<f64> = ca.iter().flat_map(|x| cb.iter().map(move |y| component_scale(la, *x) * component_scale(lb, *y))).collect();
+    g.clear();
+    g.resize(h * h * h, 0.0);
+    pscale.clear();
+    pscale.extend(cp.iter().map(|z| component_scale(lp, *z)));
+    abscale.clear();
+    abscale.extend(ca.iter().flat_map(|x| cb.iter().map(move |y| component_scale(la, *x) * component_scale(lb, *y))));
     for p in bra {
         for q in ket {
             let alpha = p.p * q.p / (p.p + q.p);
             let pq = [p.centre[0] - q.centre[0], p.centre[1] - q.centre[1], p.centre[2] - q.centre[2]];
-            hermite_coulomb_into(ltot, alpha, pq, &mut scratch, &mut r);
+            hermite_coulomb_into(ltot, alpha, pq, scratch, r);
             let pre = 2.0 * pi.powf(2.5) / (p.p * q.p * (p.p + q.p).sqrt()) * p.coef * q.coef;
             g.iter_mut().for_each(|x| *x = 0.0);
             for (kk, z) in cp.iter().enumerate() {
                 if c[kk] != 0.0 {
-                    add_hermite_potential(q, *z, c[kk] * pscale[kk], &r, w, lab, &mut g);
+                    add_hermite_potential(q, *z, c[kk] * pscale[kk], r, w, lab, g);
                 }
             }
             for (ia, x) in ca.iter().enumerate() {
@@ -690,19 +703,19 @@ pub(crate) fn eri_three_gradient(bra: &[Pair], ket: &[Pair], la: usize, lb: usiz
                     for dir in 0..3 {
                         let mut up = *x;
                         up[dir] += 1;
-                        let mut va = 2.0 * p.alpha * bra_contract(p, up, *y, &g, lab);
+                        let mut va = 2.0 * p.alpha * bra_contract(p, up, *y, g, lab);
                         if x[dir] > 0 {
                             let mut down = *x;
                             down[dir] -= 1;
-                            va -= x[dir] as f64 * bra_contract(p, down, *y, &g, lab);
+                            va -= x[dir] as f64 * bra_contract(p, down, *y, g, lab);
                         }
                         let mut up = *y;
                         up[dir] += 1;
-                        let mut vb = 2.0 * p.beta * bra_contract(p, *x, up, &g, lab);
+                        let mut vb = 2.0 * p.beta * bra_contract(p, *x, up, g, lab);
                         if y[dir] > 0 {
                             let mut down = *y;
                             down[dir] -= 1;
-                            vb -= y[dir] as f64 * bra_contract(p, *x, down, &g, lab);
+                            vb -= y[dir] as f64 * bra_contract(p, *x, down, g, lab);
                         }
                         ga[dir] += wt * va;
                         gb[dir] += wt * vb;
@@ -720,33 +733,46 @@ pub(crate) fn eri_three_gradient(bra: &[Pair], ket: &[Pair], la: usize, lb: usiz
 /// [`eri_three_gradient`], so the auxiliary side costs one pass per primitive
 /// quartet.
 pub(crate) fn eri_three_contracted(bra: &[Pair], ket: &[Pair], la: usize, lb: usize, lp: usize, c: &[f64]) -> Vec<f64> {
+    let mut scratch = ThreeScratch::new();
+    let mut out = Vec::new();
+    eri_three_contracted_into(bra, ket, la, lb, lp, c, &mut scratch, &mut out);
+    out
+}
+
+/// [`eri_three_contracted`] into `out`, using `s` for its working space (see
+/// [`ThreeScratch`]). The same sums in the same order.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn eri_three_contracted_into(bra: &[Pair], ket: &[Pair], la: usize, lb: usize, lp: usize, c: &[f64], s: &mut ThreeScratch, out: &mut Vec<f64>) {
     let pi = std::f64::consts::PI;
-    let (ca, cb, cp) = (components(la), components(lb), components(lp));
+    s.reach(la.max(lb).max(lp));
+    let ThreeScratch { scratch, r, g, comps, ps: pscale, .. } = s;
+    let (ca, cb, cp) = (&comps[la], &comps[lb], &comps[lp]);
     let lab = la + lb;
     let ltot = lab + lp;
     let w = ltot + 1;
     let h = lab + 1;
     let nb = cb.len();
-    let mut out = vec![0.0; ca.len() * nb];
-    let mut scratch = Vec::new();
-    let mut r = Vec::new();
-    let mut g = vec![0.0; h * h * h];
-    let pscale: Vec<f64> = cp.iter().map(|z| component_scale(lp, *z)).collect();
+    out.clear();
+    out.resize(ca.len() * nb, 0.0);
+    g.clear();
+    g.resize(h * h * h, 0.0);
+    pscale.clear();
+    pscale.extend(cp.iter().map(|z| component_scale(lp, *z)));
     for p in bra {
         for q in ket {
             let alpha = p.p * q.p / (p.p + q.p);
             let pq = [p.centre[0] - q.centre[0], p.centre[1] - q.centre[1], p.centre[2] - q.centre[2]];
-            hermite_coulomb_into(ltot, alpha, pq, &mut scratch, &mut r);
+            hermite_coulomb_into(ltot, alpha, pq, scratch, r);
             let pre = 2.0 * pi.powf(2.5) / (p.p * q.p * (p.p + q.p).sqrt()) * p.coef * q.coef;
             g.iter_mut().for_each(|x| *x = 0.0);
             for (kk, z) in cp.iter().enumerate() {
                 if c[kk] != 0.0 {
-                    add_hermite_potential(q, *z, c[kk] * pscale[kk], &r, w, lab, &mut g);
+                    add_hermite_potential(q, *z, c[kk] * pscale[kk], r, w, lab, g);
                 }
             }
             for (ia, x) in ca.iter().enumerate() {
                 for (ib, y) in cb.iter().enumerate() {
-                    out[ia * nb + ib] += pre * bra_contract(p, *x, *y, &g, lab);
+                    out[ia * nb + ib] += pre * bra_contract(p, *x, *y, g, lab);
                 }
             }
         }
@@ -756,7 +782,6 @@ pub(crate) fn eri_three_contracted(bra: &[Pair], ket: &[Pair], la: usize, lb: us
             out[ia * nb + ib] *= component_scale(la, *x) * component_scale(lb, *y);
         }
     }
-    out
 }
 
 /// [`eri_three_contracted`] for three shells.

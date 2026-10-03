@@ -13,7 +13,7 @@
 
 use super::basis::{Basis, Shell};
 use super::functional::evaluate;
-use super::integrals::{eri_derivative, eri_three_gradient, one_electron_gradient, pairs as pairs_of, pairs_ext, Pair};
+use super::integrals::{eri_derivative, eri_three_gradient_with, one_electron_gradient, pairs as pairs_of, pairs_ext, Pair, ThreeScratch};
 use super::linalg::{product_nt, Matrix};
 use super::scf::{parallel_interleaved, Batches, Problem, Solution};
 
@@ -93,6 +93,9 @@ fn coulomb_gradient(problem: &Problem, owner: &[usize], d: &Matrix, c: &[f64]) -
     let kets: Vec<Vec<Pair>> = aux.shells.iter().map(|p| pairs_of(p, &unit, 0)).collect();
     let job = |indices: &mut dyn Iterator<Item = usize>| {
         let mut g = vec![[0.0; 3]; nuc.len()];
+        // One worker's working space, kept across its calls (see
+        // `ThreeScratch`): allocating per call made the threads queue.
+        let mut scratch = ThreeScratch::new();
         for (a, b) in indices.map(|i| pairs[i]) {
             let (sa, sb) = (&shells[a], &shells[b]);
             let f = if a == b { 1.0 } else { 2.0 };
@@ -116,7 +119,7 @@ fn coulomb_gradient(problem: &Problem, owner: &[usize], d: &Matrix, c: &[f64]) -
                     continue;
                 }
                 let cp = &c[aux.offsets[ip]..aux.offsets[ip] + p.size()];
-                let (ta, tb) = eri_three_gradient(&bra, &kets[ip], sa.l, sb.l, p.l, &dm, cp);
+                let (ta, tb) = eri_three_gradient_with(&bra, &kets[ip], sa.l, sb.l, p.l, &dm, cp, &mut scratch);
                 for dir in 0..3 {
                     g[owner[a]][dir] += f * ta[dir];
                     g[owner[b]][dir] += f * tb[dir];

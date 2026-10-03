@@ -39,7 +39,7 @@
 use super::basis::{Basis, Shell};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use super::functional::Functional;
-use super::integrals::{eri_three_contracted, one_electron_where, pairs, Pair};
+use super::integrals::{eri_three_contracted_into, one_electron_where, pairs, Pair, ThreeScratch};
 use super::linalg::{eigh, generalised, orthogonaliser, Matrix};
 use super::molecule::{element_basis, relax_in, Molecule};
 use super::scf::{exchange_correlation, occupy, parallel_interleaved, solve, Batches, Problem, Solution};
@@ -167,14 +167,18 @@ fn union_fock(problem: &Problem, solution: &Solution, cands: &[Shell]) -> UnionF
     }).collect();
     let job = |idx: &mut dyn Iterator<Item = usize>| {
         let mut out: Vec<(usize, usize, Vec<f64>)> = Vec::new();
+        // One worker's working space, kept across its calls (see
+        // `ThreeScratch`): allocating per call made the threads queue.
+        let mut scratch = ThreeScratch::new();
+        let mut add = Vec::new();
         for (a, b) in idx.map(|i| shell_pairs[i]) {
             let bra = pairs(&sh[a], &sh[b], 0);
             let mut block = vec![0.0; sh[a].size() * sh[b].size()];
             for (ip, p) in aux.shells.iter().enumerate() {
                 let cp = &c[aux.offsets[ip]..aux.offsets[ip] + p.size()];
-                let add = eri_three_contracted(&bra, &kets[ip], sh[a].l, sh[b].l, p.l, cp);
-                for (x, y) in block.iter_mut().zip(add) {
-                    *x += y;
+                eri_three_contracted_into(&bra, &kets[ip], sh[a].l, sh[b].l, p.l, cp, &mut scratch, &mut add);
+                for (x, y) in block.iter_mut().zip(&add) {
+                    *x += *y;
                 }
             }
             out.push((a, b, block));
