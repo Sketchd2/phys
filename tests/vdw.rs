@@ -192,3 +192,31 @@ fn the_double_sum_approaches_c6_over_r6_as_the_size_of_the_atoms_says() {
     println!("  the excess over C6/R^6 scales as R^-2 to within {:.1}%", (scaling - 1.0) * 100.0);
     assert!((scaling - 1.0).abs() < 0.08, "the excess does not fall as R^-2: {scaling}");
 }
+
+/// The semilocal partners of the non-local correlation: each is LDA
+/// correlation with an exchange enhancement `F(s)`, so its energy density less
+/// LDA's is the uniform gas's exchange times `F(s) - 1`. The forms are written
+/// out here independently of `functional.rs`: PBE's with `kappa = 0.804`,
+/// revPBE's with `kappa = 1.245`, and refit PW86's
+/// `(1 + 1.851 s^2 + 17.33 s^4 + 0.163 s^6)^(1/15)`.
+#[test]
+fn the_exchange_partners_are_the_published_forms() {
+    use phys::electrons::functional::{evaluate, Functional};
+    let mu = 0.2195149727645171;
+    let pbe = |k: f64| move |s2: f64| 1.0 + k - k / (1.0 + mu * s2 / k);
+    let rpw86 = |s2: f64| (1.0 + 1.851 * s2 + 17.33 * s2 * s2 + 0.163 * s2 * s2 * s2).powf(1.0 / 15.0);
+    let forms: [(Functional, &dyn Fn(f64) -> f64); 3] = [(Functional::PbeXLdaC, &pbe(0.804)), (Functional::RevPbeXLdaC, &pbe(1.245)), (Functional::Rpw86XLdaC, &rpw86)];
+    for &(n, s) in &[(0.3, 0.2), (0.05, 1.0), (0.002, 2.5)] {
+        let kf = (3.0 * PI * PI * n).powf(1.0 / 3.0);
+        let g2 = (2.0 * kf * n * s).powi(2);
+        let ex_unif = -0.75 * (3.0 / PI).powf(1.0 / 3.0) * n.powf(4.0 / 3.0);
+        // Spin halves, each carrying a quarter of the squared gradient.
+        let (lda, _) = evaluate(Functional::Lda, n / 2.0, n / 2.0, g2 / 4.0, g2 / 4.0, g2 / 4.0);
+        for (f, form) in forms.iter() {
+            let (e, _) = evaluate(*f, n / 2.0, n / 2.0, g2 / 4.0, g2 / 4.0, g2 / 4.0);
+            let want = ex_unif * (form(s * s) - 1.0);
+            println!("  {f:?} n {n} s {s}: {:.10e} against {want:.10e}", e - lda);
+            assert!((e - lda - want).abs() < 1e-12 * want.abs().max(1e-12), "{f:?} at n {n}, s {s}");
+        }
+    }
+}

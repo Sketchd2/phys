@@ -183,10 +183,47 @@ pub enum Functional {
     Lda,
     /// Perdew-Burke-Ernzerhof.
     Pbe,
+    /// The semilocal part of a van der Waals density functional with PBE's
+    /// exchange: PBE exchange and LDA correlation, the non-local correlation
+    /// added on top (`vdw`). Nothing in it is fitted (PLAY.md E7).
+    PbeXLdaC,
+    /// The semilocal part of published vdW-DF1 (Dion et al. 2004): revPBE
+    /// exchange — PBE's form with `kappa = 1.245`, the one constant Zhang and
+    /// Yang fitted to atomic exchange energies — and LDA correlation.
+    RevPbeXLdaC,
+    /// The semilocal part of vdW-DF2 (Lee et al. 2010): refit PW86 exchange,
+    /// `F(s) = (1 + 1.851 s^2 + 17.33 s^4 + 0.163 s^6)^(1/15)`, and LDA
+    /// correlation. Here only to check the non-local implementation against
+    /// published vdW-DF2 binding energies; its constants are refit.
+    Rpw86XLdaC,
+}
+
+/// How exchange depends on the reduced gradient `s`.
+#[derive(Debug, Clone, Copy)]
+enum Enhancement {
+    /// PBE's form, `1 + kappa - kappa / (1 + mu s^2 / kappa)`.
+    Pbe { kappa: f64 },
+    /// Refit PW86.
+    Rpw86,
 }
 
 impl Functional {
     pub fn needs_gradient(self) -> bool {
+        !matches!(self, Functional::Lda)
+    }
+
+    fn enhancement(self) -> Option<Enhancement> {
+        match self {
+            Functional::Lda => None,
+            Functional::Pbe | Functional::PbeXLdaC => Some(Enhancement::Pbe { kappa: 0.804 }),
+            Functional::RevPbeXLdaC => Some(Enhancement::Pbe { kappa: 1.245 }),
+            Functional::Rpw86XLdaC => Some(Enhancement::Rpw86),
+        }
+    }
+
+    /// Whether correlation has PBE's gradient term, or is the uniform gas's
+    /// alone (as it is beneath a non-local correlation).
+    fn gradient_correlation(self) -> bool {
         matches!(self, Functional::Pbe)
     }
 }
@@ -224,16 +261,20 @@ pub fn lda_correlation_per_electron(n: f64) -> f64 {
 /// Exchange energy density of a spin-unpolarised density `n` with
 /// `|grad n|^2 = g2`, per volume: the spin-scaling relation builds the
 /// polarised case from two of these.
-fn exchange_unpolarised(n: D, g2: Option<D>) -> D {
+fn exchange_unpolarised(n: D, g2: Option<(D, Enhancement)>) -> D {
     let ex_unif = -0.75 * (3.0 / PI).powf(1.0 / 3.0) * n.powf(4.0 / 3.0);
     match g2 {
         None => ex_unif,
-        Some(g2) => {
-            let kappa = 0.804;
-            let mu = 0.2195149727645171;
+        Some((g2, form)) => {
             let kf = (3.0 * PI * PI * n).powf(1.0 / 3.0);
             let s2 = g2 / (4.0 * kf * kf * n * n);
-            let fx = 1.0 + kappa - kappa / (1.0 + mu * s2 / kappa);
+            let fx = match form {
+                Enhancement::Pbe { kappa } => {
+                    let mu = 0.2195149727645171;
+                    1.0 + kappa - kappa / (1.0 + mu * s2 / kappa)
+                }
+                Enhancement::Rpw86 => (1.0 + 1.851 * s2 + 17.33 * s2 * s2 + 0.163 * s2 * s2 * s2).powf(1.0 / 15.0),
+            };
             ex_unif * fx
         }
     }
@@ -251,14 +292,14 @@ pub fn evaluate(f: Functional, ra: f64, rb: f64, saa: f64, sab: f64, sbb: f64) -
     let gaa = D::var(saa.max(0.0), 2);
     let gab = D::var(sab, 3);
     let gbb = D::var(sbb.max(0.0), 4);
-    let grad = f.needs_gradient();
+    let form = f.enhancement();
     // Exchange, spin by spin: E_x[a, b] = (E_x[2a] + E_x[2b]) / 2.
     let mut e = D::c(0.0);
     if ra_ > DENSITY_FLOOR {
-        e = e + 0.5 * exchange_unpolarised(2.0 * a, grad.then_some(4.0 * gaa));
+        e = e + 0.5 * exchange_unpolarised(2.0 * a, form.map(|f| (4.0 * gaa, f)));
     }
     if rb_ > DENSITY_FLOOR {
-        e = e + 0.5 * exchange_unpolarised(2.0 * b, grad.then_some(4.0 * gbb));
+        e = e + 0.5 * exchange_unpolarised(2.0 * b, form.map(|f| (4.0 * gbb, f)));
     }
     // Correlation.
     let n = a + b;
@@ -266,7 +307,7 @@ pub fn evaluate(f: Functional, ra: f64, rb: f64, saa: f64, sab: f64, sbb: f64) -
     let rs = (3.0 / (4.0 * PI) / n).powf(1.0 / 3.0);
     let ec = pw92(rs, zeta);
     let mut ecorr = n * ec;
-    if grad {
+    if f.gradient_correlation() {
         let beta = 0.06672455060314922;
         let gamma = (1.0 - 2f64.ln()) / (PI * PI);
         let phi = ((1.0 + zeta).powf(2.0 / 3.0) + (1.0 - zeta).powf(2.0 / 3.0)) * 0.5;

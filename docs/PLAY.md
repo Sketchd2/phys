@@ -3895,6 +3895,24 @@ the start of the phase, ahead of the renderer**. In order:
      unfitted PBE-exchange form is run alongside on the water dimer and on
      the boiling points, and the owner chooses on those numbers. Nothing
      fitted is adopted without that.
+     *Built and validated* (`electrons::vdw`, `tests/vdw.rs`): the kernel
+     from Dion's formula, converged, on its analytic asymptote and
+     integrating to zero over a uniform gas; `q0` and `C6` against the
+     published vdW-DF values for both vdW-DF1's and vdW-DF2's `Z_ab` (within
+     3-12%, high by about the same for both, which is PBE's diffuse density
+     against the hybrid density the published ones used — a wrong `q0` is out
+     by 1e6 or more); the double sum against its own asymptote between two
+     neon atoms (1e-6); and the exchange partners against their published
+     forms. **The water dimer** (S22 geometry, counterpoise corrected, the
+     non-local term on the converged density), binding in kcal/mol against
+     CCSD(T)/CBS 5.02: rPW86 with vdW-DF2's kernel **4.832** against Vydrov
+     and Van Voorhis's 4.78 in a Gaussian basis — the implementation check,
+     within 0.05; published vdW-DF1 (revPBE) 3.988, underbound by 1.03; **the
+     unfitted form (PBE exchange) 5.550, overbound by 0.53**; PBE alone
+     4.936. The non-local part is a third of the binding (1.62-1.63). Over
+     the whole S22 set Klimes, Bowler and Michaelides (2010) found the same
+     pattern — revPBE-vdW 65 meV mean absolute error, 106 on hydrogen bonds;
+     PBE-vdW 54 and 33, overbinding the dispersion-bound.
    - **E8, the liquid.** The intermolecular law, liquid-vapour coexistence
      sampled, giving `T_b`, `dH_vap`, the density at every temperature and
      the expansion. Done when the 45 molecules are reproduced without any
