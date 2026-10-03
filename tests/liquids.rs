@@ -265,3 +265,60 @@ fn the_equation_of_state_follows_the_temperature() {
     // And the single-substance form agrees with the mixture form.
     assert!(relative(Condensed::liquid(props, 370.0).unwrap().rest_density, hot) < 1e-12);
 }
+
+/// Every bond a molecule has is a bond in its conformer, rings included, and
+/// no two atoms it did not bond sit on top of each other.
+///
+/// The conformer is walked along a spanning tree of the bond graph, so the bond
+/// that closes a ring used to be left wherever the walk put its two atoms:
+/// benzene's came out 5.1 A long and gave it a dipole of 0.52 D. Electronic
+/// structure relaxes from this shape and has nothing to follow where a bond is
+/// missing.
+#[test]
+fn a_ring_is_closed_in_its_conformer() {
+    use phys::chem::analyse::bond_length;
+    use phys::chem::geometry::{dipole, embed};
+    let mut rings = 0;
+    for l in liquids() {
+        let pos = embed(&l.arr);
+        let mut worst: f64 = 0.0;
+        for b in &l.arr.bonds {
+            let (i, j) = (b.a as usize, b.b as usize);
+            let want = bond_length(l.arr.atoms[i], l.arr.atoms[j], b.order).unwrap();
+            worst = worst.max(relative((pos[j] - pos[i]).norm(), want));
+        }
+        // Nothing the conformer did not bond sits closer than the shortest
+        // bond it did.
+        let shortest = l.arr.bonds.iter()
+            .map(|b| (pos[b.b as usize] - pos[b.a as usize]).norm())
+            .fold(f64::INFINITY, f64::min);
+        let adj = l.arr.neighbours();
+        let mut closest = f64::INFINITY;
+        for i in 0..pos.len() {
+            for j in i + 1..pos.len() {
+                if !adj[i].iter().any(|(k, _)| *k == j) {
+                    closest = closest.min((pos[j] - pos[i]).norm());
+                }
+            }
+        }
+        let ring = l.arr.bonds.len() >= l.arr.atoms.len();
+        if ring {
+            rings += 1;
+            println!("  {:<18} worst bond {:.2e} off, closest non-bonded {:.2} A",
+                l.name, worst, closest * 1e10);
+        }
+        // A ring too small for its atoms' angles shares the strain between
+        // its lengths and its angles: tetrahydrofuran 0.84%, pyridine 0.57%
+        // (nitrogen's lone pair asks for 117.5 degrees in a ring of 120),
+        // cyclopentane 0.22%. An unstrained one closes to about 1e-6.
+        assert!(worst < 1e-2, "{}: a bond is {:.2}% off its length", l.name, worst * 100.0);
+        // Before the walk set its torsions, a chain curled into itself:
+        // pentane 0.62 A, hexane to octane 0.17 A, diethyl ether 0.13 A.
+        assert!(closest > shortest, "{}: unbonded atoms {:.2} A apart", l.name, closest * 1e10);
+    }
+    assert!(rings > 0, "the set has no ring, so this measured nothing");
+    let benzene = liquids().into_iter().find(|l| l.name == "benzene").unwrap();
+    let d = dipole(&benzene.arr, &embed(&benzene.arr)) / 3.33564e-30;
+    println!("  benzene's dipole {d:.2e} D (real 0)");
+    assert!(d < 1e-3, "benzene is symmetric: {d:.3} D");
+}

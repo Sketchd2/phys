@@ -34,8 +34,9 @@
 //! # What it is not
 //!
 //! A relaxed structure. This is a plausible conformer built by walking the
-//! bond graph outward, and for anything with a ring or a long flexible chain
-//! it will differ from the real minimum. It is good enough for the two things
+//! bond graph outward, with any ring then pulled closed onto the same derived
+//! distances (`close_rings`), and for anything with a ring or a long flexible
+//! chain it will differ from the real minimum. It is good enough for the two things
 //! it is for — a dipole, and a starting configuration for the molecular
 //! dynamics solver to relax properly — and `md.rs` is where a structure that
 //! has to be right goes next.
@@ -102,6 +103,7 @@ pub fn embed(arr: &Arrangement) -> Vec<Vec3> {
     // geometry is most constrained by.
     let root = (0..n).max_by_key(|i| adj[*i].len()).unwrap_or(0);
     let mut placed = vec![false; n];
+    let mut parent = vec![usize::MAX; n];
     placed[root] = true;
     let mut queue = std::collections::VecDeque::from([root]);
 
@@ -122,16 +124,30 @@ pub fn embed(arr: &Arrangement) -> Vec<Vec3> {
             adj[i].iter().copied().filter(|(j, _)| !placed[*j]).collect();
         let mut left = pending.len();
 
+        // Which way round the bond to the parent the new bonds turn. Left to a
+        // fixed helper axis, every atom of a chain turned the same way and the
+        // chain curled back into itself — pentane put two carbons 0.62 A
+        // apart, octane two atoms 0.17 A apart — so the new bonds are set
+        // anti to the bond the parent came from: the zig-zag of a stretched
+        // chain, which is also as far apart as their electron pairs can get.
+        let reference = (parent[i] != usize::MAX)
+            .then(|| {
+                let p = parent[i];
+                adj[p].iter().find(|(g, _)| *g != i && placed[*g]).map(|(g, _)| pos[p] - pos[*g])
+            })
+            .flatten();
+
         for (j, order) in pending {
             // Each new direction avoids every direction already chosen —
             // including the ones chosen a moment ago in this same loop. Not
             // accumulating them was what put both of carbon dioxide's oxygens
             // at the same point, giving a linear molecule a dipole.
-            let dir = direction_avoiding(&taken, angle, left);
+            let dir = direction_avoiding(&taken, angle, left, reference);
             let length =
                 super::analyse::bond_length(arr.atoms[i], arr.atoms[j], order).unwrap_or(1.5e-10);
             pos[j] = pos[i] + dir.scale(length);
             placed[j] = true;
+            parent[j] = i;
             taken.push(dir);
             left -= 1;
             queue.push_back(j);
@@ -148,14 +164,182 @@ pub fn embed(arr: &Arrangement) -> Vec<Vec3> {
             spare += 1.0;
         }
     }
+    if has_ring(arr) {
+        close_rings(arr, &mut pos);
+    }
     pos
+}
+
+/// Whether the bond graph has a cycle: more edges than a forest of the same
+/// atoms could hold.
+fn has_ring(arr: &Arrangement) -> bool {
+    let n = arr.atoms.len();
+    let mut root: Vec<usize> = (0..n).collect();
+    fn find(root: &mut [usize], mut i: usize) -> usize {
+        while root[i] != i {
+            root[i] = root[root[i]];
+            i = root[i];
+        }
+        i
+    }
+    for (i, adj) in arr.neighbours().iter().enumerate() {
+        for &(j, _) in adj {
+            if j < i {
+                continue;
+            }
+            let (a, b) = (find(&mut root, i), find(&mut root, j));
+            if a == b {
+                return true;
+            }
+            root[a] = b;
+        }
+    }
+    false
+}
+
+/// Pull the walk's conformer onto every bond it was meant to have.
+///
+/// The walk places atoms along a spanning tree of the bond graph, so a bond
+/// that closes a ring is never looked at: benzene's last bond came out 5.1 A
+/// long, which gave it a dipole of 0.52 D, and an electronic-structure
+/// relaxation started from that shape has no bond there to follow. So when
+/// there is a ring, the conformer is relaxed by least squares onto the
+/// distances the walk already derives — each bond at `bond_length`, and each
+/// pair of atoms sharing a neighbour at the distance the VSEPR angle there puts
+/// them — every one of them, ring-closing bonds included. Nothing new is
+/// stated: the targets are the walk's own. For a six-membered ring at 120
+/// degrees those distances admit only the flat hexagon, which is benzene.
+///
+/// Least squares on the relative error, by BFGS.
+/// Deterministic, so the same arrangement always gives the same shape.
+fn close_rings(arr: &Arrangement, pos: &mut [Vec3]) {
+    let adj = arr.neighbours();
+    let mut targets: Vec<(usize, usize, f64)> = Vec::new();
+    for b in &arr.bonds {
+        let (i, j) = (b.a as usize, b.b as usize);
+        if i == j || i >= pos.len() || j >= pos.len() {
+            continue;
+        }
+        let d = super::analyse::bond_length(arr.atoms[i], arr.atoms[j], b.order).unwrap_or(1.5e-10);
+        targets.push((i, j, d));
+    }
+    for (c, around) in adj.iter().enumerate() {
+        let (domains, lone) = domains_at(arr, c);
+        let angle = domain_angle(domains, lone);
+        for (x, &(j, oj)) in around.iter().enumerate() {
+            for &(k, ok) in &around[x + 1..] {
+                if j == k {
+                    continue;
+                }
+                let a = super::analyse::bond_length(arr.atoms[c], arr.atoms[j], oj).unwrap_or(1.5e-10);
+                let b = super::analyse::bond_length(arr.atoms[c], arr.atoms[k], ok).unwrap_or(1.5e-10);
+                let d = (a * a + b * b - 2.0 * a * b * angle.cos()).max(0.0).sqrt();
+                targets.push((j, k, d));
+            }
+        }
+    }
+
+    // Work in units of the first target so the arithmetic is of order one.
+    let scale = targets.first().map(|t| t.2).unwrap_or(1e-10);
+    let x: Vec<Vec3> = pos.iter().map(|p| p.scale(1.0 / scale)).collect();
+    let t: Vec<(usize, usize, f64)> = targets.iter().map(|&(i, j, d)| (i, j, d / scale)).collect();
+
+    let cost = |x: &[Vec3], grad: Option<&mut Vec<Vec3>>| -> f64 {
+        let mut e = 0.0;
+        let mut g = grad;
+        if let Some(g) = g.as_deref_mut() {
+            g.iter_mut().for_each(|v| *v = Vec3::ZERO);
+        }
+        for &(i, j, d0) in &t {
+            let r = x[j] - x[i];
+            let d = r.norm().max(1e-9);
+            let u = (d - d0) / d0;
+            e += u * u;
+            if let Some(g) = g.as_deref_mut() {
+                let f = r.scale(2.0 * u / (d0 * d));
+                g[j] += f;
+                g[i] -= f;
+            }
+        }
+        e
+    };
+
+    // BFGS on the flattened coordinates, with a backtracking line search.
+    // Steepest descent was tried first and crawls along the soft twist of a
+    // ring: benzene was still 8e-4 off after 20,000 steps.
+    let m = 3 * x.len();
+    let flat = |x: &[Vec3]| -> Vec<f64> { x.iter().flat_map(|v| [v.x, v.y, v.z]).collect() };
+    let unflat = |f: &[f64]| -> Vec<Vec3> {
+        f.chunks(3).map(|c| Vec3 { x: c[0], y: c[1], z: c[2] }).collect()
+    };
+    let mut grad = vec![Vec3::ZERO; x.len()];
+    let mut e = cost(&x, Some(&mut grad));
+    let mut xf = flat(&x);
+    let mut gf = flat(&grad);
+    let mut h = vec![0.0; m * m];
+    for k in 0..m {
+        h[k * m + k] = 1.0;
+    }
+    for _ in 0..10 * m + 100 {
+        let g2: f64 = gf.iter().map(|g| g * g).sum();
+        if g2 < 1e-26 {
+            break;
+        }
+        let mut dir: Vec<f64> = (0..m).map(|r| -(0..m).map(|c| h[r * m + c] * gf[c]).sum::<f64>()).collect();
+        let mut slope: f64 = dir.iter().zip(&gf).map(|(d, g)| d * g).sum();
+        if slope >= 0.0 {
+            // Not a descent direction: start the curvature over.
+            h.iter_mut().for_each(|v| *v = 0.0);
+            for k in 0..m {
+                h[k * m + k] = 1.0;
+            }
+            dir = gf.iter().map(|g| -g).collect();
+            slope = -g2;
+        }
+        let mut step = 1.0;
+        let mut moved = None;
+        while step > 1e-12 {
+            let trial: Vec<f64> = xf.iter().zip(&dir).map(|(a, d)| a + step * d).collect();
+            let mut tg = vec![Vec3::ZERO; x.len()];
+            let et = cost(&unflat(&trial), Some(&mut tg));
+            if et <= e + 1e-4 * step * slope {
+                moved = Some((trial, et, flat(&tg)));
+                break;
+            }
+            step *= 0.5;
+        }
+        let Some((nx, ne, ng)) = moved else { break };
+        let sv: Vec<f64> = nx.iter().zip(&xf).map(|(a, b)| a - b).collect();
+        let yv: Vec<f64> = ng.iter().zip(&gf).map(|(a, b)| a - b).collect();
+        let sy: f64 = sv.iter().zip(&yv).map(|(a, b)| a * b).sum();
+        if sy > 1e-30 {
+            let hy: Vec<f64> = (0..m).map(|r| (0..m).map(|c| h[r * m + c] * yv[c]).sum()).collect();
+            let yhy: f64 = yv.iter().zip(&hy).map(|(a, b)| a * b).sum();
+            let rho = 1.0 / sy;
+            for r in 0..m {
+                for c in 0..m {
+                    h[r * m + c] += (1.0 + yhy * rho) * rho * sv[r] * sv[c]
+                        - rho * (hy[r] * sv[c] + sv[r] * hy[c]);
+                }
+            }
+        }
+        xf = nx;
+        e = ne;
+        gf = ng;
+    }
+    let x = unflat(&xf);
+    for (p, q) in pos.iter_mut().zip(&x) {
+        *p = q.scale(scale);
+    }
 }
 
 /// A unit direction at the domain angle to everything in `taken`.
 ///
 /// `left` is how many directions still have to fit, which decides how far
-/// around the available cone this one is rotated.
-fn direction_avoiding(taken: &[Vec3], angle: f64, left: usize) -> Vec3 {
+/// around the available cone this one is rotated. `reference`, where there is
+/// one, is the way the first of them leans when only the bond back to the
+/// parent is spoken for.
+fn direction_avoiding(taken: &[Vec3], angle: f64, left: usize, reference: Option<Vec3>) -> Vec3 {
     match taken.len() {
         // Free choice. Deterministic, so the same arrangement always gives the
         // same shape.
@@ -164,7 +348,17 @@ fn direction_avoiding(taken: &[Vec3], angle: f64, left: usize) -> Vec3 {
         // around it if more than one still has to fit.
         1 => {
             let axis = taken[0];
-            spread(axis, perpendicular_to(axis), 0, angle, left)
+            // The part of the reference square to the axis; a reference along
+            // the axis (a linear parent) gives no lean, and the helper does.
+            let perp = reference
+                .filter(|r| r.norm() > 0.0)
+                .map(|r| {
+                    let r = r.unit();
+                    r - axis.scale(r.dot(axis))
+                })
+                .filter(|p| p.norm() > 1e-6)
+                .unwrap_or_else(|| perpendicular_to(axis));
+            spread(axis, perp, 0, angle, left)
         }
         // Two or more: away from their mean, half the domain angle off it, and
         // rotated so the remaining ones share the cone.
