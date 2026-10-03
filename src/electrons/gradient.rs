@@ -45,12 +45,9 @@ pub fn gradient(problem: &Problem, solution: &Solution) -> Vec<[f64; 3]> {
 }
 
 /// The gradient's terms separately: nuclear repulsion, one-electron (with the
-/// overlap term), Coulomb, exchange-correlation.
-pub fn gradient_parts(problem: &Problem, solution: &Solution) -> [Vec<[f64; 3]>; 4] {
-    // Forces through the non-local correlation are not written yet (PLAY.md
-    // E7); without this a relaxation would run on forces missing a third of
-    // what holds a water dimer together, and nothing would say so.
-    assert!(problem.nonlocal.is_none(), "the gradient does not yet include non-local correlation");
+/// overlap term), Coulomb, exchange-correlation, non-local correlation (zero
+/// without it).
+pub fn gradient_parts(problem: &Problem, solution: &Solution) -> [Vec<[f64; 3]>; 5] {
     let basis = &problem.basis;
     let nuc = &problem.nuclei;
     let n = basis.size;
@@ -75,7 +72,11 @@ pub fn gradient_parts(problem: &Problem, solution: &Solution) -> [Vec<[f64; 3]>;
             }
         }
     }
-    [g, one_electron_gradient(basis, nuc, &owner, &d, &w), coulomb_gradient(problem, &owner, &d, &solution.fitted), xc_gradient(problem, &owner, solution)]
+    let nl = match problem.nonlocal {
+        Some(_) => nonlocal_gradient(problem, &owner, &d),
+        None => vec![[0.0; 3]; nuc.len()],
+    };
+    [g, one_electron_gradient(basis, nuc, &owner, &d, &w), coulomb_gradient(problem, &owner, &d, &solution.fitted), xc_gradient(problem, &owner, solution), nl]
 }
 
 /// The density-fitted Coulomb energy's gradient: `c . d(mn|P) D - 1/2 c . dV c`,
@@ -322,4 +323,115 @@ fn batches_owner(grid: &super::grid::Grid, i: usize) -> usize {
 /// Basis functions of one nucleus — kept for the geometry module.
 pub fn shells_on(basis: &Basis, nuclei: &[(f64, [f64; 3])], atom: usize) -> Vec<usize> {
     owners(&basis.shells, nuclei).iter().enumerate().filter(|(_, o)| **o == atom).map(|(i, _)| i).collect()
+}
+
+/// Non-local correlation's gradient, on the grid the field was solved with
+/// (PLAY.md E7: forces come from the coarse grid). Four ways a nucleus moves
+/// the energy: its basis functions move, changing the density and its
+/// gradient at every fixed point (the semilocal formula, with the non-local
+/// term's `dE/dn` and `dE/dgrad n`); its own points move with it, which at a
+/// fixed density is minus that sum; its points move relative to every other
+/// atom's, which changes the distances the kernel reads; and Becke's partition
+/// of every point changes, through `dE/dw`.
+fn nonlocal_gradient(problem: &Problem, owner: &[usize], d: &Matrix) -> Vec<[f64; 3]> {
+    let spec = problem.nonlocal.expect("non-local correlation");
+    let basis = &problem.basis;
+    let nuc = &problem.nuclei;
+    let n = basis.size;
+    let atoms: Vec<([f64; 3], f64)> = nuc.iter().zip(&problem.sizes).map(|((_, p), r)| (*p, *r)).collect();
+    let grid = super::grid::molecular_pruned(&atoms, spec.radial, spec.theta, false);
+    let batches = Batches::new(basis, &grid);
+    let dens = super::vdw::density_and_gradient_on(basis, &batches, d, grid.points.len());
+    let forces = super::vdw::nonlocal_for_forces(&grid, &dens, spec.z_ab, spec.floor, super::vdw::kernel_table());
+    let mut fowner = vec![0usize; n];
+    for (is, sh) in basis.shells.iter().enumerate() {
+        for k in 0..sh.size() {
+            fowner[basis.offsets[is] + k] = owner[is];
+        }
+    }
+    let positions: Vec<[f64; 3]> = nuc.iter().map(|(_, p)| *p).collect();
+    let hidx = |a: usize, b: usize| match (a.min(b), a.max(b)) {
+        (0, 0) => 0,
+        (1, 1) => 1,
+        (2, 2) => 2,
+        (0, 1) => 3,
+        (0, 2) => 4,
+        _ => 5,
+    };
+    let work = &batches.batches;
+    let job = |batch_ids: &mut dyn Iterator<Item = usize>| {
+        let mut g = vec![[0.0; 3]; nuc.len()];
+        for b in batch_ids {
+            let (pts, ws, funcs, shells) = &work[b];
+            let idx = &batches.indices[b];
+            let k = funcs.len();
+            if k == 0 {
+                continue;
+            }
+            let mut sub = vec![0.0; k * k];
+            for (i, &fi) in funcs.iter().enumerate() {
+                for (j, &fj) in funcs.iter().enumerate() {
+                    sub[i * k + j] = d.a[fi * n + fj];
+                }
+            }
+            let (mut v1, mut g1, mut h1) = (vec![0.0; k], vec![0.0; 3 * k], vec![0.0; 6 * k]);
+            let (mut x, mut y) = (vec![0.0; k], vec![[0.0; 3]; k]);
+            for (q, (pt, &wt)) in pts.iter().zip(ws).enumerate() {
+                let gi = idx[q];
+                let (vn, vg) = (forces.nl.v_n[gi], forces.nl.v_g2[gi]);
+                let own = grid.owner[gi];
+                // The points moving apart, and the partition moving.
+                for dir in 0..3 {
+                    g[own][dir] += forces.de_dr[gi][dir];
+                }
+                if forces.de_dw[gi] != 0.0 {
+                    let share = super::grid::becke_share_gradient(&positions, own, *pt);
+                    for (atom, sg) in share.iter().enumerate() {
+                        for dir in 0..3 {
+                            g[atom][dir] += grid.raw[gi] * sg[dir] * forces.de_dw[gi];
+                        }
+                    }
+                }
+                if vn == 0.0 && vg == 0.0 {
+                    continue;
+                }
+                super::values::at_shells_hessian(basis, shells, *pt, &mut v1, &mut g1, &mut h1);
+                for i in 0..k {
+                    x[i] = (0..k).map(|j| sub[i * k + j] * v1[j]).sum();
+                    for e in 0..3 {
+                        y[i][e] = (0..k).map(|j| sub[i * k + j] * g1[3 * j + e]).sum();
+                    }
+                }
+                let gn = dens[gi].1;
+                let wv = [2.0 * vg * gn[0], 2.0 * vg * gn[1], 2.0 * vg * gn[2]];
+                // The basis functions moving with their atoms, at a fixed point.
+                let mut moved = [0.0; 3];
+                for i in 0..k {
+                    let atom = fowner[funcs[i]];
+                    for dir in 0..3 {
+                        let mut t = vn * g1[3 * i + dir] * x[i];
+                        for e in 0..3 {
+                            t += wv[e] * (h1[6 * i + hidx(e, dir)] * x[i] + g1[3 * i + dir] * y[i][e]);
+                        }
+                        g[atom][dir] -= 2.0 * wt * t;
+                        moved[dir] -= 2.0 * wt * t;
+                    }
+                }
+                // The point moving with its own atom, at the density's values.
+                for dir in 0..3 {
+                    g[own][dir] -= moved[dir];
+                }
+            }
+        }
+        g
+    };
+    let mut g = vec![[0.0; 3]; nuc.len()];
+    for part in parallel_interleaved(work.len(), &job) {
+        for (a, b) in g.iter_mut().zip(&part) {
+            for k in 0..3 {
+                a[k] += b[k];
+            }
+        }
+    }
+    g
 }

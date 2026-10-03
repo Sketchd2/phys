@@ -3930,6 +3930,17 @@ the start of the phase, ahead of the renderer**. In order:
      measured. **And the fine grid's tolerance is set by the boiling points**,
      as the basis tolerance is: measured at a loose and a tight setting, and
      the loosest kept that leaves them unchanged.
+     *Built:* solved with (20, 6) in the field and finished on (50, 12), the
+     water dimer's vdW-DF2 binding is 4.8364 against 4.836 solved on (50, 12)
+     throughout, in 211 s against 2140; a counterpoise partner now starts
+     with only its own electrons (9 iterations, not 24). **Forces** through
+     the non-local term — basis functions, points and partition moving with
+     their atoms, and the points moving apart, which the semilocal term does
+     not have — agree with finite differences of their energy to 2e-8 and of
+     the whole self-consistent energy to 4e-7. **What E7 still owes:** the
+     choice between the unfitted and the fitted exchange partner, and the
+     final grid's tolerance — both by the owner's decision from the boiling
+     points, so both wait for E8.
    - **E8, the liquid.** The intermolecular law, liquid-vapour coexistence
      sampled, giving `T_b`, `dH_vap`, the density at every temperature and
      the expansion. Done when the 45 molecules are reproduced without any

@@ -570,3 +570,64 @@ pub fn energy_on_finer_grid(problem: &super::scf::Problem, solution: &super::scf
     let fine = nonlocal(&grid, &dens, spec.z_ab, spec.floor, kernel_table()).energy;
     solution.energy - solution.nonlocal + fine
 }
+
+/// What the non-local forces need at each grid point, besides
+/// [`Nonlocal`]'s derivatives: `dE/dw` (for the partition weights moving),
+/// which is `n_i A_i`, and `dE/dr_i` at fixed density (for the points moving
+/// apart), which is `w_i n_i sum_j w_j n_j (q_i d1phi + q_j d2phi) (r_i - r_j) / r_ij`
+/// — a pair appears in both orders in the double sum, which is what the
+/// energy's one half cancels.
+pub struct NonlocalForces {
+    pub nl: Nonlocal,
+    pub de_dw: Vec<f64>,
+    pub de_dr: Vec<[f64; 3]>,
+}
+
+/// [`nonlocal`] with what its forces need, by the same rows.
+pub fn nonlocal_for_forces(grid: &super::grid::Grid, density: &[(f64, [f64; 3])], z_ab: f64, floor: f64, table: &KernelTable) -> NonlocalForces {
+    struct Point { at: usize, r: [f64; 3], wn: f64, n: f64, q: f64, dq_dn: f64, dq_dg2: f64 }
+    let points: Vec<Point> = grid.points.iter().zip(&grid.weights).zip(density).enumerate().filter_map(|(at, ((r, w), (n, g)))| {
+        let wn = w * n;
+        if *n <= 0.0 || wn.abs() < floor {
+            return None;
+        }
+        let (q, dq_dn, dq_dg2) = q0_and_slopes(*n, g[0] * g[0] + g[1] * g[1] + g[2] * g[2], z_ab);
+        Some(Point { at, r: *r, wn, n: *n, q, dq_dn, dq_dg2 })
+    }).collect();
+    let job = |idx: &mut dyn Iterator<Item = usize>| {
+        idx.map(|i| {
+            let a = &points[i];
+            let (mut sa, mut sb, mut sc) = (0.0, 0.0, [0.0; 3]);
+            for b in &points {
+                let d = [a.r[0] - b.r[0], a.r[1] - b.r[1], a.r[2] - b.r[2]];
+                let r = (d[0] * d[0] + d[1] * d[1] + d[2] * d[2]).sqrt();
+                let (f, f1, f2) = table.phi_and_slopes(a.q * r, b.q * r);
+                sa += b.wn * f;
+                sb += b.wn * r * f1;
+                if r > 0.0 {
+                    let radial = b.wn * (a.q * f1 + b.q * f2) / r;
+                    for k in 0..3 {
+                        sc[k] += radial * d[k];
+                    }
+                }
+            }
+            (i, sa, sb, sc)
+        }).collect::<Vec<_>>()
+    };
+    let mut rows = vec![(0.0, 0.0, [0.0; 3]); points.len()];
+    for part in super::scf::parallel_interleaved(points.len(), &job) {
+        for (i, sa, sb, sc) in part {
+            rows[i] = (sa, sb, sc);
+        }
+    }
+    let m = grid.points.len();
+    let (mut energy, mut v_n, mut v_g2, mut de_dw, mut de_dr) = (0.0, vec![0.0; m], vec![0.0; m], vec![0.0; m], vec![[0.0; 3]; m]);
+    for (p, (sa, sb, sc)) in points.iter().zip(&rows) {
+        energy += 0.5 * p.wn * sa;
+        v_n[p.at] = sa + p.n * sb * p.dq_dn;
+        v_g2[p.at] = p.n * sb * p.dq_dg2;
+        de_dw[p.at] = p.n * sa;
+        de_dr[p.at] = [p.wn * sc[0], p.wn * sc[1], p.wn * sc[2]];
+    }
+    NonlocalForces { nl: Nonlocal { energy, v_n, v_g2 }, de_dw, de_dr }
+}

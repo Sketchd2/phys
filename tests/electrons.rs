@@ -743,3 +743,77 @@ fn a_fitted_potential_is_the_contracted_three_centre_integrals() {
     println!("fitted potential: worst {worst:.1e}");
     assert!(worst < 1e-12, "{worst:e}");
 }
+
+/// The non-local correlation's force is the slope of its own energy at a
+/// fixed density, on the grid the field was solved with — basis functions,
+/// points and partition all moving with their atoms, and the points moving
+/// apart, which the semilocal term does not have. And its forces sum to zero.
+#[test]
+fn the_nonlocal_force_is_the_slope_of_its_energy() {
+    use phys::electrons::gradient::gradient_parts;
+    use phys::electrons::scf::Batches;
+    use phys::electrons::vdw::{density_and_gradient_on, kernel_table, nonlocal, NonlocalSpec, Z_AB_DF1};
+    let atoms = vec![(8.0, [0.05, -0.03, 0.02]), (1.0, [0.0, 1.43, 1.1]), (1.0, [0.1, -1.43, 1.0])];
+    let with_nl = |a: &[(f64, [f64; 3])]| {
+        let mut p = small_molecule(a);
+        p.functional = Functional::PbeXLdaC;
+        p.nonlocal = Some(NonlocalSpec::in_the_field(Z_AB_DF1));
+        p
+    };
+    let p = with_nl(&atoms);
+    let s = solve(&p, 200, 1e-11);
+    let mut d = s.density_alpha.clone();
+    for k in 0..d.a.len() {
+        d.a[k] += s.density_beta.a[k];
+    }
+    let nl_force = gradient_parts(&p, &s)[4].clone();
+    let sum: f64 = (0..3).map(|k| nl_force.iter().map(|v| v[k]).sum::<f64>().abs()).sum();
+    println!("  non-local forces sum to {sum:.1e}");
+    assert!(sum < 1e-9, "the non-local forces do not sum to zero: {sum}");
+    let energy_at = |a: &[(f64, [f64; 3])]| {
+        let q = with_nl(a);
+        let spec = q.nonlocal.unwrap();
+        let at: Vec<([f64; 3], f64)> = q.nuclei.iter().zip(&q.sizes).map(|((_, pp), r)| (*pp, *r)).collect();
+        let grid = phys::electrons::grid::molecular_pruned(&at, spec.radial, spec.theta, false);
+        let b = Batches::new(&q.basis, &grid);
+        nonlocal(&grid, &density_and_gradient_on(&q.basis, &b, &d, grid.points.len()), spec.z_ab, spec.floor, kernel_table()).energy
+    };
+    for (a, dd) in [(1usize, 0usize), (0, 2), (2, 1)] {
+        let h = 1e-4;
+        let mut pl = atoms.clone();
+        pl[a].1[dd] += h;
+        let mut mi = atoms.clone();
+        mi[a].1[dd] -= h;
+        let fd = (energy_at(&pl) - energy_at(&mi)) / (2.0 * h);
+        println!("  atom {a}, axis {dd}: analytic {:+.9}, finite difference {fd:+.9}", nl_force[a][dd]);
+        assert!((nl_force[a][dd] - fd).abs() < 1e-6, "atom {a} axis {dd}: {} against {fd}", nl_force[a][dd]);
+    }
+}
+
+/// The whole force with non-local correlation in the field, against the slope
+/// of the self-consistent energy: the overlap term reaches the non-local
+/// potential through the Fock matrix, and this is what checks it does.
+#[test]
+fn the_force_with_nonlocal_correlation_is_the_slope_of_its_energy() {
+    use phys::electrons::gradient::gradient;
+    use phys::electrons::vdw::{NonlocalSpec, Z_AB_DF1};
+    let atoms = vec![(8.0, [0.05, -0.03, 0.02]), (1.0, [0.0, 1.43, 1.1]), (1.0, [0.1, -1.43, 1.0])];
+    let with_nl = |a: &[(f64, [f64; 3])]| {
+        let mut p = small_molecule(a);
+        p.functional = Functional::PbeXLdaC;
+        p.nonlocal = Some(NonlocalSpec::in_the_field(Z_AB_DF1));
+        p
+    };
+    let p = with_nl(&atoms);
+    let s = solve(&p, 200, 1e-11);
+    let g = gradient(&p, &s);
+    let (a, dd, h) = (1usize, 1usize, 1e-3);
+    let e = |dz: f64| {
+        let mut m = atoms.clone();
+        m[a].1[dd] += dz;
+        solve(&with_nl(&m), 200, 1e-11).energy
+    };
+    let fd = (e(h) - e(-h)) / (2.0 * h);
+    println!("  water with non-local correlation: analytic {:+.7}, finite difference {fd:+.7}", g[a][dd]);
+    assert!((g[a][dd] - fd).abs() < 2e-5, "{} against {fd}", g[a][dd]);
+}

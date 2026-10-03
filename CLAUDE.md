@@ -663,7 +663,10 @@ E5 and E5a measured, and **E5b** (a basis chosen for each molecule, grown by
 reorder, the 45-substance comparison moves to the end of the phase and the
 work goes to a derived boiling point first — the rule on groups, A against B
 on water, then E6 to E8 — so the tolerance can be judged by the boiling
-points it produces. The program — the native wgpu renderer — is
+points it produces. **E7 (dispersion) is built:** the vdW-DF kernel computed
+by the engine, its energy, potential and forces, self-consistent on a coarse
+grid and finished on a fine one (`electrons::vdw`, `tests/vdw.rs`); which
+exchange partner and how fine a final grid both wait for the boiling points. The program — the native wgpu renderer — is
 Phase 7 and waits for it; `program/` is a crate that finds an adapter and no
 more.
 
