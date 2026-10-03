@@ -282,3 +282,30 @@ fn the_nonlocal_potential_is_the_derivative_of_its_energy() {
     println!("  dE along LDA less PBE: {measured:.10e} by differences, {predicted:.10e} from the potential");
     assert!((measured - predicted).abs() < 1e-6 * predicted.abs(), "{measured} against {predicted}");
 }
+
+/// A counterpoise partner: the ghost atoms keep their functions and lose
+/// their nuclei, their electrons and their share of the starting guess, so
+/// the guess holds exactly the partner's electrons.
+#[test]
+fn a_ghosted_partner_starts_with_its_own_electrons() {
+    use phys::electrons::functional::Functional;
+    use phys::electrons::molecule::Molecule;
+    let a = 1.0 / 0.529177210903;
+    let pos = [[-1.551007, -0.114520, 0.0], [-1.934259, 0.762503, 0.0], [-0.599677, 0.040712, 0.0], [1.350625, 0.111469, 0.0], [1.680398, -0.373741, -0.758561], [1.680398, -0.373741, 0.758561]];
+    let dimer = Molecule { z: vec![8, 1, 1, 8, 1, 1], positions: pos.iter().map(|p| [p[0] * a, p[1] * a, p[2] * a]).collect(), charge: 0, unpaired: 0 };
+    let base = dimer.problem(Functional::Pbe);
+    let partner = base.with_ghosts(&[3, 4, 5], 10.0);
+    assert_eq!(partner.basis.size, base.basis.size, "the ghosts keep their functions");
+    assert_eq!(partner.nuclei.iter().map(|n| n.0).collect::<Vec<_>>(), vec![0.0, 0.0, 0.0, 8.0, 1.0, 1.0]);
+    assert_eq!((partner.alpha, partner.beta), (5.0, 5.0));
+    // The guess's electron count: trace(D S).
+    let (s, _, _) = phys::electrons::integrals::one_electron(&partner.basis, &partner.nuclei);
+    let (da, db) = partner.guess.as_ref().expect("a guess");
+    let count: f64 = (0..s.n * s.n).map(|k| (da.a[k] + db.a[k]) * s.a[k]).sum();
+    let whole: f64 = {
+        let (da, db) = base.guess.as_ref().unwrap();
+        (0..s.n * s.n).map(|k| (da.a[k] + db.a[k]) * s.a[k]).sum()
+    };
+    println!("  the guess holds {count:.6} electrons for the partner, {whole:.6} for the dimer");
+    assert!((count - 10.0).abs() < 1e-6 * whole, "the partner's guess holds {count} electrons");
+}

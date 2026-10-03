@@ -45,6 +45,46 @@ pub struct Problem {
     pub nonlocal: Option<super::vdw::NonlocalSpec>,
 }
 
+impl Problem {
+    /// The same problem with every atom not in `keep` made a ghost: its basis
+    /// functions (and auxiliary functions, and grid) stay, its nucleus's
+    /// charge goes to zero, the electron count becomes `electrons`, and its
+    /// share of the starting guess is removed — which is what a counterpoise
+    /// correction solves each partner of a complex in. Keeping the ghosts'
+    /// free-atom density in the guess started the field with the wrong number
+    /// of electrons and cost a water monomer 24 iterations against the
+    /// dimer's 11.
+    pub fn with_ghosts(&self, keep: &[usize], electrons: f64) -> Problem {
+        let mut q = self.clone();
+        let ghost: Vec<bool> = (0..q.nuclei.len()).map(|i| !keep.contains(&i)).collect();
+        for (n, g) in q.nuclei.iter_mut().zip(&ghost) {
+            if *g {
+                n.0 = 0.0;
+            }
+        }
+        let spin = q.alpha - q.beta;
+        q.alpha = 0.5 * (electrons + spin);
+        q.beta = 0.5 * (electrons - spin);
+        if let Some((da, db)) = &mut q.guess {
+            let nb = q.basis.size;
+            for (is, sh) in q.basis.shells.iter().enumerate() {
+                let on = self.nuclei.iter().position(|(_, c)| (0..3).all(|k| (c[k] - sh.centre[k]).abs() < 1e-12));
+                if on.is_some_and(|a| ghost[a]) {
+                    for f in q.basis.offsets[is]..q.basis.offsets[is] + sh.size() {
+                        for m in [&mut *da, &mut *db] {
+                            for k in 0..nb {
+                                m.a[f * nb + k] = 0.0;
+                                m.a[k * nb + f] = 0.0;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        q
+    }
+}
+
 /// What came out.
 #[derive(Debug, Clone)]
 pub struct Solution {

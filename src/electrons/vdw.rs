@@ -527,10 +527,46 @@ pub struct NonlocalSpec {
     pub floor: f64,
 }
 
+impl NonlocalSpec {
+    /// The setting a field is solved with: the coarse grid (20, 6) and the
+    /// floor. Measured on the water dimer with vdW-DF2's kernel, solving with
+    /// it and taking the final non-local energy on (50, 12) gives 4.8364
+    /// kcal/mol against 4.836 solved at (50, 12) throughout, in a tenth of the
+    /// time (211 s against 2140); (30, 8) gives 4.8359. The final grid is
+    /// chosen separately, by the boiling points (PLAY.md E7).
+    pub fn in_the_field(z_ab: f64) -> NonlocalSpec {
+        NonlocalSpec { z_ab, radial: 20, theta: 6, floor: FLOOR }
+    }
+}
+
 /// The kernel table every solve shares: 128 x 128 to `d = 64`, built from the
 /// converged quadrature the first time it is asked for (about 4 s) and kept
 /// for the life of the process.
 pub fn kernel_table() -> &'static KernelTable {
     static TABLE: std::sync::OnceLock<KernelTable> = std::sync::OnceLock::new();
     TABLE.get_or_init(|| KernelTable::build(128, 64.0, &converged_quadrature()))
+}
+
+/// The density floor the owner set for the non-local term: points whose
+/// weighted density is below it are dropped. Measured on the water dimer at
+/// (50, 12), it drops a quarter of the points and moves the non-local binding
+/// by 0.00001 kcal/mol.
+pub const FLOOR: f64 = 1e-8;
+
+/// The non-local energy of a solved problem's density, evaluated afresh on a
+/// grid of its own: the field is solved with a coarse non-local grid and the
+/// final energy taken on a fine one (PLAY.md E7). Returns the solution's total
+/// energy with its non-local part replaced by this one.
+pub fn energy_on_finer_grid(problem: &super::scf::Problem, solution: &super::scf::Solution, radial: usize, theta: usize) -> f64 {
+    let spec = problem.nonlocal.expect("a problem with non-local correlation");
+    let atoms: Vec<([f64; 3], f64)> = problem.nuclei.iter().zip(&problem.sizes).map(|((_, p), r)| (*p, *r)).collect();
+    let grid = super::grid::molecular_pruned(&atoms, radial, theta, false);
+    let batches = super::scf::Batches::new(&problem.basis, &grid);
+    let mut d = solution.density_alpha.clone();
+    for k in 0..d.a.len() {
+        d.a[k] += solution.density_beta.a[k];
+    }
+    let dens = density_and_gradient_on(&problem.basis, &batches, &d, grid.points.len());
+    let fine = nonlocal(&grid, &dens, spec.z_ab, spec.floor, kernel_table()).energy;
+    solution.energy - solution.nonlocal + fine
 }
