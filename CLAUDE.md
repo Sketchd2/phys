@@ -659,7 +659,11 @@ rather than fitted, by the owner's choice of route: Kohn-Sham DFT with PBE in
 `src/electrons/`, a basis the engine derives itself, run once per substance at
 intern. Stages E1 to E10 are in `PLAY.md` §7 under Phase 6; E1 to E4 are met,
 E5 and E5a measured, and **E5b** (a basis chosen for each molecule, grown by
-`phys-grow`) is where the work is. The program — the native wgpu renderer — is
+`phys-grow`) has water settled on PBE's converged shape. By the owner's
+reorder, the 45-substance comparison moves to the end of the phase and the
+work goes to a derived boiling point first — the rule on groups, A against B
+on water, then E6 to E8 — so the tolerance can be judged by the boiling
+points it produces. The program — the native wgpu renderer — is
 Phase 7 and waits for it; `program/` is a crate that finds an adapter and no
 more.
 

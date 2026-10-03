@@ -3779,7 +3779,23 @@ the start of the phase, ahead of the renderer**. In order:
      at this time. Screening the three-centre integrals or a smaller
      auxiliary set would save the most and each moves the energy, so neither
      is taken; threading that keeps every result bit-identical is, proved
-     with a checksum of the outputs before and after.
+     with a checksum of the outputs before and after. Taken that way, at
+     round 9's basis: a solve about 330 s -> 58 s, an estimate 382 -> 70, a
+     gradient about 47 -> 35. Most of it was the allocator: the integrals
+     made a few small allocations per call, millions of calls a solve, and
+     on Windows the threads queued on it (a probe: arithmetic 10.0x on
+     twelve threads, an allocating job 0.5x), so a twelve-thread machine ran
+     the three-centre setup on about 1.4 cores. Each worker now keeps its
+     working space. Left measured and not taken, at the owner's direction to
+     move to the boiling points instead: the gradient's two single-threaded
+     parts, the one-electron derivative 16.6 s and the auxiliary metric's
+     15.7 s a relaxation step.
+     **Reordered by the owner:** the 45-substance comparison, E5b's first
+     done-when clause, moves to the end of Phase 6. Next is the route to a
+     derived boiling point, so that the tolerance is judged by what it does
+     to the boiling points as decided above: a looser tolerance that leaves
+     them unchanged means fewer rounds for every substance, which the owner
+     judged the largest saving there is.
      **The owner's ruling on the GPU, clarified:** physics on the CPU is
      for the main simulation; one-off derivations like a molecule's
      electronic structure may run on the GPU. Not yet started, and depends
@@ -3800,8 +3816,9 @@ the start of the phase, ahead of the renderer**. In order:
      rule chooses the functions for a group, with the interaction energy as
      the quantity that must stop changing — which is what removes the
      borrowing error (a molecule using its neighbour's functions to patch
-     its own cloud, which reads as attraction). Order: E5b on one molecule
-     and the 45-substance check; the rule on groups; A against B on water.
+     its own cloud, which reads as attraction). Order: E5b on one molecule;
+     the rule on groups; A against B on water; and the 45-substance check
+     at the end of the phase, by the owner's reorder above.
      Chosen within the item, and the owner's to overrule: clusters are
      relaxed ones until E8 can draw arrangements from a simulated liquid,
      and the comparison is redone on those then; water first, since a
