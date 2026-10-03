@@ -214,6 +214,13 @@ fn pw92(rs: D, zeta: D) -> D {
     ec0 - mac * fz * (1.0 - z4) / fz20 + (ec1 - ec0) * fz * z4
 }
 
+/// The uniform gas's correlation energy per electron at density `n`,
+/// spin-unpolarised (PW92): what the non-local functional's `q0` is built on.
+pub fn lda_correlation_per_electron(n: f64) -> f64 {
+    let rs = (3.0 / (4.0 * PI * n)).powf(1.0 / 3.0);
+    pw92(D::c(rs), D::c(0.0)).v
+}
+
 /// Exchange energy density of a spin-unpolarised density `n` with
 /// `|grad n|^2 = g2`, per volume: the spin-scaling relation builds the
 /// polarised case from two of these.

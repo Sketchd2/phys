@@ -237,3 +237,123 @@ impl KernelTable {
         s
     }
 }
+
+/// The electron density and the square of its gradient at every point of a
+/// grid, for the total of both spins: what the non-local functional reads.
+/// One entry per grid point, in the grid's order.
+pub fn density_on(basis: &super::basis::Basis, batches: &super::scf::Batches, d_total: &super::linalg::Matrix, points: usize) -> Vec<(f64, f64)> {
+    let n = basis.size;
+    let job = |idx: &mut dyn Iterator<Item = usize>| {
+        let mut out: Vec<(usize, f64, f64)> = Vec::new();
+        for bi in idx {
+            let (pts, _, funcs, shells) = &batches.batches[bi];
+            let k = funcs.len();
+            let mut sub = vec![0.0; k * k];
+            for (i, &fi) in funcs.iter().enumerate() {
+                for (j, &fj) in funcs.iter().enumerate() {
+                    sub[i * k + j] = d_total.a[fi * n + fj];
+                }
+            }
+            let mut phi = vec![0.0; k];
+            let mut g3 = vec![0.0; 3 * k];
+            let mut x = vec![0.0; k];
+            for (p, pt) in pts.iter().enumerate() {
+                super::values::at_shells(basis, shells, *pt, &mut phi, Some(&mut g3));
+                for i in 0..k {
+                    x[i] = (0..k).map(|j| sub[i * k + j] * phi[j]).sum();
+                }
+                let rho: f64 = (0..k).map(|i| phi[i] * x[i]).sum();
+                let mut g = [0.0; 3];
+                for (dir, gd) in g.iter_mut().enumerate() {
+                    *gd = 2.0 * (0..k).map(|i| g3[3 * i + dir] * x[i]).sum::<f64>();
+                }
+                out.push((batches.indices[bi][p], rho, g[0] * g[0] + g[1] * g[1] + g[2] * g[2]));
+            }
+        }
+        out
+    };
+    let mut values = vec![(0.0, 0.0); points];
+    for part in super::scf::parallel_interleaved(batches.batches.len(), &job) {
+        for (i, rho, g2) in part {
+            values[i] = (rho, g2);
+        }
+    }
+    values
+}
+
+/// `q0`, the local wavevector the kernel's arguments are scaled by (Dion et
+/// al. eq. 11-12): `q0 = -(4 pi / 3) eps_xc^0`, with `eps_xc^0` the uniform
+/// gas's exchange-correlation energy per electron corrected by the gradient
+/// expansion of exchange, `- eps_x^LDA (Z_ab / 9) s^2`, `s = |grad n| / (2 k_F n)`.
+pub fn q0(n: f64, grad2: f64, z_ab: f64) -> f64 {
+    let kf = (3.0 * PI * PI * n).powf(1.0 / 3.0);
+    let s2 = grad2 / (4.0 * kf * kf * n * n);
+    let ex = -3.0 * kf / (4.0 * PI);
+    let ec = super::functional::lda_correlation_per_electron(n);
+    -(4.0 * PI / 3.0) * (ex + ec - ex * (z_ab / 9.0) * s2)
+}
+
+/// One point of density as the non-local energy sees it: where it is, its
+/// weight times its density, and its `q0`.
+#[derive(Debug, Clone, Copy)]
+pub struct Site {
+    pub r: [f64; 3],
+    pub wn: f64,
+    pub q: f64,
+}
+
+/// The sites of a density on a grid, dropping points whose weighted density
+/// is below `floor` — what that drops is measured by moving `floor`.
+pub fn sites(grid: &super::grid::Grid, density: &[(f64, f64)], z_ab: f64, floor: f64) -> Vec<Site> {
+    grid.points.iter().zip(&grid.weights).zip(density).filter_map(|((r, w), (n, g2))| {
+        let wn = w * n;
+        (*n > 0.0 && wn.abs() >= floor).then(|| Site { r: *r, wn, q: q0(*n, *g2, z_ab) })
+    }).collect()
+}
+
+/// `E_c^nl = 1/2 sum_i sum_j w_i n_i w_j n_j phi(q_i r_ij, q_j r_ij)`, every
+/// pair once and the diagonal (`r = 0`, `phi(0, 0)`) included as the product
+/// quadrature has it. Rows are spread across threads, and each row's sum is
+/// its own, added in row order, so the result does not depend on the thread
+/// count.
+pub fn nonlocal_energy(sites: &[Site], table: &KernelTable) -> f64 {
+    let job = |idx: &mut dyn Iterator<Item = usize>| {
+        idx.map(|i| {
+            let a = &sites[i];
+            let mut row = 0.5 * a.wn * a.wn * table.phi(0.0, 0.0);
+            for b in &sites[i + 1..] {
+                let d = [a.r[0] - b.r[0], a.r[1] - b.r[1], a.r[2] - b.r[2]];
+                let r = (d[0] * d[0] + d[1] * d[1] + d[2] * d[2]).sqrt();
+                row += a.wn * b.wn * table.phi(a.q * r, b.q * r);
+            }
+            (i, row)
+        }).collect::<Vec<_>>()
+    };
+    let mut rows = vec![0.0; sites.len()];
+    for part in super::scf::parallel_interleaved(sites.len(), &job) {
+        for (i, v) in part {
+            rows[i] = v;
+        }
+    }
+    rows.iter().sum()
+}
+
+/// The `C6` the non-local energy gives two systems far apart:
+/// `E -> -C6 / R^6` with `C6 = C sum_(i in A) sum_(j in B) w_i n_i w_j n_j /
+/// (q_i^2 q_j^2 (q_i^2 + q_j^2))`, from the kernel's asymptote.
+pub fn c6(a: &[Site], b: &[Site]) -> f64 {
+    let job = |idx: &mut dyn Iterator<Item = usize>| {
+        idx.map(|i| {
+            let s = &a[i];
+            let q2 = s.q * s.q;
+            (i, b.iter().map(|t| { let p2 = t.q * t.q; s.wn * t.wn / (q2 * p2 * (q2 + p2)) }).sum::<f64>())
+        }).collect::<Vec<_>>()
+    };
+    let mut rows = vec![0.0; a.len()];
+    for part in super::scf::parallel_interleaved(a.len(), &job) {
+        for (i, v) in part {
+            rows[i] = v;
+        }
+    }
+    ASYMPTOTE_C * rows.iter().sum::<f64>()
+}

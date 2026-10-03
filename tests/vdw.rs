@@ -96,3 +96,48 @@ fn a_uniform_gas_gets_no_nonlocal_energy() {
     println!("  ∫ 4 pi D^2 phi(D, D) dD = {total:+.3e}, against ∫|...| = {size:.4}, tail {tail:+.3e}");
     assert!(total.abs() < 1e-3 * size, "the uniform gas gets {total:.3e} against a scale of {size:.3}");
 }
+
+/// `C6` from the non-local functional, against the published vdW-DF values
+/// (Vydrov and Van Voorhis, arXiv:1004.4850, Table II): neon and water, with
+/// vdW-DF1's `Z_ab` and with vdW-DF2's, which differ by 2.2x.
+///
+/// The published values were computed on densities from a range-separated
+/// hybrid with the right long-range exchange; these are on PBE's, whose tails
+/// are too diffuse, and `C6` reads the tails. So the engine comes out high,
+/// by about the same for both `Z_ab` (Ne 3.4% and 3.1%, water 11.4% and
+/// 7.7%), which is the density and not the functional. What the test can
+/// catch is everything else: `Z_ab = 0` or of the wrong sign puts `C6` out by
+/// a factor of 1e6 to 1e14, because `q0` falls to nothing in the tails.
+#[test]
+fn c6_coefficients_match_the_published_ones_for_both_z_ab() {
+    use phys::electrons::functional::Functional;
+    use phys::electrons::molecule::Molecule;
+    use phys::electrons::scf::{solve, Batches};
+    use phys::electrons::vdw::{c6, density_on, sites, Z_AB_DF1};
+    let a = 1.0 / 0.529177210903;
+    let th = 104.52f64.to_radians() / 2.0;
+    let water = Molecule { z: vec![8, 1, 1], positions: vec![[0.0; 3], [0.9572 * a * th.sin(), 0.0, 0.9572 * a * th.cos()], [-0.9572 * a * th.sin(), 0.0, 0.9572 * a * th.cos()]], charge: 0, unpaired: 0 };
+    let neon = Molecule { z: vec![10], positions: vec![[0.0; 3]], charge: 0, unpaired: 0 };
+    // (name, molecule, published vdW-DF-04, published vdW-DF-10 = vdW-DF2)
+    for (name, mol, df1, df2) in [("Ne", &neon, 9.45, 3.07), ("H2O", &water, 46.96, 17.17)] {
+        let p = mol.problem(Functional::Pbe);
+        let s = solve(&p, 200, 1e-10);
+        let mut d = s.density_alpha.clone();
+        for k in 0..d.a.len() {
+            d.a[k] += s.density_beta.a[k];
+        }
+        let atoms: Vec<([f64; 3], f64)> = p.nuclei.iter().zip(&p.sizes).map(|((_, q), r)| (*q, *r)).collect();
+        // C6 is converged to four digits at this grid: 52.307, 52.309, 52.308
+        // for water at (50, 12), (75, 18), (100, 24).
+        let grid = phys::electrons::grid::molecular_pruned(&atoms, 50, 12, false);
+        let b = Batches::new(&p.basis, &grid);
+        let dens = density_on(&p.basis, &b, &d, grid.points.len());
+        for (z, published) in [(Z_AB_DF1, df1), (-1.887, df2)] {
+            let ss = sites(&grid, &dens, z, 0.0);
+            let got = c6(&ss, &ss);
+            let ratio = got / published;
+            println!("  {name:<4} Z_ab {z:+.4}: C6 {got:.3} against published {published:.2} ({:+.1}%)", (ratio - 1.0) * 100.0);
+            assert!((1.0..1.15).contains(&ratio), "{name} at Z_ab {z}: {got} against {published}");
+        }
+    }
+}
