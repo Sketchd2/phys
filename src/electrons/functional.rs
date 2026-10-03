@@ -254,8 +254,16 @@ fn pw92(rs: D, zeta: D) -> D {
 /// The uniform gas's correlation energy per electron at density `n`,
 /// spin-unpolarised (PW92): what the non-local functional's `q0` is built on.
 pub fn lda_correlation_per_electron(n: f64) -> f64 {
-    let rs = (3.0 / (4.0 * PI * n)).powf(1.0 / 3.0);
-    pw92(D::c(rs), D::c(0.0)).v
+    lda_correlation_per_electron_and_slope(n).0
+}
+
+/// [`lda_correlation_per_electron`] and its derivative with respect to `n`,
+/// by the same dual-number arithmetic as the rest of this module.
+pub fn lda_correlation_per_electron_and_slope(n: f64) -> (f64, f64) {
+    let nd = D::var(n, 0);
+    let rs = (3.0 / (4.0 * PI) / nd).powf(1.0 / 3.0);
+    let e = pw92(rs, D::c(0.0));
+    (e.v, e.d[0])
 }
 
 /// Exchange energy density of a spin-unpolarised density `n` with

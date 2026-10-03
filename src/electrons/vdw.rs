@@ -196,9 +196,33 @@ impl KernelTable {
         self.bicubic(x, y)
     }
 
+    /// `phi(d1, d2)` and its partial derivatives with respect to `d1` and
+    /// `d2`, of exactly the function [`KernelTable::phi`] evaluates: the
+    /// interpolant's own derivatives inside the table, the asymptote's where
+    /// it is used, and zero along an argument held at `d_max`.
+    pub fn phi_and_slopes(&self, d1: f64, d2: f64) -> (f64, f64, f64) {
+        if d1.min(d2) >= ASYMPTOTIC_FROM {
+            let f = phi_asymptotic(d1, d2);
+            let s = d1 * d1 + d2 * d2;
+            return (f, f * (-2.0 / d1 - 2.0 * d1 / s), f * (-2.0 / d2 - 2.0 * d2 / s));
+        }
+        let (c1, c2) = (d1.min(self.d_max), d2.min(self.d_max));
+        let scale = (self.m - 1) as f64 / Self::u_max(self.d_max);
+        let (x, y) = (c1 / (1.0 + c1) * scale, c2 / (1.0 + c2) * scale);
+        let (f, fx, fy) = self.bicubic_with_slopes(x, y);
+        // dx / dd = scale / (1 + d)^2 inside the table, nothing past its edge.
+        let gx = if d1 < self.d_max { scale / ((1.0 + c1) * (1.0 + c1)) } else { 0.0 };
+        let gy = if d2 < self.d_max { scale / ((1.0 + c2) * (1.0 + c2)) } else { 0.0 };
+        (f, fx * gx, fy * gy)
+    }
+
+    fn bicubic(&self, x: f64, y: f64) -> f64 {
+        self.bicubic_with_slopes(x, y).0
+    }
+
     /// Catmull-Rom bicubic interpolation at fractional node position `(x, y)`,
     /// with the grid continued past its edges by linear extrapolation.
-    fn bicubic(&self, x: f64, y: f64) -> f64 {
+    fn bicubic_with_slopes(&self, x: f64, y: f64) -> (f64, f64, f64) {
         let m = self.m;
         let last = (m - 2) as f64;
         let (x, y) = (x.clamp(0.0, (m - 1) as f64), y.clamp(0.0, (m - 1) as f64));
@@ -227,14 +251,21 @@ impl KernelTable {
             let (t2, t3) = (t * t, t * t * t);
             [-0.5 * t3 + t2 - 0.5 * t, 1.5 * t3 - 2.5 * t2 + 1.0, -1.5 * t3 + 2.0 * t2 + 0.5 * t, 0.5 * t3 - 0.5 * t2]
         };
-        let (wx, wy) = (w(tx), w(ty));
-        let mut s = 0.0;
-        for (p, wxp) in wx.iter().enumerate() {
-            for (q, wyq) in wy.iter().enumerate() {
-                s += wxp * wyq * at(i - 1 + p as isize, j - 1 + q as isize);
+        let dw = |t: f64| -> [f64; 4] {
+            let t2 = t * t;
+            [-1.5 * t2 + 2.0 * t - 0.5, 4.5 * t2 - 5.0 * t, -4.5 * t2 + 4.0 * t + 0.5, 1.5 * t2 - t]
+        };
+        let (wx, wy, dwx, dwy) = (w(tx), w(ty), dw(tx), dw(ty));
+        let (mut s, mut sx, mut sy) = (0.0, 0.0, 0.0);
+        for p in 0..4 {
+            for q in 0..4 {
+                let v = at(i - 1 + p as isize, j - 1 + q as isize);
+                s += wx[p] * wy[q] * v;
+                sx += dwx[p] * wy[q] * v;
+                sy += wx[p] * dwy[q] * v;
             }
         }
-        s
+        (s, sx, sy)
     }
 }
 
@@ -242,9 +273,14 @@ impl KernelTable {
 /// grid, for the total of both spins: what the non-local functional reads.
 /// One entry per grid point, in the grid's order.
 pub fn density_on(basis: &super::basis::Basis, batches: &super::scf::Batches, d_total: &super::linalg::Matrix, points: usize) -> Vec<(f64, f64)> {
+    density_and_gradient_on(basis, batches, d_total, points).iter().map(|(n, g)| (*n, g[0] * g[0] + g[1] * g[1] + g[2] * g[2])).collect()
+}
+
+/// The total density and its gradient vector at every point of a grid.
+pub fn density_and_gradient_on(basis: &super::basis::Basis, batches: &super::scf::Batches, d_total: &super::linalg::Matrix, points: usize) -> Vec<(f64, [f64; 3])> {
     let n = basis.size;
     let job = |idx: &mut dyn Iterator<Item = usize>| {
-        let mut out: Vec<(usize, f64, f64)> = Vec::new();
+        let mut out: Vec<(usize, f64, [f64; 3])> = Vec::new();
         for bi in idx {
             let (pts, _, funcs, shells) = &batches.batches[bi];
             let k = funcs.len();
@@ -267,15 +303,15 @@ pub fn density_on(basis: &super::basis::Basis, batches: &super::scf::Batches, d_
                 for (dir, gd) in g.iter_mut().enumerate() {
                     *gd = 2.0 * (0..k).map(|i| g3[3 * i + dir] * x[i]).sum::<f64>();
                 }
-                out.push((batches.indices[bi][p], rho, g[0] * g[0] + g[1] * g[1] + g[2] * g[2]));
+                out.push((batches.indices[bi][p], rho, g));
             }
         }
         out
     };
-    let mut values = vec![(0.0, 0.0); points];
+    let mut values = vec![(0.0, [0.0; 3]); points];
     for part in super::scf::parallel_interleaved(batches.batches.len(), &job) {
-        for (i, rho, g2) in part {
-            values[i] = (rho, g2);
+        for (i, rho, g) in part {
+            values[i] = (rho, g);
         }
     }
     values
@@ -291,6 +327,18 @@ pub fn q0(n: f64, grad2: f64, z_ab: f64) -> f64 {
     let ex = -3.0 * kf / (4.0 * PI);
     let ec = super::functional::lda_correlation_per_electron(n);
     -(4.0 * PI / 3.0) * (ex + ec - ex * (z_ab / 9.0) * s2)
+}
+
+/// [`q0`] and its derivatives with respect to `n` and to `|grad n|^2`.
+/// Written out, `q0 = k_F - (4 pi / 3) eps_c - Z_ab |grad n|^2 / (36 k_F n^2)`.
+pub fn q0_and_slopes(n: f64, grad2: f64, z_ab: f64) -> (f64, f64, f64) {
+    let kf = (3.0 * PI * PI * n).powf(1.0 / 3.0);
+    let (ec, dec) = super::functional::lda_correlation_per_electron_and_slope(n);
+    let q = kf - (4.0 * PI / 3.0) * ec - z_ab * grad2 / (36.0 * kf * n * n);
+    let dkf = kf / (3.0 * n);
+    let dq_dn = dkf - (4.0 * PI / 3.0) * dec + 7.0 * z_ab * grad2 / (108.0 * kf * n * n * n);
+    let dq_dg2 = -z_ab / (36.0 * kf * n * n);
+    (q, dq_dn, dq_dg2)
 }
 
 /// One point of density as the non-local energy sees it: where it is, its
@@ -356,4 +404,114 @@ pub fn c6(a: &[Site], b: &[Site]) -> f64 {
         }
     }
     ASYMPTOTE_C * rows.iter().sum::<f64>()
+}
+
+/// The non-local energy and its derivatives at every grid point: what a
+/// self-consistent field and its forces need.
+pub struct Nonlocal {
+    pub energy: f64,
+    /// `dE / dn` at each grid point, per unit weight.
+    pub v_n: Vec<f64>,
+    /// `dE / d|grad n|^2` at each grid point, per unit weight.
+    pub v_g2: Vec<f64>,
+}
+
+/// [`nonlocal_energy`] with its derivatives. For each kept point `i`, over
+/// every kept point `j` (itself included, at `phi(0, 0)`):
+/// `A_i = sum_j w_j n_j phi(q_i r, q_j r)` and
+/// `B_i = sum_j w_j n_j r d1phi(q_i r, q_j r)`; then `E = 1/2 sum_i w_i n_i A_i`,
+/// `dE/dn_i = w_i (A_i + n_i B_i dq_i/dn)` and
+/// `dE/d|grad n|^2_i = w_i n_i B_i dq_i/d|grad n|^2`. Each row is its own sum
+/// over every point, twice the kernel evaluations of visiting each pair once,
+/// so that rows can run on any thread and the result does not depend on how
+/// many there are.
+pub fn nonlocal(grid: &super::grid::Grid, density: &[(f64, [f64; 3])], z_ab: f64, floor: f64, table: &KernelTable) -> Nonlocal {
+    struct Point { at: usize, r: [f64; 3], wn: f64, n: f64, q: f64, dq_dn: f64, dq_dg2: f64 }
+    let points: Vec<Point> = grid.points.iter().zip(&grid.weights).zip(density).enumerate().filter_map(|(at, ((r, w), (n, g)))| {
+        let wn = w * n;
+        if *n <= 0.0 || wn.abs() < floor {
+            return None;
+        }
+        let (q, dq_dn, dq_dg2) = q0_and_slopes(*n, g[0] * g[0] + g[1] * g[1] + g[2] * g[2], z_ab);
+        Some(Point { at, r: *r, wn, n: *n, q, dq_dn, dq_dg2 })
+    }).collect();
+    let job = |idx: &mut dyn Iterator<Item = usize>| {
+        idx.map(|i| {
+            let a = &points[i];
+            let (mut sa, mut sb) = (0.0, 0.0);
+            for b in &points {
+                let d = [a.r[0] - b.r[0], a.r[1] - b.r[1], a.r[2] - b.r[2]];
+                let r = (d[0] * d[0] + d[1] * d[1] + d[2] * d[2]).sqrt();
+                let (f, f1, _) = table.phi_and_slopes(a.q * r, b.q * r);
+                sa += b.wn * f;
+                sb += b.wn * r * f1;
+            }
+            (i, sa, sb)
+        }).collect::<Vec<_>>()
+    };
+    let mut ab = vec![(0.0, 0.0); points.len()];
+    for part in super::scf::parallel_interleaved(points.len(), &job) {
+        for (i, sa, sb) in part {
+            ab[i] = (sa, sb);
+        }
+    }
+    let mut energy = 0.0;
+    let mut v_n = vec![0.0; grid.points.len()];
+    let mut v_g2 = vec![0.0; grid.points.len()];
+    for (p, (sa, sb)) in points.iter().zip(&ab) {
+        energy += 0.5 * p.wn * sa;
+        v_n[p.at] = sa + p.n * sb * p.dq_dn;
+        v_g2[p.at] = p.n * sb * p.dq_dg2;
+    }
+    Nonlocal { energy, v_n, v_g2 }
+}
+
+/// The non-local correlation's Kohn-Sham matrix, the same for both spins:
+/// `V_mn = sum_p w_p [v_n phi_m phi_n + 2 v_g2 grad n . grad(phi_m phi_n)]`.
+/// Batches run on any thread and are added in batch order.
+pub fn nonlocal_matrix(basis: &super::basis::Basis, batches: &super::scf::Batches, density: &[(f64, [f64; 3])], nl: &Nonlocal) -> super::linalg::Matrix {
+    let n = basis.size;
+    let job = |idx: &mut dyn Iterator<Item = usize>| {
+        idx.map(|bi| {
+            let (pts, ws, funcs, shells) = &batches.batches[bi];
+            let k = funcs.len();
+            let mut block = vec![0.0; k * k];
+            let mut phi = vec![0.0; k];
+            let mut g3 = vec![0.0; 3 * k];
+            let mut c = vec![0.0; k];
+            for (p, pt) in pts.iter().enumerate() {
+                let at = batches.indices[bi][p];
+                let (vn, vg) = (nl.v_n[at], nl.v_g2[at]);
+                if vn == 0.0 && vg == 0.0 {
+                    continue;
+                }
+                let gn = density[at].1;
+                super::values::at_shells(basis, shells, *pt, &mut phi, Some(&mut g3));
+                // V = sum_p w_p (phi_m c_n + c_m phi_n), c = v_n phi / 2 + 2 v_g2 grad n . grad phi.
+                for m in 0..k {
+                    c[m] = 0.5 * vn * phi[m] + 2.0 * vg * (gn[0] * g3[3 * m] + gn[1] * g3[3 * m + 1] + gn[2] * g3[3 * m + 2]);
+                }
+                let w = ws[p];
+                for m in 0..k {
+                    for l in 0..k {
+                        block[m * k + l] += w * (phi[m] * c[l] + c[m] * phi[l]);
+                    }
+                }
+            }
+            (bi, block)
+        }).collect::<Vec<_>>()
+    };
+    let mut parts: Vec<(usize, Vec<f64>)> = super::scf::parallel_interleaved(batches.batches.len(), &job).into_iter().flatten().collect();
+    parts.sort_by_key(|(bi, _)| *bi);
+    let mut v = super::linalg::Matrix::zeros(n);
+    for (bi, block) in parts {
+        let funcs = &batches.batches[bi].2;
+        let k = funcs.len();
+        for (m, &fm) in funcs.iter().enumerate() {
+            for (l, &fl) in funcs.iter().enumerate() {
+                v.a[fm * n + fl] += block[m * k + l];
+            }
+        }
+    }
+    v
 }

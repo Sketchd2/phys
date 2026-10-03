@@ -220,3 +220,65 @@ fn the_exchange_partners_are_the_published_forms() {
         }
     }
 }
+
+/// The non-local potential is the derivative of the non-local energy: a small
+/// change of the density matrix moves the energy by `sum V_mn dD_mn`, checked
+/// by central differences on water. And the energy computed row by row, for
+/// the derivatives, is the energy computed pair by pair.
+#[test]
+fn the_nonlocal_potential_is_the_derivative_of_its_energy() {
+    use phys::electrons::functional::Functional;
+    use phys::electrons::molecule::Molecule;
+    use phys::electrons::scf::{solve, Batches};
+    use phys::electrons::vdw::{density_and_gradient_on, nonlocal, nonlocal_energy, nonlocal_matrix, sites, Z_AB_DF1};
+    let a = 1.0 / 0.529177210903;
+    let th = 104.52f64.to_radians() / 2.0;
+    let water = Molecule { z: vec![8, 1, 1], positions: vec![[0.0; 3], [0.9572 * a * th.sin(), 0.0, 0.9572 * a * th.cos()], [-0.9572 * a * th.sin(), 0.0, 0.9572 * a * th.cos()]], charge: 0, unpaired: 0 };
+    let p = water.problem(Functional::Pbe);
+    let s = solve(&p, 200, 1e-10);
+    let mut d = s.density_alpha.clone();
+    for k in 0..d.a.len() {
+        d.a[k] += s.density_beta.a[k];
+    }
+    let atoms: Vec<([f64; 3], f64)> = p.nuclei.iter().zip(&p.sizes).map(|((_, q), r)| (*q, *r)).collect();
+    let grid = phys::electrons::grid::molecular_pruned(&atoms, 30, 8, false);
+    let b = Batches::new(&p.basis, &grid);
+    let table = KernelTable::build(128, 64.0, &converged_quadrature());
+    let energy_of = |dm: &phys::electrons::linalg::Matrix| {
+        let dens = density_and_gradient_on(&p.basis, &b, dm, grid.points.len());
+        nonlocal(&grid, &dens, Z_AB_DF1, 0.0, &table)
+    };
+    let dens = density_and_gradient_on(&p.basis, &b, &d, grid.points.len());
+    let nl = nonlocal(&grid, &dens, Z_AB_DF1, 0.0, &table);
+    let by_pairs = nonlocal_energy(&sites(&grid, &dens.iter().map(|(n, g)| (*n, g[0] * g[0] + g[1] * g[1] + g[2] * g[2])).collect::<Vec<_>>(), Z_AB_DF1, 0.0), &table);
+    println!("  E_nl {:.12} by rows, {by_pairs:.12} by pairs", nl.energy);
+    assert!((nl.energy - by_pairs).abs() < 1e-11 * by_pairs.abs());
+    let v = nonlocal_matrix(&p.basis, &b, &dens, &nl);
+    // A physical change, water's LDA density less its PBE one. A random
+    // change spread over every element was tried first and made the density
+    // negative in the far tails, where points are then dropped, so points
+    // came and went with the step and the difference did not converge (its
+    // error changed sign between steps of 1e-2 and 3e-2). With this one it
+    // falls as h^2: 8.7e-5, 8.2e-6, 9.0e-7, 1.1e-7, 2.0e-8 at h = 1 to 0.01.
+    let lda = {
+        let mut q = p.clone();
+        q.functional = Functional::Lda;
+        solve(&q, 200, 1e-10)
+    };
+    let mut dd = lda.density_alpha.clone();
+    for k in 0..dd.a.len() {
+        dd.a[k] += lda.density_beta.a[k] - d.a[k];
+    }
+    let predicted: f64 = v.a.iter().zip(&dd.a).map(|(x, y)| x * y).sum();
+    let h = 1e-2;
+    let shifted = |sign: f64| {
+        let mut m = d.clone();
+        for k in 0..m.a.len() {
+            m.a[k] += sign * h * dd.a[k];
+        }
+        energy_of(&m).energy
+    };
+    let measured = (shifted(1.0) - shifted(-1.0)) / (2.0 * h);
+    println!("  dE along LDA less PBE: {measured:.10e} by differences, {predicted:.10e} from the potential");
+    assert!((measured - predicted).abs() < 1e-6 * predicted.abs(), "{measured} against {predicted}");
+}
