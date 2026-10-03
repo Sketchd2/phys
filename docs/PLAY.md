@@ -3779,6 +3779,18 @@ the start of the phase, ahead of the renderer**. In order:
      deg), which read as a pull on one O-H bond and not the other; and
      partners matched by equal predictions split water's hydrogens, so
      they are now classed by geometry.
+     **The owner's ruling on the GPU, clarified:** physics on the CPU is
+     for the main simulation; one-off derivations like a molecule's
+     electronic structure may run on the GPU. Not yet started, and depends
+     on the card: the grid work (exchange-correlation) and the three-centre
+     integrals are GPU-shaped, but they run in double precision, which a
+     consumer card does at 1/32 to 1/64 of its single-precision rate, and
+     wgpu's shading language has no portable double precision. Order agreed
+     to propose: the CPU bottlenecks first (the per-candidate estimate runs
+     on one core; the predicted moves cost two solves per coordinate), then
+     a measurement on the owner's machine, then a GPU trial on the grid work
+     in double and, where the measured error allows, single precision. GPU
+     code cannot live in the core crate (no dependencies, builds for wasm32).
      **Molecules meeting, the owner's answer:** compare the two ways of
      getting what holds a liquid together and measure what the cheaper one
      misses — (A) the interaction built from pairs and threes of molecules,
