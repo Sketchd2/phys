@@ -567,29 +567,69 @@ fn bra_contract(p: &Pair, x: [usize; 3], y: [usize; 3], g: &[f64], lab: usize) -
 /// for every bra component, and was most of the time it took to set up a
 /// fitted Coulomb matrix and nearly all of its gradient.
 pub(crate) fn eri_three(bra: &[Pair], ket: &[Pair], la: usize, lb: usize, lp: usize) -> Vec<f64> {
+    let mut scratch = ThreeScratch::new();
+    let mut out = Vec::new();
+    eri_three_into(bra, ket, la, lb, lp, &mut scratch, &mut out);
+    out
+}
+
+/// Working space for [`eri_three_into`], kept by one thread across calls.
+///
+/// Every call used to allocate seven small vectors, and a solve makes around
+/// ten million calls. Spread across threads that is slower than one thread on
+/// Windows, where the threads queue on the allocator: measured, an
+/// allocation-heavy job ran 0.5x on twelve threads against 10.0x for the same
+/// job's arithmetic, and the three-centre integrals of water's round-9 basis
+/// ran on about 1.4 cores.
+pub(crate) struct ThreeScratch {
+    scratch: Vec<f64>,
+    r: Vec<f64>,
+    g: Vec<f64>,
+    /// `components(l)` for every `l` up to the highest asked for so far.
+    comps: Vec<Vec<[usize; 3]>>,
+}
+
+impl ThreeScratch {
+    pub(crate) fn new() -> ThreeScratch {
+        ThreeScratch { scratch: Vec::new(), r: Vec::new(), g: Vec::new(), comps: Vec::new() }
+    }
+
+    fn reach(&mut self, l: usize) {
+        while self.comps.len() <= l {
+            let next = self.comps.len();
+            self.comps.push(components(next));
+        }
+    }
+}
+
+/// [`eri_three`] into `out`, using `s` for its working space. The same sums in
+/// the same order, so the values are bit-identical.
+pub(crate) fn eri_three_into(bra: &[Pair], ket: &[Pair], la: usize, lb: usize, lp: usize, s: &mut ThreeScratch, out: &mut Vec<f64>) {
     let pi = std::f64::consts::PI;
-    let (ca, cb, cp) = (components(la), components(lb), components(lp));
+    s.reach(la.max(lb).max(lp));
+    let ThreeScratch { scratch, r, g, comps } = s;
+    let (ca, cb, cp) = (&comps[la], &comps[lb], &comps[lp]);
     let lab = la + lb;
     let ltot = lab + lp;
     let w = ltot + 1;
     let h = lab + 1;
     let (na, nb, np) = (ca.len(), cb.len(), cp.len());
-    let mut out = vec![0.0; na * nb * np];
-    let mut scratch = Vec::new();
-    let mut r = Vec::new();
-    let mut g = vec![0.0; h * h * h];
+    out.clear();
+    out.resize(na * nb * np, 0.0);
+    g.clear();
+    g.resize(h * h * h, 0.0);
     for p in bra {
         for q in ket {
             let alpha = p.p * q.p / (p.p + q.p);
             let pq = [p.centre[0] - q.centre[0], p.centre[1] - q.centre[1], p.centre[2] - q.centre[2]];
-            hermite_coulomb_into(ltot, alpha, pq, &mut scratch, &mut r);
+            hermite_coulomb_into(ltot, alpha, pq, scratch, r);
             let pre = 2.0 * pi.powf(2.5) / (p.p * q.p * (p.p + q.p).sqrt()) * p.coef * q.coef;
             for (kk, z) in cp.iter().enumerate() {
                 g.iter_mut().for_each(|x| *x = 0.0);
-                add_hermite_potential(q, *z, 1.0, &r, w, lab, &mut g);
+                add_hermite_potential(q, *z, 1.0, r, w, lab, g);
                 for (ia, x) in ca.iter().enumerate() {
                     for (ib, y) in cb.iter().enumerate() {
-                        out[(ia * nb + ib) * np + kk] += pre * bra_contract(p, *x, *y, &g, lab);
+                        out[(ia * nb + ib) * np + kk] += pre * bra_contract(p, *x, *y, g, lab);
                     }
                 }
             }
@@ -602,7 +642,6 @@ pub(crate) fn eri_three(bra: &[Pair], ket: &[Pair], la: usize, lb: usize, lp: us
             }
         }
     }
-    out
 }
 
 /// The derivatives, with respect to the two bra centres, of

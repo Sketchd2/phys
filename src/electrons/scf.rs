@@ -238,12 +238,16 @@ impl Fitted {
         let kets: Vec<Vec<super::integrals::Pair>> = aux.shells.iter().map(|p| super::integrals::pairs(p, &unit, 0)).collect();
         let job = |indices: &mut dyn Iterator<Item = usize>| {
             let mut out: Vec<(usize, usize, Vec<f64>)> = Vec::new();
+            // One worker's working space, kept across its calls: allocating
+            // it per call made the threads queue on the allocator.
+            let mut scratch = super::integrals::ThreeScratch::new();
+            let mut block = Vec::new();
             for (a, b) in indices.map(|i| pairs[i]) {
                 let (sa, sb) = (&shells[a], &shells[b]);
                 let bra = super::integrals::pairs(sa, sb, 0);
                 let mut vals = vec![vec![0.0; na]; sa.size() * sb.size()];
                 for (ip, p) in aux.shells.iter().enumerate() {
-                    let block = super::integrals::eri_three(&bra, &kets[ip], sa.l, sb.l, p.l);
+                    super::integrals::eri_three_into(&bra, &kets[ip], sa.l, sb.l, p.l, &mut scratch, &mut block);
                     for i in 0..sa.size() {
                         for j in 0..sb.size() {
                             for k in 0..p.size() {
