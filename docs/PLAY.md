@@ -3742,12 +3742,44 @@ the start of the phase, ahead of the renderer**. In order:
      deg), which read as a pull on one O-H bond and not the other; and
      partners matched by equal predictions split water's hydrogens, so
      they are now classed by geometry.
-     *Paused for the move to the owner's machine:* water's growth stopped
-     after round 4 (160 functions, 0.96937 A, 104.06 deg, 21 functions
-     chosen); `grow-water.state` is committed and `cargo run --release --bin
-     phys-grow -- water` carries on from round 5. Before the 45 substances,
-     `chem::geometry::embed` has to close rings (benzene's starting shape is
-     open), since growth relaxes from it.
+     *Paused for the move to the owner's machine* after round 4 (160
+     functions, 0.96937 A, 104.06 deg), and carried on there.
+     **Water settled, on the owner's machine:** rounds 5-9, functions / r A /
+     angle deg / seconds — 176 / 0.96968 / 104.217 / 273; 212 / 0.96913 /
+     104.250 / 696; 254 / 0.96908 / 104.215 / 1275; 302 / 0.96895 / 104.223 /
+     2216; 404 / 0.96891 / 104.211 / 5332, where nothing was added: the last
+     three steps inside every tolerance (8 -> 9: -0.004%, -0.012 deg) and the
+     predicted remainder 0.29 (it ran 5.84, 3.38, 1.96, 1.26). Rounds 5 and 6
+     reproduce the container's to every digit it recorded. Against PBE's
+     converged answer (aug-cc-pVQZ 0.96912 / 104.19, aug-cc-pV5Z's force
+     putting the length near 0.9690) the bond is within about 0.01% and the
+     angle 0.02 deg — **the done-when's clause on water is met**; the
+     45-substance comparison is not yet run. E = -76.38868429.
+     *Round to round, length then angle:* -2.377%, +1.906 deg; -0.377%,
+     -0.075; -0.331%, +0.086; -0.098%, -0.308; +0.031%, +0.160; -0.057%,
+     +0.033; -0.005%, -0.035; -0.013%, +0.008; -0.004%, -0.012. The angle
+     alternated in sign from rounds 1 to 5, which is the oscillation the
+     stopping rule's three-round swing exists for.
+     *Found on the way, each in its commit:* `embed` now closes rings (benzene
+     5.1 A open, 0.52 D; now 1e-6 and 2.4e-4 D) and no longer folds chains
+     into themselves (octane put two atoms 0.17 A apart), the prerequisite
+     above. Round 9 at first ran over two hours on one core. That was put
+     down to the per-candidate loop, which was wrong: measured at round 9's
+     basis (404 functions, 130 candidates, a union of 2049), an estimate was
+     382 s, of it one_electron over the union 152 s on one thread, Coulomb
+     164 s, exchange-correlation 61 s and the candidates 4 s. Threading
+     one_electron (and building its nuclear table once per primitive pair,
+     not per component pair) and not building the blocks between two
+     candidates, which only ever meet zero coefficients, took it to 158 s,
+     bit-identical. A solve there is about 305 s: three-centre fitting
+     integrals over 5566 auxiliary functions 152 s, exchange-correlation
+     107 s, the metric's pivoted Cholesky 28 s on one thread. Round 9's
+     relaxation took 2372 s of its 5332 on about 1.4 cores.
+     **The owner's ruling on speed:** no speed-up that changes the numbers,
+     at this time. Screening the three-centre integrals or a smaller
+     auxiliary set would save the most and each moves the energy, so neither
+     is taken; threading that keeps every result bit-identical is, proved
+     with a checksum of the outputs before and after.
      **The owner's ruling on the GPU, clarified:** physics on the CPU is
      for the main simulation; one-off derivations like a molecule's
      electronic structure may run on the GPU. Not yet started, and depends
