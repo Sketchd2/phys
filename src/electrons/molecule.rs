@@ -143,6 +143,7 @@ impl Molecule {
             auxiliary: Some(Basis::new(aux)),
             prune: true,
             guess: Some((da, db)),
+            nonlocal: None,
         }
     }
 

@@ -40,6 +40,9 @@ pub struct Problem {
     pub prune: bool,
     /// A starting density per spin, or `None` for the bare nuclei's.
     pub guess: Option<(Matrix, Matrix)>,
+    /// Non-local correlation solved self-consistently with the rest, or
+    /// `None`. Its semilocal partner is `functional`.
+    pub nonlocal: Option<super::vdw::NonlocalSpec>,
 }
 
 /// What came out.
@@ -62,6 +65,9 @@ pub struct Solution {
     pub coulomb: f64,
     pub exchange_correlation: f64,
     pub nuclear_repulsion: f64,
+    /// The non-local correlation energy, included in `energy`; zero without
+    /// one.
+    pub nonlocal: f64,
     /// Seconds spent: one-electron and repulsion integrals, building the grid,
     /// Coulomb builds, exchange-correlation builds, diagonalisation.
     pub timing: [f64; 5],
@@ -734,6 +740,12 @@ pub fn solve(problem: &Problem, max_iterations: usize, tolerance: f64) -> Soluti
     let atoms: Vec<([f64; 3], f64)> = problem.nuclei.iter().zip(&problem.sizes).map(|((_, p), r)| (*p, *r)).collect();
     let grid = super::grid::molecular_pruned(&atoms, problem.radial, problem.theta, problem.prune);
     let batches = Batches::new(basis, &grid);
+    // The non-local term's own grid, built once like the semilocal one.
+    let nonlocal = problem.nonlocal.map(|spec| {
+        let g = super::grid::molecular_pruned(&atoms, spec.radial, spec.theta, false);
+        let b = Batches::new(basis, &g);
+        (spec, g, b)
+    });
     timing[1] = clock.elapsed().as_secs_f64();
     let mut e_nn = 0.0;
     for (i, (zi, pi)) in problem.nuclei.iter().enumerate() {
@@ -759,6 +771,7 @@ pub fn solve(problem: &Problem, max_iterations: usize, tolerance: f64) -> Soluti
     let mut converged = false;
     let mut iterations = 0;
     let mut parts = (0.0, 0.0, 0.0);
+    let mut last_nonlocal = 0.0;
     for it in 0..max_iterations {
         iterations = it + 1;
         let mut dt = da.clone();
@@ -769,7 +782,18 @@ pub fn solve(problem: &Problem, max_iterations: usize, tolerance: f64) -> Soluti
         let (j, ej) = eri.build(&dt);
         timing[2] += clock.elapsed().as_secs_f64();
         let clock = std::time::Instant::now();
-        let (exc, vxa, vxb) = exchange_correlation(basis, &batches, problem.functional, &da, &db);
+        let (exc, mut vxa, mut vxb) = exchange_correlation(basis, &batches, problem.functional, &da, &db);
+        let mut enl = 0.0;
+        if let Some((spec, g, b)) = &nonlocal {
+            let dens = super::vdw::density_and_gradient_on(basis, b, &dt, g.points.len());
+            let nl = super::vdw::nonlocal(g, &dens, spec.z_ab, spec.floor, super::vdw::kernel_table());
+            let v = super::vdw::nonlocal_matrix(basis, b, &dens, &nl);
+            for k in 0..n * n {
+                vxa.a[k] += v.a[k];
+                vxb.a[k] += v.a[k];
+            }
+            enl = nl.energy;
+        }
         timing[3] += clock.elapsed().as_secs_f64();
         let clock = std::time::Instant::now();
         let mut fa = h.clone();
@@ -779,7 +803,8 @@ pub fn solve(problem: &Problem, max_iterations: usize, tolerance: f64) -> Soluti
             fb.a[k] += j.a[k] + vxb.a[k];
         }
         let e1 = h.dot(&dt);
-        energy = e1 + ej + exc + e_nn;
+        energy = e1 + ej + exc + enl + e_nn;
+        last_nonlocal = enl;
         parts = (e1, ej, exc);
         // Error FDS - SDF for each spin, together.
         let err = |f: &Matrix, d: &Matrix| {
@@ -844,6 +869,7 @@ pub fn solve(problem: &Problem, max_iterations: usize, tolerance: f64) -> Soluti
         coulomb: parts.1,
         exchange_correlation: parts.2,
         nuclear_repulsion: e_nn,
+        nonlocal: last_nonlocal,
         timing,
         history,
         kept: m,

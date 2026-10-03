@@ -47,6 +47,10 @@ pub fn gradient(problem: &Problem, solution: &Solution) -> Vec<[f64; 3]> {
 /// The gradient's terms separately: nuclear repulsion, one-electron (with the
 /// overlap term), Coulomb, exchange-correlation.
 pub fn gradient_parts(problem: &Problem, solution: &Solution) -> [Vec<[f64; 3]>; 4] {
+    // Forces through the non-local correlation are not written yet (PLAY.md
+    // E7); without this a relaxation would run on forces missing a third of
+    // what holds a water dimer together, and nothing would say so.
+    assert!(problem.nonlocal.is_none(), "the gradient does not yet include non-local correlation");
     let basis = &problem.basis;
     let nuc = &problem.nuclei;
     let n = basis.size;

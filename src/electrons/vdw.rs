@@ -515,3 +515,22 @@ pub fn nonlocal_matrix(basis: &super::basis::Basis, batches: &super::scf::Batche
     }
     v
 }
+
+/// What a self-consistent field needs to include non-local correlation: its
+/// gradient constant, its grid, and the floor below which a point's weighted
+/// density is dropped.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct NonlocalSpec {
+    pub z_ab: f64,
+    pub radial: usize,
+    pub theta: usize,
+    pub floor: f64,
+}
+
+/// The kernel table every solve shares: 128 x 128 to `d = 64`, built from the
+/// converged quadrature the first time it is asked for (about 4 s) and kept
+/// for the life of the process.
+pub fn kernel_table() -> &'static KernelTable {
+    static TABLE: std::sync::OnceLock<KernelTable> = std::sync::OnceLock::new();
+    TABLE.get_or_init(|| KernelTable::build(128, 64.0, &converged_quadrature()))
+}
