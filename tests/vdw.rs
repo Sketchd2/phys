@@ -141,3 +141,54 @@ fn c6_coefficients_match_the_published_ones_for_both_z_ab() {
         }
     }
 }
+
+/// The double sum through the tabulated kernel, between two neon atoms far
+/// apart, against the same sum through the kernel's asymptote at every pair's
+/// true distance: they must agree, which checks the table's use, its edge and
+/// its switch to the asymptote together. What is left between that and
+/// `-C6 / R^6` is the atoms' size, which falls as `R^-2` (averaging
+/// `|r - r'|^-6` over two clouds adds about `5 <x^2> / R^2`); checking that it
+/// does is what tells it from an error. Measured: 1.10782 at R = 20 bohr and
+/// 1.05250 at 28, where the size alone predicts 1.0552.
+#[test]
+fn the_double_sum_approaches_c6_over_r6_as_the_size_of_the_atoms_says() {
+    use phys::electrons::functional::Functional;
+    use phys::electrons::molecule::Molecule;
+    use phys::electrons::scf::{solve, Batches};
+    use phys::electrons::vdw::{c6, density_on, nonlocal_energy, sites, Site, Z_AB_DF1};
+    let neon = Molecule { z: vec![10], positions: vec![[0.0; 3]], charge: 0, unpaired: 0 };
+    let p = neon.problem(Functional::Pbe);
+    let s = solve(&p, 200, 1e-10);
+    let mut d = s.density_alpha.clone();
+    for k in 0..d.a.len() {
+        d.a[k] += s.density_beta.a[k];
+    }
+    let atoms: Vec<([f64; 3], f64)> = p.nuclei.iter().zip(&p.sizes).map(|((_, q), r)| (*q, *r)).collect();
+    let grid = phys::electrons::grid::molecular_pruned(&atoms, 50, 12, false);
+    let b = Batches::new(&p.basis, &grid);
+    let one = sites(&grid, &density_on(&p.basis, &b, &d, grid.points.len()), Z_AB_DF1, 0.0);
+    let c = c6(&one, &one);
+    let table = KernelTable::build(128, 64.0, &converged_quadrature());
+    let alone = nonlocal_energy(&one, &table);
+    let mut excess = Vec::new();
+    for r in [20.0f64, 28.0] {
+        let other: Vec<Site> = one.iter().map(|x| Site { r: [x.r[0], x.r[1], x.r[2] + r], ..*x }).collect();
+        let both: Vec<Site> = one.iter().chain(&other).cloned().collect();
+        let cross = nonlocal_energy(&both, &table) - 2.0 * alone;
+        let mut asym = 0.0;
+        for x in &one {
+            for y in &other {
+                let dd = [x.r[0] - y.r[0], x.r[1] - y.r[1], x.r[2] - y.r[2]];
+                let rr = (dd[0] * dd[0] + dd[1] * dd[1] + dd[2] * dd[2]).sqrt();
+                asym += x.wn * y.wn * phi_asymptotic(x.q * rr, y.q * rr);
+            }
+        }
+        let over = cross / (-c / r.powi(6));
+        println!("  R = {r}: cross {cross:.6e}, asymptote at true distances {asym:.6e} ({:.7}), against -C6/R^6 {over:.5}", cross / asym);
+        assert!((cross / asym - 1.0).abs() < 1e-5, "at R = {r} the table's sum is {} of the asymptote's", cross / asym);
+        excess.push(over - 1.0);
+    }
+    let scaling = excess[1] / excess[0] / (20.0f64 / 28.0).powi(2);
+    println!("  the excess over C6/R^6 scales as R^-2 to within {:.1}%", (scaling - 1.0) * 100.0);
+    assert!((scaling - 1.0).abs() < 0.08, "the excess does not fall as R^-2: {scaling}");
+}
