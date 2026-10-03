@@ -52,6 +52,10 @@ path = "src/bin/bubble.rs"
 name = "phys-rehome"
 path = "src/bin/rehome.rs"
 
+[[bin]]
+name = "phys-grow"
+path = "src/bin/grow.rs"
+
 # The test suite is numeric, and unoptimised it took twenty minutes: one test
 # alone (`stepping_does_not_heat_a_node`, eleven scenarios by two hundred
 # solver passes each) accounted for 405 s of that. Optimised it is 123 s for

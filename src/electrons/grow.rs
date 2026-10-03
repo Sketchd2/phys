@@ -566,6 +566,45 @@ pub struct Resume {
     pub history: Vec<Vec<f64>>,
 }
 
+impl Resume {
+    /// As text, one record a line — what a run writes after every round so
+    /// that it can be started again from the end of it.
+    pub fn to_text(&self) -> String {
+        let mut s = String::new();
+        for l in &self.ladders {
+            s += &format!("ladder {} {} {:e} {:e} {} {}\n", l.atom, l.l, l.first, l.ratio, l.lo, l.hi);
+        }
+        for c in &self.chosen {
+            s += &format!("chosen {} {}\n", c.ladder, c.k);
+        }
+        for p in &self.positions {
+            s += &format!("pos {:e} {:e} {:e}\n", p[0], p[1], p[2]);
+        }
+        for h in &self.history {
+            s += &format!("hist {}\n", h.iter().map(|v| format!("{v:e}")).collect::<Vec<_>>().join(" "));
+        }
+        s
+    }
+
+    /// Read back what [`Resume::to_text`] wrote; `None` if any line does not
+    /// parse.
+    pub fn from_text(text: &str) -> Option<Resume> {
+        let mut r = Resume { ladders: Vec::new(), chosen: Vec::new(), positions: Vec::new(), history: Vec::new() };
+        for line in text.lines() {
+            let w: Vec<&str> = line.split_whitespace().collect();
+            match w.first().copied() {
+                Some("ladder") if w.len() == 7 => r.ladders.push(Ladder { atom: w[1].parse().ok()?, l: w[2].parse().ok()?, first: w[3].parse().ok()?, ratio: w[4].parse().ok()?, lo: w[5].parse().ok()?, hi: w[6].parse().ok()? }),
+                Some("chosen") if w.len() == 3 => r.chosen.push(Rung { ladder: w[1].parse().ok()?, k: w[2].parse().ok()? }),
+                Some("pos") if w.len() == 4 => r.positions.push([w[1].parse().ok()?, w[2].parse().ok()?, w[3].parse().ok()?]),
+                Some("hist") => r.history.push(w[1..].iter().map(|x| x.parse().ok()).collect::<Option<Vec<f64>>>()?),
+                None => {}
+                _ => return None,
+            }
+        }
+        Some(r)
+    }
+}
+
 /// What a round hands to its report: the round, and everything a [`Resume`]
 /// needs to carry on from the end of it.
 pub struct Snapshot<'a> {

@@ -125,3 +125,19 @@ fn the_estimate_does_not_depend_on_which_way_the_molecule_faces() {
         assert!(rel < 1e-4, "candidate {k} changed by {rel:e} when turned");
     }
 }
+
+/// What a run writes after every round reads back as what was written, to
+/// the bit — otherwise a run carried on after a restart is a different run.
+#[test]
+fn a_saved_round_reads_back_exactly() {
+    use phys::electrons::grow::{Ladder, Resume, Rung};
+    let r = Resume {
+        ladders: vec![Ladder { atom: 1, l: 2, first: 0.1 / 3.0, ratio: 2.570_000_000_000_1, lo: -2, hi: 7 }],
+        chosen: vec![Rung { ladder: 0, k: -1 }, Rung { ladder: 0, k: 6 }],
+        positions: vec![[0.1, -1.0 / 7.0, 1e-300], [2.0f64.sqrt(), 0.0, -0.0]],
+        history: vec![vec![1.8314, 104.5f64.to_radians()], vec![1.0 / 3.0, 2.0]],
+    };
+    let back = Resume::from_text(&r.to_text()).expect("it parses");
+    assert_eq!(back, r);
+    assert!(Resume::from_text("ladder 1 2 three").is_none(), "a broken line is refused, not skipped");
+}

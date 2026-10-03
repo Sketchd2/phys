@@ -13,3 +13,5 @@ scenes.phys
 tests/zz.rs
 tests/zz2.rs
 tests/zz3.rs
+grow-*.state
+grow-*.state.tmp
