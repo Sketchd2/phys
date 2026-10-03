@@ -232,6 +232,13 @@ const DEPENDENT: f64 = 1e-8;
 /// below the occupied ones is one the perturbation cannot describe, and its
 /// estimate would otherwise diverge. The gap is the molecule's own.
 pub fn estimate(problem: &Problem, solution: &Solution, cands: &[Shell]) -> Vec<f64> {
+    estimate_ticking(problem, solution, cands, &|_| {})
+}
+
+/// As [`estimate`], calling `tick` with how many candidates are done after
+/// each one — a round's estimates are most of its time, and a run on one
+/// molecule is hours, so it says how far through it is.
+pub fn estimate_ticking(problem: &Problem, solution: &Solution, cands: &[Shell], tick: &(dyn Fn(usize) + Sync)) -> Vec<f64> {
     let u = union_fock(problem, solution, cands);
     let n = u.s.n;
     let nc = u.n_cur;
@@ -283,7 +290,8 @@ pub fn estimate(problem: &Problem, solution: &Solution, cands: &[Shell]) -> Vec<
         }).collect();
         spins.push((s, occupied.iter().map(|&k| (levels[k], occ[k])).collect::<Vec<(f64, f64)>>(), fc, gap));
     }
-    u.ranges.iter().map(|range| {
+    u.ranges.iter().enumerate().map(|(done, range)| {
+        let _tick = Ticked(tick, done + 1);
         let sz = range.len();
         // Each candidate function with the current space taken out:
         // y = e_j - S_cur^-1 S_(cur, j).
@@ -541,6 +549,29 @@ pub fn candidates_for_test(mol: &Molecule, ladders: &[Ladder], chosen: &[Rung]) 
     candidates(mol, ladders, chosen)
 }
 
+/// Where a round of growth has got to, for a report of progress. A round
+/// relaxes the molecule in its basis and solves it once, then probes: for each
+/// coordinate, stretched and compressed, a solve and the estimate over every
+/// candidate. The probes are most of the round.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Progress {
+    /// The relaxation and the solve at the relaxed shape are done.
+    Relaxed { functions: usize, candidates: usize, probes: usize },
+    /// Probe `probe` of `probes` has estimated `done` of its `candidates`;
+    /// `done` is 0 as the probe starts, before its solve.
+    Probe { probe: usize, probes: usize, done: usize, candidates: usize },
+}
+
+/// Calls its tick with its count when dropped, so a candidate is counted as
+/// done on every way out of its estimate, early returns included.
+struct Ticked<'a>(&'a (dyn Fn(usize) + Sync), usize);
+
+impl Drop for Ticked<'_> {
+    fn drop(&mut self) {
+        (self.0)(self.1);
+    }
+}
+
 /// Grow a basis for `start`, whose bonds are `bonds`, until the shape stops
 /// moving. `max_rounds` bounds it; `picks` is how many distinct candidates
 /// (each with its symmetry partners) are added a round.
@@ -552,7 +583,7 @@ pub fn grow(start: &Molecule, bonds: &[(usize, usize)], f: Functional, max_round
 /// large molecule takes hours, and what it has found should not wait for the
 /// end.
 pub fn grow_reporting(start: &Molecule, bonds: &[(usize, usize)], f: Functional, max_rounds: usize, picks: usize, report: &mut dyn FnMut(&Snapshot)) -> Growth {
-    grow_from(start, bonds, f, max_rounds, picks, None, report)
+    grow_from(start, bonds, f, max_rounds, picks, None, report, &|_| {})
 }
 
 /// Where a growth stopped, to carry on from: its ladders, what it had chosen,
@@ -619,7 +650,11 @@ pub struct Snapshot<'a> {
 /// As [`grow_reporting`], carrying on from `resume` if given. A run on one
 /// molecule can take longer than the machine it runs on stays up; each round's
 /// snapshot is enough to start again from the end of it.
-pub fn grow_from(start: &Molecule, bonds: &[(usize, usize)], f: Functional, max_rounds: usize, picks: usize, resume: Option<Resume>, report: &mut dyn FnMut(&Snapshot)) -> Growth {
+///
+/// `progress` hears where a round has got to as it goes ([`Progress`]); it may
+/// be called from any thread.
+#[allow(clippy::too_many_arguments)]
+pub fn grow_from(start: &Molecule, bonds: &[(usize, usize)], f: Functional, max_rounds: usize, picks: usize, resume: Option<Resume>, report: &mut dyn FnMut(&Snapshot), progress: &(dyn Fn(&Progress) + Sync)) -> Growth {
     let coords = coordinates(bonds);
     let (mut lads, mut chosen, mut mol, mut history) = match resume {
         Some(r) => (r.ladders, r.chosen, Molecule { positions: r.positions, ..start.clone() }, r.history),
@@ -638,6 +673,8 @@ pub fn grow_from(start: &Molecule, bonds: &[(usize, usize)], f: Functional, max_
         let s0 = solve(&p0, 200, 1e-10);
         let values: Vec<f64> = coords.iter().map(|c| c.value(&mol.positions)).collect();
         let (rungs, shells) = candidates(&mol, &lads, &chosen);
+        let passes = 2 * coords.len();
+        progress(&Progress::Relaxed { functions: p0.basis.size, candidates: rungs.len(), probes: passes });
         // Each candidate's predicted move of each coordinate.
         let mut pred = vec![vec![0.0; coords.len()]; rungs.len()];
         for (ci, c) in coords.iter().enumerate() {
@@ -646,6 +683,8 @@ pub fn grow_from(start: &Molecule, bonds: &[(usize, usize)], f: Functional, max_
             let mut dq = [0.0; 2];
             let mut gain = [Vec::new(), Vec::new()];
             for (si, sgn) in [1.0, -1.0].iter().enumerate() {
+                let probe = 2 * ci + si;
+                progress(&Progress::Probe { probe, probes: passes, done: 0, candidates: rungs.len() });
                 let moved = Molecule { positions: displaced(&coords, &mol.positions, ci, sgn * h), ..mol.clone() };
                 // What the coordinate actually moved: all of `h` when the
                 // coordinates are independent, less in a ring.
@@ -655,7 +694,8 @@ pub fn grow_from(start: &Molecule, bonds: &[(usize, usize)], f: Functional, max_
                 let s = solve(&p, 200, 1e-10);
                 e[si] = s.energy;
                 let moved_shells: Vec<Shell> = shells.iter().zip(&rungs).map(|(sh, r)| Shell { centre: moved.positions[lads[r.ladder].atom], ..sh.clone() }).collect();
-                gain[si] = estimate(&p, &s, &moved_shells);
+                let tick = |done: usize| progress(&Progress::Probe { probe, probes: passes, done, candidates: rungs.len() });
+                gain[si] = estimate_ticking(&p, &s, &moved_shells, &tick);
             }
             // Stiffness and pull from the two unequal steps it actually took.
             let (hp, hm) = (dq[0], dq[1]);

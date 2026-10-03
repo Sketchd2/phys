@@ -16,10 +16,62 @@
 use phys::chem::arrange::{Arrangement, Bond, Order};
 use phys::chem::elements::Element;
 use phys::electrons::functional::Functional;
-use phys::electrons::grow::{grow_from, Coordinate, Resume};
+use phys::electrons::grow::{grow_from, Coordinate, Progress, Resume};
 use phys::electrons::molecule::Molecule;
 use std::io::Write;
-use std::time::Instant;
+use std::sync::Mutex;
+use std::time::{Duration, Instant};
+
+/// Where the current round is, for the progress lines between rounds.
+struct Clock {
+    round: usize,
+    round_start: Instant,
+    probe_start: Instant,
+    /// When the current probe's first candidate was done: its solve is
+    /// before this, its estimate after.
+    first_tick: Option<Instant>,
+}
+
+/// How often a probe reports, in candidates.
+const EVERY: usize = 50;
+
+fn minutes(d: Duration) -> String {
+    let m = d.as_secs_f64() / 60.0;
+    if m < 1.0 { "under a minute".into() } else { format!("about {m:.0} min") }
+}
+
+/// One progress line: where the round is and, from how long this probe's
+/// solve took and how fast its candidates are going, how long it has left.
+fn progress(clock: &Mutex<Clock>, p: &Progress) {
+    let mut c = clock.lock().expect("the clock");
+    let now = Instant::now();
+    let into = now.duration_since(c.round_start).as_secs_f64();
+    match *p {
+        Progress::Relaxed { functions, candidates, probes } => {
+            println!("  relaxed at {functions} functions, {into:.0} s into round {}; {probes} probes of {candidates} candidates to go", c.round);
+        }
+        Progress::Probe { done: 0, .. } => {
+            c.probe_start = now;
+            c.first_tick = None;
+        }
+        Progress::Probe { probe, probes, done, candidates } => {
+            if done == 1 {
+                c.first_tick = Some(now);
+            }
+            if done % EVERY != 0 && done != candidates {
+                return;
+            }
+            let t1 = c.first_tick.unwrap_or(now);
+            let solve = t1.duration_since(c.probe_start);
+            let rate = if done > 1 { now.duration_since(t1) / (done as u32 - 1) } else { Duration::ZERO };
+            let this = rate * (candidates - done) as u32;
+            let whole = solve + rate * candidates as u32;
+            let left = this + whole * (probes - probe - 1) as u32;
+            println!("  round {} probe {}/{probes}: {done}/{candidates} candidates, {into:.0} s into the round; {} left in it", c.round, probe + 1, minutes(left));
+        }
+    }
+    std::io::stdout().flush().ok();
+}
 
 fn arrangement(heavy: &[u8], bonds: &[(usize, usize, Order)]) -> Arrangement {
     let mut atoms: Vec<Element> = heavy.iter().map(|z| Element(*z)).collect();
@@ -69,6 +121,7 @@ fn main() {
     let mut round = resume.as_ref().map(|r| r.history.len()).unwrap_or(0);
     println!("{name}: {} atoms, {} bonds; {}", mol.z.len(), all_bonds.len(), if resume.is_some() { format!("carrying on from round {round}") } else { "starting".into() });
     let t = Instant::now();
+    let clock = Mutex::new(Clock { round, round_start: t, probe_start: t, first_tick: None });
     let g = grow_from(&mol, &all_bonds, Functional::Pbe, 40, 3, resume, &mut |snap| {
         let r = snap.round;
         let fmt = |c: &Coordinate, v: f64, sign: bool| match c {
@@ -87,6 +140,9 @@ fn main() {
             eprintln!("could not write {state}");
         }
         round += 1;
-    });
+        let mut c = clock.lock().expect("the clock");
+        c.round = round;
+        c.round_start = Instant::now();
+    }, &|p| progress(&clock, p));
     println!("{name}: {} after {} rounds, {:.0} s", if g.converged { "settled" } else { "not settled" }, round, t.elapsed().as_secs_f64());
 }
