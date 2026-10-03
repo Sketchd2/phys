@@ -3913,6 +3913,23 @@ the start of the phase, ahead of the renderer**. In order:
      the whole S22 set Klimes, Bowler and Michaelides (2010) found the same
      pattern — revPBE-vdW 65 meV mean absolute error, 106 on hydrogen bonds;
      PBE-vdW 54 and 33, overbinding the dispersion-bound.
+     *Self-consistent:* the non-local term solved inside the field moves the
+     water dimer's vdW-DF2 binding from 4.832 to 4.836 (0.2 meV; Klimes et
+     al. found at most 1.5 over S22). *Its grid does not converge quickly*
+     — the kernel depends on `|r - r'|`, which has a kink where the two
+     points meet — and its cost goes as the square of the points: the
+     dimer's non-local binding is 1.181, 1.082, 1.037, 1.017, 0.993 kcal/mol
+     at grids (20,6) to (75,18), 8.6k to 289k points, still falling, and a
+     (75,18) evaluation takes minutes. Dropping points whose weighted density
+     is below 1e-8 moves it 0.00001 and saves about 40% of the work.
+     **The owner's decision:** coarse in the loop, fine at the end — the
+     field is solved with a coarse non-local grid, since self-consistency
+     itself barely moves the binding, and the final non-local energy is
+     evaluated once on a fine grid, with the floor at 1e-8 throughout; forces
+     come from the coarse grid, and what that does to a cluster's geometry is
+     measured. **And the fine grid's tolerance is set by the boiling points**,
+     as the basis tolerance is: measured at a loose and a tight setting, and
+     the loosest kept that leaves them unchanged.
    - **E8, the liquid.** The intermolecular law, liquid-vapour coexistence
      sampled, giving `T_b`, `dH_vap`, the density at every temperature and
      the expansion. Done when the 45 molecules are reproduced without any
