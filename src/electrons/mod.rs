@@ -22,3 +22,4 @@ pub mod linalg;
 pub mod molecule;
 pub mod scf;
 pub mod values;
+pub mod vdw;
