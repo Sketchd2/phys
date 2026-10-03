@@ -3762,6 +3762,23 @@ the start of the phase, ahead of the renderer**. In order:
      molecule's symmetry by 4e-5 A — below the tolerance, stopped there. The
      angle is not in the criterion and wandered 104.10-104.21 against a
      converged 104.19.
+     *In the engine (`electrons::grow`), water, first run (rounds 0-6; the
+     container restarted before it finished):* functions / r A / angle deg,
+     then predicted against made for what that round added —
+     41 / 1.00103 / 102.45, -0.0417 against -0.0238 A, +2.01 against +1.91
+     deg; 55 / 0.97724 / 104.35, -0.0043 against -0.0037, -0.31 against
+     -0.08; 77 / 0.97355 / 104.28, -0.0049 against -0.0032, -0.00 against
+     +0.09; 128 / 0.97033 / 104.37, -0.0019 against -0.0010, -0.67 against
+     -0.31; 160 / 0.96937 / 104.06, +0.0004 against +0.0003, +0.25 against
+     +0.16; 176 / 0.96968 / 104.22, -0.0008 against -0.0006, +0.01 against
+     +0.03; 212 / 0.96913 / 104.25. Every prediction had the right sign
+     except one angle of a hundredth of a degree; lengths overstated by
+     1.2-2x, angles by 1.6-4x. Found on the way and fixed, each with a test
+     that fails without it: a candidate cut at 1% of its norm made the
+     estimate depend on which way the molecule faced (0.5% when turned 30
+     deg), which read as a pull on one O-H bond and not the other; and
+     partners matched by equal predictions split water's hydrogens, so
+     they are now classed by geometry.
      **Molecules meeting, the owner's answer:** compare the two ways of
      getting what holds a liquid together and measure what the cheaper one
      misses — (A) the interaction built from pairs and threes of molecules,
