@@ -4104,6 +4104,13 @@ there (`CLAUDE.md`, "Whose decision it is").
 the full suite under a stated wall time on the owner's machine with every
 assertion intact.
 
+*Scheduled into this phase by the owner, from Phase 6:* the water-dimer
+validation of E7 — the S22 water dimer, counterpoise corrected, with refit
+PW86 exchange and vdW-DF2's kernel against Vydrov and Van Voorhis's 4.78
+kcal/mol (the engine gives 4.832) — goes into the suite's slow tier. It is
+the one check of the whole non-local chain against a published binding
+energy, and at about five minutes it waits for the tier this phase makes.
+
 **Phase 9 — Bodies.** *Was Phase 8, Phase 7 before that, and Phase 6 before
 that.* D11's habit refactor; substructuring (D5);
 the creature genome; the actuation mechanism; derived-and-cached gait and grasp.
