@@ -430,8 +430,12 @@ numbering below the insertion has moved: **Things**, **Crossings**, then Ground,
 Water, Bodies, Minds, Making, Sessions. Nothing below Ground changed relative to
 anything else. A third was inserted after Water during Phase 5, by the owner:
 **the program** — a native executable rendering on the GPU with wgpu, physics
-on the CPU — and a fourth after it, **test speed**, so Bodies is now Phase 8.
-A fifth, **weather** (rain), went in after Bodies, so Sessions is Phase 12.
+on the CPU — and a fourth after it, **test speed**. A fifth, **weather**
+(rain), went in after Bodies. A sixth, **chemistry**, was inserted by the owner
+ahead of the program during it, because the program's first item — deriving
+what a substance is before drawing it — had grown into a phase of its own: so
+Chemistry is Phase 6, the program 7, test speed 8, Bodies 9, Weather 10 and
+Sessions 13.
 
 **Phase 2 is done.** Its done-when was a wooden box that is *one node* with a
 recipe describing six walls, which responds as one box, loses a wall to a hard
@@ -640,7 +644,7 @@ five demos run. Two things were left open there and went in `docs/BACKLOG.md` at
 call: the beach wanders 209.4 m over its sea in a year (the 7-piece Earth's ground flexing
 under the moon, real solid tide 0.3 m), and loose air in a lagging face
 leaves it in about 41 days. Swash, which is what the squiggle clause needs,
-is Phase 9's.
+is Phase 10's.
 
 **The owner's rule for time, which Phase 5 built: stable things are clocked
 slowly and an event wakes what it concerns** (`World::at_rest`,
@@ -648,6 +652,16 @@ slowly and an event wakes what it concerns** (`World::at_rest`,
 parent (turning included), with no sea acting on it and nothing on it but its
 own pieces, is carried to the world's clock and not integrated. It is only
 ever woken by an *event*, never by the scheduler.
+
+**Phase 6 is Chemistry, and in progress.** What a substance is — density,
+boiling and melting points, dipole, expansion — derived from its electrons
+rather than fitted, by the owner's choice of route: Kohn-Sham DFT with PBE in
+`src/electrons/`, a basis the engine derives itself, run once per substance at
+intern. Stages E1 to E10 are in `PLAY.md` §7 under Phase 6; E1 to E4 are met,
+E5 and E5a measured, and **E5b** (a basis chosen for each molecule, grown by
+`phys-grow`) is where the work is. The program — the native wgpu renderer — is
+Phase 7 and waits for it; `program/` is a crate that finds an adapter and no
+more.
 
 ### What Phase 4 left, some of which Phase 5 met
 
@@ -672,7 +686,7 @@ Left deliberately undone, each with a measurement and a trigger in
   gone, so what is left is the line of policy its entry describes.
 - **Sideways handoff across a patch edge** has never been exercised in anger.
   The mechanism is Phase 3's and the tiling is Phase 4's; what is missing is a
-  scenario, and the first one is Phase 8's quadruped.
+  scenario, and the first one is Phase 9's quadruped.
 
 **Scheduled rather than left**, and `PLAY.md` §7 is where they live — none of
 them is a backlog entry to be picked up on a whim:

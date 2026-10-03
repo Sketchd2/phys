@@ -3349,11 +3349,11 @@ beneath that:
 named them since §4.3 and no phase scheduled any of them. **Runoff rides with
 lakes in this phase**: it is the sheet on ground fed by water arriving on it
 rather than by a sea at its edge, which is what lakes already generalise.
-**Rivers go with the sideways hand-off across patch edges**, in Phase 8,
+**Rivers go with the sideways hand-off across patch edges**, in Phase 9,
 whose quadruped is that mechanism's first scenario; a river is the sheet
 running downhill across many patches, and at a planet's scale it also needs a
 coarse account of where the water drains, which §5.3 names and nothing yet
-represents. **Rain is a phase of its own after Bodies**, Phase 9 — Weather:
+represents. **Rain is a phase of its own after Bodies**, Phase 10 — Weather:
 vapour carried in an atmosphere node, condensation into drops that fall, the
 drops reaching the ground under the air, and water entering sand.
 
@@ -3368,7 +3368,7 @@ tide and gone within the year, but not by the next tide: bed flows of 0.3 to
 0.5 m/s are below the grain threshold, the waves break at depth so a stated
 wind does not change it, and what would erase it is swash on the beach face,
 a law the engine does not have. **Swash goes on the plan for a later phase**
-as the owner directed, **in Phase 9 — Weather**, the first phase to put water
+as the owner directed, **in Phase 10 — Weather**, the first phase to put water
 on a slope from above.
 
 Found and fixed on the way, each a mixed-instant or frame defect: the sea
@@ -3384,7 +3384,7 @@ ground held by nodes came out of a solve with a speed and ran away to 935 m/s
 because the 7-piece Earth's ground flexes under the moon (the real solid tide
 is 0.3 m); loose air in a lagging face gains about 2 m/s and leaves its face
 within 41 days (the test takes the air away after the tide; the sideways
-hand-off is Phase 8). Whether these go on the plan is the owner's call.
+hand-off is Phase 9). Whether these go on the plan is the owner's call.
 
 *Decided by the owner — stable things are clocked slowly, and an event wakes
 what it concerns.* Asked how a lake could settle at one second per second when
@@ -3418,7 +3418,7 @@ slope runs downhill. `tests/lake.rs`: 382 kg poured on a basin in a 1.7 t
 patch, 367 kg soaked in, 14.8 kg stood; the film that landed on 2,969 columns
 ran into 1,303 of them, flat to 4.3e-7 m, volume 0.00895 m^3 for 14.80 kg,
 unchanged a year on, with a film of it in `PHYS_FILM`. Rivers wait for Phase
-8's sideways hand-off and rain for Phase 9, as decided above.
+9's sideways hand-off and rain for Phase 10, as decided above.
 
 **Phase 5 is closed, with the beach test and the channel clause met and the
 squiggle clause unmet by the owner's decision**, and swash scheduled in Phase
@@ -3428,64 +3428,27 @@ year (it was 89.6 m before the at-rest rule; both are the 7-piece Earth's
 ground flexing under the moon, where a real solid tide is 0.3 m), and loose
 air in a lagging face leaves it within about 41 days.
 
-**Phase 6 — The program.** *Inserted by the owner during Phase 5.* The whole
-system simulated and watched on the owner's own PC as a native executable —
-the owner's requirement, on the grounds that a web renderer's overhead would
-keep it from running at speed. Decided with it:
+**Phase 6 — Chemistry.** *Inserted by the owner during the program phase, and
+ahead of it: the program moved to Phase 7 and every phase after it down by
+one.* What a substance is — its density, the temperatures at which it boils
+and melts, its dipole, how it expands — derived from what it is made of, and
+right before anything is drawn from it. The program's first item was the
+chemistry its picture stands on, and that item grew from fixing one density
+into deriving a substance from its electrons (E1 to E10 below), which every
+later phase stands on. So it is a phase of its own; the program's decisions
+are unchanged and wait for it.
 
-- **Its own phase, straight after Water** — not folded into Phase 5, and not
-  left to Sessions.
-- **Rendering first.** A native window drawing the world on the GPU: bodies,
-  structures, ground, and what is described rather than drawn, such as an
-  ocean's height and sea. The physics stays on the CPU, which remains the
-  bit-exact reference; the compute path `docs/GPU.md` designs is a later,
-  separate step, validated against it.
-- **wgpu**, which runs on Vulkan, DirectX 12 or Metal, and whose compute
-  shaders fit `GPU.md`'s WGSL sketches.
-- **On D10's seam.** The program is a server and a client in one process,
-  talking through the same encode and decode; the renderer draws what the
-  client receives and never reaches into the `World`. The physics must not
-  depend on the renderer (`GPU.md`, "What is not planned"), and this keeps it
-  so.
+*What it covers:* items 1 to 9 below, and the electronic-structure route the
+owner chose for deriving them. The optics law (item 10) stays with the
+program, which is where light is modelled; it will draw on this phase's
+in-molecule polarisabilities (E6).
 
-*Decided by the owner — it draws any scenario it is loaded into, as a
-realistic visualisation.* No scenario is special to the renderer: whatever
-world the program is given, whether a lake, a beach under a tide, a planet
-from origin or one nobody has built yet, it is drawn from what the world
-holds, as it would look, and a new scenario is not a new case in the renderer.
-That is the axioms applied to a picture. Nothing is told to it what a thing is
-(`if is_lake` is as wrong here as anywhere): how a thing looks is measured off
-its matter — what it is made of, its phase, its temperature, what light does
-at its surface — and a sheet of water is drawn as a surface at its level and
-not as the ball it is stood in for. **Not yet stated, and the owner's to
-state when the phase starts:** the done-when, and what "realistic" is measured
-against, which is a `PHYSICS.md`-weight choice about how light is modelled
-(what is derived from a material and what is a stored shortcut, as everywhere
-else).
+*Done when:* the owner's to state. The natural one is E8's: the 45 molecules'
+densities and boiling points reproduced without a coefficient fitted to them,
+which retires the fitted laws of items 1 and 2, with items 3 to 9 each met or
+decided.
 
-*Done when, stated by the owner at the start of the phase:* one program draws
-**three scenarios** — a lake, the beach under a tide, and a planet from origin —
-through **one code path**, with no scenario-specific case in the renderer, from
-**decoded bytes alone** (D10's seam; the renderer never holds a `World`). The
-frame rate it must hold is **not yet stated**. It is verified here by rendering
-offscreen on a software adapter (llvmpipe, Vulkan) and asserting on pixels,
-because the build container has no display; the window itself is compiled and
-checked but only the owner's PC runs it.
-
-*Light, decided by the owner:* how a thing looks is **derived from matter, with no
-stored table**, and a constant is derived once per substance and stored, as
-everywhere else.
-
-*The seam is widened, append-only, by the owner's decision.* `Scene` did not
-carry what a renderer needs — a node's mixture and phase, a body's orientation
-and half-extents, a sheet's level, a sea's description — so they are added to
-the wire format (`FORMAT_VERSION` bumped, variants appended), and the renderer
-stays on decoded bytes.
-
-*The program is its own crate* (`program/`, a workspace member), so that the
-core crate keeps no dependencies and its wasm32 build.
-
-**Phase 6 begins with the chemistry the picture stands on, by the owner's
+**It began as the program's first item, by the owner's
 decision.** Drawing a thing as it looks needs what it is made of to be right
 first, and measuring the optics law (below) found that it was not: water
 derived at 1653 kg/m^3. The owner ordered the density fixed first, then the
@@ -3910,14 +3873,74 @@ the start of the phase, ahead of the renderer**. In order:
    spreads to every column. Bisected over the ten temperature-aware sites:
    only `standing_water`'s pricing of the liquid does it. The question is a
    heat source for the scenario or phases that follow temperature.
-10. **An optics law**, below — the owner's answer is that the law to use is
-    whichever gives the most accurate result per material and surface,
-    computed thoroughly once and stored as that material's shortcut when the
-    material comes into existence.
+10. **An optics law** — with the program, in Phase 7.
 
 Four test scenarios were recalibrated because they named a water *mass* where
 they meant a *volume* (bucket 250 -> 150 kg and 600 -> 360, a pour 382 ->
 229), and one tree node was given room (900 -> 1100 kg); each is in its commit.
+
+**Phase 7 — The program.** *Inserted by the owner during Phase 5, as Phase 6;
+moved behind Chemistry by the owner during it.* The whole
+system simulated and watched on the owner's own PC as a native executable —
+the owner's requirement, on the grounds that a web renderer's overhead would
+keep it from running at speed. Decided with it:
+
+- **Its own phase, straight after Water** — not folded into Phase 5, and not
+  left to Sessions.
+- **Rendering first.** A native window drawing the world on the GPU: bodies,
+  structures, ground, and what is described rather than drawn, such as an
+  ocean's height and sea. The physics stays on the CPU, which remains the
+  bit-exact reference; the compute path `docs/GPU.md` designs is a later,
+  separate step, validated against it.
+- **wgpu**, which runs on Vulkan, DirectX 12 or Metal, and whose compute
+  shaders fit `GPU.md`'s WGSL sketches.
+- **On D10's seam.** The program is a server and a client in one process,
+  talking through the same encode and decode; the renderer draws what the
+  client receives and never reaches into the `World`. The physics must not
+  depend on the renderer (`GPU.md`, "What is not planned"), and this keeps it
+  so.
+
+*Decided by the owner — it draws any scenario it is loaded into, as a
+realistic visualisation.* No scenario is special to the renderer: whatever
+world the program is given, whether a lake, a beach under a tide, a planet
+from origin or one nobody has built yet, it is drawn from what the world
+holds, as it would look, and a new scenario is not a new case in the renderer.
+That is the axioms applied to a picture. Nothing is told to it what a thing is
+(`if is_lake` is as wrong here as anywhere): how a thing looks is measured off
+its matter — what it is made of, its phase, its temperature, what light does
+at its surface — and a sheet of water is drawn as a surface at its level and
+not as the ball it is stood in for. **Not yet stated, and the owner's to
+state when the phase starts:** the done-when, and what "realistic" is measured
+against, which is a `PHYSICS.md`-weight choice about how light is modelled
+(what is derived from a material and what is a stored shortcut, as everywhere
+else).
+
+*Done when, stated by the owner at the start of the phase:* one program draws
+**three scenarios** — a lake, the beach under a tide, and a planet from origin —
+through **one code path**, with no scenario-specific case in the renderer, from
+**decoded bytes alone** (D10's seam; the renderer never holds a `World`). The
+frame rate it must hold is **not yet stated**. It is verified here by rendering
+offscreen on a software adapter (llvmpipe, Vulkan) and asserting on pixels,
+because the build container has no display; the window itself is compiled and
+checked but only the owner's PC runs it.
+
+*Light, decided by the owner:* how a thing looks is **derived from matter, with no
+stored table**, and a constant is derived once per substance and stored, as
+everywhere else.
+
+*The seam is widened, append-only, by the owner's decision.* `Scene` did not
+carry what a renderer needs — a node's mixture and phase, a body's orientation
+and half-extents, a sheet's level, a sea's description — so they are added to
+the wire format (`FORMAT_VERSION` bumped, variants appended), and the renderer
+stays on decoded bytes.
+
+*The program is its own crate* (`program/`, a workspace member), so that the
+core crate keeps no dependencies and its wasm32 build.
+
+**An optics law**, moved here from the chemistry (it was item 10 there) —
+the owner's answer is that the law to use is whichever gives the most accurate
+result per material and surface, computed thoroughly once and stored as that
+material's shortcut when the material comes into existence.
 
 **Open, and the owner's: an optics law.** Nothing in the engine says how a
 material reflects, refracts or absorbs light — only black-body emission, with
@@ -3954,8 +3977,8 @@ nothing about its colour), and absorption, which needs a band gap the engine
 does not derive. The owner has since answered all three: the density first (item 1), and
 then whichever law is most accurate per material, computed once and stored.
 
-**Phase 7 — Test speed.** *Inserted by the owner during Phase 5, on Claude's
-proposal.* The suite took 7 m 14 s of wall clock and 7 m 57 s of processor on a
+**Phase 8 — Test speed.** *Inserted by the owner during Phase 5, on Claude's
+proposal, as Phase 7.* The suite took 7 m 14 s of wall clock and 7 m 57 s of processor on a
 four-core machine: cargo runs the test binaries one after another, so the
 suite is as slow as the sum of its slowest tests, and eight tests were five of
 those minutes. Measured, each alone:
@@ -3991,7 +4014,8 @@ there (`CLAUDE.md`, "Whose decision it is").
 the full suite under a stated wall time on the owner's machine with every
 assertion intact.
 
-**Phase 8 — Bodies.** *Was Phase 7, and Phase 6 before that.* D11's habit refactor; substructuring (D5);
+**Phase 9 — Bodies.** *Was Phase 8, Phase 7 before that, and Phase 6 before
+that.* D11's habit refactor; substructuring (D5);
 the creature genome; the actuation mechanism; derived-and-cached gait and grasp.
 Standing is contact against a surface that now exists.
 
@@ -4003,8 +4027,8 @@ either of them.
 running downhill across patch edges is the same sideways hand-off the
 quadruped walks across, and it arrives with it.
 
-**Phase 9 — Weather.** *Inserted by the owner during Phase 5.* Rain: vapour
-carried in an atmosphere node, condensation into drops that fall, the drops
+**Phase 10 — Weather.** *Inserted by the owner during Phase 5, as Phase 9.*
+Rain: vapour carried in an atmosphere node, condensation into drops that fall, the drops
 reaching the ground under the air, and water entering sand. **Swash** — the
 water running up and back down a beach face, which is what erases a mark
 above the waterline by the next tide (the tidal done-when's squiggle clause,
@@ -4015,14 +4039,15 @@ is doing, not a system.
 
 *Done when:* the owner's to state when the phase starts.
 
-**Phase 10 — Minds.** *Was Phase 9, and Phase 8 before that.* Unchanged.
+**Phase 11 — Minds.** *Was Phase 10, Phase 9 before that, and Phase 8 before
+that.* Unchanged.
 
-**Phase 11 — Making things.** *Was Phase 10.* Unchanged in content, and now
-standing on D15: a player-built thing is a recipe that grows as it is built,
+**Phase 12 — Making things.** *Was Phase 11, and Phase 10 before that.*
+Unchanged in content, and now standing on D15: a player-built thing is a recipe that grows as it is built,
 rather than a pile of placed nodes.
 
-**Phase 12 — Sessions.** *Was Phase 11.* Unchanged, apart from standing on the
-program Phase 6 builds, which is already a server and a client in one process.
+**Phase 13 — Sessions.** *Was Phase 12, and Phase 11 before that.* Unchanged,
+apart from standing on the program Phase 7 builds, which is already a server and a client in one process.
 
 ---
 

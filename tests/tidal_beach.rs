@@ -323,7 +323,7 @@ fn a_beach_under_a_tide_for_a_year() {
     // tide and takes it away again (`Tree::take_away`). Left in a face of the
     // Earth whose solves are hours behind the world's clock, it is out of the
     // face within the month, and handing a node across a patch's edge in
-    // anger is Phase 8's first scenario (`docs/BACKLOG.md`).
+    // anger is Phase 9's first scenario (`docs/BACKLOG.md`).
     let face = w.tree.nodes[air.get()].parent;
     assert!(w.tree.take_away(face, air), "the air could not be taken away");
     // The year, at a day a frame.

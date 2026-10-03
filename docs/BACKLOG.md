@@ -870,8 +870,8 @@ is still not decided anywhere.
 
 **Trigger:** the first time a *member* of a node has to respond as part of its
 structure rather than on its own — a branch that should sway the tree instead of
-flying off. Unavoidable by Bodies (Phase 8 since the owner inserted the program
-as Phase 6 and test speed as Phase 7).
+flying off. Unavoidable by Bodies (Phase 9 since the owner inserted the program
+and test speed after Water, and chemistry ahead of the program).
 
 ---
 
@@ -2941,7 +2941,7 @@ neighbouring patch rather than a node, and the conserved tuple checked on both
 sides of the handoff.
 
 **Trigger:** the first thing that moves across ground under its own power, which
-is Phase 8's quadruped. Until then nothing in the engine traverses a surface.
+is Phase 9's quadruped. Until then nothing in the engine traverses a surface.
 
 ---
 
@@ -3039,7 +3039,7 @@ the solid Earth's tide     0.3 m
 ```
 
 **Trigger:** anything that stands on a planet under a moon for longer than a
-day and must stay where it is put — a settlement, a harbour, the Phase 8
+day and must stay where it is put — a settlement, a harbour, the Phase 9
 quadruped over a long run. A lunar-orbit-free planet does not show it.
 
 ## Loose air in a lagging face leaves its face within about 41 days
@@ -3055,7 +3055,7 @@ axes. When the face's clock lags the world's — at a day a frame it lags by day
 within about 41 days. **At one second per second the lag is under a frame, so
 the gain should be negligible; that was reasoned and not measured.** The cure
 for what remains is the sideways hand-off across a patch's edge, which is
-Phase 8's and already has an entry (`Sideways handoff across a patch edge has
+Phase 9's and already has an entry (`Sideways handoff across a patch edge has
 never been exercised in anger`).
 
 **Trigger:** a scenario that holds air, or anything else loose, in a patch of

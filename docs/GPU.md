@@ -114,7 +114,7 @@ The reference implementation is the oracle:
 - **Rendering** is out of scope here. The engine produces `Sighting`s with
   retarded positions, Doppler factors and fluxes; turning those into pixels is a
   separate concern, and deliberately so — the physics must not depend on the
-  renderer. That separate concern is now planned: `docs/PLAY.md` §7, Phase 6, a
+  renderer. That separate concern is now planned: `docs/PLAY.md` §7, Phase 7, a
   native wgpu program that renders on the GPU while this compute path stays
   unwritten until after it.
 - **Multi-GPU.** The causal decomposition would make it natural (regions with
