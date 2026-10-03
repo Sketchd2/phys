@@ -3779,6 +3779,12 @@ the start of the phase, ahead of the renderer**. In order:
      deg), which read as a pull on one O-H bond and not the other; and
      partners matched by equal predictions split water's hydrogens, so
      they are now classed by geometry.
+     *Paused for the move to the owner's machine:* water's growth stopped
+     after round 4 (160 functions, 0.96937 A, 104.06 deg, 21 functions
+     chosen); `grow-water.state` is committed and `cargo run --release --bin
+     phys-grow -- water` carries on from round 5. Before the 45 substances,
+     `chem::geometry::embed` has to close rings (benzene's starting shape is
+     open), since growth relaxes from it.
      **The owner's ruling on the GPU, clarified:** physics on the CPU is
      for the main simulation; one-off derivations like a molecule's
      electronic structure may run on the GPU. Not yet started, and depends
