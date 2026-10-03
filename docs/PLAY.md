@@ -3874,15 +3874,38 @@ the start of the phase, ahead of the renderer**. In order:
      owner's call.
    - **E6, properties.** Dipole, Hirshfeld partition (in-molecule volumes,
      charges), polarisability. Done when dipoles match experiment.
-   - **E7, dispersion.** PBE has none at long range. **Open, the owner's:**
-     every common correction (TS, XDM, VV10, MBD) carries a fitted damping
-     parameter; the non-empirical options are a non-local functional (vdW-DF1)
-     or the random-phase approximation, both expensive.
-   - **E8, the liquid.** Site-site potential from E6/E7, liquid-vapour
-     coexistence sampled, giving `T_b`, `dH_vap`, the density at every
-     temperature and the expansion. Done when the 45 molecules are reproduced
-     without any coefficient fitted to them; this retires the fitted laws of
-     items 1 and 2.
+   - **E7, dispersion.** PBE has none at long range. Every common correction
+     (TS, XDM, VV10, MBD) carries a fitted damping parameter; the
+     non-empirical options are a non-local functional (vdW-DF1) or the
+     random-phase approximation, both expensive.
+     **The owner's decision: vdW-DF.** Its non-local kernel is non-empirical
+     in every variant (a plasmon model of the electron gas, its one constant
+     `Z_ab = -0.8491` from the gradient expansion), and the engine computes
+     it by numerical integration, once, and stores it, rather than reading a
+     published table. The empiricism is in the exchange it is paired with:
+     published vdW-DF1 is revPBE exchange (one constant, kappa = 1.245,
+     fitted to atomic exchange energies) with LDA correlation; PBE exchange
+     fits nothing and is expected to overbind; the more accurate published
+     partners (vdW-DF2's rPW86, vdW-DF-cx's LV-PW86r) carry more. Asked which
+     is most accurate and most in line with the axioms, the answer is that no
+     one form is both, and **the owner chose to measure it:** the kernel is
+     built once with the exchange partner a swappable piece; the
+     implementation is validated against published vdW-DF1 first, since
+     without a published form there is nothing to check it against; then the
+     unfitted PBE-exchange form is run alongside on the water dimer and on
+     the boiling points, and the owner chooses on those numbers. Nothing
+     fitted is adopted without that.
+   - **E8, the liquid.** The intermolecular law, liquid-vapour coexistence
+     sampled, giving `T_b`, `dH_vap`, the density at every temperature and
+     the expansion. Done when the 45 molecules are reproduced without any
+     coefficient fitted to them; this retires the fitted laws of items 1 and
+     2. **The owner's decision on the law: build both and compare** — (A)
+     the interaction from pairs and threes of molecules, each group with its
+     own grown basis, and the E6 site-site potential (each atom's in-molecule
+     charge, volume and polarisability from the partitioned density) — on
+     water, before one is chosen for the 45. **And the first boiling-point
+     test is several substances at once**, not water alone, so that the
+     tolerance's verdict does not rest on one molecule.
    - **E9, into the registry.** At intern, memoised by the arrangement's
      fingerprint so a test suite or a world pays once per substance, persisted.
    - **E10, heavy elements.** Beyond about Z = 36 a scalar-relativistic
