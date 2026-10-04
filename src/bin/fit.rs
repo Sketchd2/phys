@@ -1,15 +1,16 @@
 //! Route A's law from its pair energies — `PLAY.md` E8.
 //!
 //! ```sh
-//! cargo run --release --bin phys-fit -- water [temperature for the weights, K]
+//! cargo run --release --bin phys-fit -- water [temperature for the weights, K] [tag]
 //! ```
 //!
-//! Reads `pairs-<name>.txt` (written by `phys-pairs`), holds every fifth pair
+//! Reads `pairs-<name><tag>.txt` (written by `phys-pairs`, or by
+//! `phys-pairs-gpu` with tag `-gpu`), holds every fifth pair
 //! out of the fit, fits the site-site law to the rest for each exchange
 //! partner the pairs carry — PBE exchange (nothing fitted in it) and revPBE
 //! (published vdW-DF1) — and reports the residual on the pairs it fitted and,
 //! the one that is the law's error by the owner's condition, on the pairs it
-//! never saw. Writes `law-<name>-pbe.txt` and `law-<name>-revpbe.txt`.
+//! never saw. Writes `law-<name><tag>-pbe.txt` and `law-<name><tag>-revpbe.txt`.
 
 use phys::liquid::{fit_site_site, pair_energy, PairEnergy, SiteSite};
 use phys::math::Vec3;
@@ -20,7 +21,8 @@ fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let name = args.first().cloned().unwrap_or_else(|| "water".into());
     let temperature: f64 = args.get(1).and_then(|s| s.parse().ok()).unwrap_or(500.0);
-    let text = std::fs::read_to_string(format!("pairs-{name}.txt")).expect("a pairs file");
+    let tag = args.get(2).cloned().unwrap_or_default();
+    let text = std::fs::read_to_string(format!("pairs-{name}{tag}.txt")).expect("a pairs file");
     // Each line: index R E_pbe E_rev | x y z type ... (first molecule, then second).
     let mut rows: Vec<(f64, f64, Vec<(Vec3, usize)>)> = Vec::new();
     for line in text.lines().filter(|l| !l.starts_with('#') && !l.trim().is_empty()) {
@@ -55,6 +57,6 @@ fn main() {
         let (lh, nh) = low(&held);
         println!("  {label}: {} iterations; RMS {:.3} kcal/mol fitted, {:.3} unseen; within 3 kcal/mol of the lowest: {:.3} over {nt} fitted, {:.3} over {nh} unseen", fit.iterations, rms(&train) * KCAL, rms(&held) * KCAL, lt * KCAL, lh * KCAL);
         println!("    charges {:?}", fit.law.charge);
-        std::fs::write(format!("law-{name}-{label}.txt"), fit.law.to_text()).expect("the law written");
+        std::fs::write(format!("law-{name}{tag}-{label}.txt"), fit.law.to_text()).expect("the law written");
     }
 }

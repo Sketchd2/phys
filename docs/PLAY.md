@@ -4018,6 +4018,21 @@ the start of the phase, ahead of the renderer**. In order:
      tail, and the other three molecules, are not yet measured). The fully
      grown 808-function dimer was started as the exact answer, found to hold a
      29 GB table on a 16 GB machine, and is not needed for the decision.
+     *The GPU for the pairs, checked on ten (the owner's condition: use it
+     only if the interaction energies differ by far less than 0.05
+     kcal/mol):* the same ten water pairs with the final fine-grid non-local
+     energy on the GPU in single precision and everything else on the CPU in
+     double. GPU minus CPU: +0.0025 to +0.0042 kcal/mol, mean +0.0036, spread
+     0.0006, the same for both exchange partners (so it is the non-local term
+     alone), on interaction energies from -2.37 to +1.85. More than ten times
+     under the bound, and one-signed: a small systematic shift, not noise.
+     For scale, the non-local grid's own error is larger: the dimer's
+     non-local binding moves 0.024 kcal/mol from (50, 12) to (75, 18). The
+     final non-local step takes 13-17 s on the GPU against 76-161 s on the
+     CPU in the same run, a pair 302-397 s against 371-502 s with three jobs
+     sharing the machine. **The owner's rule was met, so the pair data is
+     taken on the GPU** (`phys-pairs-gpu`, `pairs-<name>-gpu.txt`); the
+     fields stay on the CPU. The full precision test is still after E8.
      *Memory and disk, found on the way:* the Coulomb fit's three-centre
      table now stores only what half the free RAM allows, spills the rest to
      the disk `PHYS_SPILL_DIR` names (at most `PHYS_SPILL_MAX_GB`, 40 by
