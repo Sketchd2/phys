@@ -141,3 +141,80 @@ fn a_saved_round_reads_back_exactly() {
     assert_eq!(back, r);
     assert!(Resume::from_text("ladder 1 2 three").is_none(), "a broken line is refused, not skipped");
 }
+
+/// A symmetry carrying one coordinate to another: each of methane's C-H bonds
+/// onto every other with every distance kept, and nothing carrying a bond onto
+/// an angle or water's O-H onto a different kind of bond.
+#[test]
+fn a_symmetry_carries_equivalent_coordinates_onto_each_other() {
+    use phys::electrons::grow::{symmetry_taking, Coordinate};
+    let a = 1.0 / 0.529177210903;
+    let (r, t) = (1.0953 * a, 1.0 / 3f64.sqrt());
+    let methane = Molecule { z: vec![6, 1, 1, 1, 1], positions: vec![[0.0; 3], [r * t, r * t, r * t], [-r * t, -r * t, r * t], [-r * t, r * t, -r * t], [r * t, -r * t, -r * t]], charge: 0, unpaired: 0 };
+    let dist = |m: &Molecule, i: usize, j: usize| (0..3).map(|k| (m.positions[i][k] - m.positions[j][k]).powi(2)).sum::<f64>().sqrt();
+    for to in 2..5 {
+        let perm = symmetry_taking(&methane, &Coordinate::Bond(0, 1), &Coordinate::Bond(0, to)).expect("C-H onto C-H");
+        assert_eq!((perm[0], perm[1]), (0, to));
+        for i in 0..5 {
+            for j in 0..5 {
+                assert!((dist(&methane, i, j) - dist(&methane, perm[i], perm[j])).abs() < 1e-9, "the permutation keeps distances");
+            }
+        }
+    }
+    let w = water(0.97, 104.2);
+    assert!(symmetry_taking(&w, &Coordinate::Bond(0, 1), &Coordinate::Bond(0, 2)).is_some(), "water's two O-H bonds are equivalent");
+    assert!(symmetry_taking(&w, &Coordinate::Bond(0, 1), &Coordinate::Angle(1, 0, 2)).is_none(), "a bond is not an angle");
+    let bent = water(0.97, 104.2);
+    let mut lopsided = bent.clone();
+    lopsided.positions[2][0] *= 1.05;
+    assert!(symmetry_taking(&lopsided, &Coordinate::Bond(0, 1), &Coordinate::Bond(0, 2)).is_none(), "bonds of different lengths are not equivalent");
+}
+
+/// Probing one coordinate per symmetry class against probing every
+/// coordinate, on water at its seed basis: the predictions agree to the
+/// molecule's own residual asymmetry and the same functions are picked.
+/// Measured on methane before it was adopted: 2.3e-3 of a tolerance at
+/// worst, against predictions up to 8.2, the first eight groups picked the
+/// same, and 208 s against 40.
+#[test]
+fn probing_by_symmetry_picks_what_probing_everything_picks() {
+    use phys::electrons::grow::{equivalent_atoms, extras, predict_moves};
+    let mol = water(0.97, 104.2);
+    let bonds = vec![(0, 1), (0, 2)];
+    let coords = coordinates(&bonds);
+    let f = Functional::Pbe;
+    let lads = ladders(&mol, f);
+    let extra = extras(&mol, &lads, &[]);
+    let p0 = mol.problem_with(f, Some(&extra));
+    let s0 = solve(&p0, 200, 1e-10);
+    let values: Vec<f64> = coords.iter().map(|c| c.value(&mol.positions)).collect();
+    let (rungs, shells) = candidates_for_test(&mol, &lads, &[]);
+    let full = predict_moves(&mol, &coords, &values, f, &extra, &s0, &lads, &rungs, &shells, false, &|_| {});
+    let sym = predict_moves(&mol, &coords, &values, f, &extra, &s0, &lads, &rungs, &shells, true, &|_| {});
+    let tols: Vec<f64> = coords.iter().map(|c| c.tolerance(&mol.positions)).collect();
+    let mut worst: f64 = 0.0;
+    for ri in 0..rungs.len() {
+        for ci in 0..coords.len() {
+            worst = worst.max((full[ri][ci] - sym[ri][ci]).abs() / tols[ci]);
+        }
+    }
+    let score = |row: &Vec<f64>| row.iter().zip(&tols).map(|(p, t)| p.abs() / t).fold(0.0, f64::max);
+    let class = equivalent_atoms(&mol);
+    let groups = |pred: &Vec<Vec<f64>>| {
+        let mut o: Vec<usize> = (0..rungs.len()).collect();
+        o.sort_by(|&a, &b| score(&pred[b]).total_cmp(&score(&pred[a])).then(rungs[a].cmp(&rungs[b])));
+        let mut g: Vec<(usize, usize, i32)> = Vec::new();
+        for i in o {
+            let l = &lads[rungs[i].ladder];
+            let key = (class[l.atom], l.l, rungs[i].k);
+            if !g.contains(&key) {
+                g.push(key);
+            }
+        }
+        g
+    };
+    let (gf, gs) = (groups(&full), groups(&sym));
+    println!("  worst difference {worst:.2e} tolerances; first groups {:?}", &gf[..6]);
+    assert!(worst < 1e-2, "probing by symmetry moved a prediction by {worst:.2e} tolerances");
+    assert_eq!(gf[..6], gs[..6], "probing by symmetry picked differently");
+}

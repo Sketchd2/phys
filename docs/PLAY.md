@@ -4008,6 +4008,17 @@ the start of the phase, ahead of the renderer**. In order:
      and its residual; E6's site-site potential; rigid-body dynamics of a slab
      against its vapour, with periodic boundaries; and the four boiling
      points, at both exchange partners and two tolerances.
+     *Probing by symmetry, allowed by the owner:* growth probed every internal
+     coordinate twice, and methane's tenth-of-the-way rounds were taking two
+     hours. A coordinate that a symmetry of the molecule (a permutation of its
+     atoms keeping every distance) carries from an earlier one is no longer
+     probed: its prediction for a candidate on an atom is the earlier one's for
+     the same rung on that atom's image. Equivalent coordinates agree only to
+     the molecule's residual asymmetry, so this changes results at that level,
+     which the owner accepted once measured — on methane at its seed basis,
+     2.3e-3 of a tolerance at worst against predictions up to 8.2, the first
+     eight groups picked the same, 208 s against 40; on water 5.6e-3 and the
+     same picks. Methane's first five rounds were grown probing everything.
    - **E9, into the registry.** At intern, memoised by the arrangement's
      fingerprint so a test suite or a world pays once per substance, persisted.
    - **E10, heavy elements.** Beyond about Z = 36 a scalar-relativistic

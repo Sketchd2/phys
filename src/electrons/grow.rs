@@ -703,38 +703,7 @@ pub fn grow_from(start: &Molecule, bonds: &[(usize, usize)], f: Functional, max_
         let s0 = solve(&p0, 200, 1e-10);
         let values: Vec<f64> = coords.iter().map(|c| c.value(&mol.positions)).collect();
         let (rungs, shells) = candidates(&mol, &lads, &chosen);
-        let passes = 2 * coords.len();
-        progress(&Progress::Relaxed { functions: p0.basis.size, candidates: rungs.len(), probes: passes });
-        // Each candidate's predicted move of each coordinate.
-        let mut pred = vec![vec![0.0; coords.len()]; rungs.len()];
-        for (ci, c) in coords.iter().enumerate() {
-            let h = c.step(&mol.positions);
-            let mut e = [0.0; 2];
-            let mut dq = [0.0; 2];
-            let mut gain = [Vec::new(), Vec::new()];
-            for (si, sgn) in [1.0, -1.0].iter().enumerate() {
-                let probe = 2 * ci + si;
-                progress(&Progress::Probe { probe, probes: passes, done: 0, candidates: rungs.len() });
-                let moved = Molecule { positions: displaced(&coords, &mol.positions, ci, sgn * h), ..mol.clone() };
-                // What the coordinate actually moved: all of `h` when the
-                // coordinates are independent, less in a ring.
-                dq[si] = c.value(&moved.positions) - values[ci];
-                let mut p = moved.problem_with(f, Some(&extra));
-                p.guess = Some((s0.density_alpha.clone(), s0.density_beta.clone()));
-                let s = solve(&p, 200, 1e-10);
-                e[si] = s.energy;
-                let moved_shells: Vec<Shell> = shells.iter().zip(&rungs).map(|(sh, r)| Shell { centre: moved.positions[lads[r.ladder].atom], ..sh.clone() }).collect();
-                let tick = |done: usize| progress(&Progress::Probe { probe, probes: passes, done, candidates: rungs.len() });
-                gain[si] = estimate_ticking(&p, &s, &moved_shells, &tick);
-            }
-            // Stiffness and pull from the two unequal steps it actually took.
-            let (hp, hm) = (dq[0], dq[1]);
-            let k = 2.0 * ((e[0] - s0.energy) / hp - (e[1] - s0.energy) / hm) / (hp - hm);
-            for (ri, row) in pred.iter_mut().enumerate() {
-                let pull = (gain[0][ri] - gain[1][ri]) / (hp - hm);
-                row[ci] = if k > 0.0 { -pull / k } else { 0.0 };
-            }
-        }
+        let pred = predict_moves(&mol, &coords, &values, f, &extra, &s0, &lads, &rungs, &shells, true, progress);
         let tols: Vec<f64> = coords.iter().map(|c| c.tolerance(&mol.positions)).collect();
         let score = |row: &Vec<f64>| row.iter().zip(&tols).map(|(p, t)| p.abs() / t).fold(0.0, f64::max);
         let mut order: Vec<usize> = (0..rungs.len()).collect();
@@ -824,3 +793,157 @@ pub fn grow_from(start: &Molecule, bonds: &[(usize, usize)], f: Functional, max_
 /// stretch) it leaves a length 2e-5 bohr from its minimum, about a hundredth
 /// of the tolerance on water's bond (1.8e-3 bohr).
 const RELAXED_FORCE: f64 = 1e-5;
+
+/// A permutation of the atoms that keeps every element and every interatomic
+/// distance (to the length tolerance) and takes `from`'s atoms onto `to`'s:
+/// a symmetry of the molecule carrying one coordinate to the other, or `None`.
+pub fn symmetry_taking(mol: &Molecule, from: &Coordinate, to: &Coordinate) -> Option<Vec<usize>> {
+    let n = mol.z.len();
+    let dist = |a: usize, b: usize| norm(sub(mol.positions[a], mol.positions[b]));
+    let seeds: Vec<Vec<(usize, usize)>> = match (from, to) {
+        (Coordinate::Bond(a, b), Coordinate::Bond(c, d)) => vec![vec![(*a, *c), (*b, *d)], vec![(*a, *d), (*b, *c)]],
+        (Coordinate::Angle(a, b, c), Coordinate::Angle(d, e, f)) => vec![vec![(*b, *e), (*a, *d), (*c, *f)], vec![(*b, *e), (*a, *f), (*c, *d)]],
+        _ => return None,
+    };
+    fn extend(n: usize, z: &[u32], dist: &dyn Fn(usize, usize) -> f64, map: &mut Vec<Option<usize>>, used: &mut Vec<bool>, next: usize) -> bool {
+        if next == n {
+            return true;
+        }
+        if map[next].is_some() {
+            return extend(n, z, dist, map, used, next + 1);
+        }
+        for cand in 0..n {
+            if used[cand] || z[cand] != z[next] {
+                continue;
+            }
+            let fits = (0..n).all(|o| match map[o] {
+                Some(img) if o != next => {
+                    let (x, y) = (dist(next, o), dist(cand, img));
+                    (x - y).abs() <= LENGTH_TOLERANCE * x.max(y)
+                }
+                _ => true,
+            });
+            if fits {
+                map[next] = Some(cand);
+                used[cand] = true;
+                if extend(n, z, dist, map, used, next + 1) {
+                    return true;
+                }
+                map[next] = None;
+                used[cand] = false;
+            }
+        }
+        false
+    }
+    'seed: for seed in seeds {
+        let mut map = vec![None; n];
+        let mut used = vec![false; n];
+        for &(x, y) in &seed {
+            if mol.z[x] != mol.z[y] || used[y] || map[x].is_some_and(|m| m != y) {
+                continue 'seed;
+            }
+            map[x] = Some(y);
+            used[y] = true;
+        }
+        // The seeded pairs must agree with each other too.
+        for &(x, y) in &seed {
+            for &(u, v) in &seed {
+                let (a, b) = (dist(x, u), dist(y, v));
+                if (a - b).abs() > LENGTH_TOLERANCE * a.max(b) {
+                    continue 'seed;
+                }
+            }
+        }
+        if extend(n, &mol.z, &dist, &mut map, &mut used, 0) {
+            return Some(map.into_iter().map(|m| m.expect("every atom mapped")).collect());
+        }
+    }
+    None
+}
+
+/// Each candidate's predicted move of each coordinate, from two probes per
+/// coordinate (stretched and compressed: a solve and the estimate over every
+/// candidate at each), as a basis is grown.
+///
+/// With `symmetric`, a coordinate that a symmetry of the molecule carries
+/// from an earlier probed one is not probed: its prediction for a candidate on
+/// atom `a` is that coordinate's prediction for the same rung on the atom the
+/// symmetry takes to `a`. Equivalent coordinates agree only to the
+/// molecule's own residual asymmetry, so this changes results at that level;
+/// the owner allowed it (PLAY.md E8) once it was measured against probing
+/// everything. A coordinate whose candidates cannot all be mapped is probed.
+#[allow(clippy::too_many_arguments)]
+pub fn predict_moves(mol: &Molecule, coords: &[Coordinate], values: &[f64], f: Functional, extra: &[Vec<(usize, f64)>], s0: &Solution, lads: &[Ladder], rungs: &[Rung], shells: &[Shell], symmetric: bool, progress: &(dyn Fn(&Progress) + Sync)) -> Vec<Vec<f64>> {
+    // For each coordinate: probed itself, or (representative, the candidate
+    // whose prediction stands in for each candidate).
+    let mut copies: Vec<Option<(usize, Vec<usize>)>> = vec![None; coords.len()];
+    if symmetric {
+        for ci in 0..coords.len() {
+            for rep in 0..ci {
+                if copies[rep].is_some() {
+                    continue;
+                }
+                let Some(perm) = symmetry_taking(mol, &coords[rep], &coords[ci]) else { continue };
+                let mut inv = vec![0usize; perm.len()];
+                for (a, &b) in perm.iter().enumerate() {
+                    inv[b] = a;
+                }
+                // The candidate on atom inv[a] with the same rung, for each
+                // candidate on atom a.
+                let stand_in: Option<Vec<usize>> = rungs.iter().map(|r| {
+                    let lad = &lads[r.ladder];
+                    let want = inv[lad.atom];
+                    rungs.iter().position(|o| {
+                        let l2 = &lads[o.ladder];
+                        l2.atom == want && l2.l == lad.l && (l2.exponent(o.k) / lad.exponent(r.k) - 1.0).abs() < 1e-9
+                    })
+                }).collect();
+                if let Some(stand_in) = stand_in {
+                    copies[ci] = Some((rep, stand_in));
+                    break;
+                }
+            }
+        }
+    }
+    let probed: Vec<usize> = (0..coords.len()).filter(|&ci| copies[ci].is_none()).collect();
+    let passes = 2 * probed.len();
+    progress(&Progress::Relaxed { functions: s0.density_alpha.n, candidates: rungs.len(), probes: passes });
+    let mut pred = vec![vec![0.0; coords.len()]; rungs.len()];
+    for (pi, &ci) in probed.iter().enumerate() {
+        let c = &coords[ci];
+        let h = c.step(&mol.positions);
+        let mut e = [0.0; 2];
+        let mut dq = [0.0; 2];
+        let mut gain = [Vec::new(), Vec::new()];
+        for (si, sgn) in [1.0, -1.0].iter().enumerate() {
+            let probe = 2 * pi + si;
+            progress(&Progress::Probe { probe, probes: passes, done: 0, candidates: rungs.len() });
+            let moved = Molecule { positions: displaced(coords, &mol.positions, ci, sgn * h), ..mol.clone() };
+            // What the coordinate actually moved: all of `h` when the
+            // coordinates are independent, less in a ring.
+            dq[si] = c.value(&moved.positions) - values[ci];
+            let mut p = moved.problem_with(f, Some(extra));
+            p.guess = Some((s0.density_alpha.clone(), s0.density_beta.clone()));
+            let s = solve(&p, 200, 1e-10);
+            e[si] = s.energy;
+            let moved_shells: Vec<Shell> = shells.iter().zip(rungs).map(|(sh, r)| Shell { centre: moved.positions[lads[r.ladder].atom], ..sh.clone() }).collect();
+            let tick = |done: usize| progress(&Progress::Probe { probe, probes: passes, done, candidates: rungs.len() });
+            gain[si] = estimate_ticking(&p, &s, &moved_shells, &tick);
+        }
+        // Stiffness and pull from the two unequal steps it actually took.
+        let (hp, hm) = (dq[0], dq[1]);
+        let k = 2.0 * ((e[0] - s0.energy) / hp - (e[1] - s0.energy) / hm) / (hp - hm);
+        for (ri, row) in pred.iter_mut().enumerate() {
+            let pull = (gain[0][ri] - gain[1][ri]) / (hp - hm);
+            row[ci] = if k > 0.0 { -pull / k } else { 0.0 };
+        }
+    }
+    for (ci, copy) in copies.iter().enumerate() {
+        if let Some((rep, stand_in)) = copy {
+            for ri in 0..rungs.len() {
+                pred[ri][ci] = pred[stand_in[ri]][*rep];
+            }
+        }
+    }
+    pred
+}
