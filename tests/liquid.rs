@@ -236,3 +236,22 @@ fn the_fitter_recovers_a_law_from_its_own_energies() {
     assert!(fit.rms < 1e-6 * spread, "the fit left {:.2e}", fit.rms);
     assert!((fit.law.charge[0] + 0.74).abs() < 1e-3 && (fit.law.charge[1] - 0.37).abs() < 1e-3, "the charges came back as {:?}", fit.law.charge);
 }
+
+/// A slab is built at the density asked for, in the middle of its box, with
+/// the vapour's regions empty to begin with.
+#[test]
+fn a_slab_is_built_at_its_density() {
+    use phys::liquid::coexisting_densities;
+    // Water's liquid density, molecules per bohr^3 (33.4 per nm^3).
+    let density = 33.4e-3 * 0.529177210903f64.powi(3);
+    let side = 30.0;
+    let slab = Liquid::slab(water_kind(), 216, density, side, 3.0 * side, 300.0, 7, 10.0, 12.0);
+    assert_eq!(slab.com.len(), 216);
+    let prof = slab.density_profile(90);
+    let (liquid, vapour) = coexisting_densities(&prof, 0.3, 0.2);
+    println!("  liquid {:.3e} against {density:.3e} asked; vapour {vapour:.1e}", liquid);
+    assert!((liquid / density - 1.0).abs() < 0.15, "the slab's middle is at {liquid:.3e}");
+    assert_eq!(vapour, 0.0, "the vapour starts empty");
+    let p = slab.momentum.iter().fold(Vec3::ZERO, |a, x| a + *x).norm();
+    assert!(p < 1e-9, "the slab is at rest overall");
+}

@@ -537,3 +537,59 @@ fn solve_dense(m: &crate::electrons::linalg::Matrix, b: &[f64]) -> Option<Vec<f6
     }
     Some(x)
 }
+
+impl Liquid {
+    /// A slab of `n` molecules of `kind` at `density` (molecules per bohr^3),
+    /// on a simple cubic lattice filling the middle of a box `side x side x
+    /// length`, with empty space either side for the vapour; orientations and
+    /// velocities drawn from `seed` at `temperature`, the total momentum zero.
+    pub fn slab(kind: Kind, n: usize, density: f64, side: f64, length: f64, temperature: f64, seed: u64, r_on: f64, r_cut: f64) -> Liquid {
+        // As near cubic as the box's side allows: the spacing the density
+        // gives, rounded to fit the side, and the layers spaced to keep the
+        // density.
+        let across = ((side * density.cbrt()).round() as usize).max(1);
+        let spacing = side / across as f64;
+        let layers = n.div_ceil(across * across);
+        let dz = 1.0 / (density * spacing * spacing);
+        let z0 = -0.5 * layers as f64 * dz;
+        let mut s = Stream::at(seed, 0, 0, Purpose::Positions);
+        let mut v = Stream::at(seed, 0, 0, Purpose::Velocities);
+        let (mut com, mut orientation, mut momentum, mut spin) = (Vec::new(), Vec::new(), Vec::new(), Vec::new());
+        'fill: for k in 0..layers {
+            for i in 0..across {
+                for j in 0..across {
+                    if com.len() == n {
+                        break 'fill;
+                    }
+                    com.push(Vec3 { x: (i as f64 + 0.5) * spacing, y: (j as f64 + 0.5) * spacing, z: z0 + (k as f64 + 0.5) * dz });
+                    let (u1, u2, u3) = (s.uniform(), s.uniform(), s.uniform());
+                    let tau = std::f64::consts::TAU;
+                    let (a, b) = ((1.0 - u1).sqrt(), u1.sqrt());
+                    orientation.push(Quat { w: a * (tau * u2).sin(), v: Vec3 { x: a * (tau * u2).cos(), y: b * (tau * u3).sin(), z: b * (tau * u3).cos() } });
+                    momentum.push(v.normal3().scale((kind.mass * K_B * temperature).sqrt()));
+                    let i3 = kind.inertia;
+                    spin.push(Vec3 { x: v.normal() * (i3[0] * K_B * temperature).sqrt(), y: v.normal() * (i3[1] * K_B * temperature).sqrt(), z: v.normal() * (i3[2] * K_B * temperature).sqrt() });
+                }
+            }
+        }
+        let mean = momentum.iter().fold(Vec3::ZERO, |acc, p| acc + *p).scale(1.0 / momentum.len() as f64);
+        for p in momentum.iter_mut() {
+            *p -= mean;
+        }
+        Liquid { kind, cell: [side, side, length], com, orientation, momentum, spin, r_on, r_cut }
+    }
+}
+
+/// Liquid and vapour densities from a profile about the slab's centre
+/// (`Liquid::density_profile`): the mean over the middle `core` fraction of
+/// the bins, and over the `far` fraction farthest from the centre on both
+/// sides.
+pub fn coexisting_densities(profile: &[f64], core: f64, far: f64) -> (f64, f64) {
+    let n = profile.len();
+    let mid = n / 2;
+    let half_core = ((core * n as f64) / 2.0).round().max(1.0) as usize;
+    let liquid = profile[mid - half_core..mid + half_core].iter().sum::<f64>() / (2 * half_core) as f64;
+    let edge = ((far * n as f64) / 2.0).round().max(1.0) as usize;
+    let vapour = (profile[..edge].iter().sum::<f64>() + profile[n - edge..].iter().sum::<f64>()) / (2 * edge) as f64;
+    (liquid, vapour)
+}
