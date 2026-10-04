@@ -4152,6 +4152,18 @@ kcal/mol (the engine gives 4.832) — goes into the suite's slow tier. It is
 the one check of the whole non-local chain against a published binding
 energy, and at about five minutes it waits for the tier this phase makes.
 
+*Also scheduled here by the owner, from Phase 6:* `budget.rs
+frames_stay_within_budget` is flaky on the owner's machine — 7 of 10 runs
+failed at the commit before Phase 6's chemistry work, 4 of 10 after. Measured
+frame by frame: the planetary step (node 6) is planned at 162-180 ms and takes
+126-136, about 30% over-predicted every time, while the continuum step is
+right (77 against 77); a single spike frame (174 ms against 34 planned) raises
+the calibration fast (35% of an overrun a frame) and it decays slowly (5%),
+so later plans stay inflated; and the test compares a median of plans with a
+median of actuals, each sorted on its own, which can come from different kinds
+of frame. Fixing the cost model, and the comparison if it is wrong, is this
+phase's.
+
 **Phase 9 — Bodies.** *Was Phase 8, Phase 7 before that, and Phase 6 before
 that.* D11's habit refactor; substructuring (D5);
 the creature genome; the actuation mechanism; derived-and-cached gait and grasp.
