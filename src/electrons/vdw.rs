@@ -435,26 +435,8 @@ pub fn nonlocal(grid: &super::grid::Grid, density: &[(f64, [f64; 3])], z_ab: f64
         let (q, dq_dn, dq_dg2) = q0_and_slopes(*n, g[0] * g[0] + g[1] * g[1] + g[2] * g[2], z_ab);
         Some(Point { at, r: *r, wn, n: *n, q, dq_dn, dq_dg2 })
     }).collect();
-    let job = |idx: &mut dyn Iterator<Item = usize>| {
-        idx.map(|i| {
-            let a = &points[i];
-            let (mut sa, mut sb) = (0.0, 0.0);
-            for b in &points {
-                let d = [a.r[0] - b.r[0], a.r[1] - b.r[1], a.r[2] - b.r[2]];
-                let r = (d[0] * d[0] + d[1] * d[1] + d[2] * d[2]).sqrt();
-                let (f, f1, _) = table.phi_and_slopes(a.q * r, b.q * r);
-                sa += b.wn * f;
-                sb += b.wn * r * f1;
-            }
-            (i, sa, sb)
-        }).collect::<Vec<_>>()
-    };
-    let mut ab = vec![(0.0, 0.0); points.len()];
-    for part in super::scf::parallel_interleaved(points.len(), &job) {
-        for (i, sa, sb) in part {
-            ab[i] = (sa, sb);
-        }
-    }
+    let row_points: Vec<RowPoint> = points.iter().map(|p| RowPoint { r: p.r, wn: p.wn, q: p.q }).collect();
+    let ab: Vec<(f64, f64)> = row_engine().rows(&row_points, table, false).iter().map(|r| (r.a, r.b)).collect();
     let mut energy = 0.0;
     let mut v_n = vec![0.0; grid.points.len()];
     let mut v_g2 = vec![0.0; grid.points.len()];
@@ -594,32 +576,8 @@ pub fn nonlocal_for_forces(grid: &super::grid::Grid, density: &[(f64, [f64; 3])]
         let (q, dq_dn, dq_dg2) = q0_and_slopes(*n, g[0] * g[0] + g[1] * g[1] + g[2] * g[2], z_ab);
         Some(Point { at, r: *r, wn, n: *n, q, dq_dn, dq_dg2 })
     }).collect();
-    let job = |idx: &mut dyn Iterator<Item = usize>| {
-        idx.map(|i| {
-            let a = &points[i];
-            let (mut sa, mut sb, mut sc) = (0.0, 0.0, [0.0; 3]);
-            for b in &points {
-                let d = [a.r[0] - b.r[0], a.r[1] - b.r[1], a.r[2] - b.r[2]];
-                let r = (d[0] * d[0] + d[1] * d[1] + d[2] * d[2]).sqrt();
-                let (f, f1, f2) = table.phi_and_slopes(a.q * r, b.q * r);
-                sa += b.wn * f;
-                sb += b.wn * r * f1;
-                if r > 0.0 {
-                    let radial = b.wn * (a.q * f1 + b.q * f2) / r;
-                    for k in 0..3 {
-                        sc[k] += radial * d[k];
-                    }
-                }
-            }
-            (i, sa, sb, sc)
-        }).collect::<Vec<_>>()
-    };
-    let mut rows = vec![(0.0, 0.0, [0.0; 3]); points.len()];
-    for part in super::scf::parallel_interleaved(points.len(), &job) {
-        for (i, sa, sb, sc) in part {
-            rows[i] = (sa, sb, sc);
-        }
-    }
+    let row_points: Vec<RowPoint> = points.iter().map(|p| RowPoint { r: p.r, wn: p.wn, q: p.q }).collect();
+    let rows: Vec<(f64, f64, [f64; 3])> = row_engine().rows(&row_points, table, true).iter().map(|r| (r.a, r.b, r.c)).collect();
     let m = grid.points.len();
     let (mut energy, mut v_n, mut v_g2, mut de_dw, mut de_dr) = (0.0, vec![0.0; m], vec![0.0; m], vec![0.0; m], vec![[0.0; 3]; m]);
     for (p, (sa, sb, sc)) in points.iter().zip(&rows) {
@@ -630,4 +588,89 @@ pub fn nonlocal_for_forces(grid: &super::grid::Grid, density: &[(f64, [f64; 3])]
         de_dr[p.at] = [p.wn * sc[0], p.wn * sc[1], p.wn * sc[2]];
     }
     NonlocalForces { nl: Nonlocal { energy, v_n, v_g2 }, de_dw, de_dr }
+}
+
+/// One kept point as the row sums read it: where it is, its weight times its
+/// density, and its `q0`.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct RowPoint {
+    pub r: [f64; 3],
+    pub wn: f64,
+    pub q: f64,
+}
+
+/// One row of the double sum, over every point `j` (the row's own included):
+/// `a = sum_j w_j n_j phi(q_i r, q_j r)`, `b = sum_j w_j n_j r d1phi`, and,
+/// when asked for, `c = sum_j w_j n_j (q_i d1phi + q_j d2phi) (r_i - r_j) / r`.
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+pub struct RowSums {
+    pub a: f64,
+    pub b: f64,
+    pub c: [f64; 3],
+}
+
+/// What computes the double sum's rows: the one part of the non-local term
+/// that grows as the square of the points, kept behind this so that it can be
+/// done elsewhere. The CPU's ([`CpuRows`]) is the default and the reference;
+/// the owner had a single-precision GPU one built (`gpu/`, PLAY.md E7), whose
+/// precision is to be measured after E8. The core crate carries no GPU code:
+/// a program that wants one installs it with [`set_row_engine`].
+pub trait RowEngine: Send + Sync {
+    /// Every row, in the order of `points`; `c` only when `with_c`.
+    fn rows(&self, points: &[RowPoint], table: &KernelTable, with_c: bool) -> Vec<RowSums>;
+    /// A name for reports.
+    fn name(&self) -> &str;
+}
+
+/// The rows on the CPU, in double precision, each row its own sum in the
+/// order of `points` so the result does not depend on the thread count.
+pub struct CpuRows;
+
+impl RowEngine for CpuRows {
+    fn rows(&self, points: &[RowPoint], table: &KernelTable, with_c: bool) -> Vec<RowSums> {
+        let job = |idx: &mut dyn Iterator<Item = usize>| {
+            idx.map(|i| {
+                let a = &points[i];
+                let (mut sa, mut sb, mut sc) = (0.0, 0.0, [0.0; 3]);
+                for b in points {
+                    let d = [a.r[0] - b.r[0], a.r[1] - b.r[1], a.r[2] - b.r[2]];
+                    let r = (d[0] * d[0] + d[1] * d[1] + d[2] * d[2]).sqrt();
+                    let (f, f1, f2) = table.phi_and_slopes(a.q * r, b.q * r);
+                    sa += b.wn * f;
+                    sb += b.wn * r * f1;
+                    if with_c && r > 0.0 {
+                        let radial = b.wn * (a.q * f1 + b.q * f2) / r;
+                        for k in 0..3 {
+                            sc[k] += radial * d[k];
+                        }
+                    }
+                }
+                (i, RowSums { a: sa, b: sb, c: sc })
+            }).collect::<Vec<_>>()
+        };
+        let mut rows = vec![RowSums::default(); points.len()];
+        for part in super::scf::parallel_interleaved(points.len(), &job) {
+            for (i, r) in part {
+                rows[i] = r;
+            }
+        }
+        rows
+    }
+
+    fn name(&self) -> &str {
+        "cpu (f64)"
+    }
+}
+
+static ROW_ENGINE: std::sync::Mutex<Option<std::sync::Arc<dyn RowEngine>>> = std::sync::Mutex::new(None);
+
+/// Install what computes the double sum's rows for this process; `None`
+/// goes back to the CPU's.
+pub fn set_row_engine(engine: Option<std::sync::Arc<dyn RowEngine>>) {
+    *ROW_ENGINE.lock().expect("the row engine") = engine;
+}
+
+/// What computes the rows now: the installed engine, or the CPU's.
+pub fn row_engine() -> std::sync::Arc<dyn RowEngine> {
+    ROW_ENGINE.lock().expect("the row engine").clone().unwrap_or_else(|| std::sync::Arc::new(CpuRows))
 }

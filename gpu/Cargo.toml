@@ -1,0 +1,14 @@
+[package]
+name = "phys-gpu"
+version = "0.1.0"
+edition = "2021"
+description = "The non-local correlation's double sum on the GPU, in single precision (PLAY.md E7)"
+license = "MIT"
+
+# Its own crate so that the core keeps no dependencies and its wasm32 build;
+# a program installs it through phys::electrons::vdw::set_row_engine.
+[dependencies]
+phys = { path = ".." }
+wgpu = "30"
+pollster = "0.4"
+bytemuck = { version = "1", features = ["derive"] }

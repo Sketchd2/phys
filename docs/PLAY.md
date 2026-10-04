@@ -3954,6 +3954,19 @@ the start of the phase, ahead of the renderer**. In order:
      choice between the unfitted and the fitted exchange partner, and the
      final grid's tolerance — both by the owner's decision from the boiling
      points, so both wait for E8.
+     *A single-precision GPU option, built by the owner's decision, its
+     precision to be tested after E8:* the double sum's rows sit behind
+     `vdw::RowEngine`, the CPU's (`CpuRows`, double precision, unchanged to
+     the last digit) the default; `gpu/` (`phys-gpu`, wgpu, Kahan-summed rows
+     in single precision, the columns sliced so no dispatch nears Windows'
+     two-second limit) installs itself with `phys_gpu::install`. On the RTX
+     2060 via Vulkan, water at (50, 12): 0.33 s against 10.6 s on the CPU,
+     32x; E_nl 4.4e-5 relative from the CPU's and the core rows 1.2e-4 —
+     single precision's own (each kernel value is good to about 3e-7, and a
+     row's terms add to ten-odd while the row is a few hundredths, the kernel
+     integrating to zero), not the summation (Kahan off moves it 2e-12) or the
+     positions. Whether that matters for interaction energies, where the
+     dimer and its partners share their core rows, is the test after E8.
    - **E8, the liquid.** The intermolecular law, liquid-vapour coexistence
      sampled, giving `T_b`, `dH_vap`, the density at every temperature and
      the expansion. Done when the 45 molecules are reproduced without any
