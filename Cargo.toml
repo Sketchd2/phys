@@ -24,6 +24,10 @@ path = "src/lib.rs"
 # artefact nothing native ever uses.
 
 [[bin]]
+name = "phys-pairs"
+path = "src/bin/pairs.rs"
+
+[[bin]]
 name = "phys-demo"
 path = "src/bin/demo.rs"
 
