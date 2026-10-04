@@ -197,3 +197,42 @@ fn a_density_profile_counts_every_molecule() {
     println!("  {} of {} molecules in the middle third", middle, l.com.len());
     assert!(middle > 0.9 * l.com.len() as f64, "the profile is centred on the slab");
 }
+
+/// The fitter recovers a law from energies that law produced: from
+/// perturbed numbers it comes back to a residual at round-off and the
+/// original charges.
+#[test]
+fn the_fitter_recovers_a_law_from_its_own_energies() {
+    use phys::liquid::{fit_site_site, pair_energy, PairEnergy, SiteSite};
+    let truth = SiteSite { charge: vec![-0.74, 0.37], pair: vec![[60.0, 2.0, 18.0, 350.0], [4.0, 2.2, 5.0, 70.0], [4.0, 2.2, 5.0, 70.0], [0.6, 2.5, 1.2, 16.0]] };
+    let kind = water_kind();
+    let mut s = Liquid::noise(5);
+    let mut data = Vec::new();
+    while data.len() < 120 {
+        let dir = s.normal3().unit();
+        let dist = s.range(5.0, 12.0);
+        let (qa, qb) = (Quat::from_axis_angle(s.normal3().unit(), s.uniform() * 6.283), Quat::from_axis_angle(s.normal3().unit(), s.uniform() * 6.283));
+        let a: Vec<(Vec3, usize)> = kind.sites.iter().zip(&kind.types).map(|(p, t)| (qa.rotate(*p), *t)).collect();
+        let b: Vec<(Vec3, usize)> = kind.sites.iter().zip(&kind.types).map(|(p, t)| (qb.rotate(*p) + dir.scale(dist), *t)).collect();
+        let closest = a.iter().flat_map(|(p, _)| b.iter().map(move |(q, _)| (*p - *q).norm())).fold(f64::INFINITY, f64::min);
+        if closest < 2.8 {
+            continue;
+        }
+        let mut pe = PairEnergy { a, b, energy: 0.0 };
+        pe.energy = pair_energy(&truth, &pe);
+        data.push(pe);
+    }
+    let mut start = truth.clone();
+    start.charge = vec![-0.6, 0.3];
+    for p in start.pair.iter_mut() {
+        p[0] *= 1.5;
+        p[1] *= 0.9;
+        p[2] *= 1.3;
+        p[3] *= 0.7;
+    }
+    let fit = fit_site_site(&data, &[1, 2], &start, 400.0, 1e-3, 3000);
+    let spread = (data.iter().map(|d| d.energy * d.energy).sum::<f64>() / data.len() as f64).sqrt();
+    println!("  {} iterations: rms {:.2e} against energies of rms {spread:.2e}; charges {:.5} {:.5}", fit.iterations, fit.rms, fit.law.charge[0], fit.law.charge[1]);
+    assert!(fit.rms < 1e-6 * spread, "the fit left {:.2e}", fit.rms);
+    assert!((fit.law.charge[0] + 0.74).abs() < 1e-3 && (fit.law.charge[1] - 0.37).abs() < 1e-3, "the charges came back as {:?}", fit.law.charge);
+}

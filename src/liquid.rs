@@ -356,3 +356,184 @@ impl Liquid {
         hist
     }
 }
+
+/// One computed pair energy for fitting a law: the two molecules' sites (box
+/// frame, bohr) with their types, and the interaction energy (hartree).
+#[derive(Debug, Clone)]
+pub struct PairEnergy {
+    pub a: Vec<(Vec3, usize)>,
+    pub b: Vec<(Vec3, usize)>,
+    pub energy: f64,
+}
+
+/// A law's energy for one pair configuration.
+pub fn pair_energy(law: &dyn SiteLaw, pair: &PairEnergy) -> f64 {
+    let mut e = 0.0;
+    for (pa, ta) in &pair.a {
+        for (pb, tb) in &pair.b {
+            e += law.site_pair(*ta, *tb, (*pa - *pb).norm()).0;
+        }
+    }
+    e
+}
+
+/// What a fit produced: the law, and its weighted and unweighted root-mean-
+/// square residuals over the data it was fitted to.
+pub struct Fitted {
+    pub law: SiteSite,
+    pub weighted_rms: f64,
+    pub rms: f64,
+    pub iterations: usize,
+}
+
+/// Fit route A's site-site law to computed pair energies by Levenberg-
+/// Marquardt, every number from the energies alone (PLAY.md E8): charges per
+/// type with the molecule kept neutral (`multiplicity[t]` sites of type `t`
+/// in one molecule), and per pair of types `A, B, C6, C8`, each fitted
+/// through its logarithm so it stays positive. Each configuration weighs
+/// `exp(-(E - E_min) / (k T))`, held at least at `floor`, so the fit spends
+/// itself where the liquid goes while the repulsive wall still counts.
+pub fn fit_site_site(data: &[PairEnergy], multiplicity: &[usize], start: &SiteSite, temperature: f64, floor: f64, max_iterations: usize) -> Fitted {
+    let types = start.charge.len();
+    let pairs: Vec<(usize, usize)> = (0..types).flat_map(|a| (a..types).map(move |b| (a, b))).collect();
+    // Parameters: charges of types 0..types-1 (the last is set by
+    // neutrality), then per unique pair ln A, ln B, ln C6, ln C8.
+    let pack = |law: &SiteSite| -> Vec<f64> {
+        let mut x: Vec<f64> = law.charge[..types - 1].to_vec();
+        for &(a, b) in &pairs {
+            for v in law.pair[a * types + b] {
+                x.push(v.max(1e-300).ln());
+            }
+        }
+        x
+    };
+    let unpack = |x: &[f64]| -> SiteSite {
+        let mut charge: Vec<f64> = x[..types - 1].to_vec();
+        let partial: f64 = charge.iter().zip(multiplicity).map(|(q, m)| q * *m as f64).sum();
+        charge.push(-partial / multiplicity[types - 1] as f64);
+        let mut pair = vec![[0.0; 4]; types * types];
+        for (k, &(a, b)) in pairs.iter().enumerate() {
+            let o = types - 1 + 4 * k;
+            let v = [x[o].exp(), x[o + 1].exp(), x[o + 2].exp(), x[o + 3].exp()];
+            pair[a * types + b] = v;
+            pair[b * types + a] = v;
+        }
+        SiteSite { charge, pair }
+    };
+    let e_min = data.iter().map(|d| d.energy).fold(f64::INFINITY, f64::min);
+    let kt = K_B * temperature;
+    let weights: Vec<f64> = data.iter().map(|d| (-(d.energy - e_min) / kt).exp().max(floor)).collect();
+    let residuals = |x: &[f64]| -> Vec<f64> {
+        let law = unpack(x);
+        data.iter().zip(&weights).map(|(d, w)| w.sqrt() * (pair_energy(&law, d) - d.energy)).collect()
+    };
+    let cost = |r: &[f64]| r.iter().map(|v| v * v).sum::<f64>();
+    let mut x = pack(start);
+    let np = x.len();
+    let mut r = residuals(&x);
+    let mut c = cost(&r);
+    let mut lambda = 1e-3;
+    let mut iterations = 0;
+    for it in 0..max_iterations {
+        iterations = it + 1;
+        // Jacobian by central differences: a handful of parameters, cheap.
+        let mut jac = vec![vec![0.0; np]; r.len()];
+        for p in 0..np {
+            let h = 1e-6 * x[p].abs().max(1e-3);
+            let (mut xp, mut xm) = (x.clone(), x.clone());
+            xp[p] += h;
+            xm[p] -= h;
+            let (rp, rm) = (residuals(&xp), residuals(&xm));
+            for i in 0..r.len() {
+                jac[i][p] = (rp[i] - rm[i]) / (2.0 * h);
+            }
+        }
+        let mut jtj = vec![vec![0.0; np]; np];
+        let mut jtr = vec![0.0; np];
+        for i in 0..r.len() {
+            for p in 0..np {
+                jtr[p] += jac[i][p] * r[i];
+                for q in 0..np {
+                    jtj[p][q] += jac[i][p] * jac[i][q];
+                }
+            }
+        }
+        let mut improved = false;
+        for _ in 0..30 {
+            let mut m = crate::electrons::linalg::Matrix::zeros(np);
+            for p in 0..np {
+                for q in 0..np {
+                    m.set(p, q, jtj[p][q] + if p == q { lambda * jtj[p][p].max(1e-30) } else { 0.0 });
+                }
+            }
+            let Some(step) = solve_dense(&m, &jtr) else {
+                lambda *= 10.0;
+                continue;
+            };
+            let trial: Vec<f64> = x.iter().zip(&step).map(|(a, s)| a - s).collect();
+            let rt = residuals(&trial);
+            let ct = cost(&rt);
+            if ct.is_finite() && ct < c {
+                x = trial;
+                r = rt;
+                let gain = (c - ct) / c.max(1e-300);
+                c = ct;
+                lambda = (lambda / 3.0).max(1e-12);
+                improved = true;
+                if gain < 1e-10 {
+                    lambda = f64::INFINITY;
+                }
+                break;
+            }
+            lambda *= 4.0;
+        }
+        if !improved || !lambda.is_finite() {
+            break;
+        }
+    }
+    let law = unpack(&x);
+    let wsum: f64 = weights.iter().sum();
+    let weighted_rms = (c / wsum).sqrt();
+    let rms = (data.iter().map(|d| (pair_energy(&law, d) - d.energy).powi(2)).sum::<f64>() / data.len() as f64).sqrt();
+    Fitted { law, weighted_rms, rms, iterations }
+}
+
+/// Solve a small dense symmetric positive system by Cholesky; `None` if it
+/// is not positive definite.
+fn solve_dense(m: &crate::electrons::linalg::Matrix, b: &[f64]) -> Option<Vec<f64>> {
+    let n = m.n;
+    let mut l = vec![0.0; n * n];
+    for i in 0..n {
+        for j in 0..=i {
+            let mut s = m.get(i, j);
+            for k in 0..j {
+                s -= l[i * n + k] * l[j * n + k];
+            }
+            if i == j {
+                if s <= 0.0 {
+                    return None;
+                }
+                l[i * n + i] = s.sqrt();
+            } else {
+                l[i * n + j] = s / l[j * n + j];
+            }
+        }
+    }
+    let mut y = vec![0.0; n];
+    for i in 0..n {
+        let mut s = b[i];
+        for k in 0..i {
+            s -= l[i * n + k] * y[k];
+        }
+        y[i] = s / l[i * n + i];
+    }
+    let mut x = vec![0.0; n];
+    for i in (0..n).rev() {
+        let mut s = y[i];
+        for k in i + 1..n {
+            s -= l[k * n + i] * x[k];
+        }
+        x[i] = s / l[i * n + i];
+    }
+    Some(x)
+}
