@@ -255,3 +255,11 @@ fn a_slab_is_built_at_its_density() {
     let p = slab.momentum.iter().fold(Vec3::ZERO, |a, x| a + *x).norm();
     assert!(p < 1e-9, "the slab is at rest overall");
 }
+
+/// A fitted law survives being written and read back, to the bit.
+#[test]
+fn a_law_reads_back_exactly() {
+    use phys::liquid::SiteSite;
+    let law = SiteSite { charge: vec![-0.7123456789012345, 0.35617283945061725], pair: vec![[40.1, 1.93, 15.2, 301.0], [3.01, 2.11, 4.02, 60.3], [3.01, 2.11, 4.02, 60.3], [0.51, 2.42, 1.03, 15.4]] };
+    assert_eq!(SiteSite::from_text(&law.to_text()), Some(law));
+}

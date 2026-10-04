@@ -24,6 +24,10 @@ path = "src/lib.rs"
 # artefact nothing native ever uses.
 
 [[bin]]
+name = "phys-coexist"
+path = "src/bin/coexist.rs"
+
+[[bin]]
 name = "phys-pairs"
 path = "src/bin/pairs.rs"
 

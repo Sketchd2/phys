@@ -593,3 +593,45 @@ pub fn coexisting_densities(profile: &[f64], core: f64, far: f64) -> (f64, f64) 
     let vapour = (profile[..edge].iter().sum::<f64>() + profile[n - edge..].iter().sum::<f64>()) / (2 * edge) as f64;
     (liquid, vapour)
 }
+
+impl SiteSite {
+    /// As text: a line of charges, then a line `a b A B C6 C8` for each pair
+    /// of types with `a <= b`, every number to the last digit.
+    pub fn to_text(&self) -> String {
+        let types = self.charge.len();
+        let mut s = format!("charges {}\n", self.charge.iter().map(|q| format!("{q:e}")).collect::<Vec<_>>().join(" "));
+        for a in 0..types {
+            for b in a..types {
+                let p = self.pair[a * types + b];
+                s += &format!("pair {a} {b} {:e} {:e} {:e} {:e}\n", p[0], p[1], p[2], p[3]);
+            }
+        }
+        s
+    }
+
+    /// Read back what [`SiteSite::to_text`] wrote.
+    pub fn from_text(text: &str) -> Option<SiteSite> {
+        let mut charge = Vec::new();
+        let mut pairs = Vec::new();
+        for line in text.lines() {
+            let w: Vec<&str> = line.split_whitespace().collect();
+            match w.first().copied() {
+                Some("charges") => charge = w[1..].iter().map(|x| x.parse().ok()).collect::<Option<Vec<f64>>>()?,
+                Some("pair") if w.len() == 7 => {
+                    let (a, b): (usize, usize) = (w[1].parse().ok()?, w[2].parse().ok()?);
+                    let v: Vec<f64> = w[3..].iter().map(|x| x.parse().ok()).collect::<Option<Vec<f64>>>()?;
+                    pairs.push((a, b, [v[0], v[1], v[2], v[3]]));
+                }
+                None => {}
+                _ => return None,
+            }
+        }
+        let types = charge.len();
+        let mut pair = vec![[0.0; 4]; types * types];
+        for (a, b, v) in pairs {
+            pair[a * types + b] = v;
+            pair[b * types + a] = v;
+        }
+        Some(SiteSite { charge, pair })
+    }
+}
