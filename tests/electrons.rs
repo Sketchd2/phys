@@ -847,3 +847,61 @@ fn the_coulomb_fit_is_the_same_however_much_of_it_is_stored() {
     }
     assert_eq!(all.stored_fraction(), 1.0);
 }
+
+/// A table spilled to disk is read back to the same bits as one held in
+/// memory, whatever is left in memory and however it is sliced; its file is
+/// deleted when the table is dropped; a table over the cap or a disk that
+/// cannot be written to leaves the fit exactly as if there were no disk; and
+/// the three solves of a counterpoise correction share one table.
+#[test]
+fn a_spilled_table_is_the_same_bits_and_is_shared() {
+    use phys::electrons::scf::{FitCache, Fitted, SpillTo};
+    let atoms = vec![(8.0, [0.05, -0.03, 0.02]), (1.0, [0.0, 1.43, 1.1]), (1.0, [0.1, -1.43, 1.0])];
+    let p = small_molecule(&atoms);
+    let s = solve(&p, 200, 1e-11);
+    let mut d = s.density_alpha.clone();
+    for k in 0..d.a.len() {
+        d.a[k] += s.density_beta.a[k];
+    }
+    let (sm, _, _) = phys::electrons::integrals::one_electron(&p.basis, &p.nuclei);
+    let aux = p.auxiliary.as_ref().unwrap();
+    let all = Fitted::new_within(&p.basis, aux, &sm, usize::MAX);
+    let (c_all, (j_all, e_all)) = (all.coefficients(&d), all.coulomb_and_energy(&d));
+    let dir = std::env::temp_dir().join(format!("phys-spill-test-{}", std::process::id()));
+    let to = SpillTo { dir: dir.clone(), cap_bytes: u64::MAX };
+    for (budget, slice) in [(0usize, usize::MAX), (0, 1), (200_000, 50_000)] {
+        let mut part = Fitted::new_within_spill(&p.basis, aux, &sm, budget, Some(&to));
+        part.set_slice_bytes(slice);
+        assert!(part.is_spilled(), "the rest went to disk");
+        let (c, (j, e)) = (part.coefficients(&d), part.coulomb_and_energy(&d));
+        println!("  budget {budget} B, slices of {slice} B: {:.0}% in memory, the rest on disk; E_J {e:.15}", 100.0 * part.stored_fraction());
+        assert!(c.iter().zip(&c_all).all(|(a, b)| a.to_bits() == b.to_bits()), "the coefficients differ");
+        assert!(j.a.iter().zip(&j_all.a).all(|(a, b)| a.to_bits() == b.to_bits()), "the Coulomb matrix differs");
+        assert_eq!(e.to_bits(), e_all.to_bits());
+    }
+    let files = || std::fs::read_dir(&dir).map(|r| r.count()).unwrap_or(0);
+    assert_eq!(files(), 0, "a dropped table leaves no file");
+    // Over the cap: no file, same answer.
+    let capped = SpillTo { dir: dir.clone(), cap_bytes: 10 };
+    let c10 = Fitted::new_within_spill(&p.basis, aux, &sm, 0, Some(&capped));
+    assert!(!c10.is_spilled() && files() == 0, "a table over the cap is not spilled");
+    assert!(c10.coefficients(&d).iter().zip(&c_all).all(|(a, b)| a.to_bits() == b.to_bits()));
+    // A disk that cannot be written to: a path under a file.
+    let blocker = std::env::temp_dir().join(format!("phys-spill-blocker-{}", std::process::id()));
+    std::fs::write(&blocker, b"x").unwrap();
+    let bad = SpillTo { dir: blocker.join("under"), cap_bytes: u64::MAX };
+    let failed = Fitted::new_within_spill(&p.basis, aux, &sm, 0, Some(&bad));
+    assert!(!failed.is_spilled(), "a failed write leaves no spill");
+    assert!(failed.coefficients(&d).iter().zip(&c_all).all(|(a, b)| a.to_bits() == b.to_bits()));
+    let _ = std::fs::remove_file(&blocker);
+    let _ = std::fs::remove_dir_all(&dir);
+    // Sharing: the same basis again is the same table, another is not.
+    let cache = FitCache::new();
+    let first = Fitted::new_cached(&cache, &p.basis, aux, &sm);
+    let again = Fitted::new_cached(&cache, &p.basis, aux, &sm);
+    assert!(first.shares_table_with(&again), "the same basis shares its table");
+    assert!(first.coefficients(&d).iter().zip(&c_all).all(|(a, b)| a.to_bits() == b.to_bits()));
+    let moved = small_molecule(&[(8.0, [0.05, -0.03, 0.021]), (1.0, [0.0, 1.43, 1.1]), (1.0, [0.1, -1.43, 1.0])]);
+    let other = Fitted::new_cached(&cache, &moved.basis, moved.auxiliary.as_ref().unwrap(), &sm);
+    assert!(!first.shares_table_with(&other), "a basis that moved does not");
+}

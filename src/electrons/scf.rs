@@ -222,7 +222,12 @@ impl Repulsion {
 /// auxiliary functions rather than in the square of the primitives. In the
 /// Coulomb metric the fitted energy is a strict lower bound of the exact one,
 /// and the gap is quadratic in the fitting error.
-pub struct Fitted {
+/// What a fit is built from and holds, shared by every [`Fitted`] made of the
+/// same basis: a counterpoise calculation solves a complex and each partner in
+/// the complex's basis, and all three have the same three-centre table and the
+/// same fitting metric.
+#[doc(hidden)]
+pub struct Table {
     n: usize,
     /// What the three-centre integrals `(mn|P)` are built from, kept so that
     /// any block not stored can be built again when it is needed.
@@ -237,10 +242,11 @@ pub struct Fitted {
     order: Vec<usize>,
     /// The blocks of the first `stored.len()` positions of `order`, as
     /// `(m, n, values over P)` for each pair of functions `m >= n`; the rest
-    /// are built when visited (see [`Fitted::new`]).
+    /// are on disk or built when visited (see [`Fitted::new`]).
     stored: Vec<Vec<(usize, usize, Vec<f64>)>>,
-    /// The working space a slice of the blocks not stored may take.
-    slice_bytes: usize,
+    /// The blocks after those, written to disk in visiting order as exact
+    /// 64-bit values, if there was room for them there.
+    spill: Option<Spill>,
     /// The auxiliary functions the fit uses, and the Cholesky factor of the
     /// metric over them (see [`Fitted::new`]).
     kept: Vec<usize>,
@@ -250,19 +256,111 @@ pub struct Fitted {
     dropped: usize,
 }
 
+/// A file of a table's blocks, deleted when the table is dropped.
+struct Spill {
+    path: std::path::PathBuf,
+}
+
+impl Drop for Spill {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_file(&self.path);
+    }
+}
+
+/// Where a table may be spilled, and how much of the disk it may take.
+#[derive(Debug, Clone)]
+pub struct SpillTo {
+    pub dir: std::path::PathBuf,
+    pub cap_bytes: u64,
+}
+
+impl SpillTo {
+    /// From `PHYS_SPILL_DIR` (where) and `PHYS_SPILL_MAX_GB` (how much, 40 by
+    /// default): nothing is spilled unless the first is set.
+    pub fn from_environment() -> Option<SpillTo> {
+        let dir = std::env::var_os("PHYS_SPILL_DIR")?;
+        let gb: f64 = std::env::var("PHYS_SPILL_MAX_GB").ok().and_then(|v| v.parse().ok()).unwrap_or(40.0);
+        Some(SpillTo { dir: dir.into(), cap_bytes: (gb * 1e9) as u64 })
+    }
+}
+
+/// The fit most recently built, which the next fit of the same basis reuses.
+pub struct FitCache {
+    slot: std::sync::Mutex<Option<std::sync::Arc<Table>>>,
+}
+
+impl FitCache {
+    pub const fn new() -> FitCache {
+        FitCache { slot: std::sync::Mutex::new(None) }
+    }
+}
+
+impl Default for FitCache {
+    fn default() -> FitCache {
+        FitCache::new()
+    }
+}
+
+static GLOBAL_FIT_CACHE: FitCache = FitCache::new();
+
+pub struct Fitted {
+    t: std::sync::Arc<Table>,
+    /// The working space a slice of the blocks not stored may take.
+    slice_bytes: usize,
+}
+
+impl std::ops::Deref for Fitted {
+    type Target = Table;
+    fn deref(&self) -> &Table {
+        &self.t
+    }
+}
+
 impl Fitted {
     /// The fit, storing as much of its three-centre table as half the
     /// physical memory free right now allows (all of it where that cannot be
-    /// asked, as under wasm32). An 808-function water dimer's table is 29 GB,
-    /// and stored whole on the owner's 16 GB machine it ran from the page file
-    /// at a fifth of its speed.
+    /// asked, as under wasm32), spilling what does not fit to the disk
+    /// `PHYS_SPILL_DIR` names if it is set, and rebuilding any remainder. An
+    /// 808-function water dimer's table is 29 GB, and stored whole on the
+    /// owner's 16 GB machine it ran from the page file at a fifth of its
+    /// speed.
+    ///
+    /// A fit of the same basis as the last one built is that fit again: the
+    /// three solves of a counterpoise correction share one table and one
+    /// factorised metric, and the values are the same bits.
     pub fn new(basis: &Basis, aux: &Basis, s: &Matrix) -> Fitted {
-        let budget = free_physical_memory().map(|b| (b / 2) as usize).unwrap_or(usize::MAX);
-        Fitted::new_within(basis, aux, s, budget)
+        Fitted::new_cached(&GLOBAL_FIT_CACHE, basis, aux, s)
     }
 
-    /// The fit, storing at most `budget_bytes` of its three-centre table.
+    /// As [`Fitted::new`], remembering in `cache` rather than the process's.
+    pub fn new_cached(cache: &FitCache, basis: &Basis, aux: &Basis, s: &Matrix) -> Fitted {
+        if let Some(t) = cache.slot.lock().expect("the fit cache").as_ref() {
+            if t.basis.shells == basis.shells && t.aux.shells == aux.shells {
+                return Fitted { t: t.clone(), slice_bytes: SLICE_BYTES };
+            }
+        }
+        let budget = free_physical_memory().map(|b| (b / 2) as usize).unwrap_or(usize::MAX);
+        let fitted = Fitted::new_within_spill(basis, aux, s, budget, SpillTo::from_environment().as_ref());
+        *cache.slot.lock().expect("the fit cache") = Some(fitted.t.clone());
+        fitted
+    }
+
+    /// Whether `other` is this fit's own table, not a second one of the same
+    /// values.
+    pub fn shares_table_with(&self, other: &Fitted) -> bool {
+        std::sync::Arc::ptr_eq(&self.t, &other.t)
+    }
+
+    /// The fit, storing at most `budget_bytes` of its three-centre table in
+    /// memory and rebuilding the rest on every visit.
     pub fn new_within(basis: &Basis, aux: &Basis, s: &Matrix, budget_bytes: usize) -> Fitted {
+        Fitted::new_within_spill(basis, aux, s, budget_bytes, None)
+    }
+
+    /// The fit, storing at most `budget_bytes` of its table in memory, then
+    /// as much as the cap allows on disk, and rebuilding the rest on every
+    /// visit. Always a table of its own.
+    pub fn new_within_spill(basis: &Basis, aux: &Basis, s: &Matrix, budget_bytes: usize, spill: Option<&SpillTo>) -> Fitted {
         use super::basis::Shell;
         let unit = Shell::unit();
         let na = aux.size;
@@ -310,7 +408,8 @@ impl Fitted {
         let kets: Vec<Vec<super::integrals::Pair>> = aux.shells.iter().map(|p| super::integrals::pairs(p, &unit, 0)).collect();
         let workers = worker_count(pairs.len());
         let order: Vec<usize> = (0..workers).flat_map(|w| (w..pairs.len()).step_by(workers)).collect();
-        let mut fitted = Fitted { n, basis: basis.clone(), aux: aux.clone(), kets, pairs, order, stored: Vec::new(), slice_bytes: SLICE_BYTES, kept, factor, metric: v, dropped };
+        let table = Table { n, basis: basis.clone(), aux: aux.clone(), kets, pairs, order, stored: Vec::new(), spill: None, kept, factor, metric: v, dropped };
+        let mut fitted = Fitted { t: std::sync::Arc::new(table), slice_bytes: SLICE_BYTES };
         // As much of the table as fits in the budget is stored, in visiting
         // order; the rest is built again each time it is visited. Built again
         // from the same integrals in the same order, the values and every sum
@@ -327,23 +426,92 @@ impl Fitted {
             count += 1;
         }
         let positions: Vec<usize> = (0..count).collect();
-        fitted.stored = fitted.blocks(&positions);
+        let stored = fitted.blocks(&positions);
+        // What is left goes to disk if there is a disk for it and the cap
+        // allows, written once in visiting order and read back in the same
+        // order: exact 64-bit values, so every sum is unchanged. A write that
+        // fails — a full disk — leaves the table as if there were no disk, and
+        // says so.
+        let remaining = fitted.order.len() - count;
+        let mut spilled = None;
+        if let (Some(to), true) = (spill, remaining > 0) {
+            let need: u64 = (count..fitted.order.len()).map(|k| (fitted.entries_of(fitted.order[k]).len() * na * 8) as u64).sum();
+            if need <= to.cap_bytes {
+                match fitted.write_spill(to, count) {
+                    Ok(sp) => spilled = Some(sp),
+                    Err(e) => eprintln!("could not spill a {:.1} GB table to {}: {e}; rebuilding it instead", need as f64 / 1e9, to.dir.display()),
+                }
+            } else {
+                eprintln!("a {:.1} GB table is over the {:.1} GB spill cap; rebuilding it instead", need as f64 / 1e9, to.cap_bytes as f64 / 1e9);
+            }
+        }
+        let t = std::sync::Arc::get_mut(&mut fitted.t).expect("the table is not yet shared");
+        t.stored = stored;
+        t.spill = spilled;
         fitted
     }
 
-    /// Bytes the block of shell pair `pi` holds.
-    fn block_bytes(&self, pi: usize) -> usize {
+    /// The pairs of functions `(m, n)`, `m >= n`, that shell pair `pi` holds,
+    /// in the order its block stores them.
+    fn entries_of(&self, pi: usize) -> Vec<(usize, usize)> {
         let (a, b) = self.pairs[pi];
         let (sa, sb) = (&self.basis.shells[a], &self.basis.shells[b]);
-        let mut entries = 0;
+        let mut out = Vec::new();
         for i in 0..sa.size() {
             for j in 0..sb.size() {
-                if self.basis.offsets[a] + i >= self.basis.offsets[b] + j {
-                    entries += 1;
+                let (m, nn) = (self.basis.offsets[a] + i, self.basis.offsets[b] + j);
+                if m >= nn {
+                    out.push((m, nn));
                 }
             }
         }
-        entries * (self.aux.size * 8 + 48)
+        out
+    }
+
+    /// Bytes the block of shell pair `pi` holds in memory.
+    fn block_bytes(&self, pi: usize) -> usize {
+        self.entries_of(pi).len() * (self.aux.size * 8 + 48)
+    }
+
+    /// Slices of the visiting order from position `from`, each as many blocks
+    /// as fit in `slice_bytes` (always at least one).
+    fn slices_from(&self, from: usize) -> Vec<(usize, usize)> {
+        let mut out = Vec::new();
+        let mut pos = from;
+        while pos < self.order.len() {
+            let mut end = pos;
+            let mut bytes = 0;
+            while end < self.order.len() && (end == pos || bytes + self.block_bytes(self.order[end]) <= self.slice_bytes) {
+                bytes += self.block_bytes(self.order[end]);
+                end += 1;
+            }
+            out.push((pos, end));
+            pos = end;
+        }
+        out
+    }
+
+    /// Write the blocks from position `from` on, built a slice at a time, to
+    /// a file of their own.
+    fn write_spill(&self, to: &SpillTo, from: usize) -> std::io::Result<Spill> {
+        use std::io::Write;
+        static COUNTER: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+        std::fs::create_dir_all(&to.dir)?;
+        let path = to.dir.join(format!("phys-fit-{}-{}.bin", std::process::id(), COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed)));
+        let sp = Spill { path };
+        let mut out = std::io::BufWriter::with_capacity(1 << 25, std::fs::File::create(&sp.path)?);
+        for (pos, end) in self.slices_from(from) {
+            let positions: Vec<usize> = (pos..end).collect();
+            for block in self.blocks(&positions) {
+                for (_, _, vals) in &block {
+                    for v in vals {
+                        out.write_all(&v.to_le_bytes())?;
+                    }
+                }
+            }
+        }
+        out.flush()?;
+        Ok(sp)
     }
 
     /// The blocks at the given positions of the visiting order, built across
@@ -395,29 +563,39 @@ impl Fitted {
     }
 
     /// Every `(m, n, (mn|P))` of the table, in the visiting order: the stored
-    /// blocks, then the rest built a slice at a time — each slice across
-    /// threads into a bounded working space, then handed over in order.
+    /// blocks, then those on disk read back a slice at a time, then any
+    /// remainder built a slice at a time — each slice across threads into a
+    /// bounded working space, then handed over in order.
     fn visit(&self, f: &mut dyn FnMut(usize, usize, &[f64])) {
+        use std::io::Read;
         for block in &self.stored {
             for (m, nn, vals) in block {
                 f(*m, *nn, vals);
             }
         }
         let mut pos = self.stored.len();
-        while pos < self.order.len() {
-            let mut end = pos;
-            let mut bytes = 0;
-            while end < self.order.len() && (end == pos || bytes + self.block_bytes(self.order[end]) <= self.slice_bytes) {
-                bytes += self.block_bytes(self.order[end]);
-                end += 1;
+        if let Some(sp) = &self.spill {
+            let na = self.aux.size;
+            let mut file = std::io::BufReader::with_capacity(1 << 26, std::fs::File::open(&sp.path).unwrap_or_else(|e| panic!("the spilled table {} cannot be read: {e}", sp.path.display())));
+            let mut bytes = Vec::new();
+            for (start, end) in self.slices_from(pos) {
+                let entries: Vec<(usize, usize)> = (start..end).flat_map(|k| self.entries_of(self.order[k])).collect();
+                bytes.resize(entries.len() * na * 8, 0);
+                file.read_exact(&mut bytes).unwrap_or_else(|e| panic!("the spilled table {} is short: {e}", sp.path.display()));
+                let vals: Vec<f64> = bytes.chunks_exact(8).map(|c| f64::from_le_bytes(c.try_into().expect("eight bytes"))).collect();
+                for (k, (m, nn)) in entries.iter().enumerate() {
+                    f(*m, *nn, &vals[k * na..(k + 1) * na]);
+                }
+                pos = end;
             }
-            let positions: Vec<usize> = (pos..end).collect();
+        }
+        for (start, end) in self.slices_from(pos) {
+            let positions: Vec<usize> = (start..end).collect();
             for block in self.blocks(&positions) {
                 for (m, nn, vals) in &block {
                     f(*m, *nn, vals);
                 }
             }
-            pos = end;
         }
     }
 
@@ -427,9 +605,14 @@ impl Fitted {
         self.slice_bytes = bytes;
     }
 
-    /// How much of the table is stored, as a fraction of its blocks.
+    /// How much of the table is stored in memory, as a fraction of its blocks.
     pub fn stored_fraction(&self) -> f64 {
         self.stored.len() as f64 / self.order.len().max(1) as f64
+    }
+
+    /// Whether the rest of the table is on disk.
+    pub fn is_spilled(&self) -> bool {
+        self.spill.is_some()
     }
 
     /// Auxiliary directions the metric's cutoff dropped.

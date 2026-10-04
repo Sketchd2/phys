@@ -4008,6 +4008,27 @@ the start of the phase, ahead of the renderer**. In order:
      and its residual; E6's site-site potential; rigid-body dynamics of a slab
      against its vapour, with periodic boundaries; and the four boiling
      points, at both exchange partners and two tolerances.
+     *Does route A's pair data need a grown basis? Measured, the S22 water
+     dimer, counterpoise corrected, PBE exchange with the non-local term, in
+     kcal/mol:* the per-element basis (428 functions) 5.5554; water's round-4
+     grown basis on each monomer (320 functions, the first 18 chosen rungs)
+     **5.5671** — 0.012 apart, 0.2%, under the 0.05 the fit needs and well
+     under the 0.5 the exchange partner moves it. So the cheap basis stands
+     for this geometry (the equilibrium dimer; the repulsive wall and the far
+     tail, and the other three molecules, are not yet measured). The fully
+     grown 808-function dimer was started as the exact answer, found to hold a
+     29 GB table on a 16 GB machine, and is not needed for the decision.
+     *Memory and disk, found on the way:* the Coulomb fit's three-centre
+     table now stores only what half the free RAM allows, spills the rest to
+     the disk `PHYS_SPILL_DIR` names (at most `PHYS_SPILL_MAX_GB`, 40 by
+     default; a full or unwritable disk falls back to rebuilding, said aloud),
+     and the three solves of a counterpoise correction share one table and
+     one factorised metric. Every path is bit-identical, tested on checksums.
+     The owner chose the SATA SSD (H:) for the spill. Measured with the
+     other jobs running: H: writes 0.16 and reads 0.41 GB/s, the NVMe (C:)
+     0.26-0.48 and 0.85; on the 320-function dimer's table one visit takes
+     23.1 s rebuilt against 2.0 s from H: and 1.2 s from C: (the table is
+     small enough that the second read was probably cached).
      *Probing by symmetry, allowed by the owner:* growth probed every internal
      coordinate twice, and methane's tenth-of-the-way rounds were taking two
      hours. A coordinate that a symmetry of the molecule (a permutation of its
