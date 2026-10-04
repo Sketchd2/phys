@@ -55,6 +55,7 @@ pub mod electrons;
 pub mod eos;
 pub mod erode;
 pub mod ids;
+pub mod liquid;
 pub mod material;
 pub mod math;
 pub mod morph;
