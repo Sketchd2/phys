@@ -224,8 +224,23 @@ impl Repulsion {
 /// and the gap is quadratic in the fitting error.
 pub struct Fitted {
     n: usize,
-    /// `(mn|P)` for each kept pair `m >= n`: `(m, n, values over P)`.
-    three: Vec<(usize, usize, Vec<f64>)>,
+    /// What the three-centre integrals `(mn|P)` are built from, kept so that
+    /// any block not stored can be built again when it is needed.
+    basis: Basis,
+    aux: Basis,
+    kets: Vec<Vec<super::integrals::Pair>>,
+    /// Shell pairs whose product is not negligible.
+    pairs: Vec<(usize, usize)>,
+    /// The order the blocks are always visited in: worker by worker, each
+    /// worker's pairs in turn, which is the order the table was first laid out
+    /// in when it was all stored, so that every sum over it adds in that order.
+    order: Vec<usize>,
+    /// The blocks of the first `stored.len()` positions of `order`, as
+    /// `(m, n, values over P)` for each pair of functions `m >= n`; the rest
+    /// are built when visited (see [`Fitted::new`]).
+    stored: Vec<Vec<(usize, usize, Vec<f64>)>>,
+    /// The working space a slice of the blocks not stored may take.
+    slice_bytes: usize,
     /// The auxiliary functions the fit uses, and the Cholesky factor of the
     /// metric over them (see [`Fitted::new`]).
     kept: Vec<usize>,
@@ -236,7 +251,18 @@ pub struct Fitted {
 }
 
 impl Fitted {
+    /// The fit, storing as much of its three-centre table as half the
+    /// physical memory free right now allows (all of it where that cannot be
+    /// asked, as under wasm32). An 808-function water dimer's table is 29 GB,
+    /// and stored whole on the owner's 16 GB machine it ran from the page file
+    /// at a fifth of its speed.
     pub fn new(basis: &Basis, aux: &Basis, s: &Matrix) -> Fitted {
+        let budget = free_physical_memory().map(|b| (b / 2) as usize).unwrap_or(usize::MAX);
+        Fitted::new_within(basis, aux, s, budget)
+    }
+
+    /// The fit, storing at most `budget_bytes` of its three-centre table.
+    pub fn new_within(basis: &Basis, aux: &Basis, s: &Matrix, budget_bytes: usize) -> Fitted {
         use super::basis::Shell;
         let unit = Shell::unit();
         let na = aux.size;
@@ -282,39 +308,128 @@ impl Fitted {
         }).collect();
         // Each auxiliary shell's pair with the unit function, built once.
         let kets: Vec<Vec<super::integrals::Pair>> = aux.shells.iter().map(|p| super::integrals::pairs(p, &unit, 0)).collect();
+        let workers = worker_count(pairs.len());
+        let order: Vec<usize> = (0..workers).flat_map(|w| (w..pairs.len()).step_by(workers)).collect();
+        let mut fitted = Fitted { n, basis: basis.clone(), aux: aux.clone(), kets, pairs, order, stored: Vec::new(), slice_bytes: SLICE_BYTES, kept, factor, metric: v, dropped };
+        // As much of the table as fits in the budget is stored, in visiting
+        // order; the rest is built again each time it is visited. Built again
+        // from the same integrals in the same order, the values and every sum
+        // over them are bit-identical however much is stored — so the result
+        // does not depend on how much memory the machine had free.
+        let mut bytes = 0usize;
+        let mut count = 0;
+        for &pi in &fitted.order {
+            let size = fitted.block_bytes(pi);
+            if bytes + size > budget_bytes {
+                break;
+            }
+            bytes += size;
+            count += 1;
+        }
+        let positions: Vec<usize> = (0..count).collect();
+        fitted.stored = fitted.blocks(&positions);
+        fitted
+    }
+
+    /// Bytes the block of shell pair `pi` holds.
+    fn block_bytes(&self, pi: usize) -> usize {
+        let (a, b) = self.pairs[pi];
+        let (sa, sb) = (&self.basis.shells[a], &self.basis.shells[b]);
+        let mut entries = 0;
+        for i in 0..sa.size() {
+            for j in 0..sb.size() {
+                if self.basis.offsets[a] + i >= self.basis.offsets[b] + j {
+                    entries += 1;
+                }
+            }
+        }
+        entries * (self.aux.size * 8 + 48)
+    }
+
+    /// The blocks at the given positions of the visiting order, built across
+    /// threads and returned in the order asked for.
+    fn blocks(&self, positions: &[usize]) -> Vec<Vec<(usize, usize, Vec<f64>)>> {
+        let na = self.aux.size;
+        let shells = &self.basis.shells;
         let job = |indices: &mut dyn Iterator<Item = usize>| {
-            let mut out: Vec<(usize, usize, Vec<f64>)> = Vec::new();
+            let mut out: Vec<(usize, Vec<(usize, usize, Vec<f64>)>)> = Vec::new();
             // One worker's working space, kept across its calls: allocating
             // it per call made the threads queue on the allocator.
             let mut scratch = super::integrals::ThreeScratch::new();
             let mut block = Vec::new();
-            for (a, b) in indices.map(|i| pairs[i]) {
+            for k in indices {
+                let (a, b) = self.pairs[self.order[positions[k]]];
                 let (sa, sb) = (&shells[a], &shells[b]);
                 let bra = super::integrals::pairs(sa, sb, 0);
                 let mut vals = vec![vec![0.0; na]; sa.size() * sb.size()];
-                for (ip, p) in aux.shells.iter().enumerate() {
-                    super::integrals::eri_three_into(&bra, &kets[ip], sa.l, sb.l, p.l, &mut scratch, &mut block);
+                for (ip, p) in self.aux.shells.iter().enumerate() {
+                    super::integrals::eri_three_into(&bra, &self.kets[ip], sa.l, sb.l, p.l, &mut scratch, &mut block);
                     for i in 0..sa.size() {
                         for j in 0..sb.size() {
-                            for k in 0..p.size() {
-                                vals[i * sb.size() + j][aux.offsets[ip] + k] = block[(i * sb.size() + j) * p.size() + k];
+                            for kk in 0..p.size() {
+                                vals[i * sb.size() + j][self.aux.offsets[ip] + kk] = block[(i * sb.size() + j) * p.size() + kk];
                             }
                         }
                     }
                 }
+                let mut entries = Vec::new();
                 for i in 0..sa.size() {
                     for j in 0..sb.size() {
-                        let (m, nn) = (basis.offsets[a] + i, basis.offsets[b] + j);
+                        let (m, nn) = (self.basis.offsets[a] + i, self.basis.offsets[b] + j);
                         if m >= nn {
-                            out.push((m, nn, std::mem::take(&mut vals[i * sb.size() + j])));
+                            entries.push((m, nn, std::mem::take(&mut vals[i * sb.size() + j])));
                         }
                     }
                 }
+                out.push((k, entries));
             }
             out
         };
-        let three: Vec<(usize, usize, Vec<f64>)> = parallel_interleaved(pairs.len(), &job).into_iter().flatten().collect();
-        Fitted { n, three, kept, factor, metric: v, dropped }
+        let mut result: Vec<Vec<(usize, usize, Vec<f64>)>> = vec![Vec::new(); positions.len()];
+        for part in parallel_interleaved(positions.len(), &job) {
+            for (k, entries) in part {
+                result[k] = entries;
+            }
+        }
+        result
+    }
+
+    /// Every `(m, n, (mn|P))` of the table, in the visiting order: the stored
+    /// blocks, then the rest built a slice at a time — each slice across
+    /// threads into a bounded working space, then handed over in order.
+    fn visit(&self, f: &mut dyn FnMut(usize, usize, &[f64])) {
+        for block in &self.stored {
+            for (m, nn, vals) in block {
+                f(*m, *nn, vals);
+            }
+        }
+        let mut pos = self.stored.len();
+        while pos < self.order.len() {
+            let mut end = pos;
+            let mut bytes = 0;
+            while end < self.order.len() && (end == pos || bytes + self.block_bytes(self.order[end]) <= self.slice_bytes) {
+                bytes += self.block_bytes(self.order[end]);
+                end += 1;
+            }
+            let positions: Vec<usize> = (pos..end).collect();
+            for block in self.blocks(&positions) {
+                for (m, nn, vals) in &block {
+                    f(*m, *nn, vals);
+                }
+            }
+            pos = end;
+        }
+    }
+
+    /// Build what is not stored in slices of at most `bytes` — for checking
+    /// that slicing changes nothing.
+    pub fn set_slice_bytes(&mut self, bytes: usize) {
+        self.slice_bytes = bytes;
+    }
+
+    /// How much of the table is stored, as a fraction of its blocks.
+    pub fn stored_fraction(&self) -> f64 {
+        self.stored.len() as f64 / self.order.len().max(1) as f64
     }
 
     /// Auxiliary directions the metric's cutoff dropped.
@@ -326,15 +441,15 @@ impl Fitted {
     pub fn coefficients(&self, d: &Matrix) -> Vec<f64> {
         let na = self.metric.n;
         let mut dp = vec![0.0; na];
-        for (m, nn, vals) in &self.three {
-            let w = if m == nn { d.get(*m, *m) } else { d.get(*m, *nn) + d.get(*nn, *m) };
+        self.visit(&mut |m, nn, vals| {
+            let w = if m == nn { d.get(m, m) } else { d.get(m, nn) + d.get(nn, m) };
             if w == 0.0 {
-                continue;
+                return;
             }
             for (x, v) in dp.iter_mut().zip(vals) {
                 *x += w * v;
             }
-        }
+        });
         let b: Vec<f64> = self.kept.iter().map(|&i| dp[i]).collect();
         let ck = super::linalg::cholesky_solve(&self.factor, self.kept.len(), &b);
         let mut c = vec![0.0; na];
@@ -384,12 +499,72 @@ impl Fitted {
     fn coulomb_from(&self, c: &[f64]) -> Matrix {
         let n = self.n;
         let mut j = Matrix::zeros(n);
-        for (m, nn, vals) in &self.three {
+        self.visit(&mut |m, nn, vals| {
             let x: f64 = vals.iter().zip(c).map(|(a, b)| a * b).sum();
-            j.set(*m, *nn, x);
-            j.set(*nn, *m, x);
-        }
+            j.set(m, nn, x);
+            j.set(nn, m, x);
+        });
         j
+    }
+}
+
+/// The working space one slice of a table not stored may take while it is
+/// built again: a quarter of a gigabyte.
+const SLICE_BYTES: usize = 1 << 28;
+
+/// How many workers [`parallel_interleaved`] uses for `len` items — what the
+/// order a table is laid out in depends on.
+fn worker_count(len: usize) -> usize {
+    #[cfg(not(target_arch = "wasm32"))]
+    let workers = std::thread::available_parallelism().map(|n| n.get()).unwrap_or(1).min(len.max(1));
+    #[cfg(target_arch = "wasm32")]
+    let workers = {
+        let _ = len;
+        1
+    };
+    workers.max(1)
+}
+
+/// Physical memory free now, in bytes, where the system says: Windows'
+/// `GlobalMemoryStatusEx`, Linux's `/proc/meminfo`; `None` elsewhere.
+pub fn free_physical_memory() -> Option<u64> {
+    #[cfg(windows)]
+    {
+        #[repr(C)]
+        struct MemoryStatusEx {
+            length: u32,
+            memory_load: u32,
+            total_phys: u64,
+            avail_phys: u64,
+            total_page_file: u64,
+            avail_page_file: u64,
+            total_virtual: u64,
+            avail_virtual: u64,
+            avail_extended_virtual: u64,
+        }
+        #[link(name = "kernel32")]
+        extern "system" {
+            fn GlobalMemoryStatusEx(buffer: *mut MemoryStatusEx) -> i32;
+        }
+        let mut status = MemoryStatusEx { length: std::mem::size_of::<MemoryStatusEx>() as u32, memory_load: 0, total_phys: 0, avail_phys: 0, total_page_file: 0, avail_page_file: 0, total_virtual: 0, avail_virtual: 0, avail_extended_virtual: 0 };
+        // SAFETY: the struct is laid out as MEMORYSTATUSEX and its length set,
+        // which is all the call requires.
+        let ok = unsafe { GlobalMemoryStatusEx(&mut status) };
+        if ok != 0 {
+            return Some(status.avail_phys);
+        }
+        None
+    }
+    #[cfg(target_os = "linux")]
+    {
+        let text = std::fs::read_to_string("/proc/meminfo").ok()?;
+        let line = text.lines().find(|l| l.starts_with("MemAvailable:"))?;
+        let kb: u64 = line.split_whitespace().nth(1)?.parse().ok()?;
+        Some(kb * 1024)
+    }
+    #[cfg(not(any(windows, target_os = "linux")))]
+    {
+        None
     }
 }
 

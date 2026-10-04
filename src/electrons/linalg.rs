@@ -476,6 +476,7 @@ pub fn transpose(a: &[f64], m: usize, n: usize, out: &mut [f64]) {
 /// 256 rows 0.175 s against 0.003, 2048 rows 1.53 against 1.37, 4096 rows 4.9
 /// against 10.9 — the early steps of any factorisation are small, and the late
 /// steps of a large one are not.
+#[cfg_attr(target_arch = "wasm32", allow(dead_code))]
 const PARALLEL_CHOLESKY_WORK: usize = 2_000_000;
 
 /// Pivoted Cholesky of a symmetric positive semi-definite matrix: at each step

@@ -817,3 +817,33 @@ fn the_force_with_nonlocal_correlation_is_the_slope_of_its_energy() {
     println!("  water with non-local correlation: analytic {:+.7}, finite difference {fd:+.7}", g[a][dd]);
     assert!((g[a][dd] - fd).abs() < 2e-5, "{} against {fd}", g[a][dd]);
 }
+
+/// The fitted Coulomb table stores what fits in its memory budget and builds
+/// the rest again when it is visited, in the same order: the coefficients and
+/// the Coulomb matrix come out bit-identical whether all of it, half of it or
+/// none of it is stored, and however small the slices it is rebuilt in.
+#[test]
+fn the_coulomb_fit_is_the_same_however_much_of_it_is_stored() {
+    use phys::electrons::scf::Fitted;
+    let atoms = vec![(8.0, [0.05, -0.03, 0.02]), (1.0, [0.0, 1.43, 1.1]), (1.0, [0.1, -1.43, 1.0])];
+    let p = small_molecule(&atoms);
+    let s = solve(&p, 200, 1e-11);
+    let mut d = s.density_alpha.clone();
+    for k in 0..d.a.len() {
+        d.a[k] += s.density_beta.a[k];
+    }
+    let (sm, _, _) = phys::electrons::integrals::one_electron(&p.basis, &p.nuclei);
+    let aux = p.auxiliary.as_ref().unwrap();
+    let all = Fitted::new_within(&p.basis, aux, &sm, usize::MAX);
+    let (c_all, (j_all, e_all)) = (all.coefficients(&d), all.coulomb_and_energy(&d));
+    for (budget, slice) in [(0usize, usize::MAX), (0, 1), (200_000, 50_000)] {
+        let mut part = Fitted::new_within(&p.basis, aux, &sm, budget);
+        part.set_slice_bytes(slice);
+        let (c, (j, e)) = (part.coefficients(&d), part.coulomb_and_energy(&d));
+        println!("  budget {budget} B, slices of {slice} B: {:.0}% stored; E_J {e:.15} against {e_all:.15}", 100.0 * part.stored_fraction());
+        assert!(c.iter().zip(&c_all).all(|(a, b)| a.to_bits() == b.to_bits()), "the coefficients differ");
+        assert!(j.a.iter().zip(&j_all.a).all(|(a, b)| a.to_bits() == b.to_bits()), "the Coulomb matrix differs");
+        assert_eq!(e.to_bits(), e_all.to_bits());
+    }
+    assert_eq!(all.stored_fraction(), 1.0);
+}
