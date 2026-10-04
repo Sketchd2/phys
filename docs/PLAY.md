@@ -3978,6 +3978,36 @@ the start of the phase, ahead of the renderer**. In order:
      water, before one is chosen for the 45. **And the first boiling-point
      test is several substances at once**, not water alone, so that the
      tolerance's verdict does not rest on one molecule.
+     **The owner's decisions at the start of E8:**
+     - *The substances:* water, methanol, ammonia and methane — strong
+       hydrogen bonds, a mixed case, weak ones, and dispersion alone (373,
+       338, 240 and 112 K).
+     - *Rigid molecules* at their E5 shapes; flexibility waits for the larger
+       molecules of the 45.
+     - *Coexistence by molecular dynamics:* a liquid slab in contact with its
+       vapour, simulated in time; the boiling point where the vapour's
+       pressure reaches one atmosphere.
+     - *Route A's law is a site-site form fitted to the engine's own dimer and
+       trimer energies*, asked whether fitting aligns with the axioms. The
+       answer given: fitting to *measurements* is the deviation (the fitted
+       boiling law); fitting to the engine's own derivations is a stored
+       shortcut, as PW92 is a fit to Ceperley and Alder's simulation and E4's
+       exponents to the engine's atomic energies — but the *form* is a choice,
+       and an inadequate one would hide a modelling error. So four conditions:
+       only engine-computed energies go in, never a measured property; every
+       term is a physical mechanism (electrostatics, exchange repulsion,
+       dispersion, induction), not a flexible curve; the residual is measured
+       on configurations the fit never saw and reported as the law's error; and
+       what the form misses is measured against E6's site-site potential, which
+       fits nothing, and against molecules computed directly in a shell (B).
+     *The build, in order:* the rule on groups (functions grown for a pair
+     with its interaction energy as what must stop changing) on the water
+     dimer, which says whether the partners' own grown sets suffice for the
+     hundreds of pair calculations; E5b growth for methanol, ammonia and
+     methane; pair and three-body energies over sampled geometries; the law
+     and its residual; E6's site-site potential; rigid-body dynamics of a slab
+     against its vapour, with periodic boundaries; and the four boiling
+     points, at both exchange partners and two tolerances.
    - **E9, into the registry.** At intern, memoised by the arrangement's
      fingerprint so a test suite or a world pays once per substance, persisted.
    - **E10, heavy elements.** Beyond about Z = 36 a scalar-relativistic
