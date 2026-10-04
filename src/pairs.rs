@@ -35,6 +35,19 @@ use std::time::Instant;
 /// (refused where atoms collide) to where only the long-range tail is left.
 const SEPARATION: (f64, f64) = (4.0, 15.0);
 
+/// The first pairs, drawn over [`SEPARATION`]: of 124, only 27 fell inside 7
+/// bohr (where a liquid's neighbours are and the law's error is, 0.5-1.5
+/// kcal/mol there against 0.04-0.08 beyond 10) and 54 beyond 10, where the
+/// energies are nearly nothing. Pairs from this index on are drawn over the
+/// shorter range, and the earlier ones stay exactly as they were drawn; every
+/// pair's geometry is on its line either way.
+const UNIFORM_PAIRS: usize = 124;
+
+/// The separations pair `k` is drawn over.
+fn separation_for(k: usize) -> (f64, f64) {
+    if k < UNIFORM_PAIRS { SEPARATION } else { (4.2, 11.0) }
+}
+
 /// Run the driver for `args` (`name count [element|grown]`), writing
 /// `pairs-<name><tag>.txt`: the binary passes no tag; a binary that computes the
 /// final non-local energy another way passes one, so its pairs sit beside the
@@ -82,7 +95,8 @@ pub fn run(args: &[String], tag: &str) {
             let qa = random_rotation(&mut s);
             let qb = random_rotation(&mut s);
             let dir = s.direction();
-            let sep = s.range(SEPARATION.0, SEPARATION.1);
+            let (lo, hi) = separation_for(k);
+            let sep = s.range(lo, hi);
             let a: Vec<Vec3> = body.iter().map(|p| qa.rotate(*p)).collect();
             let b: Vec<Vec3> = body.iter().map(|p| qb.rotate(*p) + dir.scale(sep)).collect();
             let clash = (0..n).any(|i| (0..n).any(|j| (a[i] - b[j]).norm() < 0.75 * (contact[i] + contact[j])));

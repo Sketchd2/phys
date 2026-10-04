@@ -44,8 +44,15 @@ fn main() {
         let (train, held): (Vec<(usize, &PairEnergy)>, Vec<(usize, &PairEnergy)>) = data.iter().enumerate().partition(|(i, _)| i % 5 != 4);
         let train: Vec<PairEnergy> = train.into_iter().map(|(_, d)| d.clone()).collect();
         let held: Vec<PairEnergy> = held.into_iter().map(|(_, d)| d.clone()).collect();
-        // A neutral, plain start: the fit is what decides.
-        let start = SiteSite { charge: vec![0.0; types], pair: vec![[10.0, 2.0, 10.0, 200.0]; types * types] };
+        // A plain start, the fit deciding every number. The first charge is
+        // not zero: the electrostatic energy goes as the product of two
+        // charges, so with every charge at zero it is stationary and the fit
+        // cannot move them — the first run left them at 0.0 and fitted a law
+        // with no hydrogen bond in it. (The last charge follows from
+        // neutrality.)
+        let mut charge = vec![0.0; types];
+        charge[0] = -0.1;
+        let start = SiteSite { charge, pair: vec![[10.0, 2.0, 10.0, 200.0]; types * types] };
         let fit = fit_site_site(&train, &multiplicity, &start, temperature, 1e-3, 5000);
         let rms = |set: &[PairEnergy]| (set.iter().map(|d| (pair_energy(&fit.law, d) - d.energy).powi(2)).sum::<f64>() / set.len() as f64).sqrt();
         let low = |set: &[PairEnergy]| {
