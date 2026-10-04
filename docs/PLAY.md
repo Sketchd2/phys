@@ -4033,6 +4033,19 @@ the start of the phase, ahead of the renderer**. In order:
      sharing the machine. **The owner's rule was met, so the pair data is
      taken on the GPU** (`phys-pairs-gpu`, `pairs-<name>-gpu.txt`); the
      fields stay on the CPU. The full precision test is still after E8.
+     *Where a pair's time goes, measured and one hypothesis disproved:* a
+     428-function field (one of a pair's three) takes 43 s with the table
+     shared (9 iterations; integrals and fit 0.5 s once the table is shared,
+     8.1 s when built), of which the exchange-correlation step is 26-28 s and
+     the in-loop non-local term about 6 s. The exchange-correlation step is
+     compute-bound: summed over its threads, the dense products `V = Phi^T A`
+     take 124 thread-seconds, `X = Phi D` 79, the per-point loop 17 and the
+     density gather 25, at about 9.5 cores. **Caching each batch's basis
+     values and gradients at its points (bit-identical, tested) was built
+     on the guess that their evaluation was the cost, and gave nothing: 25.9 s
+     against 27.8. It was reverted.** The remaining levers all change numbers
+     (a coarser exchange-correlation grid, looser screening, a looser
+     convergence), and the owner's rule is that speed-ups do not, at this time.
      *Memory and disk, found on the way:* the Coulomb fit's three-centre
      table now stores only what half the free RAM allows, spills the rest to
      the disk `PHYS_SPILL_DIR` names (at most `PHYS_SPILL_MAX_GB`, 40 by

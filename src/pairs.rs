@@ -108,6 +108,7 @@ pub fn run(args: &[String], tag: &str) {
         // Where the pair's time goes: the three fields, the fine-grid
         // non-local energies, and the exchange swap for the second partner.
         let (mut t_solve, mut t_fine, mut t_swap) = (0.0, 0.0, 0.0);
+        let mut iterations = Vec::new();
         for (slot, (keep, ne)) in [(all, 2.0 * electrons), (first, electrons), (second, electrons)].into_iter().enumerate() {
             let mut p = base.with_ghosts(&keep, ne);
             p.functional = Functional::PbeXLdaC;
@@ -116,6 +117,7 @@ pub fn run(args: &[String], tag: &str) {
             let sol = solve(&p, 200, 1e-10);
             assert!(sol.converged, "pair {k}: a field did not converge");
             t_solve += ts.elapsed().as_secs_f64();
+            iterations.push(sol.iterations);
             let ts = Instant::now();
             let fine = energy_on_finer_grid(&p, &sol, 50, 12);
             t_fine += ts.elapsed().as_secs_f64();
@@ -137,7 +139,7 @@ pub fn run(args: &[String], tag: &str) {
         }
         writeln!(file, "{line}").expect("the line written");
         file.flush().ok();
-        println!("pair {k}: R {sep:.2} bohr, E_int {:.4} / {:.4} kcal/mol (PBE x / revPBE x), {:.0} s ({t_solve:.0} s fields, {t_fine:.0} s fine non-local, {t_swap:.0} s exchange swap; {} functions)", int_pbe * 627.509474, int_rev * 627.509474, t.elapsed().as_secs_f64(), base.basis.size);
+        println!("pair {k}: R {sep:.2} bohr, E_int {:.4} / {:.4} kcal/mol (PBE x / revPBE x), {:.0} s ({t_solve:.0} s fields, {t_fine:.0} s fine non-local, {t_swap:.0} s exchange swap; {} functions; field iterations {iterations:?})", int_pbe * 627.509474, int_rev * 627.509474, t.elapsed().as_secs_f64(), base.basis.size);
         std::io::stdout().flush().ok();
     }
 }
