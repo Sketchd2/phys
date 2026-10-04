@@ -121,6 +121,16 @@ pub fn install() -> Result<String, String> {
     Ok(name)
 }
 
+/// Install the GPU's rows for the final fine-grid non-local energy alone
+/// (`vdw::energy_on_finer_grid`), leaving the self-consistent field's on the
+/// CPU in double precision; returns the GPU's name, or why not.
+pub fn install_fine() -> Result<String, String> {
+    let gpu = GpuRows::new()?;
+    let name = gpu.name.clone();
+    phys::electrons::vdw::set_fine_row_engine(Some(Arc::new(gpu)));
+    Ok(name)
+}
+
 impl RowEngine for GpuRows {
     fn rows(&self, points: &[RowPoint], table: &KernelTable, with_c: bool) -> Vec<RowSums> {
         let n = points.len();

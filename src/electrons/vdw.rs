@@ -426,6 +426,11 @@ pub struct Nonlocal {
 /// so that rows can run on any thread and the result does not depend on how
 /// many there are.
 pub fn nonlocal(grid: &super::grid::Grid, density: &[(f64, [f64; 3])], z_ab: f64, floor: f64, table: &KernelTable) -> Nonlocal {
+    nonlocal_using(&*row_engine(), grid, density, z_ab, floor, table)
+}
+
+/// [`nonlocal`] with its rows computed by `engine`.
+pub fn nonlocal_using(engine: &dyn RowEngine, grid: &super::grid::Grid, density: &[(f64, [f64; 3])], z_ab: f64, floor: f64, table: &KernelTable) -> Nonlocal {
     struct Point { at: usize, r: [f64; 3], wn: f64, n: f64, q: f64, dq_dn: f64, dq_dg2: f64 }
     let points: Vec<Point> = grid.points.iter().zip(&grid.weights).zip(density).enumerate().filter_map(|(at, ((r, w), (n, g)))| {
         let wn = w * n;
@@ -436,7 +441,7 @@ pub fn nonlocal(grid: &super::grid::Grid, density: &[(f64, [f64; 3])], z_ab: f64
         Some(Point { at, r: *r, wn, n: *n, q, dq_dn, dq_dg2 })
     }).collect();
     let row_points: Vec<RowPoint> = points.iter().map(|p| RowPoint { r: p.r, wn: p.wn, q: p.q }).collect();
-    let ab: Vec<(f64, f64)> = row_engine().rows(&row_points, table, false).iter().map(|r| (r.a, r.b)).collect();
+    let ab: Vec<(f64, f64)> = engine.rows(&row_points, table, false).iter().map(|r| (r.a, r.b)).collect();
     let mut energy = 0.0;
     let mut v_n = vec![0.0; grid.points.len()];
     let mut v_g2 = vec![0.0; grid.points.len()];
@@ -549,7 +554,7 @@ pub fn energy_on_finer_grid(problem: &super::scf::Problem, solution: &super::scf
         d.a[k] += solution.density_beta.a[k];
     }
     let dens = density_and_gradient_on(&problem.basis, &batches, &d, grid.points.len());
-    let fine = nonlocal(&grid, &dens, spec.z_ab, spec.floor, kernel_table()).energy;
+    let fine = nonlocal_using(&*fine_row_engine(), &grid, &dens, spec.z_ab, spec.floor, kernel_table()).energy;
     solution.energy - solution.nonlocal + fine
 }
 
@@ -668,6 +673,24 @@ static ROW_ENGINE: std::sync::Mutex<Option<std::sync::Arc<dyn RowEngine>>> = std
 /// goes back to the CPU's.
 pub fn set_row_engine(engine: Option<std::sync::Arc<dyn RowEngine>>) {
     *ROW_ENGINE.lock().expect("the row engine") = engine;
+}
+
+static FINE_ROW_ENGINE: std::sync::Mutex<Option<std::sync::Arc<dyn RowEngine>>> = std::sync::Mutex::new(None);
+
+/// Install what computes the rows of the *final* fine-grid non-local energy
+/// ([`energy_on_finer_grid`]) alone, leaving the self-consistent field's on
+/// whatever [`set_row_engine`] says: the GPU's single-precision rows can be
+/// taken for the one evaluation that is 23% of a pair's time while the field,
+/// whose potential must converge, keeps double precision. `None` goes back to
+/// following [`set_row_engine`].
+pub fn set_fine_row_engine(engine: Option<std::sync::Arc<dyn RowEngine>>) {
+    *FINE_ROW_ENGINE.lock().expect("the fine row engine") = engine;
+}
+
+/// What computes the final fine-grid rows: its own engine if one is
+/// installed, otherwise [`row_engine`].
+pub fn fine_row_engine() -> std::sync::Arc<dyn RowEngine> {
+    FINE_ROW_ENGINE.lock().expect("the fine row engine").clone().unwrap_or_else(row_engine)
 }
 
 /// What computes the rows now: the installed engine, or the CPU's.
