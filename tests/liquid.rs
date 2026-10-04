@@ -157,3 +157,43 @@ fn the_switch_is_smooth() {
         assert!((fd - switch(r, on, cut).1).abs() < 1e-8);
     }
 }
+
+/// The site-site law's slope is the derivative of its energy, and Tang and
+/// Toennies' damping goes from nothing at contact to one far out.
+#[test]
+fn the_site_site_law_is_consistent() {
+    use phys::liquid::{tang_toennies, SiteSite};
+    let law = SiteSite { charge: vec![-0.7, 0.35], pair: vec![[40.0, 1.9, 15.0, 300.0], [3.0, 2.1, 4.0, 60.0], [3.0, 2.1, 4.0, 60.0], [0.5, 2.4, 1.0, 15.0]] };
+    for (ta, tb) in [(0, 0), (0, 1), (1, 1)] {
+        for r in [2.0, 3.5, 5.0, 9.0] {
+            let h = 1e-6;
+            let fd = (law.site_pair(ta, tb, r + h).0 - law.site_pair(ta, tb, r - h).0) / (2.0 * h);
+            let an = law.site_pair(ta, tb, r).1;
+            assert!((fd - an).abs() < 1e-7 * an.abs().max(1e-6), "({ta},{tb}) at {r}: {an} against {fd}");
+        }
+    }
+    assert!(tang_toennies(6, 1e-3).0 < 1e-15 && (tang_toennies(6, 60.0).0 - 1.0).abs() < 1e-15);
+    let h = 1e-6;
+    for x in [0.5, 3.0, 8.0] {
+        let fd = (tang_toennies(8, x + h).0 - tang_toennies(8, x - h).0) / (2.0 * h);
+        assert!((fd - tang_toennies(8, x).1).abs() < 1e-8);
+    }
+}
+
+/// The density profile counts every molecule once, wherever the slab sits.
+#[test]
+fn a_density_profile_counts_every_molecule() {
+    let mut l = lattice(4, 3.1 * A, 300.0);
+    l.cell[2] *= 3.0;
+    for r in l.com.iter_mut() {
+        r.z += 0.9 * l.cell[2];
+    }
+    let bins = 60;
+    let prof = l.density_profile(bins);
+    let vol = l.cell[0] * l.cell[1] * l.cell[2] / bins as f64;
+    let total: f64 = prof.iter().map(|d| d * vol).sum();
+    assert!((total - l.com.len() as f64).abs() < 1e-9, "{total} molecules counted");
+    let middle: f64 = prof[bins / 3..2 * bins / 3].iter().map(|d| d * vol).sum();
+    println!("  {} of {} molecules in the middle third", middle, l.com.len());
+    assert!(middle > 0.9 * l.com.len() as f64, "the profile is centred on the slab");
+}

@@ -288,3 +288,71 @@ impl Liquid {
         Stream::at(seed, 0, 0, Purpose::ThermalNoise)
     }
 }
+
+/// Tang and Toennies' damping of a dispersion term `C_n / r^n`:
+/// `f_n(x) = 1 - e^-x sum_(k=0..n) x^k / k!`, which takes it smoothly to zero
+/// where the clouds overlap. Returns `f_n` and its derivative in `x`.
+pub fn tang_toennies(n: usize, x: f64) -> (f64, f64) {
+    let (mut sum, mut term) = (1.0, 1.0);
+    for k in 1..=n {
+        term *= x / k as f64;
+        sum += term;
+    }
+    let e = (-x).exp();
+    // d/dx [1 - e^-x S_n] = e^-x (S_n - S_(n-1)) = e^-x x^n / n!.
+    (1.0 - e * sum, e * term)
+}
+
+/// Route A's site-site law (PLAY.md E8): between sites of types `a` and `b`,
+/// `q_a q_b / r + A_ab exp(-B_ab r) - f_6(B_ab r) C6_ab / r^6 - f_8(B_ab r) C8_ab / r^8`
+/// — electrostatics, exchange repulsion and damped dispersion, each a
+/// physical mechanism; its numbers are fitted only to the engine's own pair
+/// energies.
+#[derive(Debug, Clone, PartialEq)]
+pub struct SiteSite {
+    /// A charge per site type.
+    pub charge: Vec<f64>,
+    /// Per pair of types, `[A, B, C6, C8]`, indexed `a * types + b`, symmetric.
+    pub pair: Vec<[f64; 4]>,
+}
+
+impl SiteLaw for SiteSite {
+    fn site_pair(&self, ta: usize, tb: usize, r: f64) -> (f64, f64) {
+        let types = self.charge.len();
+        let [a, b, c6, c8] = self.pair[ta * types + tb];
+        let qq = self.charge[ta] * self.charge[tb];
+        let rep = a * (-b * r).exp();
+        let (f6, df6) = tang_toennies(6, b * r);
+        let (f8, df8) = tang_toennies(8, b * r);
+        let (r6, r8) = (r.powi(6), r.powi(8));
+        let u = qq / r + rep - f6 * c6 / r6 - f8 * c8 / r8;
+        let du = -qq / (r * r) - b * rep - (b * df6 * c6 / r6 - 6.0 * f6 * c6 / (r6 * r)) - (b * df8 * c8 / r8 - 8.0 * f8 * c8 / (r8 * r));
+        (u, du)
+    }
+}
+
+impl Liquid {
+    /// Molecules at the box-frame density profile's centre, as bins of
+    /// molecules per unit volume along `z` from `-cell_z / 2` to `cell_z / 2`
+    /// about the slab's centre of mass — found as a circular mean, since the
+    /// box is periodic and the slab wanders.
+    pub fn density_profile(&self, bins: usize) -> Vec<f64> {
+        let lz = self.cell[2];
+        let (mut c, mut s) = (0.0, 0.0);
+        for r in &self.com {
+            let th = 2.0 * std::f64::consts::PI * r.z / lz;
+            c += th.cos();
+            s += th.sin();
+        }
+        let centre = s.atan2(c) / (2.0 * std::f64::consts::PI) * lz;
+        let mut hist = vec![0.0; bins];
+        let vol = self.cell[0] * self.cell[1] * lz / bins as f64;
+        for r in &self.com {
+            let mut z = r.z - centre;
+            z -= lz * (z / lz).round();
+            let k = (((z / lz) + 0.5) * bins as f64).floor().clamp(0.0, (bins - 1) as f64) as usize;
+            hist[k] += 1.0 / vol;
+        }
+        hist
+    }
+}
