@@ -3744,6 +3744,19 @@ the start of the phase, ahead of the renderer**. In order:
      they are now classed by geometry.
      *Paused for the move to the owner's machine* after round 4 (160
      functions, 0.96937 A, 104.06 deg), and carried on there.
+     *A correction to the record:* the commit that closed rings and stopped
+     chains folding (`embed`) said no derived property moved because only
+     persistence reads the dipole. That was wrong — `analyse` passes the
+     dipole to `polarity_of`, so 13 of 49 substances changed polarity
+     (formic acid +1.72, glycerol +1.29, ethyl acetate -0.83, **cellulose
+     -0.61**, benzene -0.52, toluene -0.42, and seven smaller), which moves
+     what dissolves in what in the world. Against measured dipoles the change
+     is mixed (benzene now right at zero; glycerol, phenol, aniline further
+     off): the dipole model is item 6's and E6 replaces it. **The owner kept
+     the fix.** A failure of `budget.rs frames_stay_within_budget` was first
+     bisected to it, also wrongly, from single runs of a test that schedules
+     by wall clock: measured ten times each, it fails 7 of 10 before the fix
+     and 4 of 10 after, on this machine.
      **Water settled, on the owner's machine:** rounds 5-9, functions / r A /
      angle deg / seconds — 176 / 0.96968 / 104.217 / 273; 212 / 0.96913 /
      104.250 / 696; 254 / 0.96908 / 104.215 / 1275; 302 / 0.96895 / 104.223 /
