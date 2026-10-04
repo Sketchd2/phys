@@ -28,6 +28,10 @@ name = "phys-coexist"
 path = "src/bin/coexist.rs"
 
 [[bin]]
+name = "phys-fit"
+path = "src/bin/fit.rs"
+
+[[bin]]
 name = "phys-pairs"
 path = "src/bin/pairs.rs"
 
