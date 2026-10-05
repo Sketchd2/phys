@@ -4162,6 +4162,35 @@ the start of the phase, ahead of the renderer**. In order:
      points at is the law's form at contact, and the fit's weighting of it;
      the test is a refit with these 30 close pairs and the liquid pairs given
      weight, and the bulk run again.
+     *The refit with the close pairs, and the exchange partner decides it.*
+     The 29 distinct pairs of the ten trimers (`pairs-water-trimer.txt`) went
+     into the fit with the 300 random and 40 liquid pairs (369 in all), the
+     bisector site and C6 held at the derived values, weighted at 300 K and at
+     500 K. The bulk box (216 molecules, 298 K, 1 g/cm3, 48 ps):
+
+     ```text
+                              unseen pairs   heat of vaporisation   pressure
+     PBE exchange, 500 K      0.247          14.3 kcal/mol          -6,595 bar
+     PBE exchange, 300 K      0.328          14.9                   -7,369
+     revPBE exchange, 500 K   0.263          9.6                    -1,070
+     revPBE exchange, 300 K   0.318          10.1                   -1,790
+     measured                                10.5                   about 1
+     ```
+
+     **The refit with the close pairs did not move the PBE liquid** (14.2
+     before, 14.3 and 14.9 now) although the law's error on pairs fell, so the
+     close pairs' overbinding found above is real but not what overbinds the
+     liquid. **What does is the exchange form.** The same pair energies with
+     revPBE exchange swapped in on the same density (the published vdW-DF1,
+     as Klimes et al. did) give **9.6 and 10.1 kcal/mol against 10.5**, and the
+     pressure falls from -6.6 kbar to -1.1 to -1.8. The unfitted PBE-exchange
+     form is too attractive between waters by about 4 kcal/mol a molecule.
+     That is the evidence the plan said the exchange-partner choice would wait
+     for; it is the owner's to take. The pressure is still negative at 1
+     g/cm3, which says the liquid at this law wants to be denser than 1; the
+     density is what a constant-pressure or coexistence run derives, and not
+     yet run. Both revPBE-exchange figures are within 8% of measured with a
+     fit that used no measured number.
      *Memory and disk, found on the way:* the Coulomb fit's three-centre
      table now stores only what half the free RAM allows, spills the rest to
      the disk `PHYS_SPILL_DIR` names (at most `PHYS_SPILL_MAX_GB`, 40 by
