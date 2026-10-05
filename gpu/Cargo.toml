@@ -18,5 +18,9 @@ name = "phys-pairs-gpu"
 path = "src/bin/pairs_gpu.rs"
 
 [[bin]]
+name = "phys-worker-gpu"
+path = "src/bin/worker_gpu.rs"
+
+[[bin]]
 name = "phys-pairs-liquid-gpu"
 path = "src/bin/pairs_liquid_gpu.rs"

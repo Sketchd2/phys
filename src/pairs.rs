@@ -18,8 +18,9 @@
 //! the same density, as Klimes et al. did. Runs on the CPU: the GPU's
 //! precision is tested after E8, so E8's data does not rest on it.
 //!
-//! Each pair appends one line to `pairs-<name>.txt` and a run carries on from
-//! the last line written.
+//! Each pair appends one line to `pairs-<name>.txt` and a run skips the indices
+//! the file already holds, whatever order they were written in (`queue` hands
+//! them to many machines).
 
 use crate::electrons::functional::Functional;
 use crate::electrons::grow::{equivalent_atoms, extras, Resume};
@@ -29,7 +30,7 @@ use crate::electrons::vdw::{energy_on_finer_grid, NonlocalSpec, Z_AB_DF1};
 use crate::math::{Quat, Vec3};
 use crate::rng::{Purpose, Stream};
 use std::io::Write;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 /// Separations of centres sampled, bohr: from inside the repulsive wall
 /// (refused where atoms collide) to where only the long-range tail is left.
@@ -40,8 +41,11 @@ const SEPARATION: (f64, f64) = (4.0, 15.0);
 /// kcal/mol there against 0.04-0.08 beyond 10) and 54 beyond 10, where the
 /// energies are nearly nothing. Pairs from this index on are drawn over the
 /// shorter range, and the earlier ones stay exactly as they were drawn; every
-/// pair's geometry is on its line either way.
-const UNIFORM_PAIRS: usize = 124;
+/// pair's geometry is on its line either way. The boundary is 126 and not the
+/// 124 the analysis was made on: the run in progress had two pairs in flight
+/// when the binary changed, and the data is the authority, so the constant
+/// is the one that reproduces every line of `pairs-water-gpu.txt` exactly.
+const UNIFORM_PAIRS: usize = 126;
 
 /// How close two atoms may come, as a fraction of the sum of their van der
 /// Waals radii. 0.75 for the first pairs, which for O...H is 2.04 A and so
@@ -131,6 +135,101 @@ fn interact(setup: &Setup, k: usize, a: &[Vec3], b: &[Vec3]) -> Interaction {
     Interaction { pbe: int_pbe, rev: int_rev, t_solve, t_fine, t_swap, iterations, functions: base.basis.size }
 }
 
+/// One molecule as the pair work needs it: its atoms, the symmetry class of
+/// each, the basis extras its growth chose, and its shape centred on the mass
+/// (so a separation is between centres) with the van der Waals contact of each
+/// atom. Loaded from `grow-<name>.state`, which every machine doing this work
+/// must hold the same copy of.
+pub struct Monomer {
+    pub name: String,
+    z: Vec<u32>,
+    types: Vec<usize>,
+    extra: Vec<Vec<(usize, f64)>>,
+    body: Vec<Vec3>,
+    contact: Vec<f64>,
+    grown: bool,
+}
+
+/// The atoms of a molecule `phys-grow` knows by name.
+fn atoms_of(name: &str) -> Vec<u32> {
+    match name {
+        "water" => vec![8, 1, 1],
+        "methane" => vec![6, 1, 1, 1, 1],
+        "ammonia" => vec![7, 1, 1, 1],
+        "methanol" => vec![6, 8, 1, 1, 1, 1],
+        other => panic!("no atoms known for {other}"),
+    }
+}
+
+impl Monomer {
+    pub fn load(name: &str, grown: bool) -> Monomer {
+        let state = Resume::from_text(&std::fs::read_to_string(format!("grow-{name}.state")).unwrap_or_else(|_| panic!("no grow-{name}.state"))).expect("a readable state");
+        let z = atoms_of(name);
+        let mono = Molecule { z: z.clone(), positions: state.positions.clone(), charge: 0, unpaired: 0 };
+        let types = equivalent_atoms(&mono);
+        let extra = extras(&mono, &state.ladders, &state.chosen);
+        let masses: Vec<f64> = z.iter().map(|&zz| crate::chem::elements::Element(zz as u8).mass_kg().expect("a mass")).collect();
+        let total: f64 = masses.iter().sum();
+        let mut com = [0.0; 3];
+        for (p, m) in mono.positions.iter().zip(&masses) {
+            for k in 0..3 {
+                com[k] += p[k] * m / total;
+            }
+        }
+        let body: Vec<Vec3> = mono.positions.iter().map(|p| Vec3 { x: p[0] - com[0], y: p[1] - com[1], z: p[2] - com[2] }).collect();
+        let contact: Vec<f64> = z.iter().map(|&zz| crate::chem::elements::Element(zz as u8).vdw_radius().unwrap_or(1.5e-10) / 0.529177210903e-10).collect();
+        Monomer { name: name.to_string(), z, types, extra, body, contact, grown }
+    }
+
+    /// Pair `k` of the random draw: two molecules' atom positions and the
+    /// separation of their centres. The draw is its own stream, so it does not
+    /// depend on what was refused before it nor on which machine makes it.
+    pub fn random_pair(&self, k: usize) -> (Vec<Vec3>, Vec<Vec3>, f64) {
+        let n = self.z.len();
+        let mut s = Stream::at(0x7061_6972_7300 ^ self.name.len() as u64, k as u128, 0, Purpose::Positions);
+        loop {
+            let qa = random_rotation(&mut s);
+            let qb = random_rotation(&mut s);
+            let dir = s.direction();
+            let (lo, hi) = separation_for(k);
+            let sep = s.range(lo, hi);
+            let a: Vec<Vec3> = self.body.iter().map(|p| qa.rotate(*p)).collect();
+            let b: Vec<Vec3> = self.body.iter().map(|p| qb.rotate(*p) + dir.scale(sep)).collect();
+            let near = closest_contact(k);
+            let clash = (0..n).any(|i| (0..n).any(|j| (a[i] - b[j]).norm() < near * (self.contact[i] + self.contact[j])));
+            if !clash {
+                return (a, b, sep);
+            }
+        }
+    }
+
+    /// The interaction of the pair `a`, `b`, and the line that records it.
+    fn compute(&self, k: usize, a: &[Vec3], b: &[Vec3], sep: f64) -> (Interaction, String) {
+        let setup = Setup { z: &self.z, extra: &self.extra, grown: self.grown };
+        let r = interact(&setup, k, a, b);
+        let mut line = format!("{k} {sep:.6} {:.10e} {:.10e} |", r.pbe, r.rev);
+        for (v, ty) in a.iter().zip(&self.types).chain(b.iter().zip(&self.types)) {
+            line += &format!(" {:.8} {:.8} {:.8} {ty}", v.x, v.y, v.z);
+        }
+        (r, line)
+    }
+}
+
+/// The header of a pairs file of the random draw.
+pub const RANDOM_HEADER: &str = "# index separation_bohr E_int_pbe_x E_int_revpbe_x (hartree) | then x y z type for each atom of the first molecule and of the second (bohr)";
+
+/// The header of a pairs file taken from a snapshot.
+pub fn snapshot_header(snapshot: &str) -> String {
+    format!("# pairs of molecules taken from {snapshot}: index centroid_separation_bohr E_int_pbe_x E_int_revpbe_x (hartree) | then x y z type for each atom of the first molecule and of the second (bohr)")
+}
+
+/// The indices a pairs file already holds. Lines may have been written out of
+/// order (a queue hands them to many machines), so a run skips by index and
+/// does not count.
+pub fn done_indices(path: &str) -> std::collections::HashSet<usize> {
+    std::fs::read_to_string(path).map(|t| t.lines().filter(|l| !l.starts_with('#')).filter_map(|l| l.split_whitespace().next()?.parse().ok()).collect()).unwrap_or_default()
+}
+
 /// Run the driver for `args` (`name count [element|grown]`), writing
 /// `pairs-<name><tag>.txt`: the binary passes no tag; a binary that computes the
 /// final non-local energy another way passes one, so its pairs sit beside the
@@ -139,67 +238,24 @@ pub fn run(args: &[String], tag: &str) {
     let name = args.first().cloned().unwrap_or_else(|| "water".into());
     let count: usize = args.get(1).and_then(|s| s.parse().ok()).unwrap_or(300);
     let grown = args.get(2).map(|s| s == "grown").unwrap_or(false);
-    let state = Resume::from_text(&std::fs::read_to_string(format!("grow-{name}.state")).unwrap_or_else(|_| panic!("no grow-{name}.state"))).expect("a readable state");
-    let z: Vec<u32> = match name.as_str() {
-        "water" => vec![8, 1, 1],
-        "methane" => vec![6, 1, 1, 1, 1],
-        "ammonia" => vec![7, 1, 1, 1],
-        "methanol" => vec![6, 8, 1, 1, 1, 1],
-        other => panic!("no atoms known for {other}"),
-    };
-    let mono = Molecule { z: z.clone(), positions: state.positions.clone(), charge: 0, unpaired: 0 };
-    let types = equivalent_atoms(&mono);
-    let extra = extras(&mono, &state.ladders, &state.chosen);
-    // Centred on the mass, so a separation is between centres.
-    let masses: Vec<f64> = z.iter().map(|&zz| crate::chem::elements::Element(zz as u8).mass_kg().expect("a mass")).collect();
-    let total: f64 = masses.iter().sum();
-    let mut com = [0.0; 3];
-    for (p, m) in mono.positions.iter().zip(&masses) {
-        for k in 0..3 {
-            com[k] += p[k] * m / total;
-        }
-    }
-    let body: Vec<Vec3> = mono.positions.iter().map(|p| Vec3 { x: p[0] - com[0], y: p[1] - com[1], z: p[2] - com[2] }).collect();
-    let contact: Vec<f64> = z.iter().map(|&zz| crate::chem::elements::Element(zz as u8).vdw_radius().unwrap_or(1.5e-10) / 0.529177210903e-10).collect();
+    let mono = Monomer::load(&name, grown);
     let out = format!("pairs-{name}{tag}.txt");
-    let done = std::fs::read_to_string(&out).map(|t| t.lines().filter(|l| !l.starts_with('#')).count()).unwrap_or(0);
+    let done = done_indices(&out);
     let mut file = std::fs::OpenOptions::new().create(true).append(true).open(&out).expect("the output file");
-    if done == 0 {
-        writeln!(file, "# index separation_bohr E_int_pbe_x E_int_revpbe_x (hartree) | then x y z type for each atom of the first molecule and of the second (bohr)").ok();
+    if done.is_empty() {
+        writeln!(file, "{RANDOM_HEADER}").ok();
     }
-    println!("{name}: {} atoms, types {types:?}, {} basis; {done} pairs done, {count} wanted", z.len(), if grown { "grown" } else { "per-element" });
-    let n = z.len();
-    for k in done..count {
-        let t = Instant::now();
-        // The draw for pair k: its own stream, so it does not depend on what
-        // was refused before it.
-        let mut s = Stream::at(0x7061_6972_7300 ^ name.len() as u64, k as u128, 0, Purpose::Positions);
-        let (place_b, rot_a, rot_b, sep) = loop {
-            let qa = random_rotation(&mut s);
-            let qb = random_rotation(&mut s);
-            let dir = s.direction();
-            let (lo, hi) = separation_for(k);
-            let sep = s.range(lo, hi);
-            let a: Vec<Vec3> = body.iter().map(|p| qa.rotate(*p)).collect();
-            let b: Vec<Vec3> = body.iter().map(|p| qb.rotate(*p) + dir.scale(sep)).collect();
-            let near = closest_contact(k);
-            let clash = (0..n).any(|i| (0..n).any(|j| (a[i] - b[j]).norm() < near * (contact[i] + contact[j])));
-            if !clash {
-                break (dir.scale(sep), qa, qb, sep);
-            }
-        };
-        let a: Vec<Vec3> = body.iter().map(|p| rot_a.rotate(*p)).collect();
-        let b: Vec<Vec3> = body.iter().map(|p| rot_b.rotate(*p) + place_b).collect();
-        let setup = Setup { z: &z, extra: &extra, grown };
-        let r = interact(&setup, k, &a, &b);
-        let (int_pbe, int_rev) = (r.pbe, r.rev);
-        let mut line = format!("{k} {sep:.6} {int_pbe:.10e} {int_rev:.10e} |");
-        for (v, ty) in a.iter().zip(&types).chain(b.iter().zip(&types)) {
-            line += &format!(" {:.8} {:.8} {:.8} {ty}", v.x, v.y, v.z);
+    println!("{name}: {} atoms, types {:?}, {} basis; {} pairs done, {count} wanted", mono.z.len(), mono.types, if grown { "grown" } else { "per-element" }, done.len());
+    for k in 0..count {
+        if done.contains(&k) {
+            continue;
         }
+        let t = Instant::now();
+        let (a, b, sep) = mono.random_pair(k);
+        let (r, line) = mono.compute(k, &a, &b, sep);
         writeln!(file, "{line}").expect("the line written");
         file.flush().ok();
-        println!("pair {k}: R {sep:.2} bohr, E_int {:.4} / {:.4} kcal/mol (PBE x / revPBE x), {:.0} s ({:.0} s fields, {:.0} s fine non-local, {:.0} s exchange swap; {} functions; field iterations {:?})", int_pbe * 627.509474, int_rev * 627.509474, t.elapsed().as_secs_f64(), r.t_solve, r.t_fine, r.t_swap, r.functions, r.iterations);
+        println!("pair {k}: R {sep:.2} bohr, E_int {:.4} / {:.4} kcal/mol (PBE x / revPBE x), {:.0} s ({:.0} s fields, {:.0} s fine non-local, {:.0} s exchange swap; {} functions; field iterations {:?})", r.pbe * 627.509474, r.rev * 627.509474, t.elapsed().as_secs_f64(), r.t_solve, r.t_fine, r.t_swap, r.functions, r.iterations);
         std::io::stdout().flush().ok();
     }
 }
@@ -210,6 +266,90 @@ fn random_rotation(s: &mut Stream) -> Quat {
     let tau = std::f64::consts::TAU;
     let (a, b) = ((1.0 - u1).sqrt(), u1.sqrt());
     Quat { w: a * (tau * u2).sin(), v: Vec3 { x: a * (tau * u2).cos(), y: b * (tau * u3).sin(), z: b * (tau * u3).cos() } }
+}
+
+/// The pairs of molecules a simulated liquid's snapshot holds, in the seeded
+/// order they are taken in.
+pub struct Snapshot {
+    pub path: String,
+    /// A hash of the file's text, so a machine holding a different snapshot
+    /// under the same name is refused rather than computing other pairs.
+    pub fingerprint: u64,
+    mols: Vec<Vec<Vec3>>,
+    candidates: Vec<(usize, usize, Vec3, f64)>,
+}
+
+/// FNV-1a over bytes: a fingerprint, not a security measure.
+pub fn fnv(bytes: &[u8]) -> u64 {
+    let mut h = 0xcbf2_9ce4_8422_2325u64;
+    for &b in bytes {
+        h = (h ^ b as u64).wrapping_mul(0x0000_0100_0000_01b3);
+    }
+    h
+}
+
+impl Snapshot {
+    /// Candidates are every pair of molecules whose centroids lie within 10.5
+    /// bohr by the nearest image, put in a seeded order.
+    pub fn load(path: &str, atoms: usize) -> Snapshot {
+        let text = std::fs::read_to_string(path).unwrap_or_else(|_| panic!("no {path}"));
+        let mut cell = [0.0; 3];
+        let mut mols: Vec<Vec<Vec3>> = Vec::new();
+        for line in text.lines() {
+            let w: Vec<&str> = line.split_whitespace().collect();
+            match w.first().copied() {
+                Some("box") => {
+                    for k in 0..3 {
+                        cell[k] = w[1 + k].parse().expect("a box edge");
+                    }
+                }
+                Some("mol") => {
+                    let v: Vec<f64> = w[2..].iter().map(|x| x.parse().expect("a coordinate")).collect();
+                    assert_eq!(v.len(), 3 * atoms, "a molecule line with {} numbers", v.len());
+                    mols.push(v.chunks(3).map(|c| Vec3 { x: c[0], y: c[1], z: c[2] }).collect());
+                }
+                _ => {}
+            }
+        }
+        let centroid = |m: &Vec<Vec3>| m.iter().fold(Vec3::ZERO, |acc, p| acc + *p).scale(1.0 / atoms as f64);
+        let cents: Vec<Vec3> = mols.iter().map(centroid).collect();
+        let image = |mut d: Vec3| {
+            d.x -= cell[0] * (d.x / cell[0]).round();
+            d.y -= cell[1] * (d.y / cell[1]).round();
+            d.z -= cell[2] * (d.z / cell[2]).round();
+            d
+        };
+        let mut candidates: Vec<(usize, usize, Vec3, f64)> = Vec::new();
+        for i in 0..mols.len() {
+            for j in i + 1..mols.len() {
+                let d = image(cents[j] - cents[i]);
+                if d.norm() < 10.5 {
+                    // The shift that carries j's centroid to its nearest image of i's.
+                    candidates.push((i, j, d - (cents[j] - cents[i]), d.norm()));
+                }
+            }
+        }
+        let mut order = Stream::at(0x6c69_7175_6964, 0, 0, Purpose::Positions);
+        for i in (1..candidates.len()).rev() {
+            let j = (order.uniform() * (i + 1) as f64) as usize;
+            candidates.swap(i, j.min(i));
+        }
+        Snapshot { path: path.to_string(), fingerprint: fnv(text.as_bytes()), mols, candidates }
+    }
+
+    pub fn len(&self) -> usize {
+        self.candidates.len()
+    }
+
+    /// Pair `k` of the order: the molecules' indices, their positions (the
+    /// second moved to its nearest image of the first) and the centroid
+    /// separation.
+    pub fn pair(&self, k: usize) -> (usize, usize, Vec<Vec3>, Vec<Vec3>, f64) {
+        let (i, j, shift, sep) = self.candidates[k];
+        let a = self.mols[i].clone();
+        let b: Vec<Vec3> = self.mols[j].iter().map(|p| *p + shift).collect();
+        (i, j, a, b, sep)
+    }
 }
 
 /// The pairs of a simulated liquid: `args` is `name snapshot count`, the
@@ -229,81 +369,191 @@ pub fn run_snapshot(args: &[String], tag: &str) {
     let snapshot = args.get(1).cloned().expect("a snapshot file");
     let count: usize = args.get(2).and_then(|s| s.parse().ok()).unwrap_or(40);
     let grown = args.get(3).map(|s| s == "grown").unwrap_or(false);
-    let state = Resume::from_text(&std::fs::read_to_string(format!("grow-{name}.state")).unwrap_or_else(|_| panic!("no grow-{name}.state"))).expect("a readable state");
-    let z: Vec<u32> = match name.as_str() {
-        "water" => vec![8, 1, 1],
-        "methane" => vec![6, 1, 1, 1, 1],
-        "ammonia" => vec![7, 1, 1, 1],
-        "methanol" => vec![6, 8, 1, 1, 1, 1],
-        other => panic!("no atoms known for {other}"),
-    };
-    let atoms = z.len();
-    let mono = Molecule { z: z.clone(), positions: state.positions.clone(), charge: 0, unpaired: 0 };
-    let types = equivalent_atoms(&mono);
-    let extra = extras(&mono, &state.ladders, &state.chosen);
-    let text = std::fs::read_to_string(&snapshot).unwrap_or_else(|_| panic!("no {snapshot}"));
-    let mut cell = [0.0; 3];
-    let mut mols: Vec<Vec<Vec3>> = Vec::new();
-    for line in text.lines() {
-        let w: Vec<&str> = line.split_whitespace().collect();
-        match w.first().copied() {
-            Some("box") => {
-                for k in 0..3 {
-                    cell[k] = w[1 + k].parse().expect("a box edge");
-                }
-            }
-            Some("mol") => {
-                let v: Vec<f64> = w[2..].iter().map(|x| x.parse().expect("a coordinate")).collect();
-                assert_eq!(v.len(), 3 * atoms, "a molecule line with {} numbers", v.len());
-                mols.push(v.chunks(3).map(|c| Vec3 { x: c[0], y: c[1], z: c[2] }).collect());
-            }
-            _ => {}
-        }
-    }
-    let centroid = |m: &Vec<Vec3>| m.iter().fold(Vec3::ZERO, |acc, p| acc + *p).scale(1.0 / atoms as f64);
-    let cents: Vec<Vec3> = mols.iter().map(centroid).collect();
-    let image = |mut d: Vec3| {
-        d.x -= cell[0] * (d.x / cell[0]).round();
-        d.y -= cell[1] * (d.y / cell[1]).round();
-        d.z -= cell[2] * (d.z / cell[2]).round();
-        d
-    };
-    let mut candidates: Vec<(usize, usize, Vec3, f64)> = Vec::new();
-    for i in 0..mols.len() {
-        for j in i + 1..mols.len() {
-            let d = image(cents[j] - cents[i]);
-            if d.norm() < 10.5 {
-                // The shift that carries j's centroid to its nearest image of i's.
-                candidates.push((i, j, d - (cents[j] - cents[i]), d.norm()));
-            }
-        }
-    }
-    let mut order = Stream::at(0x6c69_7175_6964, 0, 0, Purpose::Positions);
-    for i in (1..candidates.len()).rev() {
-        let j = (order.uniform() * (i + 1) as f64) as usize;
-        candidates.swap(i, j.min(i));
-    }
+    let mono = Monomer::load(&name, grown);
+    let snap = Snapshot::load(&snapshot, mono.z.len());
     let out = format!("pairs-{name}{tag}.txt");
-    let done = std::fs::read_to_string(&out).map(|t| t.lines().filter(|l| !l.starts_with('#')).count()).unwrap_or(0);
+    let done = done_indices(&out);
     let mut file = std::fs::OpenOptions::new().create(true).append(true).open(&out).expect("the output file");
-    if done == 0 {
-        writeln!(file, "# pairs of molecules taken from {snapshot}: index centroid_separation_bohr E_int_pbe_x E_int_revpbe_x (hartree) | then x y z type for each atom of the first molecule and of the second (bohr)").ok();
+    if done.is_empty() {
+        writeln!(file, "{}", snapshot_header(&snapshot)).ok();
     }
-    println!("{name}: {} candidate pairs in {snapshot} within 10.5 bohr; {done} done, {count} wanted", candidates.len());
-    for k in done..count.min(candidates.len()) {
-        let t = Instant::now();
-        let (i, j, shift, sep) = candidates[k];
-        let a = mols[i].clone();
-        let b: Vec<Vec3> = mols[j].iter().map(|p| *p + shift).collect();
-        let setup = Setup { z: &z, extra: &extra, grown };
-        let r = interact(&setup, k, &a, &b);
-        let mut line = format!("{k} {sep:.6} {:.10e} {:.10e} |", r.pbe, r.rev);
-        for (v, ty) in a.iter().zip(&types).chain(b.iter().zip(&types)) {
-            line += &format!(" {:.8} {:.8} {:.8} {ty}", v.x, v.y, v.z);
+    println!("{name}: {} candidate pairs in {snapshot} within 10.5 bohr; {} done, {count} wanted", snap.len(), done.len());
+    for k in 0..count.min(snap.len()) {
+        if done.contains(&k) {
+            continue;
         }
+        let t = Instant::now();
+        let (i, j, a, b, sep) = snap.pair(k);
+        let (r, line) = mono.compute(k, &a, &b, sep);
         writeln!(file, "{line}").expect("the line written");
         file.flush().ok();
         println!("pair {k} (molecules {i}, {j}): R {sep:.2} bohr, E_int {:.4} / {:.4} kcal/mol (PBE x / revPBE x), {:.0} s", r.pbe * 627.509474, r.rev * 627.509474, t.elapsed().as_secs_f64());
         std::io::stdout().flush().ok();
     }
+}
+
+/// Turn a plan into the tasks still to do. One line each, `#` for comments:
+///
+/// ```text
+/// pair <name> <from> <to> <element|grown> <class> <out>
+/// snap <name> <snapshot> <from> <to> <element|grown> <class> <out>
+/// ```
+///
+/// `pair` is the random draw's indices `from..to`; `snap` is the same range of
+/// a snapshot's pairs, in its seeded order. `class` is `cpu` or `gpu` (see
+/// `queue`) and `out` the file the lines go to. An index already in `out` is
+/// left out, so a plan can be run again after a stop, and two plans that name
+/// one file must not overlap in index. Pairs of the random draw are one-to-one
+/// with their index only inside a file: a `cpu` and a `gpu` file hold the same
+/// draws of the same indices, so a plan that wants *new* pairs from a `cpu`
+/// machine starts above the ones the `gpu` file has.
+pub fn plan(text: &str) -> Result<Vec<crate::queue::Task>, String> {
+    let mut tasks = Vec::new();
+    let mut seen_out: std::collections::HashMap<String, (usize, usize)> = std::collections::HashMap::new();
+    for (n, line) in text.lines().enumerate() {
+        let line = line.trim();
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        let w: Vec<&str> = line.split_whitespace().collect();
+        let at = |what: &str| format!("plan line {}: {what}", n + 1);
+        let num = |s: &str| s.parse::<usize>().map_err(|_| at(&format!("{s:?} is not a number")));
+        let check_basis = |b: &str| if b == "element" || b == "grown" { Ok(()) } else { Err(at("the basis is `element` or `grown`")) };
+        let check_class = |c: &str| if c == "cpu" || c == "gpu" { Ok(()) } else { Err(at("the class is `cpu` or `gpu`")) };
+        match w.first().copied() {
+            Some("pair") if w.len() == 7 => {
+                let (name, from, to, basis, class, out) = (w[1], num(w[2])?, num(w[3])?, w[4], w[5], w[6]);
+                check_basis(basis)?;
+                check_class(class)?;
+                if !["water", "methane", "ammonia", "methanol"].contains(&name) {
+                    return Err(at(&format!("no molecule {name:?}")));
+                }
+                if let Some(&(f0, t0)) = seen_out.get(out) {
+                    if from < t0 && f0 < to {
+                        return Err(at(&format!("{out} is already given indices {f0}..{t0}")));
+                    }
+                }
+                seen_out.insert(out.to_string(), (from, to));
+                let done = done_indices(out);
+                for k in from..to {
+                    if !done.contains(&k) {
+                        tasks.push(crate::queue::Task { out: out.to_string(), index: k, class: class.to_string(), spec: format!("pair {name} {basis} {k}"), header: RANDOM_HEADER.to_string() });
+                    }
+                }
+            }
+            Some("snap") if w.len() == 8 => {
+                let (name, path, from, to, basis, class, out) = (w[1], w[2], num(w[3])?, num(w[4])?, w[5], w[6], w[7]);
+                check_basis(basis)?;
+                check_class(class)?;
+                if !["water", "methane", "ammonia", "methanol"].contains(&name) {
+                    return Err(at(&format!("no molecule {name:?}")));
+                }
+                let snap = Snapshot::load(path, atoms_of(name).len());
+                if let Some(&(f0, t0)) = seen_out.get(out) {
+                    if from < t0 && f0 < to {
+                        return Err(at(&format!("{out} is already given indices {f0}..{t0}")));
+                    }
+                }
+                seen_out.insert(out.to_string(), (from, to));
+                let done = done_indices(out);
+                for k in from..to.min(snap.len()) {
+                    if !done.contains(&k) {
+                        tasks.push(crate::queue::Task { out: out.to_string(), index: k, class: class.to_string(), spec: format!("snap {name} {basis} {path} {:x} {k}", snap.fingerprint), header: snapshot_header(path) });
+                    }
+                }
+            }
+            _ => return Err(at("expected `pair <name> <from> <to> <basis> <class> <out>` or `snap <name> <snapshot> <from> <to> <basis> <class> <out>`")),
+        }
+    }
+    Ok(tasks)
+}
+
+/// Does a queue task: loads each molecule and snapshot once, then computes the
+/// pair a spec names. Everything it needs is in the spec and in files the
+/// machine holds; it refuses a snapshot that is not the server's.
+#[derive(Default)]
+pub struct Executor {
+    monomers: std::collections::HashMap<(String, bool), Monomer>,
+    snapshots: std::collections::HashMap<String, Snapshot>,
+}
+
+impl Executor {
+    /// `spec` is `pair <name> <basis> <k>` or
+    /// `snap <name> <basis> <path> <fingerprint> <k>`; the result is the line
+    /// that goes in the pairs file.
+    pub fn run(&mut self, spec: &str) -> Result<String, String> {
+        let w: Vec<&str> = spec.split_whitespace().collect();
+        let bad = || format!("cannot read the task {spec:?}");
+        let (name, grown) = match (w.first().copied(), w.get(1), w.get(2)) {
+            (Some("pair"), Some(n), Some(b)) | (Some("snap"), Some(n), Some(b)) => (n.to_string(), *b == "grown"),
+            _ => return Err(bad()),
+        };
+        if !std::path::Path::new(&format!("grow-{name}.state")).exists() {
+            return Err(format!("no grow-{name}.state on this machine"));
+        }
+        let mono = self.monomers.entry((name.clone(), grown)).or_insert_with(|| Monomer::load(&name, grown));
+        let t = Instant::now();
+        match w[0] {
+            "pair" => {
+                let k: usize = w.get(3).and_then(|s| s.parse().ok()).ok_or_else(bad)?;
+                let (a, b, sep) = mono.random_pair(k);
+                let (r, line) = mono.compute(k, &a, &b, sep);
+                println!("pair {k}: R {sep:.2} bohr, E_int {:.4} / {:.4} kcal/mol, {:.0} s ({} functions)", r.pbe * 627.509474, r.rev * 627.509474, t.elapsed().as_secs_f64(), r.functions);
+                Ok(line)
+            }
+            _ => {
+                let (path, finger, k) = match (w.get(3), w.get(4), w.get(5).and_then(|s| s.parse::<usize>().ok())) {
+                    (Some(p), Some(f), Some(k)) => (p.to_string(), u64::from_str_radix(f, 16).map_err(|_| bad())?, k),
+                    _ => return Err(bad()),
+                };
+                if !std::path::Path::new(&path).exists() {
+                    return Err(format!("no {path} on this machine"));
+                }
+                let atoms = mono.z.len();
+                let snap = self.snapshots.entry(path.clone()).or_insert_with(|| Snapshot::load(&path, atoms));
+                if snap.fingerprint != finger {
+                    return Err(format!("{path} here is not the server's file (fingerprint {:x}, wanted {finger:x})", snap.fingerprint));
+                }
+                if k >= snap.len() {
+                    return Err(format!("{path} has {} pairs, not {}", snap.len(), k + 1));
+                }
+                let (i, j, a, b, sep) = snap.pair(k);
+                let (r, line) = mono.compute(k, &a, &b, sep);
+                println!("pair {k} (molecules {i}, {j}): R {sep:.2} bohr, E_int {:.4} / {:.4} kcal/mol, {:.0} s", r.pbe * 627.509474, r.rev * 627.509474, t.elapsed().as_secs_f64());
+                Ok(line)
+            }
+        }
+    }
+}
+
+/// The worker's whole `main`: `args` is `host:port [--name N] [--jobs N]
+/// [--patience MINUTES]`, and the token is `$PHYS_QUEUE_TOKEN` (default
+/// `open`). The class is the binary's: `cpu` for `phys-worker`, `gpu` for the
+/// GPU one, which has installed its engine before calling this.
+pub fn work_main(args: &[String], class: &str) {
+    let server = args.first().cloned().unwrap_or_else(|| {
+        eprintln!("usage: worker host:port [--name N] [--jobs N] [--patience MINUTES]");
+        std::process::exit(2);
+    });
+    let flag = |f: &str| args.iter().position(|a| a == f).and_then(|i| args.get(i + 1)).cloned();
+    let name = flag("--name").or_else(|| std::env::var("COMPUTERNAME").ok()).or_else(|| std::env::var("HOSTNAME").ok()).unwrap_or_else(|| "unnamed".into());
+    let cfg = crate::queue::WorkerConfig {
+        server,
+        token: std::env::var("PHYS_QUEUE_TOKEN").unwrap_or_else(|_| "open".into()),
+        name: name.replace(char::is_whitespace, "-"),
+        class: class.to_string(),
+        max_jobs: flag("--jobs").and_then(|s| s.parse().ok()),
+        patience: Duration::from_secs(60 * flag("--patience").and_then(|s| s.parse().ok()).unwrap_or(30)),
+    };
+    println!("{} ({}) working for {}", cfg.name, cfg.class, cfg.server);
+    let mut exec = Executor::default();
+    let ended = crate::queue::work(&cfg, |spec| exec.run(spec));
+    println!("worker stopped: {ended:?}");
+    // A wrapper loop restarts a worker that stopped on its job limit and
+    // leaves one that was told there is nothing left.
+    std::process::exit(match ended {
+        crate::queue::Ended::Limit => 10,
+        crate::queue::Ended::NothingLeft => 0,
+        crate::queue::Ended::ServerGone => 3,
+    });
 }

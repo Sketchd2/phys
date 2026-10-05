@@ -36,6 +36,14 @@ name = "phys-bulk"
 path = "src/bin/bulk.rs"
 
 [[bin]]
+name = "phys-queue"
+path = "src/bin/queue.rs"
+
+[[bin]]
+name = "phys-worker"
+path = "src/bin/worker.rs"
+
+[[bin]]
 name = "phys-pairs"
 path = "src/bin/pairs.rs"
 

@@ -57,6 +57,7 @@ pub mod erode;
 pub mod ids;
 pub mod liquid;
 pub mod pairs;
+pub mod queue;
 pub mod material;
 pub mod math;
 pub mod morph;

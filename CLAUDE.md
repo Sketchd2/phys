@@ -151,6 +151,7 @@ cargo run --release --bin phys-rehome     # re-parenting, frame to frame
 cargo run --release --bin phys-bubble     # admin time dilation
 cargo run --release --bin phys-headless   # render from a byte stream only
 cargo run --release --bin phys-grow -- water   # grow a molecule's basis (E5b); resumes from grow-<name>.state
+cargo run --release --bin phys-queue -- plan.txt   # hand pair work to many machines; workers are phys-worker / phys-worker-gpu (docs/CLUSTER.md)
 cargo check --target wasm32-unknown-unknown --lib   # 2 s; nothing else builds it
 ```
 
