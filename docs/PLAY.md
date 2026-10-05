@@ -4191,6 +4191,43 @@ the start of the phase, ahead of the renderer**. In order:
      density is what a constant-pressure or coexistence run derives, and not
      yet run. Both revPBE-exchange figures are within 8% of measured with a
      fit that used no measured number.
+     *What the literature says about PBE exchange here, and a correction to
+     the revPBE result above.* (Gillan, Alfe & Michaelides, *Perspective: how
+     good is DFT for water?*, J. Chem. Phys. 144, 130901 (2016), arXiv
+     1603.01990; Klimes, Bowler & Michaelides, arXiv 0910.0438.) Our PBE-exchange
+     form with the vdW-DF1 kernel is what they call PBE-DRSLL, and its faults
+     are known: (1) PBE's exchange enhancement factor is too weakly repulsive
+     at large reduced gradient, where the monomers' tails overlap, so it
+     mimics some of the missing dispersion; plain PBE gets the dimer about
+     right (220 meV against about 218) by that cancellation, and **adding
+     non-local correlation on top counts dispersion twice**: PBE-DRSLL binds
+     the water dimer at 245 meV (+12%; the engine's S22 dimer, 5.56 kcal/mol, is
+     241 meV) and is overbound most strongly at O...O of 3.0-4.0 A. (2) That
+     overbinding raises the liquid's equilibrium density, by about 13% for
+     PBE-DRSLL, which is what our -6.6 kbar at 1 g/cm3 says. (3) revPBE (the
+     original vdW-DF1) is the other way: dimer 183 meV (-16%), the liquid's
+     g(OO) wrong, with a spurious peak where the first minimum should be.
+     (4) Functionals with an exchange between the two (optB88-, optPBE-DRSLL,
+     rPW86-DF2) give dimers of 212-217 meV and the best liquids.
+     **Correction.** I called the revPBE-exchange heat of vaporisation, 9.6-10.1
+     against 10.5, agreement. It is not like for like. Rigid classical
+     molecules have no zero-point energy, and the measured heat of
+     vaporisation includes its loss: for ice the experimental sublimation energy
+     without zero-point energy is 610 meV and the zero-point part is 120 meV
+     (Whalley, quoted in the review), 2.8 kcal/mol. A classical potential that
+     was exactly right would give a heat of vaporisation above 10.5 by roughly
+     that (the figure for the liquid is my extrapolation from ice, not a
+     quoted one), say 12.5-13.5. Against that PBE exchange is over by about
+     1-2 kcal/mol (the dimer's +12% is of that order) and revPBE exchange under
+     by about 3, which is what the literature says of each. The truth lies
+     between them, which is where the tuned exchange functionals sit. Two
+     things to measure before reading either as the answer: the liquid's
+     g(OO), which separates PBE-DRSLL's overstructure from revPBE-DRSLL's
+     spurious peak, and the density, which needs the coexistence or a
+     constant-pressure run. On the many-body question the review says the same
+     exchange factor that is too weakly repulsive in the dimer gives a
+     spurious 3-body *repulsion*; ours is +0.14 with PBE and +0.03 with revPBE
+     exchange, the same sign and order.
      *Memory and disk, found on the way:* the Coulomb fit's three-centre
      table now stores only what half the free RAM allows, spills the rest to
      the disk `PHYS_SPILL_DIR` names (at most `PHYS_SPILL_MAX_GB`, 40 by
