@@ -129,8 +129,8 @@ molecules  functions  table, at most   first field   later fields
 The six-molecule field is disk-bound (13 iterations of 314 s, three passes over
 the 30 GB spilled table at 0.28 GB/s); with the table in memory it is not, so
 **the run wants a machine with 48 GB or more free**, and the share of free RAM
-the table may use is half by default (`src/electrons/scf.rs`), which on a
-64 GB machine still spills.
+the table may use is half by default, which on a 64 GB machine still spills:
+raise it with `PHYS_TABLE_RAM_FRACTION` (below).
 
 **Interrupted?** Run the same command again. Every pair and every field is on its
 line in `cluster-<name>-<N>-c<I>.txt` the moment it is finished, so a run
@@ -138,11 +138,52 @@ carries on from the file and loses at most the field it was in. Tested by killin
 a trimer after two of its four fields: the restart read the pairs and both
 fields from the file, solved the last two, and gave the same answer. A file
 begun on a different cluster (another snapshot under the same name) is refused,
-and the spill a killed run left behind is deleted at the start.
+and the spill a killed run left behind is deleted at the start (only files
+`phys-fit-<pid>-<n>.bin` whose process is known not to exist). It cannot resume
+inside a field: an SCF is one process.
 
-What it does not do: resume inside a field (an SCF is one process), or share a
-cluster across machines (the fields are independent after the table is built,
-which would allow it, but nothing hands them out yet).
+### The share of memory the table may keep
+
+`PHYS_TABLE_RAM_FRACTION` (0.05 to 0.9, default 0.5 of the memory free when the
+table is built) is how much of the three-centre table stays in RAM; the rest goes
+to the spill disk or is rebuilt. It changes speed and nothing else: a pair's
+field with 5% of free RAM (spilled) and with the default gave the same energy
+bit for bit. For the six-molecule cluster (a table of at most 37 GB) set it so
+the whole table fits, e.g. `PHYS_TABLE_RAM_FRACTION=0.8` on a machine with
+64 GB free and nothing else running; the solve also holds the grid's basis
+values, the densities and the non-local kernel, so do not leave it nothing.
+An out-of-range value is ignored with a message. Check what a machine really
+has free before trusting a fraction of it.
+
+### Across machines
+
+After the table is built, a cluster's fields and pairs are independent, so
+they can go to different machines and be put together:
+
+```sh
+# the six-molecule cluster: fields 0 (the cluster) to 6 (molecule 5), pairs I,J
+phys-cluster water bulk-water-298.snap --size 6 --centre 0 --field 3 --out field3.txt
+phys-cluster water bulk-water-298.snap --size 6 --centre 0 --pair 1,4 --out pair-1-4.txt
+# then, on any one machine with all the files copied to it
+phys-cluster water bulk-water-298.snap --size 6 --centre 0 --law law.txt     --merge field0.txt field1.txt ... pair-0-1.txt ...
+```
+
+`--field K` and `--pair I,J` do one piece, write its line to `--out FILE` (by
+default the cluster's own) and stop. `--merge` adds to the main file every
+result the others hold that it lacks (never replacing one it has, and refusing
+a file begun on a different cluster), and then the run goes on as usual, taking
+what is in the file and solving anything still missing. Each machine builds its
+own table, so each needs the memory for one: **seven fields on seven machines
+is seven 37 GB tables**, not one. A field is the long part (a pair of molecules
+takes 1-3 min; a hexamer field took 77 min on this desktop with a disk-bound
+table); the 15 pairs are small enough for any machine, the rack servers or the
+Pis. Results from machines with different GPUs differ in the last digits; the
+GPU's single precision is the same *class* of calculation as the pair data, and
+the file does not record which machine made which line, so keep the file names.
+
+Checked on a cluster of two molecules, whose cluster energy is its one pair's:
+two fields run separately (`--field 0`, `--field 1`), merged, the rest solved,
+gave a cluster energy equal to the pair's, and the non-additive part +0.0000.
 
 ## What it does not do
 

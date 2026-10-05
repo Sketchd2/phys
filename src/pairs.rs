@@ -818,7 +818,7 @@ impl Monomer {
     /// removed; one field each, the same energies from it on the fine grid.
     /// The cluster's interaction is the cluster's energy minus the molecules',
     /// subtracted in order, which for two molecules is `interact`'s own sum.
-    fn cluster_interaction(&self, mols: &[Vec<Vec3>], first_only: bool, mut log: Option<&mut FieldLog>) -> Interaction {
+    fn cluster_interaction(&self, mols: &[Vec<Vec3>], first_only: bool, only: Option<usize>, mut log: Option<&mut FieldLog>) -> Interaction {
         let n = self.z.len();
         let m = mols.len();
         let base = self.cluster_problem(mols);
@@ -832,12 +832,19 @@ impl Monomer {
         let (mut t_solve, mut t_fine, mut t_swap) = (0.0, 0.0, 0.0);
         let mut iterations = Vec::new();
         for (slot, (keep, ne)) in slots.into_iter().enumerate() {
+            // One field asked for: the others are some other machine's.
+            if only.is_some_and(|o| o != slot) {
+                continue;
+            }
             // A field already in the log is not solved again.
             if let Some((pe, re)) = log.as_ref().and_then(|l| l.done.get(&slot).copied()) {
                 e_pbe.push(pe);
                 e_rev.push(re);
                 iterations.push(0);
                 println!("  field {} of {} taken from {}", slot + 1, m + 1, log.as_ref().map(|l| l.path.as_str()).unwrap_or(""));
+                if only.is_some() {
+                    break;
+                }
                 continue;
             }
             let field_start = Instant::now();
@@ -864,9 +871,9 @@ impl Monomer {
             if let Some(l) = log.as_mut() {
                 l.record(slot, fine, fine - x_pbe + x_rev, *iterations.last().unwrap(), field_start.elapsed().as_secs_f64());
             }
-            println!("  field {} of {} done: {:.0} s so far ({:.0} s solving, {} iterations; {:.0} s on the fine grid; {:.0} s swapping exchange)", e_pbe.len(), m + 1, t_solve + t_fine + t_swap, t_solve, iterations.last().unwrap(), t_fine, t_swap);
+            println!("  field {} of {} done: {:.0} s so far ({:.0} s solving, {} iterations; {:.0} s on the fine grid; {:.0} s swapping exchange)", slot + 1, m + 1, t_solve + t_fine + t_swap, t_solve, iterations.last().unwrap(), t_fine, t_swap);
             std::io::stdout().flush().ok();
-            if first_only {
+            if first_only || only.is_some() {
                 break;
             }
         }
@@ -955,6 +962,48 @@ pub fn remove_stale_spill_in(dir: &std::path::Path, alive: impl Fn(u32) -> Optio
     }
 }
 
+/// The key a cluster file's result line is filed under: `pair i j`, `field k`
+/// or `cluster`.
+fn cluster_line_key(line: &str) -> Option<String> {
+    let w: Vec<&str> = line.split_whitespace().collect();
+    match w.first().copied() {
+        Some("pair") if w.len() >= 3 => Some(format!("pair {} {}", w[1], w[2])),
+        Some("field") if w.len() >= 2 => Some(format!("field {}", w[1])),
+        Some("cluster") => Some("cluster".to_string()),
+        _ => None,
+    }
+}
+
+/// Add to the cluster file `main` every pair, field and cluster result that
+/// `others` hold and it does not. Each of `others` must have been begun on the
+/// same cluster (its `# mol` lines are `geometry`); a result that `main`
+/// already has is not replaced. Returns how many lines were added. This is how
+/// the pieces of a cluster calculation done on several machines come together.
+pub fn merge_cluster_files(main: &str, others: &[String], geometry: &[String]) -> usize {
+    let mut have: std::collections::HashSet<String> = std::fs::read_to_string(main).unwrap_or_default().lines().filter_map(cluster_line_key).collect();
+    let mut added = Vec::new();
+    for other in others {
+        let text = std::fs::read_to_string(other).unwrap_or_else(|_| panic!("no {other}"));
+        let kept: Vec<&str> = text.lines().filter(|l| l.starts_with("# mol ")).collect();
+        assert!(kept.len() == geometry.len() && kept.iter().zip(geometry).all(|(a, b)| a == b), "{other} was begun on a different cluster from {main}");
+        for line in text.lines() {
+            if let Some(key) = cluster_line_key(line) {
+                if have.insert(key) {
+                    added.push(line.to_string());
+                }
+            }
+        }
+    }
+    if !added.is_empty() {
+        let mut f = std::fs::OpenOptions::new().create(true).append(true).open(main).expect("the cluster file");
+        for l in &added {
+            writeln!(f, "{l}").expect("a line merged");
+        }
+        f.sync_all().ok();
+    }
+    added.len()
+}
+
 /// `phys-cluster name snapshot [--centre I] [--size N] [--law FILE] [--dry]
 /// [--grown]`: a cluster of `N` molecules (default 6) about molecule `I` of a
 /// snapshot, and the question of whether a law that sums pairs gets its
@@ -968,6 +1017,14 @@ pub fn remove_stale_spill_in(dir: &std::path::Path, alive: impl Fn(u32) -> Optio
 /// `cluster-<name>-<N>-c<I>.txt` as it is finished and a run carries on from
 /// what is there. `--dry` prints what the cluster would cost and solves nothing;
 /// `--first-field` solves only the cluster's own field and says how long it took.
+///
+/// **Across machines.** Everything in a cluster after the table is built is
+/// independent: its fields (slot 0 the cluster, slot `i + 1` molecule `i` in the
+/// cluster's basis) and its pairs. `--field K` does one field and `--pair I,J`
+/// one pair, each writing its line to `--out FILE` (default the cluster's own),
+/// and `--merge a.txt b.txt` adds what other machines wrote to this one's
+/// file before the usual run reports from it. A file is merged only into one
+/// begun on the same cluster.
 ///
 /// **Interrupted?** Run the same command again. Every pair and every field of
 /// the cluster is on its line in the file the moment it is finished, so a run
@@ -988,7 +1045,7 @@ pub fn cluster_main(args: &[String]) {
     // own code, to be set beside the line `run_snapshot` wrote for it.
     if let Some(k) = flag("--check-pair").and_then(|s| s.parse::<usize>().ok()) {
         let (i, j, a, b, sep) = snap.pair(k);
-        let r = mono.cluster_interaction(&[a.clone(), b.clone()], false, None);
+        let r = mono.cluster_interaction(&[a.clone(), b.clone()], false, None, None);
         let _ = sep;
         println!("pair {k} (molecules {i}, {j}) through the cluster code: {:.10e} / {:.10e} hartree", r.pbe, r.rev);
         let file = flag("--against").unwrap_or_else(|| format!("pairs-{name}-liq-gpu.txt"));
@@ -1013,11 +1070,11 @@ pub fn cluster_main(args: &[String]) {
     // `--first-field`: only the cluster's own field, to time it.
     if args.iter().any(|a| a == "--first-field") {
         let t = Instant::now();
-        mono.cluster_interaction(&geom, true, None);
+        mono.cluster_interaction(&geom, true, None, None);
         println!("the first field of the cluster of {size}: {:.0} s", t.elapsed().as_secs_f64());
         return;
     }
-    let out = format!("cluster-{name}-{size}-c{centre}.txt");
+    let out = flag("--out").unwrap_or_else(|| format!("cluster-{name}-{size}-c{centre}.txt"));
     let have = std::fs::read_to_string(&out).unwrap_or_default();
     let mut file = std::fs::OpenOptions::new().create(true).append(true).open(&out).expect("the output file");
     let geometry: Vec<String> = ids
@@ -1043,6 +1100,13 @@ pub fn cluster_main(args: &[String]) {
         let kept: Vec<&str> = have.lines().filter(|l| l.starts_with("# mol ")).collect();
         assert!(kept.len() == geometry.len() && kept.iter().zip(&geometry).all(|(a, b)| a == b), "{out} was begun on a different cluster from this snapshot gives; move it aside or use another --centre");
     }
+    // `--merge a.txt b.txt ...`: results other machines wrote for this cluster.
+    if let Some(i) = args.iter().position(|a| a == "--merge") {
+        let others: Vec<String> = args[i + 1..].iter().take_while(|a| !a.starts_with("--")).cloned().collect();
+        let n = merge_cluster_files(&out, &others, &geometry);
+        println!("  {n} results added to {out} from {others:?}");
+    }
+    let have = std::fs::read_to_string(&out).unwrap_or_default();
     let mut fields = FieldLog::load(&out);
     let read = |key: &str| -> Option<(f64, f64)> {
         have.lines().find(|l| l.starts_with(key)).and_then(|l| {
@@ -1065,6 +1129,34 @@ pub fn cluster_main(args: &[String]) {
         };
         Some(crate::liquid::pair_energy(law, &crate::liquid::PairEnergy { a: sites(a), b: sites(b), energy: 0.0 }))
     };
+    // `--field K`: one field, for a machine that is doing only that.
+    if let Some(k) = flag("--field").and_then(|s| s.parse::<usize>().ok()) {
+        assert!(k <= size, "a cluster of {size} has fields 0 to {size}");
+        if fields.done.contains_key(&k) {
+            println!("  field {k} is already in {out}");
+        } else {
+            let t = Instant::now();
+            mono.cluster_interaction(&geom, false, Some(k), Some(&mut fields));
+            println!("  field {k} of the cluster of {size}: {:.0} s, written to {out}", t.elapsed().as_secs_f64());
+        }
+        return;
+    }
+    // `--pair I,J`: one pair of the cluster, likewise.
+    if let Some(ij) = flag("--pair") {
+        let v: Vec<usize> = ij.split(',').filter_map(|s| s.trim().parse().ok()).collect();
+        assert!(v.len() == 2 && v[0] < v[1] && v[1] < size, "--pair wants I,J with I < J < {size}");
+        let (i, j) = (v[0], v[1]);
+        if read(&format!("pair {i} {j} ")).is_some() {
+            println!("  pair {i} {j} is already in {out}");
+        } else {
+            let t = Instant::now();
+            let r = mono.cluster_interaction(&[geom[i].clone(), geom[j].clone()], false, None, None);
+            writeln!(file, "pair {i} {j} {} {} {:.10e} {:.10e}", ids[i], ids[j], r.pbe, r.rev).ok();
+            file.flush().ok();
+            println!("  pair {i} {j}: {:.4} / {:.4} kcal/mol, {:.0} s, written to {out}", r.pbe * 627.509474, r.rev * 627.509474, t.elapsed().as_secs_f64());
+        }
+        return;
+    }
     let mut pair_sum = (0.0, 0.0);
     let mut law_sum = 0.0;
     for i in 0..size {
@@ -1074,7 +1166,7 @@ pub fn cluster_main(args: &[String]) {
                 Some(v) => v,
                 None => {
                     let t = Instant::now();
-                    let r = mono.cluster_interaction(&[geom[i].clone(), geom[j].clone()], false, None);
+                    let r = mono.cluster_interaction(&[geom[i].clone(), geom[j].clone()], false, None, None);
                     let line = format!("pair {i} {j} {} {} {:.10e} {:.10e}", ids[i], ids[j], r.pbe, r.rev);
                     writeln!(file, "{line}").ok();
                     file.flush().ok();
@@ -1094,7 +1186,7 @@ pub fn cluster_main(args: &[String]) {
         Some(v) => v,
         None => {
             let t = Instant::now();
-            let r = mono.cluster_interaction(&geom, false, Some(&mut fields));
+            let r = mono.cluster_interaction(&geom, false, None, Some(&mut fields));
             writeln!(file, "cluster {size} {:.10e} {:.10e}", r.pbe, r.rev).ok();
             file.flush().ok();
             println!("  the cluster: {:.4} / {:.4} kcal/mol, {:.0} s ({} functions)", r.pbe * 627.509474, r.rev * 627.509474, t.elapsed().as_secs_f64(), r.functions);

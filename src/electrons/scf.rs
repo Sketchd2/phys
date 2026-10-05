@@ -339,7 +339,7 @@ impl Fitted {
                 return Fitted { t: t.clone(), slice_bytes: SLICE_BYTES };
             }
         }
-        let budget = free_physical_memory().map(|b| (b / 2) as usize).unwrap_or(usize::MAX);
+        let budget = table_budget(free_physical_memory(), std::env::var("PHYS_TABLE_RAM_FRACTION").ok().as_deref());
         let fitted = Fitted::new_within_spill(basis, aux, s, budget, SpillTo::from_environment().as_ref());
         *cache.slot.lock().expect("the fit cache") = Some(fitted.t.clone());
         fitted
@@ -706,6 +706,33 @@ fn worker_count(len: usize) -> usize {
         1
     };
     workers.max(1)
+}
+
+/// How much of the three-centre table may stay in memory, given the memory
+/// free (`None` where the system does not say: no limit) and the setting of
+/// `PHYS_TABLE_RAM_FRACTION`: half of what is free unless that names a
+/// fraction from 0.05 to 0.9. The rest of the table goes to the spill disk or
+/// is rebuilt when visited; every one of those is the same bits, so this moves
+/// speed and nothing else. The table is not the only thing a solve holds (the
+/// grid's basis values, the densities, the non-local kernel), and a fraction
+/// near the top leaves them little: raise it only on a machine that has the
+/// room, which for the six-molecule cluster is one with about 48 GB free.
+pub fn table_budget(free: Option<u64>, setting: Option<&str>) -> usize {
+    let fraction = match setting {
+        None => 0.5,
+        Some(s) => match s.trim().parse::<f64>() {
+            Ok(f) if (0.05..=0.9).contains(&f) => f,
+            _ => {
+                eprintln!("PHYS_TABLE_RAM_FRACTION={s:?} is not a fraction from 0.05 to 0.9; using 0.5");
+                0.5
+            }
+        },
+    };
+    match free {
+        None => usize::MAX,
+        Some(b) if fraction == 0.5 => (b / 2) as usize,
+        Some(b) => (b as f64 * fraction) as usize,
+    }
 }
 
 /// Physical memory free now, in bytes, where the system says: Windows'
