@@ -9,7 +9,7 @@
 //! (`grow-<name>.state`), its atoms typed by symmetry class. Each pair is a
 //! seeded draw — its index decides it, so any one can be redone — of a
 //! relative orientation and a separation of centres, refused if two atoms
-//! sit closer than 0.75 of their van der Waals contact. Its interaction is
+//! sit closer than 0.75 (from pair 250, 0.64) of their van der Waals contact. Its interaction is
 //! counterpoise corrected: the pair, and each partner in the pair's basis with
 //! the other's nuclei and electrons removed. One field is solved, with PBE
 //! exchange and the non-local correlation in it on the coarse grid, and two
@@ -42,6 +42,18 @@ const SEPARATION: (f64, f64) = (4.0, 15.0);
 /// shorter range, and the earlier ones stay exactly as they were drawn; every
 /// pair's geometry is on its line either way.
 const UNIFORM_PAIRS: usize = 124;
+
+/// How close two atoms may come, as a fraction of the sum of their van der
+/// Waals radii. 0.75 for the first pairs, which for O...H is 2.04 A and so
+/// refused the hydrogen-bonded geometries themselves (a real bond is 1.8-2.0
+/// A, the dimer's minimum 1.95); from `CLOSER_FROM` on it is 0.64 (1.74 A for
+/// O...H), so the region a liquid's strongest bonds sit in is sampled, with the
+/// repulsive wall just inside it.
+const CLOSER_FROM: usize = 250;
+
+fn closest_contact(k: usize) -> f64 {
+    if k < CLOSER_FROM { 0.75 } else { 0.64 }
+}
 
 /// The separations pair `k` is drawn over.
 fn separation_for(k: usize) -> (f64, f64) {
@@ -99,7 +111,8 @@ pub fn run(args: &[String], tag: &str) {
             let sep = s.range(lo, hi);
             let a: Vec<Vec3> = body.iter().map(|p| qa.rotate(*p)).collect();
             let b: Vec<Vec3> = body.iter().map(|p| qb.rotate(*p) + dir.scale(sep)).collect();
-            let clash = (0..n).any(|i| (0..n).any(|j| (a[i] - b[j]).norm() < 0.75 * (contact[i] + contact[j])));
+            let near = closest_contact(k);
+            let clash = (0..n).any(|i| (0..n).any(|j| (a[i] - b[j]).norm() < near * (contact[i] + contact[j])));
             if !clash {
                 break (dir.scale(sep), qa, qb, sep);
             }
