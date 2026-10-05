@@ -408,6 +408,18 @@ pub fn fit_site_site(data: &[PairEnergy], multiplicity: &[usize], start: &SiteSi
     fit_site_site_held(data, multiplicity, start, temperature, floor, max_iterations, &Held::default())
 }
 
+/// A molecule's sites with one more added: of type `site_type`, `distance`
+/// bohr from the first site along the bisector of its bonds to the second and
+/// third (the lone pairs' charge of a water, which `Kind::of_molecule` places
+/// the same way). For laws fitted and read with a `bisector` line.
+pub fn with_bisector_site(molecule: &[(Vec3, usize)], site_type: usize, distance: f64) -> Vec<(Vec3, usize)> {
+    let o = molecule[0].0;
+    let (u, v) = ((molecule[1].0 - o).unit(), (molecule[2].0 - o).unit());
+    let mut out = molecule.to_vec();
+    out.push((o + (u + v).unit().scale(distance), site_type));
+    out
+}
+
 /// Numbers of a law a fit leaves at the values it was started with.
 ///
 /// A site that carries charge and nothing else (an off-atom site standing in

@@ -22,7 +22,7 @@
 //! the one that is the law's error by the owner's condition, on the pairs it
 //! never saw. Writes `law-<name><tag>-pbe.txt` and `law-<name><tag>-revpbe.txt`.
 
-use phys::liquid::{fit_site_site_held, pair_energy, Fitted, Held, PairEnergy, SiteSite};
+use phys::liquid::{fit_site_site_held, pair_energy, with_bisector_site, Fitted, Held, PairEnergy, SiteSite};
 use phys::math::Vec3;
 
 const KCAL: f64 = 627.509474;
@@ -81,7 +81,7 @@ fn main() {
         // with no hydrogen bond in it. (The last charge follows from
         // neutrality.)
         let fit = if bisector {
-            let (fit, d) = fit_with_bisector(&train, &multiplicity, types, n_atoms, temperature, &c6_held);
+            let (fit, d) = fit_with_bisector(&train, &multiplicity, types, temperature, &c6_held);
             println!("    bisector site {d:.4} bohr from the first atom (weighted residual {:.3e})", fit.weighted_rms);
             bisector_distance = Some(d);
             fit
@@ -96,7 +96,7 @@ fn main() {
             let dispersion: Vec<(usize, usize)> = c6_held.iter().map(|&(p, _)| p).collect();
             fit_site_site_held(&train, &multiplicity, &start, temperature, 1e-3, 5000, &Held { pairs: &[], dispersion: &dispersion })
         };
-        let with_site = |d: &PairEnergy| -> PairEnergy { match bisector_distance { Some(x) => add_bisector(d, n_atoms, types, x), None => d.clone() } };
+        let with_site = |d: &PairEnergy| -> PairEnergy { match bisector_distance { Some(x) => add_bisector(d, types, x), None => d.clone() } };
         let train: Vec<PairEnergy> = train.iter().map(&with_site).collect();
         let held: Vec<PairEnergy> = held.iter().map(&with_site).collect();
         let rms = |set: &[PairEnergy]| (set.iter().map(|d| (pair_energy(&fit.law, d) - d.energy).powi(2)).sum::<f64>() / set.len() as f64).sqrt();
@@ -120,16 +120,8 @@ fn main() {
 /// `d` with the extra site added to each molecule: type `types` (one past the
 /// atoms' types, which are `0..types`), `distance` bohr from the first atom
 /// along the bisector of its bonds to the second and third.
-fn add_bisector(d: &PairEnergy, n_atoms: usize, types: usize, distance: f64) -> PairEnergy {
-    let extend = |m: &[(Vec3, usize)]| -> Vec<(Vec3, usize)> {
-        let o = m[0].0;
-        let (u, v) = ((m[1].0 - o).unit(), (m[2].0 - o).unit());
-        let mut out = m.to_vec();
-        out.push((o + (u + v).unit().scale(distance), types));
-        out
-    };
-    let _ = n_atoms;
-    PairEnergy { a: extend(&d.a), b: extend(&d.b), energy: d.energy }
+fn add_bisector(d: &PairEnergy, types: usize, distance: f64) -> PairEnergy {
+    PairEnergy { a: with_bisector_site(&d.a, types, distance), b: with_bisector_site(&d.b, types, distance), energy: d.energy }
 }
 
 /// Fit with one bisector site per molecule, searching its distance. `types`
@@ -137,14 +129,14 @@ fn add_bisector(d: &PairEnergy, n_atoms: usize, types: usize, distance: f64) -> 
 /// distance the fit is started from several charges (the energy goes as a
 /// product of charges and has more than one basin) and the best kept; the
 /// distance is the coarse-grid minimum of the weighted residual, refined.
-fn fit_with_bisector(train: &[PairEnergy], multiplicity: &[usize], types: usize, n_atoms: usize, temperature: f64, c6_held: &[((usize, usize), f64)]) -> (Fitted, f64) {
+fn fit_with_bisector(train: &[PairEnergy], multiplicity: &[usize], types: usize, temperature: f64, c6_held: &[((usize, usize), f64)]) -> (Fitted, f64) {
     let mut mult = multiplicity.to_vec();
     mult.push(1);
     let all = types + 1;
     let site_pairs: Vec<(usize, usize)> = (0..all).map(|a| (a, types)).collect();
     let dispersion: Vec<(usize, usize)> = c6_held.iter().map(|&(p, _)| p).collect();
     let best_at = |d: f64| -> Fitted {
-        let data: Vec<PairEnergy> = train.iter().map(|p| add_bisector(p, n_atoms, types, d)).collect();
+        let data: Vec<PairEnergy> = train.iter().map(|p| add_bisector(p, types, d)).collect();
         let mut best: Option<Fitted> = None;
         for q_first in [-0.6, -0.2, 0.3, 0.8, 1.3] {
             let mut charge = vec![0.0; all];

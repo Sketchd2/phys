@@ -48,6 +48,10 @@ name = "phys-recheck"
 path = "src/bin/recheck.rs"
 
 [[bin]]
+name = "phys-cluster"
+path = "src/bin/cluster.rs"
+
+[[bin]]
 name = "phys-pairs"
 path = "src/bin/pairs.rs"
 

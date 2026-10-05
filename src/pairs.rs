@@ -277,6 +277,7 @@ pub struct Snapshot {
     /// under the same name is refused rather than computing other pairs.
     pub fingerprint: u64,
     mols: Vec<Vec<Vec3>>,
+    cell: [f64; 3],
     candidates: Vec<(usize, usize, Vec3, f64)>,
 }
 
@@ -335,7 +336,7 @@ impl Snapshot {
             let j = (order.uniform() * (i + 1) as f64) as usize;
             candidates.swap(i, j.min(i));
         }
-        Snapshot { path: path.to_string(), fingerprint: fnv(text.as_bytes()), mols, candidates }
+        Snapshot { path: path.to_string(), fingerprint: fnv(text.as_bytes()), mols, cell, candidates }
     }
 
     pub fn len(&self) -> usize {
@@ -744,4 +745,251 @@ pub fn recheck(args: &[String]) -> i32 {
         println!("{} pairs solved again: largest difference {worst:.5} kcal/mol, mean {:+.5}, rms {:.5}; {over} beyond {tol} kcal/mol", count / 2, sum / count as f64, (sq / count as f64).sqrt());
     }
     if bad.is_empty() && over == 0 { 0 } else { 1 }
+}
+
+impl Snapshot {
+    /// A cluster of `count` molecules about molecule `centre`: it and the
+    /// `count - 1` nearest by centroid (nearest image), each moved to its
+    /// image about the centre's so the cluster is in one piece. Returns each
+    /// molecule's index in the snapshot and its atoms' positions.
+    pub fn cluster(&self, centre: usize, count: usize) -> Vec<(usize, Vec<Vec3>)> {
+        let atoms = self.mols[centre].len();
+        let centroid = |m: &Vec<Vec3>| m.iter().fold(Vec3::ZERO, |acc, p| acc + *p).scale(1.0 / atoms as f64);
+        let c0 = centroid(&self.mols[centre]);
+        let image = |mut d: Vec3| {
+            d.x -= self.cell[0] * (d.x / self.cell[0]).round();
+            d.y -= self.cell[1] * (d.y / self.cell[1]).round();
+            d.z -= self.cell[2] * (d.z / self.cell[2]).round();
+            d
+        };
+        let mut others: Vec<(f64, usize, Vec3)> = (0..self.mols.len())
+            .filter(|&j| j != centre)
+            .map(|j| {
+                let raw = centroid(&self.mols[j]) - c0;
+                let d = image(raw);
+                (d.norm(), j, d - raw)
+            })
+            .collect();
+        others.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        let mut out = vec![(centre, self.mols[centre].clone())];
+        for (_, j, shift) in others.into_iter().take(count - 1) {
+            out.push((j, self.mols[j].iter().map(|p| *p + shift).collect()));
+        }
+        out
+    }
+}
+
+/// What a cluster costs, before anything is solved: the functions in its
+/// basis, the auxiliary functions, and the most its three-centre table can
+/// hold (every pair of functions against every auxiliary function, in bytes;
+/// screening takes some of it away, and a cluster of separate molecules has a
+/// lot to take).
+pub struct ClusterSize {
+    pub functions: usize,
+    pub auxiliary: usize,
+    pub table_upper_bytes: f64,
+}
+
+impl Monomer {
+    fn cluster_problem(&self, mols: &[Vec<Vec3>]) -> crate::electrons::scf::Problem {
+        let m = mols.len();
+        let z: Vec<u32> = (0..m).flat_map(|_| self.z.iter().cloned()).collect();
+        let positions: Vec<[f64; 3]> = mols.iter().flatten().map(|v| [v.x, v.y, v.z]).collect();
+        let cluster = Molecule { z, positions, charge: 0, unpaired: 0 };
+        if self.grown {
+            let ex: Vec<Vec<(usize, f64)>> = (0..m).flat_map(|_| self.extra.iter().cloned()).collect();
+            cluster.problem_with(Functional::Pbe, Some(&ex))
+        } else {
+            cluster.problem(Functional::Pbe)
+        }
+    }
+
+    pub fn cluster_size(&self, mols: &[Vec<Vec3>]) -> ClusterSize {
+        let p = self.cluster_problem(mols);
+        let n = p.basis.size;
+        let aux = p.auxiliary.as_ref().map(|b| b.size).unwrap_or(0);
+        ClusterSize { functions: n, auxiliary: aux, table_upper_bytes: (n * (n + 1) / 2) as f64 * aux as f64 * 8.0 }
+    }
+
+    /// The counterpoise interaction energy of a cluster of any number of
+    /// molecules, as [`interact`] is for two: the cluster, and each molecule
+    /// in the whole cluster's basis with the others' nuclei and electrons
+    /// removed; one field each, the same energies from it on the fine grid.
+    /// The cluster's interaction is the cluster's energy minus the molecules',
+    /// subtracted in order, which for two molecules is `interact`'s own sum.
+    fn cluster_interaction(&self, mols: &[Vec<Vec3>], first_only: bool) -> Interaction {
+        let n = self.z.len();
+        let m = mols.len();
+        let base = self.cluster_problem(mols);
+        let electrons: f64 = self.z.iter().map(|&zz| zz as f64).sum();
+        let mut slots: Vec<(Vec<usize>, f64)> = vec![((0..m * n).collect(), m as f64 * electrons)];
+        for i in 0..m {
+            slots.push(((i * n..(i + 1) * n).collect(), electrons));
+        }
+        let mut e_pbe = Vec::new();
+        let mut e_rev = Vec::new();
+        let (mut t_solve, mut t_fine, mut t_swap) = (0.0, 0.0, 0.0);
+        let mut iterations = Vec::new();
+        for (keep, ne) in slots {
+            let mut p = base.with_ghosts(&keep, ne);
+            p.functional = Functional::PbeXLdaC;
+            p.nonlocal = Some(NonlocalSpec::in_the_field(Z_AB_DF1));
+            let ts = Instant::now();
+            let sol = solve(&p, 200, 1e-10);
+            assert!(sol.converged, "a field of the cluster did not converge");
+            t_solve += ts.elapsed().as_secs_f64();
+            iterations.push(sol.iterations);
+            let ts = Instant::now();
+            let fine = energy_on_finer_grid(&p, &sol, 50, 12);
+            t_fine += ts.elapsed().as_secs_f64();
+            let ts = Instant::now();
+            let atoms: Vec<([f64; 3], f64)> = p.nuclei.iter().zip(&p.sizes).map(|((_, q), r)| (*q, *r)).collect();
+            let grid = crate::electrons::grid::molecular_pruned(&atoms, p.radial, p.theta, p.prune);
+            let batches = Batches::new(&p.basis, &grid);
+            let (x_pbe, _, _) = exchange_correlation(&p.basis, &batches, Functional::PbeXLdaC, &sol.density_alpha, &sol.density_beta);
+            let (x_rev, _, _) = exchange_correlation(&p.basis, &batches, Functional::RevPbeXLdaC, &sol.density_alpha, &sol.density_beta);
+            e_pbe.push(fine);
+            e_rev.push(fine - x_pbe + x_rev);
+            t_swap += ts.elapsed().as_secs_f64();
+            println!("  field {} of {} done: {:.0} s so far ({:.0} s solving, {} iterations; {:.0} s on the fine grid; {:.0} s swapping exchange)", e_pbe.len(), m + 1, t_solve + t_fine + t_swap, t_solve, iterations.last().unwrap(), t_fine, t_swap);
+            std::io::stdout().flush().ok();
+            if first_only {
+                break;
+            }
+        }
+        let sub = |e: &[f64]| e[1..].iter().fold(e[0], |acc, x| acc - x);
+        Interaction { pbe: sub(&e_pbe), rev: sub(&e_rev), t_solve, t_fine, t_swap, iterations, functions: base.basis.size }
+    }
+}
+
+/// `phys-cluster name snapshot [--centre I] [--size N] [--law FILE] [--dry]
+/// [--grown]`: a cluster of `N` molecules (default 6) about molecule `I` of a
+/// snapshot, and the question of whether a law that sums pairs gets its
+/// energy right.
+///
+/// It computes the cluster's counterpoise interaction energy, and the same
+/// for each of its `N(N-1)/2` pairs, then reports the cluster's energy against
+/// the **sum of the pairs'** (the difference is everything that is not
+/// additive: three-body polarisation and the rest) and, given a law, against
+/// that law's sum over the same pairs. Each piece is appended to
+/// `cluster-<name>-<N>-c<I>.txt` as it is finished and a run carries on from
+/// what is there. `--dry` prints what the cluster would cost and solves nothing;
+/// `--first-field` solves only the cluster's own field and says how long it took.
+pub fn cluster_main(args: &[String]) {
+    let name = args.first().cloned().expect("a molecule name");
+    let snapshot = args.get(1).cloned().expect("a snapshot file");
+    let flag = |f: &str| args.iter().position(|a| a == f).and_then(|i| args.get(i + 1)).cloned();
+    let centre: usize = flag("--centre").and_then(|s| s.parse().ok()).unwrap_or(0);
+    let size: usize = flag("--size").and_then(|s| s.parse().ok()).unwrap_or(6);
+    let grown = args.iter().any(|a| a == "--grown");
+    let dry = args.iter().any(|a| a == "--dry");
+    let mono = Monomer::load(&name, grown);
+    let snap = Snapshot::load(&snapshot, mono.z.len());
+    // `--check-pair K`: pair K of the snapshot's order through the cluster's
+    // own code, to be set beside the line `run_snapshot` wrote for it.
+    if let Some(k) = flag("--check-pair").and_then(|s| s.parse::<usize>().ok()) {
+        let (i, j, a, b, sep) = snap.pair(k);
+        let r = mono.cluster_interaction(&[a.clone(), b.clone()], false);
+        let _ = sep;
+        println!("pair {k} (molecules {i}, {j}) through the cluster code: {:.10e} / {:.10e} hartree", r.pbe, r.rev);
+        let file = flag("--against").unwrap_or_else(|| format!("pairs-{name}-liq-gpu.txt"));
+        let line = std::fs::read_to_string(&file).ok().and_then(|t| t.lines().find(|l| l.split_whitespace().next() == Some(&k.to_string())).map(|l| l.to_string()));
+        match line.as_deref().map(|l| l.split_whitespace().collect::<Vec<_>>()) {
+            Some(w) if w.len() > 4 => println!("  recorded in {file}: {} / {} hartree; differences {:+.2e} / {:+.2e}", w[2], w[3], r.pbe - w[2].parse::<f64>().unwrap_or(f64::NAN), r.rev - w[3].parse::<f64>().unwrap_or(f64::NAN)),
+            _ => println!("  no line {k} in {file}"),
+        }
+        return;
+    }
+    let mols = snap.cluster(centre, size);
+    let ids: Vec<usize> = mols.iter().map(|(i, _)| *i).collect();
+    let geom: Vec<Vec<Vec3>> = mols.into_iter().map(|(_, m)| m).collect();
+    let cs = mono.cluster_size(&geom);
+    let two = mono.cluster_size(&geom[..2]);
+    println!("{name} cluster of {size} about molecule {centre} of {snapshot}: molecules {ids:?}");
+    println!("  the cluster: {} functions, {} auxiliary, a table of at most {:.1} GB; a pair: {} functions, at most {:.2} GB", cs.functions, cs.auxiliary, cs.table_upper_bytes / 1e9, two.functions, two.table_upper_bytes / 1e9);
+    if dry {
+        return;
+    }
+    // `--first-field`: only the cluster's own field, to time it.
+    if args.iter().any(|a| a == "--first-field") {
+        let t = Instant::now();
+        mono.cluster_interaction(&geom, true);
+        println!("the first field of the cluster of {size}: {:.0} s", t.elapsed().as_secs_f64());
+        return;
+    }
+    let out = format!("cluster-{name}-{size}-c{centre}.txt");
+    let have = std::fs::read_to_string(&out).unwrap_or_default();
+    let mut file = std::fs::OpenOptions::new().create(true).append(true).open(&out).expect("the output file");
+    if have.is_empty() {
+        writeln!(file, "# cluster of {size} about molecule {centre} of {snapshot}; molecules {ids:?}; energies in hartree, PBE-exchange form then revPBE-exchange").ok();
+        for (i, m) in ids.iter().zip(&geom) {
+            let mut line = format!("# mol {i}");
+            for p in m {
+                line += &format!(" {:.8} {:.8} {:.8}", p.x, p.y, p.z);
+            }
+            writeln!(file, "{line}").ok();
+        }
+    }
+    let read = |key: &str| -> Option<(f64, f64)> {
+        have.lines().find(|l| l.starts_with(key)).and_then(|l| {
+            let w: Vec<&str> = l.split_whitespace().collect();
+            Some((w[w.len() - 2].parse().ok()?, w[w.len() - 1].parse().ok()?))
+        })
+    };
+    let law = flag("--law").map(|f| {
+        let text = std::fs::read_to_string(&f).unwrap_or_else(|_| panic!("no {f}"));
+        (crate::liquid::SiteSite::from_text(&text).expect("a readable law"), crate::liquid::SiteSite::bisector_from_text(&text))
+    });
+    let law_energy = |a: &[Vec3], b: &[Vec3]| -> Option<f64> {
+        let (law, bis) = law.as_ref()?;
+        let sites = |m: &[Vec3]| -> Vec<(Vec3, usize)> {
+            let atoms: Vec<(Vec3, usize)> = m.iter().cloned().zip(mono.types.iter().cloned()).collect();
+            match bis {
+                Some((t, d)) => crate::liquid::with_bisector_site(&atoms, *t, *d),
+                None => atoms,
+            }
+        };
+        Some(crate::liquid::pair_energy(law, &crate::liquid::PairEnergy { a: sites(a), b: sites(b), energy: 0.0 }))
+    };
+    let mut pair_sum = (0.0, 0.0);
+    let mut law_sum = 0.0;
+    for i in 0..size {
+        for j in i + 1..size {
+            let key = format!("pair {i} {j} ");
+            let (p, r) = match read(&key) {
+                Some(v) => v,
+                None => {
+                    let t = Instant::now();
+                    let r = mono.cluster_interaction(&[geom[i].clone(), geom[j].clone()], false);
+                    let line = format!("pair {i} {j} {} {} {:.10e} {:.10e}", ids[i], ids[j], r.pbe, r.rev);
+                    writeln!(file, "{line}").ok();
+                    file.flush().ok();
+                    println!("  pair {i} {j}: {:.4} / {:.4} kcal/mol, {:.0} s", r.pbe * 627.509474, r.rev * 627.509474, t.elapsed().as_secs_f64());
+                    (r.pbe, r.rev)
+                }
+            };
+            pair_sum.0 += p;
+            pair_sum.1 += r;
+            if let Some(e) = law_energy(&geom[i], &geom[j]) {
+                law_sum += e;
+            }
+        }
+    }
+    println!("  the pairs' sum (DFT): {:.4} / {:.4} kcal/mol; the law's sum: {}", pair_sum.0 * 627.509474, pair_sum.1 * 627.509474, if law.is_some() { format!("{:.4} kcal/mol", law_sum * 627.509474) } else { "no law given".into() });
+    let whole = match read("cluster ") {
+        Some(v) => v,
+        None => {
+            let t = Instant::now();
+            let r = mono.cluster_interaction(&geom, false);
+            writeln!(file, "cluster {size} {:.10e} {:.10e}", r.pbe, r.rev).ok();
+            file.flush().ok();
+            println!("  the cluster: {:.4} / {:.4} kcal/mol, {:.0} s ({} functions)", r.pbe * 627.509474, r.rev * 627.509474, t.elapsed().as_secs_f64(), r.functions);
+            (r.pbe, r.rev)
+        }
+    };
+    let k = 627.509474;
+    println!("{size} molecules: cluster {:.4} kcal/mol (PBE x), the DFT pairs' sum {:.4}, so what is not additive is {:+.4} kcal/mol ({:+.2} a molecule)", whole.0 * k, pair_sum.0 * k, (whole.0 - pair_sum.0) * k, (whole.0 - pair_sum.0) * k / size as f64);
+    if law.is_some() {
+        println!("  the law's pair sum is {:.4}: {:+.4} kcal/mol from the cluster ({:+.2} a molecule), of which {:+.4} is the law's pairs and {:+.4} the non-additivity", law_sum * k, (law_sum - whole.0) * k, (law_sum - whole.0) * k / size as f64, (law_sum - pair_sum.0) * k, (pair_sum.0 - whole.0) * k);
+    }
 }

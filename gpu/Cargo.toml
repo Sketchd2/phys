@@ -26,5 +26,9 @@ name = "phys-recheck-gpu"
 path = "src/bin/recheck_gpu.rs"
 
 [[bin]]
+name = "phys-cluster-gpu"
+path = "src/bin/cluster_gpu.rs"
+
+[[bin]]
 name = "phys-pairs-liquid-gpu"
 path = "src/bin/pairs_liquid_gpu.rs"
