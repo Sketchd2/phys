@@ -4299,6 +4299,17 @@ there (`CLAUDE.md`, "Whose decision it is").
 the full suite under a stated wall time on the owner's machine with every
 assertion intact.
 
+*Also scheduled here by the owner, from Phase 6:* **the regression tests go in
+a bucket of their own.** The tests written to pin a bug that was found and fixed
+(the ones whose doc comments say what the defect measured) are separated from the
+rest, so that the smaller batch runs on every change and the larger batch, with
+the regressions included, runs less often. That makes three things this phase
+has to decide with the owner rather than assume: how a test is marked as a
+regression (a directory, a naming rule or a feature), how the slow-tier water
+dimer and the long physics runs sit against it (a regression can be slow and a
+fast test is not necessarily a regression), and how often "less often" is. No
+regression test is dropped, loosened or left out of the larger batch.
+
 *Scheduled into this phase by the owner, from Phase 6:* the water-dimer
 validation of E7 — the S22 water dimer, counterpoise corrected, with refit
 PW86 exchange and vdW-DF2's kernel against Vydrov and Van Voorhis's 4.78
