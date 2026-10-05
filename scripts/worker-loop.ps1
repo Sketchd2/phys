@@ -8,6 +8,7 @@ while ($true) {
     switch ($LASTEXITCODE) {
         0 { exit 0 }
         10 { $unreachable = 0 }
+        4 { exit 4 }
         default {
             $unreachable++
             if ($unreachable -ge 60) { exit 3 }

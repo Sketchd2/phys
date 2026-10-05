@@ -147,6 +147,7 @@ pub struct Monomer {
     extra: Vec<Vec<(usize, f64)>>,
     body: Vec<Vec3>,
     contact: Vec<f64>,
+    masses: Vec<f64>,
     grown: bool,
 }
 
@@ -178,7 +179,7 @@ impl Monomer {
         }
         let body: Vec<Vec3> = mono.positions.iter().map(|p| Vec3 { x: p[0] - com[0], y: p[1] - com[1], z: p[2] - com[2] }).collect();
         let contact: Vec<f64> = z.iter().map(|&zz| crate::chem::elements::Element(zz as u8).vdw_radius().unwrap_or(1.5e-10) / 0.529177210903e-10).collect();
-        Monomer { name: name.to_string(), z, types, extra, body, contact, grown }
+        Monomer { name: name.to_string(), z, types, extra, body, contact, masses, grown }
     }
 
     /// Pair `k` of the random draw: two molecules' atom positions and the
@@ -400,7 +401,10 @@ pub fn run_snapshot(args: &[String], tag: &str) {
 /// ```
 ///
 /// `pair` is the random draw's indices `from..to`; `snap` is the same range of
-/// a snapshot's pairs, in its seeded order. `class` is `cpu` or `gpu` (see
+/// a snapshot's pairs, in its seeded order. Either may end with `weight=W`
+/// (the work in one task relative to a pair, default 1) and `mem=GB` (memory a
+/// task needs, which otherwise is learned from the first to finish): what the
+/// queue sizes machines against. `class` is `cpu` or `gpu` (see
 /// `queue`) and `out` the file the lines go to. An index already in `out` is
 /// left out, so a plan can be run again after a stop, and two plans that name
 /// one file must not overlap in index. Pairs of the random draw are one-to-one
@@ -415,8 +419,20 @@ pub fn plan(text: &str) -> Result<Vec<crate::queue::Task>, String> {
         if line.is_empty() || line.starts_with('#') {
             continue;
         }
-        let w: Vec<&str> = line.split_whitespace().collect();
+        let mut w: Vec<&str> = line.split_whitespace().collect();
         let at = |what: &str| format!("plan line {}: {what}", n + 1);
+        let mut weight = 1.0;
+        let mut need_mb = None;
+        while let Some(&last) = w.last() {
+            if let Some(v) = last.strip_prefix("weight=") {
+                weight = v.parse::<f64>().ok().filter(|x| *x > 0.0).ok_or_else(|| at("weight= wants a positive number"))?;
+            } else if let Some(v) = last.strip_prefix("mem=") {
+                need_mb = Some((v.parse::<f64>().ok().filter(|x| *x > 0.0).ok_or_else(|| at("mem= wants gigabytes"))? * 1024.0) as u64);
+            } else {
+                break;
+            }
+            w.pop();
+        }
         let num = |s: &str| s.parse::<usize>().map_err(|_| at(&format!("{s:?} is not a number")));
         let check_basis = |b: &str| if b == "element" || b == "grown" { Ok(()) } else { Err(at("the basis is `element` or `grown`")) };
         let check_class = |c: &str| if c == "cpu" || c == "gpu" { Ok(()) } else { Err(at("the class is `cpu` or `gpu`")) };
@@ -437,7 +453,7 @@ pub fn plan(text: &str) -> Result<Vec<crate::queue::Task>, String> {
                 let done = done_indices(out);
                 for k in from..to {
                     if !done.contains(&k) {
-                        tasks.push(crate::queue::Task { out: out.to_string(), index: k, class: class.to_string(), spec: format!("pair {name} {basis} {k}"), header: RANDOM_HEADER.to_string() });
+                        tasks.push(crate::queue::Task { out: out.to_string(), index: k, class: class.to_string(), spec: format!("pair {name} {basis} {k}"), header: RANDOM_HEADER.to_string(), kind: format!("{name} {basis}"), weight, need_mb });
                     }
                 }
             }
@@ -458,7 +474,7 @@ pub fn plan(text: &str) -> Result<Vec<crate::queue::Task>, String> {
                 let done = done_indices(out);
                 for k in from..to.min(snap.len()) {
                     if !done.contains(&k) {
-                        tasks.push(crate::queue::Task { out: out.to_string(), index: k, class: class.to_string(), spec: format!("snap {name} {basis} {path} {:x} {k}", snap.fingerprint), header: snapshot_header(path) });
+                        tasks.push(crate::queue::Task { out: out.to_string(), index: k, class: class.to_string(), spec: format!("snap {name} {basis} {path} {:x} {k}", snap.fingerprint), header: snapshot_header(path), kind: format!("{name} {basis}"), weight, need_mb });
                     }
                 }
             }
@@ -527,12 +543,13 @@ impl Executor {
 }
 
 /// The worker's whole `main`: `args` is `host:port [--name N] [--jobs N]
-/// [--patience MINUTES]`, and the token is `$PHYS_QUEUE_TOKEN` (default
+/// [--patience MINUTES] [--mem GB]` (`--mem` offers less than is free, or says
+/// how much where it cannot be measured), and the token is `$PHYS_QUEUE_TOKEN` (default
 /// `open`). The class is the binary's: `cpu` for `phys-worker`, `gpu` for the
 /// GPU one, which has installed its engine before calling this.
 pub fn work_main(args: &[String], class: &str) {
     let server = args.first().cloned().unwrap_or_else(|| {
-        eprintln!("usage: worker host:port [--name N] [--jobs N] [--patience MINUTES]");
+        eprintln!("usage: worker host:port [--name N] [--jobs N] [--patience MINUTES] [--mem GB]");
         std::process::exit(2);
     });
     let flag = |f: &str| args.iter().position(|a| a == f).and_then(|i| args.get(i + 1)).cloned();
@@ -542,6 +559,7 @@ pub fn work_main(args: &[String], class: &str) {
         token: std::env::var("PHYS_QUEUE_TOKEN").unwrap_or_else(|_| "open".into()),
         name: name.replace(char::is_whitespace, "-"),
         class: class.to_string(),
+        mem_mb: flag("--mem").and_then(|s| s.parse::<f64>().ok()).map(|gb| (gb * 1024.0) as u64),
         max_jobs: flag("--jobs").and_then(|s| s.parse().ok()),
         patience: Duration::from_secs(60 * flag("--patience").and_then(|s| s.parse().ok()).unwrap_or(30)),
     };
@@ -555,5 +573,175 @@ pub fn work_main(args: &[String], class: &str) {
         crate::queue::Ended::Limit => 10,
         crate::queue::Ended::NothingLeft => 0,
         crate::queue::Ended::ServerGone => 3,
+        crate::queue::Ended::TooSmall => 4,
     });
+}
+
+/// One line of a pairs file, read back.
+struct Recorded {
+    index: usize,
+    sep: f64,
+    pbe: f64,
+    rev: f64,
+    atoms: Vec<([f64; 3], usize)>,
+}
+
+fn parse_recorded(line: &str, atoms: usize) -> Result<Recorded, String> {
+    let (head, tail) = line.split_once('|').ok_or("no `|`")?;
+    let h: Vec<&str> = head.split_whitespace().collect();
+    if h.len() != 4 {
+        return Err(format!("{} numbers before the `|`, not 4", h.len()));
+    }
+    let num = |s: &str| s.parse::<f64>().ok().filter(|x| x.is_finite()).ok_or_else(|| format!("{s:?} is not a finite number"));
+    let t: Vec<&str> = tail.split_whitespace().collect();
+    if t.len() != 4 * atoms {
+        return Err(format!("{} values after the `|`, not {}", t.len(), 4 * atoms));
+    }
+    let mut at = Vec::new();
+    for c in t.chunks(4) {
+        at.push(([num(c[0])?, num(c[1])?, num(c[2])?], c[3].parse::<usize>().map_err(|_| format!("{:?} is not a type", c[3]))?));
+    }
+    Ok(Recorded { index: h[0].parse::<usize>().map_err(|_| "the index is not a number".to_string())?, sep: num(h[1])?, pbe: num(h[2])?, rev: num(h[3])?, atoms: at })
+}
+
+impl Monomer {
+    /// What a pairs file's lines must satisfy whatever computed them: every
+    /// line whole, no index twice, the molecules rigid (the monomer's own
+    /// internal distances to 1e-6 bohr, which the 8 decimals written allow),
+    /// each atom's type the monomer's, and the separation written the distance
+    /// between the molecules' centres of mass. Returns the lines read and what
+    /// is wrong, each with its index.
+    fn validate(&self, text: &str) -> (Vec<Recorded>, Vec<String>) {
+        let n = self.z.len();
+        let mut rows = Vec::new();
+        let mut bad = Vec::new();
+        let mut seen = std::collections::HashSet::new();
+        let total: f64 = self.masses.iter().sum();
+        let com = |m: &[([f64; 3], usize)]| {
+            let mut c = Vec3::ZERO;
+            for (a, mass) in m.iter().zip(&self.masses) {
+                c = c + Vec3 { x: a.0[0], y: a.0[1], z: a.0[2] }.scale(mass / total);
+            }
+            c
+        };
+        for (ln, line) in text.lines().enumerate().filter(|(_, l)| !l.starts_with('#') && !l.trim().is_empty()) {
+            let r = match parse_recorded(line, 2 * n) {
+                Ok(r) => r,
+                Err(e) => {
+                    bad.push(format!("line {}: {e}", ln + 1));
+                    continue;
+                }
+            };
+            let k = r.index;
+            if !seen.insert(k) {
+                bad.push(format!("pair {k}: the index appears twice"));
+            }
+            for (m, name) in [(&r.atoms[..n], "first"), (&r.atoms[n..], "second")] {
+                for (i, a) in m.iter().enumerate() {
+                    if a.1 != self.types[i] {
+                        bad.push(format!("pair {k}: the {name} molecule's atom {i} has type {}, not {}", a.1, self.types[i]));
+                    }
+                    for j in 0..i {
+                        let d = (Vec3 { x: a.0[0], y: a.0[1], z: a.0[2] } - Vec3 { x: m[j].0[0], y: m[j].0[1], z: m[j].0[2] }).norm();
+                        let want = (self.body[i] - self.body[j]).norm();
+                        if (d - want).abs() > 1e-6 {
+                            bad.push(format!("pair {k}: the {name} molecule is not rigid: atoms {j}-{i} are {d:.8} apart, not {want:.8}"));
+                        }
+                    }
+                }
+            }
+            // Only a random pair's separation is the centres' distance; a
+            // snapshot pair's is its centroids'.
+            let sep_com = (com(&r.atoms[..n]) - com(&r.atoms[n..])).norm();
+            let centroid = |m: &[([f64; 3], usize)]| m.iter().fold(Vec3::ZERO, |c, a| c + Vec3 { x: a.0[0], y: a.0[1], z: a.0[2] }).scale(1.0 / n as f64);
+            let sep_centroid = (centroid(&r.atoms[..n]) - centroid(&r.atoms[n..])).norm();
+            if (sep_com - r.sep).abs() > 2e-6 && (sep_centroid - r.sep).abs() > 2e-6 {
+                bad.push(format!("pair {k}: separation {} on the line, {sep_com:.6} between centres of mass, {sep_centroid:.6} between centroids", r.sep));
+            }
+            rows.push(r);
+        }
+        (rows, bad)
+    }
+}
+
+/// Read a pairs file back and check it against itself and, for a sample of
+/// its pairs, against the calculation: `args` is `file name [--sample N]
+/// [--seed S] [--indices 124,125] [--tol KCAL] [--grown]`.
+///
+/// What it is for: the file is the dataset, and it was written over days by
+/// processes that were restarted, rebuilt and moved to other machines. The
+/// first check is structural (see [`Monomer::validate`]) and needs no solve.
+/// The second takes each chosen pair's geometry *as recorded* and solves it
+/// again, to say whether the energies on the line are what this binary gets
+/// now. Run it with the binary class the file was made with: `phys-recheck` for
+/// a CPU file, `phys-recheck-gpu` for a GPU one. The recorded geometry has 8
+/// decimals, so a repeat differs from the original by that rounding as well as
+/// by anything that changed. Differences are reported as they are; `--tol`
+/// (default 0.01 kcal/mol) only decides the exit status.
+pub fn recheck(args: &[String]) -> i32 {
+    let file = args.first().cloned().expect("a pairs file");
+    let name = args.get(1).cloned().expect("a molecule name");
+    let flag = |f: &str| args.iter().position(|a| a == f).and_then(|i| args.get(i + 1)).cloned();
+    let grown = args.iter().any(|a| a == "--grown");
+    let tol: f64 = flag("--tol").and_then(|s| s.parse().ok()).unwrap_or(0.01);
+    let mono = Monomer::load(&name, grown);
+    let text = std::fs::read_to_string(&file).unwrap_or_else(|_| panic!("no {file}"));
+    let (rows, bad) = mono.validate(&text);
+    let mut indices: Vec<usize> = rows.iter().map(|r| r.index).collect();
+    indices.sort();
+    let gaps: Vec<usize> = (0..indices.last().map(|&m| m + 1).unwrap_or(0)).filter(|k| indices.binary_search(k).is_err()).collect();
+    println!("{file}: {} pairs read, {} problems{}", rows.len(), bad.len(), if gaps.is_empty() { String::new() } else { format!(", indices missing: {gaps:?}") });
+    for b in &bad {
+        println!("  PROBLEM {b}");
+    }
+    let chosen: Vec<usize> = if let Some(list) = flag("--indices") {
+        list.split(',').filter_map(|s| s.trim().parse().ok()).collect()
+    } else {
+        let want: usize = flag("--sample").and_then(|s| s.parse().ok()).unwrap_or(0);
+        let seed: u128 = flag("--seed").and_then(|s| s.parse().ok()).unwrap_or(1);
+        let mut order = Stream::at(0x6368_6563_6b00, seed, 0, Purpose::Positions);
+        let mut pool = indices.clone();
+        for i in (1..pool.len()).rev() {
+            let j = (order.uniform() * (i + 1) as f64) as usize;
+            pool.swap(i, j.min(i));
+        }
+        pool.truncate(want);
+        pool.sort();
+        pool
+    };
+    let n = mono.z.len();
+    let (mut worst, mut sum, mut sq, mut count) = (0.0f64, 0.0, 0.0, 0usize);
+    let mut over = 0;
+    for k in chosen {
+        let r = match rows.iter().find(|r| r.index == k) {
+            Some(r) => r,
+            None => {
+                println!("  pair {k}: not in the file");
+                over += 1;
+                continue;
+            }
+        };
+        let v = |a: &([f64; 3], usize)| Vec3 { x: a.0[0], y: a.0[1], z: a.0[2] };
+        let a: Vec<Vec3> = r.atoms[..n].iter().map(v).collect();
+        let b: Vec<Vec3> = r.atoms[n..].iter().map(v).collect();
+        let t = Instant::now();
+        let setup = Setup { z: &mono.z, extra: &mono.extra, grown: mono.grown };
+        let again = interact(&setup, k, &a, &b);
+        let (dp, dr) = ((again.pbe - r.pbe) * 627.509474, (again.rev - r.rev) * 627.509474);
+        for d in [dp, dr] {
+            worst = worst.max(d.abs());
+            sum += d;
+            sq += d * d;
+            count += 1;
+        }
+        if dp.abs() > tol || dr.abs() > tol {
+            over += 1;
+        }
+        println!("  pair {k}: R {:.2} bohr, recorded {:.5} / {:.5}, now {:.5} / {:.5} kcal/mol, difference {dp:+.5} / {dr:+.5}, {:.0} s", r.sep, r.pbe * 627.509474, r.rev * 627.509474, again.pbe * 627.509474, again.rev * 627.509474, t.elapsed().as_secs_f64());
+        std::io::stdout().flush().ok();
+    }
+    if count > 0 {
+        println!("{} pairs solved again: largest difference {worst:.5} kcal/mol, mean {:+.5}, rms {:.5}; {over} beyond {tol} kcal/mol", count / 2, sum / count as f64, (sq / count as f64).sqrt());
+    }
+    if bad.is_empty() && over == 0 { 0 } else { 1 }
 }

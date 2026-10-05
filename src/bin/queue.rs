@@ -49,7 +49,7 @@ fn main() {
     for ((class, out), n) in &by_class {
         println!("  {n} for {class} machines into {out}");
     }
-    match phys::queue::serve(listener, tasks, lease, &token, flag("--log").or(Some("queue.log".into())), std::time::Duration::from_secs(20)) {
+    match phys::queue::serve(listener, tasks, lease, &token, flag("--log").or(Some("queue.log".into())), std::time::Duration::from_secs(90)) {
         Ok(n) => println!("finished: {n} results this run"),
         Err(e) => {
             eprintln!("the server stopped: {e}");

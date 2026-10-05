@@ -44,6 +44,10 @@ name = "phys-worker"
 path = "src/bin/worker.rs"
 
 [[bin]]
+name = "phys-recheck"
+path = "src/bin/recheck.rs"
+
+[[bin]]
 name = "phys-pairs"
 path = "src/bin/pairs.rs"
 

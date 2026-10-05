@@ -8,7 +8,8 @@
 # worker exits 10 after ten tasks so that each stretch runs in a fresh process
 # (a long-lived one slows down: see PLAY.md E8); this starts the next one. It
 # stops when the server says nothing is left (exit 0) and waits a minute and
-# tries again if the server cannot be reached (exit 3), so a rebooted
+# tries again if the server cannot be reached (exit 3), and stops for good if
+# everything left is too big for it (exit 4), so a rebooted
 # server or a network blip does not need anyone to restart the fleet.
 #
 # Memory: a water pair needs several GB for its tables. If PHYS_SPILL_DIR is
@@ -24,6 +25,7 @@ while true; do
     case $? in
         0) exit 0 ;;
         10) unreachable=0 ;;
+        4) exit 4 ;;   # everything left needs more memory than this machine offers
         *) unreachable=$((unreachable + 1))
            [ "$unreachable" -ge 60 ] && exit 3
            sleep 60 ;;

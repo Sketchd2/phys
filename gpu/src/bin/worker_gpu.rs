@@ -3,7 +3,7 @@
 //! consistent fields stay on the CPU.
 //!
 //! ```sh
-//! phys-worker-gpu host:port [--name desk] [--jobs 10] [--patience 30]
+//! phys-worker-gpu host:port [--name desk] [--jobs 10] [--patience 30] [--mem GB]
 //! ```
 
 fn main() {
