@@ -4046,6 +4046,32 @@ the start of the phase, ahead of the renderer**. In order:
      against 27.8. It was reverted.** The remaining levers all change numbers
      (a coarser exchange-correlation grid, looser screening, a looser
      convergence), and the owner's rule is that speed-ups do not, at this time.
+     *Route A's first fit, 124 water pairs (the first 124, drawn uniformly
+     over 4-15 bohr; 100 fitted, 24 held out), and what the form is short
+     of:* the isotropic site-site form (charges on atoms, exponential
+     repulsion, damped dispersion; 13 parameters) leaves **0.44 kcal/mol
+     RMS on pairs it never saw, and 0.27 Boltzmann-weighted at 373 K**, on
+     energies of 1.4 RMS. The error is at short range: inside 7 bohr 0.84
+     (unseen) against 0.04-0.08 beyond 10. A first run left both charges at
+     exactly 0.0 (the energy is stationary there) and fitted a law with no
+     hydrogen bond; fixed. **Adding charge penetration and first-order
+     induction from atomic polarisabilities changes nothing**: eight starting
+     points per form all reach the same cost (1.38e-6) and the
+     polarisabilities fit to 0.00. **An off-atom charge site on the
+     bisector (TIP4P-like) cuts the fitted cost twelve-fold** (1.2e-7;
+     0.29 unseen, 0.13 Boltzmann-weighted), but with an unphysical solution
+     (-12.8 at 0.054 bohr from an oxygen of +11.7, hydrogens +0.59: the
+     optimiser builds an effective negative charge slightly off the atom
+     out of two huge opposite ones); two tetrahedral lone-pair sites as
+     VSEPR places them did not help in the same optimiser (the sites ran
+     off to infinity), which is inconclusive and not a result. So the
+     limit is directional electrostatics, not the terms that were added;
+     what the physics wants is the molecule's own charge distribution, which
+     is what E6's partition measures, and the first step now is to repeat
+     this with pairs drawn where a liquid's neighbours sit (4.2-11 bohr:
+     only 21 of the training pairs lie inside 7 bohr). Judged against
+     0.05 kcal/mol none of these is there; what error the boiling point can
+     bear is for E8 to show.
      *Memory and disk, found on the way:* the Coulomb fit's three-centre
      table now stores only what half the free RAM allows, spills the rest to
      the disk `PHYS_SPILL_DIR` names (at most `PHYS_SPILL_MAX_GB`, 40 by
