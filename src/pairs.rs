@@ -60,6 +60,77 @@ fn separation_for(k: usize) -> (f64, f64) {
     if k < UNIFORM_PAIRS { SEPARATION } else { (4.2, 11.0) }
 }
 
+/// What the electronic structure needs of one pair beyond its geometry.
+struct Setup<'a> {
+    z: &'a [u32],
+    extra: &'a [Vec<(usize, f64)>],
+    grown: bool,
+}
+
+/// One pair's counterpoise interaction energies and where their time went.
+struct Interaction {
+    pbe: f64,
+    rev: f64,
+    t_solve: f64,
+    t_fine: f64,
+    t_swap: f64,
+    iterations: Vec<usize>,
+    functions: usize,
+}
+
+/// The counterpoise interaction energy of molecules `a` and `b` (atom
+/// positions, bohr): the pair, and each partner in the pair's basis with the
+/// other's nuclei and electrons removed; one field each with PBE exchange and
+/// the non-local correlation in it, and two energies from it on the fine grid,
+/// the unfitted form's and published vdW-DF1's (revPBE exchange swapped in on
+/// the same density).
+fn interact(setup: &Setup, k: usize, a: &[Vec3], b: &[Vec3]) -> Interaction {
+    let (z, extra, grown) = (setup.z, setup.extra, setup.grown);
+    let n = z.len();
+    let pair = Molecule { z: z.iter().chain(z.iter()).cloned().collect(), positions: a.iter().chain(b.iter()).map(|v| [v.x, v.y, v.z]).collect(), charge: 0, unpaired: 0 };
+    let base = if grown {
+        let ex: Vec<Vec<(usize, f64)>> = extra.iter().chain(extra.iter()).cloned().collect();
+        pair.problem_with(Functional::Pbe, Some(&ex))
+    } else {
+        pair.problem(Functional::Pbe)
+    };
+    let electrons: f64 = z.iter().map(|&zz| zz as f64).sum();
+    let first: Vec<usize> = (0..n).collect();
+    let second: Vec<usize> = (n..2 * n).collect();
+    let all: Vec<usize> = (0..2 * n).collect();
+    let mut e_pbe = [0.0; 3];
+    let mut e_rev = [0.0; 3];
+    // Where the pair's time goes: the three fields, the fine-grid
+    // non-local energies, and the exchange swap for the second partner.
+    let (mut t_solve, mut t_fine, mut t_swap) = (0.0, 0.0, 0.0);
+    let mut iterations = Vec::new();
+    for (slot, (keep, ne)) in [(all, 2.0 * electrons), (first, electrons), (second, electrons)].into_iter().enumerate() {
+        let mut p = base.with_ghosts(&keep, ne);
+        p.functional = Functional::PbeXLdaC;
+        p.nonlocal = Some(NonlocalSpec::in_the_field(Z_AB_DF1));
+        let ts = Instant::now();
+        let sol = solve(&p, 200, 1e-10);
+        assert!(sol.converged, "pair {k}: a field did not converge");
+        t_solve += ts.elapsed().as_secs_f64();
+        iterations.push(sol.iterations);
+        let ts = Instant::now();
+        let fine = energy_on_finer_grid(&p, &sol, 50, 12);
+        t_fine += ts.elapsed().as_secs_f64();
+        let ts = Instant::now();
+        let atoms: Vec<([f64; 3], f64)> = p.nuclei.iter().zip(&p.sizes).map(|((_, q), r)| (*q, *r)).collect();
+        let grid = crate::electrons::grid::molecular_pruned(&atoms, p.radial, p.theta, p.prune);
+        let batches = Batches::new(&p.basis, &grid);
+        let (x_pbe, _, _) = exchange_correlation(&p.basis, &batches, Functional::PbeXLdaC, &sol.density_alpha, &sol.density_beta);
+        let (x_rev, _, _) = exchange_correlation(&p.basis, &batches, Functional::RevPbeXLdaC, &sol.density_alpha, &sol.density_beta);
+        e_pbe[slot] = fine;
+        e_rev[slot] = fine - x_pbe + x_rev;
+        t_swap += ts.elapsed().as_secs_f64();
+    }
+    let int_pbe = e_pbe[0] - e_pbe[1] - e_pbe[2];
+    let int_rev = e_rev[0] - e_rev[1] - e_rev[2];
+    Interaction { pbe: int_pbe, rev: int_rev, t_solve, t_fine, t_swap, iterations, functions: base.basis.size }
+}
+
 /// Run the driver for `args` (`name count [element|grown]`), writing
 /// `pairs-<name><tag>.txt`: the binary passes no tag; a binary that computes the
 /// final non-local energy another way passes one, so its pairs sit beside the
@@ -119,54 +190,16 @@ pub fn run(args: &[String], tag: &str) {
         };
         let a: Vec<Vec3> = body.iter().map(|p| rot_a.rotate(*p)).collect();
         let b: Vec<Vec3> = body.iter().map(|p| rot_b.rotate(*p) + place_b).collect();
-        let pair = Molecule { z: z.iter().chain(&z).cloned().collect(), positions: a.iter().chain(&b).map(|v| [v.x, v.y, v.z]).collect(), charge: 0, unpaired: 0 };
-        let base = if grown {
-            let ex: Vec<Vec<(usize, f64)>> = extra.iter().chain(&extra).cloned().collect();
-            pair.problem_with(Functional::Pbe, Some(&ex))
-        } else {
-            pair.problem(Functional::Pbe)
-        };
-        let electrons: f64 = z.iter().map(|&zz| zz as f64).sum();
-        let first: Vec<usize> = (0..n).collect();
-        let second: Vec<usize> = (n..2 * n).collect();
-        let all: Vec<usize> = (0..2 * n).collect();
-        let mut e_pbe = [0.0; 3];
-        let mut e_rev = [0.0; 3];
-        // Where the pair's time goes: the three fields, the fine-grid
-        // non-local energies, and the exchange swap for the second partner.
-        let (mut t_solve, mut t_fine, mut t_swap) = (0.0, 0.0, 0.0);
-        let mut iterations = Vec::new();
-        for (slot, (keep, ne)) in [(all, 2.0 * electrons), (first, electrons), (second, electrons)].into_iter().enumerate() {
-            let mut p = base.with_ghosts(&keep, ne);
-            p.functional = Functional::PbeXLdaC;
-            p.nonlocal = Some(NonlocalSpec::in_the_field(Z_AB_DF1));
-            let ts = Instant::now();
-            let sol = solve(&p, 200, 1e-10);
-            assert!(sol.converged, "pair {k}: a field did not converge");
-            t_solve += ts.elapsed().as_secs_f64();
-            iterations.push(sol.iterations);
-            let ts = Instant::now();
-            let fine = energy_on_finer_grid(&p, &sol, 50, 12);
-            t_fine += ts.elapsed().as_secs_f64();
-            let ts = Instant::now();
-            let atoms: Vec<([f64; 3], f64)> = p.nuclei.iter().zip(&p.sizes).map(|((_, q), r)| (*q, *r)).collect();
-            let grid = crate::electrons::grid::molecular_pruned(&atoms, p.radial, p.theta, p.prune);
-            let batches = Batches::new(&p.basis, &grid);
-            let (x_pbe, _, _) = exchange_correlation(&p.basis, &batches, Functional::PbeXLdaC, &sol.density_alpha, &sol.density_beta);
-            let (x_rev, _, _) = exchange_correlation(&p.basis, &batches, Functional::RevPbeXLdaC, &sol.density_alpha, &sol.density_beta);
-            e_pbe[slot] = fine;
-            e_rev[slot] = fine - x_pbe + x_rev;
-            t_swap += ts.elapsed().as_secs_f64();
-        }
-        let int_pbe = e_pbe[0] - e_pbe[1] - e_pbe[2];
-        let int_rev = e_rev[0] - e_rev[1] - e_rev[2];
+        let setup = Setup { z: &z, extra: &extra, grown };
+        let r = interact(&setup, k, &a, &b);
+        let (int_pbe, int_rev) = (r.pbe, r.rev);
         let mut line = format!("{k} {sep:.6} {int_pbe:.10e} {int_rev:.10e} |");
         for (v, ty) in a.iter().zip(&types).chain(b.iter().zip(&types)) {
             line += &format!(" {:.8} {:.8} {:.8} {ty}", v.x, v.y, v.z);
         }
         writeln!(file, "{line}").expect("the line written");
         file.flush().ok();
-        println!("pair {k}: R {sep:.2} bohr, E_int {:.4} / {:.4} kcal/mol (PBE x / revPBE x), {:.0} s ({t_solve:.0} s fields, {t_fine:.0} s fine non-local, {t_swap:.0} s exchange swap; {} functions; field iterations {iterations:?})", int_pbe * 627.509474, int_rev * 627.509474, t.elapsed().as_secs_f64(), base.basis.size);
+        println!("pair {k}: R {sep:.2} bohr, E_int {:.4} / {:.4} kcal/mol (PBE x / revPBE x), {:.0} s ({:.0} s fields, {:.0} s fine non-local, {:.0} s exchange swap; {} functions; field iterations {:?})", int_pbe * 627.509474, int_rev * 627.509474, t.elapsed().as_secs_f64(), r.t_solve, r.t_fine, r.t_swap, r.functions, r.iterations);
         std::io::stdout().flush().ok();
     }
 }
@@ -177,4 +210,100 @@ fn random_rotation(s: &mut Stream) -> Quat {
     let tau = std::f64::consts::TAU;
     let (a, b) = ((1.0 - u1).sqrt(), u1.sqrt());
     Quat { w: a * (tau * u2).sin(), v: Vec3 { x: a * (tau * u2).cos(), y: b * (tau * u3).sin(), z: b * (tau * u3).cos() } }
+}
+
+/// The pairs of a simulated liquid: `args` is `name snapshot count`, the
+/// snapshot a file `phys-bulk` wrote (`box x y z`, then one `mol` line per
+/// molecule with its atoms' positions). Candidates are every pair of molecules
+/// whose centroids lie within 10.5 bohr by the nearest image; they are put in
+/// a seeded order and taken from the front, so a run resumes, and each is
+/// computed exactly as a random pair is and appended to
+/// `pairs-<name><tag>.txt` with its centroid separation as its `R`.
+///
+/// What this is for: the law is fitted to pairs, and a liquid visits
+/// arrangements the random draw does not (the first law fitted to random pairs
+/// overbound the liquid by 5 kcal/mol a molecule); the pairs a liquid actually
+/// has are what its law must be right for.
+pub fn run_snapshot(args: &[String], tag: &str) {
+    let name = args.first().cloned().unwrap_or_else(|| "water".into());
+    let snapshot = args.get(1).cloned().expect("a snapshot file");
+    let count: usize = args.get(2).and_then(|s| s.parse().ok()).unwrap_or(40);
+    let grown = args.get(3).map(|s| s == "grown").unwrap_or(false);
+    let state = Resume::from_text(&std::fs::read_to_string(format!("grow-{name}.state")).unwrap_or_else(|_| panic!("no grow-{name}.state"))).expect("a readable state");
+    let z: Vec<u32> = match name.as_str() {
+        "water" => vec![8, 1, 1],
+        "methane" => vec![6, 1, 1, 1, 1],
+        "ammonia" => vec![7, 1, 1, 1],
+        "methanol" => vec![6, 8, 1, 1, 1, 1],
+        other => panic!("no atoms known for {other}"),
+    };
+    let atoms = z.len();
+    let mono = Molecule { z: z.clone(), positions: state.positions.clone(), charge: 0, unpaired: 0 };
+    let types = equivalent_atoms(&mono);
+    let extra = extras(&mono, &state.ladders, &state.chosen);
+    let text = std::fs::read_to_string(&snapshot).unwrap_or_else(|_| panic!("no {snapshot}"));
+    let mut cell = [0.0; 3];
+    let mut mols: Vec<Vec<Vec3>> = Vec::new();
+    for line in text.lines() {
+        let w: Vec<&str> = line.split_whitespace().collect();
+        match w.first().copied() {
+            Some("box") => {
+                for k in 0..3 {
+                    cell[k] = w[1 + k].parse().expect("a box edge");
+                }
+            }
+            Some("mol") => {
+                let v: Vec<f64> = w[2..].iter().map(|x| x.parse().expect("a coordinate")).collect();
+                assert_eq!(v.len(), 3 * atoms, "a molecule line with {} numbers", v.len());
+                mols.push(v.chunks(3).map(|c| Vec3 { x: c[0], y: c[1], z: c[2] }).collect());
+            }
+            _ => {}
+        }
+    }
+    let centroid = |m: &Vec<Vec3>| m.iter().fold(Vec3::ZERO, |acc, p| acc + *p).scale(1.0 / atoms as f64);
+    let cents: Vec<Vec3> = mols.iter().map(centroid).collect();
+    let image = |mut d: Vec3| {
+        d.x -= cell[0] * (d.x / cell[0]).round();
+        d.y -= cell[1] * (d.y / cell[1]).round();
+        d.z -= cell[2] * (d.z / cell[2]).round();
+        d
+    };
+    let mut candidates: Vec<(usize, usize, Vec3, f64)> = Vec::new();
+    for i in 0..mols.len() {
+        for j in i + 1..mols.len() {
+            let d = image(cents[j] - cents[i]);
+            if d.norm() < 10.5 {
+                // The shift that carries j's centroid to its nearest image of i's.
+                candidates.push((i, j, d - (cents[j] - cents[i]), d.norm()));
+            }
+        }
+    }
+    let mut order = Stream::at(0x6c69_7175_6964, 0, 0, Purpose::Positions);
+    for i in (1..candidates.len()).rev() {
+        let j = (order.uniform() * (i + 1) as f64) as usize;
+        candidates.swap(i, j.min(i));
+    }
+    let out = format!("pairs-{name}{tag}.txt");
+    let done = std::fs::read_to_string(&out).map(|t| t.lines().filter(|l| !l.starts_with('#')).count()).unwrap_or(0);
+    let mut file = std::fs::OpenOptions::new().create(true).append(true).open(&out).expect("the output file");
+    if done == 0 {
+        writeln!(file, "# pairs of molecules taken from {snapshot}: index centroid_separation_bohr E_int_pbe_x E_int_revpbe_x (hartree) | then x y z type for each atom of the first molecule and of the second (bohr)").ok();
+    }
+    println!("{name}: {} candidate pairs in {snapshot} within 10.5 bohr; {done} done, {count} wanted", candidates.len());
+    for k in done..count.min(candidates.len()) {
+        let t = Instant::now();
+        let (i, j, shift, sep) = candidates[k];
+        let a = mols[i].clone();
+        let b: Vec<Vec3> = mols[j].iter().map(|p| *p + shift).collect();
+        let setup = Setup { z: &z, extra: &extra, grown };
+        let r = interact(&setup, k, &a, &b);
+        let mut line = format!("{k} {sep:.6} {:.10e} {:.10e} |", r.pbe, r.rev);
+        for (v, ty) in a.iter().zip(&types).chain(b.iter().zip(&types)) {
+            line += &format!(" {:.8} {:.8} {:.8} {ty}", v.x, v.y, v.z);
+        }
+        writeln!(file, "{line}").expect("the line written");
+        file.flush().ok();
+        println!("pair {k} (molecules {i}, {j}): R {sep:.2} bohr, E_int {:.4} / {:.4} kcal/mol (PBE x / revPBE x), {:.0} s", r.pbe * 627.509474, r.rev * 627.509474, t.elapsed().as_secs_f64());
+        std::io::stdout().flush().ok();
+    }
 }

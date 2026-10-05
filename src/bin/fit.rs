@@ -21,8 +21,11 @@ fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let name = args.first().cloned().unwrap_or_else(|| "water".into());
     let temperature: f64 = args.get(1).and_then(|s| s.parse().ok()).unwrap_or(500.0);
-    let tag = args.get(2).cloned().unwrap_or_default();
-    let text = std::fs::read_to_string(format!("pairs-{name}{tag}.txt")).expect("a pairs file");
+    // One tag, or several joined by commas (`-gpu,-liq-gpu`): every file's
+    // pairs are fitted together, held-out ones taken from the whole.
+    let tag_arg = args.get(2).cloned().unwrap_or_default();
+    let tag = tag_arg.replace(',', "+");
+    let text: String = tag_arg.split(',').map(|t| std::fs::read_to_string(format!("pairs-{name}{t}.txt")).unwrap_or_else(|_| panic!("no pairs-{name}{t}.txt"))).collect::<Vec<_>>().join("\n");
     // Each line: index R E_pbe E_rev | x y z type ... (first molecule, then second).
     let mut rows: Vec<(f64, f64, Vec<(Vec3, usize)>)> = Vec::new();
     for line in text.lines().filter(|l| !l.starts_with('#') && !l.trim().is_empty()) {

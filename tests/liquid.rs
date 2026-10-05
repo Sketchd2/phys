@@ -263,3 +263,72 @@ fn a_law_reads_back_exactly() {
     let law = SiteSite { charge: vec![-0.7123456789012345, 0.35617283945061725], pair: vec![[40.1, 1.93, 15.2, 301.0], [3.01, 2.11, 4.02, 60.3], [3.01, 2.11, 4.02, 60.3], [0.51, 2.42, 1.03, 15.4]] };
     assert_eq!(SiteSite::from_text(&law.to_text()), Some(law));
 }
+
+/// The molecular virial is minus the energy's derivative with respect to a
+/// uniform scaling of the box and every centre in it (the arms fixed): that is
+/// what makes `(2 K + W) / 3 V` the pressure. Checked by central differences
+/// on 64 molecules at liquid density, where the cut-off's switch is crossed.
+#[test]
+fn the_virial_is_minus_the_energy_slope_under_scaling() {
+    let l = lattice(4, 3.1 * A, 300.0);
+    let f = l.forces(&Spc);
+    let at = |lambda: f64| {
+        let mut m = l.clone();
+        for r in m.com.iter_mut() {
+            *r = r.scale(lambda);
+        }
+        for c in m.cell.iter_mut() {
+            *c *= lambda;
+        }
+        m.forces(&Spc).energy
+    };
+    let eps = 1e-5;
+    let minus_slope = -(at(1.0 + eps) - at(1.0 - eps)) / (2.0 * eps);
+    println!("  virial {:.8e}, minus dU/dlambda {minus_slope:.8e}; pressure {:.1} bar", f.virial, l.pressure(&f) * phys::liquid::BAR_PER_HARTREE_PER_BOHR3);
+    assert!((f.virial - minus_slope).abs() < 1e-6 * f.virial.abs().max(1e-3), "{} against {minus_slope}", f.virial);
+}
+
+/// A massless site rides along: it does not move the centre of mass or change
+/// the inertia, it sits where it was put (here on the bisector at the distance
+/// asked), and it is carried into the principal frame with the atoms.
+#[test]
+fn a_massless_site_rides_along() {
+    let th = 104.52f64.to_radians() / 2.0;
+    let r = 0.9572 * A;
+    let pos = [[0.0, 0.0, 0.0], [r * th.sin(), 0.0, r * th.cos()], [-r * th.sin(), 0.0, r * th.cos()]];
+    let plain = Kind::of_molecule(&[8, 1, 1], &pos, &[0, 1, 1], None);
+    let site = Kind::of_molecule(&[8, 1, 1], &pos, &[0, 1, 1], Some((2, 0.267)));
+    assert_eq!(site.sites.len(), 4);
+    for k in 0..3 {
+        assert!((plain.inertia[k] - site.inertia[k]).abs() < 1e-9 * plain.inertia[k], "the inertia moved");
+    }
+    assert!((plain.mass - site.mass).abs() < 1e-9 * plain.mass);
+    // The site is 0.267 bohr from the oxygen, and on the line from it
+    // through the hydrogens' midpoint.
+    let o = site.sites[0];
+    let m = site.sites[3];
+    assert!(((m - o).norm() - 0.267).abs() < 1e-9, "{}", (m - o).norm());
+    let mid = (site.sites[1] + site.sites[2]).scale(0.5) - o;
+    assert!((mid.unit().dot((m - o).unit()) - 1.0).abs() < 1e-12, "the site is off the bisector");
+    assert_eq!(site.types, vec![0, 1, 1, 2]);
+}
+
+/// The off-atom site's line in a law's text.
+#[test]
+fn a_laws_bisector_line_is_read() {
+    use phys::liquid::SiteSite;
+    let text = "charges 1e0 5e-1 -2e0\npair 0 0 1e0 1e0 1e0 1e0\nbisector 2 2.67e-1\n";
+    assert_eq!(SiteSite::bisector_from_text(text), Some((2, 0.267)));
+    assert_eq!(SiteSite::bisector_from_text("charges 1e0\n"), None);
+}
+
+/// A law's text with its bisector line still reads as a pair law: the loader
+/// once rejected the line as unknown, and a fitted law could not be run.
+#[test]
+fn a_law_with_a_bisector_line_still_reads() {
+    use phys::liquid::SiteSite;
+    let text = "charges 1e0 -1e0\npair 0 0 1e0 1e0 1e0 1e0\npair 0 1 1e0 1e0 1e0 1e0\npair 1 1 1e0 1e0 1e0 1e0\nbisector 1 2.67e-1\n";
+    let law = SiteSite::from_text(text).expect("a law with a bisector line");
+    assert_eq!(law.charge, vec![1.0, -1.0]);
+    assert_eq!(SiteSite::bisector_from_text(text), Some((1, 0.267)));
+}

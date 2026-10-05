@@ -16,3 +16,7 @@ bytemuck = { version = "1", features = ["derive"] }
 [[bin]]
 name = "phys-pairs-gpu"
 path = "src/bin/pairs_gpu.rs"
+
+[[bin]]
+name = "phys-pairs-liquid-gpu"
+path = "src/bin/pairs_liquid_gpu.rs"

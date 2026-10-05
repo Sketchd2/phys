@@ -140,6 +140,11 @@ pub struct Forces {
     pub force: Vec<Vec3>,
     /// Torque in the box frame.
     pub torque: Vec<Vec3>,
+    /// The molecular virial `sum_(i<j) d_ij . F_ij` over the pairs' centres,
+    /// `d_ij` the nearest-image separation and `F_ij` the force on `i` from
+    /// `j`: with the translational kinetic energy it gives the pressure
+    /// (see [`Liquid::pressure`]).
+    pub virial: f64,
 }
 
 impl Liquid {
@@ -167,7 +172,7 @@ impl Liquid {
         let types = &self.kind.types;
         let job = |idx: &mut dyn Iterator<Item = usize>| {
             idx.map(|i| {
-                let (mut e, mut f, mut t) = (0.0, Vec3::ZERO, Vec3::ZERO);
+                let (mut e, mut f, mut t, mut w) = (0.0, Vec3::ZERO, Vec3::ZERO, 0.0);
                 for j in 0..n {
                     if j == i {
                         continue;
@@ -195,23 +200,29 @@ impl Liquid {
                     }
                     // Half the pair's energy to each row.
                     e += 0.5 * s * u;
-                    f += fi.scale(s) - d.scale(u * ds / dist);
+                    let fij = fi.scale(s) - d.scale(u * ds / dist);
+                    f += fij;
                     t += ti.scale(s);
+                    w += d.dot(fij);
                 }
-                (i, e, f, t)
+                (i, e, f, t, w)
             }).collect::<Vec<_>>()
         };
         let mut energy_rows = vec![0.0; n];
+        let mut virial_rows = vec![0.0; n];
         let mut force = vec![Vec3::ZERO; n];
         let mut torque = vec![Vec3::ZERO; n];
         for part in crate::electrons::scf::parallel_interleaved(n, &job) {
-            for (i, e, f, t) in part {
+            for (i, e, f, t, w) in part {
                 energy_rows[i] = e;
                 force[i] = f;
                 torque[i] = t;
+                virial_rows[i] = w;
             }
         }
-        Forces { energy: energy_rows.iter().sum(), force, torque }
+        // Every pair is in two rows, with the same product `d . F`: half the
+        // rows' sum is the sum over pairs.
+        Forces { energy: energy_rows.iter().sum(), force, torque, virial: 0.5 * virial_rows.iter().sum::<f64>() }
     }
 
     /// Kinetic energy: translational and rotational.
@@ -617,6 +628,9 @@ impl SiteSite {
             let w: Vec<&str> = line.split_whitespace().collect();
             match w.first().copied() {
                 Some("charges") => charge = w[1..].iter().map(|x| x.parse().ok()).collect::<Option<Vec<f64>>>()?,
+                // Read by `bisector_from_text`: where an off-atom site goes, not
+                // part of the pair law.
+                Some("bisector") => {}
                 Some("pair") if w.len() == 7 => {
                     let (a, b): (usize, usize) = (w[1].parse().ok()?, w[2].parse().ok()?);
                     let v: Vec<f64> = w[3..].iter().map(|x| x.parse().ok()).collect::<Option<Vec<f64>>>()?;
@@ -633,5 +647,56 @@ impl SiteSite {
             pair[b * types + a] = v;
         }
         Some(SiteSite { charge, pair })
+    }
+}
+
+impl Liquid {
+    /// The pressure, hartree per cubic bohr: `(2 K_translation + W) / (3 V)`
+    /// with `W` the molecular virial. For rigid molecules the centres' forces
+    /// and kinetic energy are all there is to it, since the constraints that
+    /// hold a molecule together do no work between molecules.
+    pub fn pressure(&self, forces: &Forces) -> f64 {
+        let volume = self.cell[0] * self.cell[1] * self.cell[2];
+        let (translation, _) = self.kinetic();
+        (2.0 * translation + forces.virial) / (3.0 * volume)
+    }
+}
+
+/// One hartree per cubic bohr in bar.
+pub const BAR_PER_HARTREE_PER_BOHR3: f64 = 2.942_101_57e8;
+
+impl SiteSite {
+    /// The `bisector <type> <distance>` line of a law's text, if it has one: a
+    /// site of that type, carrying electrostatics only, at that distance (bohr)
+    /// from the first atom along the bisector of its bonds to the second and
+    /// third — the TIP4P-like charge site the water fit found it needed.
+    pub fn bisector_from_text(text: &str) -> Option<(usize, f64)> {
+        text.lines().find_map(|l| {
+            let w: Vec<&str> = l.split_whitespace().collect();
+            (w.first() == Some(&"bisector") && w.len() == 3).then(|| Some((w[1].parse().ok()?, w[2].parse().ok()?))).flatten()
+        })
+    }
+}
+
+impl Kind {
+    /// A water-like molecule's kind from its element numbers, positions (bohr)
+    /// and site types, atoms first: masses from the elements, and, if asked,
+    /// one more massless site of the given type on the bisector of atom 0's
+    /// bonds to atoms 1 and 2, at the given distance from atom 0. A massless
+    /// site changes neither the centre of mass nor the inertia, and rides in
+    /// the principal frame with the rest.
+    pub fn of_molecule(z: &[u32], positions: &[[f64; 3]], types: &[usize], bisector: Option<(usize, f64)>) -> Kind {
+        let mut pos = positions.to_vec();
+        let mut ty = types.to_vec();
+        let mut masses: Vec<f64> = z.iter().map(|&zz| crate::chem::elements::Element(zz as u8).mass_kg().expect("a mass") / 1.66053906660e-27 * AMU).collect();
+        if let Some((site_type, d)) = bisector {
+            let at = |k: usize| Vec3 { x: positions[k][0], y: positions[k][1], z: positions[k][2] };
+            let (o, u, v) = (at(0), (at(1) - at(0)).unit(), (at(2) - at(0)).unit());
+            let m = o + (u + v).unit().scale(d);
+            pos.push([m.x, m.y, m.z]);
+            ty.push(site_type);
+            masses.push(0.0);
+        }
+        Kind::from_atoms(&pos, &masses, &ty)
     }
 }

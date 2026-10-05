@@ -32,6 +32,10 @@ name = "phys-fit"
 path = "src/bin/fit.rs"
 
 [[bin]]
+name = "phys-bulk"
+path = "src/bin/bulk.rs"
+
+[[bin]]
 name = "phys-pairs"
 path = "src/bin/pairs.rs"
 

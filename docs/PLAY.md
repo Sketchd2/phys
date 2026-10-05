@@ -4072,6 +4072,31 @@ the start of the phase, ahead of the renderer**. In order:
      only 21 of the training pairs lie inside 7 bohr). Judged against
      0.05 kcal/mol none of these is there; what error the boiling point can
      bear is for E8 to show.
+     *The pair data had a hole, found by running the liquid.* The first
+     end-to-end test of route A (`phys-bulk`: 216 water molecules, 298 K,
+     1 g/cm3, the bisector-site law fitted to 224 pairs, the molecular
+     virial for pressure, long-range electrostatics cut off with the switch,
+     not summed): **heat of vaporisation 15.3 kcal/mol against 10.5
+     measured, pressure -6,549 bar against about 1**, temperatures held. The
+     law overbinds the liquid by about 5 kcal/mol a molecule. Two causes were
+     found and one ruled out. (1) **The sampler had excluded the hydrogen
+     bond:** pairs with two atoms closer than 0.75 of their van der Waals
+     contact were refused, and for O...H that is 2.04 A while a real bond is
+     1.8-2.0 (the dimer's minimum 1.95); at the S22 dimer the fitted law gives
+     -0.97 kcal/mol where DFT gives -5.56, its hydrogen bond sitting about
+     0.2 A too far out. Pairs from 250 use 0.64. (2) **A fit to random pairs
+     says little about the pairs a liquid has.** The pairs of the simulated
+     liquid itself are now computed (`phys-pairs-liquid-gpu`,
+     `phys::pairs::run_snapshot`: 2,919 candidate neighbour pairs in the
+     snapshot) and are the check on the law where it matters, and then part of
+     its fit, which the plan already anticipated (arrangements drawn from a
+     simulated liquid). **Ruled out: dispersion.** The fitted O-O C6 was 316
+     against the engine's own derived 17.5 (E7's kernel split by E6's
+     partition: O-O 17.5, O-H 6.3, H-H 2.4, summing to the molecule's 52.3);
+     fixing C6 at the derived values fits the data as well (cost 5.18e-7
+     against 5.34e-7) and **leaves the liquid unchanged** (15.5 kcal/mol,
+     -6,888 bar): the fit moves the same attraction into C8 (1.5e4). The
+     physics that should constrain C8 is not yet derived.
      *Memory and disk, found on the way:* the Coulomb fit's three-centre
      table now stores only what half the free RAM allows, spills the rest to
      the disk `PHYS_SPILL_DIR` names (at most `PHYS_SPILL_MAX_GB`, 40 by
