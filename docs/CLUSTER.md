@@ -51,6 +51,37 @@ default 1). It is a judgement until measured: a hexamer is not 20 pairs
 because someone said so, so check it against the speeds `--status` reports
 for it and correct the plan.
 
+## Over Tailscale
+
+The protocol has no encryption and only a shared token (see `src/queue.rs`), so
+it belongs on a private network. A tailnet is one: WireGuard encrypts the
+traffic and only enrolled machines can reach the server.
+
+- **Bind the server to the tailnet address**, not to everything:
+  `phys-queue plan.txt --listen 100.x.y.z:7878` (the machine's Tailscale IP,
+  from `tailscale ip -4`). The default, `0.0.0.0`, also answers on the home LAN.
+- **Windows firewall:** allow inbound TCP 7878 for the Tailscale interface (or
+  for the `100.64.0.0/10` range), and nothing wider.
+- **Workers name the server by its MagicDNS name or its tailnet IP:**
+  `scripts/worker-loop.sh home-pc:7878 pi-017`.
+- **Keep the token** (`PHYS_QUEUE_TOKEN`, the same on both ends) as a second
+  layer, and if the tailnet has ACLs let the Pis reach port 7878 on the server
+  and nothing else of it.
+- **Data caps:** the queue's own traffic is under 1 MB a day for a Pi, and
+  WireGuard adds a few dozen bytes a packet. Tailscale's own keepalives and path
+  discovery cost something too, which has **not been measured**: read one Pi's
+  counters over a day before enrolling the fleet. A Pi that cannot make a direct
+  connection goes through a relay, which carries the same bytes by a longer route.
+- **Installing Tailscale on each Pi is a separate download** from anything here;
+  do not count it in the worker's figure.
+
+Per Pi, one-time: the ARM binary (cross-compiled once and copied; building on
+each Pi would pull the toolchain and every crate, hundreds of MB), `grow-water.state`
+(2.5 KB) and, for a plan that names one, the snapshot (25 KB). A result is one
+268-byte line, about 1.5-2 KB on the wire with its connection (an estimate;
+the message sizes are measured). A worker with nothing to take asks again every
+60 s, about 1 MB a day if it sits idle.
+
 ## Memory
 
 A water pair is two molecules with counterpoise, solved with density fitting.
