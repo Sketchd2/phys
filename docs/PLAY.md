@@ -4130,6 +4130,38 @@ the start of the phase, ahead of the renderer**. In order:
      Ewald), and what rigid classical molecules leave out. The test that
      separates the first from the rest is a DFT energy of a cluster cut from
      the liquid snapshot against the law's pair sum over the same cluster.
+     *Ten trimers, and a correction to the paragraph above.* A trimer is the
+     centre molecule and its two nearest, cut from the 298 K snapshot about ten
+     centres spread over it (`phys-cluster-gpu`, 642 functions, each pair and
+     field counterpoise corrected, the files `cluster-water-3-c<N>.txt`):
+
+     ```text
+     three-body term, cluster minus its three DFT pairs (kcal/mol)
+       PBE exchange     mean +0.137   sd 0.369   s.e. 0.117   (-0.52 to +0.78)
+       revPBE exchange  mean +0.026   sd 0.280   s.e. 0.089   (-0.51 to +0.37)
+     the bisector law (C6 derived) minus DFT on these trimers' 30 pairs, which
+     were in no fit:  mean -0.283   sd 0.528   rms 0.591
+       O...O under 5.5 bohr  n=8   mean -0.700   (DFT pair mean -1.08)
+       O...O 5.5-6.5 bohr    n=15  mean -0.206   (DFT pair mean -2.11)
+       O...O beyond 8 bohr   n=6   mean -0.002
+     ```
+
+     **Non-additivity is not the explanation.** The three-body term of the
+     compact triples is consistent with zero (a standard error of 0.09-0.12 on
+     a mean of 0.03-0.14), and where it is not zero it is repulsive, which
+     would make a pair sum overbind by that much, not enough for 4 kcal/mol.
+     **The paragraph above overreached about the pair error.** It said a pair
+     error of 0.3 kcal/mol cannot make 4. That 0.3 is the rms over a random
+     draw of pairs, most of them far apart; the pairs a liquid is made of are
+     the close ones, and on those the law's rms is 0.59 and its bias is
+     overbinding, 0.7 kcal/mol on the nearest contacts, where the DFT pair is
+     worth only 1.1. Ten pairs' worth of a molecule's neighbours at 0.3-0.7
+     each is of the order of the 4 kcal/mol, not a rounding error. This is
+     one sample of 30 pairs chosen as "a molecule's nearest", not the liquid's
+     distribution of pairs, so it says where to look and not how much. What it
+     points at is the law's form at contact, and the fit's weighting of it;
+     the test is a refit with these 30 close pairs and the liquid pairs given
+     weight, and the bulk run again.
      *Memory and disk, found on the way:* the Coulomb fit's three-centre
      table now stores only what half the free RAM allows, spills the rest to
      the disk `PHYS_SPILL_DIR` names (at most `PHYS_SPILL_MAX_GB`, 40 by
