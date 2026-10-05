@@ -332,3 +332,59 @@ fn a_law_with_a_bisector_line_still_reads() {
     assert_eq!(law.charge, vec![1.0, -1.0]);
     assert_eq!(SiteSite::bisector_from_text(text), Some((1, 0.267)));
 }
+
+/// A fit can hold numbers where they were started: a charge-only site keeps
+/// zero repulsion and dispersion, a dispersion coefficient given from outside
+/// stays what it was given, and everything else is still recovered. Held
+/// parameters that moved would make the bisector law's "derived C6" a fitted one.
+#[test]
+fn a_fit_holds_what_it_is_told_to_hold() {
+    use phys::liquid::{fit_site_site_held, pair_energy, Held, PairEnergy, SiteSite};
+    // Types: 0 and 1 are atoms (1 and 2 of them), 2 is a charge-only site.
+    let zero = [0.0, 1.0, 0.0, 0.0];
+    let truth = SiteSite {
+        charge: vec![0.9, 0.6, -2.1],
+        pair: vec![[60.0, 2.0, 18.0, 350.0], [4.0, 2.2, 5.0, 70.0], zero, [4.0, 2.2, 5.0, 70.0], [0.6, 2.5, 1.2, 16.0], zero, zero, zero, zero],
+    };
+    let kind = water_kind();
+    let mut s = Liquid::noise(9);
+    let mut data = Vec::new();
+    let with_site = |m: Vec<(Vec3, usize)>| -> Vec<(Vec3, usize)> {
+        let o = m[0].0;
+        let bis = ((m[1].0 - o).unit() + (m[2].0 - o).unit()).unit();
+        let mut out = m;
+        out.push((o + bis.scale(0.3), 2));
+        out
+    };
+    while data.len() < 150 {
+        let dir = s.normal3().unit();
+        let dist = s.range(5.0, 12.0);
+        let (qa, qb) = (Quat::from_axis_angle(s.normal3().unit(), s.uniform() * 6.283), Quat::from_axis_angle(s.normal3().unit(), s.uniform() * 6.283));
+        let a: Vec<(Vec3, usize)> = kind.sites.iter().zip(&kind.types).map(|(p, t)| (qa.rotate(*p), *t)).collect();
+        let b: Vec<(Vec3, usize)> = kind.sites.iter().zip(&kind.types).map(|(p, t)| (qb.rotate(*p) + dir.scale(dist), *t)).collect();
+        let closest = a.iter().flat_map(|(p, _)| b.iter().map(move |(q, _)| (*p - *q).norm())).fold(f64::INFINITY, f64::min);
+        if closest < 2.8 {
+            continue;
+        }
+        let mut pe = PairEnergy { a: with_site(a), b: with_site(b), energy: 0.0 };
+        pe.energy = pair_energy(&truth, &pe);
+        data.push(pe);
+    }
+    let mut start = truth.clone();
+    start.charge = vec![0.5, 0.3, -0.9];
+    for k in [0usize, 1, 3, 4] {
+        for j in [0usize, 1, 3] {
+            start.pair[k][j] *= if j == 1 { 0.9 } else { 1.4 };
+        }
+    }
+    // The held C6 of the atom pair (0, 1) is the truth's, wherever else the start is.
+    let held_c6 = truth.pair[1][2];
+    let fit = fit_site_site_held(&data, &[1, 2, 1], &start, 400.0, 1e-3, 3000, &Held { pairs: &[(0, 2), (1, 2), (2, 2)], dispersion: &[(0, 1)] });
+    let spread = (data.iter().map(|d| d.energy * d.energy).sum::<f64>() / data.len() as f64).sqrt();
+    println!("  {} iterations: rms {:.2e} against {spread:.2e}; charges {:?}; held C6 {:e}", fit.iterations, fit.rms, fit.law.charge, fit.law.pair[1][2]);
+    assert!((fit.law.pair[1][2] / held_c6 - 1.0).abs() < 1e-12, "the held C6 moved to {}", fit.law.pair[1][2]);
+    for (a, b) in [(0usize, 2usize), (1, 2), (2, 2)] {
+        assert!(fit.law.pair[a * 3 + b][0] < 1e-250 && fit.law.pair[a * 3 + b][2] < 1e-250, "the charge-only site's pair {a}-{b} gained {:?}", fit.law.pair[a * 3 + b]);
+    }
+    assert!(fit.rms < 1e-4 * spread, "the fit left {:.2e}", fit.rms);
+}

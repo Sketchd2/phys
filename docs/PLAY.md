@@ -4097,6 +4097,39 @@ the start of the phase, ahead of the renderer**. In order:
      against 5.34e-7) and **leaves the liquid unchanged** (15.5 kcal/mol,
      -6,888 bar): the fit moves the same attraction into C8 (1.5e4). The
      physics that should constrain C8 is not yet derived.
+     *The refit on all 340 pairs, and the liquid again.* The pair data is
+     complete for water: 300 random pairs (every one reproducible from its
+     index; a random 20 solved again from their recorded geometry agree with
+     the record to the 5 decimals printed, `phys-recheck-gpu`) and 40 taken
+     from the simulated liquid. The random draw's range boundary is pair 126,
+     not the 124 the analysis was made on (two pairs were in flight when the
+     binary changed); the constant now reproduces every line on file.
+     `phys-fit` gained `--bisector` (a charge-only site on the bisector,
+     its distance searched) and `--c6` (hold given dispersion coefficients),
+     and the fitter `Held`. With PBE exchange, one fifth of the pairs held out:
+
+     ```text
+     law                         fitted    unseen     liquid, 298 K, 1 g/cm3
+     atom sites only             0.773     0.634      (not run)
+     + bisector site (0.325)     0.380     0.319      14.7 kcal/mol, -6,427 bar
+     + bisector, C6 derived      0.384     0.321      14.2 kcal/mol, -5,842 bar
+     (before: 224 pairs)         -         -          15.5 kcal/mol, -6,888 bar
+     ```
+
+     The bisector site halves the error on unseen pairs, and holding C6 at
+     the derived values costs nothing (0.321 against 0.319), so dispersion is
+     again not the question. **The liquid is still overbound by 3.7-4.2
+     kcal/mol a molecule against 10.5 and the pressure is still -5.8 to -6.4
+     kbar, while the law's error on a pair is 0.3 kcal/mol.** A pair error
+     that small, summed over a molecule's neighbours, cannot make 4
+     kcal/mol, so the cause is not in how well the law reproduces the pairs
+     it was given. What is left, none of it measured yet: many-body
+     non-additivity (a pair law fitted to dimers carries the dimer's
+     polarisation and the liquid has more than two bodies), the cut-off
+     electrostatics (switched at 14-16 bohr on the molecular centre, no
+     Ewald), and what rigid classical molecules leave out. The test that
+     separates the first from the rest is a DFT energy of a cluster cut from
+     the liquid snapshot against the law's pair sum over the same cluster.
      *Memory and disk, found on the way:* the Coulomb fit's three-centre
      table now stores only what half the free RAM allows, spills the rest to
      the disk `PHYS_SPILL_DIR` names (at most `PHYS_SPILL_MAX_GB`, 40 by

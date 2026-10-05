@@ -405,6 +405,26 @@ pub struct Fitted {
 /// `exp(-(E - E_min) / (k T))`, held at least at `floor`, so the fit spends
 /// itself where the liquid goes while the repulsive wall still counts.
 pub fn fit_site_site(data: &[PairEnergy], multiplicity: &[usize], start: &SiteSite, temperature: f64, floor: f64, max_iterations: usize) -> Fitted {
+    fit_site_site_held(data, multiplicity, start, temperature, floor, max_iterations, &Held::default())
+}
+
+/// Numbers of a law a fit leaves at the values it was started with.
+///
+/// A site that carries charge and nothing else (an off-atom site standing in
+/// for a lone pair's charge) has no repulsion and no dispersion of its own:
+/// its pairs are held at zero. A dispersion coefficient the engine derived
+/// elsewhere (E6's partition of the E7 kernel) is held rather than refitted,
+/// when the question is what the energies say about everything else.
+#[derive(Default)]
+pub struct Held<'a> {
+    /// Type pairs whose `A, B, C6, C8` are all held.
+    pub pairs: &'a [(usize, usize)],
+    /// Type pairs whose `C6` alone is held.
+    pub dispersion: &'a [(usize, usize)],
+}
+
+/// [`fit_site_site`] with some numbers held at their starting values.
+pub fn fit_site_site_held(data: &[PairEnergy], multiplicity: &[usize], start: &SiteSite, temperature: f64, floor: f64, max_iterations: usize, held: &Held) -> Fitted {
     let types = start.charge.len();
     let pairs: Vec<(usize, usize)> = (0..types).flat_map(|a| (a..types).map(move |b| (a, b))).collect();
     // Parameters: charges of types 0..types-1 (the last is set by
@@ -431,15 +451,38 @@ pub fn fit_site_site(data: &[PairEnergy], multiplicity: &[usize], start: &SiteSi
         }
         SiteSite { charge, pair }
     };
+    // What is fitted: every parameter but the held ones, which keep what
+    // `start` gave them.
+    let base = pack(start);
+    let is_held = |list: &[(usize, usize)], a: usize, b: usize| list.iter().any(|&(p, q)| (p, q) == (a, b) || (q, p) == (a, b));
+    let mut free: Vec<usize> = (0..types - 1).collect();
+    for (k, &(a, b)) in pairs.iter().enumerate() {
+        let o = types - 1 + 4 * k;
+        if is_held(held.pairs, a, b) {
+            continue;
+        }
+        for j in 0..4 {
+            if !(j == 2 && is_held(held.dispersion, a, b)) {
+                free.push(o + j);
+            }
+        }
+    }
+    let expand = |xf: &[f64]| -> Vec<f64> {
+        let mut full = base.clone();
+        for (j, &i) in free.iter().enumerate() {
+            full[i] = xf[j];
+        }
+        full
+    };
     let e_min = data.iter().map(|d| d.energy).fold(f64::INFINITY, f64::min);
     let kt = K_B * temperature;
     let weights: Vec<f64> = data.iter().map(|d| (-(d.energy - e_min) / kt).exp().max(floor)).collect();
     let residuals = |x: &[f64]| -> Vec<f64> {
-        let law = unpack(x);
+        let law = unpack(&expand(x));
         data.iter().zip(&weights).map(|(d, w)| w.sqrt() * (pair_energy(&law, d) - d.energy)).collect()
     };
     let cost = |r: &[f64]| r.iter().map(|v| v * v).sum::<f64>();
-    let mut x = pack(start);
+    let mut x: Vec<f64> = free.iter().map(|&i| base[i]).collect();
     let np = x.len();
     let mut r = residuals(&x);
     let mut c = cost(&r);
@@ -502,7 +545,7 @@ pub fn fit_site_site(data: &[PairEnergy], multiplicity: &[usize], start: &SiteSi
             break;
         }
     }
-    let law = unpack(&x);
+    let law = unpack(&expand(&x));
     let wsum: f64 = weights.iter().sum();
     let weighted_rms = (c / wsum).sqrt();
     let rms = (data.iter().map(|d| (pair_energy(&law, d) - d.energy).powi(2)).sum::<f64>() / data.len() as f64).sqrt();
