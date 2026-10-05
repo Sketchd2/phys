@@ -564,6 +564,7 @@ pub fn work_main(args: &[String], class: &str) {
         max_jobs: flag("--jobs").and_then(|s| s.parse().ok()),
         patience: Duration::from_secs(60 * flag("--patience").and_then(|s| s.parse().ok()).unwrap_or(30)),
     };
+    remove_stale_spill();
     println!("{} ({}) working for {}", cfg.name, cfg.class, cfg.server);
     let mut exec = Executor::default();
     let ended = crate::queue::work(&cfg, |spec| exec.run(spec));
@@ -817,7 +818,7 @@ impl Monomer {
     /// removed; one field each, the same energies from it on the fine grid.
     /// The cluster's interaction is the cluster's energy minus the molecules',
     /// subtracted in order, which for two molecules is `interact`'s own sum.
-    fn cluster_interaction(&self, mols: &[Vec<Vec3>], first_only: bool) -> Interaction {
+    fn cluster_interaction(&self, mols: &[Vec<Vec3>], first_only: bool, mut log: Option<&mut FieldLog>) -> Interaction {
         let n = self.z.len();
         let m = mols.len();
         let base = self.cluster_problem(mols);
@@ -830,7 +831,16 @@ impl Monomer {
         let mut e_rev = Vec::new();
         let (mut t_solve, mut t_fine, mut t_swap) = (0.0, 0.0, 0.0);
         let mut iterations = Vec::new();
-        for (keep, ne) in slots {
+        for (slot, (keep, ne)) in slots.into_iter().enumerate() {
+            // A field already in the log is not solved again.
+            if let Some((pe, re)) = log.as_ref().and_then(|l| l.done.get(&slot).copied()) {
+                e_pbe.push(pe);
+                e_rev.push(re);
+                iterations.push(0);
+                println!("  field {} of {} taken from {}", slot + 1, m + 1, log.as_ref().map(|l| l.path.as_str()).unwrap_or(""));
+                continue;
+            }
+            let field_start = Instant::now();
             let mut p = base.with_ghosts(&keep, ne);
             p.functional = Functional::PbeXLdaC;
             p.nonlocal = Some(NonlocalSpec::in_the_field(Z_AB_DF1));
@@ -851,6 +861,9 @@ impl Monomer {
             e_pbe.push(fine);
             e_rev.push(fine - x_pbe + x_rev);
             t_swap += ts.elapsed().as_secs_f64();
+            if let Some(l) = log.as_mut() {
+                l.record(slot, fine, fine - x_pbe + x_rev, *iterations.last().unwrap(), field_start.elapsed().as_secs_f64());
+            }
             println!("  field {} of {} done: {:.0} s so far ({:.0} s solving, {} iterations; {:.0} s on the fine grid; {:.0} s swapping exchange)", e_pbe.len(), m + 1, t_solve + t_fine + t_swap, t_solve, iterations.last().unwrap(), t_fine, t_swap);
             std::io::stdout().flush().ok();
             if first_only {
@@ -859,6 +872,86 @@ impl Monomer {
         }
         let sub = |e: &[f64]| e[1..].iter().fold(e[0], |acc, x| acc - x);
         Interaction { pbe: sub(&e_pbe), rev: sub(&e_rev), t_solve, t_fine, t_swap, iterations, functions: base.basis.size }
+    }
+}
+
+/// The fields of a cluster calculation that are finished, kept in the cluster's
+/// own file as they come: one line `field <slot> <PBE-exchange energy>
+/// <revPBE-exchange energy> <iterations> <seconds>`, slot 0 the cluster and slot
+/// `i + 1` molecule `i` in the cluster's basis. A field takes an hour or more
+/// at six molecules, so what is interrupted loses at most the field it was in:
+/// a run that finds a slot here does not solve it again.
+pub struct FieldLog {
+    pub path: String,
+    pub done: std::collections::HashMap<usize, (f64, f64)>,
+}
+
+impl FieldLog {
+    pub fn load(path: &str) -> FieldLog {
+        let mut done = std::collections::HashMap::new();
+        for line in std::fs::read_to_string(path).unwrap_or_default().lines() {
+            let w: Vec<&str> = line.split_whitespace().collect();
+            if w.len() >= 4 && w[0] == "field" {
+                if let (Ok(slot), Ok(p), Ok(r)) = (w[1].parse::<usize>(), w[2].parse::<f64>(), w[3].parse::<f64>()) {
+                    done.insert(slot, (p, r));
+                }
+            }
+        }
+        FieldLog { path: path.to_string(), done }
+    }
+
+    pub fn record(&mut self, slot: usize, pbe: f64, rev: f64, iterations: usize, seconds: f64) {
+        // Rust prints a float in the shortest form that reads back exactly.
+        let mut f = std::fs::OpenOptions::new().create(true).append(true).open(&self.path).expect("the cluster file");
+        writeln!(f, "field {slot} {pbe:e} {rev:e} {iterations} {seconds:.0}").expect("the field written");
+        f.sync_all().ok();
+        self.done.insert(slot, (pbe, rev));
+    }
+}
+
+/// Is there a process with this id? `None` where that cannot be told.
+fn process_alive(pid: u32) -> Option<bool> {
+    #[cfg(target_os = "linux")]
+    {
+        Some(std::path::Path::new(&format!("/proc/{pid}")).exists())
+    }
+    #[cfg(windows)]
+    {
+        let out = std::process::Command::new("tasklist").args(["/FI", &format!("PID eq {pid}"), "/NH"]).output().ok()?;
+        Some(String::from_utf8_lossy(&out.stdout).split_whitespace().any(|w| w == pid.to_string()))
+    }
+    #[cfg(not(any(target_os = "linux", windows)))]
+    {
+        let _ = pid;
+        None
+    }
+}
+
+/// Delete the spill files of processes that are no longer there. A table is
+/// removed when the process that wrote it drops it, but a process that was
+/// killed leaves 30 GB behind, and a run being restarted is the one that has
+/// to find the room. Only `phys-fit-<pid>-<n>.bin` files in the spill
+/// directory (`PHYS_SPILL_DIR`) whose process is known not to exist are
+/// touched; where that cannot be told nothing is.
+pub fn remove_stale_spill() {
+    let Some(to) = crate::electrons::scf::SpillTo::from_environment() else { return };
+    remove_stale_spill_in(&to.dir, process_alive);
+}
+
+/// [`remove_stale_spill`] in `dir`, with `alive` saying whether a process id is
+/// in use (`None` for cannot tell).
+pub fn remove_stale_spill_in(dir: &std::path::Path, alive: impl Fn(u32) -> Option<bool>) {
+    let Ok(entries) = std::fs::read_dir(dir) else { return };
+    for e in entries.flatten() {
+        let name = e.file_name().to_string_lossy().to_string();
+        let Some(rest) = name.strip_prefix("phys-fit-").and_then(|r| r.strip_suffix(".bin")) else { continue };
+        let Some(pid) = rest.split('-').next().and_then(|p| p.parse::<u32>().ok()) else { continue };
+        if pid != std::process::id() && alive(pid) == Some(false) {
+            let size = e.metadata().map(|m| m.len()).unwrap_or(0);
+            if std::fs::remove_file(e.path()).is_ok() {
+                println!("removed {name}, left by process {pid} ({:.1} GB)", size as f64 / 1e9);
+            }
+        }
     }
 }
 
@@ -875,6 +968,12 @@ impl Monomer {
 /// `cluster-<name>-<N>-c<I>.txt` as it is finished and a run carries on from
 /// what is there. `--dry` prints what the cluster would cost and solves nothing;
 /// `--first-field` solves only the cluster's own field and says how long it took.
+///
+/// **Interrupted?** Run the same command again. Every pair and every field of
+/// the cluster is on its line in the file the moment it is finished, so a run
+/// carries on from there and loses at most the one field it was in (the tables
+/// are rebuilt, about five minutes at six molecules); a file begun on another
+/// cluster is refused. The spill of a killed run is deleted at the start.
 pub fn cluster_main(args: &[String]) {
     let name = args.first().cloned().expect("a molecule name");
     let snapshot = args.get(1).cloned().expect("a snapshot file");
@@ -889,7 +988,7 @@ pub fn cluster_main(args: &[String]) {
     // own code, to be set beside the line `run_snapshot` wrote for it.
     if let Some(k) = flag("--check-pair").and_then(|s| s.parse::<usize>().ok()) {
         let (i, j, a, b, sep) = snap.pair(k);
-        let r = mono.cluster_interaction(&[a.clone(), b.clone()], false);
+        let r = mono.cluster_interaction(&[a.clone(), b.clone()], false, None);
         let _ = sep;
         println!("pair {k} (molecules {i}, {j}) through the cluster code: {:.10e} / {:.10e} hartree", r.pbe, r.rev);
         let file = flag("--against").unwrap_or_else(|| format!("pairs-{name}-liq-gpu.txt"));
@@ -910,26 +1009,41 @@ pub fn cluster_main(args: &[String]) {
     if dry {
         return;
     }
+    remove_stale_spill();
     // `--first-field`: only the cluster's own field, to time it.
     if args.iter().any(|a| a == "--first-field") {
         let t = Instant::now();
-        mono.cluster_interaction(&geom, true);
+        mono.cluster_interaction(&geom, true, None);
         println!("the first field of the cluster of {size}: {:.0} s", t.elapsed().as_secs_f64());
         return;
     }
     let out = format!("cluster-{name}-{size}-c{centre}.txt");
     let have = std::fs::read_to_string(&out).unwrap_or_default();
     let mut file = std::fs::OpenOptions::new().create(true).append(true).open(&out).expect("the output file");
-    if have.is_empty() {
-        writeln!(file, "# cluster of {size} about molecule {centre} of {snapshot}; molecules {ids:?}; energies in hartree, PBE-exchange form then revPBE-exchange").ok();
-        for (i, m) in ids.iter().zip(&geom) {
+    let geometry: Vec<String> = ids
+        .iter()
+        .zip(&geom)
+        .map(|(i, m)| {
             let mut line = format!("# mol {i}");
             for p in m {
                 line += &format!(" {:.8} {:.8} {:.8}", p.x, p.y, p.z);
             }
+            line
+        })
+        .collect();
+    if have.is_empty() {
+        writeln!(file, "# cluster of {size} about molecule {centre} of {snapshot}; molecules {ids:?}; energies in hartree, PBE-exchange form then revPBE-exchange").ok();
+        for line in &geometry {
             writeln!(file, "{line}").ok();
         }
+    } else {
+        // Energies kept from an earlier run belong to the cluster that run
+        // had; a different snapshot would give a different one under the same
+        // name.
+        let kept: Vec<&str> = have.lines().filter(|l| l.starts_with("# mol ")).collect();
+        assert!(kept.len() == geometry.len() && kept.iter().zip(&geometry).all(|(a, b)| a == b), "{out} was begun on a different cluster from this snapshot gives; move it aside or use another --centre");
     }
+    let mut fields = FieldLog::load(&out);
     let read = |key: &str| -> Option<(f64, f64)> {
         have.lines().find(|l| l.starts_with(key)).and_then(|l| {
             let w: Vec<&str> = l.split_whitespace().collect();
@@ -960,7 +1074,7 @@ pub fn cluster_main(args: &[String]) {
                 Some(v) => v,
                 None => {
                     let t = Instant::now();
-                    let r = mono.cluster_interaction(&[geom[i].clone(), geom[j].clone()], false);
+                    let r = mono.cluster_interaction(&[geom[i].clone(), geom[j].clone()], false, None);
                     let line = format!("pair {i} {j} {} {} {:.10e} {:.10e}", ids[i], ids[j], r.pbe, r.rev);
                     writeln!(file, "{line}").ok();
                     file.flush().ok();
@@ -980,7 +1094,7 @@ pub fn cluster_main(args: &[String]) {
         Some(v) => v,
         None => {
             let t = Instant::now();
-            let r = mono.cluster_interaction(&geom, false);
+            let r = mono.cluster_interaction(&geom, false, Some(&mut fields));
             writeln!(file, "cluster {size} {:.10e} {:.10e}", r.pbe, r.rev).ok();
             file.flush().ok();
             println!("  the cluster: {:.4} / {:.4} kcal/mol, {:.0} s ({} functions)", r.pbe * 627.509474, r.rev * 627.509474, t.elapsed().as_secs_f64(), r.functions);

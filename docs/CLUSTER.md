@@ -109,6 +109,41 @@ is kept in `unsent-<name>.txt` on the worker. The server's `queue.log` has one
 line a result: time, machine, class, file, index, seconds, which is how to tell
 what a Pi is worth.
 
+## Clusters (the many-body test)
+
+`phys-cluster water bulk-water-298.snap --size N --centre I --law law.txt`
+(`phys-cluster-gpu` for the GPU's final non-local energy, which is how the pair
+data was made and so what a cluster must be compared with) cuts `N` molecules
+about molecule `I` of a snapshot, computes the cluster's counterpoise
+interaction energy and that of each of its pairs, and says how far the cluster
+is from the sum of its pairs and from a law's sum. `--dry` prices a cluster
+without solving it. Measured on the desktop (RTX 2060, 16 GB, spill to H:):
+
+```text
+molecules  functions  table, at most   first field   later fields
+2          428        1.4 GB           72 s          47 s   (table reused)
+3          642        4.6 GB           195 s         131-145 s
+6          1284       37 GB            4648 s        not yet measured
+```
+
+The six-molecule field is disk-bound (13 iterations of 314 s, three passes over
+the 30 GB spilled table at 0.28 GB/s); with the table in memory it is not, so
+**the run wants a machine with 48 GB or more free**, and the share of free RAM
+the table may use is half by default (`src/electrons/scf.rs`), which on a
+64 GB machine still spills.
+
+**Interrupted?** Run the same command again. Every pair and every field is on its
+line in `cluster-<name>-<N>-c<I>.txt` the moment it is finished, so a run
+carries on from the file and loses at most the field it was in. Tested by killing
+a trimer after two of its four fields: the restart read the pairs and both
+fields from the file, solved the last two, and gave the same answer. A file
+begun on a different cluster (another snapshot under the same name) is refused,
+and the spill a killed run left behind is deleted at the start.
+
+What it does not do: resume inside a field (an SCF is one process), or share a
+cluster across machines (the fields are independent after the table is built,
+which would allow it, but nothing hands them out yet).
+
 ## What it does not do
 
 It does not split one calculation across machines (the fit table would have to
