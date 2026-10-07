@@ -703,9 +703,14 @@ impl Fitted {
         let threads = std::thread::available_parallelism().map(|t| t.get()).unwrap_or(1).min(count.max(1));
         // X[i][m][P], gathered a batch of table entries at a time, each thread
         // owning a block of orbitals so that nothing is written twice.
+        let clock = std::time::Instant::now();
         let mut x = vec![0.0f64; count * n * na];
         let per_thread = count.div_ceil(threads);
-        let batch_len = 128;
+        // Entries gathered before the threads are started: enough that starting
+        // them is a small part of the work (a pass over the table is hundreds of
+        // thousands of entries, and with other jobs on the machine every start
+        // waits for a time slice), as much as a quarter of a gigabyte holds.
+        let batch_len = ((1usize << 28) / (na * 8)).clamp(128, 8192);
         let mut batch: Vec<(usize, usize, Vec<f64>)> = Vec::with_capacity(batch_len);
         let flush = |x: &mut Vec<f64>, batch: &mut Vec<(usize, usize, Vec<f64>)>| {
             if batch.is_empty() {
@@ -746,6 +751,7 @@ impl Fitted {
             }
         });
         flush(&mut x, &mut batch);
+        let t_gather = clock.elapsed().as_secs_f64();
         // Whiten: forward-substitute every row against L over the kept directions.
         let mut y = vec![0.0f64; count * n * nk];
         let rows = count * n;
@@ -770,6 +776,9 @@ impl Fitted {
                 });
             }
         });
+        if std::env::var_os("PHYS_PROFILE").is_some() {
+            eprintln!("  whitened_half: {t_gather:.2} s gathering from the table, {:.2} s whitening ({count} orbitals, {n} functions, {nk} directions)", clock.elapsed().as_secs_f64() - t_gather);
+        }
         (y, nk)
     }
 

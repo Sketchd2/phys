@@ -32,6 +32,7 @@
 use super::integrals::one_electron;
 use super::linalg::{generalised, orthogonaliser, product_nt, Matrix};
 use super::scf::{diis, Fitted, Problem};
+use std::sync::{Arc, Mutex};
 
 /// A closed-shell Hartree-Fock solution.
 pub struct HartreeFock {
@@ -51,25 +52,86 @@ pub struct HartreeFock {
 /// The exchange matrix `K[P]_mn = sum_ls P_ls (ml|ns)` for `P = sum_i c_i c_i^T`
 /// over the orbitals the whitened blocks `y` were made from.
 fn exchange(y: &[f64], n: usize, count: usize, nk: usize) -> Matrix {
-    let threads = std::thread::available_parallelism().map(|t| t.get()).unwrap_or(1).min(n.max(1));
-    let rows = n.div_ceil(threads);
     let mut k = Matrix::zeros(n);
+    let mut tmp = vec![0.0f64; n * n];
+    for i in 0..count {
+        let yi = &y[i * n * nk..(i + 1) * n * nk];
+        product_cpu(yi, yi, n, n, nk, &mut tmp);
+        for (a, b) in k.a.iter_mut().zip(&tmp) {
+            *a += b;
+        }
+    }
+    k
+}
+
+/// A dense-product engine the correlated methods may use in place of the CPU:
+/// the work that grows fastest in these methods (the exchange matrix, the
+/// transformation of the fitted integrals to virtual orbitals, the pair
+/// integrals of MP2) is all one shape, `out = a b^T`, and a GPU does it in
+/// single precision at a small fraction of the CPU's time. The core crate
+/// carries no GPU code; `phys-gpu` implements this and a program that wants it
+/// installs it, as it does the non-local correlation's rows.
+///
+/// **Single precision is not the default.** Without an engine every product is
+/// the CPU's, in double. An engine's products carry single precision's relative
+/// error (a few parts in a million over thousands of terms), which is harmless
+/// where it enters as a sum of many small signed terms (the MP2 energy) and
+/// worth checking where it does not (the exchange matrix, whose error in the
+/// energy is second order for the converged orbitals); the precision is
+/// measured in `PLAY.md` E8a before anything relies on it.
+pub trait ProductEngine: Send + Sync {
+    /// `out = a b^T`: `a` is `m x kd`, `b` is `n x kd`, rows contiguous, `out`
+    /// is `m x n` and overwritten.
+    fn product_nt(&self, a: &[f64], b: &[f64], m: usize, n: usize, kd: usize, out: &mut [f64]);
+    fn name(&self) -> &str;
+}
+
+static PRODUCT_ENGINE: Mutex<Option<Arc<dyn ProductEngine>>> = Mutex::new(None);
+
+/// Install an engine for this process (`None` removes it).
+pub fn set_product_engine(engine: Option<Arc<dyn ProductEngine>>) {
+    *PRODUCT_ENGINE.lock().expect("the product engine") = engine;
+}
+
+/// Below this many multiply-adds a product is left to the CPU: sending the
+/// operands and fetching the result costs more than it saves.
+const ENGINE_MIN_WORK: f64 = 2e8;
+
+/// `out = a b^T` (`a` is `m x kd`, `b` is `n x kd`, rows contiguous): on the
+/// installed engine if there is one and the product is large enough, otherwise
+/// on the CPU across threads, which gives exactly what [`product_nt`] gives.
+///
+/// Used for the MP2 products, where single precision is harmless. **Not used
+/// for the exchange matrix of the self-consistent field**, which stays in double
+/// whatever is installed: measured, with it in single precision a water dimer's
+/// Hartree-Fock did not converge, because the noise in the Fock matrix (a part
+/// in ten million of its exchange) keeps the commutator and the energy change
+/// from falling to the tolerance, and a converged energy is what the rest
+/// depends on. The exchange is also the smaller part of an iteration at six
+/// waters (about a sixth), so little is lost.
+pub fn product_parallel(a: &[f64], b: &[f64], m: usize, n: usize, kd: usize, out: &mut [f64]) {
+    if (m as f64) * (n as f64) * (kd as f64) >= ENGINE_MIN_WORK {
+        let engine = PRODUCT_ENGINE.lock().expect("the product engine").clone();
+        if let Some(e) = engine {
+            e.product_nt(a, b, m, n, kd, out);
+            return;
+        }
+    }
+    product_cpu(a, b, m, n, kd, out);
+}
+
+/// [`product_parallel`] on the CPU in double precision, whatever is installed.
+pub fn product_cpu(a: &[f64], b: &[f64], m: usize, n: usize, kd: usize, out: &mut [f64]) {
+    let threads = std::thread::available_parallelism().map(|t| t.get()).unwrap_or(1).min(m.max(1));
+    let rows = m.div_ceil(threads);
     std::thread::scope(|sc| {
-        for (t, chunk) in k.a.chunks_mut(rows * n).enumerate() {
+        for (t, chunk) in out[..m * n].chunks_mut(rows * n).enumerate() {
             sc.spawn(move || {
-                let m = chunk.len() / n;
-                let mut tmp = vec![0.0f64; m * n];
-                for i in 0..count {
-                    let yi = &y[i * n * nk..(i + 1) * n * nk];
-                    product_nt(&yi[t * rows * nk..(t * rows + m) * nk], yi, m, n, nk, &mut tmp);
-                    for (a, b) in chunk.iter_mut().zip(&tmp) {
-                        *a += b;
-                    }
-                }
+                let mr = chunk.len() / n;
+                product_nt(&a[t * rows * kd..(t * rows + mr) * kd], b, mr, n, kd, chunk);
             });
         }
     });
-    k
 }
 
 /// `sum_i c_i c_i^T` over the lowest `occupied` orbitals.
@@ -114,8 +176,32 @@ pub fn hartree_fock(problem: &Problem, max_iterations: usize, tolerance: f64) ->
             e_nn += zi * zj / r;
         }
     }
-    // Start from the bare-nucleus Hamiltonian, as the Kohn-Sham solver does.
-    let (mut levels, mut c) = generalised(&h, &x, m);
+    // The first orbitals. From the bare nuclei, as the Kohn-Sham solver starts,
+    // Hartree-Fock took 21 iterations for a water dimer; from the Fock matrix of
+    // the free atoms' summed density, with its Coulomb potential from the fit
+    // and a local exchange (LDA) standing in for the real one, which needs
+    // orbitals it does not have yet, it takes fewer. The guess only has to put
+    // the electrons roughly where they go: the energy it converges to is the
+    // same.
+    let (mut levels, mut c) = match &problem.guess {
+        Some((da, db)) => {
+            let mut dt = da.clone();
+            for q in 0..n * n {
+                dt.a[q] += db.a[q];
+            }
+            let (j0, _) = fit.coulomb_and_energy(&dt);
+            let atoms: Vec<([f64; 3], f64)> = problem.nuclei.iter().zip(&problem.sizes).map(|((_, p), r)| (*p, *r)).collect();
+            let grid = super::grid::molecular_pruned(&atoms, problem.radial, problem.theta, problem.prune);
+            let batches = super::scf::Batches::new(basis, &grid);
+            let (_, vxa, _) = super::scf::exchange_correlation(basis, &batches, super::functional::Functional::Lda, da, db);
+            let mut f0 = h.clone();
+            for q in 0..n * n {
+                f0.a[q] += j0.a[q] + vxa.a[q];
+            }
+            generalised(&f0, &x, m)
+        }
+        None => generalised(&h, &x, m),
+    };
     let mut hist: Vec<(Matrix, Matrix, Vec<f64>)> = Vec::new();
     let mut energy = 0.0;
     let mut last = f64::INFINITY;
@@ -128,9 +214,13 @@ pub fn hartree_fock(problem: &Problem, max_iterations: usize, tolerance: f64) ->
         for a in d.a.iter_mut() {
             *a *= 2.0;
         }
+        let clock = std::time::Instant::now();
         let (j, ej) = fit.coulomb_and_energy(&d);
+        let t_j = clock.elapsed().as_secs_f64();
         let (y, nk) = fit.whitened_half(&c, m, 0, occupied);
+        let t_y = clock.elapsed().as_secs_f64() - t_j;
         let k = exchange(&y, n, occupied, nk);
+        let t_k = clock.elapsed().as_secs_f64() - t_j - t_y;
         let mut f = h.clone();
         for q in 0..n * n {
             f.a[q] += j.a[q] - k.a[q];
@@ -152,9 +242,13 @@ pub fn hartree_fock(problem: &Problem, max_iterations: usize, tolerance: f64) ->
             hist.remove(0);
         }
         let fx = if hist.len() >= 2 { diis(&hist).map(|(a, _)| a).unwrap_or(f) } else { f };
+        let clock = std::time::Instant::now();
         let (e, cc) = generalised(&fx, &x, m);
         levels = e;
         c = cc;
+        if std::env::var_os("PHYS_PROFILE").is_some() {
+            eprintln!("  HF iteration {}: Coulomb {t_j:.2} s, half transform {t_y:.2} s, exchange {t_k:.2} s, diagonalisation {:.2} s", it + 1, clock.elapsed().as_secs_f64());
+        }
     }
     HartreeFock { energy, converged, iterations, c, m, levels, occupied }
 }
@@ -185,7 +279,6 @@ pub fn mp2(problem: &Problem, hf: &HartreeFock, frozen: usize) -> Mp2 {
     let active = nocc - frozen;
     let nv = m - nocc;
     let (y, nk) = fit.whitened_half(&hf.c, m, frozen, active);
-    let threads = std::thread::available_parallelism().map(|t| t.get()).unwrap_or(1);
     // Virtual orbitals as rows: cv[a][ao].
     let mut cv = vec![0.0f64; nv * n];
     for a in 0..nv {
@@ -205,16 +298,7 @@ pub fn mp2(problem: &Problem, hf: &HartreeFock, frozen: usize) -> Mp2 {
             }
         }
         let bi = &mut b[i * nv * nk..(i + 1) * nv * nk];
-        let rows = nv.div_ceil(threads);
-        let (cv_ref, yt_ref) = (&cv, &yt);
-        std::thread::scope(|sc| {
-            for (t, chunk) in bi.chunks_mut(rows * nk).enumerate() {
-                sc.spawn(move || {
-                    let mr = chunk.len() / nk;
-                    product_nt(&cv_ref[t * rows * n..(t * rows + mr) * n], yt_ref, mr, nk, n, chunk);
-                });
-            }
-        });
+        product_parallel(&cv, &yt, nv, nk, n, bi);
     }
     drop(y);
     let eo = &hf.levels[frozen..nocc];
@@ -224,15 +308,7 @@ pub fn mp2(problem: &Problem, hf: &HartreeFock, frozen: usize) -> Mp2 {
     for i in 0..active {
         for j in i..active {
             let (bi, bj) = (&b[i * nv * nk..(i + 1) * nv * nk], &b[j * nv * nk..(j + 1) * nv * nk]);
-            let rows = nv.div_ceil(threads);
-            std::thread::scope(|sc| {
-                for (t, chunk) in a_ij.chunks_mut(rows * nv).enumerate() {
-                    sc.spawn(move || {
-                        let mr = chunk.len() / nv;
-                        product_nt(&bi[t * rows * nk..(t * rows + mr) * nk], bj, mr, nv, nk, chunk);
-                    });
-                }
-            });
+            product_parallel(bi, bj, nv, nv, nk, &mut a_ij);
             let weight = if i == j { 1.0 } else { 2.0 };
             let (mut o, mut sm) = (0.0f64, 0.0f64);
             for a in 0..nv {

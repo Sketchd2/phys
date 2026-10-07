@@ -74,6 +74,14 @@ impl Molecule {
     /// free-atom set as derived at E4. The auxiliary set is derived from the
     /// primitives each atom actually carries, so it follows the basis.
     pub fn problem_with(&self, f: Functional, extra: Option<&[Vec<(usize, f64)>]>) -> Problem {
+        self.problem_plus(f, extra, None)
+    }
+
+    /// [`Molecule::problem_with`] with more primitives `(l, exponent)` on each
+    /// atom, added to whatever that basis is (the default set, or the grown
+    /// one) and to the primitives the auxiliary set is derived from. For asking
+    /// what a function the basis lacks is worth.
+    pub fn problem_plus(&self, f: Functional, extra: Option<&[Vec<(usize, f64)>]>, more: Option<&[Vec<(usize, f64)>]>) -> Problem {
         let bases: Vec<ElementBasis> = self.z.iter().map(|&z| element_basis(z, f)).collect();
         let per_atom: Vec<(Vec<Shell>, Vec<(usize, f64)>)> = bases.iter().zip(&self.positions).enumerate().map(|(i, (b, p))| match extra {
             None => {
@@ -81,13 +89,22 @@ impl Molecule {
                 for (l, exps) in b.free.iter().chain(&b.polarisation) {
                     prims.extend(exps.iter().map(|e| (*l, *e)));
                 }
-                (b.shells_at(*p), prims)
+                let mut sh = b.shells_at(*p);
+                if let Some(more) = more {
+                    sh.extend(more[i].iter().map(|(l, e)| Shell::primitive(*p, *l, *e)));
+                    prims.extend(more[i].iter().cloned());
+                }
+                (sh, prims)
             }
             Some(extra) => {
                 let mut sh = b.contracted_at(*p);
                 sh.extend(extra[i].iter().map(|(l, e)| Shell::primitive(*p, *l, *e)));
                 let mut prims = b.contracted_primitives();
                 prims.extend(extra[i].iter().cloned());
+                if let Some(more) = more {
+                    sh.extend(more[i].iter().map(|(l, e)| Shell::primitive(*p, *l, *e)));
+                    prims.extend(more[i].iter().cloned());
+                }
                 (sh, prims)
             }
         }).collect();

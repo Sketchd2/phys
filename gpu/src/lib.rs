@@ -26,6 +26,9 @@
 //! sized to keep a dispatch short, with each row's running sums and their
 //! compensation carried from one to the next.
 
+pub mod product;
+pub use product::install_product;
+
 use phys::electrons::vdw::{KernelTable, RowEngine, RowPoint, RowSums, ASYMPTOTE_C, ASYMPTOTIC_FROM};
 use std::sync::{Arc, Mutex};
 use wgpu::util::DeviceExt;
