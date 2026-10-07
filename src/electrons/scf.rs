@@ -178,6 +178,11 @@ impl Repulsion {
         Repulsion { n, values }
     }
 
+    /// One integral `(ij|kl)` of the packed tensor.
+    pub fn get(&self, i: usize, j: usize, k: usize, l: usize) -> f64 {
+        self.values[pair(pair(i, j), pair(k, l))]
+    }
+
     /// `J[D]_ij = sum_kl (ij|kl) D_kl`.
     pub fn coulomb(&self, d: &Matrix) -> Matrix {
         let n = self.n;
@@ -677,6 +682,95 @@ impl Fitted {
 
     pub fn coulomb(&self, d: &Matrix) -> Matrix {
         self.coulomb_from(&self.coefficients(d))
+    }
+
+    /// The three-centre integrals taken over `count` orbitals and fitted, in the
+    /// form every correlated method wants them:
+    /// `B[i][m][k] = sum_P L^-1[k][P] sum_n (mn|P) C[n][first + i]`, with
+    /// `V = L L^T` the Cholesky factor of the Coulomb metric over the auxiliary
+    /// directions it kept. Then `(mn|ls)` is, to the fit, `sum_k B[mn][k] B[ls][k]`:
+    /// the same fit the Coulomb matrix uses, so a Fock matrix built from it and
+    /// one built from [`Fitted::coulomb`] agree on what an integral is.
+    ///
+    /// `c` holds the orbitals as `c[ao * stride + orbital]`, as the solver
+    /// returns them. The result is `count` blocks of `n x nk` (`n` functions, `nk`
+    /// kept directions), and `nk`. One pass over the table, whether it is in
+    /// memory, on disk or built as it is read.
+    pub fn whitened_half(&self, c: &[f64], stride: usize, first: usize, count: usize) -> (Vec<f64>, usize) {
+        let n = self.n;
+        let na = self.metric.n;
+        let nk = self.kept.len();
+        let threads = std::thread::available_parallelism().map(|t| t.get()).unwrap_or(1).min(count.max(1));
+        // X[i][m][P], gathered a batch of table entries at a time, each thread
+        // owning a block of orbitals so that nothing is written twice.
+        let mut x = vec![0.0f64; count * n * na];
+        let per_thread = count.div_ceil(threads);
+        let batch_len = 128;
+        let mut batch: Vec<(usize, usize, Vec<f64>)> = Vec::with_capacity(batch_len);
+        let flush = |x: &mut Vec<f64>, batch: &mut Vec<(usize, usize, Vec<f64>)>| {
+            if batch.is_empty() {
+                return;
+            }
+            let batch_ref: &Vec<(usize, usize, Vec<f64>)> = batch;
+            std::thread::scope(|sc| {
+                for (t, block) in x.chunks_mut(per_thread * n * na).enumerate() {
+                    sc.spawn(move || {
+                        for (k, xi) in block.chunks_mut(n * na).enumerate() {
+                            let i = t * per_thread + k;
+                            for (m, nn, vals) in batch_ref.iter() {
+                                let cn = c[nn * stride + first + i];
+                                if cn != 0.0 {
+                                    for (o, v) in xi[m * na..(m + 1) * na].iter_mut().zip(vals) {
+                                        *o += cn * v;
+                                    }
+                                }
+                                if m != nn {
+                                    let cm = c[m * stride + first + i];
+                                    if cm != 0.0 {
+                                        for (o, v) in xi[nn * na..(nn + 1) * na].iter_mut().zip(vals) {
+                                            *o += cm * v;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }
+            });
+            batch.clear();
+        };
+        self.visit(&mut |m, nn, vals| {
+            batch.push((m, nn, vals.to_vec()));
+            if batch.len() == batch_len {
+                flush(&mut x, &mut batch);
+            }
+        });
+        flush(&mut x, &mut batch);
+        // Whiten: forward-substitute every row against L over the kept directions.
+        let mut y = vec![0.0f64; count * n * nk];
+        let rows = count * n;
+        let per_row_thread = rows.div_ceil(std::thread::available_parallelism().map(|t| t.get()).unwrap_or(1));
+        let (x_ref, kept, factor) = (&x, &self.kept, &self.factor);
+        std::thread::scope(|sc| {
+            for (t, block) in y.chunks_mut(per_row_thread * nk).enumerate() {
+                sc.spawn(move || {
+                    let mut rhs = vec![0.0f64; nk];
+                    for (k, out) in block.chunks_mut(nk).enumerate() {
+                        let r = t * per_row_thread + k;
+                        let src = &x_ref[r * na..(r + 1) * na];
+                        for (q, &i) in kept.iter().enumerate() {
+                            rhs[q] = src[i];
+                        }
+                        for i in 0..nk {
+                            let row = &factor[i * nk..i * nk + i];
+                            let sum: f64 = row.iter().zip(out.iter()).map(|(a, b)| a * b).sum();
+                            out[i] = (rhs[i] - sum) / factor[i * nk + i];
+                        }
+                    }
+                });
+            }
+        });
+        (y, nk)
     }
 
     fn coulomb_from(&self, c: &[f64]) -> Matrix {
@@ -1304,7 +1398,7 @@ pub fn solve(problem: &Problem, max_iterations: usize, tolerance: f64) -> Soluti
 }
 
 /// Pulay extrapolation of the Fock matrices.
-fn diis(hist: &[(Matrix, Matrix, Vec<f64>)]) -> Option<(Matrix, Matrix)> {
+pub(super) fn diis(hist: &[(Matrix, Matrix, Vec<f64>)]) -> Option<(Matrix, Matrix)> {
     let k = hist.len();
     let dim = k + 1;
     let mut b = vec![0.0; dim * dim];

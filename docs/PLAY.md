@@ -4282,6 +4282,96 @@ the start of the phase, ahead of the renderer**. In order:
      2.3e-3 of a tolerance at worst against predictions up to 8.2, the first
      eight groups picked the same, 208 s against 40; on water 5.6e-3 and the
      same picks. Methane's first five rounds were grown probing everything.
+   - **E8a, a reference without a functional.** *The owner's decision, after
+     the liquid's g(OO) and a review of the literature (below).* The functional
+     is not what is being derived; its error is what the first liquid measured.
+     The literature has no functional right for every molecule: the best
+     overall (omegaB97M-V) is fitted and costs a hybrid, the constraint-based
+     ones (SCAN, r2SCAN, with rVV10) still over-structure water, vdW-DF-cx is
+     weaker on hydrogen bonds, and the exchange tuned to dimers (optB88,
+     optPBE) is tuned to benchmark numbers the engine did not compute. And
+     water's local structure is set by two- *and* three-body energies (three-body
+     about 15-20% of the interaction energy in cyclic clusters), which a
+     pair-additive law cannot carry whatever it is fitted to. So the reference
+     moves from a functional to **wavefunction theory from the same
+     ingredients**: Hartree-Fock and second-order perturbation theory (RI-MP2)
+     on the density-fitted table the Kohn-Sham solver already builds
+     (`src/electrons/hf.rs`), with nothing fitted and nothing chosen but a basis
+     and an auxiliary basis, both of which the engine derives. Spin-component
+     scaled MP2 molecular dynamics of liquid water (aug-cc-pVDZ, embedded
+     fragments) gets 4.4-4.7 neighbours against 4.3-4.5 measured. Its known
+     fault is dispersion between large polarisable molecules (benzene dimers),
+     which wants the next term in the series; the stages say where that is
+     looked for. The stages, each with the measurement that settles it:
+     1. *Water dimer* against CCSD(T)/CBS (5.02 kcal/mol, S22).
+     2. *Dispersion and the other hydrogen bonds:* ammonia, methane, the ethene
+        complexes, formic acid (S22).
+     3. *The ten trimers already computed with DFT*, at MP2: is the three-body
+        term attractive, as the review says it should be, and how big?
+     4. *A law with two- and three-body terms and induction* fitted to MP2
+        energies, the liquid's g(OO) the check: about 4.4 neighbours inside
+        3.5 A and a second shell at 4.5 A.
+     5. *The basis*, if stage 1 shows it matters, derived by what lowers the
+        correlation energy and not tabulated.
+     **Measured so far (stages 1 and 2, the S22 geometries, counterpoise
+     corrected, the engine's cheap basis, frozen cores):**
+
+     ```text
+                      HF       MP2 corr    total     CCSD(T)/CBS   error
+     water dimer     -3.574    -1.204     -4.778     -5.020        -4.8%
+     ammonia dimer   -1.401    -1.647     -3.048     -3.171        -3.9%
+     methane dimer   +0.367    -0.841     -0.475     -0.530       -10.5%
+     ```
+
+     Every one is under-bound by 4-10%, which is a basis that has not
+     converged and not a method that has failed (a counterpoise-corrected
+     energy approaches its limit from below). The basis is O: 5 s, 7 p, 5 d,
+     5 f; H: 6 s, 4 p, 6 d: no g on oxygen and no f on hydrogen, where the
+     quadruple-zeta sets have them. The code checks: fitted Hartree-Fock equals
+     the four-index one (He 9e-12, H2 7e-8 Ha), RI-MP2 equals the four-index
+     transformation on the same orbitals (He 1e-7, H2 2.9e-5 Ha, 0.09%), He's
+     Hartree-Fock is -2.86167 (the limit is -2.86168), `tests/hf.rs`. A dimer
+     takes about two minutes; Hartree-Fock is the cost, the MP2 step a few
+     seconds.
+   - **E8z, remove what was not chosen.** *Planned by the owner, to be done
+     once the method above is validated and the owner confirms it; nothing is
+     removed before that.* Every method the engine carries and the decision
+     does not use is a thing to keep tested for no result. The candidates are:
+     the swappable exchange partners (`Functional::PbeXLdaC`,
+     `RevPbeXLdaC`, `Rpw86XLdaC`) and the exchange swap in `pairs.rs`; the
+     vdW-DF non-local correlation (`electrons/vdw.rs`, its kernel table,
+     `NonlocalSpec`, the fifth gradient part) and the fine-grid energy; the
+     single-precision GPU row engine and its binaries (`gpu/`, which exists
+     for that sum); the DFT pair data, pair-fit law and DFT trimer files, with
+     `phys-pairs`, `phys-fit`'s DFT inputs and `phys-cluster`'s DFT fields; and
+     whatever of the E6 partition of the kernel is no longer wanted. What
+     stays is Kohn-Sham PBE (what E1-E5 derive their shapes, dipoles and
+     polarities with), the density-fitting table and its spill, the queue and
+     the cluster-run machinery (nothing in them is DFT), the liquid
+     simulator, `phys-bulk`'s g(r), and the recheck tool. Before anything is
+     deleted the lessons go into `docs/PHYSICS.md` (or here) so they outlive
+     the code, and what has to be recorded is at least:
+     - PBE exchange with vdW-DF non-local correlation counts dispersion
+       twice: the dimer 12% over, the liquid 4 kcal/mol a molecule over and
+       too dense, 8 neighbours inside 3.5 A; revPBE the other way, under in
+       the dimer by 16%, with a spurious peak in g(OO).
+     - A heat of vaporisation of a rigid classical liquid is not comparable
+       with the measured one without the intermolecular zero-point energy
+       (about 2.8 kcal/mol in ice); agreement with 10.5 is not evidence.
+     - The mean error of a pair fit over a random draw of pairs hides the
+       error on the close pairs a liquid is made of (0.3 against 0.6, and
+       -0.7 on the nearest contacts).
+     - Three-body terms of compact triples are small and uncertain
+       (+0.14 +- 0.12 kcal/mol, PBE exchange); the cooperativity that matters
+       is in larger clusters.
+     - A fitted law's molecular dipole (1.6-1.75 D) is not constrained by
+       its pair fit, and a pair-additive law builds a dense simple liquid.
+     - A long-lived process leaks (about 25 MB a pair, cause not found), the
+       GPU's single precision was good enough for the data (repeats agree to
+       the printed digits), the table spill is bit-identical, and a queue
+       with leases loses nothing to a machine that vanishes.
+     - Counterpoise-corrected interaction energies converge from below, so a
+       basis shortfall always looks like under-binding.
    - **E9, into the registry.** At intern, memoised by the arrangement's
      fingerprint so a test suite or a world pays once per substance, persisted.
    - **E10, heavy elements.** Beyond about Z = 36 a scalar-relativistic
