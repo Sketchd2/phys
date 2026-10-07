@@ -4228,6 +4228,38 @@ the start of the phase, ahead of the renderer**. In order:
      exchange factor that is too weakly repulsive in the dimer gives a
      spurious 3-body *repulsion*; ours is +0.14 with PBE and +0.03 with revPBE
      exchange, the same sign and order.
+     *The liquid's structure, measured: g(OO) says neither law builds water.*
+     `phys-bulk` now accumulates the radial distribution of the oxygens over the
+     48 ps and writes it (`gOO-water-298-*-T500.txt`). Measured water at 298 K
+     has a first peak of 2.57-2.75 at 2.80 A, a first minimum of 0.84 near 3.4
+     A, a second shell at about 4.5 A, and about 4.3 neighbours in the first:
+
+     ```text
+                         PBE exchange     revPBE exchange   measured
+     first peak          3.4 at 2.95 A    2.58 at 3.15 A    2.57-2.75 at 2.80 A
+     g at 4.3 A          0.61 (minimum)   0.72 (minimum)    second shell, 1.1 at 4.5 A
+     second shell        1.37 at 5.7 A    1.2 at 6.1 A      4.5 A
+     neighbours < 3.3 A  6.3              4.2
+     neighbours < 3.5 A  8.0              6.1               about 4.3-4.5
+     ```
+
+     Both are the wrong kind of liquid: the first shell is 0.15-0.35 A too far
+     out and over-populated (8 neighbours inside 3.5 A for PBE exchange), and
+     there is no second shell at 4.5 A where a tetrahedral network puts one;
+     the next one is at 5.7 A, the packing of a dense simple liquid. The PBE
+     law is also much more structured (3.4) than the same functional in
+     ab initio dynamics (the review gives about 2.6). So the revPBE heat of
+     vaporisation of 9.6-10.1 is not evidence of a right liquid: it is a
+     number from a liquid with the wrong structure. Three things the
+     literature and these figures point at, none measured as the cause: the
+     non-local correlation overbinds the two-body energy at O...O of 3.0-4.0 A
+     (the review's finding for DRSLL-type functionals, which is exactly the
+     range that is over-populated here); a pair-additive law has no cooperativity
+     (the review gives 4-8% enhancement of the H-bond energy in the trimer and
+     45-55% in the pentamer, so the three-body term of 0.03-0.14 kcal/mol we
+     measured on compact triples says nothing about the larger clusters a liquid
+     is made of); and no polarisation: the fitted laws' dipoles are 1.6-1.75 D
+     (gas 1.85 D) where water in the liquid has about 2.5-3.
      *Memory and disk, found on the way:* the Coulomb fit's three-centre
      table now stores only what half the free RAM allows, spills the rest to
      the disk `PHYS_SPILL_DIR` names (at most `PHYS_SPILL_MAX_GB`, 40 by
