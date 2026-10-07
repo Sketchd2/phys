@@ -149,6 +149,11 @@ pub struct Monomer {
     contact: Vec<f64>,
     masses: Vec<f64>,
     grown: bool,
+    /// Compute pairs at Hartree-Fock + RI-MP2 instead of with the density
+    /// functional (`--mp2`): a line then carries the total interaction (HF
+    /// plus correlation) where the PBE-exchange energy goes and the
+    /// Hartree-Fock part where the revPBE one does.
+    pub mp2: bool,
 }
 
 /// The atoms of a molecule `phys-grow` knows by name.
@@ -179,7 +184,7 @@ impl Monomer {
         }
         let body: Vec<Vec3> = mono.positions.iter().map(|p| Vec3 { x: p[0] - com[0], y: p[1] - com[1], z: p[2] - com[2] }).collect();
         let contact: Vec<f64> = z.iter().map(|&zz| crate::chem::elements::Element(zz as u8).vdw_radius().unwrap_or(1.5e-10) / 0.529177210903e-10).collect();
-        Monomer { name: name.to_string(), z, types, extra, body, contact, masses, grown }
+        Monomer { name: name.to_string(), z, types, extra, body, contact, masses, grown, mp2: false }
     }
 
     /// Pair `k` of the random draw: two molecules' atom positions and the
@@ -206,6 +211,15 @@ impl Monomer {
 
     /// The interaction of the pair `a`, `b`, and the line that records it.
     fn compute(&self, k: usize, a: &[Vec3], b: &[Vec3], sep: f64) -> (Interaction, String) {
+        if self.mp2 {
+            let r = self.cluster_interaction(&[a.to_vec(), b.to_vec()], false, None, None, true);
+            let total = r.pbe + r.rev;
+            let mut line = format!("{k} {sep:.6} {total:.10e} {:.10e} |", r.pbe);
+            for (v, ty) in a.iter().zip(&self.types).chain(b.iter().zip(&self.types)) {
+                line += &format!(" {:.8} {:.8} {:.8} {ty}", v.x, v.y, v.z);
+            }
+            return (Interaction { pbe: total, rev: r.pbe, t_solve: r.t_solve, t_fine: r.t_fine, t_swap: r.t_swap, iterations: r.iterations, functions: r.functions }, line);
+        }
         let setup = Setup { z: &self.z, extra: &self.extra, grown: self.grown };
         let r = interact(&setup, k, a, b);
         let mut line = format!("{k} {sep:.6} {:.10e} {:.10e} |", r.pbe, r.rev);
@@ -239,12 +253,17 @@ pub fn run(args: &[String], tag: &str) {
     let name = args.first().cloned().unwrap_or_else(|| "water".into());
     let count: usize = args.get(1).and_then(|s| s.parse().ok()).unwrap_or(300);
     let grown = args.get(2).map(|s| s == "grown").unwrap_or(false);
-    let mono = Monomer::load(&name, grown);
-    let out = format!("pairs-{name}{tag}.txt");
+    let mut mono = Monomer::load(&name, grown);
+    mono.mp2 = args.iter().any(|a| a == "--mp2");
+    let out = format!("pairs-{name}{tag}{}.txt", if mono.mp2 { "-mp2" } else { "" });
     let done = done_indices(&out);
     let mut file = std::fs::OpenOptions::new().create(true).append(true).open(&out).expect("the output file");
     if done.is_empty() {
-        writeln!(file, "{RANDOM_HEADER}").ok();
+        if mono.mp2 {
+            writeln!(file, "# MP2 (Hartree-Fock + RI-MP2, frozen cores, counterpoise): index separation_bohr E_int_total E_int_hartree_fock (hartree) | then x y z type for each atom of the first molecule and of the second (bohr)").ok();
+        } else {
+            writeln!(file, "{RANDOM_HEADER}").ok();
+        }
     }
     println!("{name}: {} atoms, types {:?}, {} basis; {} pairs done, {count} wanted", mono.z.len(), mono.types, if grown { "grown" } else { "per-element" }, done.len());
     for k in 0..count {
@@ -371,13 +390,18 @@ pub fn run_snapshot(args: &[String], tag: &str) {
     let snapshot = args.get(1).cloned().expect("a snapshot file");
     let count: usize = args.get(2).and_then(|s| s.parse().ok()).unwrap_or(40);
     let grown = args.get(3).map(|s| s == "grown").unwrap_or(false);
-    let mono = Monomer::load(&name, grown);
+    let mut mono = Monomer::load(&name, grown);
+    mono.mp2 = args.iter().any(|a| a == "--mp2");
     let snap = Snapshot::load(&snapshot, mono.z.len());
-    let out = format!("pairs-{name}{tag}.txt");
+    let out = format!("pairs-{name}{tag}{}.txt", if mono.mp2 { "-mp2" } else { "" });
     let done = done_indices(&out);
     let mut file = std::fs::OpenOptions::new().create(true).append(true).open(&out).expect("the output file");
     if done.is_empty() {
-        writeln!(file, "{}", snapshot_header(&snapshot)).ok();
+        if mono.mp2 {
+            writeln!(file, "# MP2 (Hartree-Fock + RI-MP2, frozen cores, counterpoise), pairs of molecules taken from {snapshot}: index centroid_separation_bohr E_int_total E_int_hartree_fock (hartree) | then x y z type for each atom of the first molecule and of the second (bohr)").ok();
+        } else {
+            writeln!(file, "{}", snapshot_header(&snapshot)).ok();
+        }
     }
     println!("{name}: {} candidate pairs in {snapshot} within 10.5 bohr; {} done, {count} wanted", snap.len(), done.len());
     for k in 0..count.min(snap.len()) {

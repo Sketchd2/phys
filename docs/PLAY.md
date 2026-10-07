@@ -4333,6 +4333,48 @@ the start of the phase, ahead of the renderer**. In order:
      Hartree-Fock is -2.86167 (the limit is -2.86168), `tests/hf.rs`. A dimer
      takes about two minutes; Hartree-Fock is the cost, the MP2 step a few
      seconds.
+     **Stage 3, the ten trimers at Hartree-Fock + MP2** (the same trimers and
+     the same 29 pairs as the DFT ones, counterpoise, frozen cores, the cheap
+     basis; `cluster-mp2-water-3-c<N>.txt`; about 17 minutes a trimer on the
+     CPU):
+
+     ```text
+                     pair sums of the trimer (3 pairs)         three-body term
+     centre   PBE exchange  revPBE exchange   MP2      PBE-x   revPBE-x   MP2
+         0       -4.06         -1.17         -1.37     +0.359   +0.251   +0.014
+        20       -4.86         -3.00         -3.15     -0.044   -0.029   -0.033
+        45       -4.90         -0.53         -2.03     +0.370   +0.072   -0.204
+        70       +1.86         +6.90         +4.91     +0.776   +0.371   +0.061
+        95       -5.37         -2.22         -3.52     +0.123   +0.126   +0.052
+       120       -3.07         -0.49         -0.98     +0.391   +0.352   +0.300
+       145       -6.90         -4.12         -5.10     -0.518   -0.514   -0.520
+       170       -8.10         -3.57         -5.33     +0.134   -0.160   -0.465
+       195       -1.45         +1.15         +0.61     +0.065   +0.060   +0.020
+       210       -6.54         -4.62         -4.90     -0.290   -0.273   -0.269
+     mean over ten:                          -2.09     +0.137   +0.026   -0.104
+     (standard error of the three-body means)           0.117    0.089    0.081
+     ```
+
+     **On the pairs a liquid is made of, MP2 sits between the two exchange
+     forms.** PBE exchange is more attractive than MP2 by 2.25 kcal/mol a
+     trimer (three pairs, 0.75 a pair; MP2's own pair sum averages -2.09, so
+     PBE exchange binds these pairs about twice as strongly) and revPBE
+     exchange less attractive by 0.92 (0.31 a pair, 44% under). That is the
+     literature's PBE-DRSLL overbinding and revPBE-DRSLL underbinding
+     measured on the engine's own liquid neighbours, with an independent
+     reference, and it is the size of the error the first liquid had. MP2's own
+     basis shortfall is about 5% in the dimers (stage 1), a small part of it.
+     **The three-body term at MP2 is attractive on average (-0.104 +- 0.081)
+     where PBE exchange's is repulsive (+0.137 +- 0.117)**, the sign the
+     literature gives for each, though for compact triples it is small and
+     scattered either way (the spread is 0.26 kcal/mol, and four trimers,
+     0, 45, 70 and 170, carry nearly all the difference from PBE
+     exchange; at 145 and 210 all three agree). It is mostly the Hartree-Fock
+     part (induction and exchange); the correlation part is a few hundredths.
+     MP2 pair energies of the 40 liquid pairs and the first 150 random ones are
+     being computed (`phys-pairs water 150 --mp2`, `phys-pairs-liquid-gpu water
+     bulk-water-298.snap 40 --mp2`, files `pairs-water-mp2.txt`,
+     `pairs-water-liq-gpu-mp2.txt`; about 105 s a pair) for stage 4.
    - **E8z, remove what was not chosen.** *Planned by the owner, to be done
      once the method above is validated and the owner confirms it; nothing is
      removed before that.* Every method the engine carries and the decision
