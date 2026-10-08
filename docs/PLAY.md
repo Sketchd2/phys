@@ -4375,6 +4375,37 @@ the start of the phase, ahead of the renderer**. In order:
      being computed (`phys-pairs water 150 --mp2`, `phys-pairs-liquid-gpu water
      bulk-water-298.snap 40 --mp2`, files `pairs-water-mp2.txt`,
      `pairs-water-liq-gpu-mp2.txt`; about 105 s a pair) for stage 4.
+     **Stage 4, first half: a pair-additive law fitted to MP2.** The 40 liquid,
+     150 random and 29 trimer pairs at Hartree-Fock + MP2 (219; `pairs-water-
+     mp2.txt`, `-liq-gpu-mp2`, `-trimer-mp2`; about 105 s a pair on the CPU) fitted
+     with the bisector site and C6 free, weighted at 500 K: 0.288 kcal/mol on
+     the pairs fitted, 0.268 on the fifth held out (0.165 over the strongly
+     bound ones), site 0.49 bohr out, charges +0.18 (O), +0.60 (H), -1.37 (the
+     site). The bulk box (216 molecules, 298 K, 1 g/cm3, 48 ps):
+
+     ```text
+                         MP2 law    PBE-x law   revPBE-x law   measured
+     heat of vaporis.     8.55       14.3         9.6          10.5 (about 12.5-13.5 classical)
+     pressure            -976 bar   -6,595       -1,070       about 1
+     first peak          2.55 at 3.05 A   3.4 at 2.95   2.58 at 3.15   2.57-2.75 at 2.80 A
+     neighbours < 3.3 A  4.57        6.3           4.2          about 4.3-4.5
+     neighbours < 3.5 A  6.07        8.0           6.1
+     g at 4.1-4.8 A      0.78-0.80   0.61 (minimum)  0.69-0.72    second shell, 1.1 at 4.5 A
+     ```
+
+     **The pair-additive MP2 law has the same structure as the revPBE one and
+     it is not water's:** the first shell 0.25 A too far out, 6 neighbours inside
+     3.5 A where water has 4.4, no second shell at 4.5 A (g is flat at 0.8 from 4.1
+     to 4.8 and peaks at 5.65). Its heat of vaporisation is low against the
+     classical target for the reasons already given: no cooperativity (the MP2
+     three-body term of a compact triple is -0.10 +- 0.08, but a liquid's
+     molecules sit in chains and rings where the review puts the enhancement of an
+     H-bond at 4-8% in the trimer and 45-55% in the pentamer), a basis 5%
+     short in the dimer, and the monomer held rigid. **What the pair reference
+     changed is the pair energy, not the liquid:** the structure did not move
+     when the functional was replaced by perturbation theory, which says the
+     missing physics is in the law, not the reference. The next piece is the
+     law's non-additivity, and what it should be is the owner's decision, recorded here once taken.
    - **E8z, remove what was not chosen.** *Planned by the owner, to be done
      once the method above is validated and the owner confirms it; nothing is
      removed before that.* Every method the engine carries and the decision
