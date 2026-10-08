@@ -59,6 +59,9 @@ fn main() {
     // rather than from a plain guess, so that terms added to it (`--lp`) are
     // perturbations of a fit that already works.
     let start_law: Option<SiteSite> = args.iter().position(|a| a == "--start").and_then(|i| args.get(i + 1)).map(|f| SiteSite::from_text(&std::fs::read_to_string(f).unwrap_or_else(|_| panic!("no {f}"))).expect("a readable law"));
+    // `--overlap`: the repulsion is that of the charge clouds' overlap (the
+    // density's own sizes, one strength per pair) and not a Born-Mayer per atom pair.
+    let use_overlap = args.iter().any(|a| a == "--overlap");
     // `--no-c8`: no C8 at all.
     let no_c8 = args.iter().any(|a| a == "--no-c8");
     // `--esp esp-water.txt`: the charges and the bisector site from the
@@ -96,12 +99,17 @@ fn main() {
     // --sites`) that carry a repulsion of their own and no charge: the
     // anisotropy an atom-atom Born-Mayer lacks. One more site type, after the
     // bisector site's.
-    let lp_sites: Vec<ExtraSite> = args
+    // `--charge-sites file`: sites that carry charge only, of the types the
+    // file gives (the density's own core-and-cloud model, `phys-esp --cloud`).
+    let charge_mode = args.iter().any(|a| a == "--charge-sites");
+    let charge_sites: Vec<ExtraSite> = args.iter().position(|a| a == "--charge-sites").and_then(|i| args.get(i + 1)).map(|f| extra_sites_from_text(&std::fs::read_to_string(f).unwrap_or_else(|_| panic!("no {f}")))).unwrap_or_default();
+    let lp_sites: Vec<ExtraSite> = if charge_mode { charge_sites } else { args
         .iter()
         .position(|a| a == "--lp")
         .and_then(|i| args.get(i + 1))
         .map(|f| extra_sites_from_text(&std::fs::read_to_string(f).unwrap_or_else(|_| panic!("no {f}"))).into_iter().map(|s| ExtraSite { ty: types + 1, frame: s.frame }).collect())
-        .unwrap_or_default();
+        .unwrap_or_default() };
+    let extra_classes: usize = { let mut t: Vec<usize> = lp_sites.iter().map(|s| s.ty).collect(); t.sort(); t.dedup(); t.len() };
     // The polarisability of every site type the fit sees: the atoms', and zero
     // for the bisector site.
     let alpha_full: Option<Vec<f64>> = alpha_atoms.as_ref().map(|a| {
@@ -109,7 +117,7 @@ fn main() {
         if bisector {
             v.push(0.0);
         }
-        if !lp_sites.is_empty() {
+        for _ in 0..extra_classes {
             v.push(0.0);
         }
         println!("  induced dipoles on, polarisabilities by type {v:?} bohr^3");
@@ -135,20 +143,20 @@ fn main() {
         // with no hydrogen bond in it. (The last charge follows from
         // neutrality.)
         let fit = if bisector {
-            let (fit, d) = fit_with_bisector(&train, &multiplicity, types, temperature, &c6_held, alpha_full.as_deref(), use_sigma, esp.as_ref(), &lp_sites, no_c8, start_law.as_ref(), match (two_stage, &hf_law) { (false, _) => Stage::Single, (true, None) => Stage::Hf, (true, Some(l)) => Stage::Correlation(l) });
+            let (fit, d) = fit_with_bisector(&train, &multiplicity, types, temperature, &c6_held, alpha_full.as_deref(), use_sigma, esp.as_ref(), &lp_sites, charge_mode, no_c8, use_overlap, start_law.as_ref(), match (two_stage, &hf_law) { (false, _) => Stage::Single, (true, None) => Stage::Hf, (true, Some(l)) => Stage::Correlation(l) });
             println!("    bisector site {d:.4} bohr from the first atom (weighted residual {:.3e})", fit.weighted_rms);
             bisector_distance = Some(d);
             fit
         } else {
             let mut charge = vec![0.0; types];
             charge[0] = -0.1;
-            let mut start = SiteSite { charge, pair: vec![[10.0, 2.0, 10.0, 200.0]; types * types], sigma: Vec::new(), damp: Vec::new() };
+            let mut start = SiteSite { charge, pair: vec![[10.0, 2.0, 10.0, 200.0]; types * types], sigma: Vec::new(), damp: Vec::new(), overlap: Vec::new() };
             for &((a, b), v) in &c6_held {
                 start.pair[a * types + b][2] = v;
                 start.pair[b * types + a][2] = v;
             }
             let dispersion: Vec<(usize, usize)> = c6_held.iter().map(|&(p, _)| p).collect();
-            fit_site_site_polarised(&train, &multiplicity, &start, temperature, 1e-3, 5000, &Held { pairs: &[], dispersion: &dispersion, sigma: use_sigma, charges: esp.is_some(), damp: false, repulsion: false, no_dispersion: false, no_dispersion_pairs: &[], no_c8 }, alpha_full.as_deref())
+            fit_site_site_polarised(&train, &multiplicity, &start, temperature, 1e-3, 5000, &Held { pairs: &[], dispersion: &dispersion, sigma: use_sigma, charges: esp.is_some(), damp: false, repulsion: false, no_dispersion: false, no_dispersion_pairs: &[], no_c8, overlap: use_overlap, no_born_mayer: use_overlap }, alpha_full.as_deref())
         };
         if two_stage && column == 1 {
             hf_law = Some(fit.law.clone());
@@ -211,17 +219,20 @@ fn add_bisector(d: &PairEnergy, types: usize, distance: f64, extra: &[ExtraSite]
 /// distance the fit is started from several charges (the energy goes as a
 /// product of charges and has more than one basin) and the best kept; the
 /// distance is the coarse-grid minimum of the weighted residual, refined.
-fn fit_with_bisector(train: &[PairEnergy], multiplicity: &[usize], types: usize, temperature: f64, c6_held: &[((usize, usize), f64)], alpha: Option<&[f64]>, use_sigma: bool, esp: Option<&(Vec<f64>, f64, Vec<f64>)>, lp: &[ExtraSite], no_c8: bool, start_law: Option<&SiteSite>, stage: Stage) -> (Fitted, f64) {
+fn fit_with_bisector(train: &[PairEnergy], multiplicity: &[usize], types: usize, temperature: f64, c6_held: &[((usize, usize), f64)], alpha: Option<&[f64]>, use_sigma: bool, esp: Option<&(Vec<f64>, f64, Vec<f64>)>, lp: &[ExtraSite], charge_only: bool, no_c8: bool, use_overlap: bool, start_law: Option<&SiteSite>, stage: Stage) -> (Fitted, f64) {
     let mut mult = multiplicity.to_vec();
     mult.push(1);
-    if !lp.is_empty() {
-        mult.push(lp.len());
+    let mut classes: Vec<usize> = lp.iter().map(|s| s.ty).collect();
+    classes.sort();
+    classes.dedup();
+    for t in &classes {
+        mult.push(lp.iter().filter(|s| s.ty == *t).count());
     }
-    let all = types + 1 + (!lp.is_empty()) as usize;
-    let site_pairs: Vec<(usize, usize)> = (0..all).map(|a| (a, types)).collect();
+    let all = types + 1 + classes.len();
+    let site_pairs: Vec<(usize, usize)> = if charge_only { (types..all).flat_map(|t| (0..=t).map(move |a| (a, t))).collect() } else { (0..all).map(|a| (a, types)).collect() };
     // The repelling sites' pairs with the atoms and with each other are fitted
     // for repulsion and held at zero for dispersion.
-    let lp_pairs: Vec<(usize, usize)> = if lp.is_empty() { Vec::new() } else { (0..types).chain(std::iter::once(types + 1)).map(|a| (a, types + 1)).collect() };
+    let lp_pairs: Vec<(usize, usize)> = if lp.is_empty() || charge_only { Vec::new() } else { (0..types).chain(std::iter::once(types + 1)).map(|a| (a, types + 1)).collect() };
     let dispersion: Vec<(usize, usize)> = c6_held.iter().map(|&(p, _)| p).collect();
     let best_at = |d: f64| -> Fitted {
         let data: Vec<PairEnergy> = train.iter().map(|p| add_bisector(p, types, d, lp)).collect();
@@ -240,7 +251,7 @@ fn fit_with_bisector(train: &[PairEnergy], multiplicity: &[usize], types: usize,
                     sigma_start.push(0.5);
                 }
             }
-            let mut start = SiteSite { charge, pair: vec![[10.0, 2.0, 10.0, 200.0]; all * all], sigma: sigma_start, damp: Vec::new() };
+            let mut start = SiteSite { charge, pair: vec![[10.0, 2.0, 10.0, 200.0]; all * all], sigma: sigma_start, damp: Vec::new(), overlap: Vec::new() };
             if let Stage::Correlation(base) = stage {
                 start = base.clone();
                 // The Hartree-Fock stage left no dispersion, and a number at
@@ -264,6 +275,13 @@ fn fit_with_bisector(train: &[PairEnergy], multiplicity: &[usize], types: usize,
             if no_c8 {
                 for p in start.pair.iter_mut() {
                     p[3] = 0.0;
+                }
+            }
+            if use_overlap {
+                // No Born-Mayer of its own; B stays as the dispersion's damping.
+                for p in start.pair.iter_mut() {
+                    p[0] = 1e-300;
+                    p[1] = 2.0;
                 }
             }
             if let Some(law) = start_law {
@@ -293,7 +311,7 @@ fn fit_with_bisector(train: &[PairEnergy], multiplicity: &[usize], types: usize,
                     start.pair[b * all + a][2] = v;
                 }
             }
-            let held = Held { pairs: &site_pairs, dispersion: if matches!(stage, Stage::Correlation(_)) { &[] } else { &dispersion }, sigma: use_sigma, charges: esp.is_some(), damp: matches!(stage, Stage::Correlation(_)), repulsion: matches!(stage, Stage::Correlation(_)), no_dispersion: matches!(stage, Stage::Hf), no_dispersion_pairs: &lp_pairs, no_c8 };
+            let held = Held { pairs: &site_pairs, dispersion: if matches!(stage, Stage::Correlation(_)) { &[] } else { &dispersion }, sigma: use_sigma, charges: esp.is_some(), damp: matches!(stage, Stage::Correlation(_)), repulsion: matches!(stage, Stage::Correlation(_)), no_dispersion: matches!(stage, Stage::Hf), no_dispersion_pairs: &lp_pairs, no_c8, overlap: use_overlap, no_born_mayer: use_overlap };
             let fit = fit_site_site_polarised(&data, &mult, &start, temperature, 1e-3, 5000, &held, alpha);
             if fit.weighted_rms.is_finite() && best.as_ref().map_or(true, |b| fit.weighted_rms < b.weighted_rms) {
                 best = Some(fit);

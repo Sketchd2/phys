@@ -77,8 +77,10 @@ fn main() {
     let origin = [0.0; 3];
     let dm = phys::electrons::integrals::dipole(&p.basis, origin);
     let mut mu_hf = [0.0f64; 3];
+    let mut mu_nuc = [0.0f64; 3];
     for k in 0..3 {
         let nuc: f64 = pos.iter().zip(&z).map(|(o, zz)| *zz as f64 * [o.x, o.y, o.z][k]).sum();
+        mu_nuc[k] = nuc;
         let mut el = 0.0;
         for a in 0..n {
             for b in 0..n {
@@ -115,7 +117,18 @@ fn main() {
     } else {
         1.0
     };
-    println!("  potential scaled by {scale:.4}");
+    // The same dipole reached by scaling only the electrons' potential: along
+    // the Hartree-Fock dipole's axis, mu = mu_nuc - s mu_el.
+    let s_e = if scale == 1.0 {
+        1.0
+    } else {
+        let dir = [mu_hf[0] / norm3(&mu_hf), mu_hf[1] / norm3(&mu_hf), mu_hf[2] / norm3(&mu_hf)];
+        let nuc_d: f64 = (0..3).map(|k| mu_nuc[k] * dir[k]).sum();
+        let el_d = nuc_d - norm3(&mu_hf);
+        (nuc_d - scale * norm3(&mu_hf)) / el_d
+    };
+    println!("  potential scaled by {scale:.4} (the electrons' part alone by {s_e:.4} for --cloud)");
+    let cloud_mode = args.iter().any(|a| a == "--cloud");
     let esp: Vec<f64> = pts
         .iter()
         .map(|q| {
@@ -127,7 +140,7 @@ fn main() {
                     e += d.get(a, b) * v.get(a, b);
                 }
             }
-            scale * (nuc + e)
+            if cloud_mode { nuc + s_e * e } else { scale * (nuc + e) }
         })
         .collect();
     println!("{name}: {} functions, {} potential points", n, pts.len());
@@ -197,6 +210,145 @@ fn main() {
         if r < best.0 {
             best = (r, dist, q);
         }
+    }
+    if args.iter().any(|a| a == "--cloud") {
+        // Penetration the way the density has it: each nucleus (less its
+        // innermost electrons) a point, and the valence electrons clouds of
+        // Gaussian charge that overlap other molecules' nuclei. The cores are
+        // not fitted - they are the elements' - so what is fitted is how the
+        // eight valence electrons are shared among a cloud on the oxygen, one
+        // on each hydrogen and one on the bisector, and how wide each is.
+        // `scale` (the MP2 dipole) moves only the electrons' part of the
+        // potential, since the nuclei are what they are.
+        let (z_val, cores): (Vec<f64>, Vec<f64>) = {
+            let core_electrons = |zz: u32| if zz > 2 { 2.0 } else { 0.0 };
+            (z.iter().map(|&zz| zz as f64 - core_electrons(zz)).collect(), z.iter().map(|&zz| zz as f64 - core_electrons(zz)).collect())
+        };
+        let valence: f64 = z_val.iter().sum();
+        // The potential left once the cores are taken out is minus the clouds'.
+        let target: Vec<f64> = pts.iter().zip(&esp).map(|(q, v)| v - pos.iter().zip(&cores).map(|(o, c)| c / (*q - *o).norm()).sum::<f64>()).collect();
+        let (o, p1, p2) = (pos[0], pos[1], pos[2]);
+        let (u, v) = ((p1 - o).unit(), (p2 - o).unit());
+        let r_oh = (p1 - o).norm();
+        // Classes of cloud: the bisector's (position searched), the oxygen's, the hydrogens'.
+        let fit_at = |x: &[f64]| -> (Vec<f64>, f64) {
+            let sig = [x[0].exp(), x[1].exp(), x[2].exp()];
+            let dist = x[3].abs().max(1e-3);
+            let site_m = o + (u + v).unit().scale(dist);
+            let class_pos: Vec<Vec<Vec3>> = vec![vec![site_m], vec![pos[0]], vec![pos[1], pos[2]]];
+            let mults = [1.0, 1.0, 2.0];
+            let rows: Vec<Vec<f64>> = pts
+                .iter()
+                .map(|q| {
+                    (0..3)
+                        .map(|i| {
+                            class_pos[i]
+                                .iter()
+                                .map(|s| {
+                                    let r = (*q - *s).norm();
+                                    -phys::induction::erf(r / sig[i]) / r
+                                })
+                                .sum()
+                        })
+                        .collect()
+                })
+                .collect();
+            // Populations n_i (positive electrons), sum of mult * n = valence.
+            let m = 4;
+            let mut a = vec![vec![0.0; m]; m];
+            let mut b = vec![0.0; m];
+            for (row, val) in rows.iter().zip(&target) {
+                for i in 0..3 {
+                    b[i] += row[i] * val;
+                    for j in 0..3 {
+                        a[i][j] += row[i] * row[j];
+                    }
+                }
+            }
+            for i in 0..3 {
+                a[i][3] = mults[i];
+                a[3][i] = mults[i];
+            }
+            b[3] = valence;
+            for cc in 0..m {
+                let piv = (cc..m).max_by(|&u2, &w| a[u2][cc].abs().partial_cmp(&a[w][cc].abs()).unwrap()).unwrap();
+                a.swap(cc, piv);
+                b.swap(cc, piv);
+                for r in cc + 1..m {
+                    let f = a[r][cc] / a[cc][cc];
+                    for kk in cc..m {
+                        a[r][kk] -= f * a[cc][kk];
+                    }
+                    b[r] -= f * b[cc];
+                }
+            }
+            let mut sol = vec![0.0; m];
+            for cc in (0..m).rev() {
+                sol[cc] = (b[cc] - (cc + 1..m).map(|kk| a[cc][kk] * sol[kk]).sum::<f64>()) / a[cc][cc];
+            }
+            let n_pop: Vec<f64> = sol[..3].to_vec();
+            let rms = (rows.iter().zip(&target).map(|(row, val)| (row.iter().zip(&n_pop).map(|(r, nn)| r * nn).sum::<f64>() - val).powi(2)).sum::<f64>() / target.len() as f64).sqrt();
+            (n_pop.clone(), rms + 1e-7 * n_pop.iter().map(|v| v * v).sum::<f64>())
+        };
+        let nn = 4;
+        let mut simplex: Vec<Vec<f64>> = vec![vec![(0.9f64).ln(), (0.9f64).ln(), (0.9f64).ln(), 0.3]];
+        for i in 0..nn {
+            let mut vtx = simplex[0].clone();
+            vtx[i] += if i < 3 { 0.4 } else { 0.15 };
+            simplex.push(vtx);
+        }
+        let mut vals: Vec<f64> = simplex.iter().map(|vtx| fit_at(vtx).1).collect();
+        for _ in 0..600 {
+            let mut idx: Vec<usize> = (0..=nn).collect();
+            idx.sort_by(|&a, &b| vals[a].partial_cmp(&vals[b]).unwrap());
+            simplex = idx.iter().map(|&i| simplex[i].clone()).collect();
+            vals = idx.iter().map(|&i| vals[i]).collect();
+            let centroid: Vec<f64> = (0..nn).map(|kk| simplex[..nn].iter().map(|vtx| vtx[kk]).sum::<f64>() / nn as f64).collect();
+            let worst = simplex[nn].clone();
+            let along = |t: f64| -> Vec<f64> { (0..nn).map(|kk| centroid[kk] + t * (worst[kk] - centroid[kk])).collect() };
+            let refl = along(-1.0);
+            let fr = fit_at(&refl).1;
+            if fr < vals[0] {
+                let ex = along(-2.0);
+                let fe = fit_at(&ex).1;
+                if fe < fr {
+                    simplex[nn] = ex;
+                    vals[nn] = fe;
+                } else {
+                    simplex[nn] = refl;
+                    vals[nn] = fr;
+                }
+            } else if fr < vals[nn - 1] {
+                simplex[nn] = refl;
+                vals[nn] = fr;
+            } else {
+                let con = along(0.5);
+                let fc = fit_at(&con).1;
+                if fc < vals[nn] {
+                    simplex[nn] = con;
+                    vals[nn] = fc;
+                } else {
+                    for i in 1..=nn {
+                        for kk in 0..nn {
+                            simplex[i][kk] = simplex[0][kk] + 0.5 * (simplex[i][kk] - simplex[0][kk]);
+                        }
+                        vals[i] = fit_at(&simplex[i]).1;
+                    }
+                }
+            }
+        }
+        let best_x = simplex[0].clone();
+        let (pop, rms) = fit_at(&best_x);
+        let sig = [best_x[0].exp(), best_x[1].exp(), best_x[2].exp()];
+        let dist = best_x[3].abs().max(1e-3);
+        println!("  core + cloud: bisector cloud {:.3} electrons, width {:.3} bohr, at {dist:.3}; oxygen cloud {:.3}, width {:.3}; each hydrogen {:.3}, width {:.3}; potential RMS {rms:.3e} hartree/e (Gaussian lumps: {:.3e})", pop[0], sig[0], pop[1], sig[1], pop[2], sig[2], best.0);
+        // Types: 0 oxygen core, 1 hydrogen core, 2 bisector cloud, 3 oxygen cloud, 4 hydrogen cloud.
+        let text = format!(
+            "charges {:e} {:e} {:e} {:e} {:e}\nsigma 0e0 0e0 {:e} {:e} {:e}\nbisector 2 {:e}\nsite 3 0e0 0e0 0e0\nsite 4 {:e} 0e0 0e0\nsite 4 0e0 {:e} 0e0\n",
+            z_val[0], z_val[1], -pop[0], -pop[1], -pop[2], sig[0], sig[1], sig[2], dist, r_oh, r_oh
+        );
+        std::fs::write(format!("esp-{name}-cloud{}.txt", if scale != 1.0 { "-mp2" } else { "" }), text).expect("written");
+        return;
     }
     if args.iter().any(|a| a == "--sites") {
         // Sites where the molecule's own localised orbitals put a bond and a

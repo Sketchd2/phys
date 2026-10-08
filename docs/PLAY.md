@@ -4602,6 +4602,59 @@ the start of the phase, ahead of the renderer**. In order:
      unseen at 1000 K weights; a free C8 with weak damping first put a spurious
      long-range term in); the weight floor and the logarithmic parameters make
      those pairs hard to find from a plain start.
+     **Later the same day: where the pair law is wrong, measured, and a
+     better one.** (h) *The 5% stand-in for a complete basis* (pair energies
+     scaled by 1.05, refitted): U/N -9.70, heat of vaporisation 10.30, pressure
+     -613 bar, first peak 3.01, 4.71 inside 3.3 A and still no second shell
+     (g = 0.89-0.91 from 3.5 to 4.5 A): **the basis shortfall is not why the
+     second shell is missing.** (i) *Tetrahedrality, measured on the snapshots*
+     (`scratchpad/tetra.py`: the order parameter q of each molecule's four
+     nearest neighbours, and hydrogen bonds by O-O < 3.5 A and H-O...O < 30
+     degrees): TIP4P-like control q 0.72, 3.78 hydrogen bonds a molecule; the
+     density-derived law q 0.58, 3.26; with pair energies scaled 5% up, q 0.51,
+     3.15 - stronger isotropic attraction compacts without orienting. (j)
+     *Pair error by how nearly the contact is a hydrogen bond*
+     (`phys-diag`, inside 3.3 A): straight bonds are fitted to 0.23 kcal/mol
+     RMS, bent contacts to 0.7: the law lacks orientation dependence, not
+     strength. (k) *The exact first-order electrostatics* (`phys-es-gpu`: the
+     two monomers' Hartree-Fock densities in the pair's basis, nuclei and
+     electrons, through the same fit; 71 pairs, about 45 s each): the Gaussian
+     charges fitted to the potential outside the molecule are 1.1 / 2.0 / 4.0
+     kcal/mol too weak at 2.8-3.1 / 2.5-2.8 / below 2.5 A of oxygen separation,
+     most for straight hydrogen bonds (1.5-1.8 for bonds within 50 degrees, 0.5
+     for 50-80). A potential fit outside the van der Waals surface does not see
+     penetration. (l) *Cores and clouds* (`phys-esp --cloud`): the oxygen and
+     hydrogen nuclei, less their 1s electrons, as points (+6, +1), and the
+     eight valence electrons as Gaussian clouds on the oxygen, each hydrogen
+     and the bisector; fitted to the potential it overshoots (-6.3 / -3.3 /
+     -1.7 kcal/mol), fitted to the exact electrostatic energies themselves (half
+     the pairs held out, the dipole held to MP2's 1.865 D) it gives **0.26 RMS on
+     the fitted pairs and 0.41 on the held-out, against 1.9 before**: the
+     oxygen's valence cloud 5.44 electrons, 0.76 bohr wide; the bisector
+     cloud 1.65 electrons, 1.92 bohr, 0.303 bohr from the oxygen; each hydrogen
+     0.45 electrons, 0.32 bohr - a net point charge of about +0.55 on each
+     hydrogen, which is what the point-charge models arrive at by fitting. The
+     reference is a monomer property, not a supermolecular energy.
+     (m) *Repulsion as the overlap of those same clouds* (`SiteSite::overlap`,
+     `phys-fit --overlap`: `K exp(-r^2 / (s_a^2 + s_b^2))` between clouds,
+     which is what a repulsion proportional to the overlap of valence
+     densities - AVDO, DensIP - comes to for Gaussian clouds; no per-atom
+     Born-Mayer at all; six strengths, three of which the data determines): 380
+     MP2 pairs at 1000 K weights, **0.236 kcal/mol fitted, 0.454 unseen** (with
+     Born-Mayer on the cores: 0.52 and 0.64), by shell 0.60 / 0.34 / 0.22 /
+     0.13 / 0.09 from 2.5-2.8 to 3.8-4.4 A against 1.17 / 0.57 / 0.30 / 0.28 /
+     0.18, and bent contacts 0.3-0.5 against 0.9-1.4. **The liquid it makes is
+     not better:** U/N -10.36, heat of vaporisation 10.96 (the classical target
+     is 12.5-13.5, the measured 10.5), pressure -1956 +- 98 bar, first peak 2.38
+     at 2.75 A (low and broad), 4.45 neighbours inside 3.3 A, g(OO) flat at
+     0.92-0.99 beyond 3.4 A, q 0.56, 3.45 hydrogen bonds a molecule. A pair law
+     good to 0.1-0.3 kcal/mol is not good enough for a liquid's pressure: the
+     virial is a sum of slopes over a dozen neighbours, and the fit constrains
+     energies. The slopes of the repulsive wall are what pressure and the first
+     peak's width answer to, and MP2 gradients (the engine has energies only)
+     would constrain them directly. Files: `law-water-mp2-cloud-overlap.txt`,
+     `gOO-water-298-mp2-cloud-overlap.txt`, `esp-water-cloud-mp2dip.txt`,
+     `es-water.txt` (the exact electrostatic energies).
    - **E8z, remove what was not chosen.** *Planned by the owner, to be done
      once the method above is validated and the owner confirms it; nothing is
      removed before that.* Every method the engine carries and the decision

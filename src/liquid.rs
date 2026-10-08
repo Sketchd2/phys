@@ -440,6 +440,13 @@ pub struct SiteSite {
     /// Hartree-Fock's repulsion and the correlation energy's dispersion are
     /// different physics and need not fall off together.
     pub damp: Vec<f64>,
+    /// Per pair of types (`a * types + b`, symmetric), the strength `K` of a
+    /// repulsion between two charge clouds, `K exp(-r^2 / s^2)` with `s^2 =
+    /// sigma_a^2 + sigma_b^2`: the overlap of two Gaussian clouds, which is
+    /// where a Pauli repulsion proportional to the overlap of valence densities
+    /// (the AVDO model) comes to for the clouds `phys-esp --cloud` finds. Empty,
+    /// or zero, is none.
+    pub overlap: Vec<f64>,
 }
 
 impl SiteLaw for SiteSite {
@@ -460,13 +467,24 @@ impl SiteLaw for SiteSite {
         } else {
             (qq / r, -qq / (r * r))
         };
+        let (ov, dov) = {
+            let k = self.overlap.get(ta * types + tb).copied().unwrap_or(0.0);
+            match (k > 0.0, self.sigma.get(ta), self.sigma.get(tb)) {
+                (true, Some(x), Some(y)) if x * x + y * y > 0.0 => {
+                    let s2 = x * x + y * y;
+                    let v = k * (-r * r / s2).exp();
+                    (v, -2.0 * r / s2 * v)
+                }
+                _ => (0.0, 0.0),
+            }
+        };
         let rep = a * (-b * r).exp();
         let bd = self.damp.get(ta * types + tb).copied().filter(|v| *v > 0.0).unwrap_or(b);
         let (f6, df6) = tang_toennies(6, bd * r);
         let (f8, df8) = tang_toennies(8, bd * r);
         let (r6, r8) = (r.powi(6), r.powi(8));
-        let u = coul + rep - f6 * c6 / r6 - f8 * c8 / r8;
-        let du = dcoul - b * rep - (bd * df6 * c6 / r6 - 6.0 * f6 * c6 / (r6 * r)) - (bd * df8 * c8 / r8 - 8.0 * f8 * c8 / (r8 * r));
+        let u = coul + rep + ov - f6 * c6 / r6 - f8 * c8 / r8;
+        let du = dcoul + dov - b * rep - (bd * df6 * c6 / r6 - 6.0 * f6 * c6 / (r6 * r)) - (bd * df8 * c8 / r8 - 8.0 * f8 * c8 / (r8 * r));
         (u, du)
     }
 }
@@ -639,6 +657,12 @@ pub struct Held<'a> {
     /// a free C8 with a weak damping becomes a long-range term the fit's
     /// weights (a floor of 1e-3 beyond the well) do not see.
     pub no_c8: bool,
+    /// Fit the overlap repulsion's strength for every pair of types that both
+    /// have a charge cloud.
+    pub overlap: bool,
+    /// Keep every `A` where it started (zero for a law with no Born-Mayer
+    /// repulsion of its own), with `B` left as the dispersion's damping.
+    pub no_born_mayer: bool,
 }
 
 /// [`fit_site_site`] with some numbers held at their starting values.
@@ -657,6 +681,7 @@ pub fn fit_site_site_polarised(data: &[PairEnergy], multiplicity: &[usize], star
     let pairs: Vec<(usize, usize)> = (0..types).flat_map(|a| (a..types).map(move |b| (a, b))).collect();
     // Parameters: charges of types 0..types-1 (the last is set by
     // neutrality), then per unique pair ln A, ln B, ln C6, ln C8.
+    let has_cloud = |a: usize, b: usize| -> bool { start.sigma.get(a).copied().unwrap_or(0.0) > 0.0 && start.sigma.get(b).copied().unwrap_or(0.0) > 0.0 };
     let pack = |law: &SiteSite| -> Vec<f64> {
         let mut x: Vec<f64> = law.charge[..types - 1].to_vec();
         for &(a, b) in &pairs {
@@ -672,6 +697,13 @@ pub fn fit_site_site_polarised(data: &[PairEnergy], multiplicity: &[usize], star
         if held.damp {
             for &(a, b) in &pairs {
                 x.push(law.damp.get(a * types + b).copied().filter(|v| *v > 0.0).unwrap_or(law.pair[a * types + b][1]).max(1e-300).ln());
+            }
+        }
+        if held.overlap {
+            for &(a, b) in &pairs {
+                if has_cloud(a, b) {
+                    x.push(law.overlap.get(a * types + b).copied().filter(|v| *v > 0.0).unwrap_or(0.05).ln());
+                }
             }
         }
         x
@@ -699,7 +731,22 @@ pub fn fit_site_site_polarised(data: &[PairEnergy], multiplicity: &[usize], star
         } else {
             start.damp.clone()
         };
-        SiteSite { charge, pair, sigma, damp }
+        let o0 = d0 + if held.damp { pairs.len() } else { 0 };
+        let overlap = if held.overlap {
+            let mut o = vec![0.0; types * types];
+            let mut k = 0;
+            for &(a, b) in &pairs {
+                if has_cloud(a, b) {
+                    o[a * types + b] = x[o0 + k].exp();
+                    o[b * types + a] = o[a * types + b];
+                    k += 1;
+                }
+            }
+            o
+        } else {
+            start.overlap.clone()
+        };
+        SiteSite { charge, pair, sigma, damp, overlap }
     };
     // What is fitted: every parameter but the held ones, which keep what
     // `start` gave them.
@@ -712,7 +759,7 @@ pub fn fit_site_site_polarised(data: &[PairEnergy], multiplicity: &[usize], star
             continue;
         }
         for j in 0..4 {
-            if (held.repulsion && j < 2) || (held.no_dispersion && j >= 2) || (is_held(held.no_dispersion_pairs, a, b) && j >= 2) || (held.no_c8 && j == 3) {
+            if (held.repulsion && j < 2) || (held.no_born_mayer && j < 2) || (held.no_dispersion && j >= 2) || (is_held(held.no_dispersion_pairs, a, b) && j >= 2) || (held.no_c8 && j == 3) {
                 continue;
             }
             if !(j == 2 && is_held(held.dispersion, a, b)) {
@@ -722,6 +769,11 @@ pub fn fit_site_site_polarised(data: &[PairEnergy], multiplicity: &[usize], star
     }
     if held.sigma {
         free.extend((0..types).map(|t| types - 1 + 4 * pairs.len() + t));
+    }
+    if held.overlap {
+        let o0 = types - 1 + 4 * pairs.len() + if held.sigma { types } else { 0 } + if held.damp { pairs.len() } else { 0 };
+        let count = pairs.iter().filter(|&&(a, b)| has_cloud(a, b)).count();
+        free.extend(o0..o0 + count);
     }
     if held.damp {
         let d0 = types - 1 + 4 * pairs.len() + if held.sigma { types } else { 0 };
@@ -935,6 +987,14 @@ impl SiteSite {
                 }
             }
         }
+        for a in 0..types {
+            for b in a..types {
+                let k = self.overlap.get(a * types + b).copied().unwrap_or(0.0);
+                if k > 0.0 {
+                    s += &format!("overlap {a} {b} {k:e}\n");
+                }
+            }
+        }
         if self.sigma.iter().any(|v| *v > 0.0) {
             s += &format!("sigma {}
 ", self.sigma.iter().map(|v| format!("{v:e}")).collect::<Vec<_>>().join(" "));
@@ -966,6 +1026,7 @@ impl SiteSite {
         let mut charge = Vec::new();
         let mut sigma = Vec::new();
         let mut damps: Vec<(usize, usize, f64)> = Vec::new();
+        let mut overlaps: Vec<(usize, usize, f64)> = Vec::new();
         let mut pairs = Vec::new();
         for line in text.lines() {
             let w: Vec<&str> = line.split_whitespace().collect();
@@ -978,6 +1039,7 @@ impl SiteSite {
                 Some("site") => {}
                 // Read by `alpha_from_text`: the polarisability of a site type.
                 Some("alpha") => {}
+                Some("overlap") if w.len() == 4 => overlaps.push((w[1].parse().ok()?, w[2].parse().ok()?, w[3].parse().ok()?)),
                 Some("damp") if w.len() == 4 => damps.push((w[1].parse().ok()?, w[2].parse().ok()?, w[3].parse().ok()?)),
                 Some("sigma") => sigma = w[1..].iter().map(|x| x.parse().ok()).collect::<Option<Vec<f64>>>()?,
                 Some("pair") if w.len() == 7 => {
@@ -1003,7 +1065,15 @@ impl SiteSite {
                 damp[b * types + a] = v;
             }
         }
-        Some(SiteSite { charge, pair, sigma, damp })
+        let mut overlap = Vec::new();
+        if !overlaps.is_empty() {
+            overlap = vec![0.0; types * types];
+            for (a, b, v) in overlaps {
+                overlap[a * types + b] = v;
+                overlap[b * types + a] = v;
+            }
+        }
+        Some(SiteSite { charge, pair, sigma, damp, overlap })
     }
 }
 
