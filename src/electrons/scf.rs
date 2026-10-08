@@ -248,10 +248,10 @@ pub struct Table {
     /// The blocks of the first `stored.len()` positions of `order`, as
     /// `(m, n, values over P)` for each pair of functions `m >= n`; the rest
     /// are on disk or built when visited (see [`Fitted::new`]).
-    stored: Vec<Vec<(usize, usize, Vec<f64>)>>,
+    stored: std::sync::Mutex<Vec<Vec<(usize, usize, Vec<f64>)>>>,
     /// The blocks after those, written to disk in visiting order as exact
     /// 64-bit values, if there was room for them there.
-    spill: Option<Spill>,
+    spill: std::sync::Mutex<Option<Spill>>,
     /// The auxiliary functions the fit uses, and the Cholesky factor of the
     /// metric over them (see [`Fitted::new`]).
     kept: Vec<usize>,
@@ -413,7 +413,7 @@ impl Fitted {
         let kets: Vec<Vec<super::integrals::Pair>> = aux.shells.iter().map(|p| super::integrals::pairs(p, &unit, 0)).collect();
         let workers = worker_count(pairs.len());
         let order: Vec<usize> = (0..workers).flat_map(|w| (w..pairs.len()).step_by(workers)).collect();
-        let table = Table { n, basis: basis.clone(), aux: aux.clone(), kets, pairs, order, stored: Vec::new(), spill: None, kept, factor, metric: v, dropped };
+        let table = Table { n, basis: basis.clone(), aux: aux.clone(), kets, pairs, order, stored: std::sync::Mutex::new(Vec::new()), spill: std::sync::Mutex::new(None), kept, factor, metric: v, dropped };
         let mut fitted = Fitted { t: std::sync::Arc::new(table), slice_bytes: SLICE_BYTES };
         // As much of the table as fits in the budget is stored, in visiting
         // order; the rest is built again each time it is visited. Built again
@@ -451,8 +451,8 @@ impl Fitted {
             }
         }
         let t = std::sync::Arc::get_mut(&mut fitted.t).expect("the table is not yet shared");
-        t.stored = stored;
-        t.spill = spilled;
+        *t.stored.get_mut().expect("the stored blocks") = stored;
+        *t.spill.get_mut().expect("the spill") = spilled;
         fitted
     }
 
@@ -573,13 +573,15 @@ impl Fitted {
     /// bounded working space, then handed over in order.
     fn visit(&self, f: &mut dyn FnMut(usize, usize, &[f64])) {
         use std::io::Read;
-        for block in &self.stored {
+        let stored = self.stored.lock().expect("the stored blocks");
+        let spill = self.spill.lock().expect("the spill");
+        for block in stored.iter() {
             for (m, nn, vals) in block {
                 f(*m, *nn, vals);
             }
         }
-        let mut pos = self.stored.len();
-        if let Some(sp) = &self.spill {
+        let mut pos = stored.len();
+        if let Some(sp) = spill.as_ref() {
             let na = self.aux.size;
             let mut file = std::io::BufReader::with_capacity(1 << 26, std::fs::File::open(&sp.path).unwrap_or_else(|e| panic!("the spilled table {} cannot be read: {e}", sp.path.display())));
             let mut bytes = Vec::new();
@@ -612,12 +614,23 @@ impl Fitted {
 
     /// How much of the table is stored in memory, as a fraction of its blocks.
     pub fn stored_fraction(&self) -> f64 {
-        self.stored.len() as f64 / self.order.len().max(1) as f64
+        self.stored.lock().expect("the stored blocks").len() as f64 / self.order.len().max(1) as f64
+    }
+
+    /// Let go of the stored blocks and the spill file: for an engine that has
+    /// made the whitened integrals its own (`hf::FockEngine::load`), after
+    /// which nothing visits the raw table again and it would only hold
+    /// memory and disk the whitened copy needs. A later visit rebuilds the
+    /// blocks it no longer has, in the same order and to the same bits.
+    pub fn release_raw(&self) {
+        self.stored.lock().expect("the stored blocks").clear();
+        self.stored.lock().expect("the stored blocks").shrink_to_fit();
+        *self.spill.lock().expect("the spill") = None;
     }
 
     /// Whether the rest of the table is on disk.
     pub fn is_spilled(&self) -> bool {
-        self.spill.is_some()
+        self.spill.lock().expect("the spill").is_some()
     }
 
     /// Auxiliary directions the metric's cutoff dropped.
@@ -807,7 +820,7 @@ impl Fitted {
         let threads = std::thread::available_parallelism().map(|t| t.get()).unwrap_or(1);
         let mut pending: Vec<(usize, usize, Vec<f64>)> = Vec::with_capacity(batch_len);
         let (kept, factor) = (&self.kept, &self.factor);
-        let mut flush = |pending: &mut Vec<(usize, usize, Vec<f64>)>, f: &mut dyn FnMut(usize, usize, &[f64])| {
+        let flush = |pending: &mut Vec<(usize, usize, Vec<f64>)>, f: &mut dyn FnMut(usize, usize, &[f64])| {
             if pending.is_empty() {
                 return;
             }

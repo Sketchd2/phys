@@ -189,6 +189,9 @@ fn resident_engine(fit: &Fitted) -> Option<(Arc<dyn FockEngine>, usize)> {
         if std::env::var_os("PHYS_PROFILE").is_some() {
             eprintln!("  whitened integrals resident on {}: {:.1} s", engine.name(), t.elapsed().as_secs_f64());
         }
+        // The engine has its own copy now; the raw table would only hold
+        // the memory and disk that copy was sized against.
+        fit.release_raw();
         Some((engine, key))
     } else {
         None
