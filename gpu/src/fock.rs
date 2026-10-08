@@ -672,4 +672,8 @@ impl FockEngine for GpuFock {
     fn name(&self) -> &str {
         &self.name
     }
+
+    fn wants_raw_released(&self, key: usize) -> bool {
+        self.resident.lock().expect("the resident integrals").as_ref().map(|r| r.key == key && r.plan.on_card < r.plan.segments).unwrap_or(false)
+    }
 }
