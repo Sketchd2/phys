@@ -166,6 +166,14 @@ pub trait FockEngine: Send + Sync {
     /// [`Fitted::whitened_half`] returns.
     fn half(&self, key: usize, c: &[f64], stride: usize, first: usize, count: usize) -> Vec<f64>;
     fn name(&self) -> &str;
+    /// Whether the raw table may be let go of now that the engine has its
+    /// own copy. True only when the copy took memory or disk the raw table
+    /// would be competing for: a copy that sits wholly in the card's memory
+    /// leaves the raw table where it was, and what still reads it (the
+    /// starting orbitals' Coulomb matrix) reads it as fast as before.
+    fn wants_raw_released(&self, _key: usize) -> bool {
+        false
+    }
 }
 
 static FOCK_ENGINE: Mutex<Option<Arc<dyn FockEngine>>> = Mutex::new(None);
@@ -191,7 +199,9 @@ fn resident_engine(fit: &Fitted) -> Option<(Arc<dyn FockEngine>, usize)> {
         }
         // The engine has its own copy now; the raw table would only hold
         // the memory and disk that copy was sized against.
-        fit.release_raw();
+        if engine.wants_raw_released(key) {
+            fit.release_raw();
+        }
         Some((engine, key))
     } else {
         None
@@ -235,6 +245,8 @@ pub fn hartree_fock_in_field(problem: &Problem, field: [f64; 3], max_iterations:
     let aux = problem.auxiliary.as_ref().expect("Hartree-Fock here is density fitted: the problem needs an auxiliary basis");
     assert!((problem.alpha - problem.beta).abs() < 1e-9 && (problem.alpha - problem.alpha.round()).abs() < 1e-9, "closed-shell Hartree-Fock only: {} alpha and {} beta electrons", problem.alpha, problem.beta);
     let occupied = problem.alpha.round() as usize;
+    let profile = std::env::var_os("PHYS_PROFILE").is_some();
+    let setup_clock = std::time::Instant::now();
     let (s, t, v) = one_electron(basis, &problem.nuclei);
     let mut h = t.clone();
     for k in 0..n * n {
@@ -254,7 +266,9 @@ pub fn hartree_fock_in_field(problem: &Problem, field: [f64; 3], max_iterations:
     }
     let (x, m) = orthogonaliser(&s, 1e-8);
     assert!(occupied <= m, "more occupied orbitals than the basis has directions");
+    let one_electron_s = setup_clock.elapsed().as_secs_f64();
     let fit = Fitted::new(basis, aux, &s);
+    let fit_s = setup_clock.elapsed().as_secs_f64() - one_electron_s;
     let mut e_nn = 0.0;
     for (i, (zi, pi)) in problem.nuclei.iter().enumerate() {
         for (zj, pj) in problem.nuclei.iter().take(i) {
@@ -277,9 +291,15 @@ pub fn hartree_fock_in_field(problem: &Problem, field: [f64; 3], max_iterations:
             }
             let (j0, _) = fit.coulomb_and_energy(&dt);
             let atoms: Vec<([f64; 3], f64)> = problem.nuclei.iter().zip(&problem.sizes).map(|((_, p), r)| (*p, *r)).collect();
+            let t0 = std::time::Instant::now();
             let grid = super::grid::molecular_pruned(&atoms, problem.radial, problem.theta, problem.prune);
+            let t1 = t0.elapsed().as_secs_f64();
             let batches = super::scf::Batches::new(basis, &grid);
+            let t2 = t0.elapsed().as_secs_f64();
             let (_, vxa, _) = super::scf::exchange_correlation(basis, &batches, super::functional::Functional::Lda, da, db);
+            if profile {
+                eprintln!("  starting orbitals: grid {t1:.2} s, basis on the grid {:.2} s, local exchange {:.2} s", t2 - t1, t0.elapsed().as_secs_f64() - t2);
+            }
             let mut f0 = h.clone();
             for q in 0..n * n {
                 f0.a[q] += j0.a[q] + vxa.a[q];
@@ -288,6 +308,9 @@ pub fn hartree_fock_in_field(problem: &Problem, field: [f64; 3], max_iterations:
         }
         None => generalised(&h, &x, m),
     };
+    if profile {
+        eprintln!("  Hartree-Fock setup: one-electron {one_electron_s:.2} s, fit {fit_s:.2} s, starting orbitals {:.2} s", setup_clock.elapsed().as_secs_f64() - one_electron_s - fit_s);
+    }
     let mut hist: Vec<(Matrix, Matrix, Vec<f64>)> = Vec::new();
     let mut energy = 0.0;
     let mut last = f64::INFINITY;

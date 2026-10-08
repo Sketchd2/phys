@@ -12,18 +12,18 @@
 //! and a fit's average do not hide one another. A second law is compared with
 //! the Hartree-Fock column.
 
-use phys::liquid::{pair_energy, with_bisector_site, PairEnergy, Polarisable, SiteSite};
+use phys::liquid::{extra_sites_from_text, pair_energy, with_bisector_site, with_frame_sites, ExtraSite, PairEnergy, Polarisable, SiteSite};
 use phys::math::Vec3;
 
 const KCAL: f64 = 627.509474;
 const BOHR: f64 = 0.529177210903;
 
-fn load(path: &str, types_atoms: usize) -> (SiteSite, Vec<f64>, Option<f64>) {
+fn load(path: &str, types_atoms: usize) -> (SiteSite, Vec<f64>, Option<f64>, Vec<ExtraSite>) {
     let text = std::fs::read_to_string(path).unwrap_or_else(|_| panic!("no {path}"));
     let law = SiteSite::from_text(&text).expect("a readable law");
     let alpha = SiteSite::alpha_from_text(&text, law.charge.len());
     let _ = types_atoms;
-    (law, alpha, SiteSite::bisector_from_text(&text).map(|b| b.1))
+    (law, alpha, SiteSite::bisector_from_text(&text).map(|b| b.1), extra_sites_from_text(&text))
 }
 
 fn main() {
@@ -45,9 +45,9 @@ fn main() {
     let n_atoms = rows[0].3.len() / 2;
     let edges = [0.0, 2.5, 2.8, 3.1, 3.4, 3.8, 4.4, 5.5, 99.0];
     for (li, lp) in laws.iter().enumerate() {
-        let (law, alpha, bis) = load(lp, n_atoms);
+        let (law, alpha, bis, frame) = load(lp, n_atoms);
         let types = law.charge.len();
-        let atom_types = if bis.is_some() { types - 1 } else { types };
+        let atom_types = types - bis.is_some() as usize - !frame.is_empty() as usize;
         println!("law {lp} against the {} column", if li == 0 { "total (MP2)" } else { "Hartree-Fock" });
         println!("  O-O (A)        n   ref mean   mean err   rms err   (kcal/mol)");
         for w in edges.windows(2) {
@@ -59,7 +59,7 @@ fn main() {
             for row in &sel {
                 let (a, b) = (&row.3[..n_atoms], &row.3[n_atoms..]);
                 let (a, b) = match bis {
-                    Some(d) => (with_bisector_site(a, atom_types, d), with_bisector_site(b, atom_types, d)),
+                    Some(d) => (with_frame_sites(&with_bisector_site(a, atom_types, d), &frame), with_frame_sites(&with_bisector_site(b, atom_types, d), &frame)),
                     None => (a.to_vec(), b.to_vec()),
                 };
                 let reference = if li == 0 { row.1 } else { row.2 };

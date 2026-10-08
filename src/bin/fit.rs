@@ -26,7 +26,7 @@
 //! the one that is the law's error by the owner's condition, on the pairs it
 //! never saw. Writes `law-<name><tag>-pbe.txt` and `law-<name><tag>-revpbe.txt`.
 
-use phys::liquid::{fit_site_site_polarised, pair_energy, with_bisector_site, Fitted, Held, PairEnergy, Polarisable, SiteSite};
+use phys::liquid::{extra_sites_from_text, fit_site_site_polarised, pair_energy, with_bisector_site, with_frame_sites, ExtraSite, Fitted, Held, PairEnergy, Polarisable, SiteSite};
 use phys::math::Vec3;
 
 const KCAL: f64 = 627.509474;
@@ -55,6 +55,8 @@ fn main() {
         })
         .unwrap_or_default();
     let use_sigma = args.iter().any(|a| a == "--sigma");
+    // `--no-c8`: no C8 at all.
+    let no_c8 = args.iter().any(|a| a == "--no-c8");
     // `--esp esp-water.txt`: the charges and the bisector site from the
     // molecule's own density (`phys-esp`), held while the rest is fitted.
     let esp: Option<(Vec<f64>, f64, Vec<f64>)> = args.iter().position(|a| a == "--esp").and_then(|i| args.get(i + 1)).map(|f| {
@@ -86,11 +88,24 @@ fn main() {
         multiplicity[*t] += 1;
     }
     println!("{name}: {} pairs, {n_atoms} atoms a molecule, {types} site types {multiplicity:?}", rows.len());
+    // `--lp esp-sites.txt`: sites (from the localised orbitals, `phys-esp
+    // --sites`) that carry a repulsion of their own and no charge: the
+    // anisotropy an atom-atom Born-Mayer lacks. One more site type, after the
+    // bisector site's.
+    let lp_sites: Vec<ExtraSite> = args
+        .iter()
+        .position(|a| a == "--lp")
+        .and_then(|i| args.get(i + 1))
+        .map(|f| extra_sites_from_text(&std::fs::read_to_string(f).unwrap_or_else(|_| panic!("no {f}"))).into_iter().map(|s| ExtraSite { ty: types + 1, frame: s.frame }).collect())
+        .unwrap_or_default();
     // The polarisability of every site type the fit sees: the atoms', and zero
     // for the bisector site.
     let alpha_full: Option<Vec<f64>> = alpha_atoms.as_ref().map(|a| {
         let mut v: Vec<f64> = a[..types].to_vec();
         if bisector {
+            v.push(0.0);
+        }
+        if !lp_sites.is_empty() {
             v.push(0.0);
         }
         println!("  induced dipoles on, polarisabilities by type {v:?} bohr^3");
@@ -116,7 +131,7 @@ fn main() {
         // with no hydrogen bond in it. (The last charge follows from
         // neutrality.)
         let fit = if bisector {
-            let (fit, d) = fit_with_bisector(&train, &multiplicity, types, temperature, &c6_held, alpha_full.as_deref(), use_sigma, esp.as_ref(), match (two_stage, &hf_law) { (false, _) => Stage::Single, (true, None) => Stage::Hf, (true, Some(l)) => Stage::Correlation(l) });
+            let (fit, d) = fit_with_bisector(&train, &multiplicity, types, temperature, &c6_held, alpha_full.as_deref(), use_sigma, esp.as_ref(), &lp_sites, no_c8, match (two_stage, &hf_law) { (false, _) => Stage::Single, (true, None) => Stage::Hf, (true, Some(l)) => Stage::Correlation(l) });
             println!("    bisector site {d:.4} bohr from the first atom (weighted residual {:.3e})", fit.weighted_rms);
             bisector_distance = Some(d);
             fit
@@ -129,12 +144,12 @@ fn main() {
                 start.pair[b * types + a][2] = v;
             }
             let dispersion: Vec<(usize, usize)> = c6_held.iter().map(|&(p, _)| p).collect();
-            fit_site_site_polarised(&train, &multiplicity, &start, temperature, 1e-3, 5000, &Held { pairs: &[], dispersion: &dispersion, sigma: use_sigma, charges: esp.is_some(), damp: false, repulsion: false, no_dispersion: false }, alpha_full.as_deref())
+            fit_site_site_polarised(&train, &multiplicity, &start, temperature, 1e-3, 5000, &Held { pairs: &[], dispersion: &dispersion, sigma: use_sigma, charges: esp.is_some(), damp: false, repulsion: false, no_dispersion: false, no_dispersion_pairs: &[], no_c8 }, alpha_full.as_deref())
         };
         if two_stage && column == 1 {
             hf_law = Some(fit.law.clone());
         }
-        let with_site = |d: &PairEnergy| -> PairEnergy { match bisector_distance { Some(x) => add_bisector(d, types, x), None => d.clone() } };
+        let with_site = |d: &PairEnergy| -> PairEnergy { match bisector_distance { Some(x) => add_bisector(d, types, x, &lp_sites), None => d.clone() } };
         let train: Vec<PairEnergy> = train.iter().map(&with_site).collect();
         let held: Vec<PairEnergy> = held.iter().map(&with_site).collect();
         let eval = |d: &PairEnergy| -> f64 {
@@ -154,6 +169,9 @@ fn main() {
         println!("  {label}: {} iterations; RMS {:.3} kcal/mol fitted, {:.3} unseen; within 3 kcal/mol of the lowest: {:.3} over {nt} fitted, {:.3} over {nh} unseen", fit.iterations, rms(&train) * KCAL, rms(&held) * KCAL, lt * KCAL, lh * KCAL);
         println!("    charges {:?}", fit.law.charge);
         let mut text = fit.law.to_text();
+        for s in &lp_sites {
+            text += &format!("site {} {:e} {:e} {:e}\n", s.ty, s.frame[0], s.frame[1], s.frame[2]);
+        }
         if let Some(d) = bisector_distance {
             text += &format!("bisector {types} {d:e}\n");
         }
@@ -180,8 +198,8 @@ enum Stage<'a> {
 /// `d` with the extra site added to each molecule: type `types` (one past the
 /// atoms' types, which are `0..types`), `distance` bohr from the first atom
 /// along the bisector of its bonds to the second and third.
-fn add_bisector(d: &PairEnergy, types: usize, distance: f64) -> PairEnergy {
-    PairEnergy { a: with_bisector_site(&d.a, types, distance), b: with_bisector_site(&d.b, types, distance), energy: d.energy }
+fn add_bisector(d: &PairEnergy, types: usize, distance: f64, extra: &[ExtraSite]) -> PairEnergy {
+    PairEnergy { a: with_frame_sites(&with_bisector_site(&d.a, types, distance), extra), b: with_frame_sites(&with_bisector_site(&d.b, types, distance), extra), energy: d.energy }
 }
 
 /// Fit with one bisector site per molecule, searching its distance. `types`
@@ -189,14 +207,20 @@ fn add_bisector(d: &PairEnergy, types: usize, distance: f64) -> PairEnergy {
 /// distance the fit is started from several charges (the energy goes as a
 /// product of charges and has more than one basin) and the best kept; the
 /// distance is the coarse-grid minimum of the weighted residual, refined.
-fn fit_with_bisector(train: &[PairEnergy], multiplicity: &[usize], types: usize, temperature: f64, c6_held: &[((usize, usize), f64)], alpha: Option<&[f64]>, use_sigma: bool, esp: Option<&(Vec<f64>, f64, Vec<f64>)>, stage: Stage) -> (Fitted, f64) {
+fn fit_with_bisector(train: &[PairEnergy], multiplicity: &[usize], types: usize, temperature: f64, c6_held: &[((usize, usize), f64)], alpha: Option<&[f64]>, use_sigma: bool, esp: Option<&(Vec<f64>, f64, Vec<f64>)>, lp: &[ExtraSite], no_c8: bool, stage: Stage) -> (Fitted, f64) {
     let mut mult = multiplicity.to_vec();
     mult.push(1);
-    let all = types + 1;
+    if !lp.is_empty() {
+        mult.push(lp.len());
+    }
+    let all = types + 1 + (!lp.is_empty()) as usize;
     let site_pairs: Vec<(usize, usize)> = (0..all).map(|a| (a, types)).collect();
+    // The repelling sites' pairs with the atoms and with each other are fitted
+    // for repulsion and held at zero for dispersion.
+    let lp_pairs: Vec<(usize, usize)> = if lp.is_empty() { Vec::new() } else { (0..types).chain(std::iter::once(types + 1)).map(|a| (a, types + 1)).collect() };
     let dispersion: Vec<(usize, usize)> = c6_held.iter().map(|&(p, _)| p).collect();
     let best_at = |d: f64| -> Fitted {
-        let data: Vec<PairEnergy> = train.iter().map(|p| add_bisector(p, types, d)).collect();
+        let data: Vec<PairEnergy> = train.iter().map(|p| add_bisector(p, types, d, lp)).collect();
         let mut best: Option<Fitted> = None;
         let starts: Vec<f64> = if esp.is_some() { vec![0.0] } else { vec![-0.6, -0.2, 0.3, 0.8, 1.3] };
         for q_first in starts {
@@ -207,6 +231,10 @@ fn fit_with_bisector(train: &[PairEnergy], multiplicity: &[usize], types: usize,
             if let Some((q, _, sg)) = esp {
                 charge = q.clone();
                 sigma_start = sg.clone();
+                while charge.len() < all {
+                    charge.push(0.0);
+                    sigma_start.push(0.5);
+                }
             }
             let mut start = SiteSite { charge, pair: vec![[10.0, 2.0, 10.0, 200.0]; all * all], sigma: sigma_start, damp: Vec::new() };
             if let Stage::Correlation(base) = stage {
@@ -229,6 +257,15 @@ fn fit_with_bisector(train: &[PairEnergy], multiplicity: &[usize], types: usize,
                 start.pair[a * all + b] = [0.0, 1.0, 0.0, 0.0];
                 start.pair[b * all + a] = [0.0, 1.0, 0.0, 0.0];
             }
+            if no_c8 {
+                for p in start.pair.iter_mut() {
+                    p[3] = 0.0;
+                }
+            }
+            for &(a, b) in &lp_pairs {
+                start.pair[a * all + b] = [5.0, 1.5, 0.0, 0.0];
+                start.pair[b * all + a] = [5.0, 1.5, 0.0, 0.0];
+            }
             if matches!(stage, Stage::Hf) {
                 for p in start.pair.iter_mut() {
                     p[2] = 0.0;
@@ -241,7 +278,7 @@ fn fit_with_bisector(train: &[PairEnergy], multiplicity: &[usize], types: usize,
                     start.pair[b * all + a][2] = v;
                 }
             }
-            let held = Held { pairs: &site_pairs, dispersion: if matches!(stage, Stage::Correlation(_)) { &[] } else { &dispersion }, sigma: use_sigma, charges: esp.is_some(), damp: matches!(stage, Stage::Correlation(_)), repulsion: matches!(stage, Stage::Correlation(_)), no_dispersion: matches!(stage, Stage::Hf) };
+            let held = Held { pairs: &site_pairs, dispersion: if matches!(stage, Stage::Correlation(_)) { &[] } else { &dispersion }, sigma: use_sigma, charges: esp.is_some(), damp: matches!(stage, Stage::Correlation(_)), repulsion: matches!(stage, Stage::Correlation(_)), no_dispersion: matches!(stage, Stage::Hf), no_dispersion_pairs: &lp_pairs, no_c8 };
             let fit = fit_site_site_polarised(&data, &mult, &start, temperature, 1e-3, 5000, &held, alpha);
             if fit.weighted_rms.is_finite() && best.as_ref().map_or(true, |b| fit.weighted_rms < b.weighted_rms) {
                 best = Some(fit);

@@ -4572,6 +4572,36 @@ the start of the phase, ahead of the renderer**. In order:
      the data for that; the next step is to refit on them (and to judge the
      repulsion form against the literature's anisotropic overlap models) before
      adding any more structure to the law.
+     **Result (2026-10-08): the first law whose liquid is water-like in
+     density and first shell** (`law-water-mp2-derived-esp.txt`,
+     `gOO-water-298-mp2-derived-esp.txt`). Its electrostatics are the
+     monomer's own (Gaussian charges fitted to the Hartree-Fock potential,
+     scaled to the MP2 dipole, `esp-water-gauss-mp2.txt`, nothing fitted to a
+     pair energy), its dispersion coefficients the E6 kernel's (C6, no C8), its
+     induction the engine's polarisabilities with the charge clouds' widths in
+     the field; only the Born-Mayer repulsion of the three atom pairs was
+     fitted, to 380 MP2 pairs weighted at 1000 K (`phys-fit --bisector --esp
+     --no-c8 --c6`). Pair error: 0.434 kcal/mol unseen in the total, 0.352 in
+     Hartree-Fock's column (0.495 and 0.448 at 300 K weights). **The liquid, 298
+     K, 216 molecules, 1 g/cm3, 48 ps: U/N -9.228 +- 0.016 kcal/mol, heat of
+     vaporisation 9.82, pressure -41 +- 44 bar, g(OO) first peak 2.88 at 2.85
+     A, coordination 4.63 inside 3.3 A (5.57 inside 3.5, 2.87 inside 3.0).**
+     Against the induction law that preceded it (U/N -8.9, -650 bar, first peak
+     2.62 at 2.95 A, 10.7 inside the minimum at 4.35 A) the density is right
+     with no tuning to it, and the first shell has water's four to five
+     neighbours. **Not yet water:** past 3.3 A g(OO) is flat at 0.90-1.00 to 6 A,
+     with no first minimum below 0.9 and no second shell at 4.5 A (experiment:
+     0.8 at 3.4 A, 1.15 at 4.5 A); the tetrahedral correlation between a
+     molecule's neighbours is absent. Pair-additive laws are known not to give
+     it (the three-body energy is 10-20% of the binding), and the
+     hydrogen-bond contact (2.5-3.1 A) is still 0.5-0.6 kcal/mol too
+     attractive in the pair fit. The heat of vaporisation is low against the
+     classical target of 12.5-13.5 (the zero-point correction above). *Tried
+     and not working, same session:* repulsion sites at the localised-orbital
+     lone pairs (`phys-fit --lp`) - the fit stalls in poor minima (RMS 1.6
+     unseen at 1000 K weights; a free C8 with weak damping first put a spurious
+     long-range term in); the weight floor and the logarithmic parameters make
+     those pairs hard to find from a plain start.
    - **E8z, remove what was not chosen.** *Planned by the owner, to be done
      once the method above is validated and the owner confirms it; nothing is
      removed before that.* Every method the engine carries and the decision

@@ -632,6 +632,13 @@ pub struct Held<'a> {
     /// Keep `C6` and `C8` at zero: a fit to Hartree-Fock's energies, which
     /// have no dispersion in them.
     pub no_dispersion: bool,
+    /// Type pairs whose `C6` and `C8` are held at zero (an off-atom site that
+    /// repels but does not disperse).
+    pub no_dispersion_pairs: &'a [(usize, usize)],
+    /// Keep every `C8` at its starting value (zero when the start has none):
+    /// a free C8 with a weak damping becomes a long-range term the fit's
+    /// weights (a floor of 1e-3 beyond the well) do not see.
+    pub no_c8: bool,
 }
 
 /// [`fit_site_site`] with some numbers held at their starting values.
@@ -705,7 +712,7 @@ pub fn fit_site_site_polarised(data: &[PairEnergy], multiplicity: &[usize], star
             continue;
         }
         for j in 0..4 {
-            if (held.repulsion && j < 2) || (held.no_dispersion && j >= 2) {
+            if (held.repulsion && j < 2) || (held.no_dispersion && j >= 2) || (is_held(held.no_dispersion_pairs, a, b) && j >= 2) || (held.no_c8 && j == 3) {
                 continue;
             }
             if !(j == 2 && is_held(held.dispersion, a, b)) {
