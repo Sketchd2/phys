@@ -101,6 +101,14 @@ impl Kind {
 /// distance, and its derivative with respect to that distance.
 pub trait SiteLaw: Sync {
     fn site_pair(&self, type_a: usize, type_b: usize, r: f64) -> (f64, f64);
+
+    /// If the law has induced dipoles (`induction.rs`): the polarisability of
+    /// each site type (0 for a site that does not polarise) and the charge of
+    /// each, which are the fields' sources. The pair terms above carry the
+    /// permanent charges; this adds what the molecules do to each other's.
+    fn induction(&self) -> Option<(&[f64], &[f64])> {
+        None
+    }
 }
 
 /// The quintic switch: 1 below `on`, 0 above `cut`, with continuous first and
@@ -145,6 +153,9 @@ pub struct Forces {
     /// `j`: with the translational kinetic energy it gives the pressure
     /// (see [`Liquid::pressure`]).
     pub virial: f64,
+    /// The induced dipoles at the end of the evaluation, per molecule per
+    /// polarisable site, to start the next from (empty without induction).
+    pub dipoles: Vec<Vec<Vec3>>,
 }
 
 impl Liquid {
@@ -167,6 +178,13 @@ impl Liquid {
     /// are spread across threads by row; each row's sums are its own and are
     /// added in order, so the result does not depend on the thread count.
     pub fn forces(&self, law: &dyn SiteLaw) -> Forces {
+        self.forces_from(law, None)
+    }
+
+    /// [`Liquid::forces`], the induced dipoles (if the law has them) started
+    /// from `warm`: the last step's, which the next step's differ from by a
+    /// little, so the solve takes a few iterations and not twenty.
+    pub fn forces_from(&self, law: &dyn SiteLaw, warm: Option<&[Vec<Vec3>]>) -> Forces {
         let n = self.com.len();
         let arms: Vec<Vec<Vec3>> = (0..n).map(|i| self.arms(i)).collect();
         let types = &self.kind.types;
@@ -222,7 +240,62 @@ impl Liquid {
         }
         // Every pair is in two rows, with the same product `d . F`: half the
         // rows' sum is the sum over pairs.
-        Forces { energy: energy_rows.iter().sum(), force, torque, virial: 0.5 * virial_rows.iter().sum::<f64>() }
+        let mut forces = Forces { energy: energy_rows.iter().sum(), force, torque, virial: 0.5 * virial_rows.iter().sum::<f64>(), dipoles: Vec::new() };
+        if let Some((alpha, charge)) = law.induction() {
+            self.add_induction(&mut forces, &arms, alpha, charge, warm);
+        }
+        forces
+    }
+
+    /// What the molecules do to each other's charges beyond the pair terms:
+    /// the induced dipoles of the polarisable sites, in the field of every
+    /// other molecule's permanent charges and of one another (`induction.rs`),
+    /// each pair of molecules within the cut-off carrying the same switch as
+    /// the pair terms. Adds the energy, forces, torques and virial.
+    fn add_induction(&self, forces: &mut Forces, arms: &[Vec<Vec3>], alpha: &[f64], charge: &[f64], warm: Option<&[Vec<Vec3>]>) {
+        use crate::induction::{solve, Charge, Cluster, Link, PolSite};
+        let n = self.com.len();
+        let types = &self.kind.types;
+        let pol_sites: Vec<usize> = (0..types.len()).filter(|&k| alpha[types[k]] > 0.0).collect();
+        let charged: Vec<usize> = (0..types.len()).filter(|&k| charge[types[k]] != 0.0).collect();
+        let mut cl = Cluster::default();
+        for i in 0..n {
+            cl.pol.push(pol_sites.iter().map(|&k| PolSite { pos: self.com[i] + arms[i][k], alpha: alpha[types[k]] }).collect());
+            cl.charges.push(charged.iter().map(|&k| Charge { pos: self.com[i] + arms[i][k], q: charge[types[k]] }).collect());
+        }
+        let mut links = Vec::new();
+        for i in 0..n {
+            for j in i + 1..n {
+                let raw = self.com[i] - self.com[j];
+                let d = self.image(raw);
+                let dist = d.norm();
+                if dist >= self.r_cut {
+                    continue;
+                }
+                let (w, dw) = switch(dist, self.r_on, self.r_cut);
+                links.push(Link { i, j, shift: raw - d, weight: w, dweight: dw, d });
+            }
+        }
+        let out = solve(&cl, &links, warm, 1e-9);
+        forces.energy += out.energy;
+        forces.virial += out.virial;
+        for i in 0..n {
+            for (a, &k) in pol_sites.iter().enumerate() {
+                let f = out.force_pol[i][a];
+                forces.force[i] += f;
+                forces.torque[i] += arms[i][k].cross(f);
+            }
+            for (c, &k) in charged.iter().enumerate() {
+                let f = out.force_charge[i][c];
+                forces.force[i] += f;
+                forces.torque[i] += arms[i][k].cross(f);
+            }
+        }
+        for (k, l) in links.iter().enumerate() {
+            forces.force[l.i] += out.link_force[k];
+            forces.force[l.j] -= out.link_force[k];
+        }
+        forces.dipoles = out.dipoles;
     }
 
     /// Kinetic energy: translational and rotational.
@@ -288,7 +361,7 @@ impl Liquid {
             }
         }
         self.drift(0.5 * h);
-        let next = self.forces(law);
+        let next = self.forces_from(law, if forces.dipoles.is_empty() { None } else { Some(&forces.dipoles) });
         self.kick(&next, 0.5 * h);
         next
     }
@@ -312,6 +385,25 @@ pub fn tang_toennies(n: usize, x: f64) -> (f64, f64) {
     let e = (-x).exp();
     // d/dx [1 - e^-x S_n] = e^-x (S_n - S_(n-1)) = e^-x x^n / n!.
     (1.0 - e * sum, e * term)
+}
+
+/// A site-site law with induced dipoles added (`induction.rs`): the law's pair
+/// terms unchanged, and each site type's polarisability, so that the liquid
+/// and the fit add what the molecules do to each other's charges. The atoms
+/// that polarise are the types whose `alpha` is not zero.
+pub struct Polarisable<'a> {
+    pub law: &'a SiteSite,
+    pub alpha: Vec<f64>,
+}
+
+impl SiteLaw for Polarisable<'_> {
+    fn site_pair(&self, type_a: usize, type_b: usize, r: f64) -> (f64, f64) {
+        self.law.site_pair(type_a, type_b, r)
+    }
+
+    fn induction(&self) -> Option<(&[f64], &[f64])> {
+        Some((&self.alpha, &self.law.charge))
+    }
 }
 
 /// Route A's site-site law (PLAY.md E8): between sites of types `a` and `b`,
@@ -385,7 +477,25 @@ pub fn pair_energy(law: &dyn SiteLaw, pair: &PairEnergy) -> f64 {
             e += law.site_pair(*ta, *tb, (*pa - *pb).norm()).0;
         }
     }
+    if let Some((alpha, charge)) = law.induction() {
+        e += induction_pair_energy(alpha, charge, pair);
+    }
     e
+}
+
+/// The induction energy of two molecules alone: their polarisable sites'
+/// dipoles in each other's permanent charges, from `induction::solve` with one
+/// link of weight one. Nothing for a molecule by itself (no field, no dipoles),
+/// so this is the whole of induction's part of the pair's interaction energy.
+pub fn induction_pair_energy(alpha: &[f64], charge: &[f64], pair: &PairEnergy) -> f64 {
+    use crate::induction::{solve, Charge, Cluster, Link, PolSite};
+    let mut cl = Cluster::default();
+    for m in [&pair.a, &pair.b] {
+        cl.pol.push(m.iter().filter(|(_, t)| alpha[*t] > 0.0).map(|(p, t)| PolSite { pos: *p, alpha: alpha[*t] }).collect());
+        cl.charges.push(m.iter().filter(|(_, t)| charge[*t] != 0.0).map(|(p, t)| Charge { pos: *p, q: charge[*t] }).collect());
+    }
+    let links = [Link { i: 0, j: 1, shift: Vec3::ZERO, weight: 1.0, dweight: 0.0, d: Vec3::ZERO }];
+    solve(&cl, &links, None, 1e-12).energy
 }
 
 /// What a fit produced: the law, and its weighted and unweighted root-mean-
@@ -437,6 +547,16 @@ pub struct Held<'a> {
 
 /// [`fit_site_site`] with some numbers held at their starting values.
 pub fn fit_site_site_held(data: &[PairEnergy], multiplicity: &[usize], start: &SiteSite, temperature: f64, floor: f64, max_iterations: usize, held: &Held) -> Fitted {
+    fit_site_site_polarised(data, multiplicity, start, temperature, floor, max_iterations, held, None)
+}
+
+/// [`fit_site_site_held`] with induced dipoles: `alpha` is each site type's
+/// polarisability, derived elsewhere (`phys-polar`) and not fitted, and every
+/// pair's energy in the fit is the pair law's plus the induction of the two
+/// molecules (`induction_pair_energy`) in the law's own charges as they are
+/// fitted. The law that comes out is the pair law; it is a law with induction
+/// only together with `alpha`.
+pub fn fit_site_site_polarised(data: &[PairEnergy], multiplicity: &[usize], start: &SiteSite, temperature: f64, floor: f64, max_iterations: usize, held: &Held, alpha: Option<&[f64]>) -> Fitted {
     let types = start.charge.len();
     let pairs: Vec<(usize, usize)> = (0..types).flat_map(|a| (a..types).map(move |b| (a, b))).collect();
     // Parameters: charges of types 0..types-1 (the last is set by
@@ -489,9 +609,15 @@ pub fn fit_site_site_held(data: &[PairEnergy], multiplicity: &[usize], start: &S
     let e_min = data.iter().map(|d| d.energy).fold(f64::INFINITY, f64::min);
     let kt = K_B * temperature;
     let weights: Vec<f64> = data.iter().map(|d| (-(d.energy - e_min) / kt).exp().max(floor)).collect();
+    let energy_of = |law: &SiteSite, d: &PairEnergy| -> f64 {
+        match alpha {
+            Some(a) => pair_energy(&Polarisable { law, alpha: a.to_vec() }, d),
+            None => pair_energy(law, d),
+        }
+    };
     let residuals = |x: &[f64]| -> Vec<f64> {
         let law = unpack(&expand(x));
-        data.iter().zip(&weights).map(|(d, w)| w.sqrt() * (pair_energy(&law, d) - d.energy)).collect()
+        data.iter().zip(&weights).map(|(d, w)| w.sqrt() * (energy_of(&law, d) - d.energy)).collect()
     };
     let cost = |r: &[f64]| r.iter().map(|v| v * v).sum::<f64>();
     let mut x: Vec<f64> = free.iter().map(|&i| base[i]).collect();
@@ -560,7 +686,7 @@ pub fn fit_site_site_held(data: &[PairEnergy], multiplicity: &[usize], start: &S
     let law = unpack(&expand(&x));
     let wsum: f64 = weights.iter().sum();
     let weighted_rms = (c / wsum).sqrt();
-    let rms = (data.iter().map(|d| (pair_energy(&law, d) - d.energy).powi(2)).sum::<f64>() / data.len() as f64).sqrt();
+    let rms = (data.iter().map(|d| (energy_of(&law, d) - d.energy).powi(2)).sum::<f64>() / data.len() as f64).sqrt();
     Fitted { law, weighted_rms, rms, iterations }
 }
 
@@ -675,6 +801,25 @@ impl SiteSite {
         s
     }
 
+    /// The `alpha <type> <value>` lines of a law's text: each site type's
+    /// polarisability in bohr cubed (0 for a type that has no line), for the
+    /// law's induced dipoles. Derived by `phys-polar` from the molecule's own
+    /// electrons and added to the law's text by hand or script.
+    pub fn alpha_from_text(text: &str, types: usize) -> Vec<f64> {
+        let mut alpha = vec![0.0; types];
+        for line in text.lines() {
+            let w: Vec<&str> = line.split_whitespace().collect();
+            if w.first() == Some(&"alpha") && w.len() == 3 {
+                if let (Ok(t), Ok(a)) = (w[1].parse::<usize>(), w[2].parse::<f64>()) {
+                    if t < types {
+                        alpha[t] = a;
+                    }
+                }
+            }
+        }
+        alpha
+    }
+
     /// Read back what [`SiteSite::to_text`] wrote.
     pub fn from_text(text: &str) -> Option<SiteSite> {
         let mut charge = Vec::new();
@@ -686,6 +831,8 @@ impl SiteSite {
                 // Read by `bisector_from_text`: where an off-atom site goes, not
                 // part of the pair law.
                 Some("bisector") => {}
+                // Read by `alpha_from_text`: the polarisability of a site type.
+                Some("alpha") => {}
                 Some("pair") if w.len() == 7 => {
                     let (a, b): (usize, usize) = (w[1].parse().ok()?, w[2].parse().ok()?);
                     let v: Vec<f64> = w[3..].iter().map(|x| x.parse().ok()).collect::<Option<Vec<f64>>>()?;

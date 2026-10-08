@@ -388,3 +388,114 @@ fn a_fit_holds_what_it_is_told_to_hold() {
     }
     assert!(fit.rms < 1e-4 * spread, "the fit left {:.2e}", fit.rms);
 }
+
+/// A law with induced dipoles for the tests: charges on the types, a
+/// polarisability on each.
+fn polarisable_law() -> (phys::liquid::SiteSite, Vec<f64>) {
+    let law = phys::liquid::SiteSite { charge: vec![-0.7, 0.35], pair: vec![[40.0, 1.9, 15.0, 300.0], [3.0, 2.1, 4.0, 60.0], [3.0, 2.1, 4.0, 60.0], [0.5, 2.4, 1.0, 15.0]] };
+    (law, vec![5.5, 2.0])
+}
+
+/// With induced dipoles, the force on a molecule and the torque on it are minus
+/// the derivative of the energy with respect to moving it and turning it,
+/// the dipoles minimised again each time: a small box (nearest neighbours at 3 A, the cut-off
+/// at 4 A), so that the switch's region and the images are all in play.
+#[test]
+fn induced_forces_and_torques_are_the_derivative_of_the_energy() {
+    use phys::liquid::Polarisable;
+    let (base, alpha) = polarisable_law();
+    let law = Polarisable { law: &base, alpha };
+    let l = lattice(3, 3.0 * A, 300.0);
+    let f = l.forces(&law);
+    let plain = l.forces(&base);
+    println!("  27 molecules: pair-law energy {:.6e}, with induction {:.6e}", plain.energy, f.energy);
+    assert!(f.energy < plain.energy, "induction lowers the energy");
+    assert!(f.dipoles.iter().any(|m| m.iter().any(|d| d.norm() > 1e-4)), "the dipoles are there");
+    let h = 1e-5;
+    let axes = [Vec3 { x: 1.0, y: 0.0, z: 0.0 }, Vec3 { x: 0.0, y: 1.0, z: 0.0 }, Vec3 { x: 0.0, y: 0.0, z: 1.0 }];
+    let mut worst = 0.0f64;
+    for m in [0usize, 13] {
+        for (k, axis) in axes.iter().enumerate() {
+            let energy_moved = |s: f64| {
+                let mut c = l.clone();
+                c.com[m] += axis.scale(s);
+                c.forces(&law).energy
+            };
+            let numeric = -(energy_moved(h) - energy_moved(-h)) / (2.0 * h);
+            let analytic = [f.force[m].x, f.force[m].y, f.force[m].z][k];
+            worst = worst.max((numeric - analytic).abs() / (1e-6 + analytic.abs()));
+            assert!((numeric - analytic).abs() < 1e-8 + 1e-6 * analytic.abs(), "molecule {m} force axis {k}: numeric {numeric:.9e} analytic {analytic:.9e}");
+            let energy_turned = |s: f64| {
+                let mut c = l.clone();
+                c.orientation[m] = Quat::from_axis_angle(*axis, s).then(c.orientation[m]);
+                c.forces(&law).energy
+            };
+            let numeric = -(energy_turned(h) - energy_turned(-h)) / (2.0 * h);
+            let analytic = [f.torque[m].x, f.torque[m].y, f.torque[m].z][k];
+            worst = worst.max((numeric - analytic).abs() / (1e-6 + analytic.abs()));
+            assert!((numeric - analytic).abs() < 1e-8 + 1e-6 * analytic.abs(), "molecule {m} torque axis {k}: numeric {numeric:.9e} analytic {analytic:.9e}");
+        }
+    }
+    println!("  forces and torques agree with differences of the energy; worst relative {worst:.1e}");
+}
+
+/// The molecular virial with induction is still minus the energy's slope under a
+/// uniform scaling of the box and the centres.
+#[test]
+fn the_virial_with_induction_is_minus_the_energy_slope_under_scaling() {
+    use phys::liquid::Polarisable;
+    let (base, alpha) = polarisable_law();
+    let law = Polarisable { law: &base, alpha };
+    let l = lattice(3, 3.4 * A, 300.0);
+    let f = l.forces(&law);
+    let at = |lambda: f64| {
+        let mut m = l.clone();
+        for r in m.com.iter_mut() {
+            *r = r.scale(lambda);
+        }
+        for c in m.cell.iter_mut() {
+            *c *= lambda;
+        }
+        m.r_on *= 1.0;
+        m.forces(&law).energy
+    };
+    let eps = 1e-5;
+    let minus_slope = -(at(1.0 + eps) - at(1.0 - eps)) / (2.0 * eps);
+    println!("  virial {:.8e}, minus dU/dlambda {minus_slope:.8e}", f.virial);
+    assert!((f.virial - minus_slope).abs() < 1e-6 * f.virial.abs().max(1e-3), "{} against {minus_slope}", f.virial);
+}
+
+/// A polarisable liquid without a bath keeps its energy as the plain one does.
+#[test]
+fn a_polarisable_liquid_keeps_its_energy() {
+    use phys::liquid::Polarisable;
+    let (base, alpha) = polarisable_law();
+    let law = Polarisable { law: &base, alpha };
+    let mut l = lattice(3, 3.4 * A, 300.0);
+    let total = |l: &Liquid, f: &Forces| {
+        let (t, r) = l.kinetic();
+        t + r + f.energy
+    };
+    let mut f = l.forces(&law);
+    let e0 = total(&l, &f);
+    let mut energies = Vec::new();
+    for _ in 0..600 {
+        f = l.step(&law, f, 10.0, None);
+        energies.push(total(&l, &f));
+    }
+    let (lo, hi) = energies.iter().fold((f64::INFINITY, f64::NEG_INFINITY), |(a, b), e| (a.min(*e), b.max(*e)));
+    let (kt, kr) = l.kinetic();
+    println!("  27 polarisable molecules, 600 steps of 10 a.u.: energy {e0:.8} spread {:.2e} against kinetic {:.2e}", hi - lo, kt + kr);
+    assert!(hi - lo < 2e-3 * (kt + kr), "the energy wandered by {:.2e}", hi - lo);
+}
+
+/// A law's text carries the polarisabilities of its types, and a text without
+/// them gives none.
+#[test]
+fn a_laws_polarisabilities_are_read_from_its_text() {
+    use phys::liquid::SiteSite;
+    let text = "charges 1e0 5e-1 -2e0\npair 0 0 1e0 1e0 1e0 1e0\nbisector 2 2.67e-1\nalpha 0 5.5e0\nalpha 1 2e0\n";
+    assert_eq!(SiteSite::alpha_from_text(text, 3), vec![5.5, 2.0, 0.0]);
+    assert_eq!(SiteSite::alpha_from_text("charges 1e0\n", 2), vec![0.0, 0.0]);
+    assert!(SiteSite::from_text(text).is_some(), "an alpha line does not stop the law reading");
+}

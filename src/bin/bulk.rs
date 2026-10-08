@@ -26,7 +26,7 @@
 
 use phys::electrons::grow::{equivalent_atoms, Resume};
 use phys::electrons::molecule::Molecule;
-use phys::liquid::{Kind, Liquid, SiteSite, AMU, BAR_PER_HARTREE_PER_BOHR3, K_B};
+use phys::liquid::{Kind, Liquid, Polarisable, SiteLaw, SiteSite, AMU, BAR_PER_HARTREE_PER_BOHR3, K_B};
 use phys::math::{Quat, Vec3};
 use phys::rng::{Purpose, Stream};
 use std::io::Write;
@@ -55,6 +55,14 @@ fn main() {
     let law_text = std::fs::read_to_string(&law_file).unwrap_or_else(|_| panic!("no {law_file}"));
     let law = SiteSite::from_text(&law_text).expect("a readable law");
     let bisector = SiteSite::bisector_from_text(&law_text);
+    // A law whose text carries `alpha` lines has induced dipoles.
+    let alpha = SiteSite::alpha_from_text(&law_text, law.charge.len());
+    let polarised = Polarisable { law: &law, alpha: alpha.clone() };
+    let induced = alpha.iter().any(|a| *a > 0.0);
+    let law_ref: &dyn SiteLaw = if induced { &polarised } else { &law };
+    if induced {
+        println!("induced dipoles on, polarisabilities by site type {alpha:?} bohr^3");
+    }
     let state = Resume::from_text(&std::fs::read_to_string(format!("grow-{name}.state")).expect("a growth state")).expect("readable");
     let z: Vec<u32> = match name.as_str() {
         "water" => vec![8, 1, 1],
@@ -120,14 +128,14 @@ fn main() {
     writeln!(file, "# {name} at {temperature} K, {n} molecules, {density_g} g/cm3, cut-off {r_cut} bohr, law {law_file}").ok();
     writeln!(file, "# ps  U_per_molecule_kcal  pressure_bar  T_translation  T_rotation").ok();
     let mut stream = Liquid::noise(0xba7 ^ temperature.to_bits());
-    let mut f = l.forces(&law);
+    let mut f = l.forces(law_ref);
     println!("  start: U/N {:.2} kcal/mol", f.energy / n as f64 * KCAL);
     // Easing in: tiny steps and a strong bath, then longer.
     let tau = |ps: f64| 1.0 / (ps / PS);
     let t0 = Instant::now();
     for (label, dt, steps, friction) in [("easing", 2.0, 4000usize, tau(0.02)), ("settling", 10.0, 6000, tau(0.1)), ("warming", 25.0, 8000, tau(0.5))] {
         for _ in 0..steps {
-            f = l.step(&law, f, dt, Some((temperature, friction, &mut stream)));
+            f = l.step(law_ref, f, dt, Some((temperature, friction, &mut stream)));
         }
         let (kt, kr) = l.kinetic();
         println!("  {label}: U/N {:.2} kcal/mol, T {:.0}/{:.0} K, P {:.0} bar", f.energy / n as f64 * KCAL, 2.0 * kt / (3.0 * n as f64 * K_B), 2.0 * kr / (3.0 * n as f64 * K_B), l.pressure(&f) * BAR_PER_HARTREE_PER_BOHR3);
@@ -148,7 +156,7 @@ fn main() {
     let mut hist = vec![0.0f64; nbins];
     let mut frames = 0usize;
     for step in 0..steps {
-        f = l.step(&law, f, dt, Some((temperature, tau(1.0), &mut stream)));
+        f = l.step(law_ref, f, dt, Some((temperature, tau(1.0), &mut stream)));
         if step >= settle && step % every == 0 {
             let (kt, kr) = l.kinetic();
             let s = (f.energy / n as f64 * KCAL, l.pressure(&f) * BAR_PER_HARTREE_PER_BOHR3, 2.0 * kt / (3.0 * n as f64 * K_B), 2.0 * kr / (3.0 * n as f64 * K_B));

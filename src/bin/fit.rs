@@ -4,6 +4,10 @@
 //! cargo run --release --bin phys-fit -- water [temperature for the weights, K] [tag] [--bisector] [--c6 0-0=17.48,0-1=6.331,1-1=2.376]
 //! ```
 //!
+//! `--alpha polar-water.txt` gives each atom class's polarisability (as
+//! `phys-polar` derives it from the molecule's own electrons): every pair's
+//! energy in the fit then includes the induction of the two molecules, in the
+//! charges being fitted, and the law is written with its `alpha` lines.
 //! `--bisector` adds one more charge-only site to every molecule, on the
 //! bisector of the first atom's two bonds (the lone pairs' charge, TIP4P-like):
 //! its charge follows from neutrality, its pairs carry no repulsion or
@@ -22,7 +26,7 @@
 //! the one that is the law's error by the owner's condition, on the pairs it
 //! never saw. Writes `law-<name><tag>-pbe.txt` and `law-<name><tag>-revpbe.txt`.
 
-use phys::liquid::{fit_site_site_held, pair_energy, with_bisector_site, Fitted, Held, PairEnergy, SiteSite};
+use phys::liquid::{fit_site_site_polarised, pair_energy, with_bisector_site, Fitted, Held, PairEnergy, Polarisable, SiteSite};
 use phys::math::Vec3;
 
 const KCAL: f64 = 627.509474;
@@ -50,7 +54,13 @@ fn main() {
                 .collect()
         })
         .unwrap_or_default();
-    let suffix = format!("{}{}", if bisector { "-bis" } else { "" }, if c6_held.is_empty() { "" } else { "-c6" });
+    let alpha_file = args.iter().position(|a| a == "--alpha").and_then(|i| args.get(i + 1)).cloned();
+    let suffix = format!("{}{}{}", if bisector { "-bis" } else { "" }, if c6_held.is_empty() { "" } else { "-c6" }, if alpha_file.is_some() { "-ind" } else { "" });
+    // Each atom type's polarisability, from `phys-polar`'s file, if asked.
+    let alpha_atoms: Option<Vec<f64>> = alpha_file.as_ref().map(|f| {
+        let t = std::fs::read_to_string(f).unwrap_or_else(|_| panic!("no {f}"));
+        SiteSite::alpha_from_text(&t, 16)
+    });
     let text: String = tag_arg.split(',').map(|t| std::fs::read_to_string(format!("pairs-{name}{t}.txt")).unwrap_or_else(|_| panic!("no pairs-{name}{t}.txt"))).collect::<Vec<_>>().join("\n");
     // Each line: index R E_pbe E_rev | x y z type ... (first molecule, then second).
     let mut rows: Vec<(f64, f64, Vec<(Vec3, usize)>)> = Vec::new();
@@ -68,6 +78,16 @@ fn main() {
         multiplicity[*t] += 1;
     }
     println!("{name}: {} pairs, {n_atoms} atoms a molecule, {types} site types {multiplicity:?}", rows.len());
+    // The polarisability of every site type the fit sees: the atoms', and zero
+    // for the bisector site.
+    let alpha_full: Option<Vec<f64>> = alpha_atoms.as_ref().map(|a| {
+        let mut v: Vec<f64> = a[..types].to_vec();
+        if bisector {
+            v.push(0.0);
+        }
+        println!("  induced dipoles on, polarisabilities by type {v:?} bohr^3");
+        v
+    });
     for (label, column) in [("pbe", 0usize), ("revpbe", 1)] {
         let data: Vec<PairEnergy> = rows.iter().map(|(ep, er, atoms)| PairEnergy { a: atoms[..n_atoms].to_vec(), b: atoms[n_atoms..].to_vec(), energy: if column == 0 { *ep } else { *er } }).collect();
         let mut bisector_distance: Option<f64> = None;
@@ -81,7 +101,7 @@ fn main() {
         // with no hydrogen bond in it. (The last charge follows from
         // neutrality.)
         let fit = if bisector {
-            let (fit, d) = fit_with_bisector(&train, &multiplicity, types, temperature, &c6_held);
+            let (fit, d) = fit_with_bisector(&train, &multiplicity, types, temperature, &c6_held, alpha_full.as_deref());
             println!("    bisector site {d:.4} bohr from the first atom (weighted residual {:.3e})", fit.weighted_rms);
             bisector_distance = Some(d);
             fit
@@ -94,16 +114,22 @@ fn main() {
                 start.pair[b * types + a][2] = v;
             }
             let dispersion: Vec<(usize, usize)> = c6_held.iter().map(|&(p, _)| p).collect();
-            fit_site_site_held(&train, &multiplicity, &start, temperature, 1e-3, 5000, &Held { pairs: &[], dispersion: &dispersion })
+            fit_site_site_polarised(&train, &multiplicity, &start, temperature, 1e-3, 5000, &Held { pairs: &[], dispersion: &dispersion }, alpha_full.as_deref())
         };
         let with_site = |d: &PairEnergy| -> PairEnergy { match bisector_distance { Some(x) => add_bisector(d, types, x), None => d.clone() } };
         let train: Vec<PairEnergy> = train.iter().map(&with_site).collect();
         let held: Vec<PairEnergy> = held.iter().map(&with_site).collect();
-        let rms = |set: &[PairEnergy]| (set.iter().map(|d| (pair_energy(&fit.law, d) - d.energy).powi(2)).sum::<f64>() / set.len() as f64).sqrt();
+        let eval = |d: &PairEnergy| -> f64 {
+            match &alpha_full {
+                Some(a) => pair_energy(&Polarisable { law: &fit.law, alpha: a.clone() }, d),
+                None => pair_energy(&fit.law, d),
+            }
+        };
+        let rms = |set: &[PairEnergy]| (set.iter().map(|d| (eval(d) - d.energy).powi(2)).sum::<f64>() / set.len() as f64).sqrt();
         let low = |set: &[PairEnergy]| {
             let e_min = set.iter().map(|d| d.energy).fold(f64::INFINITY, f64::min);
             let near: Vec<&PairEnergy> = set.iter().filter(|d| d.energy < e_min + 3.0 / KCAL).collect();
-            ((near.iter().map(|d| (pair_energy(&fit.law, d) - d.energy).powi(2)).sum::<f64>() / near.len().max(1) as f64).sqrt(), near.len())
+            ((near.iter().map(|d| (eval(d) - d.energy).powi(2)).sum::<f64>() / near.len().max(1) as f64).sqrt(), near.len())
         };
         let (lt, nt) = low(&train);
         let (lh, nh) = low(&held);
@@ -112,6 +138,11 @@ fn main() {
         let mut text = fit.law.to_text();
         if let Some(d) = bisector_distance {
             text += &format!("bisector {types} {d:e}\n");
+        }
+        if let Some(a) = &alpha_atoms {
+            for (t, v) in a[..types].iter().enumerate() {
+                text += &format!("alpha {t} {v:e}\n");
+            }
         }
         std::fs::write(format!("law-{name}{tag}-{label}{suffix}.txt"), text).expect("the law written");
     }
@@ -129,7 +160,7 @@ fn add_bisector(d: &PairEnergy, types: usize, distance: f64) -> PairEnergy {
 /// distance the fit is started from several charges (the energy goes as a
 /// product of charges and has more than one basin) and the best kept; the
 /// distance is the coarse-grid minimum of the weighted residual, refined.
-fn fit_with_bisector(train: &[PairEnergy], multiplicity: &[usize], types: usize, temperature: f64, c6_held: &[((usize, usize), f64)]) -> (Fitted, f64) {
+fn fit_with_bisector(train: &[PairEnergy], multiplicity: &[usize], types: usize, temperature: f64, c6_held: &[((usize, usize), f64)], alpha: Option<&[f64]>) -> (Fitted, f64) {
     let mut mult = multiplicity.to_vec();
     mult.push(1);
     let all = types + 1;
@@ -151,7 +182,7 @@ fn fit_with_bisector(train: &[PairEnergy], multiplicity: &[usize], types: usize,
                 start.pair[a * all + b][2] = v;
                 start.pair[b * all + a][2] = v;
             }
-            let fit = fit_site_site_held(&data, &mult, &start, temperature, 1e-3, 5000, &Held { pairs: &site_pairs, dispersion: &dispersion });
+            let fit = fit_site_site_polarised(&data, &mult, &start, temperature, 1e-3, 5000, &Held { pairs: &site_pairs, dispersion: &dispersion }, alpha);
             if fit.weighted_rms.is_finite() && best.as_ref().map_or(true, |b| fit.weighted_rms < b.weighted_rms) {
                 best = Some(fit);
             }

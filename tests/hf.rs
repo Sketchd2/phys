@@ -195,3 +195,38 @@ fn frozen_core_counts_the_first_shell_of_real_atoms() {
     assert_eq!(frozen_core(&z, &[0, 1, 2, 3, 4, 5]), 2);
     assert_eq!(frozen_core(&[2, 1], &[0, 1]), 0, "helium and hydrogen have no core to freeze");
 }
+
+/// The dipole integrals: moving the origin changes the matrix by the overlap
+/// times the shift (the identity that makes the dipole about any point the
+/// dipole about another plus a multiple of the overlap), they are symmetric,
+/// and for a function about its own centre the moment is that centre's
+/// offset from the origin times the overlap.
+#[test]
+fn the_dipole_integrals_move_with_the_origin_as_the_overlap_does() {
+    use phys::electrons::integrals::dipole;
+    let water = molecule(&[8, 1, 1], &[[0.0, 0.0, 0.1], [1.43, 0.0, 1.11], [-1.43, 0.0, 1.11]]);
+    let p = water.problem(Functional::Pbe);
+    let (s, _, _) = one_electron(&p.basis, &p.nuclei);
+    let (c1, c2) = ([0.0, 0.0, 0.0], [0.7, -0.3, 1.9]);
+    let (d1, d2) = (dipole(&p.basis, c1), dipole(&p.basis, c2));
+    let n = p.basis.size;
+    let mut worst = 0.0f64;
+    for d in 0..3 {
+        for i in 0..n {
+            for j in 0..n {
+                // <a|(x - C2)|b> = <a|(x - C1)|b> + (C1 - C2) <a|b>
+                worst = worst.max((d2[d].get(i, j) - d1[d].get(i, j) - (c1[d] - c2[d]) * s.get(i, j)).abs());
+                worst = worst.max((d1[d].get(i, j) - d1[d].get(j, i)).abs());
+            }
+        }
+    }
+    println!("  dipole integrals over {n} functions: worst deviation from the shift identity or symmetry {worst:.2e}");
+    assert!(worst < 1e-10);
+    // For an s function about the origin, the moment about the origin is zero;
+    // about C2 it is -C2 times the overlap. The first shell is oxygen's, at (0,0,0.1).
+    let first = &p.basis.shells[0];
+    assert_eq!(first.l, 0);
+    let a0 = first.centre;
+    let diag = d1[2].get(0, 0) / s.get(0, 0);
+    assert!((diag - a0[2]).abs() < 1e-10, "<s|z|s>/<s|s> = {diag}, the centre is {}", a0[2]);
+}

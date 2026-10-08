@@ -288,6 +288,50 @@ pub fn one_electron_where(basis: &Basis, nuclei: &[(f64, [f64; 3])], keep: &(dyn
     (s, t, v)
 }
 
+/// The dipole matrices about `origin`: `<a| (x - C_x) |b>`, then y, then z, over
+/// the basis. With overlap, kinetic and nuclear attraction these are the one-
+/// electron integrals of a uniform electric field, which is what lets the
+/// engine ask a molecule how it answers one (its polarisability, by finite
+/// field). In McMurchie-Davidson form the one-dimensional moment is
+/// `(E_1 + (P - C) E_0) sqrt(pi / p)`: the product's Hermite expansion has
+/// its first term at the product's centre `P` and its second integrates to one.
+pub fn dipole(basis: &Basis, origin: [f64; 3]) -> [Matrix; 3] {
+    let n = basis.size;
+    let pi = std::f64::consts::PI;
+    let mut out = [Matrix::zeros(n), Matrix::zeros(n), Matrix::zeros(n)];
+    for ia in 0..basis.shells.len() {
+        for ib in 0..=ia {
+            let (a, b) = (&basis.shells[ia], &basis.shells[ib]);
+            let (ca, cb) = (components(a.l), components(b.l));
+            let prs = pairs(a, b, 0);
+            for (ka, ka3) in ca.iter().enumerate() {
+                for (kb, kb3) in cb.iter().enumerate() {
+                    let scale = component_scale(a.l, *ka3) * component_scale(b.l, *kb3);
+                    let mut m = [0.0f64; 3];
+                    for pr in &prs {
+                        let (i, j, k) = (ka3[0], ka3[1], ka3[2]);
+                        let (l, mm, nn) = (kb3[0], kb3[1], kb3[2]);
+                        let s0 = [pr.hx.get(i, l, 0), pr.hy.get(j, mm, 0), pr.hz.get(k, nn, 0)];
+                        let s1 = [pr.hx.get(i, l, 1), pr.hy.get(j, mm, 1), pr.hz.get(k, nn, 1)];
+                        let norm = (pi / pr.p).powf(1.5);
+                        for d in 0..3 {
+                            let moment = s1[d] + (pr.centre[d] - origin[d]) * s0[d];
+                            let others: f64 = (0..3).filter(|&e| e != d).map(|e| s0[e]).product();
+                            m[d] += pr.coef * moment * others * norm;
+                        }
+                    }
+                    let (row, col) = (basis.offsets[ia] + ka, basis.offsets[ib] + kb);
+                    for d in 0..3 {
+                        out[d].set(row, col, m[d] * scale);
+                        out[d].set(col, row, m[d] * scale);
+                    }
+                }
+            }
+        }
+    }
+    out
+}
+
 /// The electron-repulsion block `(ab|cd)` for four shells, in chemists'
 /// notation, flat over `[ka][kb][kc][kd]` components.
 pub fn eri_block(a: &Shell, b: &Shell, c: &Shell, d: &Shell) -> Vec<f64> {

@@ -156,6 +156,16 @@ fn closed_shell_density(c: &[f64], n: usize, m: usize, occupied: usize) -> Matri
 /// charge with its basis kept) is fine, which is what a counterpoise
 /// correction needs.
 pub fn hartree_fock(problem: &Problem, max_iterations: usize, tolerance: f64) -> HartreeFock {
+    hartree_fock_in_field(problem, [0.0; 3], max_iterations, tolerance)
+}
+
+/// [`hartree_fock`] in a uniform electric field `field` (atomic units, the
+/// force on a positive charge): the electrons feel `+ F . r` and the nuclei's
+/// energy changes by `- sum Z F . R`, both about the coordinates' own origin,
+/// so the total energy has a linear term in the field and a quadratic one
+/// whose second difference is minus the polarisability. With no field the
+/// arithmetic is exactly [`hartree_fock`]'s.
+pub fn hartree_fock_in_field(problem: &Problem, field: [f64; 3], max_iterations: usize, tolerance: f64) -> HartreeFock {
     let basis = &problem.basis;
     let n = basis.size;
     let aux = problem.auxiliary.as_ref().expect("Hartree-Fock here is density fitted: the problem needs an auxiliary basis");
@@ -165,6 +175,18 @@ pub fn hartree_fock(problem: &Problem, max_iterations: usize, tolerance: f64) ->
     let mut h = t.clone();
     for k in 0..n * n {
         h.a[k] += v.a[k];
+    }
+    let mut e_field = 0.0;
+    if field != [0.0; 3] {
+        let dip = super::integrals::dipole(basis, [0.0; 3]);
+        for d in 0..3 {
+            for k in 0..n * n {
+                h.a[k] += field[d] * dip[d].a[k];
+            }
+        }
+        for (z, r) in &problem.nuclei {
+            e_field -= z * (field[0] * r[0] + field[1] * r[1] + field[2] * r[2]);
+        }
     }
     let (x, m) = orthogonaliser(&s, 1e-8);
     assert!(occupied <= m, "more occupied orbitals than the basis has directions");
@@ -225,7 +247,7 @@ pub fn hartree_fock(problem: &Problem, max_iterations: usize, tolerance: f64) ->
         for q in 0..n * n {
             f.a[q] += j.a[q] - k.a[q];
         }
-        energy = h.dot(&d) + ej - 0.5 * d.dot(&k) + e_nn;
+        energy = h.dot(&d) + ej - 0.5 * d.dot(&k) + e_nn + e_field;
         let err = {
             let fds = f.mul(&d).mul(&s);
             let sdf = s.mul(&d).mul(&f);
@@ -337,4 +359,53 @@ pub fn frozen_core(z: &[u32], real: &[usize]) -> usize {
             other => panic!("no frozen-core rule for Z = {other}"),
         })
         .sum()
+}
+
+/// The static dipole polarisability tensors of the molecule in `problem`, by
+/// finite field: minus the second derivative of the total energy with respect
+/// to a uniform field, from central differences of `step` atomic units. Returns
+/// the Hartree-Fock tensor and the MP2 one (the MP2 correlation energy at each
+/// field's own Hartree-Fock orbitals added, which is the relaxed MP2
+/// response). Diagonals from `E(+F) + E(-F) - 2 E(0)`, off-diagonals from the
+/// four corners `E(+,+) - E(+,-) - E(-,+) + E(-,-)` over `4 F^2`: nineteen
+/// solves, all in one basis and so one table. The axes are the box's; a
+/// molecule not held in its principal axes gets the full tensor back. Bohr
+/// cubed.
+pub fn polarisabilities(problem: &Problem, frozen: usize, step: f64) -> ([[f64; 3]; 3], [[f64; 3]; 3]) {
+    let energy = |f: [f64; 3]| -> (f64, f64) {
+        let hf = hartree_fock_in_field(problem, f, 300, 1e-11);
+        assert!(hf.converged, "Hartree-Fock in the field {f:?} did not converge");
+        (hf.energy, hf.energy + mp2(problem, &hf, frozen).correlation)
+    };
+    let at = |a: f64, b: f64, c: f64| energy([a * step, b * step, c * step]);
+    let e0 = at(0.0, 0.0, 0.0);
+    let mut hf = [[0.0f64; 3]; 3];
+    let mut mp = [[0.0f64; 3]; 3];
+    for d in 0..3 {
+        let mut plus = [0.0f64; 3];
+        plus[d] = 1.0;
+        let mut minus = [0.0f64; 3];
+        minus[d] = -1.0;
+        let (p, m) = (at(plus[0], plus[1], plus[2]), at(minus[0], minus[1], minus[2]));
+        hf[d][d] = -(p.0 + m.0 - 2.0 * e0.0) / (step * step);
+        mp[d][d] = -(p.1 + m.1 - 2.0 * e0.1) / (step * step);
+    }
+    for d in 0..3 {
+        for e in d + 1..3 {
+            let corner = |sd: f64, se: f64| {
+                let mut f = [0.0; 3];
+                f[d] = sd;
+                f[e] = se;
+                at(f[0], f[1], f[2])
+            };
+            let (pp, pm, mpl, mm) = (corner(1.0, 1.0), corner(1.0, -1.0), corner(-1.0, 1.0), corner(-1.0, -1.0));
+            let vh = -(pp.0 - pm.0 - mpl.0 + mm.0) / (4.0 * step * step);
+            let vm = -(pp.1 - pm.1 - mpl.1 + mm.1) / (4.0 * step * step);
+            hf[d][e] = vh;
+            hf[e][d] = vh;
+            mp[d][e] = vm;
+            mp[e][d] = vm;
+        }
+    }
+    (hf, mp)
 }
