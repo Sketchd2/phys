@@ -186,6 +186,32 @@ values, the densities and the non-local kernel, so do not leave it nothing.
 An out-of-range value is ignored with a message. Check what a machine really
 has free before trusting a fraction of it.
 
+### The whitened integrals on the GPU (`--method mp2`)
+
+`phys-cluster-gpu` and `phys-s22-gpu` whiten the table once and keep it, in
+double precision, in three tiers: the card's memory, system memory, and a file.
+Segments are a fixed 256 MB and are always visited in the same order, so the
+result is the same bits whatever the split; only the time changes (the water
+dimer, 1.3 GB: 62 s on the card, 84 s with 9 of 13 segments in memory, 93 s with
+6 on disk, the CPU busy).
+
+* `PHYS_GPU_GB` is the card memory the engine may use; without it the free
+  memory from `nvidia-smi`, less 0.6 GB, or 2 GB where there is none.
+* `PHYS_STORE_RAM_GB` is the system memory the second tier may use; without it
+  60% of what is free when the table is loaded (after the raw table has taken
+  its share).
+* `PHYS_SPILL_DIR` and `PHYS_SPILL_MAX_GB` name the file tier, the same disk as
+  the raw table's spill, which is let go of once the whitened copy exists. For
+  a table too big for RAM the disk holds both while the copy is built: allow
+  about twice the table.
+* If the three tiers cannot hold the table the engine says so on stderr and the
+  CPU does the job as before. `PHYS_NO_GPU_FOCK=1` leaves it on the CPU.
+
+For the hexamer (37 GB) the Z440 wants enough RAM that the raw table
+(`PHYS_TABLE_RAM_FRACTION`) and the second tier do not together exceed what is
+free; the exchange product, about 1e13 operations an iteration, is the cost, and
+a pass over the table is a few seconds.
+
 ### Across machines
 
 After the table is built, a cluster's fields and pairs are independent, so

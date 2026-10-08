@@ -4406,6 +4406,54 @@ the start of the phase, ahead of the renderer**. In order:
      when the functional was replaced by perturbation theory, which says the
      missing physics is in the law, not the reference. The next piece is the
      law's non-additivity, and what it should be is the owner's decision, recorded here once taken.
+   - **E8a, induction, the S22 set and the GPU stack (measured since the
+     MP2 law).** *Polarisabilities are the engine's own:* the finite-field
+     response of the molecule's Hartree-Fock and MP2 energies (19 solves,
+     `phys-polar`) gives 8.68 and 9.908 bohr^3 for water; split to sites by the
+     fit, O 9.2585 and H 0.7018. *The induction model* (`src/induction.rs`)
+     puts a polarisable site on each atom with Gaussian-smeared dipoles
+     (sigma = (sqrt(2/pi) alpha/3)^(1/3), so the damping is the size of the
+     charge cloud and not a constant), solves the dipoles by conjugate
+     gradients with a warm start, and its energy, forces and torques are
+     checked against finite differences to 2e-9. The law refitted to the MP2
+     pairs with induction explicit has an unseen-pair error of 0.306 kcal/mol.
+     **The liquid it makes (298 K, 216 molecules, 1 g/cm3, 48 ps): U/N -8.889
+     +- 0.009, heat of vaporisation 9.48 kcal/mol, pressure -650 +- 29 bar, first
+     peak of g(OO) 2.62 at 2.95 A, first minimum 0.84 at 4.35 A, coordination to
+     the minimum 10.7.** The pressure came up from -976 bar (pair law), but the
+     structure is still not water's: a first shell of 10-11 neighbours and no
+     tetrahedral gap. Induction was the hypothesis for the missing cooperativity
+     and it is not sufficient; what is next (a three-body term, the basis
+     shortfall, the monomer held rigid) is the owner's decision.
+     *S22, counterpoise, Hartree-Fock + RI-MP2 on the engine's table, against
+     CCSD(T)/CBS:* water dimer -4.778 (-4.8%), ammonia dimer -3.048, methane
+     dimer -0.475, ethene-ethyne -1.599 (+5.9%), ethene dimer -1.495 (-0.2%),
+     formic acid dimer -17.816 against -18.799 (-5.2%, 812 functions, 4460 s on
+     the CPU). The shortfall is the basis: the derived one has no g on oxygen or
+     f on hydrogen, and adding g(O) at 2.0 and f(H) at 1.6 takes the water dimer
+     from -4.778 to -4.826. Completing the basis is a stage of its own.
+     *The GPU stack.* Single precision is wrong for Hartree-Fock (exchange in
+     f32 did not converge; the whitened integrals stored in f32 gave -164 Ha) and
+     right for MP2's products (1.2e-3 kcal/mol on a pair). Double precision in
+     WGSL works (`SHADER_F64`, `lf` literals) and the card's 1/32 rate is not
+     the limit: the CPU spent its time re-whitening the table every iteration.
+     `gpu/src/fock.rs` whitens once and keeps B[mn][k]: an iteration is 0.25 s of
+     table work against 1.7 s on the 428-function dimer, 2.7x on the whole
+     iteration (diagonalisation is now the larger part), agreeing with the CPU
+     to 6e-12 Ha. *Three tiers* hold B when it is larger than the card: fixed
+     256 MB segments, the card's memory first, system memory next (through a
+     two-buffer ring), then a file, read by a thread that runs ahead; the
+     segments are visited in index order whatever the split, so **the same
+     bits come out of every split** (asserted in `gpu/tests/fock.rs`: the dimer
+     all on the card, 4+9 and 4+3+6 gives HF -152.137433037466 and MP2
+     -0.553504030616 each time, at 62, 84 and 93 s with the CPU busy). The
+     density fit rides on the first orbital block's pass, and the raw table is
+     released once the engine has its own copy. At the hexamer's 37 GB the
+     bound is the exchange product, about 1e13 double-precision operations an
+     iteration, not the passes (3 s each over PCIe); an estimate, to be
+     measured on the Z440. *Duplicate jobs:* a restarted waiter was not killed
+     first and two S22 jobs ran at once, doubling CPU load for a while; the
+     timings of that period are inflated.
    - **E8z, remove what was not chosen.** *Planned by the owner, to be done
      once the method above is validated and the owner confirms it; nothing is
      removed before that.* Every method the engine carries and the decision
