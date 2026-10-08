@@ -499,3 +499,32 @@ fn a_laws_polarisabilities_are_read_from_its_text() {
     assert_eq!(SiteSite::alpha_from_text("charges 1e0\n", 2), vec![0.0, 0.0]);
     assert!(SiteSite::from_text(text).is_some(), "an alpha line does not stop the law reading");
 }
+
+/// Enough molecules that the induced-dipole solve runs across threads (more
+/// than four hundred links): the answer is the same twice running to the last
+/// bit, and one molecule's force and torque are still the derivative of the
+/// energy.
+#[test]
+fn the_threaded_induction_solve_is_repeatable_and_correct() {
+    use phys::liquid::Polarisable;
+    let (base, alpha) = polarisable_law();
+    let law = Polarisable { law: &base, alpha };
+    let l = lattice(4, 3.0 * A, 300.0);
+    let f1 = l.forces(&law);
+    let f2 = l.forces(&law);
+    assert_eq!(f1.energy.to_bits(), f2.energy.to_bits(), "two evaluations of one configuration differ");
+    assert!(f1.force.iter().zip(&f2.force).all(|(a, b)| a.x.to_bits() == b.x.to_bits() && a.y.to_bits() == b.y.to_bits() && a.z.to_bits() == b.z.to_bits()));
+    let h = 1e-5;
+    let m = 21usize;
+    for (k, axis) in [Vec3 { x: 1.0, y: 0.0, z: 0.0 }, Vec3 { x: 0.0, y: 0.0, z: 1.0 }].iter().enumerate() {
+        let energy_moved = |s: f64| {
+            let mut c = l.clone();
+            c.com[m] += axis.scale(s);
+            c.forces(&law).energy
+        };
+        let numeric = -(energy_moved(h) - energy_moved(-h)) / (2.0 * h);
+        let analytic = if k == 0 { f1.force[m].x } else { f1.force[m].z };
+        println!("  64 molecules, molecule {m}: force numeric {numeric:.9e} analytic {analytic:.9e}");
+        assert!((numeric - analytic).abs() < 1e-7 + 1e-5 * analytic.abs(), "numeric {numeric:.9e} analytic {analytic:.9e}");
+    }
+}

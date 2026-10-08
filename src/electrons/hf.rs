@@ -134,6 +134,67 @@ pub fn product_cpu(a: &[f64], b: &[f64], m: usize, n: usize, kd: usize, out: &mu
     });
 }
 
+/// An engine that keeps a fit's whitened three-index integrals resident (on a
+/// GPU, in double precision) and does the self-consistent field's heavy passes
+/// against them: the Coulomb and exchange matrices, and the half-transformed
+/// integrals MP2 starts from.
+///
+/// **Why it is worth having.** A Hartree-Fock iteration on the CPU spends
+/// most of its time reading the table to contract it with the orbitals and
+/// whitening what it read, and does both again every iteration. Once the
+/// whitened integrals `B[mn][k]` are resident, an iteration is three passes over
+/// memory the GPU reads at hundreds of gigabytes a second and one
+/// double-precision product. The same table serves every field of a
+/// counterpoise correction, a cluster, or a finite-field polarisability.
+///
+/// **Precision.** Double throughout, so the converged energies are the CPU's to
+/// round-off (a few parts in 1e12 here, measured in `gpu/tests/fock.rs`); this
+/// is the difference from [`ProductEngine`], which is single precision and used
+/// only where that is harmless. An engine may decline (`load` returns false)
+/// when the integrals do not fit, and the CPU does it as before.
+pub trait FockEngine: Send + Sync {
+    /// Make the whitened integrals of the table `key` resident: `n` functions,
+    /// `nk` directions, `source` supplying every entry `(m, n)`, `m >= n`, once.
+    /// False if they do not fit.
+    fn load(&self, key: usize, n: usize, nk: usize, source: &dyn Fn(&mut dyn FnMut(usize, usize, &[f64]))) -> bool;
+    fn is_loaded(&self, key: usize) -> bool;
+    /// The Coulomb matrix and its energy for the total density `d`, and the
+    /// exchange matrix `K[P]_mn = sum_ls P_ls (ml|ns)` for the `count` orbitals
+    /// `c[ao * stride + k]`, `k < count`.
+    fn fock(&self, key: usize, c: &[f64], stride: usize, count: usize, d: &Matrix) -> (Matrix, f64, Matrix);
+    /// `y[i][ao][k]` for orbitals `first .. first + count` of `c`: what
+    /// [`Fitted::whitened_half`] returns.
+    fn half(&self, key: usize, c: &[f64], stride: usize, first: usize, count: usize) -> Vec<f64>;
+    fn name(&self) -> &str;
+}
+
+static FOCK_ENGINE: Mutex<Option<Arc<dyn FockEngine>>> = Mutex::new(None);
+
+/// Install a Fock engine for this process (`None` removes it).
+pub fn set_fock_engine(engine: Option<Arc<dyn FockEngine>>) {
+    *FOCK_ENGINE.lock().expect("the Fock engine") = engine;
+}
+
+/// The installed engine, with `fit`'s whitened integrals resident on it, if it
+/// has one and they fit.
+fn resident_engine(fit: &Fitted) -> Option<(Arc<dyn FockEngine>, usize)> {
+    let engine = FOCK_ENGINE.lock().expect("the Fock engine").clone()?;
+    let key = fit.table_key();
+    if engine.is_loaded(key) {
+        return Some((engine, key));
+    }
+    let (n, nk) = fit.dimensions();
+    let t = std::time::Instant::now();
+    if engine.load(key, n, nk, &|sink| fit.visit_whitened(sink)) {
+        if std::env::var_os("PHYS_PROFILE").is_some() {
+            eprintln!("  whitened integrals resident on {}: {:.1} s", engine.name(), t.elapsed().as_secs_f64());
+        }
+        Some((engine, key))
+    } else {
+        None
+    }
+}
+
 /// `sum_i c_i c_i^T` over the lowest `occupied` orbitals.
 fn closed_shell_density(c: &[f64], n: usize, m: usize, occupied: usize) -> Matrix {
     let mut d = Matrix::zeros(n);
@@ -229,20 +290,32 @@ pub fn hartree_fock_in_field(problem: &Problem, field: [f64; 3], max_iterations:
     let mut last = f64::INFINITY;
     let mut converged = false;
     let mut iterations = 0;
+    let resident = resident_engine(&fit);
     for it in 0..max_iterations {
         iterations = it + 1;
+        let iteration_clock = std::time::Instant::now();
         let p = closed_shell_density(&c, n, m, occupied);
         let mut d = p.clone();
         for a in d.a.iter_mut() {
             *a *= 2.0;
         }
         let clock = std::time::Instant::now();
-        let (j, ej) = fit.coulomb_and_energy(&d);
-        let t_j = clock.elapsed().as_secs_f64();
-        let (y, nk) = fit.whitened_half(&c, m, 0, occupied);
-        let t_y = clock.elapsed().as_secs_f64() - t_j;
-        let k = exchange(&y, n, occupied, nk);
-        let t_k = clock.elapsed().as_secs_f64() - t_j - t_y;
+        let (j, ej, k, t_j, t_y, t_k) = match &resident {
+            Some((engine, key)) => {
+                let (j, ej, k) = engine.fock(*key, &c, m, occupied, &d);
+                let t = clock.elapsed().as_secs_f64();
+                (j, ej, k, 0.0, t, 0.0)
+            }
+            None => {
+                let (j, ej) = fit.coulomb_and_energy(&d);
+                let t_j = clock.elapsed().as_secs_f64();
+                let (y, nk) = fit.whitened_half(&c, m, 0, occupied);
+                let t_y = clock.elapsed().as_secs_f64() - t_j;
+                let k = exchange(&y, n, occupied, nk);
+                let t_k = clock.elapsed().as_secs_f64() - t_j - t_y;
+                (j, ej, k, t_j, t_y, t_k)
+            }
+        };
         let mut f = h.clone();
         for q in 0..n * n {
             f.a[q] += j.a[q] - k.a[q];
@@ -269,7 +342,7 @@ pub fn hartree_fock_in_field(problem: &Problem, field: [f64; 3], max_iterations:
         levels = e;
         c = cc;
         if std::env::var_os("PHYS_PROFILE").is_some() {
-            eprintln!("  HF iteration {}: Coulomb {t_j:.2} s, half transform {t_y:.2} s, exchange {t_k:.2} s, diagonalisation {:.2} s", it + 1, clock.elapsed().as_secs_f64());
+            eprintln!("  HF iteration {}{}: Coulomb {t_j:.2} s, half transform {t_y:.2} s, exchange {t_k:.2} s, diagonalisation {:.2} s; the whole iteration {:.2} s", it + 1, if resident.is_some() { " (resident)" } else { "" }, clock.elapsed().as_secs_f64(), iteration_clock.elapsed().as_secs_f64());
         }
     }
     HartreeFock { energy, converged, iterations, c, m, levels, occupied }
@@ -300,7 +373,10 @@ pub fn mp2(problem: &Problem, hf: &HartreeFock, frozen: usize) -> Mp2 {
     assert!(frozen < nocc, "freezing {frozen} of {nocc} occupied orbitals leaves nothing to correlate");
     let active = nocc - frozen;
     let nv = m - nocc;
-    let (y, nk) = fit.whitened_half(&hf.c, m, frozen, active);
+    let (y, nk) = match resident_engine(&fit) {
+        Some((engine, key)) => (engine.half(key, &hf.c, m, frozen, active), fit.dimensions().1),
+        None => fit.whitened_half(&hf.c, m, frozen, active),
+    };
     // Virtual orbitals as rows: cv[a][ao].
     let mut cv = vec![0.0f64; nv * n];
     for a in 0..nv {

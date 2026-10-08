@@ -165,58 +165,151 @@ fn tensor_apply(a: f64, bp: f64, r: Vec3, v: Vec3) -> Vec3 {
     v.scale(a) - r.scale(bp * r.dot(v))
 }
 
+/// Run `job` over a range of items split into a fixed number of contiguous
+/// chunks, across threads when there is enough work to pay for them, and
+/// return the chunks' results in order. The chunks do not depend on the number
+/// of threads, so sums over the results are the same on any machine.
+fn chunked<T: Send>(len: usize, job: &(dyn Fn(std::ops::Range<usize>) -> T + Sync)) -> Vec<T> {
+    const CHUNKS: usize = 32;
+    const MIN_WORK: usize = 400;
+    if len < MIN_WORK {
+        return vec![job(0..len)];
+    }
+    let chunks = CHUNKS.min(len);
+    let parts = crate::electrons::scf::parallel_interleaved(chunks, &|idx: &mut dyn Iterator<Item = usize>| idx.map(|c| (c, job(c * len / chunks..(c + 1) * len / chunks))).collect::<Vec<_>>());
+    let mut all: Vec<(usize, T)> = parts.into_iter().flatten().collect();
+    all.sort_by_key(|(c, _)| *c);
+    all.into_iter().map(|(_, t)| t).collect()
+}
+
+/// One screened dipole-dipole coupling between polarisable sites `a` and `b`
+/// (flat indices), `r` the separation of `a` from `b`'s image, and the tensor's
+/// pieces for it.
+#[derive(Clone, Copy)]
+struct Dd {
+    a: usize,
+    b: usize,
+    ta: f64,
+    tbp: f64,
+    da: f64,
+    dbp: f64,
+    r: Vec3,
+}
+
+/// One permanent charge's field on one polarisable site: `r` runs from the
+/// charge to the site (the image of whichever is in the second molecule), `h`
+/// and `dh` are the field function and its slope, and `pol_on_first` says
+/// whether the dipole is on the link's first molecule.
+#[derive(Clone, Copy)]
+struct Cd {
+    a: usize,
+    c: usize,
+    q: f64,
+    h: f64,
+    dh: f64,
+    r: Vec3,
+    pol_on_first: bool,
+}
+
+/// Everything one link contributes, worked out once.
+#[derive(Default)]
+struct LinkItems {
+    dd: Vec<Dd>,
+    cd: Vec<Cd>,
+}
+
 /// Solve a cluster: the dipoles, the energy, the forces. `warm` is the dipoles
 /// to start from (the same shape as the result's), `None` for zero.
+///
+/// The screened tensors are worked out once per link (across threads, in
+/// chunks fixed by the number of links) and used by the conjugate-gradient
+/// iterations and by the forces alike; the iterations and the forces run over
+/// the same chunks, their partial sums added in chunk order.
 pub fn solve(cl: &Cluster, links: &[Link], warm: Option<&[Vec<Vec3>]>, tolerance: f64) -> Induced {
     let nm = cl.pol.len();
-    // Flat index of molecule i's first polarisable site.
+    // Flat index of molecule i's first polarisable site, and first charge.
     let mut first = vec![0usize; nm + 1];
+    let mut firstc = vec![0usize; nm + 1];
     for i in 0..nm {
         first[i + 1] = first[i] + cl.pol[i].len();
+        firstc[i + 1] = firstc[i] + cl.charges[i].len();
     }
-    let n = first[nm];
+    let (n, nc) = (first[nm], firstc[nm]);
     let sigma: Vec<Vec<f64>> = cl.pol.iter().map(|m| m.iter().map(|p| sigma_of(p.alpha)).collect()).collect();
-    // The blocks of T and the right-hand side.
-    let mut blocks: Vec<(usize, usize, f64, f64, Vec3)> = Vec::new();
-    let mut e0 = vec![Vec3::ZERO; n];
+    let root2 = (2.0f64).sqrt();
+    // Within a molecule.
+    let mut intra: Vec<Dd> = Vec::new();
     for i in 0..nm {
         for a in 0..cl.pol[i].len() {
             for b in a + 1..cl.pol[i].len() {
                 let r = cl.pol[i][a].pos - cl.pol[i][b].pos;
                 let s = (2.0 * (sigma[i][a].powi(2) + sigma[i][b].powi(2))).sqrt();
-                let (ta, tbp, _, _) = dd_terms(r.norm(), s);
-                blocks.push((first[i] + a, first[i] + b, ta, tbp, r));
+                let (ta, tbp, da, dbp) = dd_terms(r.norm(), s);
+                intra.push(Dd { a: first[i] + a, b: first[i] + b, ta, tbp, da, dbp, r });
             }
         }
     }
-    for l in links {
-        for (a, pa) in cl.pol[l.i].iter().enumerate() {
-            for (b, pb) in cl.pol[l.j].iter().enumerate() {
-                let r = pa.pos - (pb.pos + l.shift);
-                let s = (2.0 * (sigma[l.i][a].powi(2) + sigma[l.j][b].powi(2))).sqrt();
-                let (ta, tbp, _, _) = dd_terms(r.norm(), s);
-                blocks.push((first[l.i] + a, first[l.j] + b, l.weight * ta, l.weight * tbp, r));
-            }
-            for c in &cl.charges[l.j] {
-                let r = pa.pos - (c.pos + l.shift);
-                let (h, _) = charge_terms(r.norm(), (2.0f64).sqrt() * sigma[l.i][a]);
-                e0[first[l.i] + a] += r.scale(l.weight * c.q * h);
-            }
-        }
-        for (b, pb) in cl.pol[l.j].iter().enumerate() {
-            for c in &cl.charges[l.i] {
-                let r = (pb.pos + l.shift) - c.pos;
-                let (h, _) = charge_terms(r.norm(), (2.0f64).sqrt() * sigma[l.j][b]);
-                e0[first[l.j] + b] += r.scale(l.weight * c.q * h);
-            }
+    // Between molecules: per link, the pairs of dipoles and the charges' fields.
+    let items: Vec<LinkItems> = chunked(links.len(), &|range: std::ops::Range<usize>| -> Vec<LinkItems> {
+        range
+            .map(|k| {
+                let l = &links[k];
+                let mut it = LinkItems::default();
+                for (a, pa) in cl.pol[l.i].iter().enumerate() {
+                    for (b, pb) in cl.pol[l.j].iter().enumerate() {
+                        let r = pa.pos - (pb.pos + l.shift);
+                        let s = (2.0 * (sigma[l.i][a].powi(2) + sigma[l.j][b].powi(2))).sqrt();
+                        let (ta, tbp, da, dbp) = dd_terms(r.norm(), s);
+                        it.dd.push(Dd { a: first[l.i] + a, b: first[l.j] + b, ta, tbp, da, dbp, r });
+                    }
+                    for (ci, c) in cl.charges[l.j].iter().enumerate() {
+                        let r = pa.pos - (c.pos + l.shift);
+                        let (h, dh) = charge_terms(r.norm(), root2 * sigma[l.i][a]);
+                        it.cd.push(Cd { a: first[l.i] + a, c: firstc[l.j] + ci, q: c.q, h, dh, r, pol_on_first: true });
+                    }
+                }
+                for (b, pb) in cl.pol[l.j].iter().enumerate() {
+                    for (ci, c) in cl.charges[l.i].iter().enumerate() {
+                        let r = (pb.pos + l.shift) - c.pos;
+                        let (h, dh) = charge_terms(r.norm(), root2 * sigma[l.j][b]);
+                        it.cd.push(Cd { a: first[l.j] + b, c: firstc[l.i] + ci, q: c.q, h, dh, r, pol_on_first: false });
+                    }
+                }
+                it
+            })
+            .collect()
+    })
+    .into_iter()
+    .flatten()
+    .collect();
+    let mut e0 = vec![Vec3::ZERO; n];
+    for (l, it) in links.iter().zip(&items) {
+        for c in &it.cd {
+            e0[c.a] += c.r.scale(l.weight * c.q * c.h);
         }
     }
     let inv_alpha: Vec<f64> = cl.pol.iter().flat_map(|m| m.iter().map(|p| 1.0 / p.alpha)).collect();
     let matvec = |x: &[Vec3]| -> Vec<Vec3> {
         let mut y: Vec<Vec3> = x.iter().zip(&inv_alpha).map(|(v, ia)| v.scale(*ia)).collect();
-        for &(a, b, ta, tbp, r) in &blocks {
-            y[a] += tensor_apply(ta, tbp, r, x[b]);
-            y[b] += tensor_apply(ta, tbp, r, x[a]);
+        for d in &intra {
+            y[d.a] += tensor_apply(d.ta, d.tbp, d.r, x[d.b]);
+            y[d.b] += tensor_apply(d.ta, d.tbp, d.r, x[d.a]);
+        }
+        let parts = chunked(links.len(), &|range: std::ops::Range<usize>| -> Vec<Vec3> {
+            let mut part = vec![Vec3::ZERO; n];
+            for k in range {
+                let w = links[k].weight;
+                for d in &items[k].dd {
+                    part[d.a] += tensor_apply(w * d.ta, w * d.tbp, d.r, x[d.b]);
+                    part[d.b] += tensor_apply(w * d.ta, w * d.tbp, d.r, x[d.a]);
+                }
+            }
+            part
+        });
+        for part in parts {
+            for (yy, p) in y.iter_mut().zip(part) {
+                *yy += p;
+            }
         }
         y
     };
@@ -258,84 +351,82 @@ pub fn solve(cl: &Cluster, links: &[Link], warm: Option<&[Vec<Vec3>]>, tolerance
     }
     let energy = -0.5 * mu.iter().zip(&e0).map(|(m, e)| m.dot(*e)).sum::<f64>();
     // Forces at fixed dipoles.
-    let mut force_pol: Vec<Vec<Vec3>> = cl.pol.iter().map(|m| vec![Vec3::ZERO; m.len()]).collect();
-    let mut force_charge: Vec<Vec<Vec3>> = cl.charges.iter().map(|m| vec![Vec3::ZERO; m.len()]).collect();
-    let mut link_force = vec![Vec3::ZERO; links.len()];
-    let mut virial = 0.0;
+    let mut fpol = vec![Vec3::ZERO; n];
+    let mut fch = vec![Vec3::ZERO; nc];
     // Intramolecular dipole-dipole. Equal and opposite on a molecule's pair of
     // sites, so they add nothing to its net force, but they are not central, so
     // at fixed dipoles they do turn it: the torque of a rigid molecule is the
     // derivative of the minimised energy with respect to its rotation, and
     // those dipoles do not rotate with it until they have been re-minimised.
-    for i in 0..nm {
-        for a in 0..cl.pol[i].len() {
-            for b in a + 1..cl.pol[i].len() {
-                let (ma, mb) = (mu[first[i] + a], mu[first[i] + b]);
-                let r = cl.pol[i][a].pos - cl.pol[i][b].pos;
-                let rr = r.norm();
-                let s = (2.0 * (sigma[i][a].powi(2) + sigma[i][b].powi(2))).sqrt();
-                let (_, tbp, da, dbp) = dd_terms(rr, s);
-                let grad = r.scale(da / rr * ma.dot(mb)) - r.scale(dbp / rr * ma.dot(r) * mb.dot(r)) - ma.scale(tbp * mb.dot(r)) - mb.scale(tbp * ma.dot(r));
-                force_pol[i][a] -= grad;
-                force_pol[i][b] += grad;
-            }
-        }
+    for d in &intra {
+        let (ma, mb) = (mu[d.a], mu[d.b]);
+        let rr = d.r.norm();
+        let grad = d.r.scale(d.da / rr * ma.dot(mb)) - d.r.scale(d.dbp / rr * ma.dot(d.r) * mb.dot(d.r)) - ma.scale(d.tbp * mb.dot(d.r)) - mb.scale(d.tbp * ma.dot(d.r));
+        fpol[d.a] -= grad;
+        fpol[d.b] += grad;
     }
-    for (k, l) in links.iter().enumerate() {
-        let mut u = 0.0;
-        // Forces on i's sites from j, and on j's from i, before the weight.
-        let mut f_i = Vec3::ZERO;
-        for (a, pa) in cl.pol[l.i].iter().enumerate() {
-            let ma = mu[first[l.i] + a];
-            for (b, pb) in cl.pol[l.j].iter().enumerate() {
-                let mb = mu[first[l.j] + b];
-                let r = pa.pos - (pb.pos + l.shift);
-                let rr = r.norm();
-                let s = (2.0 * (sigma[l.i][a].powi(2) + sigma[l.j][b].powi(2))).sqrt();
-                let (ta, tbp, da, dbp) = dd_terms(rr, s);
-                u += ma.dot(mb) * ta - tbp * ma.dot(r) * mb.dot(r);
-                // d/dr_vec of u.
-                let grad = r.scale(da / rr * ma.dot(mb)) - r.scale(dbp / rr * ma.dot(r) * mb.dot(r)) - ma.scale(tbp * mb.dot(r)) - mb.scale(tbp * ma.dot(r));
+    struct Part {
+        fpol: Vec<Vec3>,
+        fch: Vec<Vec3>,
+        link_force: Vec<Vec3>,
+        virial: f64,
+    }
+    let parts = chunked(links.len(), &|range: std::ops::Range<usize>| -> Part {
+        let mut part = Part { fpol: vec![Vec3::ZERO; n], fch: vec![Vec3::ZERO; nc], link_force: Vec::with_capacity(range.len()), virial: 0.0 };
+        for k in range {
+            let l = &links[k];
+            let mut u = 0.0;
+            let mut f_i = Vec3::ZERO;
+            for d in &items[k].dd {
+                let (ma, mb) = (mu[d.a], mu[d.b]);
+                let rr = d.r.norm();
+                u += ma.dot(mb) * d.ta - d.tbp * ma.dot(d.r) * mb.dot(d.r);
+                let grad = d.r.scale(d.da / rr * ma.dot(mb)) - d.r.scale(d.dbp / rr * ma.dot(d.r) * mb.dot(d.r)) - ma.scale(d.tbp * mb.dot(d.r)) - mb.scale(d.tbp * ma.dot(d.r));
                 let f = grad.scale(-l.weight);
-                force_pol[l.i][a] += f;
-                force_pol[l.j][b] -= f;
+                part.fpol[d.a] += f;
+                part.fpol[d.b] -= f;
                 f_i += f;
             }
-            for (ci, c) in cl.charges[l.j].iter().enumerate() {
-                let r = pa.pos - (c.pos + l.shift);
-                let rr = r.norm();
-                let (h, dh) = charge_terms(rr, (2.0f64).sqrt() * sigma[l.i][a]);
-                u -= c.q * h * ma.dot(r);
-                let grad = r.scale(-c.q * dh / rr * ma.dot(r)) - ma.scale(c.q * h);
+            for c in &items[k].cd {
+                let m = mu[c.a];
+                let rr = c.r.norm();
+                u -= c.q * c.h * m.dot(c.r);
+                let grad = c.r.scale(-c.q * c.dh / rr * m.dot(c.r)) - m.scale(c.q * c.h);
                 let f = grad.scale(-l.weight);
-                force_pol[l.i][a] += f;
-                force_charge[l.j][ci] -= f;
-                f_i += f;
+                part.fpol[c.a] += f;
+                part.fch[c.c] -= f;
+                // The force on the first molecule from this pair: what its
+                // dipole feels, or minus what the dipole of the other feels
+                // (its charge feels the opposite).
+                if c.pol_on_first {
+                    f_i += f;
+                } else {
+                    f_i -= f;
+                }
             }
+            // The weight's own dependence on the separation.
+            let dist = l.d.norm();
+            let fw = if dist > 0.0 { l.d.scale(-u * l.dweight / dist) } else { Vec3::ZERO };
+            part.link_force.push(fw);
+            part.virial += l.d.dot(f_i + fw);
         }
-        for (b, pb) in cl.pol[l.j].iter().enumerate() {
-            let mb = mu[first[l.j] + b];
-            for (ci, c) in cl.charges[l.i].iter().enumerate() {
-                let r = (pb.pos + l.shift) - c.pos;
-                let rr = r.norm();
-                let (h, dh) = charge_terms(rr, (2.0f64).sqrt() * sigma[l.j][b]);
-                u -= c.q * h * mb.dot(r);
-                let grad = r.scale(-c.q * dh / rr * mb.dot(r)) - mb.scale(c.q * h);
-                let f = grad.scale(-l.weight);
-                force_pol[l.j][b] += f;
-                force_charge[l.i][ci] -= f;
-                // The force on molecule i from this pair is what its charge
-                // feels: minus what the dipole feels.
-                f_i -= f;
-            }
+        part
+    });
+    let mut link_force = Vec::with_capacity(links.len());
+    let mut virial = 0.0;
+    for part in parts {
+        for (a, b) in fpol.iter_mut().zip(&part.fpol) {
+            *a += *b;
         }
-        // The weight's own dependence on the separation.
-        let dist = l.d.norm();
-        let fw = if dist > 0.0 { l.d.scale(-u * l.dweight / dist) } else { Vec3::ZERO };
-        link_force[k] = fw;
-        virial += l.d.dot(f_i + fw);
+        for (a, b) in fch.iter_mut().zip(&part.fch) {
+            *a += *b;
+        }
+        link_force.extend(part.link_force);
+        virial += part.virial;
     }
     let dipoles: Vec<Vec<Vec3>> = (0..nm).map(|i| mu[first[i]..first[i + 1]].to_vec()).collect();
+    let force_pol: Vec<Vec<Vec3>> = (0..nm).map(|i| fpol[first[i]..first[i + 1]].to_vec()).collect();
+    let force_charge: Vec<Vec<Vec3>> = (0..nm).map(|i| fch[firstc[i]..firstc[i + 1]].to_vec()).collect();
     Induced { energy, dipoles, force_pol, force_charge, link_force, virial, iterations }
 }
 

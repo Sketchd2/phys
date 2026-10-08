@@ -26,7 +26,9 @@
 //! sized to keep a dispatch short, with each row's running sums and their
 //! compensation carried from one to the next.
 
+pub mod fock;
 pub mod product;
+pub use fock::install_fock;
 pub use product::install_product;
 
 use phys::electrons::vdw::{KernelTable, RowEngine, RowPoint, RowSums, ASYMPTOTE_C, ASYMPTOTIC_FROM};

@@ -782,6 +782,71 @@ impl Fitted {
         (y, nk)
     }
 
+    /// Identity of the table this fit shares (the allocation), for a cache that
+    /// holds something made from it.
+    pub fn table_key(&self) -> usize {
+        std::sync::Arc::as_ptr(&self.t) as usize
+    }
+
+    /// Functions in the basis, and the auxiliary directions the fit kept.
+    pub fn dimensions(&self) -> (usize, usize) {
+        (self.n, self.kept.len())
+    }
+
+    /// Every entry `(m, n)`, `m >= n`, of the table once, in the order it is
+    /// stored, with the fitted integral already whitened:
+    /// `B[mn][k] = sum_P L^-1[k][P] (mn|P)`, so that `(mn|ls)` is, to the fit,
+    /// `sum_k B[mn][k] B[ls][k]`. The whitening is the same forward
+    /// substitution [`Fitted::whitened_half`] does, done once per entry and
+    /// across threads a batch at a time, for an engine that keeps the whole
+    /// of `B` resident and needs no table pass after this one.
+    pub fn visit_whitened(&self, f: &mut dyn FnMut(usize, usize, &[f64])) {
+        let na = self.metric.n;
+        let nk = self.kept.len();
+        let batch_len = ((1usize << 26) / (nk * 8)).clamp(16, 4096);
+        let threads = std::thread::available_parallelism().map(|t| t.get()).unwrap_or(1);
+        let mut pending: Vec<(usize, usize, Vec<f64>)> = Vec::with_capacity(batch_len);
+        let (kept, factor) = (&self.kept, &self.factor);
+        let mut flush = |pending: &mut Vec<(usize, usize, Vec<f64>)>, f: &mut dyn FnMut(usize, usize, &[f64])| {
+            if pending.is_empty() {
+                return;
+            }
+            let mut out = vec![0.0f64; pending.len() * nk];
+            let per = pending.len().div_ceil(threads);
+            let src = &*pending;
+            std::thread::scope(|sc| {
+                for (t, block) in out.chunks_mut(per * nk).enumerate() {
+                    sc.spawn(move || {
+                        let mut rhs = vec![0.0f64; nk];
+                        for (j, row) in block.chunks_mut(nk).enumerate() {
+                            let v = &src[t * per + j].2;
+                            for (q, &i) in kept.iter().enumerate() {
+                                rhs[q] = v[i];
+                            }
+                            for i in 0..nk {
+                                let lrow = &factor[i * nk..i * nk + i];
+                                let sum: f64 = lrow.iter().zip(row.iter()).map(|(a, b)| a * b).sum();
+                                row[i] = (rhs[i] - sum) / factor[i * nk + i];
+                            }
+                        }
+                    });
+                }
+            });
+            for (j, (m, nn, _)) in pending.iter().enumerate() {
+                f(*m, *nn, &out[j * nk..(j + 1) * nk]);
+            }
+            pending.clear();
+        };
+        let _ = na;
+        self.visit(&mut |m, nn, vals| {
+            pending.push((m, nn, vals.to_vec()));
+            if pending.len() == batch_len {
+                flush(&mut pending, f);
+            }
+        });
+        flush(&mut pending, f);
+    }
+
     fn coulomb_from(&self, c: &[f64]) -> Matrix {
         let n = self.n;
         let mut j = Matrix::zeros(n);

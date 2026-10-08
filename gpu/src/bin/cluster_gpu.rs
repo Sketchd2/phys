@@ -14,6 +14,15 @@ fn main() {
             std::process::exit(1);
         }
     }
+    // For `--method mp2`: Hartree-Fock's heavy passes on the GPU in double
+    // precision, against whitened integrals kept resident (`phys_gpu::fock`);
+    // `PHYS_NO_GPU_FOCK=1` leaves them on the CPU.
+    if std::env::var_os("PHYS_NO_GPU_FOCK").is_none() {
+        match phys_gpu::install_fock() {
+            Ok(name) => println!("Hartree-Fock passes on {name}"),
+            Err(e) => eprintln!("no GPU for Hartree-Fock: {e}"),
+        }
+    }
     // For `--method mp2`: the exchange matrix and MP2's products on the GPU, in
     // single precision. `PHYS_NO_GPU_PRODUCTS=1` leaves them on the CPU in
     // double, which is how the precision of the GPU's is checked.
