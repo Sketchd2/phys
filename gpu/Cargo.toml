@@ -30,6 +30,10 @@ name = "phys-cluster-gpu"
 path = "src/bin/cluster_gpu.rs"
 
 [[bin]]
+name = "phys-es-gpu"
+path = "src/bin/es_gpu.rs"
+
+[[bin]]
 name = "phys-s22-gpu"
 path = "src/bin/s22_gpu.rs"
 

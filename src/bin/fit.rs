@@ -55,6 +55,10 @@ fn main() {
         })
         .unwrap_or_default();
     let use_sigma = args.iter().any(|a| a == "--sigma");
+    // `--start law.txt`: begin the atom pairs' numbers from this law's
+    // rather than from a plain guess, so that terms added to it (`--lp`) are
+    // perturbations of a fit that already works.
+    let start_law: Option<SiteSite> = args.iter().position(|a| a == "--start").and_then(|i| args.get(i + 1)).map(|f| SiteSite::from_text(&std::fs::read_to_string(f).unwrap_or_else(|_| panic!("no {f}"))).expect("a readable law"));
     // `--no-c8`: no C8 at all.
     let no_c8 = args.iter().any(|a| a == "--no-c8");
     // `--esp esp-water.txt`: the charges and the bisector site from the
@@ -131,7 +135,7 @@ fn main() {
         // with no hydrogen bond in it. (The last charge follows from
         // neutrality.)
         let fit = if bisector {
-            let (fit, d) = fit_with_bisector(&train, &multiplicity, types, temperature, &c6_held, alpha_full.as_deref(), use_sigma, esp.as_ref(), &lp_sites, no_c8, match (two_stage, &hf_law) { (false, _) => Stage::Single, (true, None) => Stage::Hf, (true, Some(l)) => Stage::Correlation(l) });
+            let (fit, d) = fit_with_bisector(&train, &multiplicity, types, temperature, &c6_held, alpha_full.as_deref(), use_sigma, esp.as_ref(), &lp_sites, no_c8, start_law.as_ref(), match (two_stage, &hf_law) { (false, _) => Stage::Single, (true, None) => Stage::Hf, (true, Some(l)) => Stage::Correlation(l) });
             println!("    bisector site {d:.4} bohr from the first atom (weighted residual {:.3e})", fit.weighted_rms);
             bisector_distance = Some(d);
             fit
@@ -207,7 +211,7 @@ fn add_bisector(d: &PairEnergy, types: usize, distance: f64, extra: &[ExtraSite]
 /// distance the fit is started from several charges (the energy goes as a
 /// product of charges and has more than one basin) and the best kept; the
 /// distance is the coarse-grid minimum of the weighted residual, refined.
-fn fit_with_bisector(train: &[PairEnergy], multiplicity: &[usize], types: usize, temperature: f64, c6_held: &[((usize, usize), f64)], alpha: Option<&[f64]>, use_sigma: bool, esp: Option<&(Vec<f64>, f64, Vec<f64>)>, lp: &[ExtraSite], no_c8: bool, stage: Stage) -> (Fitted, f64) {
+fn fit_with_bisector(train: &[PairEnergy], multiplicity: &[usize], types: usize, temperature: f64, c6_held: &[((usize, usize), f64)], alpha: Option<&[f64]>, use_sigma: bool, esp: Option<&(Vec<f64>, f64, Vec<f64>)>, lp: &[ExtraSite], no_c8: bool, start_law: Option<&SiteSite>, stage: Stage) -> (Fitted, f64) {
     let mut mult = multiplicity.to_vec();
     mult.push(1);
     if !lp.is_empty() {
@@ -262,9 +266,20 @@ fn fit_with_bisector(train: &[PairEnergy], multiplicity: &[usize], types: usize,
                     p[3] = 0.0;
                 }
             }
+            if let Some(law) = start_law {
+                let lt = law.charge.len();
+                for a in 0..types {
+                    for b in 0..types {
+                        start.pair[a * all + b] = law.pair[a * lt + b];
+                    }
+                }
+            }
+            // A repelling site begins nearly absent when there is a law to
+            // perturb, and at a plain guess when there is not.
+            let lp_start = if start_law.is_some() { [1e-4, 2.0, 0.0, 0.0] } else { [5.0, 1.5, 0.0, 0.0] };
             for &(a, b) in &lp_pairs {
-                start.pair[a * all + b] = [5.0, 1.5, 0.0, 0.0];
-                start.pair[b * all + a] = [5.0, 1.5, 0.0, 0.0];
+                start.pair[a * all + b] = lp_start;
+                start.pair[b * all + a] = lp_start;
             }
             if matches!(stage, Stage::Hf) {
                 for p in start.pair.iter_mut() {

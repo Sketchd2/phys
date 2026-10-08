@@ -1000,6 +1000,96 @@ impl Monomer {
     }
 }
 
+/// The electrostatic interaction of two molecules' own charge distributions —
+/// the first-order energy of nuclei and electrons as they are in the
+/// molecules, before either feels the other — for pairs already computed
+/// (`PLAY.md` E8b). Each pair's two monomers are solved in the pair's basis
+/// (Hartree-Fock, the ghosts of the counterpoise correction), and the energy is
+/// `Z_a Z_b / R` across, the nuclei of each in the other's electrons, and the
+/// electrons of each in the other's, with the electron-electron term through
+/// the fit as everything else is. A law's electrostatics can then be compared
+/// with the density's own, geometry by geometry, apart from its repulsion,
+/// dispersion and induction.
+///
+/// `phys-es-gpu water pairs-water-gpu-bias-mp2.txt [--max-oo 4.6 (A)] [--every n]`
+/// appends `k separation E_es` (bohr, hartree) to `es-<name>.txt`, resuming.
+pub fn es_main(args: &[String]) {
+    use crate::electrons::integrals::one_electron;
+    use crate::electrons::scf::Fitted;
+    let name = args.first().cloned().unwrap_or_else(|| "water".into());
+    let file = args.get(1).cloned().expect("a pairs file");
+    let flag = |f: &str| args.iter().position(|a| a == f).and_then(|i| args.get(i + 1)).cloned();
+    let max_oo: f64 = flag("--max-oo").and_then(|v| v.parse().ok()).unwrap_or(4.6);
+    let every: usize = flag("--every").and_then(|v| v.parse().ok()).unwrap_or(1);
+    let mono = Monomer::load(&name, false);
+    let n = mono.z.len();
+    let out = format!("es-{name}.txt");
+    let done = done_indices(&out);
+    let mut outfile = std::fs::OpenOptions::new().create(true).append(true).open(&out).expect("the output file");
+    let text = std::fs::read_to_string(&file).unwrap_or_else(|_| panic!("no {file}"));
+    let mut taken = 0usize;
+    for line in text.lines().filter(|l| !l.starts_with('#') && l.contains('|')) {
+        let (head, tail) = line.split_once('|').expect("a |");
+        let h: Vec<&str> = head.split_whitespace().collect();
+        let k: usize = h[0].parse().expect("an index");
+        let t: Vec<&str> = tail.split_whitespace().collect();
+        let atoms: Vec<Vec3> = t.chunks(4).map(|c| Vec3 { x: c[0].parse().unwrap(), y: c[1].parse().unwrap(), z: c[2].parse().unwrap() }).collect();
+        let (a, b) = (atoms[..n].to_vec(), atoms[n..].to_vec());
+        let oo = (a[0] - b[0]).norm() * 0.529177210903;
+        if oo > max_oo || done.contains(&k) {
+            continue;
+        }
+        taken += 1;
+        if taken % every != 0 {
+            continue;
+        }
+        let start = Instant::now();
+        let mols = vec![a.clone(), b.clone()];
+        let base = mono.cluster_problem(&mols);
+        let electrons: f64 = mono.z.iter().map(|&zz| zz as f64).sum();
+        let nb = base.basis.size;
+        let mut dens = Vec::new();
+        for i in 0..2 {
+            let keep: Vec<usize> = (i * n..(i + 1) * n).collect();
+            let p = base.with_ghosts(&keep, electrons);
+            let hf = crate::electrons::hf::hartree_fock(&p, 200, 1e-9);
+            assert!(hf.converged, "a monomer did not converge");
+            let mut d = crate::electrons::linalg::Matrix::zeros(nb);
+            for x in 0..nb {
+                for y in 0..nb {
+                    let s: f64 = (0..hf.occupied).map(|o| hf.c[x * hf.m + o] * hf.c[y * hf.m + o]).sum();
+                    d.set(x, y, 2.0 * s);
+                }
+            }
+            dens.push(d);
+        }
+        let nuc = |m: &[Vec3]| -> Vec<(f64, [f64; 3])> { m.iter().zip(&mono.z).map(|(p, zz)| (*zz as f64, [p.x, p.y, p.z])).collect() };
+        let (na, nbn) = (nuc(&a), nuc(&b));
+        let mut e = 0.0;
+        for (za, pa) in &na {
+            for (zb, pb) in &nbn {
+                e += za * zb / ((pa[0] - pb[0]).powi(2) + (pa[1] - pb[1]).powi(2) + (pa[2] - pb[2]).powi(2)).sqrt();
+            }
+        }
+        let (s, _, v_b) = one_electron(&base.basis, &nbn);
+        let (_, _, v_a) = one_electron(&base.basis, &na);
+        for x in 0..nb * nb {
+            e += dens[0].a[x] * v_b.a[x] + dens[1].a[x] * v_a.a[x];
+        }
+        let aux = base.auxiliary.as_ref().expect("an auxiliary basis");
+        let fit = Fitted::new(&base.basis, aux, &s);
+        let (j, _) = fit.coulomb_and_energy(&dens[0]);
+        for x in 0..nb * nb {
+            e += dens[1].a[x] * j.a[x];
+        }
+        let sep = (a[0] - b[0]).norm();
+        writeln!(outfile, "{k} {sep:.6} {e:.10e}").expect("written");
+        outfile.flush().ok();
+        println!("pair {k}: O-O {oo:.2} A, electrostatic {:.3} kcal/mol, {:.0} s", e * 627.509474, start.elapsed().as_secs_f64());
+        std::io::stdout().flush().ok();
+    }
+}
+
 /// The fields of a cluster calculation that are finished, kept in the cluster's
 /// own file as they come: one line `field <slot> <PBE-exchange energy>
 /// <revPBE-exchange energy> <iterations> <seconds>`, slot 0 the cluster and slot
