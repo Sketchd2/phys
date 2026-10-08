@@ -417,6 +417,13 @@ pub struct SiteSite {
     pub charge: Vec<f64>,
     /// Per pair of types, `[A, B, C6, C8]`, indexed `a * types + b`, symmetric.
     pub pair: Vec<[f64; 4]>,
+    /// The width of each type's charge, bohr: a Gaussian cloud and not a point,
+    /// so two charges closer than their clouds feel `erf(r / s) / r` with
+    /// `s^2 = sigma_a^2 + sigma_b^2` (charge penetration: a charge inside
+    /// another's cloud sees less of it). Empty, or zero, is a point charge.
+    /// Only the permanent electrostatics are smeared; the induced dipoles'
+    /// field still comes from the point charges.
+    pub sigma: Vec<f64>,
 }
 
 impl SiteLaw for SiteSite {
@@ -424,12 +431,25 @@ impl SiteLaw for SiteSite {
         let types = self.charge.len();
         let [a, b, c6, c8] = self.pair[ta * types + tb];
         let qq = self.charge[ta] * self.charge[tb];
+        let s2 = match (self.sigma.get(ta), self.sigma.get(tb)) {
+            (Some(x), Some(y)) => x * x + y * y,
+            _ => 0.0,
+        };
+        // qq times 1/r, smeared: the value and its derivative with respect to r.
+        let (coul, dcoul) = if s2 > 0.0 && qq != 0.0 {
+            let sg = s2.sqrt();
+            let g = crate::induction::erf(r / sg);
+            let c = 2.0 / (std::f64::consts::PI.sqrt() * sg) * (-r * r / s2).exp();
+            (qq * g / r, qq * (c / r - g / (r * r)))
+        } else {
+            (qq / r, -qq / (r * r))
+        };
         let rep = a * (-b * r).exp();
         let (f6, df6) = tang_toennies(6, b * r);
         let (f8, df8) = tang_toennies(8, b * r);
         let (r6, r8) = (r.powi(6), r.powi(8));
-        let u = qq / r + rep - f6 * c6 / r6 - f8 * c8 / r8;
-        let du = -qq / (r * r) - b * rep - (b * df6 * c6 / r6 - 6.0 * f6 * c6 / (r6 * r)) - (b * df8 * c8 / r8 - 8.0 * f8 * c8 / (r8 * r));
+        let u = coul + rep - f6 * c6 / r6 - f8 * c8 / r8;
+        let du = dcoul - b * rep - (b * df6 * c6 / r6 - 6.0 * f6 * c6 / (r6 * r)) - (b * df8 * c8 / r8 - 8.0 * f8 * c8 / (r8 * r));
         (u, du)
     }
 }
@@ -543,6 +563,12 @@ pub struct Held<'a> {
     pub pairs: &'a [(usize, usize)],
     /// Type pairs whose `C6` alone is held.
     pub dispersion: &'a [(usize, usize)],
+    /// Fit a charge width for every type (see [`SiteSite::sigma`]).
+    pub sigma: bool,
+    /// Keep the starting charges (the last still follows from neutrality):
+    /// charges derived from the molecule's own density (`phys-esp`), so that
+    /// the pair energies fit only what the density does not say.
+    pub charges: bool,
 }
 
 /// [`fit_site_site`] with some numbers held at their starting values.
@@ -568,6 +594,11 @@ pub fn fit_site_site_polarised(data: &[PairEnergy], multiplicity: &[usize], star
                 x.push(v.max(1e-300).ln());
             }
         }
+        if held.sigma {
+            for t in 0..types {
+                x.push(law.sigma.get(t).copied().filter(|v| *v > 0.0).unwrap_or(0.5).ln());
+            }
+        }
         x
     };
     let unpack = |x: &[f64]| -> SiteSite {
@@ -581,13 +612,14 @@ pub fn fit_site_site_polarised(data: &[PairEnergy], multiplicity: &[usize], star
             pair[a * types + b] = v;
             pair[b * types + a] = v;
         }
-        SiteSite { charge, pair }
+        let sigma = if held.sigma { (0..types).map(|t| x[types - 1 + 4 * pairs.len() + t].exp()).collect() } else { start.sigma.clone() };
+        SiteSite { charge, pair, sigma }
     };
     // What is fitted: every parameter but the held ones, which keep what
     // `start` gave them.
     let base = pack(start);
     let is_held = |list: &[(usize, usize)], a: usize, b: usize| list.iter().any(|&(p, q)| (p, q) == (a, b) || (q, p) == (a, b));
-    let mut free: Vec<usize> = (0..types - 1).collect();
+    let mut free: Vec<usize> = if held.charges { Vec::new() } else { (0..types - 1).collect() };
     for (k, &(a, b)) in pairs.iter().enumerate() {
         let o = types - 1 + 4 * k;
         if is_held(held.pairs, a, b) {
@@ -598,6 +630,9 @@ pub fn fit_site_site_polarised(data: &[PairEnergy], multiplicity: &[usize], star
                 free.push(o + j);
             }
         }
+    }
+    if held.sigma {
+        free.extend((0..types).map(|t| types - 1 + 4 * pairs.len() + t));
     }
     let expand = |xf: &[f64]| -> Vec<f64> {
         let mut full = base.clone();
@@ -823,6 +858,7 @@ impl SiteSite {
     /// Read back what [`SiteSite::to_text`] wrote.
     pub fn from_text(text: &str) -> Option<SiteSite> {
         let mut charge = Vec::new();
+        let mut sigma = Vec::new();
         let mut pairs = Vec::new();
         for line in text.lines() {
             let w: Vec<&str> = line.split_whitespace().collect();
@@ -833,6 +869,7 @@ impl SiteSite {
                 Some("bisector") => {}
                 // Read by `alpha_from_text`: the polarisability of a site type.
                 Some("alpha") => {}
+                Some("sigma") => sigma = w[1..].iter().map(|x| x.parse().ok()).collect::<Option<Vec<f64>>>()?,
                 Some("pair") if w.len() == 7 => {
                     let (a, b): (usize, usize) = (w[1].parse().ok()?, w[2].parse().ok()?);
                     let v: Vec<f64> = w[3..].iter().map(|x| x.parse().ok()).collect::<Option<Vec<f64>>>()?;
@@ -848,7 +885,7 @@ impl SiteSite {
             pair[a * types + b] = v;
             pair[b * types + a] = v;
         }
-        Some(SiteSite { charge, pair })
+        Some(SiteSite { charge, pair, sigma })
     }
 }
 

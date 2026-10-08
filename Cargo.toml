@@ -119,3 +119,11 @@ overflow-checks = true
 # dependencies; the engine is not allowed to have them.
 [workspace]
 members = ["program", "gpu"]
+
+[[bin]]
+name = "phys-diag"
+path = "src/bin/diag.rs"
+
+[[bin]]
+name = "phys-esp"
+path = "src/bin/esp.rs"

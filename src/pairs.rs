@@ -154,6 +154,28 @@ pub struct Monomer {
     /// plus correlation) where the PBE-exchange energy goes and the
     /// Hartree-Fock part where the revPBE one does.
     pub mp2: bool,
+    /// Draw pairs where a law says the liquid goes (`--bias law.txt [kT]`),
+    /// not uniformly: see [`Monomer::biased_pair`].
+    pub bias: Option<Bias>,
+}
+
+/// A law and a temperature to draw pairs by.
+pub struct Bias {
+    law: crate::liquid::SiteSite,
+    alpha: Vec<f64>,
+    bisector: Option<f64>,
+    /// kcal/mol.
+    kt: f64,
+}
+
+impl Bias {
+    pub fn from_file(path: &str, kt: f64) -> Bias {
+        let text = std::fs::read_to_string(path).unwrap_or_else(|_| panic!("no {path}"));
+        let law = crate::liquid::SiteSite::from_text(&text).expect("a readable law");
+        let alpha = crate::liquid::SiteSite::alpha_from_text(&text, law.charge.len());
+        let bisector = crate::liquid::SiteSite::bisector_from_text(&text).map(|b| b.1);
+        Bias { law, alpha, bisector, kt }
+    }
 }
 
 /// The atoms of a molecule `phys-grow` knows by name.
@@ -184,7 +206,7 @@ impl Monomer {
         }
         let body: Vec<Vec3> = mono.positions.iter().map(|p| Vec3 { x: p[0] - com[0], y: p[1] - com[1], z: p[2] - com[2] }).collect();
         let contact: Vec<f64> = z.iter().map(|&zz| crate::chem::elements::Element(zz as u8).vdw_radius().unwrap_or(1.5e-10) / 0.529177210903e-10).collect();
-        Monomer { name: name.to_string(), z, types, extra, body, contact, masses, grown, mp2: false }
+        Monomer { name: name.to_string(), z, types, extra, body, contact, masses, grown, mp2: false, bias: None }
     }
 
     /// Pair `k` of the random draw: two molecules' atom positions and the
@@ -204,6 +226,46 @@ impl Monomer {
             let near = closest_contact(k);
             let clash = (0..n).any(|i| (0..n).any(|j| (a[i] - b[j]).norm() < near * (self.contact[i] + self.contact[j])));
             if !clash {
+                return (a, b, sep);
+            }
+        }
+    }
+
+    /// Pair `k` drawn where a law puts a liquid's neighbours: positions and
+    /// orientations as in [`Monomer::random_pair`], over the separations a
+    /// first shell and a second occupy (2.2 to 4.2 A), accepted with
+    /// probability `exp(-(E - E0) / kT)` of the law's energy `E` (induction
+    /// included), `E0` being 6 kcal/mol below zero so that every pair at least
+    /// that bound is kept. The uniform draw put 10 of 219 pairs inside 2.8 A
+    /// of oxygen separation, where the hydrogen bonds are and the fitted law
+    /// was 0.7-0.8 kcal/mol too attractive; this puts the pairs where the
+    /// law is asked to be right. The pair is a function of `k` alone.
+    pub fn biased_pair(&self, k: usize, bias: &Bias) -> (Vec<Vec3>, Vec<Vec3>, f64) {
+        let n = self.z.len();
+        let mut s = Stream::at(0x6269_6173_5f70 ^ self.name.len() as u64, k as u128, 0, Purpose::Positions);
+        let atoms = |m: &[Vec3]| -> Vec<(Vec3, usize)> {
+            let mut v: Vec<(Vec3, usize)> = m.iter().zip(&self.types).map(|(p, t)| (*p, *t)).collect();
+            if let Some(d) = bias.bisector {
+                let site = bias.law.charge.len() - 1;
+                v = crate::liquid::with_bisector_site(&v, site, d);
+            }
+            v
+        };
+        loop {
+            let qa = random_rotation(&mut s);
+            let qb = random_rotation(&mut s);
+            let dir = s.direction();
+            let sep = s.range(4.2, 8.0);
+            let a: Vec<Vec3> = self.body.iter().map(|p| qa.rotate(*p)).collect();
+            let b: Vec<Vec3> = self.body.iter().map(|p| qb.rotate(*p) + dir.scale(sep)).collect();
+            let near = 0.64;
+            if (0..n).any(|i| (0..n).any(|j| (a[i] - b[j]).norm() < near * (self.contact[i] + self.contact[j]))) {
+                continue;
+            }
+            let pe = crate::liquid::PairEnergy { a: atoms(&a), b: atoms(&b), energy: 0.0 };
+            let e = crate::liquid::pair_energy(&crate::liquid::Polarisable { law: &bias.law, alpha: bias.alpha.clone() }, &pe) * 627.509474;
+            let p = (-(e + 6.0) / bias.kt).exp().min(1.0);
+            if s.uniform() < p {
                 return (a, b, sep);
             }
         }
@@ -255,7 +317,11 @@ pub fn run(args: &[String], tag: &str) {
     let grown = args.get(2).map(|s| s == "grown").unwrap_or(false);
     let mut mono = Monomer::load(&name, grown);
     mono.mp2 = args.iter().any(|a| a == "--mp2");
-    let out = format!("pairs-{name}{tag}{}.txt", if mono.mp2 { "-mp2" } else { "" });
+    if let Some(i) = args.iter().position(|a| a == "--bias") {
+        let kt: f64 = args.get(i + 2).and_then(|v| v.parse().ok()).unwrap_or(2.0);
+        mono.bias = Some(Bias::from_file(args.get(i + 1).expect("--bias needs a law file"), kt));
+    }
+    let out = format!("pairs-{name}{tag}{}{}.txt", if mono.bias.is_some() { "-bias" } else { "" }, if mono.mp2 { "-mp2" } else { "" });
     let done = done_indices(&out);
     let mut file = std::fs::OpenOptions::new().create(true).append(true).open(&out).expect("the output file");
     if done.is_empty() {
@@ -271,7 +337,10 @@ pub fn run(args: &[String], tag: &str) {
             continue;
         }
         let t = Instant::now();
-        let (a, b, sep) = mono.random_pair(k);
+        let (a, b, sep) = match &mono.bias {
+            Some(b) => mono.biased_pair(k, b),
+            None => mono.random_pair(k),
+        };
         let (r, line) = mono.compute(k, &a, &b, sep);
         writeln!(file, "{line}").expect("the line written");
         file.flush().ok();

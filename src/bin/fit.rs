@@ -54,8 +54,16 @@ fn main() {
                 .collect()
         })
         .unwrap_or_default();
+    let use_sigma = args.iter().any(|a| a == "--sigma");
+    // `--esp esp-water.txt`: the charges and the bisector site from the
+    // molecule's own density (`phys-esp`), held while the rest is fitted.
+    let esp: Option<(Vec<f64>, f64, Vec<f64>)> = args.iter().position(|a| a == "--esp").and_then(|i| args.get(i + 1)).map(|f| {
+        let t = std::fs::read_to_string(f).unwrap_or_else(|_| panic!("no {f}"));
+        let law = SiteSite::from_text(&t).expect("charges in the esp file");
+        (law.charge, SiteSite::bisector_from_text(&t).expect("a bisector line").1, law.sigma)
+    });
     let alpha_file = args.iter().position(|a| a == "--alpha").and_then(|i| args.get(i + 1)).cloned();
-    let suffix = format!("{}{}{}", if bisector { "-bis" } else { "" }, if c6_held.is_empty() { "" } else { "-c6" }, if alpha_file.is_some() { "-ind" } else { "" });
+    let suffix = format!("{}{}{}{}{}", if bisector { "-bis" } else { "" }, if c6_held.is_empty() { "" } else { "-c6" }, if esp.is_some() { "-esp" } else { "" }, if alpha_file.is_some() { "-ind" } else { "" }, if use_sigma { "-sig" } else { "" });
     // Each atom type's polarisability, from `phys-polar`'s file, if asked.
     let alpha_atoms: Option<Vec<f64>> = alpha_file.as_ref().map(|f| {
         let t = std::fs::read_to_string(f).unwrap_or_else(|_| panic!("no {f}"));
@@ -101,20 +109,20 @@ fn main() {
         // with no hydrogen bond in it. (The last charge follows from
         // neutrality.)
         let fit = if bisector {
-            let (fit, d) = fit_with_bisector(&train, &multiplicity, types, temperature, &c6_held, alpha_full.as_deref());
+            let (fit, d) = fit_with_bisector(&train, &multiplicity, types, temperature, &c6_held, alpha_full.as_deref(), use_sigma, esp.as_ref());
             println!("    bisector site {d:.4} bohr from the first atom (weighted residual {:.3e})", fit.weighted_rms);
             bisector_distance = Some(d);
             fit
         } else {
             let mut charge = vec![0.0; types];
             charge[0] = -0.1;
-            let mut start = SiteSite { charge, pair: vec![[10.0, 2.0, 10.0, 200.0]; types * types] };
+            let mut start = SiteSite { charge, pair: vec![[10.0, 2.0, 10.0, 200.0]; types * types], sigma: Vec::new() };
             for &((a, b), v) in &c6_held {
                 start.pair[a * types + b][2] = v;
                 start.pair[b * types + a][2] = v;
             }
             let dispersion: Vec<(usize, usize)> = c6_held.iter().map(|&(p, _)| p).collect();
-            fit_site_site_polarised(&train, &multiplicity, &start, temperature, 1e-3, 5000, &Held { pairs: &[], dispersion: &dispersion }, alpha_full.as_deref())
+            fit_site_site_polarised(&train, &multiplicity, &start, temperature, 1e-3, 5000, &Held { pairs: &[], dispersion: &dispersion, sigma: use_sigma, charges: esp.is_some() }, alpha_full.as_deref())
         };
         let with_site = |d: &PairEnergy| -> PairEnergy { match bisector_distance { Some(x) => add_bisector(d, types, x), None => d.clone() } };
         let train: Vec<PairEnergy> = train.iter().map(&with_site).collect();
@@ -160,7 +168,7 @@ fn add_bisector(d: &PairEnergy, types: usize, distance: f64) -> PairEnergy {
 /// distance the fit is started from several charges (the energy goes as a
 /// product of charges and has more than one basin) and the best kept; the
 /// distance is the coarse-grid minimum of the weighted residual, refined.
-fn fit_with_bisector(train: &[PairEnergy], multiplicity: &[usize], types: usize, temperature: f64, c6_held: &[((usize, usize), f64)], alpha: Option<&[f64]>) -> (Fitted, f64) {
+fn fit_with_bisector(train: &[PairEnergy], multiplicity: &[usize], types: usize, temperature: f64, c6_held: &[((usize, usize), f64)], alpha: Option<&[f64]>, use_sigma: bool, esp: Option<&(Vec<f64>, f64, Vec<f64>)>) -> (Fitted, f64) {
     let mut mult = multiplicity.to_vec();
     mult.push(1);
     let all = types + 1;
@@ -169,11 +177,17 @@ fn fit_with_bisector(train: &[PairEnergy], multiplicity: &[usize], types: usize,
     let best_at = |d: f64| -> Fitted {
         let data: Vec<PairEnergy> = train.iter().map(|p| add_bisector(p, types, d)).collect();
         let mut best: Option<Fitted> = None;
-        for q_first in [-0.6, -0.2, 0.3, 0.8, 1.3] {
+        let starts: Vec<f64> = if esp.is_some() { vec![0.0] } else { vec![-0.6, -0.2, 0.3, 0.8, 1.3] };
+        for q_first in starts {
             let mut charge = vec![0.0; all];
             charge[0] = q_first;
             charge[1] = 0.3;
-            let mut start = SiteSite { charge, pair: vec![[10.0, 2.0, 10.0, 200.0]; all * all] };
+            let mut sigma_start = Vec::new();
+            if let Some((q, _, sg)) = esp {
+                charge = q.clone();
+                sigma_start = sg.clone();
+            }
+            let mut start = SiteSite { charge, pair: vec![[10.0, 2.0, 10.0, 200.0]; all * all], sigma: sigma_start };
             for &(a, b) in &site_pairs {
                 start.pair[a * all + b] = [0.0, 1.0, 0.0, 0.0];
                 start.pair[b * all + a] = [0.0, 1.0, 0.0, 0.0];
@@ -182,13 +196,16 @@ fn fit_with_bisector(train: &[PairEnergy], multiplicity: &[usize], types: usize,
                 start.pair[a * all + b][2] = v;
                 start.pair[b * all + a][2] = v;
             }
-            let fit = fit_site_site_polarised(&data, &mult, &start, temperature, 1e-3, 5000, &Held { pairs: &site_pairs, dispersion: &dispersion }, alpha);
+            let fit = fit_site_site_polarised(&data, &mult, &start, temperature, 1e-3, 5000, &Held { pairs: &site_pairs, dispersion: &dispersion, sigma: use_sigma, charges: esp.is_some() }, alpha);
             if fit.weighted_rms.is_finite() && best.as_ref().map_or(true, |b| fit.weighted_rms < b.weighted_rms) {
                 best = Some(fit);
             }
         }
         best.expect("a fit that is finite")
     };
+    if let Some((_, d, _)) = esp {
+        return (best_at(*d), *d);
+    }
     let mut scored: Vec<(f64, f64)> = Vec::new();
     for k in 0..9 {
         let d = 0.10 + 0.05 * k as f64;

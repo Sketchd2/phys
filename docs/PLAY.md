@@ -4454,6 +4454,68 @@ the start of the phase, ahead of the renderer**. In order:
      measured on the Z440. *Duplicate jobs:* a restarted waiter was not killed
      first and two S22 jobs ran at once, doubling CPU load for a while; the
      timings of that period are inflated.
+   - **E8b, a general intermolecular model: the investigation log.** *Started
+     2026-10-08 on the owner's instruction (free rein to try options, record
+     what worked and what did not). Nothing here replaces a decided method;
+     it is evidence for the owner's decision on the model.*
+     **Diagnosis, measured.** (1) *The simulator is sound:* a TIP4P/2005-like
+     law (charges 0.5564 / -1.1128, an exp-6 fitted to its Lennard-Jones) run in
+     `phys-bulk` gives a first g(OO) peak of 3.12 at 2.75 A, a minimum 0.63 at
+     3.35 A, a second shell at 4.35 A and coordination 4.25 - water. (Its energy,
+     -12.6 kcal/mol a molecule, is deeper than TIP4P/2005's because the exp-6 is
+     only an approximation of the Lennard-Jones, so only its structure is a
+     control.) The induction law's 10.7 neighbours are the law's, not the
+     simulator's. (2) *The law's error by oxygen-oxygen distance* (`phys-diag`,
+     MP2 total): 2.5-2.8 A mean -0.76, RMS 1.09 kcal/mol; 2.8-3.1 A -0.24 /
+     0.33; 3.1-4.4 A about 0.0 / 0.24-0.27; beyond 4.4 A under 0.08. (3) *The
+     training data is thin exactly there:* 10 of 219 pairs lie inside 2.8 A,
+     because pairs were drawn at random orientation and almost none is
+     hydrogen bonded. `phys-pairs --bias law.txt kT` now draws pairs where a law
+     puts a liquid's neighbours (accepted with exp(-(E+6)/kT), induction
+     included); 400 draws spread 7 / 38 / 85 / 77 / 97 / 96 over the shells
+     below 2.5, 2.5-2.8, 2.8-3.1, 3.1-3.4, 3.4-3.8, 3.8-4.4 A. Computed at MP2
+     on the GPU, about 80 s a pair with the CPU shared; `pairs-water-gpu-bias-mp2.txt`.
+     **Literature (web, checked; an earlier survey from memory was partly
+     confirmed).** *HIPPO* (Ponder group, JCTC 17, 7056, 2021): charge-penetration
+     damping `1 - (1 + zeta r/2) exp(-zeta r)` on the permanent electrostatics,
+     anisotropic multipolar Pauli repulsion `~ S^2/R` from orbital overlap,
+     damped dispersion, induced dipoles; 27 SAPT dimers for its first stage and
+     liquid properties after (density 996.5, dHvap 43.81 kJ/mol, g(OO) first peak
+     2.785 A at about 3.0, minimum near 3.3 A); 37 parameters, the last two stages
+     fitted to *measured liquid properties*, which the engine does not do.
+     *MEDFF* (JCTC 2017, doi 10.1021/acs.jctc.6b00969): pair-additive, every term
+     from the monomers' electron densities (SAPT-shaped), exactly one linear
+     parameter each for exchange-repulsion, dispersion and induction, close to
+     universal across S66x8. *AVDO* (arXiv 2510.25629): exchange-repulsion
+     `K * integral(rho_A rho_B)` over the *valence* densities, one universal
+     K (~41 bohr^2), trained on S66, 0.5 kcal/mol at equilibrium, 3.6 on the
+     repulsive wall, dimers only. *DensIP* (arXiv 2608.20753): electrostatics
+     exact from the densities (penetration included), AVDO repulsion (2
+     parameters), Gaussian induced dipoles, many-body dispersion; 4 universal
+     parameters; 0.7 kcal/mol on unseen molecules; no liquid reported.
+     *Van Vleet et al.* (JCTC 2016, arXiv 1606.00734): a Slater-ISA overlap
+     repulsion beats Born-Mayer over a broad range. *MB-pol:* 42,508 dimers and
+     12,347 trimers (CCSD(T)); fitted, not derived. *Point multipoles
+     underestimate the near-field potential* (Piquemal, Cisneros): penetration
+     is the standard remedy. **What this says for the engine:** the field has
+     converged on the architecture the axioms ask for - terms derived from the
+     monomer's own density with one or a few universal scale parameters - and no
+     published liquid-water result exists for the fully derived members of it
+     (MEDFF, DensIP), only for HIPPO, which is tuned to the liquid.
+     **Tried, E8b.** (a) *Free charge widths fitted to the pair energies*
+     (`phys-fit --sigma`): fitted RMS 0.277 but unseen 0.564 against 0.306, and
+     unphysical charges (+9.5 on oxygen, -10.9 on the extra site) - the pair
+     energies cannot fix a width; it has to come from the density. Did not
+     work. (b) *Charges from the density, no pair energy* (`phys-esp`):
+     Hartree-Fock potential on Merz-Kollman shells; the engine's charges come
+     out hydrogen +0.56, extra site -1.11 at 0.42 bohr, oxygen about 0 - TIP4P's
+     - with a dipole of 2.007 D (Hartree-Fock's overestimate) and a potential
+     RMS of 1.0e-3 hartree/e, nearly independent of where the site is.
+     (c) *Gaussian charges fitted to the near-field potential too* (shells 1.0
+     to 2.2 times the van der Waals radius, `phys-esp --gauss`): potential RMS
+     1.6e-3 against 4.3e-3 for the best point charges on the same points, 2.6x;
+     widths O 1.70, H 0.50, extra site 1.85 bohr. Penetration is real in the
+     density; the point-charge law has none.
    - **E8z, remove what was not chosen.** *Planned by the owner, to be done
      once the method above is validated and the owner confirms it; nothing is
      removed before that.* Every method the engine carries and the decision
