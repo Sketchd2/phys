@@ -163,7 +163,7 @@ fn the_switch_is_smooth() {
 #[test]
 fn the_site_site_law_is_consistent() {
     use phys::liquid::{tang_toennies, SiteSite};
-    let law = SiteSite { charge: vec![-0.7, 0.35], pair: vec![[40.0, 1.9, 15.0, 300.0], [3.0, 2.1, 4.0, 60.0], [3.0, 2.1, 4.0, 60.0], [0.5, 2.4, 1.0, 15.0]], sigma: Vec::new() };
+    let law = SiteSite { charge: vec![-0.7, 0.35], pair: vec![[40.0, 1.9, 15.0, 300.0], [3.0, 2.1, 4.0, 60.0], [3.0, 2.1, 4.0, 60.0], [0.5, 2.4, 1.0, 15.0]], sigma: Vec::new(), damp: Vec::new() };
     for (ta, tb) in [(0, 0), (0, 1), (1, 1)] {
         for r in [2.0, 3.5, 5.0, 9.0] {
             let h = 1e-6;
@@ -204,7 +204,7 @@ fn a_density_profile_counts_every_molecule() {
 #[test]
 fn the_fitter_recovers_a_law_from_its_own_energies() {
     use phys::liquid::{fit_site_site, pair_energy, PairEnergy, SiteSite};
-    let truth = SiteSite { charge: vec![-0.74, 0.37], pair: vec![[60.0, 2.0, 18.0, 350.0], [4.0, 2.2, 5.0, 70.0], [4.0, 2.2, 5.0, 70.0], [0.6, 2.5, 1.2, 16.0]], sigma: Vec::new() };
+    let truth = SiteSite { charge: vec![-0.74, 0.37], pair: vec![[60.0, 2.0, 18.0, 350.0], [4.0, 2.2, 5.0, 70.0], [4.0, 2.2, 5.0, 70.0], [0.6, 2.5, 1.2, 16.0]], sigma: Vec::new(), damp: Vec::new() };
     let kind = water_kind();
     let mut s = Liquid::noise(5);
     let mut data = Vec::new();
@@ -260,7 +260,7 @@ fn a_slab_is_built_at_its_density() {
 #[test]
 fn a_law_reads_back_exactly() {
     use phys::liquid::SiteSite;
-    let law = SiteSite { charge: vec![-0.7123456789012345, 0.35617283945061725], pair: vec![[40.1, 1.93, 15.2, 301.0], [3.01, 2.11, 4.02, 60.3], [3.01, 2.11, 4.02, 60.3], [0.51, 2.42, 1.03, 15.4]], sigma: Vec::new() };
+    let law = SiteSite { charge: vec![-0.7123456789012345, 0.35617283945061725], pair: vec![[40.1, 1.93, 15.2, 301.0], [3.01, 2.11, 4.02, 60.3], [3.01, 2.11, 4.02, 60.3], [0.51, 2.42, 1.03, 15.4]], sigma: Vec::new(), damp: Vec::new() };
     assert_eq!(SiteSite::from_text(&law.to_text()), Some(law));
 }
 
@@ -346,6 +346,7 @@ fn a_fit_holds_what_it_is_told_to_hold() {
         charge: vec![0.9, 0.6, -2.1],
         pair: vec![[60.0, 2.0, 18.0, 350.0], [4.0, 2.2, 5.0, 70.0], zero, [4.0, 2.2, 5.0, 70.0], [0.6, 2.5, 1.2, 16.0], zero, zero, zero, zero],
         sigma: Vec::new(),
+        damp: Vec::new(),
     };
     let kind = water_kind();
     let mut s = Liquid::noise(9);
@@ -380,7 +381,7 @@ fn a_fit_holds_what_it_is_told_to_hold() {
     }
     // The held C6 of the atom pair (0, 1) is the truth's, wherever else the start is.
     let held_c6 = truth.pair[1][2];
-    let fit = fit_site_site_held(&data, &[1, 2, 1], &start, 400.0, 1e-3, 3000, &Held { pairs: &[(0, 2), (1, 2), (2, 2)], dispersion: &[(0, 1)], sigma: false, charges: false });
+    let fit = fit_site_site_held(&data, &[1, 2, 1], &start, 400.0, 1e-3, 3000, &Held { pairs: &[(0, 2), (1, 2), (2, 2)], dispersion: &[(0, 1)], sigma: false, charges: false, damp: false, repulsion: false, no_dispersion: false });
     let spread = (data.iter().map(|d| d.energy * d.energy).sum::<f64>() / data.len() as f64).sqrt();
     println!("  {} iterations: rms {:.2e} against {spread:.2e}; charges {:?}; held C6 {:e}", fit.iterations, fit.rms, fit.law.charge, fit.law.pair[1][2]);
     assert!((fit.law.pair[1][2] / held_c6 - 1.0).abs() < 1e-12, "the held C6 moved to {}", fit.law.pair[1][2]);
@@ -393,7 +394,7 @@ fn a_fit_holds_what_it_is_told_to_hold() {
 /// A law with induced dipoles for the tests: charges on the types, a
 /// polarisability on each.
 fn polarisable_law() -> (phys::liquid::SiteSite, Vec<f64>) {
-    let law = phys::liquid::SiteSite { charge: vec![-0.7, 0.35], pair: vec![[40.0, 1.9, 15.0, 300.0], [3.0, 2.1, 4.0, 60.0], [3.0, 2.1, 4.0, 60.0], [0.5, 2.4, 1.0, 15.0]], sigma: Vec::new() };
+    let law = phys::liquid::SiteSite { charge: vec![-0.7, 0.35], pair: vec![[40.0, 1.9, 15.0, 300.0], [3.0, 2.1, 4.0, 60.0], [3.0, 2.1, 4.0, 60.0], [0.5, 2.4, 1.0, 15.0]], sigma: Vec::new(), damp: Vec::new() };
     (law, vec![5.5, 2.0])
 }
 
@@ -534,7 +535,7 @@ fn the_threaded_induction_solve_is_repeatable_and_correct() {
 fn a_smeared_charge_is_a_point_charge_far_away_and_softer_near() {
     use phys::liquid::{SiteLaw, SiteSite};
     let zero = [0.0, 1.0, 0.0, 0.0];
-    let point = SiteSite { charge: vec![0.6, -0.6], pair: vec![zero; 4], sigma: Vec::new() };
+    let point = SiteSite { charge: vec![0.6, -0.6], pair: vec![zero; 4], sigma: Vec::new(), damp: Vec::new() };
     let smeared = SiteSite { sigma: vec![0.7, 0.4], ..point.clone() };
     // Far apart the two agree; close, the smeared pair attracts less (a charge
     // inside another's cloud sees less of it); the derivative is the energy's.

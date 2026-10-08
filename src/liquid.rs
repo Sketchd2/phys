@@ -109,6 +109,12 @@ pub trait SiteLaw: Sync {
     fn induction(&self) -> Option<(&[f64], &[f64])> {
         None
     }
+
+    /// The width of each site type's charge cloud, for the field the charges
+    /// make on the induced dipoles (empty: points).
+    fn charge_widths(&self) -> &[f64] {
+        &[]
+    }
 }
 
 /// The quintic switch: 1 below `on`, 0 above `cut`, with continuous first and
@@ -242,7 +248,7 @@ impl Liquid {
         // rows' sum is the sum over pairs.
         let mut forces = Forces { energy: energy_rows.iter().sum(), force, torque, virial: 0.5 * virial_rows.iter().sum::<f64>(), dipoles: Vec::new() };
         if let Some((alpha, charge)) = law.induction() {
-            self.add_induction(&mut forces, &arms, alpha, charge, warm);
+            self.add_induction(&mut forces, &arms, alpha, charge, law.charge_widths(), warm);
         }
         forces
     }
@@ -252,7 +258,7 @@ impl Liquid {
     /// other molecule's permanent charges and of one another (`induction.rs`),
     /// each pair of molecules within the cut-off carrying the same switch as
     /// the pair terms. Adds the energy, forces, torques and virial.
-    fn add_induction(&self, forces: &mut Forces, arms: &[Vec<Vec3>], alpha: &[f64], charge: &[f64], warm: Option<&[Vec<Vec3>]>) {
+    fn add_induction(&self, forces: &mut Forces, arms: &[Vec<Vec3>], alpha: &[f64], charge: &[f64], widths: &[f64], warm: Option<&[Vec<Vec3>]>) {
         use crate::induction::{solve, Charge, Cluster, Link, PolSite};
         let n = self.com.len();
         let types = &self.kind.types;
@@ -261,7 +267,7 @@ impl Liquid {
         let mut cl = Cluster::default();
         for i in 0..n {
             cl.pol.push(pol_sites.iter().map(|&k| PolSite { pos: self.com[i] + arms[i][k], alpha: alpha[types[k]] }).collect());
-            cl.charges.push(charged.iter().map(|&k| Charge { pos: self.com[i] + arms[i][k], q: charge[types[k]] }).collect());
+            cl.charges.push(charged.iter().map(|&k| Charge { pos: self.com[i] + arms[i][k], q: charge[types[k]], sigma: widths.get(types[k]).copied().unwrap_or(0.0) }).collect());
         }
         let mut links = Vec::new();
         for i in 0..n {
@@ -404,6 +410,10 @@ impl SiteLaw for Polarisable<'_> {
     fn induction(&self) -> Option<(&[f64], &[f64])> {
         Some((&self.alpha, &self.law.charge))
     }
+
+    fn charge_widths(&self) -> &[f64] {
+        &self.law.sigma
+    }
 }
 
 /// Route A's site-site law (PLAY.md E8): between sites of types `a` and `b`,
@@ -424,6 +434,12 @@ pub struct SiteSite {
     /// Only the permanent electrostatics are smeared; the induced dipoles'
     /// field still comes from the point charges.
     pub sigma: Vec<f64>,
+    /// Per pair of types (`a * types + b`, symmetric), the exponent the
+    /// dispersion's Tang-Toennies damping uses in place of the repulsion's
+    /// `B`: where it is zero or the vector is empty the damping follows `B`.
+    /// Hartree-Fock's repulsion and the correlation energy's dispersion are
+    /// different physics and need not fall off together.
+    pub damp: Vec<f64>,
 }
 
 impl SiteLaw for SiteSite {
@@ -445,11 +461,12 @@ impl SiteLaw for SiteSite {
             (qq / r, -qq / (r * r))
         };
         let rep = a * (-b * r).exp();
-        let (f6, df6) = tang_toennies(6, b * r);
-        let (f8, df8) = tang_toennies(8, b * r);
+        let bd = self.damp.get(ta * types + tb).copied().filter(|v| *v > 0.0).unwrap_or(b);
+        let (f6, df6) = tang_toennies(6, bd * r);
+        let (f8, df8) = tang_toennies(8, bd * r);
         let (r6, r8) = (r.powi(6), r.powi(8));
         let u = coul + rep - f6 * c6 / r6 - f8 * c8 / r8;
-        let du = dcoul - b * rep - (b * df6 * c6 / r6 - 6.0 * f6 * c6 / (r6 * r)) - (b * df8 * c8 / r8 - 8.0 * f8 * c8 / (r8 * r));
+        let du = dcoul - b * rep - (bd * df6 * c6 / r6 - 6.0 * f6 * c6 / (r6 * r)) - (bd * df8 * c8 / r8 - 8.0 * f8 * c8 / (r8 * r));
         (u, du)
     }
 }
@@ -498,7 +515,7 @@ pub fn pair_energy(law: &dyn SiteLaw, pair: &PairEnergy) -> f64 {
         }
     }
     if let Some((alpha, charge)) = law.induction() {
-        e += induction_pair_energy(alpha, charge, pair);
+        e += induction_pair_energy(alpha, charge, law.charge_widths(), pair);
     }
     e
 }
@@ -507,12 +524,12 @@ pub fn pair_energy(law: &dyn SiteLaw, pair: &PairEnergy) -> f64 {
 /// dipoles in each other's permanent charges, from `induction::solve` with one
 /// link of weight one. Nothing for a molecule by itself (no field, no dipoles),
 /// so this is the whole of induction's part of the pair's interaction energy.
-pub fn induction_pair_energy(alpha: &[f64], charge: &[f64], pair: &PairEnergy) -> f64 {
+pub fn induction_pair_energy(alpha: &[f64], charge: &[f64], widths: &[f64], pair: &PairEnergy) -> f64 {
     use crate::induction::{solve, Charge, Cluster, Link, PolSite};
     let mut cl = Cluster::default();
     for m in [&pair.a, &pair.b] {
         cl.pol.push(m.iter().filter(|(_, t)| alpha[*t] > 0.0).map(|(p, t)| PolSite { pos: *p, alpha: alpha[*t] }).collect());
-        cl.charges.push(m.iter().filter(|(_, t)| charge[*t] != 0.0).map(|(p, t)| Charge { pos: *p, q: charge[*t] }).collect());
+        cl.charges.push(m.iter().filter(|(_, t)| charge[*t] != 0.0).map(|(p, t)| Charge { pos: *p, q: charge[*t], sigma: widths.get(*t).copied().unwrap_or(0.0) }).collect());
     }
     let links = [Link { i: 0, j: 1, shift: Vec3::ZERO, weight: 1.0, dweight: 0.0, d: Vec3::ZERO }];
     solve(&cl, &links, None, 1e-12).energy
@@ -550,6 +567,45 @@ pub fn with_bisector_site(molecule: &[(Vec3, usize)], site_type: usize, distance
     out
 }
 
+/// A site of a rigid molecule that is not an atom, placed in the molecule's own
+/// frame so that it follows the atoms: from the first atom `o`, with `u` and
+/// `v` the unit vectors to the second and third and `n` the unit normal of
+/// their plane, at `o + a u + b v + c n` (bohr). Where Boys-localised orbitals
+/// put a bond or a lone pair (`phys-esp --sites`) it is one of these; the
+/// law's text carries one `site <type> <a> <b> <c>` line for each.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ExtraSite {
+    pub ty: usize,
+    pub frame: [f64; 3],
+}
+
+impl ExtraSite {
+    pub fn position(&self, o: Vec3, p1: Vec3, p2: Vec3) -> Vec3 {
+        let (u, v) = ((p1 - o).unit(), (p2 - o).unit());
+        let n = u.cross(v).unit();
+        o + u.scale(self.frame[0]) + v.scale(self.frame[1]) + n.scale(self.frame[2])
+    }
+}
+
+/// The `site` lines of a law's text.
+pub fn extra_sites_from_text(text: &str) -> Vec<ExtraSite> {
+    text.lines()
+        .filter_map(|l| {
+            let w: Vec<&str> = l.split_whitespace().collect();
+            (w.first() == Some(&"site") && w.len() == 5).then(|| Some(ExtraSite { ty: w[1].parse().ok()?, frame: [w[2].parse().ok()?, w[3].parse().ok()?, w[4].parse().ok()?] })).flatten()
+        })
+        .collect()
+}
+
+/// A molecule's sites with `sites` added, in the order given.
+pub fn with_frame_sites(molecule: &[(Vec3, usize)], sites: &[ExtraSite]) -> Vec<(Vec3, usize)> {
+    let mut out = molecule.to_vec();
+    for s in sites {
+        out.push((s.position(molecule[0].0, molecule[1].0, molecule[2].0), s.ty));
+    }
+    out
+}
+
 /// Numbers of a law a fit leaves at the values it was started with.
 ///
 /// A site that carries charge and nothing else (an off-atom site standing in
@@ -569,6 +625,13 @@ pub struct Held<'a> {
     /// charges derived from the molecule's own density (`phys-esp`), so that
     /// the pair energies fit only what the density does not say.
     pub charges: bool,
+    /// Fit a dispersion damping exponent for every pair of types.
+    pub damp: bool,
+    /// Keep every pair's `A` and `B`: the repulsion fitted elsewhere.
+    pub repulsion: bool,
+    /// Keep `C6` and `C8` at zero: a fit to Hartree-Fock's energies, which
+    /// have no dispersion in them.
+    pub no_dispersion: bool,
 }
 
 /// [`fit_site_site`] with some numbers held at their starting values.
@@ -599,6 +662,11 @@ pub fn fit_site_site_polarised(data: &[PairEnergy], multiplicity: &[usize], star
                 x.push(law.sigma.get(t).copied().filter(|v| *v > 0.0).unwrap_or(0.5).ln());
             }
         }
+        if held.damp {
+            for &(a, b) in &pairs {
+                x.push(law.damp.get(a * types + b).copied().filter(|v| *v > 0.0).unwrap_or(law.pair[a * types + b][1]).max(1e-300).ln());
+            }
+        }
         x
     };
     let unpack = |x: &[f64]| -> SiteSite {
@@ -613,7 +681,18 @@ pub fn fit_site_site_polarised(data: &[PairEnergy], multiplicity: &[usize], star
             pair[b * types + a] = v;
         }
         let sigma = if held.sigma { (0..types).map(|t| x[types - 1 + 4 * pairs.len() + t].exp()).collect() } else { start.sigma.clone() };
-        SiteSite { charge, pair, sigma }
+        let d0 = types - 1 + 4 * pairs.len() + if held.sigma { types } else { 0 };
+        let damp = if held.damp {
+            let mut d = vec![0.0; types * types];
+            for (k, &(a, b)) in pairs.iter().enumerate() {
+                d[a * types + b] = x[d0 + k].exp();
+                d[b * types + a] = d[a * types + b];
+            }
+            d
+        } else {
+            start.damp.clone()
+        };
+        SiteSite { charge, pair, sigma, damp }
     };
     // What is fitted: every parameter but the held ones, which keep what
     // `start` gave them.
@@ -626,6 +705,9 @@ pub fn fit_site_site_polarised(data: &[PairEnergy], multiplicity: &[usize], star
             continue;
         }
         for j in 0..4 {
+            if (held.repulsion && j < 2) || (held.no_dispersion && j >= 2) {
+                continue;
+            }
             if !(j == 2 && is_held(held.dispersion, a, b)) {
                 free.push(o + j);
             }
@@ -633,6 +715,10 @@ pub fn fit_site_site_polarised(data: &[PairEnergy], multiplicity: &[usize], star
     }
     if held.sigma {
         free.extend((0..types).map(|t| types - 1 + 4 * pairs.len() + t));
+    }
+    if held.damp {
+        let d0 = types - 1 + 4 * pairs.len() + if held.sigma { types } else { 0 };
+        free.extend(pairs.iter().enumerate().filter(|(_, &(a, b))| !is_held(held.pairs, a, b)).map(|(k, _)| d0 + k));
     }
     let expand = |xf: &[f64]| -> Vec<f64> {
         let mut full = base.clone();
@@ -833,6 +919,19 @@ impl SiteSite {
                 s += &format!("pair {a} {b} {:e} {:e} {:e} {:e}\n", p[0], p[1], p[2], p[3]);
             }
         }
+        for a in 0..types {
+            for b in a..types {
+                let d = self.damp.get(a * types + b).copied().unwrap_or(0.0);
+                if d > 0.0 {
+                    s += &format!("damp {a} {b} {d:e}
+");
+                }
+            }
+        }
+        if self.sigma.iter().any(|v| *v > 0.0) {
+            s += &format!("sigma {}
+", self.sigma.iter().map(|v| format!("{v:e}")).collect::<Vec<_>>().join(" "));
+        }
         s
     }
 
@@ -859,6 +958,7 @@ impl SiteSite {
     pub fn from_text(text: &str) -> Option<SiteSite> {
         let mut charge = Vec::new();
         let mut sigma = Vec::new();
+        let mut damps: Vec<(usize, usize, f64)> = Vec::new();
         let mut pairs = Vec::new();
         for line in text.lines() {
             let w: Vec<&str> = line.split_whitespace().collect();
@@ -867,8 +967,11 @@ impl SiteSite {
                 // Read by `bisector_from_text`: where an off-atom site goes, not
                 // part of the pair law.
                 Some("bisector") => {}
+                // Read by `extra_sites_from_text`.
+                Some("site") => {}
                 // Read by `alpha_from_text`: the polarisability of a site type.
                 Some("alpha") => {}
+                Some("damp") if w.len() == 4 => damps.push((w[1].parse().ok()?, w[2].parse().ok()?, w[3].parse().ok()?)),
                 Some("sigma") => sigma = w[1..].iter().map(|x| x.parse().ok()).collect::<Option<Vec<f64>>>()?,
                 Some("pair") if w.len() == 7 => {
                     let (a, b): (usize, usize) = (w[1].parse().ok()?, w[2].parse().ok()?);
@@ -885,7 +988,15 @@ impl SiteSite {
             pair[a * types + b] = v;
             pair[b * types + a] = v;
         }
-        Some(SiteSite { charge, pair, sigma })
+        let mut damp = Vec::new();
+        if !damps.is_empty() {
+            damp = vec![0.0; types * types];
+            for (a, b, v) in damps {
+                damp[a * types + b] = v;
+                damp[b * types + a] = v;
+            }
+        }
+        Some(SiteSite { charge, pair, sigma, damp })
     }
 }
 
@@ -925,6 +1036,12 @@ impl Kind {
     /// site changes neither the centre of mass nor the inertia, and rides in
     /// the principal frame with the rest.
     pub fn of_molecule(z: &[u32], positions: &[[f64; 3]], types: &[usize], bisector: Option<(usize, f64)>) -> Kind {
+        Kind::of_molecule_sites(z, positions, types, bisector, &[])
+    }
+
+    /// [`Kind::of_molecule`] with frame sites ([`ExtraSite`]) as well, each
+    /// massless like the bisector site.
+    pub fn of_molecule_sites(z: &[u32], positions: &[[f64; 3]], types: &[usize], bisector: Option<(usize, f64)>, frame: &[ExtraSite]) -> Kind {
         let mut pos = positions.to_vec();
         let mut ty = types.to_vec();
         let mut masses: Vec<f64> = z.iter().map(|&zz| crate::chem::elements::Element(zz as u8).mass_kg().expect("a mass") / 1.66053906660e-27 * AMU).collect();
@@ -934,6 +1051,13 @@ impl Kind {
             let m = o + (u + v).unit().scale(d);
             pos.push([m.x, m.y, m.z]);
             ty.push(site_type);
+            masses.push(0.0);
+        }
+        for s in frame {
+            let at = |k: usize| Vec3 { x: positions[k][0], y: positions[k][1], z: positions[k][2] };
+            let m = s.position(at(0), at(1), at(2));
+            pos.push([m.x, m.y, m.z]);
+            ty.push(s.ty);
             masses.push(0.0);
         }
         Kind::from_atoms(&pos, &masses, &ty)

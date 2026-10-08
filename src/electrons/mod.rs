@@ -20,6 +20,7 @@ pub mod hf;
 pub mod grid;
 pub mod integrals;
 pub mod linalg;
+pub mod localise;
 pub mod molecule;
 pub mod partition;
 pub mod scf;

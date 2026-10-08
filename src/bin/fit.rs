@@ -96,7 +96,14 @@ fn main() {
         println!("  induced dipoles on, polarisabilities by type {v:?} bohr^3");
         v
     });
-    for (label, column) in [("pbe", 0usize), ("revpbe", 1)] {
+    // `--two-stage`: the Hartree-Fock column first, with no dispersion, for the
+    // repulsion; then the total energy with that repulsion held, for the
+    // dispersion and its own damping (needs `--bisector --esp`).
+    let two_stage = args.iter().any(|a| a == "--two-stage");
+    assert!(!two_stage || (bisector && esp.is_some()), "--two-stage needs --bisector and --esp");
+    let mut hf_law: Option<SiteSite> = None;
+    let order: [(&str, usize); 2] = if two_stage { [("revpbe", 1), ("pbe", 0)] } else { [("pbe", 0), ("revpbe", 1)] };
+    for (label, column) in order {
         let data: Vec<PairEnergy> = rows.iter().map(|(ep, er, atoms)| PairEnergy { a: atoms[..n_atoms].to_vec(), b: atoms[n_atoms..].to_vec(), energy: if column == 0 { *ep } else { *er } }).collect();
         let mut bisector_distance: Option<f64> = None;
         let (train, held): (Vec<(usize, &PairEnergy)>, Vec<(usize, &PairEnergy)>) = data.iter().enumerate().partition(|(i, _)| i % 5 != 4);
@@ -109,21 +116,24 @@ fn main() {
         // with no hydrogen bond in it. (The last charge follows from
         // neutrality.)
         let fit = if bisector {
-            let (fit, d) = fit_with_bisector(&train, &multiplicity, types, temperature, &c6_held, alpha_full.as_deref(), use_sigma, esp.as_ref());
+            let (fit, d) = fit_with_bisector(&train, &multiplicity, types, temperature, &c6_held, alpha_full.as_deref(), use_sigma, esp.as_ref(), match (two_stage, &hf_law) { (false, _) => Stage::Single, (true, None) => Stage::Hf, (true, Some(l)) => Stage::Correlation(l) });
             println!("    bisector site {d:.4} bohr from the first atom (weighted residual {:.3e})", fit.weighted_rms);
             bisector_distance = Some(d);
             fit
         } else {
             let mut charge = vec![0.0; types];
             charge[0] = -0.1;
-            let mut start = SiteSite { charge, pair: vec![[10.0, 2.0, 10.0, 200.0]; types * types], sigma: Vec::new() };
+            let mut start = SiteSite { charge, pair: vec![[10.0, 2.0, 10.0, 200.0]; types * types], sigma: Vec::new(), damp: Vec::new() };
             for &((a, b), v) in &c6_held {
                 start.pair[a * types + b][2] = v;
                 start.pair[b * types + a][2] = v;
             }
             let dispersion: Vec<(usize, usize)> = c6_held.iter().map(|&(p, _)| p).collect();
-            fit_site_site_polarised(&train, &multiplicity, &start, temperature, 1e-3, 5000, &Held { pairs: &[], dispersion: &dispersion, sigma: use_sigma, charges: esp.is_some() }, alpha_full.as_deref())
+            fit_site_site_polarised(&train, &multiplicity, &start, temperature, 1e-3, 5000, &Held { pairs: &[], dispersion: &dispersion, sigma: use_sigma, charges: esp.is_some(), damp: false, repulsion: false, no_dispersion: false }, alpha_full.as_deref())
         };
+        if two_stage && column == 1 {
+            hf_law = Some(fit.law.clone());
+        }
         let with_site = |d: &PairEnergy| -> PairEnergy { match bisector_distance { Some(x) => add_bisector(d, types, x), None => d.clone() } };
         let train: Vec<PairEnergy> = train.iter().map(&with_site).collect();
         let held: Vec<PairEnergy> = held.iter().map(&with_site).collect();
@@ -156,6 +166,17 @@ fn main() {
     }
 }
 
+/// Which energies a fit is of: all of them at once, or the two stages of
+/// `--two-stage`.
+#[derive(Clone, Copy)]
+enum Stage<'a> {
+    Single,
+    /// Hartree-Fock's energies, dispersion held at zero.
+    Hf,
+    /// The total energy around this Hartree-Fock law's repulsion.
+    Correlation(&'a SiteSite),
+}
+
 /// `d` with the extra site added to each molecule: type `types` (one past the
 /// atoms' types, which are `0..types`), `distance` bohr from the first atom
 /// along the bisector of its bonds to the second and third.
@@ -168,7 +189,7 @@ fn add_bisector(d: &PairEnergy, types: usize, distance: f64) -> PairEnergy {
 /// distance the fit is started from several charges (the energy goes as a
 /// product of charges and has more than one basin) and the best kept; the
 /// distance is the coarse-grid minimum of the weighted residual, refined.
-fn fit_with_bisector(train: &[PairEnergy], multiplicity: &[usize], types: usize, temperature: f64, c6_held: &[((usize, usize), f64)], alpha: Option<&[f64]>, use_sigma: bool, esp: Option<&(Vec<f64>, f64, Vec<f64>)>) -> (Fitted, f64) {
+fn fit_with_bisector(train: &[PairEnergy], multiplicity: &[usize], types: usize, temperature: f64, c6_held: &[((usize, usize), f64)], alpha: Option<&[f64]>, use_sigma: bool, esp: Option<&(Vec<f64>, f64, Vec<f64>)>, stage: Stage) -> (Fitted, f64) {
     let mut mult = multiplicity.to_vec();
     mult.push(1);
     let all = types + 1;
@@ -187,16 +208,41 @@ fn fit_with_bisector(train: &[PairEnergy], multiplicity: &[usize], types: usize,
                 charge = q.clone();
                 sigma_start = sg.clone();
             }
-            let mut start = SiteSite { charge, pair: vec![[10.0, 2.0, 10.0, 200.0]; all * all], sigma: sigma_start };
+            let mut start = SiteSite { charge, pair: vec![[10.0, 2.0, 10.0, 200.0]; all * all], sigma: sigma_start, damp: Vec::new() };
+            if let Stage::Correlation(base) = stage {
+                start = base.clone();
+                // The Hartree-Fock stage left no dispersion, and a number at
+                // zero (its logarithm far below any step) cannot be moved:
+                // start from the engine's C6 where it has one, and a plain C8.
+                for &(a, b) in &site_pairs {
+                    let _ = (a, b);
+                }
+                for ta in 0..types {
+                    for tb in 0..types {
+                        let v = c6_held.iter().find(|((x, y), _)| (*x, *y) == (ta, tb) || (*y, *x) == (ta, tb)).map(|(_, v)| *v).unwrap_or(10.0);
+                        start.pair[ta * all + tb][2] = v;
+                        start.pair[ta * all + tb][3] = 200.0;
+                    }
+                }
+            }
             for &(a, b) in &site_pairs {
                 start.pair[a * all + b] = [0.0, 1.0, 0.0, 0.0];
                 start.pair[b * all + a] = [0.0, 1.0, 0.0, 0.0];
             }
-            for &((a, b), v) in c6_held {
-                start.pair[a * all + b][2] = v;
-                start.pair[b * all + a][2] = v;
+            if matches!(stage, Stage::Hf) {
+                for p in start.pair.iter_mut() {
+                    p[2] = 0.0;
+                    p[3] = 0.0;
+                }
             }
-            let fit = fit_site_site_polarised(&data, &mult, &start, temperature, 1e-3, 5000, &Held { pairs: &site_pairs, dispersion: &dispersion, sigma: use_sigma, charges: esp.is_some() }, alpha);
+            if matches!(stage, Stage::Single) {
+                for &((a, b), v) in c6_held {
+                    start.pair[a * all + b][2] = v;
+                    start.pair[b * all + a][2] = v;
+                }
+            }
+            let held = Held { pairs: &site_pairs, dispersion: if matches!(stage, Stage::Correlation(_)) { &[] } else { &dispersion }, sigma: use_sigma, charges: esp.is_some(), damp: matches!(stage, Stage::Correlation(_)), repulsion: matches!(stage, Stage::Correlation(_)), no_dispersion: matches!(stage, Stage::Hf) };
+            let fit = fit_site_site_polarised(&data, &mult, &start, temperature, 1e-3, 5000, &held, alpha);
             if fit.weighted_rms.is_finite() && best.as_ref().map_or(true, |b| fit.weighted_rms < b.weighted_rms) {
                 best = Some(fit);
             }

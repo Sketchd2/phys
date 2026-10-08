@@ -4516,6 +4516,62 @@ the start of the phase, ahead of the renderer**. In order:
      1.6e-3 against 4.3e-3 for the best point charges on the same points, 2.6x;
      widths O 1.70, H 0.50, extra site 1.85 bohr. Penetration is real in the
      density; the point-charge law has none.
+     (d) *Fitting the repulsion and dispersion around the density's
+     electrostatics* (`phys-fit --esp`, charges and Gaussian widths held, the
+     dipole scaled to MP2's: the field derivative of the MP2 energy gives
+     1.865 D against 1.855 measured, Hartree-Fock's density 1.995 D, a scale
+     of 0.9348 - `phys-esp --gauss --mp2-dipole`): beyond 5.5 A the law is
+     within 0.009 kcal/mol of MP2 with nothing fitted in its electrostatics and
+     C6 from the E6 kernel, against 0.022 for the freely fitted charges; but
+     the unseen RMS is 0.52 against 0.31, and by shell the law is 0.2-0.25
+     kcal/mol too repulsive from 3.1 to 4.4 A in the MP2 column and not in the
+     Hartree-Fock one (bias +0.03 to +0.05), so the missing attraction is the
+     correlation energy's, and 1.2-1.3 kcal/mol too attractive from 2.5 to 2.8
+     A in both: the isotropic atom-atom Born-Mayer cannot make the
+     hydrogen-bond contact hard enough. **Both are model-form errors of the
+     repulsion/dispersion, not of the electrostatics.** *A defect found on
+     the way:* `SiteSite::to_text` did not write the charge widths (a
+     replacement that silently did not apply), so every law written by the
+     first `--sigma`/`--esp` fits carried none and was read back as point
+     charges; `phys-diag` and `phys-bulk` evaluated those laws wrongly, and the
+     first diagnostics of the Gaussian laws and the first liquid run with one
+     are void. Fixed, with the widths also used for the field the charges make
+     on the induced dipoles (`Charge::sigma`; the finite-difference force test
+     now has a smeared charge in it).
+     (e) *Two stages* (`phys-fit --two-stage`: Hartree-Fock's energies fit
+     the repulsion with no dispersion in the law, then the total energy fits
+     the dispersion and its own damping exponent around that repulsion): the
+     3.1-4.4 A shell improves (bias +0.05 to +0.11, RMS 0.18-0.23, against
+     +0.2 to +0.25 and 0.32-0.35 with C6 held at the E6 values in one stage, and
+     0.24-0.27 for freely fitted charges), but the fit takes the damping
+     exponents to 770, 3571 and 4.5e25 - a step, not a damping - and O-H
+     dispersion with C6 = 0 and a C8; it is using the terms as a cutoff. The
+     unseen RMS is 0.50, no better. Model-form, again. The 2.5-3.1 A error
+     (-1.3 and -0.3) is untouched, as it is in the Hartree-Fock column.
+     (f) *Liquid with the density-derived electrostatics and E6's C6, one
+     stage:* U/N about -8.0 kcal/mol, pressure +2200 bar after settling (run
+     stopped for CPU), the opposite sign from every earlier law: underbound
+     and over-repulsive, as the 0.2-0.3 kcal/mol too repulsive mid-range shell
+     predicts across ten neighbours. (The run before it used a law that had
+     lost its widths; void.) (g) *Sites where the localised orbitals put the
+     lone pairs* (`electrons::localise::boys`, `phys-esp --sites`): Boys
+     localisation of water's valence orbitals gives two bond centroids 0.984
+     bohr from oxygen and two lone pairs 0.564 bohr from it, +-0.499 bohr out of
+     the plane and 0.214 bohr back along each bond's side of the bisector,
+     with the density unchanged to 1e-10 (`tests/localise.rs`). Charges and
+     widths fitted on those positions (oxygen -2.75, lone pairs +0.83, widths
+     1.65 / 0.44 / 0.42 bohr) reproduce the potential worse than Gaussian
+     charges on the atoms and a bisector site (4.3e-3 against 1.5e-3
+     hartree/e): the centroid is too close to the oxygen to add anything the
+     oxygen's own broad Gaussian does not already say. Did not help.
+     *Where this leaves it:* the electrostatics are derived and their
+     long-range error is 0.009 kcal/mol; the open problem is the
+     hydrogen-bond contact (2.5-3.1 A) and the 3-4.4 A shell, where the
+     isotropic atom-atom repulsion and dispersion are wrong by 0.2-1.3
+     kcal/mol, and where the training data was thin. The biased pairs are
+     the data for that; the next step is to refit on them (and to judge the
+     repulsion form against the literature's anisotropic overlap models) before
+     adding any more structure to the law.
    - **E8z, remove what was not chosen.** *Planned by the owner, to be done
      once the method above is validated and the owner confirms it; nothing is
      removed before that.* Every method the engine carries and the decision

@@ -21,7 +21,7 @@ fn the_error_function_matches_known_values() {
 #[test]
 fn far_from_a_charge_the_site_is_a_polarisable_atom() {
     let (alpha, q, r) = (5.0, 1.0, 10.0);
-    let cl = Cluster { pol: vec![vec![PolSite { pos: v(0.0, 0.0, 0.0), alpha }], vec![]], charges: vec![vec![], vec![Charge { pos: v(r, 0.0, 0.0), q }]] };
+    let cl = Cluster { pol: vec![vec![PolSite { pos: v(0.0, 0.0, 0.0), alpha }], vec![]], charges: vec![vec![], vec![Charge { pos: v(r, 0.0, 0.0), q, sigma: 0.0 }]] };
     let links = [Link { i: 0, j: 1, shift: Vec3::ZERO, weight: 1.0, dweight: 0.0, d: v(-r, 0.0, 0.0) }];
     let out = solve(&cl, &links, None, 1e-12);
     let want = -0.5 * alpha * q * q / r.powi(4);
@@ -56,7 +56,7 @@ fn build(offsets: &[Vec3; 3], weights: bool) -> (Cluster, Vec<Link>) {
         let c = base[m] + offsets[m];
         coms.push(c);
         cl.pol.push(vec![PolSite { pos: c + shapes[m][0], alpha: 5.0 + m as f64 }, PolSite { pos: c + shapes[m][1], alpha: 2.0 }]);
-        cl.charges.push(vec![Charge { pos: c + shapes[m][0].scale(1.1), q: 0.6 - 0.2 * m as f64 }, Charge { pos: c + shapes[m][1].scale(0.9), q: -0.5 + 0.1 * m as f64 }]);
+        cl.charges.push(vec![Charge { pos: c + shapes[m][0].scale(1.1), q: 0.6 - 0.2 * m as f64, sigma: 0.0 }, Charge { pos: c + shapes[m][1].scale(0.9), q: -0.5 + 0.1 * m as f64, sigma: 0.7 }]);
     }
     let mut links = Vec::new();
     for i in 0..3 {

@@ -73,7 +73,8 @@ fn main() {
     };
     let mono = Molecule { z: z.clone(), positions: state.positions.clone(), charge: 0, unpaired: 0 };
     let atom_types = equivalent_atoms(&mono);
-    let kind = Kind::of_molecule(&z, &state.positions, &atom_types, bisector);
+    let frame = phys::liquid::extra_sites_from_text(&law_text);
+    let kind = Kind::of_molecule_sites(&z, &state.positions, &atom_types, bisector, &frame);
     let atoms = z.len();
     // The box: n molecules at the density asked.
     let molecule_g = kind.mass / AMU * 1.66053906660e-24;

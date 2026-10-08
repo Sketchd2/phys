@@ -89,6 +89,10 @@ pub struct PolSite {
 pub struct Charge {
     pub pos: Vec3,
     pub q: f64,
+    /// The width of the charge's Gaussian cloud (the scale in its `erf(r / s)`,
+    /// as `SiteSite::sigma`): zero is a point. A cloud and a smeared dipole
+    /// meet as `s^2 = s_dipole^2 + sigma^2`.
+    pub sigma: f64,
 }
 
 /// Two molecules' interaction: indices, the shift added to the second's
@@ -264,14 +268,14 @@ pub fn solve(cl: &Cluster, links: &[Link], warm: Option<&[Vec<Vec3>]>, tolerance
                     }
                     for (ci, c) in cl.charges[l.j].iter().enumerate() {
                         let r = pa.pos - (c.pos + l.shift);
-                        let (h, dh) = charge_terms(r.norm(), root2 * sigma[l.i][a]);
+                        let (h, dh) = charge_terms(r.norm(), (2.0 * sigma[l.i][a].powi(2) + c.sigma.powi(2)).sqrt());
                         it.cd.push(Cd { a: first[l.i] + a, c: firstc[l.j] + ci, q: c.q, h, dh, r, pol_on_first: true });
                     }
                 }
                 for (b, pb) in cl.pol[l.j].iter().enumerate() {
                     for (ci, c) in cl.charges[l.i].iter().enumerate() {
                         let r = (pb.pos + l.shift) - c.pos;
-                        let (h, dh) = charge_terms(r.norm(), root2 * sigma[l.j][b]);
+                        let (h, dh) = charge_terms(r.norm(), (2.0 * sigma[l.j][b].powi(2) + c.sigma.powi(2)).sqrt());
                         it.cd.push(Cd { a: first[l.j] + b, c: firstc[l.i] + ci, q: c.q, h, dh, r, pol_on_first: false });
                     }
                 }
