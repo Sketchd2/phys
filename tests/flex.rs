@@ -199,3 +199,56 @@ fn bonds_hold_and_a_short_run_conserves_energy() {
         }
     }
 }
+
+/// E8c pair data: each molecule of a pair is drawn separately from the surface,
+/// so the two bonds differ (an asymmetric stretch happens), the draw stays in the
+/// fitted region, favours low energy, and leaves the unflexed draw alone.
+#[test]
+fn drawn_shapes_are_asymmetric_in_region_and_boltzmann() {
+    use phys::pairs::FlexDraw;
+    use phys::rng::{Purpose, Stream};
+    let draw = FlexDraw::from_file("surface-water.txt", 1500.0);
+    let mut s = Stream::at(7, 0, 0, Purpose::Positions);
+    let n = 4000;
+    let (mut asym, mut sum_r, mut sum_th, mut lo_r, mut hi_r) = (0.0f64, 0.0, 0.0, f64::MAX, 0.0f64);
+    for _ in 0..n {
+        let (r1, r2, th) = draw.shape(&mut s);
+        asym += (r1 - r2).abs() / n as f64;
+        sum_r += (r1 + r2) / 2.0 / n as f64;
+        sum_th += th / n as f64;
+        lo_r = lo_r.min(r1.min(r2));
+        hi_r = hi_r.max(r1.max(r2));
+    }
+    println!("mean |r1-r2| {asym:.4} bohr, mean r {sum_r:.4} bohr, mean theta {:.2} deg, r range {lo_r:.3}..{hi_r:.3}", sum_th.to_degrees());
+    assert!(asym > 0.03, "the bonds must differ: {asym}");
+    assert!(lo_r >= 0.86 / 0.529177210903 && hi_r <= 1.16 / 0.529177210903);
+    assert!((sum_r * 0.529177210903 - 0.97).abs() < 0.04 && (sum_th.to_degrees() - 104.0).abs() < 4.0);
+    // Colder is narrower: the sampling temperature does what it says.
+    let cold = FlexDraw::from_file("surface-water.txt", 300.0);
+    let spread = |d: &FlexDraw| {
+        let mut s = Stream::at(8, 0, 0, Purpose::Positions);
+        (0..2000).map(|_| { let (a, b, _) = d.shape(&mut s); (a - b).abs() }).sum::<f64>() / 2000.0
+    };
+    assert!(spread(&cold) < 0.6 * spread(&draw));
+}
+
+/// A cloud law has sites placed from the atoms, and the biased pair draw must
+/// place them: without them the pair is unneutral, its energy is thousands of
+/// kcal/mol at any separation, and the draw never accepts anything. It once
+/// spun for 37 minutes on pair 0. Also: the same draw with `--flex` terminates
+/// and its molecules differ in bond length.
+#[test]
+fn the_biased_draw_places_a_cloud_laws_sites() {
+    use phys::pairs::{Bias, FlexDraw, Monomer};
+    if !std::path::Path::new("grow-water.state").exists() {
+        return; // the state is not tracked (gitignored): nothing to draw from
+    }
+    let mut m = Monomer::load("water", false);
+    let b = Bias::from_file("law-water-mp2-cloud-slopes.txt", 2.0);
+    let seps: Vec<f64> = (0..20).map(|k| m.biased_pair(k, &b).2).collect();
+    assert!(seps.iter().all(|s| (4.2..=8.0).contains(s)));
+    assert!((seps[0] - 4.60).abs() < 0.01 && (seps[1] - 6.16).abs() < 0.01, "the draw is the one the earlier data was taken with: {seps:?}");
+    m.flex = Some(FlexDraw::from_file("surface-water.txt", 1500.0));
+    let (a, _, _) = m.biased_pair(3, &b);
+    assert!(((a[1] - a[0]).norm() - (a[2] - a[0]).norm()).abs() > 1e-3);
+}

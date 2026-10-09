@@ -157,13 +157,56 @@ pub struct Monomer {
     /// Draw pairs where a law says the liquid goes (`--bias law.txt [kT]`),
     /// not uniformly: see [`Monomer::biased_pair`].
     pub bias: Option<Bias>,
+    /// Draw each molecule's own shape from its energy surface instead of
+    /// holding every one at the relaxed shape (`--flex surface.txt [T]`): see
+    /// [`FlexDraw`].
+    pub flex: Option<FlexDraw>,
+}
+
+/// The shapes a flexible molecule takes, drawn for the pair data of E8c's
+/// second and third treatments. Each molecule of a pair is drawn separately
+/// from `exp(-E/kT)` over its internal coordinates on its own energy surface
+/// (`phys-vib`'s fit), so the two bonds are drawn independently and an
+/// asymmetric stretch, one hydrogen away and the other not, is as likely as a
+/// symmetric one. `kT` is a sampling temperature, not the liquid's: a law
+/// fitted to these pairs has to hold at the shapes a liquid's molecules
+/// reach, and also be anchored a little beyond them. The draw is confined to
+/// the region the surface was fitted over.
+pub struct FlexDraw {
+    surface: crate::flex::Surface,
+    /// hartree.
+    kt: f64,
+}
+
+/// The fitted region of `phys-pes`: bond lengths 0.86 to 1.16 A, angle 88 to 124 degrees.
+const FLEX_R: (f64, f64) = (0.86 / 0.529177210903, 1.16 / 0.529177210903);
+const FLEX_THETA: (f64, f64) = (88.0 * std::f64::consts::PI / 180.0, 124.0 * std::f64::consts::PI / 180.0);
+
+impl FlexDraw {
+    pub fn from_file(path: &str, kelvin: f64) -> FlexDraw {
+        let text = std::fs::read_to_string(path).unwrap_or_else(|_| panic!("no {path}"));
+        FlexDraw { surface: crate::flex::Surface::from_text(&text), kt: kelvin * 3.166811563e-6 }
+    }
+
+    /// One shape: the two bond lengths and the angle (bohr, radians), by rejection from the fitted region.
+    pub fn shape(&self, s: &mut Stream) -> (f64, f64, f64) {
+        loop {
+            let (r1, r2, th) = (s.range(FLEX_R.0, FLEX_R.1), s.range(FLEX_R.0, FLEX_R.1), s.range(FLEX_THETA.0, FLEX_THETA.1));
+            if s.uniform() < (-self.surface.eval(r1, r2, th).0 / self.kt).exp() {
+                return (r1, r2, th);
+            }
+        }
+    }
 }
 
 /// A law and a temperature to draw pairs by.
 pub struct Bias {
     law: crate::liquid::SiteSite,
     alpha: Vec<f64>,
-    bisector: Option<f64>,
+    bisector: Option<(usize, f64)>,
+    /// The law's sites placed from the atoms (`site` lines): a cloud model has
+    /// them, and a pair drawn without them is unneutral and is never accepted.
+    extra: Vec<crate::liquid::ExtraSite>,
     /// kcal/mol.
     kt: f64,
 }
@@ -173,8 +216,9 @@ impl Bias {
         let text = std::fs::read_to_string(path).unwrap_or_else(|_| panic!("no {path}"));
         let law = crate::liquid::SiteSite::from_text(&text).expect("a readable law");
         let alpha = crate::liquid::SiteSite::alpha_from_text(&text, law.charge.len());
-        let bisector = crate::liquid::SiteSite::bisector_from_text(&text).map(|b| b.1);
-        Bias { law, alpha, bisector, kt }
+        let bisector = crate::liquid::SiteSite::bisector_from_text(&text);
+        let extra = crate::liquid::extra_sites_from_text(&text);
+        Bias { law, alpha, bisector, extra, kt }
     }
 }
 
@@ -206,7 +250,21 @@ impl Monomer {
         }
         let body: Vec<Vec3> = mono.positions.iter().map(|p| Vec3 { x: p[0] - com[0], y: p[1] - com[1], z: p[2] - com[2] }).collect();
         let contact: Vec<f64> = z.iter().map(|&zz| crate::chem::elements::Element(zz as u8).vdw_radius().unwrap_or(1.5e-10) / 0.529177210903e-10).collect();
-        Monomer { name: name.to_string(), z, types, extra, body, contact, masses, grown, mp2: false, bias: None }
+        Monomer { name: name.to_string(), z, types, extra, body, contact, masses, grown, mp2: false, bias: None, flex: None }
+    }
+
+    /// The molecule's atoms about its centre of mass: the relaxed shape, or a
+    /// drawn one with `--flex`. Water only: a molecule with more internal
+    /// coordinates needs its own surface, and says so here rather than being
+    /// drawn from a water's.
+    fn drawn_body(&self, s: &mut Stream) -> Vec<Vec3> {
+        let Some(f) = &self.flex else { return self.body.clone() };
+        assert!(self.z == [8, 1, 1], "--flex has a surface for water only; {} needs its own", self.name);
+        let (r1, r2, th) = f.shape(s);
+        let p = [Vec3 { x: 0.0, y: 0.0, z: 0.0 }, Vec3 { x: r1, y: 0.0, z: 0.0 }, Vec3 { x: r2 * th.cos(), y: r2 * th.sin(), z: 0.0 }];
+        let total: f64 = self.masses.iter().sum();
+        let com = p.iter().zip(&self.masses).fold(Vec3 { x: 0.0, y: 0.0, z: 0.0 }, |c, (q, m)| c + q.scale(m / total));
+        p.iter().map(|q| *q - com).collect()
     }
 
     /// Pair `k` of the random draw: two molecules' atom positions and the
@@ -221,8 +279,9 @@ impl Monomer {
             let dir = s.direction();
             let (lo, hi) = separation_for(k);
             let sep = s.range(lo, hi);
-            let a: Vec<Vec3> = self.body.iter().map(|p| qa.rotate(*p)).collect();
-            let b: Vec<Vec3> = self.body.iter().map(|p| qb.rotate(*p) + dir.scale(sep)).collect();
+            let (body_a, body_b) = (self.drawn_body(&mut s), self.drawn_body(&mut s));
+            let a: Vec<Vec3> = body_a.iter().map(|p| qa.rotate(*p)).collect();
+            let b: Vec<Vec3> = body_b.iter().map(|p| qb.rotate(*p) + dir.scale(sep)).collect();
             let near = closest_contact(k);
             let clash = (0..n).any(|i| (0..n).any(|j| (a[i] - b[j]).norm() < near * (self.contact[i] + self.contact[j])));
             if !clash {
@@ -245,19 +304,19 @@ impl Monomer {
         let mut s = Stream::at(0x6269_6173_5f70 ^ self.name.len() as u64, k as u128, 0, Purpose::Positions);
         let atoms = |m: &[Vec3]| -> Vec<(Vec3, usize)> {
             let mut v: Vec<(Vec3, usize)> = m.iter().zip(&self.types).map(|(p, t)| (*p, *t)).collect();
-            if let Some(d) = bias.bisector {
-                let site = bias.law.charge.len() - 1;
+            if let Some((site, d)) = bias.bisector {
                 v = crate::liquid::with_bisector_site(&v, site, d);
             }
-            v
+            crate::liquid::with_frame_sites(&v, &bias.extra)
         };
         loop {
             let qa = random_rotation(&mut s);
             let qb = random_rotation(&mut s);
             let dir = s.direction();
             let sep = s.range(4.2, 8.0);
-            let a: Vec<Vec3> = self.body.iter().map(|p| qa.rotate(*p)).collect();
-            let b: Vec<Vec3> = self.body.iter().map(|p| qb.rotate(*p) + dir.scale(sep)).collect();
+            let (body_a, body_b) = (self.drawn_body(&mut s), self.drawn_body(&mut s));
+            let a: Vec<Vec3> = body_a.iter().map(|p| qa.rotate(*p)).collect();
+            let b: Vec<Vec3> = body_b.iter().map(|p| qb.rotate(*p) + dir.scale(sep)).collect();
             let near = 0.64;
             if (0..n).any(|i| (0..n).any(|j| (a[i] - b[j]).norm() < near * (self.contact[i] + self.contact[j]))) {
                 continue;
@@ -321,7 +380,11 @@ pub fn run(args: &[String], tag: &str) {
         let kt: f64 = args.get(i + 2).and_then(|v| v.parse().ok()).unwrap_or(2.0);
         mono.bias = Some(Bias::from_file(args.get(i + 1).expect("--bias needs a law file"), kt));
     }
-    let out = format!("pairs-{name}{tag}{}{}.txt", if mono.bias.is_some() { "-bias" } else { "" }, if mono.mp2 { "-mp2" } else { "" });
+    if let Some(i) = args.iter().position(|a| a == "--flex") {
+        let kelvin: f64 = args.get(i + 2).and_then(|v| v.parse().ok()).unwrap_or(1500.0);
+        mono.flex = Some(FlexDraw::from_file(args.get(i + 1).expect("--flex needs a surface file"), kelvin));
+    }
+    let out = format!("pairs-{name}{tag}{}{}{}.txt", if mono.bias.is_some() { "-bias" } else { "" }, if mono.flex.is_some() { "-flex" } else { "" }, if mono.mp2 { "-mp2" } else { "" });
     let done = done_indices(&out);
     let mut file = std::fs::OpenOptions::new().create(true).append(true).open(&out).expect("the output file");
     if done.is_empty() {
