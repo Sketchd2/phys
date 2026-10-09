@@ -4754,6 +4754,35 @@ the start of the phase, ahead of the renderer**. In order:
      one open judgement - r_OH alone differs by 0.005 A between them). Neither
      is the 0.9689 the rigid law was built on, which sits between the minimum
      and the average.
+     **E8c, the pair data for a molecule that moves (2026-10-10, the owner's
+     decision).** The pair data of the flexible treatments is not taken at a
+     few chosen shapes, which for water would have been symmetric stretches and
+     bends only and could not have represented one hydrogen moving and not the
+     other - the common case in a longer chain. *Each molecule of each pair is
+     drawn separately from the monomer's own energy surface* (`pairs::FlexDraw`,
+     `--flex surface.txt [T]`): `exp(-E/kT)` over every internal coordinate, at
+     a sampling temperature of 1500 K by default (wider than the 298 K liquid,
+     so the law is anchored beyond the shapes the liquid reaches; the 1500 is
+     the engine's author's choice and is a parameter), confined to the region
+     the surface was fitted over. Measured on the draw: mean |r1 - r2| 0.106
+     bohr (0.056 A), so asymmetric stretches are the rule. One dataset serves
+     options 2 and 3. Water's surface is the only one that exists; a molecule
+     with more coordinates needs its own `phys-pes` surface before `--flex`
+     will draw it (it refuses rather than use water's). Run as 100 uniform and
+     300 biased pairs (more than the rigid law's 60 and 200, for six more
+     coordinates), `scripts/e8c-flex-data.sh`. *Found while building it:* the
+     biased draw ignored a cloud law's `site` lines, so its pairs were
+     unneutral (thousands of kcal/mol at any separation) and it never accepted
+     one; it spun on pair 0 for 37 minutes. Fixed, and the draw is unchanged
+     for the earlier data (pairs 0 and 1 at 4.60 and 6.16 bohr as before).
+     **Still to do, and the part the plan did not specify:** *a law whose
+     numbers follow the geometry* (charges, widths, sizes of the sites; the
+     polarisabilities; the dispersion and overlap terms), fitted to that
+     dataset, with `phys-es-gpu`'s exact first-order electrostatics and slopes
+     taken at each pair's own shapes. The form of the dependence is the open
+     choice - polynomial in (r1, r2, theta) about the averaged shape, or a
+     per-molecule fit of the cloud model to its own electrons at each drawn
+     shape - and is the owner's to take when the data exists to compare them.
    - **E8z, remove what was not chosen.** *Planned by the owner, to be done
      once the method above is validated and the owner confirms it; nothing is
      removed before that.* Every method the engine carries and the decision
