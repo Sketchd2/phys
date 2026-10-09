@@ -4693,6 +4693,48 @@ the start of the phase, ahead of the renderer**. In order:
      first peak still low, the second shell weak; the dispersion split between
      atom pairs is degenerate (all on O-H); a hexamer at MP2 would test
      four-body and higher terms.
+   - **E8c, a molecule that moves: water three ways, and the comparison.**
+     *The owner's decision, 2026-10-09, after asking whether the force and
+     torque data would also need the molecules' own wiggle and flex: all
+     three treatments are to be built for water and their liquids compared.*
+     Every law above is for a rigid molecule at the shape `phys-grow` relaxed
+     it to (O-H 0.9689 A, H-O-H 104.21 degrees: PBE's equilibrium in the
+     engine's basis, 0.011 A longer than MP2 at the basis limit, and close to
+     the measured ground-state average of 0.9724 A / 104.5, which is a
+     coincidence of two errors and not a derivation). *(1) Rigid, at a
+     derived vibrationally averaged shape:* the monomer's MP2 energy over the
+     internal coordinates (r1, r2, theta) gives the potential, the ground
+     state's averages of r and theta follow from it, and the pair data, slopes
+     and torques are recomputed at that shape. *(2) Rigid where it is stiff,
+     flexible where it is soft:* for water there is no torsion, so the
+     hybrid is the bonds held at length and the bend free - H-O-H as a degree
+     of freedom with its derived bending potential, the two O-H bonds
+     constrained; for a chain (methanol's methyl rotor first) the same idea
+     is rigid segments joined by torsions. This is the owner's option, read for
+     water by the engine's author as stated; if the intention was something
+     else for a molecule with no torsion, it is to be said. *(3) Fully
+     flexible:* all three internal coordinates move, on the monomer's derived
+     potential, with the intermolecular law's parameters following the geometry
+     (the cloud model refitted over the same grid, so the dipole rises as the
+     bonds lengthen), an atomistic integrator beside the rigid-body one
+     (`liquid.rs` carries rigid bodies and their torques; the small time step
+     and the missing zero-point motion of a classical flexible model are the
+     known costs). **What all three share and must be built first:** the
+     monomer's potential energy surface at MP2 in the engine's own basis on a
+     grid of (r1, r2, theta) (about 200 energies of a 214-function molecule,
+     minutes each at worst), checked against the measured fundamentals (3657,
+     3756 and 1595 per cm) before anything depends on it; and the pair data of
+     the later stages, sampled at the shapes the molecule takes, not at one.
+     **Done when:** the same liquid (298 K, 1 g/cm3, at least 100 ps, the
+     tetrahedral order and hydrogen-bond counts of `scratchpad/tetra.py`) is run
+     for the rigid law above and the three, and one table gives U/N, heat of
+     vaporisation, pressure, g(OO)'s first peak, minimum and second shell, q,
+     hydrogen bonds a molecule and the liquid's mean dipole for each, with the
+     monomer's frequencies beside the measured ones. *Order:* the surface, then
+     (1), then (2), then (3); each is reported before the next is begun.
+     *Not yet decided, and not mine:* how far chains are taken (methanol's rotor
+     is the first test of (2)), and whether (3) is the general method the
+     engine keeps or one of the three the comparison removes.
    - **E8z, remove what was not chosen.** *Planned by the owner, to be done
      once the method above is validated and the owner confirms it; nothing is
      removed before that.* Every method the engine carries and the decision
