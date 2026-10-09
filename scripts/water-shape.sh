@@ -58,5 +58,5 @@ log "fit"
   --esp esp-water-cloud-mp2-fit.txt --charge-sites esp-water-cloud-mp2-fit.txt --overlap --no-c8 \
   --slopes deriv-water.txt --slope-pairs -gpu-bias-mp2 --rotations rotate-water.txt --slope-weight 3 > fit.log 2>&1
 cp law-water-gpu-mp2+-gpu-bias-mp2-pbe-bis-esp-ind.txt law-final.txt
-log "liquid"; "$BIN/phys-bulk.exe" water law-final.txt 298 216 1.0 100 > liquid.log 2>&1
+if [ "${SKIP_LIQUID:-0}" = 1 ]; then log "liquid skipped"; else log "liquid"; "$BIN/phys-bulk.exe" water law-final.txt 298 216 1.0 100 > liquid.log 2>&1; fi
 log "done"
