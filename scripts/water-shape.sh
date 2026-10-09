@@ -9,7 +9,7 @@
 # energies, the fit, and a 100 ps liquid. Every step is resumable: a file
 # already complete is not made again, an interrupted one carries on.
 # Sizes are the leaner ones the comparison uses, the same for each shape.
-set -u
+set -eu
 DIR=$1; R=$2; THETA=$3; BIAS=${4:-$(pwd)/law-water-mp2-cloud-slopes.txt}
 HERE=$(pwd)
 BIN=${PHYS_BIN:-$HERE/target/dev2/release}

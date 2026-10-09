@@ -54,6 +54,7 @@ pub mod engine;
 pub mod electrons;
 pub mod eos;
 pub mod erode;
+pub mod flex;
 pub mod ids;
 pub mod induction;
 pub mod liquid;

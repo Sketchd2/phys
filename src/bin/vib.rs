@@ -91,6 +91,16 @@ fn main() {
         }
     }
     let coef = solve(ata, atb);
+    {
+        let mut text = format!("# water, the fitted surface of {file}: reference r (bohr), theta (rad), energy (hartree); then a b c coefficient, E = e_ref + sum coef (dr1/0.1)^a (dr2/0.1)^b (dtheta/0.2)^c
+ref {r0:e} {th0:e} {e_ref:e}
+");
+        for (term, cf) in t.iter().zip(&coef) {
+            text += &format!("term {} {} {} {cf:e}
+", term.0, term.1, term.2);
+        }
+        std::fs::write("surface-water.txt", text).expect("surface written");
+    }
     let surface = |r1: f64, r2: f64, th: f64| -> f64 { basis(&t, r1 - r0, r2 - r0, th - th0).iter().zip(&coef).map(|(f, c)| f * c).sum::<f64>() + e_ref };
     let rms = (data.iter().map(|&(r1, r2, th, e)| (surface(r1, r2, th) - e).powi(2)).sum::<f64>() / data.len() as f64).sqrt();
     println!("{} points (mirrored), {} terms: fit rms {:.2e} hartree ({:.2} cm^-1)", data.len(), n, rms, rms * HARTREE_TO_CM);
