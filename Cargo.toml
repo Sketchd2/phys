@@ -127,3 +127,11 @@ path = "src/bin/diag.rs"
 [[bin]]
 name = "phys-esp"
 path = "src/bin/esp.rs"
+
+[[bin]]
+name = "phys-pes"
+path = "src/bin/pes.rs"
+
+[[bin]]
+name = "phys-vib"
+path = "src/bin/vib.rs"

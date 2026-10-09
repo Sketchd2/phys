@@ -4735,6 +4735,25 @@ the start of the phase, ahead of the renderer**. In order:
      *Not yet decided, and not mine:* how far chains are taken (methanol's rotor
      is the first test of (2)), and whether (3) is the general method the
      engine keeps or one of the three the comparison removes.
+     **E8c, the surface (2026-10-09).** `phys-pes` computed water's Hartree-Fock
+     + RI-MP2 energy (frozen core, the default basis, the method the pair
+     energies use) over 252 points of (r1 >= r2, theta): r from 0.86 to 1.16 A,
+     theta from 88 to 124 degrees, 4-7 s a point; `pes-water.txt`. `phys-vib`
+     fits it (a quartic in the two bond displacements and the angle's, the data
+     mirrored for the hydrogens: 35 terms to 448 points, **rms 3.1 cm^-1**), and
+     from it: **minimum r_OH 0.96154 A, theta 104.145 degrees** (the pair data's
+     shape so far, PBE's: 0.9689 A, 104.21; MP2 at the basis limit, 0.9575;
+     measured equilibrium 0.9572, 104.52); **harmonic frequencies 1626, 3847 and
+     3973 cm^-1 against the measured harmonics 1649, 3832 and 3943** (1.4%, 0.4%,
+     0.8%: the surface is good, the first check the plan asked for passes), the
+     six others under 3 cm^-1; zero-point energy 4724 cm^-1 (measured 4638). The
+     **ground-state average shape**, from the normal coordinates' means moved by
+     the cubic terms and their Gaussian spreads, sampled with the curvature of
+     the coordinates in it: **<r_OH> 0.97894 A, <theta> 104.078 degrees**
+     (<1/r> gives 0.97425 A; the choice of average is the first treatment's
+     one open judgement - r_OH alone differs by 0.005 A between them). Neither
+     is the 0.9689 the rigid law was built on, which sits between the minimum
+     and the average.
    - **E8z, remove what was not chosen.** *Planned by the owner, to be done
      once the method above is validated and the owner confirms it; nothing is
      removed before that.* Every method the engine carries and the decision
