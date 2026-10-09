@@ -4655,6 +4655,44 @@ the start of the phase, ahead of the renderer**. In order:
      would constrain them directly. Files: `law-water-mp2-cloud-overlap.txt`,
      `gOO-water-298-mp2-cloud-overlap.txt`, `esp-water-cloud-mp2dip.txt`,
      `es-water.txt` (the exact electrostatic energies).
+     **Pressure is the force, and the force was off in the middle
+     distances (2026-10-09).** Both final overlap laws (400 biased pairs,
+     weights at 1000 K and 3000 K) gave the same liquid: pressure -1701 / -1436
+     bar, heat of vaporisation 10.90 / 10.73, first peak 2.36 / 2.35 at 2.75 A,
+     3.53 / 3.32 hydrogen bonds a molecule: the weights do not matter. So the
+     slope of the pair energy along the line between the centres of mass
+     (orientations fixed), which for rigid molecules is minus the force on the
+     centres and is what enters the virial, was computed by MP2 for pairs by
+     moving the second molecule 0.1 bohr either way (`phys-es-gpu --deriv`,
+     two counterpoise energies a pair, about 2.3 min a pair; 98 of about 110
+     pairs when this was written, `deriv-water.txt`). **The law's slopes
+     against MP2's** (`phys-diag --slopes`, kcal/mol per bohr; law minus MP2):
+     inside 2.8 A +0.97 (rms 1.48), 2.8-3.1 A +0.23, 3.1-3.4 +0.04, 3.4-3.8
+     +0.04 (rms 0.12) and 3.8-4.7 +0.04, where MP2's own slopes are 0.19-0.23:
+     **the law pulls 20-25% too hard at 3.4-4.7 A.** A bias of 0.045 kcal/mol
+     per bohr over the 16 neighbours there is, as a virial, about 2000 bar (the
+     arithmetic: 16 x 1/2 x 7.5 bohr x 0.045 / (3 x 202 bohr^3 per molecule)),
+     which is the pressure error. A pair law that reproduces energies to 0.1-0.3
+     kcal/mol can be wrong in its mid-range force by a quarter. Fitting the
+     slopes (60 of them, weight 3) with the repulsion free changed nothing in
+     the liquid (-1856 bar): the error is in the dispersion, which was held at
+     E6's C6 (O-O 17.48, O-H 6.33, H-H 2.38 hartree bohr^6; 52 in all). **With
+     the C6 free and the slopes in the fit** the pair error is the same (0.246
+     fitted, 0.334 unseen) and the dispersion is O-H 8.86 and nothing else, 35
+     in all: a third less than the kernel's. **The liquid:** U/N -10.35 +- 0.03,
+     heat of vaporisation 10.94 against 10.5 measured, **pressure -448 +- 63 bar
+     (from -1701)**, first peak 2.53 at 2.75 A, 4.44 inside 3.3 A, a faint second
+     shell (1.06 at 4.75 A), tetrahedral q 0.61 (TIP4P-like control 0.72, the
+     earlier derived laws 0.51-0.58), 3.54 hydrogen bonds a molecule (3.78 for
+     the control). The best so far on every measure, with nothing in its
+     electrostatics, induction or repulsion's sizes tuned to a liquid; the
+     dispersion is the one place pair data decided a number the engine had
+     derived, and it was decided by slopes MP2 computes. Files:
+     `law-water-mp2-cloud-slopes.txt`, `gOO-water-298-mp2-cloud-slopes.txt`,
+     `deriv-water.txt`, `tetra.py`. *Open:* the pressure is still -450 bar, the
+     first peak still low, the second shell weak; the dispersion split between
+     atom pairs is degenerate (all on O-H); a hexamer at MP2 would test
+     four-body and higher terms.
    - **E8z, remove what was not chosen.** *Planned by the owner, to be done
      once the method above is validated and the owner confirms it; nothing is
      removed before that.* Every method the engine carries and the decision

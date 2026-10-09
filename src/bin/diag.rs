@@ -319,8 +319,63 @@ fn fit_electrostatics(law_path: &str, es_file: &str, tags: &str) {
     std::fs::write(law_path.replace(".txt", "-fit.txt"), out).expect("written");
 }
 
+/// `phys-diag water law.txt --slopes deriv-water.txt tag`: the law's slope of the
+/// pair energy along the line between the centres against the MP2 one
+/// (`phys-es-gpu --deriv`), by oxygen separation, in kcal/mol per bohr.
+fn slopes(law_path: &str, deriv_file: &str, tag: &str) {
+    let (law, alpha, bis, frame) = load(law_path, 3);
+    let types = law.charge.len();
+    let atom_types = types - bis.is_some() as usize - distinct_types(&frame);
+    let geometry = std::fs::read_to_string(format!("pairs-water{tag}.txt")).unwrap_or_else(|_| panic!("no pairs-water{tag}.txt"));
+    let mut by_index: std::collections::HashMap<usize, Vec<(Vec3, usize)>> = std::collections::HashMap::new();
+    for line in geometry.lines().filter(|l| !l.starts_with('#') && l.contains('|')) {
+        let (head, tail) = line.split_once('|').expect("a |");
+        let k: usize = head.split_whitespace().next().and_then(|x| x.parse().ok()).expect("an index");
+        let t: Vec<&str> = tail.split_whitespace().collect();
+        by_index.insert(k, t.chunks(4).map(|c| (Vec3 { x: c[0].parse().unwrap(), y: c[1].parse().unwrap(), z: c[2].parse().unwrap() }, c[3].parse().unwrap())).collect());
+    }
+    let mass = |t: usize| if t == 0 { 15.999 } else { 1.008 };
+    let mut rows: Vec<(f64, f64, f64)> = Vec::new();
+    for line in std::fs::read_to_string(deriv_file).unwrap_or_else(|_| panic!("no {deriv_file}")).lines() {
+        let w: Vec<&str> = line.split_whitespace().collect();
+        if w.len() < 4 {
+            continue;
+        }
+        let (k, delta, ep, em): (usize, f64, f64, f64) = (w[0].parse().unwrap(), w[1].parse().unwrap(), w[2].parse().unwrap(), w[3].parse().unwrap());
+        let Some(atoms) = by_index.get(&k) else { continue };
+        let n = atoms.len() / 2;
+        let (a, b) = (&atoms[..n], &atoms[n..]);
+        let com = |m: &[(Vec3, usize)]| -> Vec3 {
+            let total: f64 = m.iter().map(|(_, t)| mass(*t)).sum();
+            m.iter().fold(Vec3::ZERO, |acc, (p, t)| acc + p.scale(mass(*t) / total))
+        };
+        let axis = (com(b) - com(a)).unit();
+        let place = |m: &[(Vec3, usize)]| with_frame_sites(&with_bisector_site(m, atom_types, bis.unwrap_or(0.0)), &frame);
+        let shifted = |sgn: f64| -> Vec<(Vec3, usize)> { b.iter().map(|(p, t)| (*p + axis.scale(sgn * delta), *t)).collect() };
+        let eval = |bb: Vec<(Vec3, usize)>| pair_energy(&Polarisable { law: &law, alpha: alpha.clone() }, &PairEnergy { a: place(a), b: place(&bb), energy: 0.0 });
+        let law_slope = (eval(shifted(1.0)) - eval(shifted(-1.0))) / (2.0 * delta) * KCAL;
+        rows.push(((a[0].0 - b[0].0).norm() * BOHR, (ep - em) / (2.0 * delta) * KCAL, law_slope));
+    }
+    println!("slopes of {law_path}: {} pairs (kcal/mol per bohr; positive means repulsion falling with distance... ie E rising)", rows.len());
+    println!("  O-O (A)       n   MP2 mean   law - MP2 mean   rms");
+    for w in [0.0, 2.8, 3.1, 3.4, 3.8, 4.7].windows(2) {
+        let sel: Vec<&(f64, f64, f64)> = rows.iter().filter(|r| r.0 >= w[0] && r.0 < w[1]).collect();
+        if sel.is_empty() {
+            continue;
+        }
+        let n = sel.len() as f64;
+        println!("  {:.1}-{:.1}  {:>4}  {:>9.3}  {:>12.3}  {:>9.3}", w[0], w[1], sel.len(), sel.iter().map(|r| r.1).sum::<f64>() / n, sel.iter().map(|r| r.2 - r.1).sum::<f64>() / n, (sel.iter().map(|r| (r.2 - r.1).powi(2)).sum::<f64>() / n).sqrt());
+    }
+    // The radial force summed as a virial would: R F over all pairs, here only
+    // as the mean of -R * slope against the same for MP2, by shell.
+}
+
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
+    if let Some(i) = args.iter().position(|a| a == "--slopes") {
+        slopes(&args[1], &args[i + 1], args.last().expect("tag"));
+        return;
+    }
     if let Some(i) = args.iter().position(|a| a == "--fit-es") {
         fit_electrostatics(&args[1], &args[i + 1], args.last().expect("tags"));
         return;

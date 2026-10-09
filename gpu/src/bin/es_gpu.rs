@@ -9,5 +9,9 @@ fn main() {
         }
     }
     let args: Vec<String> = std::env::args().skip(1).collect();
-    phys::pairs::es_main(&args);
+    if args.iter().any(|a| a == "--deriv") {
+        phys::pairs::deriv_main(&args);
+    } else {
+        phys::pairs::es_main(&args);
+    }
 }

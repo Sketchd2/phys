@@ -624,6 +624,18 @@ pub fn with_frame_sites(molecule: &[(Vec3, usize)], sites: &[ExtraSite]) -> Vec<
     out
 }
 
+/// A pair's energy at two geometries a little apart along the line between
+/// the molecules' centres, and the reference's difference: the force a liquid's
+/// pressure is made of, for a fit to match (`phys-es-gpu --deriv`).
+#[derive(Debug, Clone)]
+pub struct Slope {
+    pub plus: PairEnergy,
+    pub minus: PairEnergy,
+    /// Reference energy at `plus` less at `minus`, hartree.
+    pub target: f64,
+    pub weight: f64,
+}
+
 /// Numbers of a law a fit leaves at the values it was started with.
 ///
 /// A site that carries charge and nothing else (an off-atom site standing in
@@ -663,6 +675,8 @@ pub struct Held<'a> {
     /// Keep every `A` where it started (zero for a law with no Born-Mayer
     /// repulsion of its own), with `B` left as the dispersion's damping.
     pub no_born_mayer: bool,
+    /// Differences of energies along the centres' line to be matched as well.
+    pub slopes: &'a [Slope],
 }
 
 /// [`fit_site_site`] with some numbers held at their starting values.
@@ -797,7 +811,11 @@ pub fn fit_site_site_polarised(data: &[PairEnergy], multiplicity: &[usize], star
     };
     let residuals = |x: &[f64]| -> Vec<f64> {
         let law = unpack(&expand(x));
-        data.iter().zip(&weights).map(|(d, w)| w.sqrt() * (energy_of(&law, d) - d.energy)).collect()
+        let mut r: Vec<f64> = data.iter().zip(&weights).map(|(d, w)| w.sqrt() * (energy_of(&law, d) - d.energy)).collect();
+        for sl in held.slopes {
+            r.push(sl.weight.sqrt() * ((energy_of(&law, &sl.plus) - energy_of(&law, &sl.minus)) - sl.target));
+        }
+        r
     };
     let cost = |r: &[f64]| r.iter().map(|v| v * v).sum::<f64>();
     let mut x: Vec<f64> = free.iter().map(|&i| base[i]).collect();

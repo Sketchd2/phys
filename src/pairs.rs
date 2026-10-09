@@ -1090,6 +1090,66 @@ pub fn es_main(args: &[String]) {
     }
 }
 
+/// The slope of a pair's MP2 interaction energy along the line between the
+/// molecules' centres of mass, orientations fixed — the force a liquid's
+/// pressure is made of (`PLAY.md` E8b). A liquid's virial is the sum over pairs
+/// of the centres' separation times the force on the centres, which for rigid
+/// molecules is minus this derivative; an energy fit constrains the wall's
+/// height and not its slope, and a pressure of 1956 bar short of zero is a
+/// slope that is a few per cent out. Each pair is computed with the second
+/// molecule moved `delta` bohr (0.1 by default) farther and nearer along the
+/// line, and the two total counterpoise energies written as
+/// `k delta E_plus E_minus` (hartree), for the fit to difference.
+///
+/// `phys-es-gpu water pairs-file --deriv [--max-oo 4.6 (A)] [--every n] [--delta d]`
+/// appends to `deriv-<name>.txt`, resuming.
+pub fn deriv_main(args: &[String]) {
+    let name = args.first().cloned().unwrap_or_else(|| "water".into());
+    let file = args.get(1).cloned().expect("a pairs file");
+    let flag = |f: &str| args.iter().position(|a| a == f).and_then(|i| args.get(i + 1)).cloned();
+    let max_oo: f64 = flag("--max-oo").and_then(|v| v.parse().ok()).unwrap_or(4.6);
+    let every: usize = flag("--every").and_then(|v| v.parse().ok()).unwrap_or(1);
+    let delta: f64 = flag("--delta").and_then(|v| v.parse().ok()).unwrap_or(0.1);
+    let mut mono = Monomer::load(&name, false);
+    mono.mp2 = true;
+    let n = mono.z.len();
+    let out = format!("deriv-{name}.txt");
+    let done = done_indices(&out);
+    let mut outfile = std::fs::OpenOptions::new().create(true).append(true).open(&out).expect("the output file");
+    let text = std::fs::read_to_string(&file).unwrap_or_else(|_| panic!("no {file}"));
+    let total: f64 = mono.masses.iter().sum();
+    let com = |m: &[Vec3]| -> Vec3 { m.iter().zip(&mono.masses).fold(Vec3::ZERO, |acc, (p, w)| acc + p.scale(*w / total)) };
+    let mut taken = 0usize;
+    for line in text.lines().filter(|l| !l.starts_with('#') && l.contains('|')) {
+        let (head, tail) = line.split_once('|').expect("a |");
+        let h: Vec<&str> = head.split_whitespace().collect();
+        let k: usize = h[0].parse().expect("an index");
+        let t: Vec<&str> = tail.split_whitespace().collect();
+        let atoms: Vec<Vec3> = t.chunks(4).map(|c| Vec3 { x: c[0].parse().unwrap(), y: c[1].parse().unwrap(), z: c[2].parse().unwrap() }).collect();
+        let (a, b) = (atoms[..n].to_vec(), atoms[n..].to_vec());
+        let oo = (a[0] - b[0]).norm() * 0.529177210903;
+        if oo > max_oo || done.contains(&k) {
+            continue;
+        }
+        taken += 1;
+        if taken % every != 0 {
+            continue;
+        }
+        let start = Instant::now();
+        let axis = (com(&b) - com(&a)).unit();
+        let mut e = [0.0f64; 2];
+        for (i, sgn) in [1.0, -1.0].iter().enumerate() {
+            let shifted: Vec<Vec3> = b.iter().map(|p| *p + axis.scale(sgn * delta)).collect();
+            let r = mono.cluster_interaction(&[a.clone(), shifted], false, None, None, true);
+            e[i] = r.pbe + r.rev;
+        }
+        writeln!(outfile, "{k} {delta} {:.10e} {:.10e}", e[0], e[1]).expect("written");
+        outfile.flush().ok();
+        println!("pair {k}: O-O {oo:.2} A, slope {:.3} kcal/mol/bohr, {:.0} s", (e[0] - e[1]) / (2.0 * delta) * 627.509474, start.elapsed().as_secs_f64());
+        std::io::stdout().flush().ok();
+    }
+}
+
 /// The fields of a cluster calculation that are finished, kept in the cluster's
 /// own file as they come: one line `field <slot> <PBE-exchange energy>
 /// <revPBE-exchange energy> <iterations> <seconds>`, slot 0 the cluster and slot
