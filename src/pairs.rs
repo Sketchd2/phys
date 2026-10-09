@@ -1104,6 +1104,83 @@ pub fn es_main(args: &[String]) {
 /// `phys-es-gpu water pairs-file --deriv [--max-oo 4.6 (A)] [--every n] [--delta d]`
 /// appends to `deriv-<name>.txt`, resuming.
 pub fn deriv_main(args: &[String]) {
+    if args.iter().any(|a| a == "--rotate") {
+        return rotate_main(args);
+    }
+    slope_main(args)
+}
+
+/// The change of a pair's MP2 interaction energy when the second molecule is
+/// turned a little about its centre of mass, about each of the three lab axes
+/// in turn - the torque on it, the orientation analogue of the radial slope
+/// (`PLAY.md` E8b). One energy a turn, taken against the pair's own energy in
+/// its file: the fit compares the law's change for the same turn, so the
+/// finite-difference error is the same on both sides and cancels at first
+/// order. Appends `k theta E_x E_y E_z` (hartree, the total counterpoise
+/// energies after a turn of `theta` radians about x, y, z) to
+/// `rotate-<name>.txt`, resuming.
+///
+/// `phys-es-gpu water pairs-file --deriv --rotate [--max-oo 4.0 (A)] [--every n] [--theta 0.05]`
+pub fn rotate_main(args: &[String]) {
+    let name = args.first().cloned().unwrap_or_else(|| "water".into());
+    let file = args.get(1).cloned().expect("a pairs file");
+    let flag = |f: &str| args.iter().position(|a| a == f).and_then(|i| args.get(i + 1)).cloned();
+    let max_oo: f64 = flag("--max-oo").and_then(|v| v.parse().ok()).unwrap_or(4.0);
+    let every: usize = flag("--every").and_then(|v| v.parse().ok()).unwrap_or(1);
+    let theta: f64 = flag("--theta").and_then(|v| v.parse().ok()).unwrap_or(0.05);
+    let mut mono = Monomer::load(&name, false);
+    mono.mp2 = true;
+    let n = mono.z.len();
+    let out = format!("rotate-{name}.txt");
+    let done = done_indices(&out);
+    let mut outfile = std::fs::OpenOptions::new().create(true).append(true).open(&out).expect("the output file");
+    let text = std::fs::read_to_string(&file).unwrap_or_else(|_| panic!("no {file}"));
+    let total: f64 = mono.masses.iter().sum();
+    let com = |m: &[Vec3]| -> Vec3 { m.iter().zip(&mono.masses).fold(Vec3::ZERO, |acc, (p, w)| acc + p.scale(*w / total)) };
+    let mut taken = 0usize;
+    for line in text.lines().filter(|l| !l.starts_with('#') && l.contains('|')) {
+        let (head, tail) = line.split_once('|').expect("a |");
+        let h: Vec<&str> = head.split_whitespace().collect();
+        let k: usize = h[0].parse().expect("an index");
+        let t: Vec<&str> = tail.split_whitespace().collect();
+        let atoms: Vec<Vec3> = t.chunks(4).map(|c| Vec3 { x: c[0].parse().unwrap(), y: c[1].parse().unwrap(), z: c[2].parse().unwrap() }).collect();
+        let (a, b) = (atoms[..n].to_vec(), atoms[n..].to_vec());
+        let oo = (a[0] - b[0]).norm() * 0.529177210903;
+        if oo > max_oo || done.contains(&k) {
+            continue;
+        }
+        taken += 1;
+        if taken % every != 0 {
+            continue;
+        }
+        let start = Instant::now();
+        let centre = com(&b);
+        let (s, c) = theta.sin_cos();
+        let mut e = [0.0f64; 3];
+        for axis in 0..3 {
+            let turned: Vec<Vec3> = b
+                .iter()
+                .map(|p| {
+                    let d = *p - centre;
+                    let r = match axis {
+                        0 => Vec3 { x: d.x, y: c * d.y - s * d.z, z: s * d.y + c * d.z },
+                        1 => Vec3 { x: c * d.x + s * d.z, y: d.y, z: -s * d.x + c * d.z },
+                        _ => Vec3 { x: c * d.x - s * d.y, y: s * d.x + c * d.y, z: d.z },
+                    };
+                    centre + r
+                })
+                .collect();
+            let r = mono.cluster_interaction(&[a.clone(), turned], false, None, None, true);
+            e[axis] = r.pbe + r.rev;
+        }
+        writeln!(outfile, "{k} {theta} {:.10e} {:.10e} {:.10e}", e[0], e[1], e[2]).expect("written");
+        outfile.flush().ok();
+        println!("pair {k}: O-O {oo:.2} A, turn energies {:.3} {:.3} {:.3} kcal/mol, {:.0} s", e[0] * 627.509474, e[1] * 627.509474, e[2] * 627.509474, start.elapsed().as_secs_f64());
+        std::io::stdout().flush().ok();
+    }
+}
+
+fn slope_main(args: &[String]) {
     let name = args.first().cloned().unwrap_or_else(|| "water".into());
     let file = args.get(1).cloned().expect("a pairs file");
     let flag = |f: &str| args.iter().position(|a| a == f).and_then(|i| args.get(i + 1)).cloned();

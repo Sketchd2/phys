@@ -62,6 +62,9 @@ fn main() {
     // `--overlap`: the repulsion is that of the charge clouds' overlap (the
     // density's own sizes, one strength per pair) and not a Born-Mayer per atom pair.
     let use_overlap = args.iter().any(|a| a == "--overlap");
+    // `--bm`: with `--overlap`, atom-pair Born-Mayer terms as well, free (the
+    // overlap form falls too steeply to give the hydrogen-bond wall its slope).
+    let with_bm = args.iter().any(|a| a == "--bm");
     // `--slopes deriv-water.txt --slope-pairs <tag>`: the energies along the
     // centres' line (`phys-es-gpu --deriv`), whose differences the law must match.
     let slope_weight: f64 = args.iter().position(|a| a == "--slope-weight").and_then(|i| args.get(i + 1)).and_then(|v| v.parse().ok()).unwrap_or(2.0);
@@ -99,6 +102,55 @@ fn main() {
         }
         _ => Vec::new(),
     };
+    // `--rotations rotate-water.txt --slope-pairs <tag>`: the energy after a small
+    // turn of the second molecule about each lab axis (`phys-es-gpu --deriv
+    // --rotate`), against the pair's own, whose change the law must match.
+    let mut raw_slopes = raw_slopes;
+    if let (Some(rf), Some(tag)) = (args.iter().position(|a| a == "--rotations").and_then(|i| args.get(i + 1)), args.iter().position(|a| a == "--slope-pairs").and_then(|i| args.get(i + 1))) {
+        let geometry = std::fs::read_to_string(format!("pairs-{name}{tag}.txt")).unwrap_or_else(|_| panic!("no pairs-{name}{tag}.txt"));
+        let mut by_index: std::collections::HashMap<usize, (f64, Vec<(Vec3, usize)>)> = std::collections::HashMap::new();
+        for line in geometry.lines().filter(|l| !l.starts_with('#') && l.contains('|')) {
+            let (head, tail) = line.split_once('|').expect("a |");
+            let h: Vec<&str> = head.split_whitespace().collect();
+            let k: usize = h[0].parse().expect("an index");
+            let e0: f64 = h[2].parse().expect("an energy");
+            let t: Vec<&str> = tail.split_whitespace().collect();
+            by_index.insert(k, (e0, t.chunks(4).map(|c| (Vec3 { x: c[0].parse().unwrap(), y: c[1].parse().unwrap(), z: c[2].parse().unwrap() }, c[3].parse().unwrap())).collect()));
+        }
+        let mass = |t: usize| if t == 0 { 15.999 } else { 1.008 };
+        let before = raw_slopes.len();
+        for line in std::fs::read_to_string(rf).unwrap_or_else(|_| panic!("no {rf}")).lines() {
+            let w: Vec<&str> = line.split_whitespace().collect();
+            if w.len() < 5 {
+                continue;
+            }
+            let k: usize = w[0].parse().unwrap();
+            let theta: f64 = w[1].parse().unwrap();
+            let Some((e0, atoms)) = by_index.get(&k) else { continue };
+            let n = atoms.len() / 2;
+            let (a, b) = (&atoms[..n], &atoms[n..]);
+            let total: f64 = b.iter().map(|(_, t)| mass(*t)).sum();
+            let centre = b.iter().fold(Vec3::ZERO, |acc, (p, t)| acc + p.scale(mass(*t) / total));
+            let (s, c) = theta.sin_cos();
+            for axis in 0..3 {
+                let e_turned: f64 = w[2 + axis].parse().unwrap();
+                let turned: Vec<(Vec3, usize)> = b
+                    .iter()
+                    .map(|(p, t)| {
+                        let d = *p - centre;
+                        let r = match axis {
+                            0 => Vec3 { x: d.x, y: c * d.y - s * d.z, z: s * d.y + c * d.z },
+                            1 => Vec3 { x: c * d.x + s * d.z, y: d.y, z: -s * d.x + c * d.z },
+                            _ => Vec3 { x: c * d.x - s * d.y, y: s * d.x + c * d.y, z: d.z },
+                        };
+                        (centre + r, *t)
+                    })
+                    .collect();
+                raw_slopes.push(Slope { plus: PairEnergy { a: a.to_vec(), b: turned, energy: e_turned }, minus: PairEnergy { a: a.to_vec(), b: b.to_vec(), energy: *e0 }, target: e_turned - e0, weight: slope_weight });
+            }
+        }
+        println!("  {} turns from {rf} added to the slopes", raw_slopes.len() - before);
+    }
     // `--no-c8`: no C8 at all.
     let no_c8 = args.iter().any(|a| a == "--no-c8");
     // `--esp esp-water.txt`: the charges and the bisector site from the
@@ -180,7 +232,7 @@ fn main() {
         // with no hydrogen bond in it. (The last charge follows from
         // neutrality.)
         let fit = if bisector {
-            let (fit, d) = fit_with_bisector(&train, &multiplicity, types, temperature, &c6_held, alpha_full.as_deref(), use_sigma, esp.as_ref(), &lp_sites, charge_mode, no_c8, use_overlap, &raw_slopes, start_law.as_ref(), match (two_stage, &hf_law) { (false, _) => Stage::Single, (true, None) => Stage::Hf, (true, Some(l)) => Stage::Correlation(l) });
+            let (fit, d) = fit_with_bisector(&train, &multiplicity, types, temperature, &c6_held, alpha_full.as_deref(), use_sigma, esp.as_ref(), &lp_sites, charge_mode, no_c8, use_overlap, with_bm, &raw_slopes, start_law.as_ref(), match (two_stage, &hf_law) { (false, _) => Stage::Single, (true, None) => Stage::Hf, (true, Some(l)) => Stage::Correlation(l) });
             println!("    bisector site {d:.4} bohr from the first atom (weighted residual {:.3e})", fit.weighted_rms);
             bisector_distance = Some(d);
             fit
@@ -193,7 +245,7 @@ fn main() {
                 start.pair[b * types + a][2] = v;
             }
             let dispersion: Vec<(usize, usize)> = c6_held.iter().map(|&(p, _)| p).collect();
-            fit_site_site_polarised(&train, &multiplicity, &start, temperature, 1e-3, 5000, &Held { pairs: &[], dispersion: &dispersion, sigma: use_sigma, charges: esp.is_some(), damp: false, repulsion: false, no_dispersion: false, no_dispersion_pairs: &[], no_c8, overlap: use_overlap, no_born_mayer: use_overlap, slopes: &[] }, alpha_full.as_deref())
+            fit_site_site_polarised(&train, &multiplicity, &start, temperature, 1e-3, 5000, &Held { pairs: &[], dispersion: &dispersion, sigma: use_sigma, charges: esp.is_some(), damp: false, repulsion: false, no_dispersion: false, no_dispersion_pairs: &[], no_c8, overlap: use_overlap, no_born_mayer: use_overlap && !with_bm, slopes: &[] }, alpha_full.as_deref())
         };
         if two_stage && column == 1 {
             hf_law = Some(fit.law.clone());
@@ -256,7 +308,7 @@ fn add_bisector(d: &PairEnergy, types: usize, distance: f64, extra: &[ExtraSite]
 /// distance the fit is started from several charges (the energy goes as a
 /// product of charges and has more than one basin) and the best kept; the
 /// distance is the coarse-grid minimum of the weighted residual, refined.
-fn fit_with_bisector(train: &[PairEnergy], multiplicity: &[usize], types: usize, temperature: f64, c6_held: &[((usize, usize), f64)], alpha: Option<&[f64]>, use_sigma: bool, esp: Option<&(Vec<f64>, f64, Vec<f64>)>, lp: &[ExtraSite], charge_only: bool, no_c8: bool, use_overlap: bool, raw_slopes: &[Slope], start_law: Option<&SiteSite>, stage: Stage) -> (Fitted, f64) {
+fn fit_with_bisector(train: &[PairEnergy], multiplicity: &[usize], types: usize, temperature: f64, c6_held: &[((usize, usize), f64)], alpha: Option<&[f64]>, use_sigma: bool, esp: Option<&(Vec<f64>, f64, Vec<f64>)>, lp: &[ExtraSite], charge_only: bool, no_c8: bool, use_overlap: bool, with_bm: bool, raw_slopes: &[Slope], start_law: Option<&SiteSite>, stage: Stage) -> (Fitted, f64) {
     let mut mult = multiplicity.to_vec();
     mult.push(1);
     let mut classes: Vec<usize> = lp.iter().map(|s| s.ty).collect();
@@ -318,7 +370,7 @@ fn fit_with_bisector(train: &[PairEnergy], multiplicity: &[usize], types: usize,
             if use_overlap {
                 // No Born-Mayer of its own; B stays as the dispersion's damping.
                 for p in start.pair.iter_mut() {
-                    p[0] = 1e-300;
+                    p[0] = if with_bm { 1.0 } else { 1e-300 };
                     p[1] = 2.0;
                 }
             }
@@ -349,7 +401,7 @@ fn fit_with_bisector(train: &[PairEnergy], multiplicity: &[usize], types: usize,
                     start.pair[b * all + a][2] = v;
                 }
             }
-            let held = Held { pairs: &site_pairs, dispersion: if matches!(stage, Stage::Correlation(_)) { &[] } else { &dispersion }, sigma: use_sigma, charges: esp.is_some(), damp: matches!(stage, Stage::Correlation(_)), repulsion: matches!(stage, Stage::Correlation(_)), no_dispersion: matches!(stage, Stage::Hf), no_dispersion_pairs: &lp_pairs, no_c8, overlap: use_overlap, no_born_mayer: use_overlap, slopes: &slopes };
+            let held = Held { pairs: &site_pairs, dispersion: if matches!(stage, Stage::Correlation(_)) { &[] } else { &dispersion }, sigma: use_sigma, charges: esp.is_some(), damp: matches!(stage, Stage::Correlation(_)), repulsion: matches!(stage, Stage::Correlation(_)), no_dispersion: matches!(stage, Stage::Hf), no_dispersion_pairs: &lp_pairs, no_c8, overlap: use_overlap, no_born_mayer: use_overlap && !with_bm, slopes: &slopes };
             let fit = fit_site_site_polarised(&data, &mult, &start, temperature, 1e-3, 5000, &held, alpha);
             if fit.weighted_rms.is_finite() && best.as_ref().map_or(true, |b| fit.weighted_rms < b.weighted_rms) {
                 best = Some(fit);
