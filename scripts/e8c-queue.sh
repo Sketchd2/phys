@@ -33,8 +33,6 @@ export PHYS_BIN=$ROOT/bin PHYS_GPU_BIN=$ROOT/gpubin
 case $LANE in
 a) SHAPES="
 avg      0.97894 104.078 0
-str-lo   0.95    104.078 1
-str-hi   1.01    104.078 1
 ";;
 b) SHAPES="
 bend-lo  0.97894  98.5   1
