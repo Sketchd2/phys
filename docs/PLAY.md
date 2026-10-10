@@ -4783,6 +4783,25 @@ the start of the phase, ahead of the renderer**. In order:
      choice - polynomial in (r1, r2, theta) about the averaged shape, or a
      per-molecule fit of the cloud model to its own electrons at each drawn
      shape - and is the owner's to take when the data exists to compare them.
+     **E8c, a cloud refit that cannot be started from the potential fit
+     (2026-10-10).** `scripts/water-shape.sh` started the refit to the exact
+     electrostatic energies from `phys-esp --gauss --cloud --mp2-dipole`'s
+     output, which overshoots (see (l) above) and is degenerate: charges
+     -6.40 / -1.93 / +0.165, widths of 1e-15 and 1.6e15 bohr. From it the
+     refit on the averaged shape's 66 exact energies *stayed* degenerate -
+     charges -80.6 / +72.3, a width of 1.1e14, **7.3 kcal/mol rms fitted and
+     8.4 held out, a dipole of 4.92 D** - and finished without an error. The
+     shape was not the cause: the same stage on the original shape gives the
+     same degenerate start (potential RMS 1.63e-2, hydrogen width 1.2e15).
+     Started instead from the cloud fitted earlier (`esp-water-cloud-mp2dip.txt`,
+     the hydrogen sites moved to the new bond length), the same data give
+     **0.39 fitted, 0.36 held out, a dipole of 1.873 D** (MP2: 1.865), widths
+     1.80 / 1.15 / 1.19 bohr. The script now does this. **To check on every
+     later run:** `cloudfit.log`'s "after" line should read under about 1
+     kcal/mol rms with a dipole near 1.87 D and no charge of tens of electrons;
+     the refit reports a bad fit as a result and not as a failure, so nothing
+     stops a run on it. A second shape, or a molecule with no earlier cloud to
+     start from, has no sound start yet: that is what the fit needs next.
    - **E8z, remove what was not chosen.** *Planned by the owner, to be done
      once the method above is validated and the owner confirms it; nothing is
      removed before that.* Every method the engine carries and the decision
