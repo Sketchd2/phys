@@ -48,7 +48,14 @@ log "biased pairs"; "$GPUBIN/phys-pairs-gpu.exe" water $BIAS_PAIRS --mp2 --bias 
 
 # 4. exact electrostatics, slopes, turns
 log "electrostatics"; "$GPUBIN/phys-es-gpu.exe" water pairs-water-gpu-bias-mp2.txt --max-oo 4.4 --every 3 > es.log 2>&1
-log "cloud refit"; "$BIN/phys-diag.exe" water esp-water-cloud-mp2.txt --fit-es es-water.txt --dipole "$MU" -gpu-bias-mp2 > cloudfit.log 2>&1
+# The refit starts from a sound cloud, the one fitted to the first shape's exact
+# energies, its hydrogen sites moved to this shape's bond length. The potential
+# fit above overshoots (PLAY.md E8b (l)): started from it, the refit stays
+# degenerate (charges of -80 and +72, a width of 1e14, 7-8 kcal/mol rms).
+RBOHR=$(python -c "print(repr($R / 0.529177210903))")
+sed "s/1\.8309732065727025e0/$RBOHR/g" "${CLOUD_START:-$HERE/esp-water-cloud-mp2dip.txt}" > cloud-start.txt
+log "cloud refit"; "$BIN/phys-diag.exe" water cloud-start.txt --fit-es es-water.txt --dipole "$MU" -gpu-bias-mp2 > cloudfit.log 2>&1
+cp cloud-start-fit.txt esp-water-cloud-mp2-fit.txt
 log "slopes"; "$GPUBIN/phys-es-gpu.exe" water pairs-water-gpu-bias-mp2.txt --deriv --max-oo 4.6 --every 3 > slopes.log 2>&1
 log "turns"; "$GPUBIN/phys-es-gpu.exe" water pairs-water-gpu-bias-mp2.txt --deriv --rotate --max-oo 4.0 --every 4 > turns.log 2>&1
 
