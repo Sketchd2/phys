@@ -4909,6 +4909,26 @@ the start of the phase, ahead of the renderer**. In order:
      water's nuclei, which the sampling-temperature draw of the pair data only
      approximates (see the entry on where the pair data should come from).
      The cheaper approximation (a quantum thermal bath) is not planned.
+     **E8c, the cost of an all-atom liquid, and the GPU (the owner,
+     2026-10-11).** The O-H stretch's 9 fs period needs a step of about 0.5 fs,
+     so 100 ps is about 200,000 steps, each with the induced-dipole solve for
+     216 molecules; the liquid code (`liquid.rs`, `induction.rs`, `flex.rs`) is
+     CPU only and one flexible liquid is expected to take several times option
+     1's 1.3 hours. **Part of option 3:** (i) *time* a flexible run (the option 2
+     liquid is the first, bonds held, and gives the integrator's cost) and
+     report steps per second and where the time goes; (ii) *port to the GPU
+     the parts of the liquid that would benefit, and test the benefit* - the
+     pair-force and induced-dipole loops first, the solve's iterations kept on
+     the card, and written for a batch of replicas from the start, because the
+     path-integral step's 16-32 beads are independent copies of one system and
+     are where a GPU pays most; (iii) **double precision on the GPU, kept**:
+     the 1/32 rate of this card's `f64` is no longer a concern, so the port
+     does not drop to `f32` and should agree with the CPU run to the tolerance
+     the solve already holds (the chunked, fixed-order sums of
+     `induction::solve` are the model for a deterministic reduction on the
+     card). Engineering time is explicitly acceptable in exchange for shorter
+     computation. The multiple-time-step integrator is a further option if the
+     measurement calls for it.
    - **E8z, remove what was not chosen.** *Planned by the owner, to be done
      once the method above is validated and the owner confirms it; nothing is
      removed before that.* Every method the engine carries and the decision
