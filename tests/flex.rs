@@ -23,16 +23,19 @@ fn small_liquid() -> Flex {
     let th = 104.08f64.to_radians();
     let template = [Vec3::ZERO, Vec3 { x: r, y: 0.0, z: 0.0 }, Vec3 { x: r * th.cos(), y: r * th.sin(), z: 0.0 }];
     let mut pos = Vec::new();
-    let side = 22.0;
+    // 27 molecules 6.6 bohr apart in a box of 19.8: neighbours inside the cut-off, which the
+    // first version of this test (eight molecules 11 bohr apart, cut off at 10.5) did not have -
+    // its forces were the molecules' own and it tested nothing between them.
+    let side = 19.8;
     let mut k = 12345u64;
     let mut rnd = || {
         k = k.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
         ((k >> 33) as f64) / ((1u64 << 31) as f64)
     };
-    for ix in 0..2 {
-        for iy in 0..2 {
-            for iz in 0..2 {
-                let centre = Vec3 { x: 5.5 + 11.0 * ix as f64, y: 5.5 + 11.0 * iy as f64, z: 5.5 + 11.0 * iz as f64 };
+    for ix in 0..3 {
+        for iy in 0..3 {
+            for iz in 0..3 {
+                let centre = Vec3 { x: 3.3 + 6.6 * ix as f64, y: 3.3 + 6.6 * iy as f64, z: 3.3 + 6.6 * iz as f64 };
                 let q = Quat { w: rnd() * 2.0 - 1.0, v: Vec3 { x: rnd() * 2.0 - 1.0, y: rnd() * 2.0 - 1.0, z: rnd() * 2.0 - 1.0 } };
                 let n = (q.w * q.w + q.v.norm2()).sqrt();
                 let q = Quat { w: q.w / n, v: q.v.scale(1.0 / n) };
@@ -51,10 +54,11 @@ fn small_liquid() -> Flex {
         cell: [side; 3],
         pos,
         vel: vec![[Vec3::ZERO; 3]; n],
-        r_on: 8.0,
-        r_cut: 10.5,
+        r_on: 7.6,
+        r_cut: 9.6,
         surface,
         bond: None,
+        geo: None,
     }
 }
 
@@ -266,4 +270,94 @@ fn held_bonds_draw_only_the_angle() {
     assert!(shapes.iter().all(|&(a, b, _)| a == r && b == r));
     let (lo, hi) = shapes.iter().fold((9.0f64, 0.0f64), |(l, h), &(_, _, t)| (l.min(t), h.max(t)));
     assert!(hi.to_degrees() - lo.to_degrees() > 10.0, "the angle must vary: {lo} {hi}");
+}
+
+/// A cloud whose parameters are quadratics in the angle, with slopes large enough to matter.
+fn geo_cloud(l: &Flex, text: &str, sitesite: &SiteSite) -> phys::geolaw::GeoCloud {
+    let bis = SiteSite::bisector_from_text(text).expect("a bisector").1;
+    let x0 = phys::geolaw::x_of_law(sitesite, bis);
+    let mut g = phys::geolaw::GeoCloud::constant([sitesite.charge[0], sitesite.charge[1]], x0, 104.08f64.to_radians());
+    let _ = l;
+    // ln widths, bisector distance, populations: each given a slope and a curvature.
+    let c1 = [0.15, -0.10, 0.20, 0.08, 0.12, -0.10];
+    let c2 = [0.05, 0.04, -0.06, 0.02, -0.05, 0.03];
+    for p in 0..6 {
+        g.coef[p][1] = c1[p];
+        g.coef[p][2] = c2[p];
+    }
+    g
+}
+
+#[test]
+fn forces_are_minus_the_gradient_when_the_cloud_follows_the_angle() {
+    let (sitesite, alpha, text) = law();
+    let mut l = small_liquid();
+    // Make the molecules differ in angle, so the parameters differ between them.
+    for (i, m) in l.pos.iter_mut().enumerate() {
+        let shift = ((i as f64 * 0.7).sin()) * 0.12;
+        let (o, h1, h2) = (m[0], m[1], m[2]);
+        let u = (h2 - o).unit();
+        let v = (h1 - o).unit();
+        let n = u.cross(v).unit();
+        let rot = Quat { w: (shift / 2.0).cos(), v: n.scale((shift / 2.0).sin()) };
+        m[2] = o + rot.rotate(h2 - o);
+        let _ = (h1, v);
+    }
+    l.geo = Some(geo_cloud(&l, &text, &sitesite));
+    let pol = Polarisable { law: &sitesite, alpha: alpha.clone() };
+    let f = l.forces(&pol, None);
+    let mut worst: f64 = 0.0;
+    let mut largest: f64 = 0.0;
+    let mut lone: f64 = 0.0;
+    for (i, a, axis) in [(0usize, 0usize, 0usize), (0, 1, 1), (0, 2, 2), (3, 0, 1), (5, 1, 0), (7, 2, 2), (2, 0, 2), (6, 1, 1), (1, 2, 0), (4, 1, 2)] {
+        let h = 1e-4;
+        let mut shifted = |s: f64| {
+            let old = l.pos[i][a];
+            let mut v = old;
+            match axis {
+                0 => v.x += s,
+                1 => v.y += s,
+                _ => v.z += s,
+            }
+            l.pos[i][a] = v;
+            let e = energy(&l, &sitesite, &alpha);
+            l.pos[i][a] = old;
+            e
+        };
+        let numeric = -(shifted(h) - shifted(-h)) / (2.0 * h);
+        let analytic = [f.force[i][a].x, f.force[i][a].y, f.force[i][a].z][axis];
+        println!("  geo: molecule {i} atom {a} axis {axis}: force {analytic:+.8e}, minus the gradient {numeric:+.8e}");
+        worst = worst.max((analytic - numeric).abs());
+        largest = largest.max(analytic.abs());
+        lone = lone.max(numeric.abs());
+    }
+    assert!(largest > 1e-4, "no force to speak of: {largest:e}");
+    assert!(worst < 2e-6 * largest.max(1.0) + 2e-8, "force error {worst:e} against forces up to {largest:e}");
+    // And the same cloud with the angle's part of the force left out would have been wrong:
+    // the slope terms are not small.
+    let mut g0 = l.geo.clone().unwrap();
+    for p in 0..6 {
+        g0.coef[p][1] = 0.0;
+        g0.coef[p][2] = 0.0;
+    }
+    let mut flat = small_liquid();
+    flat.pos = l.pos.clone();
+    flat.geo = Some(g0);
+    let ff = flat.forces(&pol, None);
+    println!("  energies with the angle's dependence {:.9} and without {:.9}", f.inter, ff.inter);
+    let mut diff: f64 = 0.0;
+    for (a, b) in f.force.iter().zip(&ff.force) {
+        for k in 0..3 {
+            diff = diff.max((a[k] - b[k]).norm());
+        }
+    }
+    println!("  the angle's dependence changes the largest force by {diff:.3e} (forces up to {largest:.3e}; {lone:.3e})");
+    assert!(diff > 10.0 * worst, "the test cannot tell the angle's terms from round-off: {diff:e} against {worst:e}");
+    let mut net = Vec3::ZERO;
+    for m in &f.force {
+        for a in m {
+            net += *a;
+        }
+    }
+    assert!(net.norm() < 1e-9, "net force {:e}", net.norm());
 }

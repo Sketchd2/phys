@@ -51,6 +51,7 @@ fn liquid(side_count: usize) -> (Flex, SiteSite, Vec<f64>) {
         r_cut: (0.49 * side).min(16.0),
         surface,
         bond: None,
+        geo: None,
     };
     (flex, law, alpha)
 }

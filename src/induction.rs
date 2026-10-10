@@ -463,6 +463,49 @@ pub fn solve_reference(cl: &Cluster, links: &[Link], warm: Option<&[Vec<Vec3>]>,
     Induced { energy, dipoles, force_pol, force_charge, link_force, virial, iterations }
 }
 
+/// The derivative of the induction energy with respect to every charge's value
+/// and width, per molecule per charge, at fixed positions and polarisabilities.
+///
+/// At the minimum `E = -1/2 mu . E0` and the energy's derivative with respect
+/// to anything the dipoles' cost does not contain is `-mu . dE0/dp` (the
+/// dipoles need not be re-solved: they are at the minimum). The charges act only
+/// through `E0`, the field of the other molecules' charges on each dipole,
+/// `w q h(r, s) r_vec` with `s^2 = 2 sigma_dipole^2 + sigma_charge^2`, so
+/// `dE/dq = -w h mu . r` and `dE/dsigma_c = -w q (dh/ds)(sigma_c / s) mu . r`,
+/// `dh/ds = -(4 / sqrt(pi)) x^2 e^(-x^2) / (s^2 r^2)`, `x = r / s`. A molecule
+/// whose charges follow its geometry (`geolaw.rs`) needs this for its force.
+pub fn charge_gradients(cl: &Cluster, links: &[Link], dipoles: &[Vec<Vec3>]) -> (Vec<Vec<f64>>, Vec<Vec<f64>>) {
+    let sigma: Vec<Vec<f64>> = cl.pol.iter().map(|m| m.iter().map(|p| sigma_of(p.alpha)).collect()).collect();
+    let mut dq: Vec<Vec<f64>> = cl.charges.iter().map(|m| vec![0.0; m.len()]).collect();
+    let mut ds: Vec<Vec<f64>> = dq.clone();
+    let mut visit = |pol_mol: usize, a: usize, pos: Vec3, charge_mol: usize, shifted: bool, l: &Link| {
+        let mu = dipoles[pol_mol][a];
+        for (ci, c) in cl.charges[charge_mol].iter().enumerate() {
+            // The same displacement as `solve`: from the charge to the dipole.
+            let r = if shifted { pos - (c.pos + l.shift) } else { (pos + l.shift) - c.pos };
+            let rr = r.norm();
+            let s = (2.0 * sigma[pol_mol][a].powi(2) + c.sigma.powi(2)).sqrt();
+            let (h, _) = charge_terms(rr, s);
+            let m_r = mu.dot(r);
+            dq[charge_mol][ci] -= l.weight * h * m_r;
+            if c.sigma != 0.0 && c.q != 0.0 {
+                let x = rr / s;
+                let dh_ds = -4.0 / PI.sqrt() * x * x * (-x * x).exp() / (s * s * rr * rr);
+                ds[charge_mol][ci] -= l.weight * c.q * dh_ds * (c.sigma / s) * m_r;
+            }
+        }
+    };
+    for l in links {
+        for (a, pa) in cl.pol[l.i].iter().enumerate() {
+            visit(l.i, a, pa.pos, l.j, true, l);
+        }
+        for (b, pb) in cl.pol[l.j].iter().enumerate() {
+            visit(l.j, b, pb.pos, l.i, false, l);
+        }
+    }
+    (dq, ds)
+}
+
 /// The polarisability tensor of one molecule from its atoms' polarisabilities,
 /// by this model: the response of the summed dipole to a uniform field, with
 /// the atoms' dipole-dipole coupling and their widths, nothing else.

@@ -56,6 +56,7 @@ pub mod eos;
 pub mod erode;
 pub mod flex;
 pub mod flexbulk;
+pub mod geolaw;
 pub mod ids;
 pub mod induction;
 pub mod liquid;

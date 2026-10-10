@@ -9,7 +9,7 @@
 #   scripts/e8c-monomer-props.sh [N_GEOMETRIES] [PARALLEL]
 set -u
 HERE=$(cd "$(dirname "$0")/.." && pwd); cd "$HERE"
-ROOT=$HERE/runs/e8c; D=$ROOT/monomer; mkdir -p "$D"
+ROOT=$HERE/runs/e8c; D=$ROOT/${MONO_DIR:-monomer}; mkdir -p "$D"
 N=${1:-60}; PAR=${2:-2}; BIN=$ROOT/bin
 LOCK=$D/queue.lock
 if [ -f "$LOCK" ] && tasklist //FI "PID eq $(cat "$LOCK")" 2>/dev/null | grep -q "$(cat "$LOCK")"; then echo "already running"; exit 0; fi

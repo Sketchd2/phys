@@ -192,6 +192,7 @@ pub fn run(args: Vec<String>) {
         r_cut,
         surface: surface.clone(),
         bond,
+        geo: crate::geolaw::GeoCloud::from_text(&law_text),
     };
     let kt = K_B * temperature;
     let tau = |ps: f64| 1.0 / (ps / PS);

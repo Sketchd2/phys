@@ -115,6 +115,13 @@ pub trait SiteLaw: Sync {
     fn charge_widths(&self) -> &[f64] {
         &[]
     }
+
+    /// The site-site law underneath, where the law is (or wraps) one: a
+    /// molecule whose charges and widths follow its geometry (`geolaw.rs`)
+    /// needs the table, not just the answers.
+    fn site_site(&self) -> Option<&SiteSite> {
+        None
+    }
 }
 
 /// The quintic switch: 1 below `on`, 0 above `cut`, with continuous first and
@@ -414,6 +421,10 @@ impl SiteLaw for Polarisable<'_> {
     fn charge_widths(&self) -> &[f64] {
         &self.law.sigma
     }
+
+    fn site_site(&self) -> Option<&SiteSite> {
+        Some(self.law)
+    }
 }
 
 /// Route A's site-site law (PLAY.md E8): between sites of types `a` and `b`,
@@ -449,7 +460,60 @@ pub struct SiteSite {
     pub overlap: Vec<f64>,
 }
 
+impl SiteSite {
+    /// As [`SiteLaw::site_pair`] with the two sites' charges `qa`, `qb` and
+    /// Coulomb widths `sa`, `sb` given and not read from the table, which is
+    /// what a molecule whose cloud follows its geometry needs. The overlap
+    /// repulsion keeps the table's (base) widths. Returns the energy, its
+    /// derivative in `r`, and the energy's derivatives with respect to
+    /// `[qa, qb, sa, sb]`.
+    pub fn site_pair_with(&self, ta: usize, tb: usize, r: f64, qa: f64, qb: f64, sa: f64, sb: f64) -> (f64, f64, [f64; 4]) {
+        let types = self.charge.len();
+        let [a, b, c6, c8] = self.pair[ta * types + tb];
+        let qq = qa * qb;
+        let s2 = sa * sa + sb * sb;
+        let mut grad = [0.0; 4];
+        let (coul, dcoul) = if s2 > 0.0 && qq != 0.0 {
+            let sg = s2.sqrt();
+            let x = r / sg;
+            let g = crate::induction::erf(x);
+            let e = (-x * x).exp();
+            let c = 2.0 / (std::f64::consts::PI.sqrt() * sg) * e;
+            // d/d sigma of erf(r / sg) / r is -(2 / sqrt(pi)) e^(-x^2) sigma / sg^3.
+            let dsig = -qq * 2.0 / std::f64::consts::PI.sqrt() * e / (sg * sg * sg);
+            grad = [qb * g / r, qa * g / r, dsig * sa, dsig * sb];
+            (qq * g / r, qq * (c / r - g / (r * r)))
+        } else {
+            grad = [qb / r, qa / r, 0.0, 0.0];
+            (qq / r, -qq / (r * r))
+        };
+        let (ov, dov) = {
+            let k = self.overlap.get(ta * types + tb).copied().unwrap_or(0.0);
+            match (k > 0.0, self.sigma.get(ta), self.sigma.get(tb)) {
+                (true, Some(x), Some(y)) if x * x + y * y > 0.0 => {
+                    let s2 = x * x + y * y;
+                    let v = k * (-r * r / s2).exp();
+                    (v, -2.0 * r / s2 * v)
+                }
+                _ => (0.0, 0.0),
+            }
+        };
+        let rep = a * (-b * r).exp();
+        let bd = self.damp.get(ta * types + tb).copied().filter(|v| *v > 0.0).unwrap_or(b);
+        let (f6, df6) = tang_toennies(6, bd * r);
+        let (f8, df8) = tang_toennies(8, bd * r);
+        let (r6, r8) = (r.powi(6), r.powi(8));
+        let u = coul + rep + ov - f6 * c6 / r6 - f8 * c8 / r8;
+        let du = dcoul + dov - b * rep - (bd * df6 * c6 / r6 - 6.0 * f6 * c6 / (r6 * r)) - (bd * df8 * c8 / r8 - 8.0 * f8 * c8 / (r8 * r));
+        (u, du, grad)
+    }
+}
+
 impl SiteLaw for SiteSite {
+    fn site_site(&self) -> Option<&SiteSite> {
+        Some(self)
+    }
+
     fn site_pair(&self, ta: usize, tb: usize, r: f64) -> (f64, f64) {
         let types = self.charge.len();
         let [a, b, c6, c8] = self.pair[ta * types + tb];

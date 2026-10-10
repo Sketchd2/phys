@@ -187,6 +187,19 @@ pub fn intramolecular(surface: &Surface, pos: &[Vec3; 3]) -> (f64, [Vec3; 3]) {
     (e, [-(f1 + f2), f1, f2])
 }
 
+/// The gradient of the H-O-H angle with respect to the three atoms.
+pub fn angle_gradient(pos: &[Vec3; 3]) -> [Vec3; 3] {
+    let a = pos[1] - pos[0];
+    let b = pos[2] - pos[0];
+    let (r1, r2) = (a.norm(), b.norm());
+    let (u, v) = (a.scale(1.0 / r1), b.scale(1.0 / r2));
+    let c = u.dot(v).clamp(-1.0, 1.0);
+    let sn = (1.0 - c * c).sqrt();
+    let dth1 = (v - u.scale(c)).scale(-1.0 / (r1 * sn));
+    let dth2 = (u - v.scale(c)).scale(-1.0 / (r2 * sn));
+    [-(dth1 + dth2), dth1, dth2]
+}
+
 /// The force `f` on the virtual bisector site `d` from the first atom handed to
 /// the three atoms: `M = O + d w / |w|` with `w = u + v`, the unit vectors of
 /// the two bonds.
@@ -216,6 +229,11 @@ pub struct Flex {
     pub surface: Surface,
     /// Hold both O-H lengths at this (bohr), or leave them free.
     pub bond: Option<f64>,
+    /// A cloud that follows each molecule's angle (`geolaw.rs`): the law must be
+    /// a `SiteSite` (or wrap one), whose table gives the pair terms and the base
+    /// widths, while each molecule's charges, Coulomb widths and bisector
+    /// distance come from here at its own angle.
+    pub geo: Option<crate::geolaw::GeoCloud>,
 }
 
 pub struct FlexForces {
@@ -248,12 +266,14 @@ impl Flex {
 
     pub fn site_positions(&self, i: usize) -> Vec<Vec3> {
         let p = &self.pos[i];
+        let geo_d = self.geo.as_ref().map(|g| g.params(crate::geolaw::GeoCloud::angle(p)).d);
         self.sites
             .anchors
             .iter()
             .map(|a| match *a {
                 Anchor::Atom(k) => p[k],
                 Anchor::Bisector(d) => {
+                    let d = geo_d.unwrap_or(d);
                     let u = (p[1] - p[0]).unit();
                     let v = (p[2] - p[0]).unit();
                     p[0] + (u + v).unit().scale(d)
@@ -265,10 +285,12 @@ impl Flex {
     /// Forces on every site folded down to the atoms.
     fn to_atoms(&self, i: usize, site_forces: &[Vec3]) -> [Vec3; 3] {
         let mut out = [Vec3::ZERO; 3];
+        let geo_d = self.geo.as_ref().map(|g| g.params(crate::geolaw::GeoCloud::angle(&self.pos[i])).d);
         for (k, a) in self.sites.anchors.iter().enumerate() {
             match *a {
                 Anchor::Atom(j) => out[j] += site_forces[k],
                 Anchor::Bisector(d) => {
+                    let d = geo_d.unwrap_or(d);
                     let t = bisector_transfer(&self.pos[i], d, site_forces[k]);
                     for j in 0..3 {
                         out[j] += t[j];
@@ -286,9 +308,13 @@ impl Flex {
         let sites: Vec<Vec<Vec3>> = (0..n).map(|i| self.site_positions(i)).collect();
         let types = &self.sites.types;
         let mtot = self.total_mass();
+        // A cloud that follows each molecule's angle: its parameters, and the law's table.
+        let geo_params: Option<Vec<crate::geolaw::CloudParams>> = self.geo.as_ref().map(|g| self.pos.iter().map(|p| g.params(crate::geolaw::GeoCloud::angle(p))).collect());
+        let table: Option<&crate::liquid::SiteSite> = if self.geo.is_some() { Some(law.site_site().expect("a geometry-following cloud needs a site-site law")) } else { None };
         let job = |idx: &mut dyn Iterator<Item = usize>| {
             idx.map(|i| {
                 let mut fsite = vec![Vec3::ZERO; ns];
+                let (mut gq, mut gs) = (vec![0.0; ns], vec![0.0; ns]);
                 let (mut e, mut fc, mut w) = (0.0, Vec3::ZERO, 0.0);
                 for j in 0..n {
                     if j == i {
@@ -308,7 +334,15 @@ impl Flex {
                             let pb = sites[j][b] - centres[j];
                             let r = d + pa - pb;
                             let rr = r.norm();
-                            let (v, dv) = law.site_pair(types[a], types[b], rr);
+                            let (v, dv) = match (&geo_params, table) {
+                                (Some(gp), Some(t)) => {
+                                    let (v, dv, g) = t.site_pair_with(types[a], types[b], rr, gp[i].charge[types[a]], gp[j].charge[types[b]], gp[i].sigma[types[a]], gp[j].sigma[types[b]]);
+                                    gq[a] += s * g[0];
+                                    gs[a] += s * g[2];
+                                    (v, dv)
+                                }
+                                _ => law.site_pair(types[a], types[b], rr),
+                            };
                             u += v;
                             let f = r.scale(-dv / rr);
                             fsite[a] += f.scale(s);
@@ -320,17 +354,28 @@ impl Flex {
                     fc += switch_force;
                     w += d.dot(net + switch_force);
                 }
-                (i, e, fsite, fc, w)
+                (i, e, fsite, fc, w, gq, gs)
             })
             .collect::<Vec<_>>()
         };
         let mut energy = 0.0;
         let mut virial = 0.0;
         let mut force = vec![[Vec3::ZERO; 3]; n];
+        // Per molecule, per site: the energy's derivative with respect to the site's charge and
+        // Coulomb width, and the force on the bisector site, for the angle's part of the force.
+        let mut gq = vec![vec![0.0; ns]; n];
+        let mut gs = vec![vec![0.0; ns]; n];
+        let mut fbis = vec![Vec3::ZERO; n];
+        let bis_site: Option<usize> = self.sites.anchors.iter().position(|a| matches!(a, Anchor::Bisector(_)));
         for part in crate::electrons::scf::parallel_interleaved(n, &job) {
-            for (i, e, fsite, fc, w) in part {
+            for (i, e, fsite, fc, w, q, sg) in part {
                 energy += e;
                 virial += 0.5 * w;
+                if let Some(kb) = bis_site {
+                    fbis[i] += fsite[kb];
+                }
+                gq[i] = q;
+                gs[i] = sg;
                 let mut atoms = self.to_atoms(i, &fsite);
                 for a in 0..3 {
                     atoms[a] += fc.scale(self.masses[a] / mtot);
@@ -348,7 +393,15 @@ impl Flex {
             let mut cl = Cluster::default();
             for i in 0..n {
                 cl.pol.push(pol.iter().map(|&k| PolSite { pos: sites[i][k], alpha: alpha[types[k]] }).collect());
-                cl.charges.push(charged.iter().map(|&k| Charge { pos: sites[i][k], q: charge[types[k]], sigma: widths.get(types[k]).copied().unwrap_or(0.0) }).collect());
+                cl.charges.push(
+                    charged
+                        .iter()
+                        .map(|&k| match &geo_params {
+                            Some(gp) => Charge { pos: sites[i][k], q: gp[i].charge[types[k]], sigma: gp[i].sigma[types[k]] },
+                            None => Charge { pos: sites[i][k], q: charge[types[k]], sigma: widths.get(types[k]).copied().unwrap_or(0.0) },
+                        })
+                        .collect(),
+                );
             }
             let mut links = Vec::new();
             for i in 0..n {
@@ -366,6 +419,15 @@ impl Flex {
             let out = solve(&cl, &links, warm, 1e-9);
             energy += out.energy;
             virial += out.virial;
+            if geo_params.is_some() {
+                let (dq, ds) = crate::induction::charge_gradients(&cl, &links, &out.dipoles);
+                for i in 0..n {
+                    for (c, &k) in charged.iter().enumerate() {
+                        gq[i][k] += dq[i][c];
+                        gs[i][k] += ds[i][c];
+                    }
+                }
+            }
             for i in 0..n {
                 let mut fsite = vec![Vec3::ZERO; ns];
                 for (a, &k) in pol.iter().enumerate() {
@@ -373,6 +435,9 @@ impl Flex {
                 }
                 for (c, &k) in charged.iter().enumerate() {
                     fsite[k] += out.force_charge[i][c];
+                }
+                if let Some(kb) = bis_site {
+                    fbis[i] += fsite[kb];
                 }
                 let atoms = self.to_atoms(i, &fsite);
                 for a in 0..3 {
@@ -386,6 +451,25 @@ impl Flex {
                 }
             }
             dipoles = out.dipoles;
+        }
+        // The angle enters the energy twice more: through each charge and width, and through the
+        // bisector cloud's distance. With theta the molecule's angle, the generalised force
+        // `F_bis . w_hat * d'(theta) - dE/dtheta` acts along `grad theta`.
+        if let Some(g) = &self.geo {
+            for i in 0..n {
+                let th = crate::geolaw::GeoCloud::angle(&self.pos[i]);
+                let dp = g.dparams(th);
+                let mut de_dth = 0.0;
+                for k in 0..ns {
+                    de_dth += gq[i][k] * dp.charge[types[k]] + gs[i][k] * dp.sigma[types[k]];
+                }
+                let (u, v) = ((self.pos[i][1] - self.pos[i][0]).unit(), (self.pos[i][2] - self.pos[i][0]).unit());
+                let kappa = fbis[i].dot((u + v).unit()) * dp.d - de_dth;
+                let grad = angle_gradient(&self.pos[i]);
+                for a in 0..3 {
+                    force[i][a] += grad[a].scale(kappa);
+                }
+            }
         }
         let mut intra = 0.0;
         for i in 0..n {
