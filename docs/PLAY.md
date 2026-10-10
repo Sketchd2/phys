@@ -5026,6 +5026,25 @@ the start of the phase, ahead of the renderer**. In order:
      the law's forces, the induction or the virtual site. It now has 27
      molecules inside the cut-off (energy -0.049 hartree against 0.000), and
      the older force and energy-conservation checks pass on it too.
+     **E8c, the pair loop on the GPU too (2026-10-11).** `GpuPairs`
+     (`gpu/src/sitepair.rs`, `sitepair.wgsl`, the core's `liquid::PairEngine`
+     seam) does `Flex::forces`' site-site loop in double precision: a thread a
+     link for the 25 site-site terms (screened Coulomb with each site's own
+     charge and width, overlap repulsion, Born-Mayer, Tang-Toennies dispersion),
+     a workgroup a site to gather them in a fixed order, the charge and width
+     derivatives the angle-following cloud needs included. With the solve it
+     gives, against the CPU's forces on 216 molecules, **relative energy 6e-12
+     (2e-12 with the angle-following cloud), virial 2e-13, forces to 5e-15
+     against 0.2**, bit-for-bit the same twice (`gpu/tests/induction.rs`).
+     **The flexible liquid, 216 molecules, card otherwise idle:** a step
+     (0.48 fs, fully flexible) takes **22.3 ms against 46.6 ms for the CPU when it
+     had the machine to itself and 273 ms when the CPU jobs were running**;
+     100 ps in **1.3 h**, and at the bond-held step (0.97 fs) about 0.65 h.
+     On the card the solve is 9.9 ms and the pair loop 8.7 ms of that step,
+     so the kernels are now the step; the pair loop in particular is
+     latency-bound (a thread a link, read-modify-write of the per-site sums)
+     and has room: a thread a (link, site) with the sums gathered would cut it
+     several-fold. Not done yet; the liquid is fast enough to proceed.
    - **E8z, remove what was not chosen.** *Planned by the owner, to be done
      once the method above is validated and the owner confirms it; nothing is
      removed before that.* Every method the engine carries and the decision

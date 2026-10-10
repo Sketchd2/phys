@@ -103,3 +103,61 @@ fn the_gpu_solve_is_the_reference_and_is_repeatable() {
     }
     phys::induction::set_induction_engine(None);
 }
+
+/// The whole force routine of the flexible liquid with both engines against none, for a law
+/// with fixed charges and for a cloud that follows each molecule's angle.
+#[test]
+fn the_gpu_pair_loop_and_solve_give_the_cpu_forces_with_and_without_a_geometry_following_cloud() {
+    for follow in [false, true] {
+        let (mut flex, law, alpha) = liquid(6);
+        if follow {
+            let text = std::fs::read_to_string("../law-water-mp2-cloud-final.txt").unwrap();
+            let bis = SiteSite::bisector_from_text(&text).unwrap().1;
+            let mut g = phys::geolaw::GeoCloud::constant([law.charge[0], law.charge[1]], phys::geolaw::x_of_law(&law, bis), 104.08f64.to_radians());
+            let c1 = [0.15, -0.10, 0.20, 0.08, 0.12, -0.10];
+            let c2 = [0.05, 0.04, -0.06, 0.02, -0.05, 0.03];
+            for p in 0..6 {
+                g.coef[p][1] = c1[p];
+                g.coef[p][2] = c2[p];
+            }
+            flex.geo = Some(g);
+            // Angles that differ from molecule to molecule.
+            for (i, m) in flex.pos.iter_mut().enumerate() {
+                let shift = ((i as f64 * 0.7).sin()) * 0.12;
+                let (o, h2) = (m[0], m[2]);
+                let n = (m[2] - o).unit().cross((m[1] - o).unit()).unit();
+                let rot = Quat { w: (shift / 2.0).cos(), v: n.scale((shift / 2.0).sin()) };
+                m[2] = o + rot.rotate(h2 - o);
+            }
+        }
+        let pol = Polarisable { law: &law, alpha: alpha.clone() };
+        phys::induction::set_induction_engine(None);
+        phys::liquid::set_pair_engine(None);
+        let cpu = flex.forces(&pol, None);
+        phys_gpu::install_induction().expect("a GPU");
+        phys_gpu::install_pairs().expect("a GPU");
+        let gpu = flex.forces(&pol, None);
+        let again = flex.forces(&pol, None);
+        phys::induction::set_induction_engine(None);
+        phys::liquid::set_pair_engine(None);
+        let rel = |a: f64, b: f64| (a - b).abs() / b.abs().max(1e-12);
+        let mut worst: f64 = 0.0;
+        let mut scale: f64 = 0.0;
+        for (g, c) in gpu.force.iter().zip(&cpu.force) {
+            for a in 0..3 {
+                worst = worst.max((g[a] - c[a]).norm());
+                scale = scale.max(c[a].norm());
+            }
+        }
+        println!("follow {follow}: energy {:.12} against {:.12} (relative {:.2e}), virial relative {:.2e}, largest force difference {worst:.2e} against {scale:.2e}", gpu.inter, cpu.inter, rel(gpu.inter, cpu.inter), rel(gpu.virial, cpu.virial));
+        assert!(rel(gpu.inter, cpu.inter) < 1e-10, "energy");
+        assert!(rel(gpu.virial, cpu.virial) < 1e-9, "virial");
+        assert!(worst < 1e-9 * scale, "forces: {worst:e} against {scale:e}");
+        assert_eq!(gpu.inter.to_bits(), again.inter.to_bits(), "repeatable");
+        for (g, r) in gpu.force.iter().zip(&again.force) {
+            for a in 0..3 {
+                assert_eq!((g[a].x.to_bits(), g[a].y.to_bits(), g[a].z.to_bits()), (r[a].x.to_bits(), r[a].y.to_bits(), r[a].z.to_bits()));
+            }
+        }
+    }
+}

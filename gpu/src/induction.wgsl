@@ -62,6 +62,11 @@ struct P {
 @group(0) @binding(27) var<storage, read_write> lforce: array<f64>;   // nl*3
 @group(0) @binding(28) var<storage, read_write> lvir: array<f64>;     // nl
 
+// Shared by the GPU kernels that need the reference's special functions in
+// double precision: WGSL has no f64 exp, so `gexp` is built here; `gerf` is the
+// reference's own series. Included by gen_induction.py in each template at
+// `@COMMON@`; edit it here.
+
 const SQRT_PI = 1.7724538509055160273lf;
 const LOG2E = 1.4426950408889634074lf;
 const LN2_HI = 0.693147180369123816490lf;
@@ -147,6 +152,8 @@ fn gerf(x: f64) -> f64 {
     }
     return v;
 }
+
+
 
 // (ta, tbp, da, dbp) of the reference's `dd_terms`.
 fn dd_terms(r: f64, s: f64) -> vec4<f64> {

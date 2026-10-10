@@ -1,4 +1,4 @@
-"""Fill the tables of src/induction.wgsl.tpl and write src/induction.wgsl.
+"""Fill the tables of src/*.wgsl.tpl (with src/common.wgsl.tpl included at @COMMON@) and write src/*.wgsl.
 
     python gen_induction.py
 
@@ -23,7 +23,12 @@ inv_odd = ", ".join(lit(1.0 / (2 * n + 1)) for n in range(130))
 c = [1.0 / math.factorial(k) for k in range(15)]
 horner = "var poly = %s;\n" % lit(c[14]) + "".join("    poly = poly * r + %s;\n" % lit(c[k]) for k in range(13, -1, -1))
 
-text = open(os.path.join(here, "src", "induction.wgsl.tpl"), encoding="utf8").read()
-text = text.replace("@INV_ODD@", inv_odd).replace("@HORNER@", horner.rstrip("\n"))
-open(os.path.join(here, "src", "induction.wgsl"), "w", encoding="utf8", newline="\n").write(text)
-print("wrote src/induction.wgsl,", len(text.splitlines()), "lines")
+common = open(os.path.join(here, "src", "common.wgsl.tpl"), encoding="utf8").read()
+for name in ("induction", "sitepair"):
+    path = os.path.join(here, "src", name + ".wgsl.tpl")
+    if not os.path.exists(path):
+        continue
+    text = open(path, encoding="utf8").read().replace("@COMMON@", common)
+    text = text.replace("@INV_ODD@", inv_odd).replace("@HORNER@", horner.rstrip("\n"))
+    open(os.path.join(here, "src", name + ".wgsl"), "w", encoding="utf8", newline="\n").write(text)
+    print("wrote src/%s.wgsl, %d lines" % (name, len(text.splitlines())))
