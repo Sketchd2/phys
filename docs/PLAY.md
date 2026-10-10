@@ -4841,6 +4841,25 @@ the start of the phase, ahead of the renderer**. In order:
      compared with the law's force on that atom - would test it where it
      matters. Not scheduled; to be done if the flexible liquids disagree with
      the rigid ones in a way the law's fit does not explain, or on request.
+     **E8c, where the pair data should be drawn from (the owner agreed,
+     2026-10-11; to be taken up at the option 3 check-in, option 2's data is
+     unchanged).** The 1500 K draw of `--flex` is a weight for choosing the
+     shapes of one isolated molecule, not a simulated temperature: nothing
+     boils. It is the engine's author's first guess, between the classical
+     298 K spread and the zero-point-equivalent temperatures of the bend
+     (about 1150 K) and the O-H stretch (about 2700 K, so the stretch is
+     under-covered). The most accurate data for a *classical* flexible liquid
+     is drawn from what that liquid visits, with its neighbours: **self-
+     consistent sampling**, i.e. run the liquid on the current law, take pairs
+     (and clusters) from its snapshots at their actual geometries
+     (`pairs::run_snapshot` already does this for the rigid work), compute MP2
+     there, refit, and repeat until the visited geometries stop changing. The
+     wide draw stays as the first round and as the anchor in the tails, since
+     a law fitted only to the distribution it makes is unconstrained just
+     outside it. For *real* water the nuclei are quantum, and the correct
+     distribution comes from path-integral sampling, which the plan's
+     classical treatments do not do; the known cost of a classical flexible
+     model is recorded under (3) above.
    - **E8z, remove what was not chosen.** *Planned by the owner, to be done
      once the method above is validated and the owner confirms it; nothing is
      removed before that.* Every method the engine carries and the decision
