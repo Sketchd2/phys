@@ -4970,6 +4970,29 @@ the start of the phase, ahead of the renderer**. In order:
      resident), the forces, and the pair loops, in `f64`, deterministic
      (gather by site, fixed order, no atomics), and checked against
      `induction::solve` to the solve's tolerance.
+     **E8c, the GPU induced-dipole solve built and tested (2026-10-11).**
+     `phys-gpu`'s `GpuInduction` (`gpu/src/induction.rs`, `induction.wgsl`
+     generated from `induction.wgsl.tpl` by `gen_induction.py`) implements the
+     core's new `induction::InductionEngine` seam; the reference is kept as
+     `induction::solve_reference` and is what `solve` falls back to. **In
+     double precision** (WGSL has no `f64` exp; `gexp` is built in the shader):
+     on 216 molecules (648 dipole sites, 8,640 links) it agrees with the
+     reference to **1.3e-14 in energy, 1.3e-15 in the virial, 1.6e-16 in the
+     largest force (against 0.2) and 6.6e-15 in the dipoles**, and two calls give
+     the same bits (`gpu/tests/induction.rs`). **Benefit, measured with the card
+     otherwise idle:** the solve takes 8.8 ms on the card (9.3 ms with the
+     upload and readback) against about 27 ms on the CPU; a flexible-liquid step
+     falls from 46.6 ms to 28.4 ms, **100 ps from 2.7 h to 1.6 h**
+     (`phys-flexbulk-gpu`, with `--cpu` for the reference). *Sharing the card
+     with the MP2 pair work doubles the solve's time*, the two taking turns.
+     *The first version was slower than the CPU* (34.6 ms a call): one thread a
+     site left the card idle, per-call allocation cost 15 ms, and a
+     per-iteration convergence kernel doubled the dispatches; per-site
+     workgroups, fused convergence, kept buffers and a cheaper exponential
+     (reciprocal tables, exp(-x^2) cut at x^2 = 40) took it to 8.8 ms.
+     **What is left in the step:** about 19 ms, the pair loops and the integrator
+     on the CPU, which is where the next port goes; on the card the erf-heavy
+     terms are 3.2 ms and the twelve CG iterations about 3.5 ms.
    - **E8z, remove what was not chosen.** *Planned by the owner, to be done
      once the method above is validated and the owner confirms it; nothing is
      removed before that.* Every method the engine carries and the decision

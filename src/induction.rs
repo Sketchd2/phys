@@ -43,6 +43,7 @@
 //! force is the derivative at fixed dipoles, which is exact at the minimum.
 
 use crate::math::Vec3;
+use std::sync::{Arc, Mutex};
 
 const PI: f64 = std::f64::consts::PI;
 
@@ -222,14 +223,42 @@ struct LinkItems {
     cd: Vec<Cd>,
 }
 
+/// Something that solves a cluster faster than the reference below, on a GPU
+/// (`phys-gpu`'s `GpuInduction`). It answers to the reference's tolerance, not
+/// bit for bit - its sums are added in another (fixed) order - and may decline
+/// a cluster it cannot take (`None`), when the reference does it.
+pub trait InductionEngine: Send + Sync {
+    fn solve(&self, cl: &Cluster, links: &[Link], warm: Option<&[Vec<Vec3>]>, tolerance: f64) -> Option<Induced>;
+}
+
+static ENGINE: Mutex<Option<Arc<dyn InductionEngine>>> = Mutex::new(None);
+
+/// Install an induction engine for this process (`None` removes it).
+pub fn set_induction_engine(engine: Option<Arc<dyn InductionEngine>>) {
+    *ENGINE.lock().expect("the induction engine") = engine;
+}
+
 /// Solve a cluster: the dipoles, the energy, the forces. `warm` is the dipoles
-/// to start from (the same shape as the result's), `None` for zero.
+/// to start from (the same shape as the result's), `None` for zero. The
+/// installed engine if there is one and it takes the cluster, else
+/// [`solve_reference`].
+pub fn solve(cl: &Cluster, links: &[Link], warm: Option<&[Vec<Vec3>]>, tolerance: f64) -> Induced {
+    let engine = ENGINE.lock().expect("the induction engine").clone();
+    if let Some(e) = engine {
+        if let Some(r) = e.solve(cl, links, warm, tolerance) {
+            return r;
+        }
+    }
+    solve_reference(cl, links, warm, tolerance)
+}
+
+/// The reference: the CPU solve, the oracle the GPU is checked against.
 ///
 /// The screened tensors are worked out once per link (across threads, in
 /// chunks fixed by the number of links) and used by the conjugate-gradient
 /// iterations and by the forces alike; the iterations and the forces run over
 /// the same chunks, their partial sums added in chunk order.
-pub fn solve(cl: &Cluster, links: &[Link], warm: Option<&[Vec<Vec3>]>, tolerance: f64) -> Induced {
+pub fn solve_reference(cl: &Cluster, links: &[Link], warm: Option<&[Vec<Vec3>]>, tolerance: f64) -> Induced {
     let nm = cl.pol.len();
     // Flat index of molecule i's first polarisable site, and first charge.
     let mut first = vec![0usize; nm + 1];

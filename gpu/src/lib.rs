@@ -27,8 +27,10 @@
 //! compensation carried from one to the next.
 
 pub mod fock;
+pub mod induction;
 pub mod product;
 pub use fock::install_fock;
+pub use induction::{install_induction, GpuInduction};
 pub use product::install_product;
 
 use phys::electrons::vdw::{KernelTable, RowEngine, RowPoint, RowSums, ASYMPTOTE_C, ASYMPTOTIC_FROM};

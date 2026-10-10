@@ -1,0 +1,704 @@
+// The induced-dipole solve of `phys::induction::solve`, in double precision, on
+// the card. Every kernel is a gather: a thread or workgroup owns one entry, one
+// site or one link and adds what it reads in a fixed order, so the answer is
+// the same every run (no atomics, which have no f64 anyway). WGSL has no f64
+// `exp`, so `gexp` below builds one; `gerf` is the CPU's own series.
+//
+// GENERATED: this file is `induction.wgsl.tpl` with its tables filled in by
+// `gen_induction.py` (the series' reciprocals and the exponential's
+// coefficients are computed there, not typed). Edit the template.
+//
+// Layout: molecules are identical, `np` polarisable sites and `nch` charges
+// each. Site `s = m * np + a`; charge `c = m * nch + ci`. A link `k` joins
+// molecules `i = lij[2k]` and `j = lij[2k+1]` with the shift added to j's
+// positions. Its entries:
+//   dd[k][a][b]   (a on i, b on j)                  index  k*np*np + a*np + b
+//   cd1[k][a][c]  (dipole a on i, charge c on j)    index  k*2*np*nch + a*nch + c
+//   cd2[k][b][c]  (dipole b on j, charge c on i)    index  k*2*np*nch + np*nch + b*nch + c
+// The molecule's own pairs of dipoles are `intra[m][pair]`, a < b, in order.
+//
+// The kernels that gather over a site's links (e0, the product, the forces)
+// give the site a workgroup of 32, each thread taking links t, t+32, ... and
+// the partial sums added by a fixed tree.
+
+struct P {
+    nm: u32,
+    np: u32,
+    nch: u32,
+    nl: u32,
+    n: u32,
+    nc: u32,
+    npairs: u32,
+    max_iterations: u32,
+};
+
+@group(0) @binding(0) var<uniform> p: P;
+@group(0) @binding(1) var<storage, read_write> pol_pos: array<f64>;   // n*3
+@group(0) @binding(2) var<storage, read_write> pol_sig: array<f64>;   // n
+@group(0) @binding(3) var<storage, read_write> inv_alpha: array<f64>; // n
+@group(0) @binding(4) var<storage, read_write> ch_pos: array<f64>;    // nc*3
+@group(0) @binding(5) var<storage, read_write> ch_q: array<f64>;      // nc
+@group(0) @binding(6) var<storage, read_write> ch_sig: array<f64>;    // nc
+@group(0) @binding(7) var<storage, read_write> lf: array<f64>;        // nl*8: shift(3) w dw d(3)
+@group(0) @binding(8) var<storage, read_write> lij: array<u32>;       // nl*2
+@group(0) @binding(9) var<storage, read_write> inc: array<u32>;       // [nm+1 starts][items k*2+side]
+@group(0) @binding(10) var<storage, read_write> dd_t: array<f64>;     // entries*4: ta tbp da dbp
+@group(0) @binding(11) var<storage, read_write> dd_r: array<f64>;     // entries*3
+@group(0) @binding(12) var<storage, read_write> cd_h: array<f64>;     // entries*2: h dh
+@group(0) @binding(13) var<storage, read_write> cd_r: array<f64>;     // entries*3
+@group(0) @binding(14) var<storage, read_write> in_t: array<f64>;     // nm*npairs*4
+@group(0) @binding(15) var<storage, read_write> in_r: array<f64>;     // nm*npairs*3
+@group(0) @binding(16) var<storage, read_write> e0: array<f64>;       // n*3
+@group(0) @binding(17) var<storage, read_write> mu: array<f64>;       // n*3
+@group(0) @binding(18) var<storage, read_write> rv: array<f64>;       // n*3
+@group(0) @binding(19) var<storage, read_write> pv: array<f64>;       // n*3
+@group(0) @binding(20) var<storage, read_write> apv: array<f64>;      // n*3
+@group(0) @binding(21) var<storage, read_write> zv: array<f64>;       // n*3
+@group(0) @binding(22) var<storage, read_write> sc: array<f64>;       // 0 tol 1 bnorm 2 rz 3 done 4 iterations 5 rn
+@group(0) @binding(23) var<storage, read_write> dd_f: array<f64>;     // entries*3
+@group(0) @binding(24) var<storage, read_write> cd_f: array<f64>;     // entries*3
+@group(0) @binding(25) var<storage, read_write> fpol: array<f64>;     // n*3
+@group(0) @binding(26) var<storage, read_write> fch: array<f64>;      // nc*3
+@group(0) @binding(27) var<storage, read_write> lforce: array<f64>;   // nl*3
+@group(0) @binding(28) var<storage, read_write> lvir: array<f64>;     // nl
+
+const SQRT_PI = 1.7724538509055160273lf;
+const LOG2E = 1.4426950408889634074lf;
+const LN2_HI = 0.693147180369123816490lf;
+const LN2_LO = 1.90821492927058770002e-10lf;
+const INV_ODD = array<f64, 130>(@INV_ODD@);
+
+// exp(x) for x <= 0 to full double precision: x = n ln2 + r, |r| <= ln2/2, a
+// degree-14 polynomial for e^r, and 2^n by exact repeated squaring.
+fn gexp(x: f64) -> f64 {
+    if (x < -700.0lf) {
+        return 0.0lf;
+    }
+    let n = floor(x * LOG2E + 0.5lf);
+    let r = (x - n * LN2_HI) - n * LN2_LO;
+    @HORNER@
+    var m = i32(n);
+    var base = 2.0lf;
+    if (m < 0) {
+        base = 0.5lf;
+        m = -m;
+    }
+    var scale = 1.0lf;
+    for (var b = 0; b < 11; b = b + 1) {
+        if ((m & 1) != 0) {
+            scale = scale * base;
+        }
+        base = base * base;
+        m = m >> 1u;
+    }
+    return poly * scale;
+}
+
+// exp(-x^2), taken as 0 beyond x^2 = 40 (below 5e-18 of one, under the
+// reference's own rounding at the places it is used).
+fn gauss(x: f64) -> f64 {
+    let x2 = x * x;
+    if (x2 > 40.0lf) {
+        return 0.0lf;
+    }
+    return gexp(-x2);
+}
+
+// The reference's erf: the series for |x| < 5.5, the sign beyond.
+fn gerf(x: f64) -> f64 {
+    let ax = abs(x);
+    if (ax == 0.0lf) {
+        return 0.0lf;
+    }
+    if (ax >= 5.5lf) {
+        if (x < 0.0lf) {
+            return -1.0lf;
+        }
+        return 1.0lf;
+    }
+    let x2 = ax * ax;
+    let t2 = 2.0lf * x2;
+    var term = ax;
+    var sum = ax;
+    for (var n = 1u; n < 129u; n = n + 1u) {
+        term = term * t2 * INV_ODD[n];
+        sum = sum + term;
+        if (term <= 1.0e-17lf * sum) {
+            break;
+        }
+    }
+    var v = 2.0lf / SQRT_PI * gexp(-x2) * sum;
+    if (x < 0.0lf) {
+        v = -v;
+    }
+    return v;
+}
+
+// (ta, tbp, da, dbp) of the reference's `dd_terms`.
+fn dd_terms(r: f64, s: f64) -> vec4<f64> {
+    let x = r / s;
+    let g = gerf(x);
+    let c = 2.0lf / (SQRT_PI * s) * gauss(x);
+    let ir = 1.0lf / r;
+    let ir2 = ir * ir;
+    let ir3 = ir2 * ir;
+    let is2 = 1.0lf / (s * s);
+    let a = g * ir3 - c * ir2;
+    let bp = 3.0lf * g * ir3 * ir2 - c * (3.0lf * ir2 * ir2 + 2.0lf * is2 * ir2);
+    let da = 3.0lf * c * ir3 - 3.0lf * g * ir2 * ir2 + 2.0lf * c * is2 * ir;
+    let dbp = 15.0lf * c * ir3 * ir2 - 15.0lf * g * ir3 * ir3 + 10.0lf * c * is2 * ir3 + 4.0lf * c * is2 * is2 * ir;
+    return vec4<f64>(a, bp, da, dbp);
+}
+
+// (h, dh) of `charge_terms`.
+fn charge_terms(r: f64, s_a: f64) -> vec2<f64> {
+    let x = r / s_a;
+    let ex = gauss(x);
+    let gg = gerf(x) - 2.0lf / SQRT_PI * x * ex;
+    let dgg = 4.0lf * r * r / (SQRT_PI * s_a * s_a * s_a) * ex;
+    let ir = 1.0lf / r;
+    let ir3 = ir * ir * ir;
+    return vec2<f64>(gg * ir3, dgg * ir3 - 3.0lf * gg * ir3 * ir);
+}
+
+fn pos_of(i: u32) -> vec3<f64> { return vec3<f64>(pol_pos[3u * i], pol_pos[3u * i + 1u], pol_pos[3u * i + 2u]); }
+fn chpos_of(i: u32) -> vec3<f64> { return vec3<f64>(ch_pos[3u * i], ch_pos[3u * i + 1u], ch_pos[3u * i + 2u]); }
+fn mu_of(i: u32) -> vec3<f64> { return vec3<f64>(mu[3u * i], mu[3u * i + 1u], mu[3u * i + 2u]); }
+fn pv_of(i: u32) -> vec3<f64> { return vec3<f64>(pv[3u * i], pv[3u * i + 1u], pv[3u * i + 2u]); }
+fn ddr_of(e: u32) -> vec3<f64> { return vec3<f64>(dd_r[3u * e], dd_r[3u * e + 1u], dd_r[3u * e + 2u]); }
+fn cdr_of(e: u32) -> vec3<f64> { return vec3<f64>(cd_r[3u * e], cd_r[3u * e + 1u], cd_r[3u * e + 2u]); }
+fn inr_of(e: u32) -> vec3<f64> { return vec3<f64>(in_r[3u * e], in_r[3u * e + 1u], in_r[3u * e + 2u]); }
+fn ddf_of(e: u32) -> vec3<f64> { return vec3<f64>(dd_f[3u * e], dd_f[3u * e + 1u], dd_f[3u * e + 2u]); }
+fn cdf_of(e: u32) -> vec3<f64> { return vec3<f64>(cd_f[3u * e], cd_f[3u * e + 1u], cd_f[3u * e + 2u]); }
+
+fn norm3(v: vec3<f64>) -> f64 {
+    return sqrt(dot(v, v));
+}
+
+fn tensor_apply(a: f64, bp: f64, r: vec3<f64>, v: vec3<f64>) -> vec3<f64> {
+    return v * a - r * (bp * dot(r, v));
+}
+
+fn pair_index(a: u32, b: u32, np: u32) -> u32 {
+    return a * (2u * np - a - 1u) / 2u + (b - a - 1u);
+}
+
+// ---- term construction ------------------------------------------------------
+
+@compute @workgroup_size(64)
+fn k_terms_dd(@builtin(global_invocation_id) gid: vec3<u32>) {
+    let e = gid.x;
+    let np = p.np;
+    if (e >= p.nl * np * np) {
+        return;
+    }
+    let k = e / (np * np);
+    let a = (e / np) % np;
+    let b = e % np;
+    let i = lij[2u * k];
+    let j = lij[2u * k + 1u];
+    let sh = vec3<f64>(lf[8u * k], lf[8u * k + 1u], lf[8u * k + 2u]);
+    let sa = i * np + a;
+    let sb = j * np + b;
+    let r = pos_of(sa) - (pos_of(sb) + sh);
+    let s = sqrt(2.0lf * (pol_sig[sa] * pol_sig[sa] + pol_sig[sb] * pol_sig[sb]));
+    let t = dd_terms(norm3(r), s);
+    dd_t[4u * e] = t.x;
+    dd_t[4u * e + 1u] = t.y;
+    dd_t[4u * e + 2u] = t.z;
+    dd_t[4u * e + 3u] = t.w;
+    dd_r[3u * e] = r.x;
+    dd_r[3u * e + 1u] = r.y;
+    dd_r[3u * e + 2u] = r.z;
+}
+
+@compute @workgroup_size(64)
+fn k_terms_cd(@builtin(global_invocation_id) gid: vec3<u32>) {
+    let e = gid.x;
+    let np = p.np;
+    let nch = p.nch;
+    let per = np * nch;
+    if (e >= p.nl * 2u * per) {
+        return;
+    }
+    let k = e / (2u * per);
+    let rest = e % (2u * per);
+    let second = rest >= per;
+    let q = rest % per;
+    let a = q / nch;
+    let c = q % nch;
+    let i = lij[2u * k];
+    let j = lij[2u * k + 1u];
+    let sh = vec3<f64>(lf[8u * k], lf[8u * k + 1u], lf[8u * k + 2u]);
+    var r: vec3<f64>;
+    var sdip: f64;
+    var cs: f64;
+    if (!second) {
+        // dipole a on i, charge c on j
+        let sa = i * np + a;
+        let cc = j * nch + c;
+        r = pos_of(sa) - (chpos_of(cc) + sh);
+        sdip = pol_sig[sa];
+        cs = ch_sig[cc];
+    } else {
+        // dipole b (= a here) on j, charge c on i
+        let sb = j * np + a;
+        let cc = i * nch + c;
+        r = (pos_of(sb) + sh) - chpos_of(cc);
+        sdip = pol_sig[sb];
+        cs = ch_sig[cc];
+    }
+    let t = charge_terms(norm3(r), sqrt(2.0lf * sdip * sdip + cs * cs));
+    cd_h[2u * e] = t.x;
+    cd_h[2u * e + 1u] = t.y;
+    cd_r[3u * e] = r.x;
+    cd_r[3u * e + 1u] = r.y;
+    cd_r[3u * e + 2u] = r.z;
+}
+
+@compute @workgroup_size(64)
+fn k_terms_intra(@builtin(global_invocation_id) gid: vec3<u32>) {
+    let e = gid.x;
+    if (e >= p.nm * p.npairs) {
+        return;
+    }
+    let m = e / p.npairs;
+    let pr = e % p.npairs;
+    let np = p.np;
+    var a = 0u;
+    var b = 1u;
+    var idx = 0u;
+    for (var x = 0u; x < np; x = x + 1u) {
+        for (var y = x + 1u; y < np; y = y + 1u) {
+            if (idx == pr) {
+                a = x;
+                b = y;
+            }
+            idx = idx + 1u;
+        }
+    }
+    let sa = m * np + a;
+    let sb = m * np + b;
+    let r = pos_of(sa) - pos_of(sb);
+    let s = sqrt(2.0lf * (pol_sig[sa] * pol_sig[sa] + pol_sig[sb] * pol_sig[sb]));
+    let t = dd_terms(norm3(r), s);
+    in_t[4u * e] = t.x;
+    in_t[4u * e + 1u] = t.y;
+    in_t[4u * e + 2u] = t.z;
+    in_t[4u * e + 3u] = t.w;
+    in_r[3u * e] = r.x;
+    in_r[3u * e + 1u] = r.y;
+    in_r[3u * e + 2u] = r.z;
+}
+
+// ---- reductions -------------------------------------------------------------
+
+var<workgroup> red3: array<vec3<f64>, 32>;
+var<workgroup> part: array<f64, 256>;
+
+// The sum of 32 threads' vectors by a fixed tree.
+fn reduce3(v: vec3<f64>, li: u32) -> vec3<f64> {
+    red3[li] = v;
+    workgroupBarrier();
+    for (var s = 16u; s > 0u; s = s / 2u) {
+        if (li < s) {
+            red3[li] = red3[li] + red3[li + s];
+        }
+        workgroupBarrier();
+    }
+    let total = red3[0];
+    workgroupBarrier();
+    return total;
+}
+
+fn reduce(v: f64, li: u32) -> f64 {
+    part[li] = v;
+    workgroupBarrier();
+    for (var s = 128u; s > 0u; s = s / 2u) {
+        if (li < s) {
+            part[li] = part[li] + part[li + s];
+        }
+        workgroupBarrier();
+    }
+    let total = part[0];
+    workgroupBarrier();
+    return total;
+}
+
+// ---- the field of the other molecules' charges on each dipole ---------------
+
+@compute @workgroup_size(32)
+fn k_e0(@builtin(workgroup_id) wg: vec3<u32>, @builtin(local_invocation_id) lid: vec3<u32>) {
+    let s = wg.x;
+    let li = lid.x;
+    let np = p.np;
+    let nch = p.nch;
+    let m = s / np;
+    let a = s % np;
+    var acc = vec3<f64>(0.0lf, 0.0lf, 0.0lf);
+    let start = inc[m];
+    let count = inc[m + 1u] - start;
+    for (var t = li; t < count; t = t + 32u) {
+        let item = inc[p.nm + 1u + start + t];
+        let k = item / 2u;
+        let side = item % 2u;
+        let w = lf[8u * k + 3u];
+        let owner = lij[2u * k + 1u - side];
+        for (var c = 0u; c < nch; c = c + 1u) {
+            let e = k * 2u * np * nch + side * np * nch + a * nch + c;
+            acc = acc + cdr_of(e) * (w * ch_q[owner * nch + c] * cd_h[2u * e]);
+        }
+    }
+    let tot = reduce3(acc, li);
+    if (li == 0u) {
+        e0[3u * s] = tot.x;
+        e0[3u * s + 1u] = tot.y;
+        e0[3u * s + 2u] = tot.z;
+    }
+}
+
+// ---- the matrix-vector product ----------------------------------------------
+
+fn xv(src: u32, i: u32) -> vec3<f64> {
+    if (src == 0u) {
+        return mu_of(i);
+    }
+    return pv_of(i);
+}
+
+fn matvec_site(s: u32, src: u32, li: u32) -> vec3<f64> {
+    let np = p.np;
+    let m = s / np;
+    let a = s % np;
+    var y = vec3<f64>(0.0lf, 0.0lf, 0.0lf);
+    if (li == 0u) {
+        y = xv(src, s) * inv_alpha[s];
+        for (var b = 0u; b < np; b = b + 1u) {
+            if (b == a) {
+                continue;
+            }
+            var lo = a;
+            var hi = b;
+            if (b < a) {
+                lo = b;
+                hi = a;
+            }
+            let e = m * p.npairs + pair_index(lo, hi, np);
+            y = y + tensor_apply(in_t[4u * e], in_t[4u * e + 1u], inr_of(e), xv(src, m * np + b));
+        }
+    }
+    let start = inc[m];
+    let count = inc[m + 1u] - start;
+    for (var t = li; t < count; t = t + 32u) {
+        let item = inc[p.nm + 1u + start + t];
+        let k = item / 2u;
+        let side = item % 2u;
+        let w = lf[8u * k + 3u];
+        if (side == 0u) {
+            let j = lij[2u * k + 1u];
+            for (var b = 0u; b < np; b = b + 1u) {
+                let e = k * np * np + a * np + b;
+                y = y + tensor_apply(w * dd_t[4u * e], w * dd_t[4u * e + 1u], ddr_of(e), xv(src, j * np + b));
+            }
+        } else {
+            let i = lij[2u * k];
+            for (var a2 = 0u; a2 < np; a2 = a2 + 1u) {
+                let e = k * np * np + a2 * np + a;
+                y = y + tensor_apply(w * dd_t[4u * e], w * dd_t[4u * e + 1u], ddr_of(e), xv(src, i * np + a2));
+            }
+        }
+    }
+    return reduce3(y, li);
+}
+
+@compute @workgroup_size(32)
+fn k_matvec_mu(@builtin(workgroup_id) wg: vec3<u32>, @builtin(local_invocation_id) lid: vec3<u32>) {
+    let y = matvec_site(wg.x, 0u, lid.x);
+    if (lid.x == 0u) {
+        apv[3u * wg.x] = y.x;
+        apv[3u * wg.x + 1u] = y.y;
+        apv[3u * wg.x + 2u] = y.z;
+    }
+}
+
+@compute @workgroup_size(32)
+fn k_matvec_p(@builtin(workgroup_id) wg: vec3<u32>, @builtin(local_invocation_id) lid: vec3<u32>) {
+    let y = matvec_site(wg.x, 1u, lid.x);
+    if (lid.x == 0u && sc[3] == 0.0lf) {
+        apv[3u * wg.x] = y.x;
+        apv[3u * wg.x + 1u] = y.y;
+        apv[3u * wg.x + 2u] = y.z;
+    }
+}
+
+// ---- conjugate gradients: one workgroup, fixed-order reductions -------------
+
+// r = e0 - A mu (apv holds A mu), z = alpha r, p = z, rz, |e0|; the first
+// convergence test, with the iteration count it implies.
+@compute @workgroup_size(256)
+fn k_cg_init(@builtin(local_invocation_id) lid: vec3<u32>) {
+    let li = lid.x;
+    var rz = 0.0lf;
+    var b2 = 0.0lf;
+    var r2 = 0.0lf;
+    for (var x = li; x < 3u * p.n; x = x + 256u) {
+        let r = e0[x] - apv[x];
+        let z = r / inv_alpha[x / 3u];
+        rv[x] = r;
+        zv[x] = z;
+        pv[x] = z;
+        rz = rz + r * z;
+        r2 = r2 + r * r;
+        b2 = b2 + e0[x] * e0[x];
+    }
+    let rz_t = reduce(rz, li);
+    let b2_t = reduce(b2, li);
+    let r2_t = reduce(r2, li);
+    if (li == 0u) {
+        let bnorm = max(sqrt(b2_t), 1.0e-300lf);
+        sc[1] = bnorm;
+        sc[2] = rz_t;
+        sc[5] = sqrt(r2_t);
+        if (sqrt(r2_t) <= sc[0] * bnorm) {
+            sc[3] = 1.0lf;
+            sc[4] = 0.0lf;
+        } else {
+            sc[3] = 0.0lf;
+            sc[4] = 1.0lf;
+        }
+    }
+}
+
+// One conjugate-gradient iteration after the product, and the convergence test
+// that follows it (the reference's test at the head of the next).
+@compute @workgroup_size(256)
+fn k_cg_b(@builtin(local_invocation_id) lid: vec3<u32>) {
+    let li = lid.x;
+    let live = sc[3] == 0.0lf;
+    var pap = 0.0lf;
+    for (var x = li; x < 3u * p.n; x = x + 256u) {
+        pap = pap + pv[x] * apv[x];
+    }
+    let pap_t = reduce(pap, li);
+    let go = live && pap_t > 0.0lf;
+    let rz = sc[2];
+    let alpha = rz / pap_t;
+    var rz_new = 0.0lf;
+    var r2 = 0.0lf;
+    for (var x = li; x < 3u * p.n; x = x + 256u) {
+        if (go) {
+            mu[x] = mu[x] + alpha * pv[x];
+            rv[x] = rv[x] - alpha * apv[x];
+            zv[x] = rv[x] / inv_alpha[x / 3u];
+        }
+        rz_new = rz_new + rv[x] * zv[x];
+        r2 = r2 + rv[x] * rv[x];
+    }
+    let rz_t = reduce(rz_new, li);
+    let r2_t = reduce(r2, li);
+    let beta = rz_t / rz;
+    for (var x = li; x < 3u * p.n; x = x + 256u) {
+        if (go) {
+            pv[x] = zv[x] + beta * pv[x];
+        }
+    }
+    if (li == 0u && live) {
+        if (go) {
+            sc[2] = rz_t;
+            let rn = sqrt(r2_t);
+            sc[5] = rn;
+            if (rn <= sc[0] * sc[1]) {
+                sc[3] = 1.0lf;
+            } else if (sc[4] >= f64(p.max_iterations)) {
+                sc[3] = 1.0lf;
+            } else {
+                sc[4] = sc[4] + 1.0lf;
+            }
+        } else {
+            sc[3] = 1.0lf;
+        }
+    }
+}
+
+// ---- forces -----------------------------------------------------------------
+
+@compute @workgroup_size(64)
+fn k_link_force(@builtin(global_invocation_id) gid: vec3<u32>) {
+    let k = gid.x;
+    if (k >= p.nl) {
+        return;
+    }
+    let np = p.np;
+    let nch = p.nch;
+    let i = lij[2u * k];
+    let j = lij[2u * k + 1u];
+    let w = lf[8u * k + 3u];
+    let dw = lf[8u * k + 4u];
+    var u = 0.0lf;
+    var fi = vec3<f64>(0.0lf, 0.0lf, 0.0lf);
+    for (var a = 0u; a < np; a = a + 1u) {
+        for (var b = 0u; b < np; b = b + 1u) {
+            let e = k * np * np + a * np + b;
+            let ma = mu_of(i * np + a);
+            let mb = mu_of(j * np + b);
+            let r = ddr_of(e);
+            let rr = norm3(r);
+            let ta = dd_t[4u * e];
+            let tbp = dd_t[4u * e + 1u];
+            let da = dd_t[4u * e + 2u];
+            let dbp = dd_t[4u * e + 3u];
+            let mamb = dot(ma, mb);
+            let mar = dot(ma, r);
+            let mbr = dot(mb, r);
+            u = u + mamb * ta - tbp * mar * mbr;
+            let grad = r * (da / rr * mamb) - r * (dbp / rr * mar * mbr) - ma * (tbp * mbr) - mb * (tbp * mar);
+            let f = grad * (-w);
+            dd_f[3u * e] = f.x;
+            dd_f[3u * e + 1u] = f.y;
+            dd_f[3u * e + 2u] = f.z;
+            fi = fi + f;
+        }
+    }
+    for (var s = 0u; s < 2u; s = s + 1u) {
+        for (var a = 0u; a < np; a = a + 1u) {
+            for (var c = 0u; c < nch; c = c + 1u) {
+                let e = k * 2u * np * nch + s * np * nch + a * nch + c;
+                var m: vec3<f64>;
+                var q: f64;
+                if (s == 0u) {
+                    m = mu_of(i * np + a);
+                    q = ch_q[j * nch + c];
+                } else {
+                    m = mu_of(j * np + a);
+                    q = ch_q[i * nch + c];
+                }
+                let r = cdr_of(e);
+                let rr = norm3(r);
+                let h = cd_h[2u * e];
+                let dh = cd_h[2u * e + 1u];
+                let mr = dot(m, r);
+                u = u - q * h * mr;
+                let grad = r * (-q * dh / rr * mr) - m * (q * h);
+                let f = grad * (-w);
+                cd_f[3u * e] = f.x;
+                cd_f[3u * e + 1u] = f.y;
+                cd_f[3u * e + 2u] = f.z;
+                if (s == 0u) {
+                    fi = fi + f;
+                } else {
+                    fi = fi - f;
+                }
+            }
+        }
+    }
+    let d = vec3<f64>(lf[8u * k + 5u], lf[8u * k + 6u], lf[8u * k + 7u]);
+    let dist = norm3(d);
+    var fw = vec3<f64>(0.0lf, 0.0lf, 0.0lf);
+    if (dist > 0.0lf) {
+        fw = d * (-u * dw / dist);
+    }
+    lforce[3u * k] = fw.x;
+    lforce[3u * k + 1u] = fw.y;
+    lforce[3u * k + 2u] = fw.z;
+    lvir[k] = dot(d, fi + fw);
+}
+
+// Force on each dipole site: the pair terms of every link it is in, and its molecule's own.
+@compute @workgroup_size(32)
+fn k_gather_pol(@builtin(workgroup_id) wg: vec3<u32>, @builtin(local_invocation_id) lid: vec3<u32>) {
+    let s = wg.x;
+    let li = lid.x;
+    let np = p.np;
+    let nch = p.nch;
+    let m = s / np;
+    let a = s % np;
+    var f = vec3<f64>(0.0lf, 0.0lf, 0.0lf);
+    if (li == 0u) {
+        // The molecule's own: fpol[a] -= grad, fpol[b] += grad for a < b.
+        for (var b = 0u; b < np; b = b + 1u) {
+            if (b == a) {
+                continue;
+            }
+            var lo = a;
+            var hi = b;
+            if (b < a) {
+                lo = b;
+                hi = a;
+            }
+            let e = m * p.npairs + pair_index(lo, hi, np);
+            let ma = mu_of(m * np + lo);
+            let mb = mu_of(m * np + hi);
+            let r = inr_of(e);
+            let rr = norm3(r);
+            let da = in_t[4u * e + 2u];
+            let tbp = in_t[4u * e + 1u];
+            let dbp = in_t[4u * e + 3u];
+            let mamb = dot(ma, mb);
+            let mar = dot(ma, r);
+            let mbr = dot(mb, r);
+            let grad = r * (da / rr * mamb) - r * (dbp / rr * mar * mbr) - ma * (tbp * mbr) - mb * (tbp * mar);
+            if (a < b) {
+                f = f - grad;
+            } else {
+                f = f + grad;
+            }
+        }
+    }
+    let start = inc[m];
+    let count = inc[m + 1u] - start;
+    for (var t = li; t < count; t = t + 32u) {
+        let item = inc[p.nm + 1u + start + t];
+        let k = item / 2u;
+        let side = item % 2u;
+        if (side == 0u) {
+            for (var b = 0u; b < np; b = b + 1u) {
+                f = f + ddf_of(k * np * np + a * np + b);
+            }
+            for (var c = 0u; c < nch; c = c + 1u) {
+                f = f + cdf_of(k * 2u * np * nch + a * nch + c);
+            }
+        } else {
+            for (var a2 = 0u; a2 < np; a2 = a2 + 1u) {
+                f = f - ddf_of(k * np * np + a2 * np + a);
+            }
+            for (var c = 0u; c < nch; c = c + 1u) {
+                f = f + cdf_of(k * 2u * np * nch + np * nch + a * nch + c);
+            }
+        }
+    }
+    let tot = reduce3(f, li);
+    if (li == 0u) {
+        fpol[3u * s] = tot.x;
+        fpol[3u * s + 1u] = tot.y;
+        fpol[3u * s + 2u] = tot.z;
+    }
+}
+
+// Force on each charge: minus what the dipoles that feel it receive.
+@compute @workgroup_size(32)
+fn k_gather_charge(@builtin(workgroup_id) wg: vec3<u32>, @builtin(local_invocation_id) lid: vec3<u32>) {
+    let cc = wg.x;
+    let li = lid.x;
+    let np = p.np;
+    let nch = p.nch;
+    let m = cc / nch;
+    let c = cc % nch;
+    var f = vec3<f64>(0.0lf, 0.0lf, 0.0lf);
+    let start = inc[m];
+    let count = inc[m + 1u] - start;
+    for (var t = li; t < count; t = t + 32u) {
+        let item = inc[p.nm + 1u + start + t];
+        let k = item / 2u;
+        let side = item % 2u;
+        for (var a = 0u; a < np; a = a + 1u) {
+            // The first molecule's charges meet the second's dipoles (cd2), and the reverse.
+            f = f - cdf_of(k * 2u * np * nch + (1u - side) * np * nch + a * nch + c);
+        }
+    }
+    let tot = reduce3(f, li);
+    if (li == 0u) {
+        fch[3u * cc] = tot.x;
+        fch[3u * cc + 1u] = tot.y;
+        fch[3u * cc + 2u] = tot.z;
+    }
+}
