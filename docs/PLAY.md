@@ -4860,6 +4860,26 @@ the start of the phase, ahead of the renderer**. In order:
      distribution comes from path-integral sampling, which the plan's
      classical treatments do not do; the known cost of a classical flexible
      model is recorded under (3) above.
+     **E8c, treatment (3): the form of the geometry-following law (the owner,
+     2026-10-11).** A polynomial in water's (r1, r2, theta) would be a solution
+     for water only (a larger molecule has 3N-6 coordinates and periodic
+     torsions), and the engine's method is to be general. So **a hybrid**:
+     (i) the terms that are *properties of the monomer* - the cloud charges and
+     widths, the dipole, the polarisabilities - are **derived from the
+     monomer's electrons at each geometry** (the cloud refit takes 1.7 s) and
+     stored, then interpolated, the geometry described by *local, atom-based*
+     quantities (each bond's length, the angles at an atom) and not by a
+     molecule-specific coordinate list, so the description transfers between
+     molecules; (ii) the terms fitted to *pair* energies - the cloud-overlap
+     repulsion and the dispersion - are already site-to-site and follow the
+     atoms' positions, and are first tested for whether they need any further
+     geometry dependence at all. **Part of option 3, a measurement before the
+     form is fixed:** fit the geometry-following law twice on the flexible pair
+     data - with only (i) moving, and with (ii) moving as well - and report how
+     much each is worth, against the fixed-number law's 0.91 kcal/mol on the
+     flex biased pairs. *Still open:* the interpolation scheme for (i), and what
+     the cloud refit starts from at an arbitrary geometry (it needs a sound
+     start; see the degenerate-start entry above).
    - **E8z, remove what was not chosen.** *Planned by the owner, to be done
      once the method above is validated and the owner confirms it; nothing is
      removed before that.* Every method the engine carries and the decision
