@@ -4929,6 +4929,20 @@ the start of the phase, ahead of the renderer**. In order:
      card). Engineering time is explicitly acceptable in exchange for shorter
      computation. The multiple-time-step integrator is a further option if the
      measurement calls for it.
+     **E8c, generality (the owner, 2026-10-11).** *The method is proven on
+     water first and generalised after; the general solution is the end this
+     work is for.* So option 3 is built for water, and the work of making it
+     general - a monomer energy surface from `phys-pes` for any molecule (only
+     water has one), torsions and rigid segments for chains (methanol's methyl
+     rotor first, as the test of treatment (2)), and the flexible integrator,
+     law and GPU code written for any molecule - follows once the comparison
+     shows what is kept. **Constraint while building for water:** nothing is
+     chosen that cannot generalise - the hybrid law describes a geometry by
+     *local, atom-based quantities* and not water's (r1, r2, theta); the
+     integrator takes atoms and constraints and not a three-atom molecule; the
+     GPU port is batched and carries no assumption of three atoms; and a place
+     that is water-only says so, as `--flex` does ("needs its own surface")
+     rather than quietly using water's.
    - **E8z, remove what was not chosen.** *Planned by the owner, to be done
      once the method above is validated and the owner confirms it; nothing is
      removed before that.* Every method the engine carries and the decision
