@@ -4943,6 +4943,19 @@ the start of the phase, ahead of the renderer**. In order:
      GPU port is batched and carries no assumption of three atoms; and a place
      that is water-only says so, as `--flex` does ("needs its own surface")
      rather than quietly using water's.
+     **E8c, the flexible liquid timed (2026-10-11).** `phys-flexbulk`
+     (`src/bin/flexbulk.rs`) runs the flexible liquid with `phys-bulk`'s
+     protocol and measurements, plus the molecules' own energy, the mean bond
+     and angle, and a heat of vaporisation that uses the classical gas
+     molecule's mean internal energy by quadrature over the surface. Timed on
+     option 1's law, 216 molecules, 12 threads, with the CPU shared with the
+     pair-data jobs: **bonds held, 40 au (0.97 fs): 69 ms a step, 100 ps in
+     2.0 h; fully free, 20 au (0.48 fs): 75 ms a step, 100 ps in 4.3 h** - far
+     short of the "day or more" feared; the held-bond run costs what the rigid
+     one does. **Where the time goes:** with the induced dipoles left out a step
+     is 24 ms, so **the induced-dipole solve is about two thirds of a step** and
+     the pair loops and the integrator one third. Both are candidates for the
+     GPU port; the solve, the larger share, first.
    - **E8z, remove what was not chosen.** *Planned by the owner, to be done
      once the method above is validated and the owner confirms it; nothing is
      removed before that.* Every method the engine carries and the decision
