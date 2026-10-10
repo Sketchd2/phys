@@ -4802,6 +4802,35 @@ the start of the phase, ahead of the renderer**. In order:
      the refit reports a bad fit as a result and not as a failure, so nothing
      stops a run on it. A second shape, or a molecule with no earlier cloud to
      start from, has no sound start yet: that is what the fit needs next.
+     **E8c, treatment (1) done: the rigid law at the averaged shape (r_OH
+     0.97894 A, 104.078 degrees; 2026-10-11).** The whole pipeline
+     (`scripts/water-shape.sh`: 60 uniform and 200 biased MP2 pairs, exact
+     electrostatics, cloud refit, slopes, torques, fit, 100 ps liquid), in
+     `runs/e8c/avg/`. Cloud refit 0.39 fitted / 0.36 held out kcal/mol, dipole
+     1.873 D; the law 0.256 fitted / 0.178 unseen (PBE exchange partner),
+     with 66 slopes and 135 turns. **The liquid** (298 K, 216 molecules, 1
+     g/cm3, 80 ps sampled): U/N -11.13 +- 0.02 kcal/mol, heat of vaporisation
+     11.72, **pressure -1007 +- 116 bar** (the rigid law at the old shape:
+     -1956), g(OO) first peak 2.73 at 2.75 A (was 2.38), first minimum 0.88 at
+     3.95 A, second peak 1.09 at 4.85 A, 7.49 neighbours to the minimum,
+     tetrahedral q 0.614 (was 0.56), 3.56 hydrogen bonds a molecule (was
+     3.45). Every number moved toward the measured liquid; none is there, and
+     the first minimum is shallow and far out (measured ~0.8 at ~3.3 A). The
+     mean dipole is not reported by `phys-bulk`.
+     **The measured case for a law that follows the geometry (2026-10-11).**
+     Option 1's law, its sites moved with the atoms and its numbers unchanged,
+     evaluated on the flex pairs against MP2: **0.26 kcal/mol on its own
+     rigid pairs, 0.28 on the flex uniform pairs (mostly far apart), 0.91 on
+     the flex biased pairs**, rising with how unequal the two bonds are
+     (0.47 / 0.79 / 1.27 kcal/mol over thirds of bond difference). The sites
+     moving is not enough; the law's numbers have to follow the shape.
+     **Option 2's choices (the owner authorised going straight on, 2026-10-10;
+     all inside the item):** bonds held at the ground-state average 0.97894 A
+     (not the surface minimum 0.96154), angle free on the monomer's surface at
+     that bond length; its own pair data, `--flex ... --bonds-at 0.97894`
+     (`scripts/e8c-bend-data.sh`: 60 uniform, 250 biased, fewer than the
+     flexible-all set because one coordinate moves), so the bend-dependent law
+     is fitted to a bend and not to stretches it will never meet.
    - **E8z, remove what was not chosen.** *Planned by the owner, to be done
      once the method above is validated and the owner confirms it; nothing is
      removed before that.* Every method the engine carries and the decision

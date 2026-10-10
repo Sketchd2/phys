@@ -176,6 +176,9 @@ pub struct FlexDraw {
     surface: crate::flex::Surface,
     /// hartree.
     kt: f64,
+    /// Both bonds held at this length (bohr) and only the angle drawn: the
+    /// pair data of E8c's second treatment (`--bonds-at ANGSTROM`).
+    pub held_bond: Option<f64>,
 }
 
 /// The fitted region of `phys-pes`: bond lengths 0.86 to 1.16 A, angle 88 to 124 degrees.
@@ -185,13 +188,16 @@ const FLEX_THETA: (f64, f64) = (88.0 * std::f64::consts::PI / 180.0, 124.0 * std
 impl FlexDraw {
     pub fn from_file(path: &str, kelvin: f64) -> FlexDraw {
         let text = std::fs::read_to_string(path).unwrap_or_else(|_| panic!("no {path}"));
-        FlexDraw { surface: crate::flex::Surface::from_text(&text), kt: kelvin * 3.166811563e-6 }
+        FlexDraw { surface: crate::flex::Surface::from_text(&text), kt: kelvin * 3.166811563e-6, held_bond: None }
     }
 
     /// One shape: the two bond lengths and the angle (bohr, radians), by rejection from the fitted region.
     pub fn shape(&self, s: &mut Stream) -> (f64, f64, f64) {
         loop {
-            let (r1, r2, th) = (s.range(FLEX_R.0, FLEX_R.1), s.range(FLEX_R.0, FLEX_R.1), s.range(FLEX_THETA.0, FLEX_THETA.1));
+            let (r1, r2, th) = match self.held_bond {
+                Some(r) => (r, r, s.range(FLEX_THETA.0, FLEX_THETA.1)),
+                None => (s.range(FLEX_R.0, FLEX_R.1), s.range(FLEX_R.0, FLEX_R.1), s.range(FLEX_THETA.0, FLEX_THETA.1)),
+            };
             if s.uniform() < (-self.surface.eval(r1, r2, th).0 / self.kt).exp() {
                 return (r1, r2, th);
             }
@@ -382,9 +388,13 @@ pub fn run(args: &[String], tag: &str) {
     }
     if let Some(i) = args.iter().position(|a| a == "--flex") {
         let kelvin: f64 = args.get(i + 2).and_then(|v| v.parse().ok()).unwrap_or(1500.0);
-        mono.flex = Some(FlexDraw::from_file(args.get(i + 1).expect("--flex needs a surface file"), kelvin));
+        let mut draw = FlexDraw::from_file(args.get(i + 1).expect("--flex needs a surface file"), kelvin);
+        if let Some(j) = args.iter().position(|a| a == "--bonds-at") {
+            draw.held_bond = Some(args.get(j + 1).and_then(|v| v.parse::<f64>().ok()).expect("--bonds-at needs a length in angstrom") / 0.529177210903);
+        }
+        mono.flex = Some(draw);
     }
-    let out = format!("pairs-{name}{tag}{}{}{}.txt", if mono.bias.is_some() { "-bias" } else { "" }, if mono.flex.is_some() { "-flex" } else { "" }, if mono.mp2 { "-mp2" } else { "" });
+    let out = format!("pairs-{name}{tag}{}{}{}.txt", if mono.bias.is_some() { "-bias" } else { "" }, match &mono.flex { Some(f) if f.held_bond.is_some() => "-bend", Some(_) => "-flex", None => "" }, if mono.mp2 { "-mp2" } else { "" });
     let done = done_indices(&out);
     let mut file = std::fs::OpenOptions::new().create(true).append(true).open(&out).expect("the output file");
     if done.is_empty() {

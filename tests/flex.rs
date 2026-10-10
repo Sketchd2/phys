@@ -252,3 +252,18 @@ fn the_biased_draw_places_a_cloud_laws_sites() {
     let (a, _, _) = m.biased_pair(3, &b);
     assert!(((a[1] - a[0]).norm() - (a[2] - a[0]).norm()).abs() > 1e-3);
 }
+
+/// With the bonds held (`--bonds-at`) both are the held length, only the angle varies.
+#[test]
+fn held_bonds_draw_only_the_angle() {
+    use phys::pairs::FlexDraw;
+    use phys::rng::{Purpose, Stream};
+    let mut d = FlexDraw::from_file("surface-water.txt", 1500.0);
+    let r = 0.97894 / 0.529177210903;
+    d.held_bond = Some(r);
+    let mut s = Stream::at(11, 0, 0, Purpose::Positions);
+    let shapes: Vec<_> = (0..500).map(|_| d.shape(&mut s)).collect();
+    assert!(shapes.iter().all(|&(a, b, _)| a == r && b == r));
+    let (lo, hi) = shapes.iter().fold((9.0f64, 0.0f64), |(l, h), &(_, _, t)| (l.min(t), h.max(t)));
+    assert!(hi.to_degrees() - lo.to_degrees() > 10.0, "the angle must vary: {lo} {hi}");
+}
