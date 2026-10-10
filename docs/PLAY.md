@@ -4892,6 +4892,23 @@ the start of the phase, ahead of the renderer**. In order:
      degrees), which is the most it can reach until `phys-pes` is run over a
      wider one. Whether the fit needs it, and whether to add the
      self-consistent rounds, is read from the hybrid fit's two-fit measurement.
+     **E8c, quantum nuclei (the owner, 2026-10-11).** The flexible liquids
+     move their nuclei classically, so a classical hydrogen has no zero-point
+     motion, its O-H bond is stiffer than real water's, and a classical
+     flexible model on an accurate surface tends to over-structure the liquid
+     (sharper peaks, more hydrogen bonding). **Treatment (3) is run classically
+     and the table states this as its limit** - options 2 and 3 may read worse
+     than option 1 for this reason alone, and are to be judged against each
+     other with that in mind. **A step after option 3, for comparison against
+     that stated limit: the same liquid by path-integral molecular dynamics**,
+     each molecule a ring of 16 to 32 copies (the number to be set by
+     convergence of the O-H bond length and the energy), on option 3's law, so
+     the difference between the two runs is the zero-point effect alone. It
+     costs 16 to 32 times the force evaluations of one classical run - a day
+     or more of CPU for 100 ps - and is the correct distribution for real
+     water's nuclei, which the sampling-temperature draw of the pair data only
+     approximates (see the entry on where the pair data should come from).
+     The cheaper approximation (a quantum thermal bath) is not planned.
    - **E8z, remove what was not chosen.** *Planned by the owner, to be done
      once the method above is validated and the owner confirms it; nothing is
      removed before that.* Every method the engine carries and the decision
