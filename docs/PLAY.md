@@ -4956,6 +4956,20 @@ the start of the phase, ahead of the renderer**. In order:
      is 24 ms, so **the induced-dipole solve is about two thirds of a step** and
      the pair loops and the integrator one third. Both are candidates for the
      GPU port; the solve, the larger share, first.
+     **E8c, inside the induced-dipole solve (2026-10-11), measured with
+     timers in `induction::solve`:** for 216 molecules, 8,780 links, 79,000
+     dipole-dipole couplings and 369,000 charge-dipole terms, a solve took
+     about 27 ms of a 48 ms step: building the screened tensors 7 ms (the
+     erf-heavy part), **the conjugate-gradient iterations 17 ms (12 iterations
+     of a matrix-vector product, about 1.4 ms each, each spawning its threads
+     afresh)**, the forces 3 ms. The other 21 ms is the pair loops, the
+     surface and the integrator. The GPU port is therefore planned as: the
+     term construction (independent, erf-heavy), the whole CG loop kept on the
+     card (the per-iteration cost on the CPU is thread start-up and
+     allocation, and on a GPU would be launch latency, so the loop stays
+     resident), the forces, and the pair loops, in `f64`, deterministic
+     (gather by site, fixed order, no atomics), and checked against
+     `induction::solve` to the solve's tolerance.
    - **E8z, remove what was not chosen.** *Planned by the owner, to be done
      once the method above is validated and the owner confirms it; nothing is
      removed before that.* Every method the engine carries and the decision
