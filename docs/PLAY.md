@@ -4831,6 +4831,16 @@ the start of the phase, ahead of the renderer**. In order:
      (`scripts/e8c-bend-data.sh`: 60 uniform, 250 biased, fewer than the
      flexible-all set because one coordinate moves), so the bend-dependent law
      is fitted to a bend and not to stretches it will never meet.
+     **E8c, a maybe-check (the owner, 2026-10-11): the force on each atom
+     from a change of geometry, measured directly.** The pair data are
+     static energies, and the slopes and turns move the pair as a whole; how
+     the interaction responds when a molecule's own atoms move (the jostling
+     the flexible treatments exist to capture) is inferred from the fitted
+     law's dependence on shape, never measured. A direct MP2 measure - the
+     pair energy at a displaced atom, the difference over the displacement,
+     compared with the law's force on that atom - would test it where it
+     matters. Not scheduled; to be done if the flexible liquids disagree with
+     the rigid ones in a way the law's fit does not explain, or on request.
    - **E8z, remove what was not chosen.** *Planned by the owner, to be done
      once the method above is validated and the owner confirms it; nothing is
      removed before that.* Every method the engine carries and the decision
