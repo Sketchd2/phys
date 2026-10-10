@@ -4880,6 +4880,18 @@ the start of the phase, ahead of the renderer**. In order:
      flex biased pairs. *Still open:* the interpolation scheme for (i), and what
      the cloud refit starts from at an arbitrary geometry (it needs a sound
      start; see the degenerate-start entry above).
+     **E8c, a wider second set of flexible pair data (the owner, 2026-10-11:
+     "collect more first, and if the GPU is idle run the wider data too").**
+     The same draw at a sampling temperature of 2700 K (the O-H stretch's
+     zero-point-equivalent; the first set's 1500 K under-covers it), 100
+     uniform and 300 biased pairs, in `runs/e8c/flexwide/`, by
+     `scripts/e8c-flexwide-data.sh`, which runs only while no other GPU program
+     is running (it waits before each chunk of five pairs), so it fills the gaps
+     a liquid or a fit leaves and does not slow another stage. The draw stays
+     inside the surface's fitted region (bonds 0.86-1.16 A, angle 88-124
+     degrees), which is the most it can reach until `phys-pes` is run over a
+     wider one. Whether the fit needs it, and whether to add the
+     self-consistent rounds, is read from the hybrid fit's two-fit measurement.
    - **E8z, remove what was not chosen.** *Planned by the owner, to be done
      once the method above is validated and the owner confirms it; nothing is
      removed before that.* Every method the engine carries and the decision
