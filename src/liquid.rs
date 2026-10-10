@@ -1169,6 +1169,8 @@ impl SiteSite {
                 Some("site") => {}
                 // Read by `alpha_from_text`: the polarisability of a site type.
                 Some("alpha") => {}
+                // Read by `geolaw::GeoCloud::from_text`: a cloud that follows the angle.
+                Some("geo") | Some("geopoly") => {}
                 Some("overlap") if w.len() == 4 => overlaps.push((w[1].parse().ok()?, w[2].parse().ok()?, w[3].parse().ok()?)),
                 Some("damp") if w.len() == 4 => damps.push((w[1].parse().ok()?, w[2].parse().ok()?, w[3].parse().ok()?)),
                 Some("sigma") => sigma = w[1..].iter().map(|x| x.parse().ok()).collect::<Option<Vec<f64>>>()?,
