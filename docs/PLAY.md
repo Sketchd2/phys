@@ -5201,6 +5201,30 @@ the start of the phase, ahead of the renderer**. In order:
      and not fitted separately; a mixture's depression and elevation follow from
      the pure compounds' rules. The simulation is what *makes* the shortcut, once
      per compound and pressure range, and is never in the frame loop. 
+     **Sublimation and its reverse (the owner, 2026-10-11), designed in from
+     the start, for substances like dry ice.** A compound's stored rule is its
+     whole *phase diagram* and not two curves: the **melting curve**, the
+     **vaporisation (boiling) curve** ending at the critical point, and the
+     **sublimation curve** below the **triple point**, where the melting and
+     vaporisation curves meet and the solid goes straight to vapour. Deposition
+     (frost, snow from vapour) is the same curve crossed the other way, so one
+     rule serves both. Nothing in it is typed in: the triple point is where the
+     derived melting and vaporisation curves intersect; the sublimation curve is
+     integrated from it by the Clapeyron relation with the heat of sublimation as
+     the heat of fusion plus the heat of vaporisation (Hess), so the three curves
+     are consistent where they meet; and at a given temperature and pressure the
+     stable phase is read off the three. What the simulation measures is the
+     solid's free energy, which gives its vapour pressure against the vapour's
+     (the lattice energy plus thermal and zero-point corrections is the heat of
+     sublimation), so nothing beyond the melting calculation's crystal is new.
+     The world tracks what it holds (`Phase`) and the *rate* at which a solid and
+     its vapour exchange mass at a surface - the transition's kinetics, which the
+     rule does not give - is a separate law, wanted for dry ice in a warm room and
+     for frost, and is flagged here and not yet designed. **The check, not an
+     input:** carbon dioxide's known triple point (216.6 K, 5.18 bar) and its
+     sublimation at 194.7 K under one atmosphere, and the same for nitrogen on
+     Pluto, ammonia and water ice at low pressure, are what the derived curves
+     are compared to once they exist.
 
    *Prerequisites found on the way:* `chem::geometry::embed` does not close
    rings (benzene's atoms 1 and 2, bonded, sit 5.1 A apart, which is likely
