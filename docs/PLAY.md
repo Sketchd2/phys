@@ -5065,8 +5065,13 @@ the start of the phase, ahead of the renderer**. In order:
      way: `phys-polar`'s last step (the fit of atomic polarisabilities by symmetry
      class) does not terminate for a molecule whose two hydrogens differ (40
      minutes at r1 2.01, r2 1.70 bohr) though the tensor is printed before it, so
-     the grid cuts it off; and the grid script wrote 48 of its 60 lines without
-     their geometry (the values were right, rebuilt from the logs; cause not found).
+     the grid cuts it off; and the grid's geometry list, written by Python on
+     Windows, ended its lines in CR LF, so the last number of each line of
+     `props.txt` carried a stray CR; Python's text mode reads a lone CR as a line
+     break, which made 48 of the 60 lines *look* as if they had lost their
+     geometry. They had not (the file was whole, `awk` and the Rust readers saw
+     60 complete lines, and a rebuild from the logs gave the same values); the
+     script now strips the CR and the reader takes only LF as a line end.
      **E8c, decision: the interpolation scheme (the owner, 2026-10-11).** *A
      quadratic in local, atom-based coordinates* - each bond length (symmetrised
      over equivalent bonds, as their mean and the square of their difference),

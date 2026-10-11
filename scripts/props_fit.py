@@ -2,7 +2,8 @@ import math, sys
 
 A = 0.529177210903
 rows = []
-for l in [x for x in open(sys.argv[1]) if x.count("|") == 2]:
+for l in [x for x in open(sys.argv[1], newline="
+") if x.count("|") == 2]:
     head, mid, tail = l.split("|")[:3]
     h = head.split()
     r1, r2, th = float(h[1]), float(h[2]), float(h[3])

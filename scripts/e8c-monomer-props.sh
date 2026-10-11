@@ -37,6 +37,8 @@ chosen += random.sample(pool, n - len(chosen))
 for i, (r1, r2, th) in enumerate(chosen):
     print(i, repr(r1), repr(r2), repr(th))
 PY
+# A list written by Python on Windows ends its lines in CR LF, and the last number of each would carry a stray CR into props.txt.
+sed -i 's/$//' "$D/geometries.txt"
 one() {
   id=$1; r1=$2; r2=$3; th=$4
   g=$D/g$id; mkdir -p "$g"; cd "$g"
