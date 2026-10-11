@@ -5259,6 +5259,10 @@ the start of the phase, ahead of the renderer**. In order:
    spreads to every column. Bisected over the ten temperature-aware sites:
    only `standing_water`'s pricing of the liquid does it. The question is a
    heat source for the scenario or phases that follow temperature.
+   *The owner, 2026-10-11: leave all three until the liquid changes under way
+   (E8c and what follows it) have landed, which will update the boiling points;
+   they were failing before E8c began, are not caused by it, and are not to be
+   touched or loosened meanwhile.*
 10. **An optics law** — with the program, in Phase 7.
 
 Four test scenarios were recalibrated because they named a water *mass* where
