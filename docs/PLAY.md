@@ -5128,6 +5128,52 @@ the start of the phase, ahead of the renderer**. In order:
    - **E10, heavy elements.** Beyond about Z = 36 a scalar-relativistic
      treatment is needed for the answer to be right. **Open, the owner's**,
      at that stage: which one.
+   - **E11, condensed matter that is not molecular: oxide melts, metals, and
+     the melting and boiling points a planet needs.** *Put on the plan by the
+     owner, 2026-10-11: a final goal of the project is simulating a planet from
+     its formation to a more present state, which needs the melting and boiling
+     points (and what the liquids and solids are like around them) of every
+     planetary component, at the pressures it meets.* **Where the method stands:**
+     E8-E8c build the molecular liquid - a law derived from MP2 pair energies of
+     identical, weakly bound molecules, induction on top, a flexible molecule on
+     its own energy surface, all on the GPU - and it cannot be applied as it is to
+     what a planet is mostly made of. *Lava* (molten silicate) has no molecules:
+     a network of Si-O-Si bonds that break and re-form, with charges that depend
+     on how many neighbours an atom has. *Molten iron-nickel (steel)* is metallic:
+     its cohesion is many-body (an atom's binding depends on the density its
+     neighbours make), which no pair law represents, MP2 is unreliable for metals,
+     and the engine's electronic structure has isolated clusters and no periodic
+     or k-point calculation. *The ices and volatiles* (water, ammonia, methane,
+     carbon dioxide) are molecular, and E8-E8c apply to them, but a melting point
+     is not a liquid property: it needs the solid, its structure and a
+     solid-liquid coexistence or free-energy calculation, which E8 (liquid-vapour
+     coexistence) does not do. **What carries over:** the architecture (derive
+     the interaction from the electrons once, store it, evaluate it fast), the
+     GPU pair loop and induction solve, the geometry-following parameters and the
+     decision above (monomer-derived terms as quadratics in local atom-based
+     coordinates). **What is needed, by class, as a sketch and not a decision:**
+     (a) *oxide and silicate melts and salts* are the nearest: a polarisable-ion
+     model has charges, smeared induced dipoles, overlap repulsion and damped
+     dispersion - what is built - with ion sizes and charges that depend on the
+     local environment (the angle-following cloud generalised from one molecule's
+     angle to an atom's neighbours), an all-atom liquid with no fixed molecules
+     (option 3's integrator, with the molecule's own surface replaced by
+     environment-dependent terms), and a reference from Kohn-Sham PBE on clusters;
+     (b) *metals and alloys* need an embedding energy of the local electron
+     density, derived from periodic DFT, which is a new component (k points in
+     `electrons/`); (c) *melting points* need the crystal and a coexistence or
+     free-energy method for every class; (d) *pressure*: a planet's interior is
+     tens to hundreds of gigapascals, where phases and coordination change, so
+     the laws are fitted over a pressure range and not at one. **Measured today,
+     against this:** melting point is `0.6 T_b` (item 3 below; the ratio runs 0.45
+     to 0.81), a metal's cohesive energy is 2.3x low (item 8; iron's expansion is
+     3x off), and the boiling points are right to 25% (item 9). **Open, the
+     owner's:** the order (oxides before metals is the engine's author's
+     suggestion), which reference method for metals, the accuracy a planet needs
+     (the engine accepts 25% on a boiling point today), the pressure range, and
+     whether the per-substance results are stored as tables, rules or both. *Not
+     started; nothing is scheduled ahead of the E8c comparison and the decisions
+     above.*
 
    *Prerequisites found on the way:* `chem::geometry::embed` does not close
    rings (benzene's atoms 1 and 2, bonded, sit 5.1 A apart, which is likely
