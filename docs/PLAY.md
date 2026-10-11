@@ -5045,6 +5045,28 @@ the start of the phase, ahead of the renderer**. In order:
      latency-bound (a thread a link, read-modify-write of the per-site sums)
      and has room: a thread a (link, site) with the sums gathered would cut it
      several-fold. Not done yet; the liquid is fast enough to proceed.
+     **E8c, the monomer-property grid (2026-10-11), the evidence for the
+     interpolation scheme.** The MP2 dipole and polarisability tensor of water at
+     60 geometries drawn from the flexible pair data (`runs/e8c/monomer/props.txt`,
+     bonds 0.86-1.16 A, angle 88-124 degrees, the two bonds independent) and at
+     8 angles at the averaged bond length (`monomer-bend`). Least-squares fits
+     in the *symmetric* internal coordinates `s = (r1 + r2)/2 - r0`, `u = theta -
+     theta0` and the asymmetric one `(r1 - r2)^2`: **dipole** spread 0.0455 au,
+     residual rms 0.0031 for a plane in (s, u), **0.0012 with s^2, u^2, su, and
+     0.00033 (0.05%) with (r1 - r2)^2 as well**; **mean polarisability** spread
+     0.55 bohr^3, residual 0.023 for a plane, 0.0073 with the quadratics, 0.0012
+     with the asymmetry. Sensitivities: the dipole falls 0.029 au for 5 degrees
+     of opening and rises 0.002 au for 0.01 A of mean bond; the asymmetric
+     stretch moves it 0.002 au at (0.1 A)^2; the polarisability rises 1.4% for
+     0.01 A of mean bond and 0.5% for 5 degrees. *So the monomer-derived terms
+     are smooth and low order: a quadratic in the symmetrised local
+     coordinates reproduces them to 0.05-0.2%, and an asymmetric stretch is a
+     second-order effect that the (r1 - r2)^2 term carries.* Two findings on the
+     way: `phys-polar`'s last step (the fit of atomic polarisabilities by symmetry
+     class) does not terminate for a molecule whose two hydrogens differ (40
+     minutes at r1 2.01, r2 1.70 bohr) though the tensor is printed before it, so
+     the grid cuts it off; and the grid script wrote 48 of its 60 lines without
+     their geometry (the values were right, rebuilt from the logs; cause not found).
    - **E8z, remove what was not chosen.** *Planned by the owner, to be done
      once the method above is validated and the owner confirms it; nothing is
      removed before that.* Every method the engine carries and the decision
