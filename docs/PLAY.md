@@ -5167,13 +5167,40 @@ the start of the phase, ahead of the renderer**. In order:
      the laws are fitted over a pressure range and not at one. **Measured today,
      against this:** melting point is `0.6 T_b` (item 3 below; the ratio runs 0.45
      to 0.81), a metal's cohesive energy is 2.3x low (item 8; iron's expansion is
-     3x off), and the boiling points are right to 25% (item 9). **Open, the
-     owner's:** the order (oxides before metals is the engine's author's
-     suggestion), which reference method for metals, the accuracy a planet needs
-     (the engine accepts 25% on a boiling point today), the pressure range, and
-     whether the per-substance results are stored as tables, rules or both. *Not
-     started; nothing is scheduled ahead of the E8c comparison and the decisions
-     above.*
+     3x off), and the boiling points are right to 25% (item 9). **Decided (the owner,
+     2026-10-11), the choices inside it the engine's author's:**
+     *Pressure range:* **not fixed in advance - the simulation determines it.**
+     Every stored shortcut carries the pressure and temperature range it was
+     derived over, a node that leaves it is told so (the mechanism an equation of
+     state already has: it says it is outside its validity, in `Stats`), the
+     shortcut is used flagged as extrapolated meanwhile, and the derivation is
+     extended over the range the world reached, queued like the other long
+     computations, and stored. *Order (the author's, the owner not minding):*
+     (1) the molecular ices and liquids first, since only the solid and a
+     coexistence method are new for them; (2) oxide and silicate melts and salts;
+     (3) metals and alloys, last because they need the new component. *Reference
+     method for metals (the author's):* **periodic Kohn-Sham with PBE**, the
+     functional the engine already derives with (no new functional), with
+     Fermi-Dirac smearing, first as gamma-point supercells and then with k-point
+     sampling, built into `electrons/`; the metal's many-body law (an embedded-atom
+     form, the embedding energy a function of the local density, with an angular
+     term if the data ask for one) is **fitted by force matching to snapshots** of
+     the crystal and the liquid at the supercell's DFT forces. PBE's known errors
+     for metals (cohesive energies and lattice constants a few per cent) are
+     measured against the elements' known values and PBEsol held as the
+     alternative if they matter; the Earth's core is an iron-nickel alloy with a
+     light element (sulphur, oxygen, silicon), so alloys are part of the target.
+     *What is stored:* **the melting and boiling points as formulas per compound,
+     which the world uses without ever running the molecular simulation** - the
+     'derive once, store the shortcut' axiom, at intern and memoised by the
+     arrangement's fingerprint as E9 has it. A stored rule stays a function of its
+     conditions: `T_melt(P)` and `T_boil(P)` are built from the quantities the
+     simulation measures - the heats of fusion and vaporisation and the volume
+     changes - and integrated by the Clapeyron relation, so the two curves are
+     consistent with the liquid's, the solid's and the vapour's equations of state
+     and not fitted separately; a mixture's depression and elevation follow from
+     the pure compounds' rules. The simulation is what *makes* the shortcut, once
+     per compound and pressure range, and is never in the frame loop. 
 
    *Prerequisites found on the way:* `chem::geometry::embed` does not close
    rings (benzene's atoms 1 and 2, bonded, sit 5.1 A apart, which is likely
