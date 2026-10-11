@@ -4,7 +4,7 @@
 //!
 //! ```sh
 //! cargo run --release --bin phys-geofit -- water cloud-fit.txt es-water.txt -gpu-bias-bend-mp2 \
-//!     [--dipoles props.txt] [--theta0 104.078] [--ridge 0.5] [--out cloud-geo.txt]
+//!     [--dipoles props.txt] [--theta0 104.078] [--ridge 0.5] [--hold-c0] [--out cloud-geo.txt]
 //! ```
 //!
 //! `cloud-fit.txt` is the cloud at one angle (`phys-diag --fit-es` writes it): the
@@ -52,6 +52,10 @@ fn main() {
     let theta0 = flag("--theta0").and_then(|v| v.parse::<f64>().ok()).unwrap_or(104.078).to_radians();
     let ridge: f64 = flag("--ridge").and_then(|v| v.parse().ok()).unwrap_or(0.5);
     let out = flag("--out").unwrap_or_else(|| "cloud-geo.txt".into());
+    // `--hold-c0`: the cloud at the reference angle stays as it was given (a cloud already
+    // fitted and tried), and only its slopes and curvatures in the angle are fitted: the
+    // continuation from the nearest fitted geometry that the plan asks for.
+    let hold_c0 = args.iter().any(|a| a == "--hold-c0");
 
     let text0 = std::fs::read_to_string(&cloud_file).unwrap_or_else(|_| panic!("no {cloud_file}"));
     let law0 = SiteSite::from_text(&text0).expect("a readable cloud law");
@@ -156,6 +160,9 @@ fn main() {
     for _iter in 0..200 {
         let mut jac = vec![vec![0.0; n]; r.len()];
         for j in 0..n {
+            if hold_c0 && j % 3 == 0 {
+                continue;
+            }
             let h = 1e-6 * (1.0 + z[j].abs());
             let mut zp = z.clone();
             zp[j] += h;

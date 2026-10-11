@@ -24,14 +24,17 @@ while [ ! -f .stages-complete ]; do sleep 60; done
 cp "$HERE/surface-water.txt" . 2>/dev/null
 cp "$ROOT/avg/polar-water.txt" . 2>/dev/null
 cp "$ROOT/avg/esp-water-cloud-mp2-fit.txt" cloud-avg.txt
+cp "$ROOT/avg/law-final.txt" start.txt
 cp "$ROOT/monomer-bend/props.txt" dipoles.txt
 step() { name=$1; shift; [ -f ".done-fit-$name" ] && return 0; qlog "$name: start"; if "$@"; then touch ".done-fit-$name"; qlog "$name: done"; else qlog "$name: FAILED"; echo "$name failed" > FIT_FAILED; exit 1; fi; }
 
-# 1. the cloud as quadratics in the angle, fitted to the exact electrostatics, the dipole held to MP2's
-step geofit bash -c "\"$B/phys-geofit.exe\" water cloud-avg.txt es-water.txt -gpu-bias-bend-mp2 --dipoles dipoles.txt --theta0 104.078 --out cloud-geo.txt > geofit.log 2>&1"
+# 1. the cloud as quadratics in the angle, fitted to the exact electrostatics, the dipole held to MP2's. The cloud at the
+#    reference angle is held to the one already fitted and tried (option 1's): freed, the 18 numbers overfit 42 energies and
+#    the law built on them collapsed in the liquid (PLAY.md E8c).
+step geofit bash -c "\"$B/phys-geofit.exe\" water cloud-avg.txt es-water.txt -gpu-bias-bend-mp2 --dipoles dipoles.txt --theta0 104.078 --hold-c0 --out cloud-geo.txt > geofit.log 2>&1"
 
 # 2. what the angles change taken off every energy, slope and turn; the rest fitted
-step fit bash -c "\"$B/phys-fit.exe\" water 1000 -gpu-bend-mp2,-gpu-bias-bend-mp2 --bisector --alpha polar-water.txt --esp cloud-geo.txt --charge-sites cloud-geo.txt --overlap --no-c8 --slopes deriv-water.txt --slope-pairs -gpu-bias-bend-mp2 --rotations rotate-water.txt --slope-weight 3 --geo-correct cloud-geo.txt > fit.out 2>&1"
+step fit bash -c "\"$B/phys-fit.exe\" water 1000 -gpu-bend-mp2,-gpu-bias-bend-mp2 --bisector --alpha polar-water.txt --esp cloud-geo.txt --charge-sites cloud-geo.txt --overlap --no-c8 --slopes deriv-water.txt --slope-pairs -gpu-bias-bend-mp2 --rotations rotate-water.txt --slope-weight 3 --geo-correct cloud-geo.txt --start start.txt > fit.out 2>&1"
 cp law-water-gpu-bend-mp2+-gpu-bias-bend-mp2-pbe-bis-esp-ind.txt law-fit.txt
 # 3. the law the liquid reads: the fit's, with the cloud's geo lines
 [ -f law-geo.txt ] || { cp law-fit.txt law-geo.txt; grep -E "^geo" cloud-geo.txt >> law-geo.txt; }
