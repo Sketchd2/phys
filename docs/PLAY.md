@@ -5116,6 +5116,24 @@ the start of the phase, ahead of the renderer**. In order:
      owner:* a close-contact set of MP2 pairs (the repulsive side, which MP2 does
      well) and atom-pair Born-Mayer terms fitted to it (`phys-fit --bm`), before
      option 3 and before E11 builds on this law.
+     **Scheduled (the owner, 2026-10-11): the repulsive checks.** (1) *Data:*
+     `phys-pairs-gpu ... --wall LO HI` draws pairs whose nearest atoms are LO to HI
+     angstrom apart (1.0 to 2.3), the centres 2.4 to 5.6 bohr apart, each molecule's
+     angle from the monomer's surface at the held bond length (so the averaged
+     angle and the bend are both covered); 150 MP2 pairs by
+     `scripts/e8c-wall-data.sh` into `runs/e8c/wall/`, which waits until no other
+     GPU program is running and is resumable. (2) *Fit:* the wall pairs go in the
+     pair fit with the atom-pair Born-Mayer terms freed (`phys-fit --bm`); the
+     fit's weights are Boltzmann with a floor of 1e-3, so a repulsive pair counts
+     at the floor and a misfit of 50 kcal/mol on one costs about 30 times a typical
+     0.3 kcal/mol miss, which is what a wall needs. (3) *The check it must pass,
+     for option 1's law as well as option 2's:* the random-dimer scan (400,000
+     dimers, no atom nearer than 0.64 A) finds no energy below the dimer's
+     binding energy; the liquid is stable through the hot, compressed settling
+     stage that the unregularised law fell in at; the fits' errors on the ordinary
+     pairs do not get worse. (4) *Then* option 2's and option 1's liquids are
+     rerun, since a repulsive wall may move their pressures and the tables report
+     both. Waits for option 2's 100 ps liquid, which is running.
    - **E8z, remove what was not chosen.** *Planned by the owner, to be done
      once the method above is validated and the owner confirms it; nothing is
      removed before that.* Every method the engine carries and the decision

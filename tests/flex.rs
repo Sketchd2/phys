@@ -361,3 +361,23 @@ fn forces_are_minus_the_gradient_when_the_cloud_follows_the_angle() {
     }
     assert!(net.norm() < 1e-9, "net force {:e}", net.norm());
 }
+
+/// `--wall`: pairs at close contact, the nearest atoms between the limits, the same pair every time.
+#[test]
+fn wall_pairs_are_at_close_contact_and_repeat() {
+    use phys::pairs::{FlexDraw, Monomer};
+    if !std::path::Path::new("grow-water.state").exists() {
+        return;
+    }
+    let mut m = Monomer::load("water", false);
+    m.wall = Some((1.0, 2.3));
+    m.flex = Some(FlexDraw::from_file("surface-water.txt", 1500.0));
+    for k in 0..30 {
+        let (a, b, sep) = m.wall_pair(k);
+        let near = a.iter().flat_map(|x| b.iter().map(move |y| (*x - *y).norm())).fold(f64::INFINITY, f64::min) * 0.529177210903;
+        assert!((1.0 - 1e-9..=2.3 + 1e-9).contains(&near), "pair {k}: nearest atoms {near} A");
+        assert!((2.4..=5.6).contains(&sep));
+        let (a2, _, _) = m.wall_pair(k);
+        assert_eq!(a[0], a2[0], "the same pair twice");
+    }
+}
