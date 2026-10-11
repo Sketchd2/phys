@@ -787,6 +787,14 @@ pub struct Held<'a> {
     /// Keep every `A` where it started (zero for a law with no Born-Mayer
     /// repulsion of its own), with `B` left as the dispersion's damping.
     pub no_born_mayer: bool,
+    /// A soft weight for the repulsive wall (hartree; 0 is off): a pair more than 25
+    /// kcal/mol above the lowest weighs `0.05 / (1 + (E / soft_wall)^2)` and not the
+    /// Boltzmann weight's floor, so that a wall pair counts for its *relative* error
+    /// (for E well above `soft_wall` the weighted residual is about `0.22 soft_wall`
+    /// times the fractional miss) and a pair of 2000 kcal/mol does not outweigh the
+    /// whole well. The floor alone weighs every wall pair the same, so the few
+    /// highest decide.
+    pub soft_wall: f64,
     /// Differences of energies along the centres' line to be matched as well.
     pub slopes: &'a [Slope],
 }
@@ -914,7 +922,17 @@ pub fn fit_site_site_polarised(data: &[PairEnergy], multiplicity: &[usize], star
     };
     let e_min = data.iter().map(|d| d.energy).fold(f64::INFINITY, f64::min);
     let kt = K_B * temperature;
-    let weights: Vec<f64> = data.iter().map(|d| (-(d.energy - e_min) / kt).exp().max(floor)).collect();
+    let weights: Vec<f64> = data
+        .iter()
+        .map(|d| {
+            let above = d.energy - e_min;
+            if held.soft_wall > 0.0 && above > 25.0 / 627.509474 {
+                0.05 / (1.0 + (d.energy / held.soft_wall).powi(2))
+            } else {
+                (-above / kt).exp().max(floor)
+            }
+        })
+        .collect();
     let energy_of = |law: &SiteSite, d: &PairEnergy| -> f64 {
         match alpha {
             Some(a) => pair_energy(&Polarisable { law, alpha: a.to_vec() }, d),
