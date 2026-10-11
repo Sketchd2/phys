@@ -5067,6 +5067,18 @@ the start of the phase, ahead of the renderer**. In order:
      minutes at r1 2.01, r2 1.70 bohr) though the tensor is printed before it, so
      the grid cuts it off; and the grid script wrote 48 of its 60 lines without
      their geometry (the values were right, rebuilt from the logs; cause not found).
+     **E8c, decision: the interpolation scheme (the owner, 2026-10-11).** *A
+     quadratic in local, atom-based coordinates* - each bond length (symmetrised
+     over equivalent bonds, as their mean and the square of their difference),
+     each angle at an atom (likewise), and the cross terms - is the form of the
+     monomer-derived terms of the geometry-following law, for option 3 and for
+     the general method. Option 2's quadratic in the angle is its first case.
+     The **cloud refit at an arbitrary geometry starts from the nearest
+     already-fitted geometry's cloud and steps outward** (continuation), never
+     from the potential fit, whose output is degenerate (see the entry on the
+     degenerate start). Settled; this closes the last open decision on option 3's
+     law. What remains for option 3 is the work: the data (the flexible and wider
+     sets), the fit in the coordinates above, and the all-atom liquid.
    - **E8z, remove what was not chosen.** *Planned by the owner, to be done
      once the method above is validated and the owner confirms it; nothing is
      removed before that.* Every method the engine carries and the decision
