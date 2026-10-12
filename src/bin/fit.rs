@@ -38,6 +38,12 @@ fn soft_wall_arg() -> f64 {
     args.iter().position(|a| a == "--soft-wall").and_then(|i| args.get(i + 1)).and_then(|v| v.parse::<f64>().ok()).map(|k| k / KCAL).unwrap_or(0.0)
 }
 
+/// `--soft-weight W0`: the soft wall weight's size (see `Held::soft_weight`).
+fn soft_weight_arg() -> f64 {
+    let args: Vec<String> = std::env::args().collect();
+    args.iter().position(|a| a == "--soft-weight").and_then(|i| args.get(i + 1)).and_then(|v| v.parse::<f64>().ok()).unwrap_or(0.0)
+}
+
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let name = args.first().cloned().unwrap_or_else(|| "water".into());
@@ -281,7 +287,7 @@ fn main() {
                 start.pair[b * types + a][2] = v;
             }
             let dispersion: Vec<(usize, usize)> = c6_held.iter().map(|&(p, _)| p).collect();
-            fit_site_site_polarised(&train, &multiplicity, &start, temperature, 1e-3, 5000, &Held { pairs: &[], dispersion: &dispersion, sigma: use_sigma, charges: esp.is_some(), damp: false, repulsion: false, no_dispersion: false, no_dispersion_pairs: &[], no_c8, overlap: use_overlap, no_born_mayer: use_overlap && !with_bm, slopes: &[], soft_wall: soft_wall_arg() }, alpha_full.as_deref())
+            fit_site_site_polarised(&train, &multiplicity, &start, temperature, 1e-3, 5000, &Held { pairs: &[], dispersion: &dispersion, sigma: use_sigma, charges: esp.is_some(), damp: false, repulsion: false, no_dispersion: false, no_dispersion_pairs: &[], no_c8, overlap: use_overlap, no_born_mayer: use_overlap && !with_bm, slopes: &[], soft_wall: soft_wall_arg(), soft_weight: soft_weight_arg() }, alpha_full.as_deref())
         };
         if two_stage && column == 1 {
             hf_law = Some(fit.law.clone());
@@ -437,7 +443,7 @@ fn fit_with_bisector(train: &[PairEnergy], multiplicity: &[usize], types: usize,
                     start.pair[b * all + a][2] = v;
                 }
             }
-            let held = Held { pairs: &site_pairs, dispersion: if matches!(stage, Stage::Correlation(_)) { &[] } else { &dispersion }, sigma: use_sigma, charges: esp.is_some(), damp: matches!(stage, Stage::Correlation(_)), repulsion: matches!(stage, Stage::Correlation(_)), no_dispersion: matches!(stage, Stage::Hf), no_dispersion_pairs: &lp_pairs, no_c8, overlap: use_overlap, no_born_mayer: use_overlap && !with_bm, slopes: &slopes, soft_wall: soft_wall_arg() };
+            let held = Held { pairs: &site_pairs, dispersion: if matches!(stage, Stage::Correlation(_)) { &[] } else { &dispersion }, sigma: use_sigma, charges: esp.is_some(), damp: matches!(stage, Stage::Correlation(_)), repulsion: matches!(stage, Stage::Correlation(_)), no_dispersion: matches!(stage, Stage::Hf), no_dispersion_pairs: &lp_pairs, no_c8, overlap: use_overlap, no_born_mayer: use_overlap && !with_bm, slopes: &slopes, soft_wall: soft_wall_arg(), soft_weight: soft_weight_arg() };
             let fit = fit_site_site_polarised(&data, &mult, &start, temperature, 1e-3, 5000, &held, alpha);
             if fit.weighted_rms.is_finite() && best.as_ref().map_or(true, |b| fit.weighted_rms < b.weighted_rms) {
                 best = Some(fit);

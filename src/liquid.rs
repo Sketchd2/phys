@@ -795,6 +795,9 @@ pub struct Held<'a> {
     /// whole well. The floor alone weighs every wall pair the same, so the few
     /// highest decide.
     pub soft_wall: f64,
+    /// The soft weight's size at zero energy (0 means 0.05): the smaller it is, the less the
+    /// wall pulls on the well.
+    pub soft_weight: f64,
     /// Differences of energies along the centres' line to be matched as well.
     pub slopes: &'a [Slope],
 }
@@ -927,7 +930,7 @@ pub fn fit_site_site_polarised(data: &[PairEnergy], multiplicity: &[usize], star
         .map(|d| {
             let above = d.energy - e_min;
             if held.soft_wall > 0.0 && above > 25.0 / 627.509474 {
-                0.05 / (1.0 + (d.energy / held.soft_wall).powi(2))
+                (if held.soft_weight > 0.0 { held.soft_weight } else { 0.05 }) / (1.0 + (d.energy / held.soft_wall).powi(2))
             } else {
                 (-above / kt).exp().max(floor)
             }
