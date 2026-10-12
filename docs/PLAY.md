@@ -5134,6 +5134,52 @@ the start of the phase, ahead of the renderer**. In order:
      pairs do not get worse. (4) *Then* option 2's and option 1's liquids are
      rerun, since a repulsive wall may move their pressures and the tables report
      both. Waits for option 2's 100 ps liquid, which is running.
+     **E8c, the two laws with the repulsive wall in the fit, 100 ps each
+     (2026-10-12).** Both laws refitted with the close-contact MP2 pairs (option
+     2: 150 at 1.0-2.3 A and 100 at 0.6-1.0 A, angles from the surface; option 1:
+     150 at 1.0-2.3 A at the averaged shape), the Born-Mayer terms freed, the wall
+     weighed by its relative error (`phys-fit --soft-wall 30 --soft-weight`, 0.05
+     for option 1 and 0.002 for option 2, the larger one having spoiled the
+     ordinary pairs: 0.98 / 1.17 against 0.36 / 0.53 kcal/mol within 3 kcal/mol of
+     the lowest). Fit errors near the binding energy: option 2 **0.36 fitted /
+     0.53 unseen**, option 1 **0.29 / 0.24** kcal/mol. The wall against MP2, the
+     law's error relative to the energy: option 1 9-20% from 1.0 A out; option 2
+     14-32%, and 36% / 68% inside 1.0 A, where its mean energy is 204 and 116
+     kcal/mol against MP2's 225 and 303 (too soft, but repulsive). **The scan of
+     400,000 random dimers still finds holes inside 1.0 A** (option 2: -202 at 0.6-
+     0.8 A, -31 at 0.8-1.0 A; option 1: -298 and -89), and none from 1.0 A out:
+     the check as written (no bin below ordinary binding) is **met outside 1.0 A
+     and not inside it**. Both liquids are stable through the hot settling stage.
+     A proper fix would be a short-range core term the law does not have; stated
+     here as a limit, not chased.
+     | 298 K, 216 molecules, 1 g/cm3, 80 ps sampled | option 1 rigid | option 1, wall in | option 2 flexible angle | option 2, wall in |
+     |---|---|---|---|---|
+     | U/N (kcal/mol) | -11.13 | -11.18 | -11.95 | -11.34 |
+     | heat of vaporisation | 11.72 | 11.77 | 12.54 | 11.90 |
+     | pressure (bar) | -1007 | -1872 +- 73 | -2146 | -2868 +- 65 |
+     | g(OO) first peak | 2.73 at 2.75 A | 2.83 at 2.85 | 2.93 at 2.75 | 2.84 at 2.85 |
+     | g(OO) first minimum | 0.88 at 3.95 A | 0.88 at 4.15 | 0.84 at 3.25 | 0.85 at 4.15 |
+     | neighbours to the minimum | 7.49 | 8.99 | 4.08 | 9.02 |
+     | tetrahedral q | 0.614 | 0.558 | 0.663 | 0.505 |
+     | hydrogen bonds a molecule | 3.56 | 3.43 | 3.78 | 3.38 |
+     | mean H-O-H | 104.08 fixed | 104.08 fixed | 105.45 | 105.36 |
+     | molecule's own energy | n/a | n/a | 0.639 | 0.663 (gas 0.638) |
+     **What it says, honestly:** with the wall in the fit, *both* laws give a
+     less structured liquid than either did without it (first minimum out at
+     4.15 A with 9 neighbours, q 0.5-0.56 against 0.6-0.66), and a pressure of
+     -1.9 and -2.9 kbar: the liquid at 1 g/cm3 wants to contract. The sharper
+     structure that option 2's unwalled law gave (3.25 A, 4.08 neighbours) was
+     bought largely by the missing wall, and is not to be counted as an
+     improvement. The wall and the liquid's well cannot both be fitted by this
+     functional form to the accuracy a liquid's pressure needs (the same
+     conclusion E8b reached about a pair law good to 0.1-0.3 kcal/mol, here with
+     the wall as the new constraint). The angle-following cloud is still what
+     gives the right angle (105.4 degrees against option 1's law with a free
+     angle, which collapses it to 95), and the flexible liquid costs 80 minutes
+     on the GPU. *Not done, for the owner:* what to do about the pressure and the
+     structure - a three-body or many-body term, a fit weighted toward the
+     liquid's pressure (the slopes did this in E8b), or accepting these as the
+     comparison's numbers. The 4-hourly reports ended here.
    - **E8z, remove what was not chosen.** *Planned by the owner, to be done
      once the method above is validated and the owner confirms it; nothing is
      removed before that.* Every method the engine carries and the decision
