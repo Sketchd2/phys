@@ -143,3 +143,7 @@ path = "src/bin/pes.rs"
 [[bin]]
 name = "phys-vib"
 path = "src/bin/vib.rs"
+
+[[bin]]
+name = "phys-manybody"
+path = "src/bin/manybody.rs"

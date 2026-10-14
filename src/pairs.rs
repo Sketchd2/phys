@@ -541,6 +541,11 @@ impl Snapshot {
         self.candidates.len()
     }
 
+    /// How many molecules the snapshot holds.
+    pub fn molecules(&self) -> usize {
+        self.mols.len()
+    }
+
     /// Pair `k` of the order: the molecules' indices, their positions (the
     /// second moved to its nearest image of the first) and the centroid
     /// separation.
@@ -1022,6 +1027,7 @@ impl Monomer {
     /// The cluster's interaction is the cluster's energy minus the molecules',
     /// subtracted in order, which for two molecules is `interact`'s own sum.
     fn cluster_interaction(&self, mols: &[Vec<Vec3>], first_only: bool, only: Option<usize>, mut log: Option<&mut FieldLog>, mp2_mode: bool) -> Interaction {
+        let hf_only = CLUSTER_HF_ONLY.load(std::sync::atomic::Ordering::Relaxed);
         let n = self.z.len();
         let m = mols.len();
         let base = self.cluster_problem(mols);
@@ -1062,12 +1068,15 @@ impl Monomer {
                 iterations.push(hf.iterations);
                 let ts = Instant::now();
                 let z_all: Vec<u32> = (0..m).flat_map(|_| self.z.iter().cloned()).collect();
-                let corr = crate::electrons::hf::mp2(&p, &hf, crate::electrons::hf::frozen_core(&z_all, &keep));
+                // `--method hf`: the Hartree-Fock energy alone, the correlation
+                // stored as zero. The many-body probe's route to clusters whose
+                // MP2 is out of reach; see PLAY.md E8d.
+                let correlation = if hf_only { 0.0 } else { crate::electrons::hf::mp2(&p, &hf, crate::electrons::hf::frozen_core(&z_all, &keep)).correlation };
                 t_fine += ts.elapsed().as_secs_f64();
                 e_pbe.push(hf.energy);
-                e_rev.push(corr.correlation);
+                e_rev.push(correlation);
                 if let Some(l) = log.as_mut() {
-                    l.record(slot, hf.energy, corr.correlation, hf.iterations, field_start.elapsed().as_secs_f64());
+                    l.record(slot, hf.energy, correlation, hf.iterations, field_start.elapsed().as_secs_f64());
                 }
                 println!("  field {} of {} done: {:.0} s so far ({:.0} s Hartree-Fock, {} iterations; {:.0} s MP2)", slot + 1, m + 1, t_solve + t_fine, t_solve, hf.iterations, t_fine);
                 std::io::stdout().flush().ok();
@@ -1337,6 +1346,9 @@ fn slope_main(args: &[String]) {
     }
 }
 
+/// Set by `--method hf`: a cluster field is Hartree-Fock alone.
+pub static CLUSTER_HF_ONLY: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
 /// The fields of a cluster calculation that are finished, kept in the cluster's
 /// own file as they come: one line `field <slot> <PBE-exchange energy>
 /// <revPBE-exchange energy> <iterations> <seconds>`, slot 0 the cluster and slot
@@ -1497,7 +1509,10 @@ pub fn cluster_main(args: &[String]) {
     let size: usize = flag("--size").and_then(|s| s.parse().ok()).unwrap_or(6);
     let grown = args.iter().any(|a| a == "--grown");
     let dry = args.iter().any(|a| a == "--dry");
-    let mp2_mode = flag("--method").map(|m| m == "mp2").unwrap_or(false);
+    let method = flag("--method");
+    let hf_only = method.as_deref() == Some("hf");
+    CLUSTER_HF_ONLY.store(hf_only, std::sync::atomic::Ordering::Relaxed);
+    let mp2_mode = hf_only || method.as_deref() == Some("mp2");
     let mono = Monomer::load(&name, grown);
     let snap = Snapshot::load(&snapshot, mono.z.len());
     // `--check-pair K`: pair K of the snapshot's order through the cluster's
@@ -1513,6 +1528,15 @@ pub fn cluster_main(args: &[String]) {
             Some(w) if w.len() > 4 => println!("  recorded in {file}: {} / {} hartree; differences {:+.2e} / {:+.2e}", w[2], w[3], r.pbe - w[2].parse::<f64>().unwrap_or(f64::NAN), r.rev - w[3].parse::<f64>().unwrap_or(f64::NAN)),
             _ => println!("  no line {k} in {file}"),
         }
+        return;
+    }
+    // `--manybody`: the many-body expansion of the `size` nearest molecules to
+    // three bodies, in the order that finishes each prefix before the next
+    // (molecule k's pairs, then the triples ending in k), so that what is done
+    // when a run is stopped is a complete cluster of every smaller size. See
+    // PLAY.md E8d.
+    if args.iter().any(|a| a == "--manybody") {
+        manybody_main(&mono, &snap, &name, &snapshot, centre, size, mp2_mode, hf_only, flag("--out"));
         return;
     }
     let mols = snap.cluster(centre, size);
@@ -1533,7 +1557,7 @@ pub fn cluster_main(args: &[String]) {
         println!("the first field of the cluster of {size}: {:.0} s", t.elapsed().as_secs_f64());
         return;
     }
-    let out = flag("--out").unwrap_or_else(|| format!("cluster-{}{name}-{size}-c{centre}.txt", if mp2_mode { "mp2-" } else { "" }));
+    let out = flag("--out").unwrap_or_else(|| format!("cluster-{}{name}-{size}-c{centre}.txt", if hf_only { "hf-" } else if mp2_mode { "mp2-" } else { "" }));
     let have = std::fs::read_to_string(&out).unwrap_or_default();
     let mut file = std::fs::OpenOptions::new().create(true).append(true).open(&out).expect("the output file");
     let geometry: Vec<String> = ids
@@ -1661,5 +1685,106 @@ pub fn cluster_main(args: &[String]) {
     }
     if law.is_some() && !mp2_mode {
         println!("  the law's pair sum is {:.4}: {:+.4} kcal/mol from the cluster ({:+.2} a molecule), of which {:+.4} is the law's pairs and {:+.4} the non-additivity", law_sum * k, (law_sum - whole.0) * k, (law_sum - whole.0) * k / size as f64, (law_sum - pair_sum.0) * k, (pair_sum.0 - whole.0) * k);
+    }
+}
+
+/// `phys-cluster --manybody`: pair and triple interaction energies of the
+/// `size` molecules nearest `centre`, each from its own counterpoise-corrected
+/// cluster, written as they finish (`pair i j ids E corr`, `triple i j k ids E
+/// corr`) and read back on a restart. The three-body part of a triple is its
+/// interaction less its three pairs'; a prefix of `n` molecules has the
+/// interaction `sum pairs + sum three-body parts` to three bodies.
+fn manybody_main(mono: &Monomer, snap: &Snapshot, name: &str, snapshot: &str, centre: usize, size: usize, mp2_mode: bool, hf_only: bool, out: Option<String>) {
+    let k_cal = 627.509474;
+    let mols = snap.cluster(centre, size);
+    let ids: Vec<usize> = mols.iter().map(|(i, _)| *i).collect();
+    let geom: Vec<Vec<Vec3>> = mols.into_iter().map(|(_, m)| m).collect();
+    let out = out.unwrap_or_else(|| format!("manybody-{}{name}-{size}-c{centre}.txt", if hf_only { "hf-" } else if mp2_mode { "mp2-" } else { "" }));
+    remove_stale_spill();
+    let geometry: Vec<String> = ids
+        .iter()
+        .zip(&geom)
+        .map(|(i, m)| {
+            let mut line = format!("# mol {i}");
+            for p in m {
+                line += &format!(" {:.8} {:.8} {:.8}", p.x, p.y, p.z);
+            }
+            line
+        })
+        .collect();
+    let have = std::fs::read_to_string(&out).unwrap_or_default();
+    let mut file = std::fs::OpenOptions::new().create(true).append(true).open(&out).expect("the output file");
+    if have.is_empty() {
+        let what = if hf_only { "Hartree-Fock only, correlation 0" } else if mp2_mode { "Hartree-Fock then MP2 correlation (RI, frozen cores)" } else { "PBE-exchange form then revPBE-exchange" };
+        writeln!(file, "# many-body expansion of the {size} nearest about molecule {centre} of {snapshot}; molecules {ids:?}; energies in hartree, {what}").ok();
+        for l in &geometry {
+            writeln!(file, "{l}").ok();
+        }
+    } else {
+        let kept: Vec<&str> = have.lines().filter(|l| l.starts_with("# mol ")).collect();
+        // A run for a larger cluster continues one for a smaller: the nearest
+        // molecules come in the same order, so what was kept is a prefix.
+        assert!(kept.iter().zip(&geometry).all(|(a, b)| a == b), "{out} was begun on a different cluster from this snapshot gives");
+        for l in geometry.iter().skip(kept.len()) {
+            writeln!(file, "{l}").ok();
+        }
+    }
+    let mut done: std::collections::HashMap<String, (f64, f64)> = std::collections::HashMap::new();
+    for l in have.lines() {
+        let w: Vec<&str> = l.split_whitespace().collect();
+        let n = match w.first() {
+            Some(&"pair") => 2,
+            Some(&"triple") => 3,
+            _ => continue,
+        };
+        if w.len() == 1 + n + n + 2 {
+            if let (Ok(a), Ok(b)) = (w[w.len() - 2].parse::<f64>(), w[w.len() - 1].parse::<f64>()) {
+                done.insert(w[..1 + n].join(" "), (a, b));
+            }
+        }
+    }
+    let head = |v: (f64, f64)| if mp2_mode { v.0 + v.1 } else { v.0 };
+    let mut pair_e = vec![vec![(0.0, 0.0); size]; size];
+    let (mut pairs_sum, mut three_sum) = (0.0, 0.0);
+    println!("{name}: many-body expansion of {size} about molecule {centre} of {snapshot}, molecules {ids:?}");
+    for k in 1..size {
+        for i in 0..k {
+            let key = format!("pair {i} {k}");
+            let v = match done.get(&key) {
+                Some(v) => *v,
+                None => {
+                    let t = Instant::now();
+                    let r = mono.cluster_interaction(&[geom[i].clone(), geom[k].clone()], false, None, None, mp2_mode);
+                    writeln!(file, "{key} {} {} {:.10e} {:.10e}", ids[i], ids[k], r.pbe, r.rev).ok();
+                    file.flush().ok();
+                    println!("  {key}: {:.4} kcal/mol, {:.0} s", head((r.pbe, r.rev)) * k_cal, t.elapsed().as_secs_f64());
+                    (r.pbe, r.rev)
+                }
+            };
+            pair_e[i][k] = v;
+            pairs_sum += head(v);
+        }
+        for j in 1..k {
+            for i in 0..j {
+                let key = format!("triple {i} {j} {k}");
+                let v = match done.get(&key) {
+                    Some(v) => *v,
+                    None => {
+                        let t = Instant::now();
+                        let r = mono.cluster_interaction(&[geom[i].clone(), geom[j].clone(), geom[k].clone()], false, None, None, mp2_mode);
+                        writeln!(file, "{key} {} {} {} {:.10e} {:.10e}", ids[i], ids[j], ids[k], r.pbe, r.rev).ok();
+                        file.flush().ok();
+                        let three = head((r.pbe, r.rev)) - head(pair_e[i][j]) - head(pair_e[i][k]) - head(pair_e[j][k]);
+                        println!("  {key}: three-body {:+.4} kcal/mol, {:.0} s", three * k_cal, t.elapsed().as_secs_f64());
+                        (r.pbe, r.rev)
+                    }
+                };
+                three_sum += head(v) - head(pair_e[i][j]) - head(pair_e[i][k]) - head(pair_e[j][k]);
+            }
+        }
+        if k >= 2 {
+            println!("{} molecules: pairs {:+.4}, three-body {:+.4}, to three bodies {:+.4} kcal/mol ({:+.2} a molecule)", k + 1, pairs_sum * k_cal, three_sum * k_cal, (pairs_sum + three_sum) * k_cal, (pairs_sum + three_sum) * k_cal / (k + 1) as f64);
+        }
+        std::io::stdout().flush().ok();
     }
 }
