@@ -122,6 +122,13 @@ pub trait SiteLaw: Sync {
     fn site_site(&self) -> Option<&SiteSite> {
         None
     }
+
+    /// The Ewald sum that carries the long-range part of the charges and the
+    /// induced dipoles (`ewald.rs`), where the law is wrapped in [`EwaldLaw`]:
+    /// the pair terms then have only their short-range Coulomb remainder.
+    fn ewald(&self) -> Option<&crate::ewald::Ewald> {
+        None
+    }
 }
 
 /// Everything the site-site pair loop of a flexible liquid needs, for an engine
@@ -302,7 +309,9 @@ impl Liquid {
         // Every pair is in two rows, with the same product `d . F`: half the
         // rows' sum is the sum over pairs.
         let mut forces = Forces { energy: energy_rows.iter().sum(), force, torque, virial: 0.5 * virial_rows.iter().sum::<f64>(), dipoles: Vec::new() };
-        if let Some((alpha, charge)) = law.induction() {
+        if let Some(ew) = law.ewald() {
+            self.add_ewald(&mut forces, &arms, law, ew, warm);
+        } else if let Some((alpha, charge)) = law.induction() {
             self.add_induction(&mut forces, &arms, alpha, charge, law.charge_widths(), warm);
         }
         forces
@@ -357,6 +366,134 @@ impl Liquid {
             forces.force[l.j] -= out.link_force[k];
         }
         forces.dipoles = out.dipoles;
+    }
+
+    /// The long-range part of the permanent charges' interactions and of the
+    /// induced dipoles' (`ewald.rs`, `PLAY.md` E8d), on top of the pair loop's
+    /// short-range remainder: the reciprocal sums, the dipoles solved with
+    /// the real-space remainder and the reciprocal coupling together
+    /// (`induction::solve_ewald`), the reciprocal forces on every charge and
+    /// dipole site, the constant self and same-molecule terms taken off the
+    /// energy, and the reciprocal virial. Adds to `forces`.
+    fn add_ewald(&self, forces: &mut Forces, arms: &[Vec<Vec3>], law: &dyn SiteLaw, ew: &crate::ewald::Ewald, warm: Option<&[Vec<Vec3>]>) {
+        use crate::induction::{solve_ewald, Charge, Cluster, Link, PolSite};
+        let n = self.com.len();
+        let types = &self.kind.types;
+        let ss = law.site_site().expect("the Ewald sum needs a site-site law underneath");
+        let q_of = |k: usize| ss.charge[types[k]];
+        let charged: Vec<usize> = (0..types.len()).filter(|&k| q_of(k) != 0.0).collect();
+        let (mut cpos, mut cq, mut ccom, mut carm) = (Vec::new(), Vec::new(), Vec::new(), Vec::new());
+        for i in 0..n {
+            for &k in &charged {
+                cpos.push(self.com[i] + arms[i][k]);
+                cq.push(q_of(k));
+                ccom.push(self.com[i]);
+                carm.push(arms[i][k]);
+            }
+        }
+        let ph_c = ew.phases(&cpos);
+        let sq = ew.charge_sum(&ph_c, &cq);
+        // The permanent charges: the reciprocal energy, less each charge's self
+        // term and less the long-range part of the pairs inside a molecule (a
+        // rigid molecule's own constant), which the liquid does not have.
+        let mut intra = 0.0;
+        for (a, &ka) in charged.iter().enumerate() {
+            for &kb in &charged[a + 1..] {
+                let r = (arms[0][ka] - arms[0][kb]).norm();
+                intra += q_of(ka) * q_of(kb) * crate::ewald::erf_over_r(r, ew.s).0;
+            }
+        }
+        forces.energy += ew.energy(&sq) - ew.charge_self(&cq) - intra * n as f64;
+        let induced = law.induction();
+        let (mut fch_rec, mut fdip_rec): (Vec<Vec3>, Vec<Vec3>) = (Vec::new(), Vec::new());
+        let mut virial_rec = 0.0;
+        let mut dipoles = Vec::new();
+        if let Some((alpha, charge)) = induced {
+            let widths = law.charge_widths();
+            let pol_sites: Vec<usize> = (0..types.len()).filter(|&k| alpha[types[k]] > 0.0).collect();
+            let (mut dpos, mut dcom, mut darm) = (Vec::new(), Vec::new(), Vec::new());
+            for i in 0..n {
+                for &k in &pol_sites {
+                    dpos.push(self.com[i] + arms[i][k]);
+                    dcom.push(self.com[i]);
+                    darm.push(arms[i][k]);
+                }
+            }
+            let ph_d = ew.phases(&dpos);
+            let e0_lr = ew.field_at_dipoles(&sq, &ph_d, dpos.len());
+            let response = |x: &[Vec3]| ew.dipole_response(&ph_d, x);
+            let mut cl = Cluster::default();
+            for i in 0..n {
+                cl.pol.push(pol_sites.iter().map(|&k| PolSite { pos: self.com[i] + arms[i][k], alpha: alpha[types[k]] }).collect());
+                cl.charges.push(charged.iter().map(|&k| Charge { pos: self.com[i] + arms[i][k], q: charge[types[k]], sigma: widths.get(types[k]).copied().unwrap_or(0.0) }).collect());
+            }
+            let mut links = Vec::new();
+            for i in 0..n {
+                for j in i + 1..n {
+                    let raw = self.com[i] - self.com[j];
+                    let d = self.image(raw);
+                    let dist = d.norm();
+                    if dist >= self.r_cut {
+                        continue;
+                    }
+                    let (w, dw) = switch(dist, self.r_on, self.r_cut);
+                    links.push(Link { i, j, shift: raw - d, weight: w, dweight: dw, d });
+                }
+            }
+            let out = crate::induction::solve_ewald(&cl, &links, ew.s, &e0_lr, &response, warm, 1e-10);
+            let _ = solve_ewald;
+            forces.energy += out.energy;
+            forces.virial += out.virial;
+            let mu: Vec<Vec3> = out.dipoles.iter().flatten().cloned().collect();
+            let d = ew.dipole_sum(&ph_d, &mu);
+            let stot: Vec<crate::ewald::C> = sq.iter().zip(&d).map(|(a, b)| crate::ewald::C { re: a.re + b.re, im: a.im + b.im }).collect();
+            fch_rec = ew.grad_charge_pos(&stot, &ph_c, &cq).into_iter().map(|g| -g).collect();
+            fdip_rec = ew.grad_dipole_pos(&stot, &ph_d, &mu).into_iter().map(|g| -g).collect();
+            virial_rec = ew.virial(&ccom, &carm, &cq, &dcom, &darm, &mu);
+            for i in 0..n {
+                for (a, &k) in pol_sites.iter().enumerate() {
+                    let f = out.force_pol[i][a];
+                    forces.force[i] += f;
+                    forces.torque[i] += arms[i][k].cross(f);
+                }
+                for (c, &k) in charged.iter().enumerate() {
+                    let f = out.force_charge[i][c];
+                    forces.force[i] += f;
+                    forces.torque[i] += arms[i][k].cross(f);
+                }
+            }
+            for (k, l) in links.iter().enumerate() {
+                forces.force[l.i] += out.link_force[k];
+                forces.force[l.j] -= out.link_force[k];
+            }
+            // The reciprocal forces on the dipoles' sites.
+            let mut idx = 0;
+            for i in 0..n {
+                for &k in &pol_sites {
+                    let f = fdip_rec[idx];
+                    forces.force[i] += f;
+                    forces.torque[i] += arms[i][k].cross(f);
+                    idx += 1;
+                }
+            }
+            dipoles = out.dipoles;
+        } else {
+            fch_rec = ew.grad_charge_pos(&sq, &ph_c, &cq).into_iter().map(|g| -g).collect();
+            virial_rec = ew.virial(&ccom, &carm, &cq, &[], &[], &[]);
+        }
+        let mut idx = 0;
+        for i in 0..n {
+            for &k in &charged {
+                let f = fch_rec[idx];
+                forces.force[i] += f;
+                forces.torque[i] += arms[i][k].cross(f);
+                idx += 1;
+            }
+        }
+        forces.virial += virial_rec;
+        if !dipoles.is_empty() {
+            forces.dipoles = dipoles;
+        }
     }
 
     /// Kinetic energy: translational and rotational.
@@ -472,6 +609,45 @@ impl SiteLaw for Polarisable<'_> {
 
     fn site_site(&self) -> Option<&SiteSite> {
         Some(self.law)
+    }
+}
+
+/// A law with its Coulomb term cut down to the short-range remainder
+/// `erf(r / s) - erf(r / s')` over `r` (`s'` the Ewald width), the rest being
+/// the reciprocal sum `Liquid::add_ewald` adds (`ewald.rs`). Everything else the
+/// inner law has - repulsion, dispersion, induction - is passed through.
+pub struct EwaldLaw<'a> {
+    pub inner: &'a dyn SiteLaw,
+    pub ewald: crate::ewald::Ewald,
+}
+
+impl SiteLaw for EwaldLaw<'_> {
+    fn site_pair(&self, ta: usize, tb: usize, r: f64) -> (f64, f64) {
+        let (u, du) = self.inner.site_pair(ta, tb, r);
+        if let Some(ss) = self.inner.site_site() {
+            let qq = ss.charge[ta] * ss.charge[tb];
+            if qq != 0.0 {
+                let (g, dg) = crate::ewald::erf_over_r(r, self.ewald.s);
+                return (u - qq * g, du - qq * dg);
+            }
+        }
+        (u, du)
+    }
+
+    fn induction(&self) -> Option<(&[f64], &[f64])> {
+        self.inner.induction()
+    }
+
+    fn charge_widths(&self) -> &[f64] {
+        self.inner.charge_widths()
+    }
+
+    fn site_site(&self) -> Option<&SiteSite> {
+        self.inner.site_site()
+    }
+
+    fn ewald(&self) -> Option<&crate::ewald::Ewald> {
+        Some(&self.ewald)
     }
 }
 

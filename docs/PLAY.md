@@ -5180,6 +5180,132 @@ the start of the phase, ahead of the renderer**. In order:
      structure - a three-body or many-body term, a fit weighted toward the
      liquid's pressure (the slopes did this in E8b), or accepting these as the
      comparison's numbers. The 4-hourly reports ended here.
+   - **E8d, where the liquid's pressure comes from: the many-body probe, the
+     pressure budget, the cut-off, and Ewald (2026-10-14 to 16; the owner asked
+     for a 3-to-10-molecule probe, then the pressure cross-check, then Ewald).**
+     *Detail, tables and the run log: `docs/E8D.md`. What follows is what was
+     measured and what it supports; the Ewald dynamics of the second law (the
+     no-wall one) were still running when this was written and their numbers are
+     in `docs/E8D.md`.* The E8c question
+     was whether a many-body term, a pressure-weighted fit, or acceptance was the
+     way out of the -1.9 / -2.9 kbar pressure. None of the three was the finding.
+     - **The many-body probe.** Clusters of the N nearest molecules cut from the
+       298 K liquid, Hartree-Fock pairs and triples (`phys-cluster-gpu --manybody
+       --method hf`; a direct 4-molecule field alone was 2348 s and spilled to
+       disk, so the three-body expansion was the route), ten centres to 6
+       molecules and one to 10, against the law's induction on the same triples
+       (`phys-manybody`). Three-body energy, kcal/mol: n = 3 -0.12 +- 0.08, 4
+       -0.13 +- 0.06, 5 -0.09 +- 0.13, 6 -0.35 +- 0.18 (ten centres); the one
+       centre taken to 10 goes -0.16, +0.19, +0.33, +1.11 at 7, 8, 9, 10. A
+       few per cent of the pair sum, no steady trend. Over 300 triples the law's
+       induction tracks the reference (correlation 0.75, slope 0.64: it is
+       about 1.5 times too strong per triple) and triples whose closest O-O
+       is over 3.06 A carry nothing (means -0.002 and +0.003 kcal/mol); a
+       three-body exchange form (a product of pair overlaps) fitted to them has
+       R^2 0.01-0.05 and the attractive sign. No repulsive
+       core is in the data. The direct three-body virial (finite difference of
+       the HF triples under scaling of the centres, one 5-molecule cluster):
+       -144 bar, the law's induction on the same triples +819 bar.
+     - **The pressure is a small residual of terms of order 10^4 bar.**
+       `phys-virial` (pair virial term by term, plus the many-body induction by
+       finite difference of the dipole solve) reproduces the E8c run: -1766 bar
+       for its last frame against -1872 +- 73, and U/N -11.09 against -11.18. For
+       the wall-fit law: kinetic +1375, repulsion +118,233, electrostatics
+       -64,994, dispersion -27,595, pair induction -14,847, **many-body induction
+       beyond the pairs -13,939** bar. Each 5% of polarisability is about 1,100
+       bar (alpha x 0.95 -706, x 0.90 +431, x 0.80 +2,937 on that frame), and the
+       law's own molecular polarisability is right to 1.4% (10.05 against MP2's
+       9.908 bohr^3). The three-body triples prefer alpha x 0.70, the pressure
+       x 0.92, the pair data have no preference (held-out 0.164-0.166 at every
+       scale, the repulsion absorbs it). Non-additive induction is -2.43
+       kcal/mol a molecule in the liquid, 22% of U/N, and about zero in a
+       10-molecule cluster: a compact cluster cannot sample it.
+     - **Why the wall data moved the pressure.** The repulsion of these laws is
+       entirely the Gaussian cloud overlap, its widths fixed by the electrostatic
+       clouds (every Born-Mayer amplitude is 1e-300 in the file). One shape cannot
+       serve the wall (0.6-2.3 A) and the contact shell (2.8-3.1 A); the wall fit
+       costs the first shell 0.27 kcal/mol/bohr of slope, about 2,300 bar by E8b's
+       arithmetic, the size of the -1007 -> -1872 move. `phys-fit --bm` (already
+       there, off in E8c) gives the repulsion a second shape: held-out error
+       0.166-0.170 (E8c 0.304), the first-shell slope error cut to a third
+       (-0.32 to -0.11) and the inner one from -0.99 to +0.10, a
+       dispersion of C6 48-51 hartree bohr^6 with nothing pinned (E6 derived 52.3),
+       and **no holes in 400,000 random dimers** (lowest energy at 0.6-0.8 A +33
+       to +35 kcal/mol, against -298; the deepest dimer -4.65 to -4.72 at 2.92 A).
+       That meets E8c's "holes inside 1.0 A" limit. Its truncated liquid is more
+       collapsed, -2,500 to -3,100 bar, so it is a hole fix and not a pressure fix.
+     - **The cut-off.** `phys-bulk` truncates every pair term at 16 bohr with a
+       switch on the centres and has no long-range sum (its own header says so;
+       the E8b list named it and noted it unmeasured). On one configuration with
+       the law fixed the pressure, with the dispersion tail (-214 bar, from the
+       law's C6 and the switch), reads -1,980 (16 bohr), +499 (17.5), +778 (20),
+       +460 (24), -1,167 (28), -424 (32; the configuration repeated 2x2x2): it
+       oscillates by 1-2 kbar and is still doing so at 32. A second law and
+       configuration does the same (-2,583 at 16, then +1,419, +634, -722, -57).
+       But truncated *dynamics* is self-consistent at each cut-off: at 17.5 bohr
+       the E8c law re-equilibrates to -1,667 +- 67 bar and the same 9.0
+       neighbours as at 16.
+     - **Ewald** (`src/ewald.rs`, `induction::solve_ewald`, `liquid::EwaldLaw`,
+       `PHYS_EWALD=<s' bohr>` in `phys-bulk`, `phys-ewald`, `tests/ewald.rs`).
+       Every charge and dipole is a Gaussian of width w and any two interact
+       through derivatives of erf(r/s)/r, s^2 = w_a^2 + w_b^2, so one common
+       s' >= s for all pairs splits each into [kernel(s) - kernel(s')] in real
+       space (the engine's own tensors, differenced) and kernel(s') in reciprocal
+       space for point multipoles; self terms and same-molecule terms are taken off,
+       the virial is the derivative of E_rec under rigid scaling. Checked: the
+       energy per molecule is -10.5170 (s' 3.4), -10.5170 (3.8), -10.5175 (4.2)
+       kcal/mol; forces and torques equal finite differences of the re-minimised
+       energy to ~1e-8; the virial equals -dU/d ln(lambda) to 0.0 bar. On the
+       final frames of the truncated runs the Ewald pressure is +170 bar (E8c
+       wall-fit law, truncated -1,782) and +510 (no-wall law, truncated -2,481);
+       U/N is 0.6 kcal/mol less bound. **Ewald dynamics**, E8c wall-fit law, 216
+       molecules, 1 g/cm3, 298 K, s' 4.2, 30 ps (24 sampled): **pressure -701
+       bar, -916 with the dispersion tail** (truncated -1,872 +- 73; the 5-block
+       standard error printed is 20 bar but successive samples scatter by about
+       1,000 bar, so take +- 200), U/N -10.43 (truncated -11.18), heat of
+       vaporisation 11.0 (11.8), g(OO) first peak 2.68 at 2.85 A (2.83), first
+       minimum 0.86 at 4.15 A (0.88 at 4.15), **9.07 neighbours inside it
+       (8.99)**, tetrahedral q 0.541 (0.558; 0.547 with a 17.5-bohr cut-off),
+       hydrogen bonds 3.45 a molecule (3.43; 3.50). **So the truncation cost
+       the pressure about 1.2 kbar and the binding energy 0.75 kcal/mol a
+       molecule, and cost the structure nothing: the 9-neighbour, q 0.54
+       liquid is the law's, not the cut-off's** - which is what the pressure
+       budget and the literature's collapse of pair-based ab initio water say.
+       What is left, -0.7 to -0.9 kbar, is within the sensitivity found above (an
+       8% polarisability, a 0.04 kcal/mol/bohr slope in the 3.8-4.7 A shell).
+     - **The owner's simpler method: ball-and-stick molecules, atom-atom forces
+       by brute force** (`phys-sticks`, `runs/e8d/sticks/`; docs/E8D.md section 8).
+       Springs from the Hessian of the engine's monomer surface (it reproduces the
+       engine's harmonic frequencies, 1626, 3847, 3973 cm^-1), every intermolecular
+       atom pair summed, charges by Ewald, Langevin dynamics, about 16 ms a step
+       for 64 molecules (roughly 7 times cheaper a picosecond than the rigid liquid
+       with induction, though the flexible hydrogens need a step half as long).
+       The atom-atom law is point charges, an exponential repulsion and a damped
+       C6 per atom-pair type, fitted to the engine's 410 MP2 pair energies, with
+       no clouds, no extra site and no induction. Where it falls short, so far: the
+       pair error is 0.72-0.74 kcal/mol held out against 0.24-0.30 for the cloud +
+       induction law; with the dispersion free the fit takes the molecule-to-
+       molecule C6 to about 160 hartree bohr^6 (about 50 physical) and one atom-pair
+       C6 negative, so dispersion is standing in for what pair additivity and point
+       charges cannot do; a 64-molecule 3 ps test collapses to 12.8 neighbours
+       inside the first minimum with P about -2.8 kbar. The 216-molecule 20 ps
+       runs for three variants (gas-phase charge, fitted charge, dispersion held
+       at the engine's derived C6) were still running when this was written.
+     - **Open, the owner's.** (1) What puts nine neighbours inside 4.15 A
+       when water has four to five: not the truncation (above) and not a
+       three-body repulsion (no such term is in the Hartree-Fock triples); the
+       pair law's contact and mid-range force and the induction's strength at
+       contacts are what the budget says it is sensitive to, and the
+       reference (MP2 in a basis 5% short in the dimer) may itself sit denser than
+       water; (2) the polarisability / induction at liquid contacts (the triples
+       say weaker, the pressure a little weaker, exchange-induction quenching is
+       the physics a point-dipole model lacks) - a law-level addition the plan
+       does not name; (3) the Born-Mayer second repulsion shape as the E8c refit
+       (closes the holes; its Ewald liquid is untried); (4) a long-range sum and
+       the dispersion tail (-117 to -214 bar) as part of every liquid run, now
+       that they exist; (5) a second molecule, since only water has pair data.
+       Not measured: Ewald dynamics for more than one law, runs longer than 30
+       ps, the effect of the tin-foil boundary, any molecule but water.
    - **E8z, remove what was not chosen.** *Planned by the owner, to be done
      once the method above is validated and the owner confirms it; nothing is
      removed before that.* Every method the engine carries and the decision

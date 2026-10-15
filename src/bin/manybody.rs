@@ -19,12 +19,32 @@ use phys::math::Vec3;
 
 const KCAL: f64 = 627.509474;
 
+/// The molecules' centres moved to `scale` times their distance from the
+/// cluster's mean centre, each keeping its shape and orientation (the same move
+/// as `phys-cluster --manybody --scale`).
+fn scaled(mut mols: Vec<(usize, Vec<Vec3>)>, scale: f64) -> Vec<(usize, Vec<Vec3>)> {
+    if scale == 1.0 {
+        return mols;
+    }
+    let centroid = |m: &Vec<Vec3>| m.iter().fold(Vec3::ZERO, |acc, p| acc + *p).scale(1.0 / m.len() as f64);
+    let cents: Vec<Vec3> = mols.iter().map(|(_, m)| centroid(m)).collect();
+    let mean = cents.iter().fold(Vec3::ZERO, |acc, p| acc + *p).scale(1.0 / cents.len() as f64);
+    for ((_, m), c) in mols.iter_mut().zip(&cents) {
+        let shift = (*c - mean).scale(scale - 1.0);
+        for p in m.iter_mut() {
+            *p = *p + shift;
+        }
+    }
+    mols
+}
+
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let snapshot = args.get(1).expect("a snapshot");
     let law_path = args.get(2).expect("a law file");
     let flag = |f: &str| args.iter().position(|a| a == f).and_then(|i| args.get(i + 1)).cloned();
     let max: usize = flag("--max").and_then(|s| s.parse().ok()).unwrap_or(10);
+    let scale: f64 = flag("--scale").and_then(|s| s.parse().ok()).unwrap_or(1.0);
     let text = std::fs::read_to_string(law_path).unwrap_or_else(|_| panic!("no {law_path}"));
     let law = SiteSite::from_text(&text).expect("a readable law");
     let alpha = SiteSite::alpha_from_text(&text, law.charge.len());
@@ -64,10 +84,30 @@ fn main() {
         }
         solve(&cl, &links, None, 1e-12).energy
     };
+    // `--triples`: every triple of the first `max` molecules of each centre, one
+    // line each: centre, i, j, k, the law's three-body (induction) energy in
+    // kcal/mol and the three oxygen-oxygen distances in bohr, to be set beside
+    // the reference's three-body energy for that same triple.
+    if args.iter().any(|a| a == "--triples") {
+        for &c in &centres {
+            let mols: Vec<Vec<(Vec3, usize)>> = scaled(snap.cluster(c, max), scale).iter().map(|(_, m)| sites(m)).collect();
+            let n = mols.len();
+            let d = |a: usize, b: usize| (mols[a][0].0 - mols[b][0].0).norm();
+            for k in 2..n {
+                for j in 1..k {
+                    for i in 0..j {
+                        let e3 = induction(&[&mols[i], &mols[j], &mols[k]]) - induction(&[&mols[i], &mols[j]]) - induction(&[&mols[i], &mols[k]]) - induction(&[&mols[j], &mols[k]]);
+                        println!("T {c} {i} {j} {k} {:.6} {:.4} {:.4} {:.4}", e3 * KCAL, d(i, j), d(i, k), d(j, k));
+                    }
+                }
+            }
+        }
+        return;
+    }
     // Per size: the many-body energy, its three-body part, the pair-sum energy.
     let mut rows: Vec<Vec<(f64, f64, f64)>> = vec![Vec::new(); max + 1];
     for &c in &centres {
-        let mols: Vec<Vec<(Vec3, usize)>> = snap.cluster(c, max).iter().map(|(_, m)| sites(m)).collect();
+        let mols: Vec<Vec<(Vec3, usize)>> = scaled(snap.cluster(c, max), scale).iter().map(|(_, m)| sites(m)).collect();
         // The induction of every pair and every triple of the ten, once.
         let n = mols.len();
         let mut pair_ind = vec![vec![0.0; n]; n];

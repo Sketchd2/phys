@@ -26,7 +26,8 @@
 
 use phys::electrons::grow::{equivalent_atoms, Resume};
 use phys::electrons::molecule::Molecule;
-use phys::liquid::{Kind, Liquid, Polarisable, SiteLaw, SiteSite, AMU, BAR_PER_HARTREE_PER_BOHR3, K_B};
+use phys::ewald::Ewald;
+use phys::liquid::{EwaldLaw, Kind, Liquid, Polarisable, SiteLaw, SiteSite, AMU, BAR_PER_HARTREE_PER_BOHR3, K_B};
 use phys::math::{Quat, Vec3};
 use phys::rng::{Purpose, Stream};
 use std::io::Write;
@@ -80,10 +81,26 @@ fn main() {
     let molecule_g = kind.mass / AMU * 1.66053906660e-24;
     let per_bohr3 = density_g / molecule_g * 0.529177210903e-8f64.powi(3);
     let side = (n as f64 / per_bohr3).cbrt();
-    let r_cut = (0.49 * side).min(16.0);
+    // `PHYS_RCUT` (bohr) overrides the 16-bohr cap, for a study of what the
+    // truncation does (PLAY.md E8d); the default is unchanged.
+    let cap: f64 = std::env::var("PHYS_RCUT").ok().and_then(|v| v.parse().ok()).unwrap_or(16.0);
+    let r_cut = (0.49 * side).min(cap);
     let r_on = r_cut - 2.0;
     let mut l = Liquid::slab(kind, n, per_bohr3, side, side, temperature, 0xb01c ^ temperature.to_bits(), r_on, r_cut);
     println!("{name} at {temperature} K: {n} molecules, {density_g} g/cm3, box {side:.2} bohr ({:.2} A), cut-off {r_cut:.1} bohr", side * 0.529177);
+    // `PHYS_EWALD=<s' in bohr>` carries the long-range part of the charges and
+    // the induced dipoles in reciprocal space (ewald.rs, PLAY.md E8d); the pair
+    // terms keep only their short-range Coulomb remainder. Unset, the run is
+    // the truncated one it has always been.
+    let ewald_law;
+    let law_ref: &dyn SiteLaw = match std::env::var("PHYS_EWALD").ok().and_then(|v| v.parse::<f64>().ok()) {
+        Some(sp) => {
+            ewald_law = EwaldLaw { inner: law_ref, ewald: Ewald::new(sp, l.cell, std::env::var("PHYS_EWALD_ACC").ok().and_then(|v| v.parse().ok()).unwrap_or(1e-7)) };
+            println!("  Ewald sum on: s' = {sp} bohr, {} reciprocal vectors", ewald_law.ewald.nk());
+            &ewald_law
+        }
+        None => law_ref,
+    };
 
     // Turn each molecule until no atom of it is within 2 A of an atom of any
     // before it.
@@ -198,6 +215,27 @@ fn main() {
     println!("  U/N {:.3} +- {:.3} kcal/mol; heat of vaporisation -U/N + RT = {:.3} kcal/mol", mean(0), spread(0), -mean(0) + rt);
     println!("  pressure {:.0} +- {:.0} bar at {density_g} g/cm3 (a liquid at the right density sits near 1 bar; positive says it wants to expand)", mean(1), spread(1));
     println!("  temperatures: translation {:.1} K, rotation {:.1} K (bath {temperature} K)", mean(2), mean(3));
+    // The dispersion beyond the cut-off, from the law's own C6 (isotropic, g = 1):
+    // P = -2 pi rho^2 C6 I, I = integral from r_on of (1 - S) / r^4; and the same for U/N.
+    {
+        let types = law.charge.len();
+        let mut c6 = 0.0;
+        for ta in &l.kind.types {
+            for tb in &l.kind.types {
+                c6 += law.pair[ta * types + tb][2];
+            }
+        }
+        let rho = n as f64 / (l.cell[0] * l.cell[1] * l.cell[2]);
+        let (mut integral, mut r, h) = (0.0, l.r_on, 0.001);
+        while r < 2000.0 {
+            let (sw, _) = phys::liquid::switch(r + h / 2.0, l.r_on, l.r_cut);
+            integral += (1.0 - sw) / (r + h / 2.0).powi(4) * h;
+            r += h;
+        }
+        let p_tail = -2.0 * std::f64::consts::PI * rho * rho * c6 * integral * BAR_PER_HARTREE_PER_BOHR3;
+        let u_tail = -2.0 * std::f64::consts::PI * rho * c6 * integral * KCAL;
+        println!("  dispersion beyond the cut-off (C6 {c6:.2}): {p_tail:.0} bar and {u_tail:.3} kcal/mol a molecule, so pressure with it {:.0} bar, U/N {:.3}", mean(1) + p_tail, mean(0) + u_tail);
+    }
     // g(r): the pairs found in each shell against what an ideal gas of the
     // same density would put there.
     let volume = l.cell[0] * l.cell[1] * l.cell[2];

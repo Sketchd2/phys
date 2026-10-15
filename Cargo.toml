@@ -147,3 +147,15 @@ path = "src/bin/vib.rs"
 [[bin]]
 name = "phys-manybody"
 path = "src/bin/manybody.rs"
+
+[[bin]]
+name = "phys-virial"
+path = "src/bin/virial.rs"
+
+[[bin]]
+name = "phys-ewald"
+path = "src/bin/ewald.rs"
+
+[[bin]]
+name = "phys-sticks"
+path = "src/bin/sticks.rs"

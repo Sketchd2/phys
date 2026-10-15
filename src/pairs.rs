@@ -1536,7 +1536,7 @@ pub fn cluster_main(args: &[String]) {
     // when a run is stopped is a complete cluster of every smaller size. See
     // PLAY.md E8d.
     if args.iter().any(|a| a == "--manybody") {
-        manybody_main(&mono, &snap, &name, &snapshot, centre, size, mp2_mode, hf_only, flag("--out"));
+        manybody_main(&mono, &snap, &name, &snapshot, centre, size, mp2_mode, hf_only, flag("--out"), flag("--scale").and_then(|s| s.parse().ok()).unwrap_or(1.0));
         return;
     }
     let mols = snap.cluster(centre, size);
@@ -1694,11 +1694,27 @@ pub fn cluster_main(args: &[String]) {
 /// corr`) and read back on a restart. The three-body part of a triple is its
 /// interaction less its three pairs'; a prefix of `n` molecules has the
 /// interaction `sum pairs + sum three-body parts` to three bodies.
-fn manybody_main(mono: &Monomer, snap: &Snapshot, name: &str, snapshot: &str, centre: usize, size: usize, mp2_mode: bool, hf_only: bool, out: Option<String>) {
+fn manybody_main(mono: &Monomer, snap: &Snapshot, name: &str, snapshot: &str, centre: usize, size: usize, mp2_mode: bool, hf_only: bool, out: Option<String>, scale: f64) {
     let k_cal = 627.509474;
     let mols = snap.cluster(centre, size);
     let ids: Vec<usize> = mols.iter().map(|(i, _)| *i).collect();
-    let geom: Vec<Vec<Vec3>> = mols.into_iter().map(|(_, m)| m).collect();
+    let mut geom: Vec<Vec<Vec3>> = mols.into_iter().map(|(_, m)| m).collect();
+    // `--scale L`: the molecules' centres moved to L times their distance from
+    // the cluster's mean centre, each molecule keeping its shape and
+    // orientation. Two of these (L slightly either side of 1) give the
+    // three-body energy's derivative with the density, which is what a
+    // three-body term contributes to the pressure.
+    if scale != 1.0 {
+        let centroid = |m: &Vec<Vec3>| m.iter().fold(Vec3::ZERO, |acc, p| acc + *p).scale(1.0 / m.len() as f64);
+        let cents: Vec<Vec3> = geom.iter().map(centroid).collect();
+        let mean = cents.iter().fold(Vec3::ZERO, |acc, p| acc + *p).scale(1.0 / cents.len() as f64);
+        for (m, c) in geom.iter_mut().zip(&cents) {
+            let shift = (*c - mean).scale(scale - 1.0);
+            for p in m.iter_mut() {
+                *p = *p + shift;
+            }
+        }
+    }
     let out = out.unwrap_or_else(|| format!("manybody-{}{name}-{size}-c{centre}.txt", if hf_only { "hf-" } else if mp2_mode { "mp2-" } else { "" }));
     remove_stale_spill();
     let geometry: Vec<String> = ids
