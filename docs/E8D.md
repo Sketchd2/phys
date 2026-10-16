@@ -684,6 +684,31 @@ second molecule where the many-body physics is small; what water adds (hydrogen 
 where it does not yet.** Not done for methane: a smaller pair-fit error with more or liquid-sampled pairs; the
 7 % of the pressure that a measured-density MP2 pair-additive methane would still miss.
 
+## 13. Density scan of the hole-free law under Ewald (finished 00:00 AEST, 17 Oct)
+
+Law `runs/e8d/core/law-core-B7.txt` (no-wall law + O-H core), 216 molecules, 298 K, Ewald s' 4.2, 30 ps (24 sampled).
+
+| density, g/cm3 | pressure, bar | with the dispersion tail | U/N | heat of vaporisation | g(OO) first peak | first minimum | neighbours inside it | q | H-bonds |
+|---|---|---|---|---|---|---|---|---|---|
+| 0.95 | -1,045 +- 41 | -1,151 | -10.146 | 10.74 | 2.67 at 2.85 A | 0.88 at **3.45 A** | **4.65** | **0.634** | 3.50 |
+| 1.00 | -88 +- 97 | -204 | -10.214 | 10.81 | 2.57 at 2.85 | 0.91 at 3.95 | 7.56 | 0.572 | 3.61 |
+| 1.05 | +1,301 +- 97 | +1,172 | -10.350 | 10.94 | 2.55 at 2.75 | 0.90 at 4.05 | 8.70 | 0.566 | 3.58 |
+(the +- are 5-block errors; the 1.0 value is the noisier, ~+-200 realistic)
+
+**Equilibrium density and compressibility from the pressure** (linear in density): P = 0 at 1.003 g/cm3 (no tail) to
+1.007 (with the tail) against 0.997 measured; dP/drho over 0.95-1.05 is 23,200 bar per g/cm3 (with the tail), so
+kappa_T = 1/(rho dP/drho) = **4.3e-5 per bar** against 4.5e-5 measured (0.95-1.00: 5.4e-5; 1.00-1.05: 3.6e-5).
+**The hole-free law's bulk thermodynamics are right**: density within 1 %, compressibility within 5 %, heat of
+vaporisation 10.8 against 10.5.
+
+**The structure is density-dependent, and tetrahedral where the law is not at equilibrium.** At 0.95 g/cm3 it is
+water-like (first minimum at 3.45 A with 4.65 neighbours, q 0.63, first peak 2.67); by 1.0 the first minimum has
+moved out to 3.95 A and holds 7.6 (interstitial molecules in the cages), by 1.05 8.7. This is what the shared
+over-attraction at 3.1-3.8 A (section 10.3, bent H..O contacts) predicts: the interstices are over-stabilised the
+moment the density lets a molecule into them. Open: whether the 1.0 g/cm3 state is the equilibrium or a state
+selected by the quench from a random lattice that all these runs start from (a hysteresis test: start from the
+0.95 configuration compressed, and from the 1.0 one expanded).
+
 
 ## Sources
 

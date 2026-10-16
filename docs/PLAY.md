@@ -5329,6 +5329,16 @@ the start of the phase, ahead of the renderer**. In order:
        no first-shell gap. The Ewald force evaluation was also made 1.6 times
        cheaper on a quiet machine (117 -> 72 ms: analytic reciprocal virial,
        coincident charges merged), with identical results.
+     - **The hole-free law's density scan under Ewald** (0.95 / 1.0 / 1.05 g/cm3,
+       30 ps each): pressure (with the tail) -1,151 / -204 / +1,172 bar; neighbours
+       inside the first g(OO) minimum 4.65 (minimum at 3.45 A) / 7.56 (3.95 A) / 8.70
+       (4.05 A); q 0.634 / 0.572 / 0.566; hydrogen bonds 3.50 / 3.61 / 3.58; heat of
+       vaporisation 10.7 / 10.8 / 10.9 (measured 10.5). **Equilibrium density 1.003
+       to 1.007 g/cm3 (measured 0.997) and kappa_T 4.3e-5 per bar (measured 4.5e-5):
+       the law's bulk thermodynamics are right.** Its structure is water-like at 0.95
+       (4.65 neighbours, q 0.63) and fills with interstitial molecules by 1.0, as the
+       over-attraction at 3.1-3.8 A predicts. Whether the dense state at 1.0 is the
+       equilibrium or what a quench from a random lattice selects is being tested.
      - **A second molecule: methane.** The same recipe - the dispersion derived
        from the engine's electrons (`phys-c6`: C-C 20.17, C-H 7.85, H-H 3.12,
        molecule-molecule 132.9 hartree bohr^6, measured ~130), a site-site law fitted
