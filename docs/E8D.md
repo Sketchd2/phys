@@ -491,6 +491,68 @@ T 315 K on a 298 K bath in a short run).
 
 ### 8.4 216 molecules, 20 ps: `runs/e8d/sticks/run-{e6disp,gascharge,freecharge}` (running)
 
+**e6disp finished (216 molecules, 1.0 g/cm3, 298 K, 20 ps with 16 ps sampled, 47 min on a loaded machine; dispersion held at the engine's derived C6, gas-phase charge q_H 0.3238):**
+
+| | ball-and-stick, e6disp | rigid + induction, Ewald (E8c law) | measured water |
+|---|---|---|---|
+| pressure at 1 g/cm3 | **+379 +- 147 bar** (+143 with the dispersion tail -235) | -701 (-916 with tail) | ~0 |
+| intermolecular U/N | -6.73 kcal/mol (-6.83 with tail) | -10.43 (-10.52) | |
+| heat of vaporisation | 7.3 (7.4 with tail) | 11.0 (11.1) | 10.5 |
+| g(OO) first peak | 2.20 at 2.85 A | 2.68 at 2.85 | 2.6-2.75 at 2.80 |
+| first minimum, neighbours inside | 0.84 at 4.45 A, **12.01** | 0.86 at 4.15, 9.07 | ~0.8 at ~3.4, ~4.4 |
+| tetrahedral q | **0.479** | 0.541 | ~0.7 (TIP4P-like control) |
+| hydrogen bonds a molecule | 2.71 | 3.45 | ~3.5-3.8 |
+| spring energy a molecule | 1.13 (equipartition 0.89) | n/a | |
+
+The pressure is right (within ~1 sigma of zero) and everything else is wrong: a dense simple liquid
+(12 neighbours is what a close-packed fluid has, and what Bukowski et al. found for the
+pair-only CC-pol potential, 11.9), 3.7 kcal/mol under-bound, with fewer hydrogen bonds and
+a less tetrahedral arrangement than even the pair-only rigid law. **A near-zero pressure is
+therefore not evidence that a liquid is water.** The hydrogens' spring energy is 27 % above
+equipartition although the kinetic temperature is 297.7 K. I have not found the cause (the Langevin
+thermostat's weak coupling in production, the short sampling, or an energy leak from the time step
+are the candidates); it is flagged, not investigated, and does not touch the pressure's sign or the structure.
+
+**gascharge finished (same box and length; gas-phase charge q_H 0.3238, C6 free: OO 133.9, OH 11.4, HH -5.0, molecule-molecule ~160):**
+pressure **-4,777 +- 132 bar** (-5,495 with the dispersion tail of -718, which is large because the
+fitted C6 is 3x physical), intermolecular U/N -9.27 kcal/mol (-9.58), heat of vaporisation 9.86 (10.17
+with the tail), g(OO) first peak 2.25 at 2.95 A, first minimum 0.81 at 4.45 A with **12.17** neighbours
+inside it. It lands near the measured heat of vaporisation (10.5) because the inflated dispersion
+supplies the binding that point charges and pair additivity do not, and it pays for it with a
+pressure of -5 kbar and the same close-packed structure. The two variants bracket the answer: the
+honest dispersion (e6disp) gives the right pressure and 3.7 kcal/mol too little binding; the
+fudged dispersion gives roughly the right binding and a pressure 5 kbar too low. Neither is
+water's structure (12 neighbours).
+
+### 7.7 Result: Ewald dynamics of the no-wall law (finished 08:2x AEST, 16 Oct; 30 ps, 24 sampled)
+
+| | Ewald | truncated 16 bohr (E8c, 100 ps) |
+|---|---|---|
+| pressure, bar | **-21 +- 98** (-138 with the dispersion tail of -117) | -1,007 +- 116 |
+| U/N, kcal/mol | -10.30 (-10.32 with tail) | -11.13 |
+| g(OO) first peak | 2.56 at 2.85 A | 2.73 at 2.75 |
+| first minimum, neighbours inside | 0.90 at 4.05 A, **8.12** | 0.88 at 3.95 A, 7.49 |
+So for the law without the wall data, Ewald takes the pressure to zero within error, and (as for the
+wall-fit law) the structure does not become more water-like: slightly more neighbours, not fewer.
+
+## 9. Out-of-sample slopes from the liquid (G1, 83 MP2 radial slopes on 100 pairs drawn from the E8c liquid)
+
+law - MP2 mean slope (kcal/mol/bohr), by O-O shell; the pairs were in no fit.
+| O-O (A) | n | MP2 mean | E8c wall-fit | no-wall | Born-Mayer 30/0.01 | Born-Mayer 100/0.02 |
+|---|---|---|---|---|---|---|
+| 0-2.8 | 4 | -4.16 | -1.55 | +0.07 | +0.01 | +0.02 |
+| 2.8-3.1 | 11 | -0.22 | **-0.335** | +0.03 | +0.05 | +0.08 |
+| 3.1-3.4 | 8 | +0.28 | +0.22 | +0.22 | +0.19 | +0.20 |
+| 3.4-3.8 | 11 | -0.47 | +0.07 | +0.11 | +0.16 | +0.14 |
+| 3.8-4.7 | 29 | +0.13 | -0.005 | -0.02 | +0.005 | +0.007 |
+The long-range shell (3.8-4.7, 29 pairs) is right for every law (the +0.04 suspected from 11 in-sample
+pairs was noise). The wall-fit law's contact shell is off by -0.335 (confirmed out of sample). All four
+laws are too attractive in 3.1-3.8 A by 0.07-0.22: by the virial arithmetic (156 pairs at 3.18-3.44 A
+x 0.19, 179 at 3.44-3.70 A x 0.15) about -0.7 and -0.7 kbar. A refit that adds the even-numbered
+liquid slopes (`runs/e8d/fit2/`) leaves the withheld odd ones at +0.08..+0.11 and +0.12..+0.16 in
+those two shells (before: +0.08, +0.18): the isotropic pair form does not remove it, with 4-5
+withheld pairs a bin.
+
 
 ## Sources
 

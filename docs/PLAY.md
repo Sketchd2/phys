@@ -5272,7 +5272,17 @@ the start of the phase, ahead of the renderer**. In order:
        liquid is the law's, not the cut-off's** - which is what the pressure
        budget and the literature's collapse of pair-based ab initio water say.
        What is left, -0.7 to -0.9 kbar, is within the sensitivity found above (an
-       8% polarisability, a 0.04 kcal/mol/bohr slope in the 3.8-4.7 A shell).
+       8% polarisability). The no-wall law under Ewald: -21 +- 98 bar (-138 with
+       the tail; truncated -1,007), U/N -10.30 (-11.13), 8.12 neighbours inside the
+       minimum (7.49), q 0.60, 3.57 hydrogen bonds: the pressure goes to zero and
+       the structure does not become water's. **Out of sample** (83 MP2 radial
+       slopes on pairs drawn from the liquid, in no fit): the 3.8-4.7 A shell is
+       right for every law (the +0.04 suspected from 11 in-sample pairs was
+       noise); the wall-fit law's contact shell (2.8-3.1 A) is off by -0.335
+       kcal/mol/bohr and the Born-Mayer laws' is +0.05 to +0.08; all four laws
+       are too attractive by 0.07-0.22 at 3.1-3.8 A, about -1.3 kbar by the
+       virial arithmetic, and a refit with half the liquid slopes does not remove
+       it from the withheld half.
      - **The owner's simpler method: ball-and-stick molecules, atom-atom forces
        by brute force** (`phys-sticks`, `runs/e8d/sticks/`; docs/E8D.md section 8).
        Springs from the Hessian of the engine's monomer surface (it reproduces the
@@ -5289,8 +5299,12 @@ the start of the phase, ahead of the renderer**. In order:
        C6 negative, so dispersion is standing in for what pair additivity and point
        charges cannot do; a 64-molecule 3 ps test collapses to 12.8 neighbours
        inside the first minimum with P about -2.8 kbar. The 216-molecule 20 ps
-       runs for three variants (gas-phase charge, fitted charge, dispersion held
-       at the engine's derived C6) were still running when this was written.
+       runs, 20 ps: dispersion held at the engine's derived C6 gives +379 +- 147 bar
+       (+143 with the tail) with 12.0 neighbours, q 0.48, 2.7 hydrogen bonds and a
+       heat of vaporisation of 7.4 (measured 10.5); the free-C6 gas-charge fit
+       gives -4,777 bar (-5,495), 12.2 neighbours, q 0.50, 9.9 (10.2 with the
+       tail). A near-zero pressure is not evidence that the liquid is water. The
+       fitted-charge variant was still running when this was written.
      - **Open, the owner's.** (1) What puts nine neighbours inside 4.15 A
        when water has four to five: not the truncation (above) and not a
        three-body repulsion (no such term is in the Hartree-Fock triples); the
