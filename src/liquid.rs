@@ -382,17 +382,31 @@ impl Liquid {
         let ss = law.site_site().expect("the Ewald sum needs a site-site law underneath");
         let q_of = |k: usize| ss.charge[types[k]];
         let charged: Vec<usize> = (0..types.len()).filter(|&k| q_of(k) != 0.0).collect();
+        // In reciprocal space every charge is a point, so charges at one place (a core and its cloud
+        // on the same atom) are one charge there: the structure factor, and with it the energy, the
+        // forces on the molecule and the virial, are unchanged, and there are fewer sites to sum.
+        // The self term and the same-molecule terms below keep the original charges.
+        let mut groups: Vec<(usize, f64)> = Vec::new(); // (a member site for the arm, the summed charge)
+        for &k in &charged {
+            match groups.iter_mut().find(|(k0, _)| (arms[0][*k0] - arms[0][k]).norm() < 1e-9) {
+                Some(g) => g.1 += q_of(k),
+                None => groups.push((k, q_of(k))),
+            }
+        }
         let (mut cpos, mut cq, mut ccom, mut carm) = (Vec::new(), Vec::new(), Vec::new(), Vec::new());
         for i in 0..n {
-            for &k in &charged {
+            for &(k, q) in &groups {
                 cpos.push(self.com[i] + arms[i][k]);
-                cq.push(q_of(k));
+                cq.push(q);
                 ccom.push(self.com[i]);
                 carm.push(arms[i][k]);
             }
         }
+        let cq_original: Vec<f64> = (0..n).flat_map(|_| charged.iter().map(|&k| q_of(k))).collect();
+        let t_a = std::time::Instant::now();
         let ph_c = ew.phases(&cpos);
         let sq = ew.charge_sum(&ph_c, &cq);
+        let t_phases = t_a.elapsed();
         // The permanent charges: the reciprocal energy, less each charge's self
         // term and less the long-range part of the pairs inside a molecule (a
         // rigid molecule's own constant), which the liquid does not have.
@@ -403,7 +417,7 @@ impl Liquid {
                 intra += q_of(ka) * q_of(kb) * crate::ewald::erf_over_r(r, ew.s).0;
             }
         }
-        forces.energy += ew.energy(&sq) - ew.charge_self(&cq) - intra * n as f64;
+        forces.energy += ew.energy(&sq) - ew.charge_self(&cq_original) - intra * n as f64;
         let induced = law.induction();
         let (mut fch_rec, mut fdip_rec): (Vec<Vec3>, Vec<Vec3>) = (Vec::new(), Vec::new());
         let mut virial_rec = 0.0;
@@ -440,8 +454,10 @@ impl Liquid {
                     links.push(Link { i, j, shift: raw - d, weight: w, dweight: dw, d });
                 }
             }
-            let out = crate::induction::solve_ewald(&cl, &links, ew.s, &e0_lr, &response, warm, 1e-10);
+            let t_b = std::time::Instant::now();
+            let out = crate::induction::solve_ewald(&cl, &links, ew.s, &e0_lr, &response, warm, ind_tolerance());
             let _ = solve_ewald;
+            let t_solve = t_b.elapsed();
             forces.energy += out.energy;
             forces.virial += out.virial;
             let mu: Vec<Vec3> = out.dipoles.iter().flatten().cloned().collect();
@@ -449,7 +465,7 @@ impl Liquid {
             let stot: Vec<crate::ewald::C> = sq.iter().zip(&d).map(|(a, b)| crate::ewald::C { re: a.re + b.re, im: a.im + b.im }).collect();
             fch_rec = ew.grad_charge_pos(&stot, &ph_c, &cq).into_iter().map(|g| -g).collect();
             fdip_rec = ew.grad_dipole_pos(&stot, &ph_d, &mu).into_iter().map(|g| -g).collect();
-            virial_rec = ew.virial(&ccom, &carm, &cq, &dcom, &darm, &mu);
+            virial_rec = if std::env::var_os("PHYS_EWALD_NUMERIC_VIRIAL").is_some() { ew.virial(&ccom, &carm, &cq, &dcom, &darm, &mu) } else { ew.virial_analytic(&stot, &ph_c, &cq, &carm, &ph_d, &mu, &darm, &d) };
             for i in 0..n {
                 for (a, &k) in pol_sites.iter().enumerate() {
                     let f = out.force_pol[i][a];
@@ -479,11 +495,11 @@ impl Liquid {
             dipoles = out.dipoles;
         } else {
             fch_rec = ew.grad_charge_pos(&sq, &ph_c, &cq).into_iter().map(|g| -g).collect();
-            virial_rec = ew.virial(&ccom, &carm, &cq, &[], &[], &[]);
+            virial_rec = if std::env::var_os("PHYS_EWALD_NUMERIC_VIRIAL").is_some() { ew.virial(&ccom, &carm, &cq, &[], &[], &[]) } else { ew.virial_analytic(&sq, &ph_c, &cq, &carm, &[], &[], &[], &[]) };
         }
         let mut idx = 0;
         for i in 0..n {
-            for &k in &charged {
+            for &(k, _) in &groups {
                 let f = fch_rec[idx];
                 forces.force[i] += f;
                 forces.torque[i] += arms[i][k].cross(f);
@@ -491,6 +507,9 @@ impl Liquid {
             }
         }
         forces.virial += virial_rec;
+        if std::env::var_os("PHYS_PROFILE").is_some() {
+            eprintln!("  add_ewald: charge phases+sum {:.1} ms; whole add_ewald {:.1} ms", t_phases.as_secs_f64() * 1e3, t_a.elapsed().as_secs_f64() * 1e3);
+        }
         if !dipoles.is_empty() {
             forces.dipoles = dipoles;
         }
@@ -610,6 +629,15 @@ impl SiteLaw for Polarisable<'_> {
     fn site_site(&self) -> Option<&SiteSite> {
         Some(self.law)
     }
+}
+
+/// The relative tolerance of the induced-dipole solve in an Ewald run: 1e-10 unless
+/// `PHYS_IND_TOL` says otherwise. Forces at fixed dipoles are linear in the dipoles, so
+/// 1e-7 is ample for dynamics and saves iterations; the finite-difference checks want the
+/// default.
+fn ind_tolerance() -> f64 {
+    static TOL: std::sync::OnceLock<f64> = std::sync::OnceLock::new();
+    *TOL.get_or_init(|| std::env::var("PHYS_IND_TOL").ok().and_then(|v| v.parse().ok()).unwrap_or(1e-10))
 }
 
 /// A law with its Coulomb term cut down to the short-range remainder
@@ -963,6 +991,10 @@ pub struct Held<'a> {
     /// Keep every `A` where it started (zero for a law with no Born-Mayer
     /// repulsion of its own), with `B` left as the dispersion's damping.
     pub no_born_mayer: bool,
+    /// If positive, the Born-Mayer exponent of every pair is held at this value
+    /// (bohr^-1) and only the amplitudes are fitted: the exponent of exchange
+    /// repulsion is set by the density's tail, `2 sqrt(2 IP)` (`PLAY.md` E8d).
+    pub bm_exponent: f64,
     /// A soft weight for the repulsive wall (hartree; 0 is off): a pair more than 25
     /// kcal/mol above the lowest weighs `0.05 / (1 + (E / soft_wall)^2)` and not the
     /// Boltzmann weight's floor, so that a wall pair counts for its *relative* error
@@ -1063,7 +1095,12 @@ pub fn fit_site_site_polarised(data: &[PairEnergy], multiplicity: &[usize], star
     };
     // What is fitted: every parameter but the held ones, which keep what
     // `start` gave them.
-    let base = pack(start);
+    let mut base = pack(start);
+    if held.bm_exponent > 0.0 {
+        for k in 0..pairs.len() {
+            base[types - 1 + 4 * k + 1] = held.bm_exponent.ln();
+        }
+    }
     let is_held = |list: &[(usize, usize)], a: usize, b: usize| list.iter().any(|&(p, q)| (p, q) == (a, b) || (q, p) == (a, b));
     let mut free: Vec<usize> = if held.charges { Vec::new() } else { (0..types - 1).collect() };
     for (k, &(a, b)) in pairs.iter().enumerate() {
@@ -1072,7 +1109,7 @@ pub fn fit_site_site_polarised(data: &[PairEnergy], multiplicity: &[usize], star
             continue;
         }
         for j in 0..4 {
-            if (held.repulsion && j < 2) || (held.no_born_mayer && j < 2) || (held.no_dispersion && j >= 2) || (is_held(held.no_dispersion_pairs, a, b) && j >= 2) || (held.no_c8 && j == 3) {
+            if (j == 1 && held.bm_exponent > 0.0) || (held.repulsion && j < 2) || (held.no_born_mayer && j < 2) || (held.no_dispersion && j >= 2) || (is_held(held.no_dispersion_pairs, a, b) && j >= 2) || (held.no_c8 && j == 3) {
                 continue;
             }
             if !(j == 2 && is_held(held.dispersion, a, b)) {

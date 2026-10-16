@@ -553,6 +553,106 @@ liquid slopes (`runs/e8d/fit2/`) leaves the withheld odd ones at +0.08..+0.11 an
 those two shells (before: +0.08, +0.18): the isotropic pair form does not remove it, with 4-5
 withheld pairs a bin.
 
+**freecharge finished (charge fitted to the pairs, q_H 0.2973; C6 free, 103.5 / 23.0 / -8.5):** pressure
+-5,388 +- 71 bar (-6,115 with the tail of -726), intermolecular U/N -9.30 (-9.61), heat of vaporisation
+9.9 (10.2), g(OO) first peak 2.26 at 2.95 A, first minimum 0.80 at 4.55 A, **12.85** neighbours. Same
+picture as the gas-charge fit: free dispersion buys the binding and costs the pressure.
+
+### 7.8 Ewald dynamics of the Born-Mayer refit (bm 30/0.01; at 67 % when this was written)
+Production samples read -2,050 ... -2,960 bar (mean about -2,400), U/N about -10.8. With Ewald on,
+the law that closes the dimer holes and fixes the contact shell's slope has a pressure *three times
+as negative* as the E8c wall-fit law's -700 and binds 0.4 kcal/mol a molecule more.
+
+## 10. The owner's instruction: "come up with the best solution, even a novel one" (16 Oct, afternoon)
+
+What was tried, in the order tried, with what it showed. All checked against the engine's own reference
+(pair energies, the 83 out-of-sample liquid slopes, the 300 HF triples) before any liquid was run.
+
+### 10.1 Widening the dipoles (short-range damping of induction), `PHYS_IND_WIDTH` in `induction::sigma_of`
+Scaling the smeared dipoles' width by f and refitting the site polarisabilities to the same MP2 tensor
+(`phys-polar --target 10.2675,10.1771,9.7044,-0.18`): f = 1.0 / 1.2 / 1.4 / 1.6 gives alpha_O / alpha_H =
+9.23/0.85, 8.25/1.47, 6.34/2.47, 3.22/3.94 (polarisability moves from oxygen to hydrogen, the tensor stays
+matched to f = 1.4). **Against the 300 HF triples it gets worse**: rms 0.115 -> 0.134 -> 0.161 -> 0.281 kcal/mol,
+correlation 0.75 -> 0.64 -> 0.36 -> -0.21. The triples do not support short-range damping by width. (The
+distribution of polarisability that Thole-damped literature models use is the f = 1.4-1.6 one; for *this*
+induction model and *this* reference it fits the three-body energies worse.)
+
+### 10.2 A fixed Born-Mayer exponent from the density's tail, `phys-fit --bm-exponent`
+Exchange repulsion falls as exp(-2 kappa R), kappa = sqrt(2 IP), about 2.0 per bohr from the engine's own HF HOMO,
+while free fits chose 2.7-3.4 for O-H and H-H. Holding B at 2.0 / 2.2 / 1.8 / 1.6 and fitting amplitudes:
+held-out pair error 0.231 / 0.187 / 0.393 / 1.05 (free: 0.169), held-out liquid slope at 3.4-3.8 A +0.14 / +0.16 /
++0.25 / +0.49 (free: +0.157). **It does not remove the shell error** and costs pair accuracy. Not the cause.
+
+### 10.3 Where the shared 3.1-3.8 A error comes from (`phys-slopeparts`)
+On the 83 liquid pairs the law's slope splits into electrostatics, pair induction, repulsion, dispersion.
+In 3.4-3.8 A: electrostatics -0.08, induction +0.10, repulsion -0.96, dispersion +0.58 (MP2 total -0.47, law
+-0.31): the error (+0.16) is a small fraction of the repulsion/dispersion balance; induction is not it.
+Per pair, the large errors (+0.2 ... +0.45) are on *bent contacts*: shortest H..O 2.6-3.2 A at O-H..O angles
+of 95-125 deg (pairs 10, 25, 26, 44, 52, 75), where the law is not repulsive enough. The law has
+essentially no O...O repulsion at 3.4 A (the Gaussian overlaps fall as exp(-r^2/s^2); the O-O Born-Mayer
+term is ~1e-3 kcal/mol there).
+
+### 10.4 Repulsion-only lone-pair sites (zero charge, Boys positions 0.564 bohr from O, +-0.499 out of plane)
+Added as a site type with a start of non-zero overlap strength (the fit works in logs, a start of zero cannot
+move; my first attempt had that artefact and is discarded): the fit sends every overlap involving the new
+sites to zero at widths 0.8, 1.1 and 1.5 bohr. **The data do not want an out-of-plane lone-pair repulsion.**
+
+### 10.5 Population-weighted pair fits (weighting temperature 1000 -> 100,000 K)
+Held-out slope at 3.4-3.8 A goes +0.157 -> +0.108; the energy bias at 3.1-3.4 A stays -0.19 ... -0.22 kcal/mol.
+The weighting is not the cause; the isotropic form cannot represent that shell.
+
+### 10.6 What does work: a hole-free law with the best liquid-range pressure (`runs/e8d/core/make_core.py`)
+The no-wall law has the best Ewald liquid (P -21 +- 98 bar, q 0.60, 3.57 hydrogen bonds) and attractive holes
+inside 1 A (-577 kcal/mol at 0.6-0.8 A). The plan named the remedy ("a short-range core term the law does not
+have"). Held: everything in the no-wall law; added: a steep Born-Mayer core (exponent 7.0 per bohr, the
+dispersion damping exponent written out as 2.0, its implicit value) whose amplitudes are fitted by non-
+negative least squares to what the law leaves on the 510 pair energies (`phys-lawenergy`). Only O-H is
+needed (A_OO = A_HH = 0). It changes pairs below 10 kcal/mol by at most 0.06 kcal/mol and the wall pairs
+to within 17 % relative. **Hole scan, 400,000 random dimers, lowest energy by nearest-atom distance
+(0.6-0.8 ... 2.0+ A): no-wall -577.4, -260.3, +4.3, +2.6, -1.4, -3.8, -4.6, -4.6; with the core +33.5, +20.6,
++10.2, +2.6, -1.4, -3.8, -4.6, -4.6**; deepest dimer -4.63 kcal/mol at O-O 2.92 A. The liquid range is
+identical by construction.
+
+### 10.7 Ewald dynamics of the hole-free law (no-wall law + O-H core, exponent 7): finished 18:2x AEST
+216 molecules, 1 g/cm3, 298 K, s' 4.2, 30 ps (24 sampled), `runs/e8d/ewald/core_B7`:
+pressure **-88 +- 97 bar (-204 with the dispersion tail of -117)**, U/N -10.214 (-10.264), heat of vaporisation 10.8
+(10.86; measured 10.5), g(OO) first peak **2.57 at 2.85 A** (measured 2.57-2.75 at 2.80), first minimum 0.91 at 3.95 A,
+**7.56** neighbours inside it, tetrahedral q 0.572, hydrogen bonds 3.61 a molecule. Against the same law without
+the core (Ewald, `ewald/nowall`): -21 +- 98 bar, 8.12 neighbours, q 0.603, 3.57. The core changes nothing in the
+liquid beyond noise, as it was built not to, and removes every hole. This is the best law so far on the combination
+of pressure, energy, hydrogen bonds and hole-free dimers; it still has no first-shell gap in g(OO) (minimum 0.91).
+
+## 11. Making the Ewald liquid cheaper (16 Oct, the owner asked)
+
+Profile of one force evaluation, 216 molecules, s' 4.2, k accuracy 1e-5 (1535 vectors), on a quiet machine
+(`phys-ewald ... profile`, the other jobs suspended for the measurement):
+
+| | before (184a556) | after |
+|---|---|---|
+| real-space pair loop | 10 ms | 10 ms |
+| + charge reciprocal sum | 62 ms | 34 ms |
+| truncated with induction (phys-bulk's old path) | 38 ms | 38 ms |
+| **Ewald with induction (the production run)** | **117 ms** | **72 ms** |
+
+Three exact changes, none altering a result beyond rounding (energy -10.4757, P 507.2 bar, force/torque
+finite differences and the virial check give the same digits, `tests/ewald.rs` and 21+5+7 other tests pass):
+1. **Analytic reciprocal virial** (`Ewald::virial_analytic`) in place of the central difference, which recomputed
+   every site's phase factors twice more. dE/dlnL = -3E + (4pi/V) sum f (k^2 s^2/2 + 2)|S|^2 +
+   (8pi/V) sum f Re[S* dS/dlnL]. It agrees with the numerical one to the printed digits
+   (`PHYS_EWALD_NUMERIC_VIRIAL=1` keeps the old one as an oracle).
+2. **Coincident charges merged in reciprocal space** (a core and its cloud on one atom): 7 sites a molecule -> 4;
+   the structure factor, forces on the molecule and virial are unchanged; self and same-molecule terms keep the
+   original charges.
+3. **`erf_fast`** (7th-order Taylor about a table of nodes every 1/64): used only in the Ewald paths; agrees with
+   the series to 2e-15 below x = 4 (the series itself carries ~1e-14 beyond). It did not matter for speed
+   (erf was not the bottleneck) and is kept because it is exact and free.
+Measured and found not worth it: relaxing the dipole solve's tolerance from 1e-10 to 1e-7 (`PHYS_IND_TOL`;
+91 -> 89 ms: warm starts already keep it at 0-3 iterations).
+Not done, with what each would give: a persistent thread pool (the ~15 parallel regions a step each spawn 12
+threads; ~10 % at most); a time step of 80 au instead of 40 (2x, but needs an energy-drift check first and
+changes the dynamics, so it is the owner's call); k accuracy 1e-4 (28 % fewer vectors, shifts the pressure ~40 bar).
+**Contention is the larger factor**: with two other jobs running the same step took 85-300 ms.
+
 
 ## Sources
 

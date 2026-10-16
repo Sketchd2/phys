@@ -159,3 +159,11 @@ path = "src/bin/ewald.rs"
 [[bin]]
 name = "phys-sticks"
 path = "src/bin/sticks.rs"
+
+[[bin]]
+name = "phys-slopeparts"
+path = "src/bin/slopeparts.rs"
+
+[[bin]]
+name = "phys-lawenergy"
+path = "src/bin/lawenergy.rs"

@@ -1,5 +1,5 @@
 import re, subprocess
-log = open(r'E:\Projects\phys\runs\e8d\full-test.log', encoding='utf-8', errors='replace').read()
+log = open(r'E:\Projects\phys\runs\e8d\full-test2.log', encoding='utf-8', errors='replace').read()
 tracked = {l.strip().replace('tests/', '') for l in subprocess.run(['git', 'ls-files', 'tests'], capture_output=True, text=True, cwd=r'E:\Projects\phys').stdout.splitlines() if l.strip()}
 res = {}
 cur = None

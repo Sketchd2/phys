@@ -141,6 +141,33 @@ fn main() {
         let spread = energies.iter().cloned().fold(f64::NEG_INFINITY, f64::max) - energies.iter().cloned().fold(f64::INFINITY, f64::min);
         println!("  spread of the energy over the widths: {:.3e} hartree ({:.3e} kcal/mol per molecule)", spread, spread / n as f64 * KCAL);
     }
+    // `profile`: where a force evaluation spends its time, warm-started as in a run.
+    if args.iter().any(|a| a == "profile") {
+        let sp = widths[0];
+        let plain = EwaldLaw { inner: &law, ewald: Ewald::new(sp, cell, acc) };
+        let full = EwaldLaw { inner: &polarised, ewald: Ewald::new(sp, cell, acc) };
+        let time = |label: &str, f: &dyn Fn(Option<&[Vec<Vec3>]>) -> Vec<Vec<Vec3>>| {
+            let mut warm = f(None);
+            let t = std::time::Instant::now();
+            let reps = 6;
+            for _ in 0..reps {
+                warm = f(Some(&warm));
+            }
+            println!("  {label:46} {:7.1} ms", t.elapsed().as_secs_f64() * 1000.0 / reps as f64);
+        };
+        println!("profile at s' = {sp}, accuracy {acc} ({} k), per force evaluation:", full.ewald.nk());
+        time("pair loop only (no induction, no Ewald)", &|_| {
+            liquid.forces(&law);
+            Vec::new()
+        });
+        time("pair loop + charge reciprocal sum (Ewald, no induction)", &|_| {
+            liquid.forces(&plain);
+            Vec::new()
+        });
+        time("truncated with induction (as phys-bulk)", &|w| liquid.forces_from(&polarised, w).dipoles);
+        time("Ewald with induction (the production run)", &|w| liquid.forces_from(&full, w).dipoles);
+        return;
+    }
     if !check {
         return;
     }

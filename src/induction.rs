@@ -73,9 +73,71 @@ pub fn erf(x: f64) -> f64 {
     x.signum() * 2.0 / PI.sqrt() * (-x2).exp() * sum
 }
 
+/// `erf(x)` by a seventh-order Taylor expansion about the nearest of a table of nodes (every
+/// 1/64, to 6), the table built once from [`erf`] and the Hermite recurrence for its derivatives.
+/// Accurate to ~1e-16 like the series, several times faster at the large arguments a liquid's
+/// pair links have (the series needs ~100 terms at `x` = 5). Used by the Ewald paths only, so no
+/// result that predates it changes.
+pub fn erf_fast(x: f64) -> f64 {
+    const STEP: f64 = 64.0;
+    const NODES: usize = 6 * 64 + 2;
+    static TABLE: std::sync::OnceLock<Vec<[f64; 8]>> = std::sync::OnceLock::new();
+    let table = TABLE.get_or_init(|| {
+        let two_over_sqrt_pi = 2.0 / PI.sqrt();
+        (0..NODES)
+            .map(|i| {
+                let x0 = i as f64 / STEP;
+                let g = (-x0 * x0).exp();
+                // a_n = d^n/dx^n e^(-x^2) = (-1)^n H_n(x0) g, by H_(n+1) = 2 x H_n - 2 n H_(n-1)
+                let mut h = [0.0f64; 7];
+                h[0] = 1.0;
+                h[1] = 2.0 * x0;
+                for n in 1..6 {
+                    h[n + 1] = 2.0 * x0 * h[n] - 2.0 * n as f64 * h[n - 1];
+                }
+                let mut c = [0.0f64; 8];
+                c[0] = erf(x0);
+                let mut fact = 1.0;
+                for n in 0..7 {
+                    fact *= (n + 1) as f64;
+                    let a_n = if n % 2 == 0 { h[n] } else { -h[n] } * g;
+                    c[n + 1] = two_over_sqrt_pi * a_n / fact;
+                }
+                c
+            })
+            .collect()
+    });
+    let ax = x.abs();
+    if ax >= 5.99 {
+        return x.signum();
+    }
+    let i = (ax * STEP + 0.5) as usize;
+    let dx = ax - i as f64 / STEP;
+    let c = &table[i];
+    let v = c[0] + dx * (c[1] + dx * (c[2] + dx * (c[3] + dx * (c[4] + dx * (c[5] + dx * (c[6] + dx * c[7]))))));
+    if x < 0.0 {
+        -v
+    } else {
+        v
+    }
+}
+
+/// The factor on every smeared dipole's width, 1 unless `PHYS_IND_WIDTH` says
+/// otherwise (`PLAY.md` E8d). The width `sigma_of` gives is the one under which a
+/// lone smeared dipole has the polarisability it is given; a larger one weakens
+/// the coupling of dipoles and the field of charges on them at contact, which is
+/// where Pauli repulsion quenches real induction and a classical dipole does not
+/// (exchange-induction). The molecule's polarisability at large separation is
+/// what the sites' `alpha` are fitted to (`phys-polar --target`), so scaling the
+/// width changes only the short range. Read once.
+pub fn dipole_width_scale() -> f64 {
+    static SCALE: std::sync::OnceLock<f64> = std::sync::OnceLock::new();
+    *SCALE.get_or_init(|| std::env::var("PHYS_IND_WIDTH").ok().and_then(|v| v.parse().ok()).unwrap_or(1.0))
+}
+
 /// The width of a smeared dipole of polarisability `alpha`.
 pub fn sigma_of(alpha: f64) -> f64 {
-    ((2.0 / PI).sqrt() * alpha / 3.0).cbrt()
+    ((2.0 / PI).sqrt() * alpha / 3.0).cbrt() * dipole_width_scale()
 }
 
 /// One polarisable site.
@@ -161,6 +223,30 @@ fn charge_terms(r: f64, s_a: f64) -> (f64, f64) {
     let x = r / s_a;
     let ex = (-x * x).exp();
     let gg = erf(x) - 2.0 / PI.sqrt() * x * ex;
+    let dgg = 4.0 * r * r / (PI.sqrt() * s_a * s_a * s_a) * ex;
+    let r3 = r * r * r;
+    (gg / r3, dgg / r3 - 3.0 * gg / (r3 * r))
+}
+
+/// [`dd_terms`] with [`erf_fast`] (the Ewald paths).
+fn dd_terms_fast(r: f64, s: f64) -> (f64, f64, f64, f64) {
+    let x = r / s;
+    let g = erf_fast(x);
+    let c = 2.0 / (PI.sqrt() * s) * (-x * x).exp();
+    let r2 = r * r;
+    let r3 = r2 * r;
+    let a = g / r3 - c / r2;
+    let bp = 3.0 * g / (r3 * r2) - c * (3.0 / (r2 * r2) + 2.0 / (s * s * r2));
+    let da = 3.0 * c / r3 - 3.0 * g / (r2 * r2) + 2.0 * c / (s * s * r);
+    let dbp = 15.0 * c / (r3 * r2) - 15.0 * g / (r3 * r3) + 10.0 * c / (s * s * r3) + 4.0 * c / (s * s * s * s * r);
+    (a, bp, da, dbp)
+}
+
+/// [`charge_terms`] with [`erf_fast`] (the Ewald paths).
+fn charge_terms_fast(r: f64, s_a: f64) -> (f64, f64) {
+    let x = r / s_a;
+    let ex = (-x * x).exp();
+    let gg = erf_fast(x) - 2.0 / PI.sqrt() * x * ex;
     let dgg = 4.0 * r * r / (PI.sqrt() * s_a * s_a * s_a) * ex;
     let r3 = r * r * r;
     (gg / r3, dgg / r3 - 3.0 * gg / (r3 * r))
@@ -597,6 +683,7 @@ fn solve_dense(a: &mut [f64], b: &mut [f64], n: usize) -> Vec<f64> {
 /// The forces returned are the real-space ones at fixed dipoles; the reciprocal
 /// ones are the caller's (`Ewald::grad_*`), as is the reciprocal virial.
 pub fn solve_ewald(cl: &Cluster, links: &[Link], sp: f64, e0_extra: &[Vec3], matvec_extra: &dyn Fn(&[Vec3]) -> Vec<Vec3>, warm: Option<&[Vec<Vec3>]>, tolerance: f64) -> Induced {
+    let t_start = std::time::Instant::now();
     let nm = cl.pol.len();
     let mut first = vec![0usize; nm + 1];
     let mut firstc = vec![0usize; nm + 1];
@@ -608,13 +695,13 @@ pub fn solve_ewald(cl: &Cluster, links: &[Link], sp: f64, e0_extra: &[Vec3], mat
     let sigma: Vec<Vec<f64>> = cl.pol.iter().map(|m| m.iter().map(|p| sigma_of(p.alpha)).collect()).collect();
     // The short-range tensors: the full smeared one less the one at `sp`.
     let dd_sr = |r: f64, s: f64| -> (f64, f64, f64, f64) {
-        let (a, b, c, d) = dd_terms(r, s);
-        let (a2, b2, c2, d2) = dd_terms(r, sp);
+        let (a, b, c, d) = dd_terms_fast(r, s);
+        let (a2, b2, c2, d2) = dd_terms_fast(r, sp);
         (a - a2, b - b2, c - c2, d - d2)
     };
     let cd_sr = |r: f64, s: f64| -> (f64, f64) {
-        let (h, dh) = charge_terms(r, s);
-        let (h2, dh2) = charge_terms(r, sp);
+        let (h, dh) = charge_terms_fast(r, s);
+        let (h2, dh2) = charge_terms_fast(r, sp);
         (h - h2, dh - dh2)
     };
     let mut intra: Vec<Dd> = Vec::new();
@@ -632,7 +719,7 @@ pub fn solve_ewald(cl: &Cluster, links: &[Link], sp: f64, e0_extra: &[Vec3], mat
                 if r.norm() < 1e-8 {
                     continue;
                 }
-                let (h, dh) = charge_terms(r.norm(), sp);
+                let (h, dh) = charge_terms_fast(r.norm(), sp);
                 intra_cd.push(Cd { a: first[i] + a, c: firstc[i] + ci, q: c.q, h: -h, dh: -dh, r, pol_on_first: true });
             }
         }
@@ -675,6 +762,7 @@ pub fn solve_ewald(cl: &Cluster, links: &[Link], sp: f64, e0_extra: &[Vec3], mat
     .into_iter()
     .flatten()
     .collect();
+    let t_items = t_start.elapsed();
     let mut e0: Vec<Vec3> = e0_extra.to_vec();
     for (l, it) in links.iter().zip(&items) {
         for c in &it.cd {
@@ -747,6 +835,7 @@ pub fn solve_ewald(cl: &Cluster, links: &[Link], sp: f64, e0_extra: &[Vec3], mat
             p[k] = z[k] + p[k].scale(beta);
         }
     }
+    let t_cg = t_start.elapsed();
     let energy = -0.5 * mu.iter().zip(&e0).map(|(m, e)| m.dot(*e)).sum::<f64>();
     let mut fpol = vec![Vec3::ZERO; n];
     let mut fch = vec![Vec3::ZERO; nc];
@@ -823,5 +912,9 @@ pub fn solve_ewald(cl: &Cluster, links: &[Link], sp: f64, e0_extra: &[Vec3], mat
     let dipoles: Vec<Vec<Vec3>> = (0..nm).map(|i| mu[first[i]..first[i + 1]].to_vec()).collect();
     let force_pol: Vec<Vec<Vec3>> = (0..nm).map(|i| fpol[first[i]..first[i + 1]].to_vec()).collect();
     let force_charge: Vec<Vec<Vec3>> = (0..nm).map(|i| fch[firstc[i]..firstc[i + 1]].to_vec()).collect();
+    if std::env::var_os("PHYS_PROFILE").is_some() {
+        let t_all = t_start.elapsed();
+        eprintln!("  solve_ewald: items {:.1} ms, cg ({} iterations) {:.1} ms, forces {:.1} ms, links {}", t_items.as_secs_f64() * 1e3, iterations, (t_cg - t_items).as_secs_f64() * 1e3, (t_all - t_cg).as_secs_f64() * 1e3, links.len());
+    }
     Induced { energy, dipoles, force_pol, force_charge, link_force, virial, iterations }
 }

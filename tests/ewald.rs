@@ -126,3 +126,22 @@ fn the_virial_is_the_energys_derivative_under_scaling() {
     let w_fd = -(e_at(1.0 + eps) - e_at(1.0 - eps)) / ((1.0 + eps).ln() - (1.0 - eps).ln());
     assert!((w - w_fd).abs() < 1e-4 * w.abs().max(1.0), "virial {w:e} against {w_fd:e}");
 }
+
+/// The table-based `erf_fast` the Ewald paths use agrees with the series to rounding, everywhere
+/// including the sign, the small arguments and the saturated tail.
+#[test]
+fn the_fast_erf_agrees_with_the_series() {
+    let mut worst: f64 = 0.0;
+    let mut at = 0.0;
+    for i in -6000..=6000 {
+        let x = i as f64 / 1000.0 + 1.37e-4;
+        let d = (phys::induction::erf_fast(x) - phys::induction::erf(x)).abs();
+        // The series sums ~100 terms of e^(x^2) size beyond x = 4 and carries ~1e-14 of its own there.
+        let limit = if x.abs() < 4.0 { 2e-15 } else { 3e-14 };
+        if d / limit > worst {
+            worst = d / limit;
+            at = x;
+        }
+    }
+    assert!(worst < 1.0, "erf_fast differs from erf by {worst} of its allowance at {at}");
+}

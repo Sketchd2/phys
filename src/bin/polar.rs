@@ -41,8 +41,18 @@ fn main() {
     let frozen = frozen_core(&z, &all);
     println!("{name}: {} functions, field step {step}, {frozen} frozen cores", p.basis.size);
     let t = std::time::Instant::now();
-    let (hf, mp2) = polarisabilities(&p, frozen, step);
-    println!("  19 fields in {:.0} s", t.elapsed().as_secs_f64());
+    // `--target xx,yy,zz,xy` (bohr^3): the MP2 tensor already measured, to refit the
+    // atoms' polarisabilities under another dipole width (`PHYS_IND_WIDTH`) without
+    // the fields being run again.
+    let target: Option<Vec<f64>> = args.iter().position(|a| a == "--target").and_then(|i| args.get(i + 1)).map(|v| v.split(',').filter_map(|x| x.parse().ok()).collect());
+    let (hf, mp2) = match &target {
+        Some(v) if v.len() == 4 => {
+            let m = [[v[0], v[3], 0.0], [v[3], v[1], 0.0], [0.0, 0.0, v[2]]];
+            (m, m)
+        }
+        _ => polarisabilities(&p, frozen, step),
+    };
+    println!("  19 fields in {:.0} s (dipole width scale {})", t.elapsed().as_secs_f64(), phys::induction::dipole_width_scale());
     let mean = |a: &[[f64; 3]; 3]| (a[0][0] + a[1][1] + a[2][2]) / 3.0;
     for (label, a) in [("Hartree-Fock", &hf), ("MP2", &mp2)] {
         println!("  {label}: mean {:.4} bohr^3, diagonal {:.4} {:.4} {:.4}, off-diagonal {:.1e} {:.1e} {:.1e}", mean(a), a[0][0], a[1][1], a[2][2], a[0][1], a[0][2], a[1][2]);
