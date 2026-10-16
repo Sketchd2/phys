@@ -701,13 +701,13 @@ kappa_T = 1/(rho dP/drho) = **4.3e-5 per bar** against 4.5e-5 measured (0.95-1.0
 **The hole-free law's bulk thermodynamics are right**: density within 1 %, compressibility within 5 %, heat of
 vaporisation 10.8 against 10.5.
 
-**The structure is density-dependent, and tetrahedral where the law is not at equilibrium.** At 0.95 g/cm3 it is
-water-like (first minimum at 3.45 A with 4.65 neighbours, q 0.63, first peak 2.67); by 1.0 the first minimum has
-moved out to 3.95 A and holds 7.6 (interstitial molecules in the cages), by 1.05 8.7. This is what the shared
-over-attraction at 3.1-3.8 A (section 10.3, bent H..O contacts) predicts: the interstices are over-stabilised the
-moment the density lets a molecule into them. Open: whether the 1.0 g/cm3 state is the equilibrium or a state
-selected by the quench from a random lattice that all these runs start from (a hysteresis test: start from the
-0.95 configuration compressed, and from the 1.0 one expanded).
+**The structure is not hysteretic; the real deficiency is the shell gap.** Counting neighbours inside the first
+g(OO) minimum made 0.95 and 1.0 g/cm3 look like two structures (4.65 against 7.6), but the minimum is so shallow
+that its location jumps. Compared at fixed radius, runs started from the open and from the dense configuration agree
+to about 0.03 in g(r) (g(3.4) 0.91/0.93 at 0.95; 0.98/0.97 at 1.0), neighbours inside 3.3 A are 4.47 from either
+start, and the energies differ by 0.06-0.09 kcal/mol. The law's first shell is about right; its minimum is too
+shallow (g(3.4) ~0.98 against ~0.8) and its second shell too weak (g(4.4) ~0.98 against ~1.1), the signature of the
+bent-contact over-attraction at 3.1-3.8 A (section 10.3).
 
 
 ## Sources

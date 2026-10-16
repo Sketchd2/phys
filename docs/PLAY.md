@@ -5335,10 +5335,17 @@ the start of the phase, ahead of the renderer**. In order:
        (4.05 A); q 0.634 / 0.572 / 0.566; hydrogen bonds 3.50 / 3.61 / 3.58; heat of
        vaporisation 10.7 / 10.8 / 10.9 (measured 10.5). **Equilibrium density 1.003
        to 1.007 g/cm3 (measured 0.997) and kappa_T 4.3e-5 per bar (measured 4.5e-5):
-       the law's bulk thermodynamics are right.** Its structure is water-like at 0.95
-       (4.65 neighbours, q 0.63) and fills with interstitial molecules by 1.0, as the
-       over-attraction at 3.1-3.8 A predicts. Whether the dense state at 1.0 is the
-       equilibrium or what a quench from a random lattice selects is being tested.
+       the law's bulk thermodynamics are right.** Its structure is the same at fixed density from
+       either start: a hysteresis test (0.95 compressed to 1.0, and 1.0 expanded to
+       0.95, 30 ps each) gives g(OO) agreeing to about 0.03 at every radius, so
+       there is no second structure, and the earlier 4.65 against 7.56 "neighbours
+       inside the first minimum" was an artefact of locating a very shallow minimum
+       (g about 0.9-1.0, measured about 0.8). At fixed radius the first shell is
+       close to measured (4.5 inside 3.3 A at 1.0 against about 4.2); what the law
+       lacks is the gap after it (g(3.4) 0.98 against 0.8) and the second shell
+       (g(4.4) 0.98 against 1.1). The pressure is history-dependent only through
+       sampling noise: -171 +- 75 from the open start, -928 +- 115 from the dense
+       one, energies within 0.06-0.09 kcal/mol.
      - **A second molecule: methane.** The same recipe - the dispersion derived
        from the engine's electrons (`phys-c6`: C-C 20.17, C-H 7.85, H-H 3.12,
        molecule-molecule 132.9 hartree bohr^6, measured ~130), a site-site law fitted
