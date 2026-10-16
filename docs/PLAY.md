@@ -5329,6 +5329,18 @@ the start of the phase, ahead of the renderer**. In order:
        no first-shell gap. The Ewald force evaluation was also made 1.6 times
        cheaper on a quiet machine (117 -> 72 ms: analytic reciprocal virial,
        coincident charges merged), with identical results.
+     - **A second molecule: methane.** The same recipe - the dispersion derived
+       from the engine's electrons (`phys-c6`: C-C 20.17, C-H 7.85, H-H 3.12,
+       molecule-molecule 132.9 hartree bohr^6, measured ~130), a site-site law fitted
+       to 80 MP2 pair energies (held-out 0.057 kcal/mol), 216 molecules at 111 K and
+       0.4226 g/cm3: heat of vaporisation 2.01 (2.13 with the tail) against 1.96
+       measured, g(C-C) first peak 2.59 at 4.05 A (measured ~2.5 at ~4.1), 12.4
+       neighbours inside the first minimum (measured ~12), pressure -222 bar (-357
+       with the tail), i.e. the liquid wants to be about 9% denser. With the
+       dispersion left to the fit it came out a quarter of the physical value and the
+       liquid 14% under-bound with a pressure near zero for the wrong reason. The
+       recipe holds where the many-body physics is small; water, where it is not,
+       is the case it does not.
      - **Open, the owner's.** (1) What puts nine neighbours inside 4.15 A
        when water has four to five: not the truncation (above) and not a
        three-body repulsion (no such term is in the Hartree-Fock triples); the

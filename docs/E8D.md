@@ -653,6 +653,37 @@ threads; ~10 % at most); a time step of 80 au instead of 40 (2x, but needs an en
 changes the dynamics, so it is the owner's call); k accuracy 1e-4 (28 % fewer vectors, shifts the pressure ~40 bar).
 **Contention is the larger factor**: with two other jobs running the same step took 85-300 ms.
 
+## 12. A second molecule: methane (16 Oct, evening)
+
+The recipe — derive the dispersion from the engine's own electrons, fit a site-site law to the engine's MP2 pair
+energies, run the liquid — applied to methane. 80 MP2 pairs (random, `phys-pairs-gpu methane 80 --mp2`, 225 s each
+on a loaded machine, ~100 s quiet); `phys-fit methane`; `phys-bulk methane` at 111 K, 0.4226 g/cm3, 216 molecules,
+40 ps (32 sampled), no charges so no Ewald question. Measured liquid methane at its normal boiling point (111.7 K):
+density 0.4226 g/cm3, pressure 1 atm, heat of vaporisation 8.2 kJ/mol = 1.96 kcal/mol, g(C-C) first peak ~2.5 at
+~4.1 A, first minimum at ~5.6-5.8 A, ~12 neighbours.
+
+**The engine's derived dispersion** (`phys-c6`, new: the non-local functional's C6 split among atoms by the density
+partition): C-C 20.17, C-H 7.85, H-H 3.12 hartree bohr^6, molecule-molecule **132.9** (measured ~130). The same tool
+on water gives 17.84 / 6.56 / 2.51, total 54.1 (E6's 17.48 / 6.33 / 2.38 at the averaged shape; physical ~46).
+
+| | as fitted (nothing held) | dispersion held at the derived C6 | measured |
+|---|---|---|---|
+| molecule-molecule C6 | 33.5 (the fit put the rest in C8 = 200) | 132.9 | ~130 |
+| held-out pair error, kcal/mol | 0.040 | 0.057 | |
+| pressure, bar | +29 +- 8 (-5 with the tail) | -222 +- 24 (-357 with the tail of -135) | ~1 |
+| U/N, kcal/mol | -1.44 (-1.47) | -1.785 (-1.908) | |
+| heat of vaporisation, kcal/mol | 1.66 (1.69) | **2.01 (2.13)** | 1.96 |
+| first g(C-C) peak | 2.61 at 4.05 A | **2.59 at 4.05 A** | ~2.5 at ~4.1 |
+| first minimum, neighbours inside | 5.55 A, 11.5 | 5.75 A, **12.4** | ~5.7 A, ~12 |
+
+Reading: with nothing held, the as-fitted law gets the pressure right for the wrong reason (a C6 a quarter of the
+physical value, the near field carried by C8) and is 14 % under-bound. With the derived dispersion the cohesion is
+right to 2-9 %, the structure is right, and the pressure at the measured density is -357 bar, i.e. the law's liquid
+wants to be denser by roughly 9 % (methane's isothermal compressibility ~2.5e-4 per bar). **The recipe holds on a
+second molecule where the many-body physics is small; what water adds (hydrogen bonding, strong induction) is
+where it does not yet.** Not done for methane: a smaller pair-fit error with more or liquid-sampled pairs; the
+7 % of the pressure that a measured-density MP2 pair-additive methane would still miss.
+
 
 ## Sources
 

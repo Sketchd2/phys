@@ -167,3 +167,7 @@ path = "src/bin/slopeparts.rs"
 [[bin]]
 name = "phys-lawenergy"
 path = "src/bin/lawenergy.rs"
+
+[[bin]]
+name = "phys-c6"
+path = "src/bin/c6.rs"
