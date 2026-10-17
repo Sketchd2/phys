@@ -5346,6 +5346,11 @@ the start of the phase, ahead of the renderer**. In order:
        (g(4.4) 0.98 against 1.1). The pressure is history-dependent only through
        sampling noise: -171 +- 75 from the open start, -928 +- 115 from the dense
        one, energies within 0.06-0.09 kcal/mol.
+     - **A longer run of the hole-free law at 1.0 g/cm3** (60 ps, 48 ps sampled):
+       -72 +- 89 bar (-189 with the tail), U/N -10.23, heat of vaporisation 10.82,
+       g(OO) first peak 2.55 at 2.85 A. The pressure's instantaneous scatter is
+       about +-600 bar, so doubling the length left the error where it was (97 to
+       89): the pressure is consistent with zero to 2 sigma, not pinned down.
      - **A second molecule: methane.** The same recipe - the dispersion derived
        from the engine's electrons (`phys-c6`: C-C 20.17, C-H 7.85, H-H 3.12,
        molecule-molecule 132.9 hartree bohr^6, measured ~130), a site-site law fitted
