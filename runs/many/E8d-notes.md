@@ -736,3 +736,26 @@ polymers, which is a new method, not a probe.
 
 Not done: a rigid-rotor path-integral run. It would settle the librational part, but the literature predicts the
 direction (softer), so it is expected to widen the gap, not close it.
+
+
+## 16. Induction strength scanned in the liquid (probe, not a law)
+
+The hole-free law with every site polarisability scaled (`runs/e8d/indscale/law-ind<f>.txt`, `indscale.sh`), Ewald,
+216 molecules, 298 K, 30 ps (the 1.0 row is the 60 ps run). Pair accuracy on the 47 liquid-sampled pairs at O-O
+2.7-4.3 A, rms kcal/mol: 0.255 at 0.7, 0.211 at 0.8, 0.184 at 0.9, 0.179 at 1.0, 0.196 at 1.1.
+
+| scale (density) | P bar | dHvap | g(2.8) | g(3.4) | g(3.8) | g(4.4) | g(4.9) | N<3.3 |
+|---|---|---|---|---|---|---|---|---|
+| 0.8 (1.0) | +1386 +- 76 | 9.35 | 1.96 | 1.15 | 0.97 | 0.94 | 1.01 | 4.45 |
+| 0.9 (1.0) | +713 +- 87 | 10.01 | 2.25 | 1.06 | 0.95 | 0.95 | 1.02 | 4.45 |
+| 1.0 (1.0) | -72 +- 89 | 10.82 | 2.54 | 0.97 | 0.93 | 0.99 | 1.05 | 4.46 |
+| 1.1 (1.0) | -731 +- 33 | 11.54 | 2.73 | 0.90 | 0.91 | 1.00 | 1.09 | 4.50 |
+| 1.1 (1.04) | +233 +- 67 | 11.62 | 2.67 | 0.97 | 0.92 | 0.97 | 1.06 | 4.70 |
+| measured | ~1 | 10.5 | ~2.6 | ~0.8 | ~0.9 | ~1.1 | ~1.0 | ~4.2 |
+
+Reading: stronger induction deepens the first minimum and the first peak and lifts the 4.9 A shoulder, close to
+linearly, so the structure the law lacked is partly an induction-strength effect; but the same step costs about
+650 bar and 0.7 kcal/mol of cohesion, so a single scale cannot give both. At 1.1 the equilibrium density is about
+1.03-1.04 and the structure at that density is no better than the 1.0 law's (g(3.4) 0.97). A 1.2 run was started and
+stopped when the owner asked for the machine; it has not been run. Scaling polarisabilities is a probe only: it
+contradicts the engine's own gas-phase polarisability and is not proposed as a law.
