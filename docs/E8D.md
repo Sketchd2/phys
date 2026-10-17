@@ -710,6 +710,24 @@ shallow (g(3.4) ~0.98 against ~0.8) and its second shell too weak (g(4.4) ~0.98 
 bent-contact over-attraction at 3.1-3.8 A (section 10.3).
 
 
+## 14. A direction-dependent repulsion: tested, not supported
+
+Idea (the owner's): give each atom's repulsion an antenna-style strength map, a size that varies with direction
+(an anisotropic atom-atom potential), as the cure for the shared 3.1-3.8 A over-attraction on bent H..O contacts.
+Test before any build, on the hole-free law (`runs/e8d/aniso_test.py`, `phys-slopeparts` with `VERBOSE=1`):
+
+- Energies, 47 liquid-sampled pairs with O-O 2.7-4.3 A: rms error 0.18 kcal/mol against 2.12 of pair energy;
+  correlation with the O-H..O angle 0.00, with the approach side to the acceptor's bisector 0.02, with H..O
+  distance -0.20. At O-O 3.2-3.9 A the mean error is +0.085 +- 0.144 (90-115 deg, n 7), +0.018 +- 0.120
+  (115-135, n 9), -0.052 +- 0.056 (135-180, n 4).
+- Slopes along the line of centres, 32 pairs at 3.0-3.9 A: error +0.171 +- 0.131 (90-115 deg, n 7),
+  +0.105 +- 0.154 (115-135, n 10), +0.119 +- 0.169 (135-180, n 15) kcal/mol per bohr; correlation with angle -0.20.
+
+The error is a nearly constant radial offset, not an angular pattern, so a direction-dependent term fitted here would
+mostly act as a radial adjustment, which the Born-Mayer and refit searches already exhausted. Not built.
+Candidates left: induction strength, many-body effects beyond three bodies, nuclear quantum effects.
+
+
 ## Sources
 
 Pair-only ab initio water collapses (coordination 11.9 for the CC-pol pair

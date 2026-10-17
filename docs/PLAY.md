@@ -5351,6 +5351,19 @@ the start of the phase, ahead of the renderer**. In order:
        g(OO) first peak 2.55 at 2.85 A. The pressure's instantaneous scatter is
        about +-600 bar, so doubling the length left the error where it was (97 to
        89): the pressure is consistent with zero to 2 sigma, not pinned down.
+     - **A direction-dependent repulsion was tested before being built, and the
+       data does not support it** (the owner's idea: an antenna-style strength map
+       on the repulsion; tests allowed, a law needs the owner's say). On 47
+       liquid-sampled pairs (O-O 2.7-4.3 A) the hole-free law's energy error is
+       0.18 kcal/mol rms against 2.12 of pair energy, and correlates 0.00 with the
+       O-H..O angle and 0.02 with the side the hydrogen approaches (`aniso_test.py`).
+       The slope error that drives the shells, over 32 pairs at 3.0-3.9 A, is
+       +0.17 (bent, 90-115 deg, n 7), +0.11 (115-135, n 10) and +0.12 (135-180,
+       n 15) kcal/mol per bohr with spreads of 0.13-0.17: a nearly constant radial
+       offset, not an angular pattern (correlation with angle -0.20). Nothing was
+       fitted or added. What is left as candidates for the missing shell gap:
+       induction strength, liquid effects beyond three bodies, and nuclear quantum
+       effects (being investigated).
      - **A second molecule: methane.** The same recipe - the dispersion derived
        from the engine's electrons (`phys-c6`: C-C 20.17, C-H 7.85, H-H 3.12,
        molecule-molecule 132.9 hartree bohr^6, measured ~130), a site-site law fitted
