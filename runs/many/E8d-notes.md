@@ -713,3 +713,26 @@ Test before any build, on the hole-free law (`runs/e8d/aniso_test.py`, `phys-slo
 The error is a nearly constant radial offset, not an angular pattern, so a direction-dependent term fitted here would
 mostly act as a radial adjustment, which the Born-Mayer and refit searches already exhausted. Not built.
 Candidates left: induction strength, many-body effects beyond three bodies, nuclear quantum effects.
+
+
+## 15. Nuclear quantum effects: what the literature says, and what it implies here
+
+Searched (abstracts and summaries only; the two full papers I tried to read, Morrone & Car arXiv:0803.3635 and the
+q-AQUA paper arXiv:2204.01804, could not be extracted, so no numbers from them are quoted):
+
+- Quantum nuclei are reported to *soften* liquid water's structure: a lower first O-O peak, broadened pair correlations
+  and reduced tetrahedral order, which moves first-principles water *towards* experiment (Morrone & Car, PRL 2008;
+  PIMD of a q-TIP4P/F-like model, 2021-2025 papers; q-AQUA many-body potential, PIMD closer to experiment than
+  classical MD). Densities from PIMD are close to experiment; the spinodal pressure moves by about 15 and 10 MPa at
+  250 and 300 K. Earlier in this record: MB-pol classical against quantum density 1.004 against 1.001 (Reddy et al.).
+
+Implication, my reading, not a measurement: the effect is of the wrong sign for this law. The law's classical liquid is
+already *under*-structured (first minimum too shallow, second shell too weak), and quantum nuclei would soften it
+further. The classical-overstructured water of accurate potentials is the case NQE cures; this law is not in it. The
+density and pressure shifts are small (about 0.3 % in density for MB-pol), so the -72 +- 89 bar is not an NQE
+artefact. The molecules are also rigid in this engine, so the dominant NQE, the O-H stretch's delocalisation, is not
+representable here; only rotational (librational) quantum effects would be, and those need rigid-rotor ring
+polymers, which is a new method, not a probe.
+
+Not done: a rigid-rotor path-integral run. It would settle the librational part, but the literature predicts the
+direction (softer), so it is expected to widen the gap, not close it.
