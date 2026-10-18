@@ -35,7 +35,7 @@ while true; do
     hist="${cpu_hist[$name]:-}"; hist="$hist $cpu"; hist=$(echo $hist | awk '{n=NF; s=(n>4)?n-3:1; for(i=s;i<=n;i++) printf "%s ", $i}')
     cpu_hist[$name]="$hist"
     set -- $hist
-    if [ $# -ge 4 ]; then used=$(awk -v a="$1" -v b="${@: -1}" 'BEGIN{print b-a}'); if awk -v u="$used" 'BEGIN{exit !(u<5)}'; then log "NOT RUNNING: $name used $used s of CPU in half an hour (suspended or hung)"; bad=1; fi; fi
+    if [ $# -ge 4 ]; then used=$(awk -v a="$1" -v b="${@: -1}" 'BEGIN{print b-a}'); if awk -v u="$used" 'BEGIN{exit !(u<0)}'; then cpu_hist[$name]="$cpu"; elif awk -v u="$used" 'BEGIN{exit !(u<5)}'; then log "NOT RUNNING: $name used $used s of CPU in half an hour (suspended or hung)"; bad=1; fi; fi
   done < jobs.txt
   free_gb=$(powershell -NoProfile -Command "[math]::Round((Get-CimInstance Win32_OperatingSystem).FreePhysicalMemory/1MB,1)" | tr -d '\r')
   disk_gb=$(df -BG /e 2>/dev/null | awk 'NR==2{gsub("G","",$4); print $4}')
