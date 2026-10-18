@@ -726,12 +726,22 @@ ammonia (carrying on from round 11), methanol, ethanol (never begun) and methane
 another. Nothing in it depends on any law, and every later pair and cluster calculation for
 those molecules needs the converged shape and basis.
 
-Not started, and why (each waits on a named thing, which is the list to start from):
+Started later the same day, on the GPU (`runs/e8e/pairs/run.sh`, resumable, `queue.log`): for each of
+ammonia, methanol, ethanol and methane, once its basis growth has settled, **MP2 pairs of the molecule
+with itself (150 uniform, 100 at close contact) and with water (40 uniform, 40 at close contact)**.
+The unlike-pair sampler is new code (`pairs::unlike_pair`, `unlike_interaction`, `run_unlike`;
+`phys-pairs-unlike-gpu`): a stream per pair of species and index, so any pair can be redone, and the
+same counterpoise MP2 as the like pairs. **Checked against stored data:** two waters through the
+unlike code reproduce the like code's first stored MP2 pair, `pairs-water-gpu-mp2.txt` line 0, to
+4e-13 hartree (`gpu/tests/unlike.rs`). `hf::frozen_core` gained the third period (1s2s2p, five
+orbitals), the usual convention, for the ions' sake. Ammonia settled after 12 rounds (3552 s).
+The draw is uniform in separation (4.0-11.0 bohr) with the 0.64 contact rule, not the law-biased draw
+of the water data, because no law is yet trusted to bias by.
+
+Waiting, and why (each waits on a named thing, which is the list to start from):
 
 | Work | Stage | Waits on |
 |---|---|---|
-| MP2 pairs of ammonia and of methanol, uniform draw and wall draw (law-independent) | S1 | the converged shape of the molecule, so no pair is computed at a geometry that growth still moves (hours for ammonia) |
-| MP2 pairs of unlike molecules (water + ammonia, + methanol, + methane, + ethanol) | S2 | **code**: `pairs.rs` samples pairs of one molecule; two different monomers need it generalised (a small, independent piece of engineering, the first thing to build); and the monomers' converged shapes |
 | Monomer properties (polarisability, charge cloud, dispersion blocks, energy surface) for ammonia, methanol, ethanol | S1 | the converged shape |
 | Ion bases for Na+ and Cl- and ion-water MP2 pairs, trimers and shells | S5 | **code**: charged single atoms in the growth and pair tools; the diffuse functions an anion needs are found by the growth rule |
 | Hexamer-and-larger cluster reference for the water law (checklist row 18) | S0 | a liquid snapshot of any law (the reference energy does not depend on the law) and the GPU's free time |

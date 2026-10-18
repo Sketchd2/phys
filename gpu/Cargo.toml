@@ -52,3 +52,7 @@ path = "src/bin/bulk_gpu.rs"
 [[bin]]
 name = "phys-ewald-gpu"
 path = "src/bin/ewald_gpu.rs"
+
+[[bin]]
+name = "phys-pairs-unlike-gpu"
+path = "src/bin/pairs_unlike_gpu.rs"

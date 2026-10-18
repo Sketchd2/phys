@@ -239,6 +239,7 @@ fn atoms_of(name: &str) -> Vec<u32> {
         "methane" => vec![6, 1, 1, 1, 1],
         "ammonia" => vec![7, 1, 1, 1],
         "methanol" => vec![6, 8, 1, 1, 1, 1],
+        "ethanol" => vec![6, 6, 8, 1, 1, 1, 1, 1, 1],
         other => panic!("no atoms known for {other}"),
     }
 }
@@ -1801,6 +1802,109 @@ fn manybody_main(mono: &Monomer, snap: &Snapshot, name: &str, snapshot: &str, ce
         if k >= 2 {
             println!("{} molecules: pairs {:+.4}, three-body {:+.4}, to three bodies {:+.4} kcal/mol ({:+.2} a molecule)", k + 1, pairs_sum * k_cal, three_sum * k_cal, (pairs_sum + three_sum) * k_cal, (pairs_sum + three_sum) * k_cal / (k + 1) as f64);
         }
+        std::io::stdout().flush().ok();
+    }
+}
+
+// ---- pairs of two different molecules (PLAY.md E8e, SOLUTIONS.md S2) -------------------------
+
+/// A hash of the two names, so that the draw of one pair of species is its own stream.
+fn species_seed(a: &str, b: &str) -> u64 {
+    let mut h: u64 = 0xcbf2_9ce4_8422_2325;
+    for byte in a.bytes().chain([b'+']).chain(b.bytes()) {
+        h ^= byte as u64;
+        h = h.wrapping_mul(0x0000_0100_0000_01b3);
+    }
+    h
+}
+
+/// Pair `k` of two different molecules: the same kind of draw as [`Monomer::random_pair`] (a
+/// relative orientation and a separation of the centres, refused if two atoms sit within 0.64 of
+/// their van der Waals contact), from a stream that is a function of the two names and `k` alone,
+/// so any pair can be redone on any machine. With `wall`, the nearest atoms are kept between the
+/// limits (angstrom) and the centres 2.4 to 5.6 bohr apart, as [`Monomer::wall_pair`].
+pub fn unlike_pair(a: &Monomer, b: &Monomer, k: usize, wall: Option<(f64, f64)>) -> (Vec<Vec3>, Vec<Vec3>, f64) {
+    let mut s = Stream::at(0x756e_6c69_6b65 ^ species_seed(&a.name, &b.name), k as u128, 0, Purpose::Positions);
+    loop {
+        let qa = random_rotation(&mut s);
+        let qb = random_rotation(&mut s);
+        let dir = s.direction();
+        let sep = match wall {
+            Some(_) => s.range(2.4, 5.6),
+            None => s.range(4.0, 11.0),
+        };
+        let pa: Vec<Vec3> = a.body.iter().map(|p| qa.rotate(*p)).collect();
+        let pb: Vec<Vec3> = b.body.iter().map(|p| qb.rotate(*p) + dir.scale(sep)).collect();
+        let nearest = (0..pa.len()).flat_map(|i| (0..pb.len()).map(move |j| (i, j))).map(|(i, j)| (pa[i] - pb[j]).norm()).fold(f64::INFINITY, f64::min);
+        let ok = match wall {
+            Some((lo, hi)) => nearest >= lo / 0.529177210903 && nearest <= hi / 0.529177210903,
+            None => (0..pa.len()).all(|i| (0..pb.len()).all(|j| (pa[i] - pb[j]).norm() >= 0.64 * (a.contact[i] + b.contact[j]))),
+        };
+        if ok {
+            return (pa, pb, sep);
+        }
+    }
+}
+
+/// The counterpoise interaction of two different molecules at Hartree-Fock + RI-MP2, frozen
+/// cores, per-element basis: the pair, and each molecule in the pair's basis with the other's
+/// nuclei and electrons removed. Returns `(total, hartree_fock)` in hartree.
+pub fn unlike_interaction(a: &Monomer, b: &Monomer, pa: &[Vec3], pb: &[Vec3]) -> (f64, f64) {
+    let (na, nb) = (a.z.len(), b.z.len());
+    let z: Vec<u32> = a.z.iter().chain(b.z.iter()).cloned().collect();
+    let positions: Vec<[f64; 3]> = pa.iter().chain(pb.iter()).map(|v| [v.x, v.y, v.z]).collect();
+    let cluster = Molecule { z: z.clone(), positions, charge: 0, unpaired: 0 };
+    let base = cluster.problem(Functional::Pbe);
+    let ea: f64 = a.z.iter().map(|&zz| zz as f64).sum();
+    let eb: f64 = b.z.iter().map(|&zz| zz as f64).sum();
+    let slots: [(Vec<usize>, f64); 3] = [((0..na + nb).collect(), ea + eb), ((0..na).collect(), ea), ((na..na + nb).collect(), eb)];
+    let (mut hf, mut corr) = ([0.0; 3], [0.0; 3]);
+    for (s, (keep, ne)) in slots.iter().enumerate() {
+        let p = base.with_ghosts(keep, *ne);
+        let sol = crate::electrons::hf::hartree_fock(&p, 200, 1e-9);
+        assert!(sol.converged, "a Hartree-Fock field of an unlike pair did not converge");
+        corr[s] = crate::electrons::hf::mp2(&p, &sol, crate::electrons::hf::frozen_core(&z, keep)).correlation;
+        hf[s] = sol.energy;
+    }
+    let (h, c) = (hf[0] - hf[1] - hf[2], corr[0] - corr[1] - corr[2]);
+    (h + c, h)
+}
+
+/// `phys-pairs-unlike-gpu A B count [--wall LO HI]`: MP2 interaction energies of pairs of molecule
+/// `A` with molecule `B` (`grow-A.state` and `grow-B.state` in the directory), resumable, to
+/// `pairs-A-B-mp2.txt` (`-wall` when drawn at close contact). A line is
+/// `k separation total hartree_fock | x y z type ...` for the atoms of A, then of B, the types
+/// each molecule's own symmetry classes (the header names the species and their atom counts).
+pub fn run_unlike(args: &[String]) {
+    let (name_a, name_b) = (args.first().cloned().expect("two molecule names"), args.get(1).cloned().expect("two molecule names"));
+    let count: usize = args.get(2).and_then(|s| s.parse().ok()).unwrap_or(40);
+    let wall = args.iter().position(|a| a == "--wall").map(|i| {
+        let lo: f64 = args.get(i + 1).and_then(|v| v.parse().ok()).expect("--wall LO HI (angstrom)");
+        let hi: f64 = args.get(i + 2).and_then(|v| v.parse().ok()).expect("--wall LO HI (angstrom)");
+        (lo, hi)
+    });
+    let (a, b) = (Monomer::load(&name_a, false), Monomer::load(&name_b, false));
+    let out = format!("pairs-{name_a}-{name_b}{}-mp2.txt", if wall.is_some() { "-wall" } else { "" });
+    let done = done_indices(&out);
+    let mut file = std::fs::OpenOptions::new().create(true).append(true).open(&out).expect("the output file");
+    if done.is_empty() {
+        writeln!(file, "# MP2 (Hartree-Fock + RI-MP2, frozen cores, counterpoise) of {name_a} ({} atoms) with {name_b} ({} atoms): index separation_bohr E_int_total E_int_hartree_fock (hartree) | then x y z type for each atom of {name_a}, then of {name_b} (bohr; types are each molecule's own)", a.z.len(), b.z.len()).ok();
+    }
+    println!("{name_a} + {name_b}: {} pairs done, {count} wanted", done.len());
+    for k in 0..count {
+        if done.contains(&k) {
+            continue;
+        }
+        let t = Instant::now();
+        let (pa, pb, sep) = unlike_pair(&a, &b, k, wall);
+        let (total, hf) = unlike_interaction(&a, &b, &pa, &pb);
+        let mut line = format!("{k} {sep:.6} {total:.10e} {hf:.10e} |");
+        for (v, ty) in pa.iter().zip(&a.types).chain(pb.iter().zip(&b.types)) {
+            line += &format!(" {:.8} {:.8} {:.8} {ty}", v.x, v.y, v.z);
+        }
+        writeln!(file, "{line}").expect("the line written");
+        file.flush().ok();
+        println!("pair {k}: R {sep:.2} bohr, E_int {:.4} kcal/mol (HF {:.4}), {:.0} s", total * 627.509474, hf * 627.509474, t.elapsed().as_secs_f64());
         std::io::stdout().flush().ok();
     }
 }

@@ -458,6 +458,9 @@ pub fn frozen_core(z: &[u32], real: &[usize]) -> usize {
         .map(|&i| match z[i] {
             0..=2 => 0,
             3..=10 => 1,
+            // The third period: 1s, 2s and 2p are the core (sodium ion, chloride ion, the second
+            // row). The usual convention, as 1s is for the first.
+            11..=18 => 5,
             other => panic!("no frozen-core rule for Z = {other}"),
         })
         .sum()
