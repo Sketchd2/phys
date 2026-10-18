@@ -5456,7 +5456,11 @@ the start of the phase, ahead of the renderer**. In order:
      - **Decided (the owner, 2026-10-18): the alcohol is methanol first, ethanol
        after**, ethanol tested at the azeotrope and at two other ratios (the author's
        choice, the owner's to overrule: mole fraction of ethanol 0.10 and 0.50).
-     - **Open, the owner's** (§8, nine items remaining): whether the binaries in the test set are in scope; solid phases and
+     - **Decided (the owner, 2026-10-18): the binaries in scope are the three water
+       binaries (methanol, ammonia, methane), plus water + ethanol and the saline
+       solution.** Methanol + methane and ammonia + methane are to be tested in due
+       course.
+     - **Open, the owner's** (§8, eight items remaining): solid phases and
        their order; hydrates and clathrates; the ice-disorder choice; what the law owes
        a mixture if the transferability test fails; a tolerance for an excess property
        and a miscibility gap; the pressure range; the zero-point correction in a stored
