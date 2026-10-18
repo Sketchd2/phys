@@ -799,6 +799,19 @@ orbitals), the usual convention, for the ions' sake. Ammonia settled after 12 ro
 The draw is uniform in separation (4.0-11.0 bohr) with the 0.64 contact rule, not the law-biased draw
 of the water data, because no law is yet trusted to bias by.
 
+**Stall watchdog (the owner, 2026-10-19: "add checks to report stalls").** `runs/e8e/watch.sh` checks every
+ten minutes each job in `runs/e8e/jobs.txt` (process, logs, silence allowed, done-file) and writes `alerts.log`
+and an `ALERT` file for: **DEAD** (the process is gone and its done-file is absent, twice running), **STALL**
+(none of its logs written for the allowed minutes), **NOT RUNNING** (under 5 s of CPU in half an hour:
+suspended or hung), low memory and low disk; `ok.log` is touched every round so a dead watchdog shows by an old
+mtime. It only reports; it never stops or changes a job. It was prompted by a timing script that waited for a
+queue that had already finished and left two jobs suspended for 53 minutes, and its first run found another
+fault at once: methanol basis growth had written nothing for 5 h 23 min because, at below-normal priority, it
+was getting about 0.6 of a core behind the GPU jobs' CPU work. Growth gates every later pair of methanol,
+ethanol and methane, so it now runs at normal priority and the ammonia pair job (which gates nothing yet) at
+below-normal. Scripts that suspend or wait now carry a time limit on every stage and resume everything from an
+exit trap (`contention/run2.sh`).
+
 Waiting, and why (each waits on a named thing, which is the list to start from):
 
 | Work | Stage | Waits on |
