@@ -799,6 +799,24 @@ the refit to the pairs' energies, as an explicit dipole target there, and `phys-
 reports it. The same applies to any later stage that rescales a density's potential to change one
 moment: change the moment, not the monopole.
 
+**phys-cloudfit (built, `phys::cloud::fit_es`): the refit to the pairs' exact first-order electrostatic
+energies, for any molecule.** Starts from `phys-cloud`'s structure file; fits populations, widths and
+lone-pair distances (neutral, non-negative, the dipole held to the MP2 value), half the pairs held out,
+24 seeded restarts besides the given start because the landscape has several minima (a lone-pair cloud
+collapsed onto its nucleus is one). **A second finding:** pair energies are invariant under reversing every
+charge in both molecules, so a fit to them alone can land on the mirror-charge molecule; the first run
+did (oxygen +0.75, hydrogens -0.38, the right energies and the wrong sign). The dipole's *sign* along
+Hartree-Fock's dipole pins it. On water (66 pairs with exact energies, `runs/e8e/cloud/water`): oxygen
+5.92 e (width 0.92 bohr), hydrogens 0.68 e (1.43), lone-pair cloud 0.71 e at 0.016 bohr from the oxygen
+(1.93), dipole 1.873 D, **held-out 0.64 kcal/mol** against 0.36 for the hand-found cloud of E8b. The
+restarts were still finding better minima when the 24 ran out, so a production fit uses more.
+
+The chain for a new molecule M, what exists and what runs: `phys-grow M` (running) -> `phys-pairs-gpu M N --mp2`
+(running, `runs/e8e/pairs/run.sh`) -> `phys-es-gpu M pairs-M-gpu-mp2.txt` (running, `es.sh`, as pairs
+appear) -> `phys-cloud M` -> `phys-cloudfit M cloud-M.cloud es-M.txt -gpu-mp2,-gpu-wall-mp2 --dipole <MP2>`.
+Still water-specific and to generalise: `phys-diag`'s other modes, `phys-fit`'s `--bisector` and its
+fixed `[0,1,1]` atom types, and the biased pair draw (it needs a first law).
+
 ## 10. What this document does not do
 
 It does not add a term to the law, choose a functional, change a default, or
