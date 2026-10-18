@@ -125,7 +125,7 @@ All from `PLAY.md`, restated so the design below can be checked against it.
   has had its coexistence run with the working law.** `phys-coexist` exists. The
   only liquids simulated with a derived law are water (216 molecules, many laws)
   and methane (E8d §12: heat of vaporisation 2.01 against 1.96, pressure −222
-  bar). Ammonia and methanol have growth states (`grow-ammonia.state`,
+  bar; *not trusted, by the owner's instruction of 2026-10-18; see S1*). Ammonia and methanol have growth states (`grow-ammonia.state`,
   `grow-methanol.state`) and no pair data.
 - **E8 route A conditions**: only engine-computed energies go in; every term a
   physical mechanism; residual measured on pairs the fit never saw; what the form
@@ -414,6 +414,17 @@ says so.
 molecular quadrupole and polarisability anisotropy against MP2; rows 23, 29, 6, 3.
 *Done when* the rows read as numbers in the checklist. Rows 7, 10, 11, 12, 18, 28
 are then run as the evidence directs. *Nothing here adds a term to the law.*
+
+**No earlier law is trusted (the owner, 2026-10-18).** The laws made before this
+item, **the methane law (`runs/e8d/methane`, E8d §12) included and the several water laws
+with it, are not taken as inputs to anything in S1 onward.** Their numbers (liquid
+properties, heats of vaporisation, pressures) stay on record as history, not as results
+this item builds on. Each substance's law is rebuilt under the E8 conditions in S1 (only
+engine-computed energies, every term a physical mechanism, residual on pairs the fit never
+saw, checked against E6's site-site potential), and the cross terms in S2. *Where a
+number does not depend on a law's values, an old law may be used as a stand-in: the
+speed profile of the Ewald port (§8 item 10) is timed on the existing water law because
+timing depends on the sizes and not the coefficients, and says so where it is reported.*
 
 **S1. The four boiling points.** `phys-coexist` for water, methane, ammonia and
 methanol with the working law. Ammonia and methanol need pair data and a law:

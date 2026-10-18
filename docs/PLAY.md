@@ -5485,6 +5485,10 @@ the start of the phase, ahead of the renderer**. In order:
        GPU now, in double precision, checked against the CPU path; and a standing rule:
        always check whether a process would be faster on the GPU.** All ten decisions in
        `docs/SOLUTIONS.md` §8 are now taken.
+     - **No earlier law is trusted (the owner, 2026-10-18).** The methane law and the
+       earlier water laws are not inputs to this item; each substance's law is rebuilt
+       under the E8 conditions in S1, the cross terms in S2. An old law may stand in only
+       where the number measured does not depend on its values (a timing), and says so.
      - **Cost, estimated and so flagged** (§9): about 40 hours a nanosecond of the
        rigid Ewald liquid on the present code, so thermodynamic integration is weeks
        until the reciprocal sum is on the card.
