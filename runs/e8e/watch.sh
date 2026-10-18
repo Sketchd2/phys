@@ -17,7 +17,9 @@ while true; do
     name=$(echo $name | xargs); [[ "$name" == \#* || -z "$name" ]] && continue
     image=$(echo $image | xargs); logs=$(echo $logs | xargs); minutes=$(echo $minutes | xargs); donefile=$(echo $donefile | xargs)
     [ -f "$donefile" ] && { seen[$name,dead]=0; continue; }
-    cpu=$(powershell -NoProfile -Command "(Get-Process -Name ${image%.exe} -ErrorAction SilentlyContinue | Measure-Object CPU -Sum).Sum" 2>/dev/null | tr -d '\r')
+    # a queue runs several programs in turn, so a job may name several images (comma-separated): it is alive if any is
+    names=$(echo "$image" | sed 's/\.exe//g; s/,/","/g'); names="\"$names\""
+    cpu=$(powershell -NoProfile -Command "(Get-Process -Name @($names) -ErrorAction SilentlyContinue | Measure-Object CPU -Sum).Sum" 2>/dev/null | tr -d '\r')
     if [ -z "$cpu" ]; then
       seen[$name,dead]=$(( ${seen[$name,dead]:-0} + 1 ))
       if [ ${seen[$name,dead]} -ge 2 ]; then log "DEAD: $name ($image is not running and $donefile does not exist)"; bad=1; fi
