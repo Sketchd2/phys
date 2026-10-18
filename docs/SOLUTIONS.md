@@ -479,6 +479,7 @@ because it needs the same crystal-free-energy machinery.
 above).** Polyatomic and multiply charged ions: the carbonate dianion's stability test first, then the
 charge bookkeeping, then ion-water pairs, trimers and shells for Ca2+ and CO3(2-), a law for them under the
 E8 conditions, and the solution at a fixed speciation. The solubility product waits on S7's ionic crystals.
+Flexible and non-planar polyatomic ions are to be considered as well as rigid ones (section 8, item 11).
 See section 8, item 11.
 
 **S8. Buckets and the stored rule.** The ratio bucket width, measured as the owner
@@ -616,6 +617,20 @@ than chosen between, per `CLAUDE.md`.
       aragonite, which needs the ionic crystals (S7) and the ion-pair free energies as well as the liquid.
     - *Checklist rows that matter more here than for water:* 10 (exchange-induction quenching), 11 (charge
       transfer) and 18 (higher-body terms), because Ca2+ and CO3(2-) polarise their shells hard.
+    - *To consider (the owner, 2026-10-19): flexible polyatomic ions, not only rigid ones, and ions that are
+      not planar.* Carbonate is rigid and planar in the idealised picture, but the ions around it need not
+      be: bicarbonate's hydrogen turns about the C-O bond and the O-C-O angles differ, sulphate and ammonium
+      are tetrahedral, and a real carbonate is distorted by its neighbours' fields. The rigid-body liquid
+      (`Liquid`) and the rigid sites it carries were E8's decision for the four neutral molecules, with the
+      flexible treatments (`PLAY.md` E8c: rigid at a derived average shape, rigid where stiff and flexible
+      where soft, fully flexible) built for water only and the choice between them left open there. Three
+      things follow for ions and are noted rather than decided: (a) the cloud sites are placed in a frame of
+      atoms 0, 1, 2 (`ExtraSite`), which needs those three non-collinear and assumes the molecule keeps its
+      shape; a non-planar or flexible ion needs a site rule that follows the atoms, as E8c's decision on
+      "local, atom-based quantities" intended; (b) the monomer energy surface (`phys-pes`) exists for water
+      only, and a polyatomic ion has 3N-6 coordinates, torsions possibly among them; (c) a flexible ion's
+      shape depends on its environment, so its stored description is a rule over geometry, not one shape.
+      Whether S10 uses a rigid average shape first, as E8 did, or is flexible from the start is the owner's.
     - *Open for the owner when it is taken up:* the tolerance for a solubility; which speciation; whether
       calcite and aragonite are both wanted; and whether magnesium (dolomite) or sulphate (gypsum) come with it.
 
