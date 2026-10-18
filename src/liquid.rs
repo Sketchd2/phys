@@ -197,10 +197,15 @@ pub fn switch(r: f64, on: f64, cut: f64) -> (f64, f64) {
     (s, ds)
 }
 
-/// Molecules of one kind in a periodic box.
+/// Molecules in a periodic box: of one kind, or of several (a solution), the law then a table whose
+/// site types are disjoint between the kinds (`docs/SOLUTIONS.md` 4.1: a mixture's law is the pure
+/// components' laws plus the cross entries of one table). `kind` is the first species; `other_kinds`
+/// are the rest, and `species[i]` says which kind molecule `i` is (empty: all the first).
 #[derive(Debug, Clone)]
 pub struct Liquid {
     pub kind: Kind,
+    pub other_kinds: Vec<Kind>,
+    pub species: Vec<usize>,
     /// The box's edges, bohr; periodic in all three.
     pub cell: [f64; 3],
     pub com: Vec<Vec3>,
@@ -239,9 +244,32 @@ impl Liquid {
         d
     }
 
+    /// Which kind molecule `i` is: 0 for the first.
+    pub fn species_of(&self, i: usize) -> usize {
+        self.species.get(i).copied().unwrap_or(0)
+    }
+
+    /// The kind of molecule `i`.
+    pub fn kind_of(&self, i: usize) -> &Kind {
+        match self.species_of(i) {
+            0 => &self.kind,
+            s => &self.other_kinds[s - 1],
+        }
+    }
+
+    /// Every kind in the box, the first first.
+    pub fn all_kinds(&self) -> Vec<&Kind> {
+        std::iter::once(&self.kind).chain(self.other_kinds.iter()).collect()
+    }
+
+    /// Whether every molecule is of the first kind.
+    pub fn homogeneous(&self) -> bool {
+        self.species.iter().all(|&s| s == 0)
+    }
+
     /// Every site of molecule `i`, in the box frame, relative to its centre.
     fn arms(&self, i: usize) -> Vec<Vec3> {
-        self.kind.sites.iter().map(|s| self.orientation[i].rotate(*s)).collect()
+        self.kind_of(i).sites.iter().map(|s| self.orientation[i].rotate(*s)).collect()
     }
 
     /// The potential energy, forces and torques, through `law`, every pair of
@@ -260,8 +288,9 @@ impl Liquid {
         let n = self.com.len();
         let arms: Vec<Vec<Vec3>> = (0..n).map(|i| self.arms(i)).collect();
         let types = &self.kind.types;
-        // The pair loop on an installed engine (the GPU), if there is one and it takes this law.
-        let engine_result = crate::liquid::pair_engine().filter(|_| law.site_site().is_some()).and_then(|e| {
+        // The pair loop on an installed engine (the GPU), if there is one and it takes this law and
+        // the molecules are alike (the engines' layouts are for identical molecules).
+        let engine_result = crate::liquid::pair_engine().filter(|_| law.site_site().is_some() && self.homogeneous()).and_then(|e| {
             let tab = law.site_site()?;
             let mut links = Vec::new();
             for i in 0..n {
@@ -295,9 +324,9 @@ impl Liquid {
                     let (s, ds) = switch(dist, self.r_on, self.r_cut);
                     let mut u = 0.0;
                     let (mut fi, mut ti) = (Vec3::ZERO, Vec3::ZERO);
-                    for (a, (pa, ta)) in arms[i].iter().zip(types).enumerate() {
+                    for (a, (pa, ta)) in arms[i].iter().zip(&self.kind_of(i).types).enumerate() {
                         let _ = a;
-                        for (pb, tb) in arms[j].iter().zip(types) {
+                        for (pb, tb) in arms[j].iter().zip(&self.kind_of(j).types) {
                             let r = d + *pa - *pb;
                             let rr = r.norm();
                             let (v, dv) = law.site_pair(*ta, *tb, rr);
@@ -362,13 +391,15 @@ impl Liquid {
     fn add_induction(&self, forces: &mut Forces, arms: &[Vec<Vec3>], alpha: &[f64], charge: &[f64], widths: &[f64], warm: Option<&[Vec<Vec3>]>) {
         use crate::induction::{solve, Charge, Cluster, Link, PolSite};
         let n = self.com.len();
-        let types = &self.kind.types;
-        let pol_sites: Vec<usize> = (0..types.len()).filter(|&k| alpha[types[k]] > 0.0).collect();
-        let charged: Vec<usize> = (0..types.len()).filter(|&k| charge[types[k]] != 0.0).collect();
+        let kinds = self.all_kinds();
+        let pol_of: Vec<Vec<usize>> = kinds.iter().map(|kd| (0..kd.types.len()).filter(|&k| alpha[kd.types[k]] > 0.0).collect()).collect();
+        let ch_of: Vec<Vec<usize>> = kinds.iter().map(|kd| (0..kd.types.len()).filter(|&k| charge[kd.types[k]] != 0.0).collect()).collect();
         let mut cl = Cluster::default();
         for i in 0..n {
-            cl.pol.push(pol_sites.iter().map(|&k| PolSite { pos: self.com[i] + arms[i][k], alpha: alpha[types[k]] }).collect());
-            cl.charges.push(charged.iter().map(|&k| Charge { pos: self.com[i] + arms[i][k], q: charge[types[k]], sigma: widths.get(types[k]).copied().unwrap_or(0.0) }).collect());
+            let s = self.species_of(i);
+            let types = &kinds[s].types;
+            cl.pol.push(pol_of[s].iter().map(|&k| PolSite { pos: self.com[i] + arms[i][k], alpha: alpha[types[k]] }).collect());
+            cl.charges.push(ch_of[s].iter().map(|&k| Charge { pos: self.com[i] + arms[i][k], q: charge[types[k]], sigma: widths.get(types[k]).copied().unwrap_or(0.0) }).collect());
         }
         let mut links = Vec::new();
         for i in 0..n {
@@ -387,12 +418,13 @@ impl Liquid {
         forces.energy += out.energy;
         forces.virial += out.virial;
         for i in 0..n {
-            for (a, &k) in pol_sites.iter().enumerate() {
+            let s = self.species_of(i);
+            for (a, &k) in pol_of[s].iter().enumerate() {
                 let f = out.force_pol[i][a];
                 forces.force[i] += f;
                 forces.torque[i] += arms[i][k].cross(f);
             }
-            for (c, &k) in charged.iter().enumerate() {
+            for (c, &k) in ch_of[s].iter().enumerate() {
                 let f = out.force_charge[i][c];
                 forces.force[i] += f;
                 forces.torque[i] += arms[i][k].cross(f);
@@ -411,58 +443,93 @@ impl Liquid {
     /// the real-space remainder and the reciprocal coupling together
     /// (`induction::solve_ewald`), the reciprocal forces on every charge and
     /// dipole site, the constant self and same-molecule terms taken off the
-    /// energy, and the reciprocal virial. Adds to `forces`.
+    /// energy, and the reciprocal virial. Adds to `forces`. Molecules of several kinds each
+    /// have their own charged sites, merged charges, polarisable sites and constant.
     fn add_ewald(&self, forces: &mut Forces, arms: &[Vec<Vec3>], law: &dyn SiteLaw, ew: &crate::ewald::Ewald, warm: Option<&[Vec<Vec3>]>) {
         use crate::induction::{solve_ewald, Charge, Cluster, Link, PolSite};
         let n = self.com.len();
-        let types = &self.kind.types;
+        let kinds = self.all_kinds();
         let ss = law.site_site().expect("the Ewald sum needs a site-site law underneath");
-        let q_of = |k: usize| ss.charge[types[k]];
-        let charged: Vec<usize> = (0..types.len()).filter(|&k| q_of(k) != 0.0).collect();
-        // In reciprocal space every charge is a point, so charges at one place (a core and its cloud
-        // on the same atom) are one charge there: the structure factor, and with it the energy, the
-        // forces on the molecule and the virial, are unchanged, and there are fewer sites to sum.
-        // The self term and the same-molecule terms below keep the original charges.
-        let mut groups: Vec<(usize, f64)> = Vec::new(); // (a member site for the arm, the summed charge)
-        for &k in &charged {
-            match groups.iter_mut().find(|(k0, _)| (arms[0][*k0] - arms[0][k]).norm() < 1e-9) {
-                Some(g) => g.1 += q_of(k),
-                None => groups.push((k, q_of(k))),
-            }
+        let induced = law.induction();
+        /// What one kind of molecule contributes to the sums.
+        struct Species {
+            charged: Vec<usize>,
+            /// (a member site for the arm, the summed charge)
+            groups: Vec<(usize, f64)>,
+            pol_sites: Vec<usize>,
+            /// The long-range part of the pairs inside one molecule (its own constant).
+            intra: f64,
         }
+        // The first molecule of each kind, whose arms the kind's coincident charges and constant are read from.
+        let first_of: Vec<Option<usize>> = (0..kinds.len()).map(|s| (0..n).find(|&i| self.species_of(i) == s)).collect();
+        let ix: Vec<Species> = kinds
+            .iter()
+            .enumerate()
+            .map(|(s, kd)| {
+                let types = &kd.types;
+                let q_of = |k: usize| ss.charge[types[k]];
+                let arm = |k: usize| match first_of[s] {
+                    Some(i0) => arms[i0][k],
+                    None => kd.sites[k],
+                };
+                let charged: Vec<usize> = (0..types.len()).filter(|&k| q_of(k) != 0.0).collect();
+                // In reciprocal space every charge is a point, so charges at one place (a core and its cloud
+                // on the same atom) are one charge there: the structure factor, and with it the energy, the
+                // forces on the molecule and the virial, are unchanged, and there are fewer sites to sum.
+                // The self term and the same-molecule terms below keep the original charges.
+                let mut groups: Vec<(usize, f64)> = Vec::new();
+                for &k in &charged {
+                    match groups.iter_mut().find(|(k0, _)| (arm(*k0) - arm(k)).norm() < 1e-9) {
+                        Some(g) => g.1 += q_of(k),
+                        None => groups.push((k, q_of(k))),
+                    }
+                }
+                let pol_sites: Vec<usize> = match induced {
+                    Some((alpha, _)) => (0..types.len()).filter(|&k| alpha[types[k]] > 0.0).collect(),
+                    None => Vec::new(),
+                };
+                let mut intra = 0.0;
+                for (a, &ka) in charged.iter().enumerate() {
+                    for &kb in &charged[a + 1..] {
+                        let r = (arm(ka) - arm(kb)).norm();
+                        intra += q_of(ka) * q_of(kb) * crate::ewald::erf_over_r(r, ew.s).0;
+                    }
+                }
+                Species { charged, groups, pol_sites, intra }
+            })
+            .collect();
         let (mut cpos, mut cq, mut ccom, mut carm) = (Vec::new(), Vec::new(), Vec::new(), Vec::new());
+        let mut cq_original: Vec<f64> = Vec::new();
+        let (mut dpos, mut dcom, mut darm) = (Vec::new(), Vec::new(), Vec::new());
         for i in 0..n {
-            for &(k, q) in &groups {
+            let s = self.species_of(i);
+            let sp = &ix[s];
+            for &(k, q) in &sp.groups {
                 cpos.push(self.com[i] + arms[i][k]);
                 cq.push(q);
                 ccom.push(self.com[i]);
                 carm.push(arms[i][k]);
             }
-        }
-        let cq_original: Vec<f64> = (0..n).flat_map(|_| charged.iter().map(|&k| q_of(k))).collect();
-        let t_a = std::time::Instant::now();
-        let induced = law.induction();
-        // The dipoles' sites, if the law has induction: the reciprocal work needs them from the start.
-        let pol_sites: Vec<usize> = match induced {
-            Some((alpha, _)) => (0..types.len()).filter(|&k| alpha[types[k]] > 0.0).collect(),
-            None => Vec::new(),
-        };
-        let (mut dpos, mut dcom, mut darm) = (Vec::new(), Vec::new(), Vec::new());
-        for i in 0..n {
-            for &k in &pol_sites {
+            for &k in &sp.charged {
+                cq_original.push(ss.charge[kinds[s].types[k]]);
+            }
+            for &k in &sp.pol_sites {
                 dpos.push(self.com[i] + arms[i][k]);
                 dcom.push(self.com[i]);
                 darm.push(arms[i][k]);
             }
         }
+        let t_a = std::time::Instant::now();
         // The dipoles' cluster and the pairs of molecules within the cut-off.
         let mut cl = Cluster::default();
         let mut links = Vec::new();
         if let Some((alpha, charge)) = induced {
             let widths = law.charge_widths();
             for i in 0..n {
-                cl.pol.push(pol_sites.iter().map(|&k| PolSite { pos: self.com[i] + arms[i][k], alpha: alpha[types[k]] }).collect());
-                cl.charges.push(charged.iter().map(|&k| Charge { pos: self.com[i] + arms[i][k], q: charge[types[k]], sigma: widths.get(types[k]).copied().unwrap_or(0.0) }).collect());
+                let s = self.species_of(i);
+                let types = &kinds[s].types;
+                cl.pol.push(ix[s].pol_sites.iter().map(|&k| PolSite { pos: self.com[i] + arms[i][k], alpha: alpha[types[k]] }).collect());
+                cl.charges.push(ix[s].charged.iter().map(|&k| Charge { pos: self.com[i] + arms[i][k], q: charge[types[k]], sigma: widths.get(types[k]).copied().unwrap_or(0.0) }).collect());
             }
             for i in 0..n {
                 for j in i + 1..n {
@@ -479,7 +546,7 @@ impl Liquid {
         }
         // A whole-step engine on the card, if one is installed and takes this liquid; else the CPU's
         // (or the reciprocal engine's) work in its parts.
-        let stepped = if induced.is_some() && !pol_sites.is_empty() && !links.is_empty() {
+        let stepped = if induced.is_some() && ix.iter().any(|s| !s.pol_sites.is_empty()) && !links.is_empty() {
             crate::ewald::step_engine().and_then(|e| e.step(ew, &cl, &links, &cpos, &cq, &carm, &dpos, &darm, warm, ind_tolerance()))
         } else {
             None
@@ -517,14 +584,8 @@ impl Liquid {
         // The permanent charges: the reciprocal energy, less each charge's self
         // term and less the long-range part of the pairs inside a molecule (a
         // rigid molecule's own constant), which the liquid does not have.
-        let mut intra = 0.0;
-        for (a, &ka) in charged.iter().enumerate() {
-            for &kb in &charged[a + 1..] {
-                let r = (arms[0][ka] - arms[0][kb]).norm();
-                intra += q_of(ka) * q_of(kb) * crate::ewald::erf_over_r(r, ew.s).0;
-            }
-        }
-        forces.energy += ew.energy(&sq) - ew.charge_self(&cq_original) - intra * n as f64;
+        let intra_total = if self.homogeneous() { ix[0].intra * n as f64 } else { (0..n).map(|i| ix[self.species_of(i)].intra).sum::<f64>() };
+        forces.energy += ew.energy(&sq) - ew.charge_self(&cq_original) - intra_total;
         let mut dipoles = Vec::new();
         let mut mu: Vec<Vec3> = Vec::new();
         if let Some(out) = out {
@@ -532,12 +593,13 @@ impl Liquid {
             forces.virial += out.virial;
             mu = out.dipoles.iter().flatten().cloned().collect();
             for i in 0..n {
-                for (a, &k) in pol_sites.iter().enumerate() {
+                let s = self.species_of(i);
+                for (a, &k) in ix[s].pol_sites.iter().enumerate() {
                     let f = out.force_pol[i][a];
                     forces.force[i] += f;
                     forces.torque[i] += arms[i][k].cross(f);
                 }
-                for (c, &k) in charged.iter().enumerate() {
+                for (c, &k) in ix[s].charged.iter().enumerate() {
                     let f = out.force_charge[i][c];
                     forces.force[i] += f;
                     forces.torque[i] += arms[i][k].cross(f);
@@ -555,7 +617,7 @@ impl Liquid {
         let virial_rec = if std::env::var_os("PHYS_EWALD_NUMERIC_VIRIAL").is_some() { ew.virial(&ccom, &carm, &cq, &dcom, &darm, &mu) } else { ew.virial_from_sums(&stot, &fin.tc, &fin.td, &fin.d) };
         let mut idx = 0;
         for i in 0..n {
-            for &k in &pol_sites {
+            for &k in &ix[self.species_of(i)].pol_sites {
                 let f = -fin.grad_dipole_pos[idx];
                 forces.force[i] += f;
                 forces.torque[i] += arms[i][k].cross(f);
@@ -564,7 +626,7 @@ impl Liquid {
         }
         let mut idx = 0;
         for i in 0..n {
-            for &(k, _) in &groups {
+            for &(k, _) in &ix[self.species_of(i)].groups {
                 let f = fch_rec[idx];
                 forces.force[i] += f;
                 forces.torque[i] += arms[i][k].cross(f);
@@ -582,9 +644,16 @@ impl Liquid {
 
     /// Kinetic energy: translational and rotational.
     pub fn kinetic(&self) -> (f64, f64) {
-        let tr: f64 = self.momentum.iter().map(|p| p.norm2() / (2.0 * self.kind.mass)).sum();
-        let i = self.kind.inertia;
-        let rot: f64 = self.spin.iter().map(|l| l.x * l.x / (2.0 * i[0]) + l.y * l.y / (2.0 * i[1]) + l.z * l.z / (2.0 * i[2])).sum();
+        let tr: f64 = self.momentum.iter().enumerate().map(|(k, p)| p.norm2() / (2.0 * self.kind_of(k).mass)).sum();
+        let rot: f64 = self
+            .spin
+            .iter()
+            .enumerate()
+            .map(|(k, l)| {
+                let i = self.kind_of(k).inertia;
+                l.x * l.x / (2.0 * i[0]) + l.y * l.y / (2.0 * i[1]) + l.z * l.z / (2.0 * i[2])
+            })
+            .sum();
         (tr, rot)
     }
 
@@ -599,9 +668,9 @@ impl Liquid {
 
     /// Drift: centres by momenta, orientations by the free-rotor splitting.
     fn drift(&mut self, h: f64) {
-        let inertia = self.kind.inertia;
         for i in 0..self.com.len() {
-            self.com[i] += self.momentum[i].scale(h / self.kind.mass);
+            let (mass, inertia) = (self.kind_of(i).mass, self.kind_of(i).inertia);
+            self.com[i] += self.momentum[i].scale(h / mass);
             let (mut q, mut l) = (self.orientation[i], self.spin[i]);
             for (axis, frac) in [(0usize, 0.5), (1, 0.5), (2, 1.0), (1, 0.5), (0, 0.5)] {
                 let comp = [l.x, l.y, l.z][axis];
@@ -628,9 +697,8 @@ impl Liquid {
         if let Some((temperature, friction, stream)) = bath {
             let c = (-friction * h).exp();
             let kt = K_B * temperature;
-            let m = self.kind.mass;
-            let inertia = self.kind.inertia;
             for i in 0..self.com.len() {
+                let (m, inertia) = (self.kind_of(i).mass, self.kind_of(i).inertia);
                 let xi = stream.normal3();
                 self.momentum[i] = self.momentum[i].scale(c) + xi.scale(((1.0 - c * c) * m * kt).sqrt());
                 let zeta = stream.normal3();
@@ -1345,6 +1413,22 @@ impl Liquid {
     /// length`, with empty space either side for the vapour; orientations and
     /// velocities drawn from `seed` at `temperature`, the total momentum zero.
     pub fn slab(kind: Kind, n: usize, density: f64, side: f64, length: f64, temperature: f64, seed: u64, r_on: f64, r_cut: f64) -> Liquid {
+        Liquid::mixture(vec![(kind, n)], density, side, length, temperature, seed, r_on, r_cut)
+    }
+
+    /// A slab of several kinds of molecule, `(kind, count)` each, mixed at random over the lattice
+    /// sites (a seeded shuffle, its own stream, so a single kind draws exactly what [`Liquid::slab`]
+    /// always did). The first kind is `kind`; the law's site types must be disjoint between kinds.
+    pub fn mixture(kinds: Vec<(Kind, usize)>, density: f64, side: f64, length: f64, temperature: f64, seed: u64, r_on: f64, r_cut: f64) -> Liquid {
+        let n: usize = kinds.iter().map(|k| k.1).sum();
+        let mut species: Vec<usize> = kinds.iter().enumerate().flat_map(|(s, k)| std::iter::repeat_n(s, k.1)).collect();
+        if kinds.len() > 1 {
+            let mut shuffle = Stream::at(seed, 1, 0, Purpose::Positions);
+            for i in (1..species.len()).rev() {
+                let j = ((shuffle.uniform() * (i + 1) as f64) as usize).min(i);
+                species.swap(i, j);
+            }
+        }
         // As near cubic as the box's side allows: the spacing the density
         // gives, rounded to fit the side, and the layers spaced to keep the
         // density.
@@ -1362,6 +1446,7 @@ impl Liquid {
                     if com.len() == n {
                         break 'fill;
                     }
+                    let kind = &kinds[species[com.len()]].0;
                     com.push(Vec3 { x: (i as f64 + 0.5) * spacing, y: (j as f64 + 0.5) * spacing, z: z0 + (k as f64 + 0.5) * dz });
                     let (u1, u2, u3) = (s.uniform(), s.uniform(), s.uniform());
                     let tau = std::f64::consts::TAU;
@@ -1377,7 +1462,11 @@ impl Liquid {
         for p in momentum.iter_mut() {
             *p -= mean;
         }
-        Liquid { kind, cell: [side, side, length], com, orientation, momentum, spin, r_on, r_cut }
+        let mut kinds = kinds.into_iter().map(|k| k.0);
+        let kind = kinds.next().expect("a kind");
+        let other_kinds: Vec<Kind> = kinds.collect();
+        let species = if other_kinds.is_empty() { Vec::new() } else { species };
+        Liquid { kind, other_kinds, species, cell: [side, side, length], com, orientation, momentum, spin, r_on, r_cut }
     }
 }
 

@@ -145,3 +145,107 @@ fn the_fast_erf_agrees_with_the_series() {
     }
     assert!(worst < 1.0, "erf_fast differs from erf by {worst} of its allowance at {at}");
 }
+
+// ---- a liquid of two kinds of molecule (docs/SOLUTIONS.md 4.1) ---------------------------------
+
+/// The law with every site type given a second copy (types `T..2T`), the copies' own charges and
+/// polarisabilities scaled, and every pair entry between any two copies the original's.
+fn doubled(law: &SiteSite, alpha: &[f64], charge_scale: f64, alpha_scale: f64) -> (SiteSite, Vec<f64>) {
+    let t = law.charge.len();
+    let pick = |v: &[f64], a: usize, b: usize| v.get((a % t) * t + (b % t)).copied().unwrap_or(0.0);
+    let mut out = law.clone();
+    out.charge = (0..2 * t).map(|a| law.charge[a % t] * if a >= t { charge_scale } else { 1.0 }).collect();
+    out.sigma = if law.sigma.is_empty() { Vec::new() } else { (0..2 * t).map(|a| law.sigma[a % t]).collect() };
+    out.pair = (0..2 * t * 2 * t).map(|k| law.pair[((k / (2 * t)) % t) * t + (k % (2 * t)) % t]).collect();
+    out.damp = if law.damp.is_empty() { Vec::new() } else { (0..2 * t * 2 * t).map(|k| pick(&law.damp, k / (2 * t), k % (2 * t))).collect() };
+    out.overlap = if law.overlap.is_empty() { Vec::new() } else { (0..2 * t * 2 * t).map(|k| pick(&law.overlap, k / (2 * t), k % (2 * t))).collect() };
+    let a2: Vec<f64> = (0..2 * t).map(|a| alpha[a % t] * if a >= t { alpha_scale } else { 1.0 }).collect();
+    (out, a2)
+}
+
+/// A kind with its site types moved up by `shift`.
+fn shifted(kind: &Kind, shift: usize) -> Kind {
+    let mut k = kind.clone();
+    k.types = k.types.iter().map(|t| t + shift).collect();
+    k
+}
+
+fn mixed_setup(charge_scale: f64, alpha_scale: f64) -> (Setup, Liquid, SiteSite, Vec<f64>) {
+    let pure = setup();
+    let t = pure.law.charge.len();
+    let (law2, alpha2) = doubled(&pure.law, &pure.alpha, charge_scale, alpha_scale);
+    let (k0, k1) = (pure.liquid.kind.clone(), shifted(&pure.liquid.kind, t));
+    let n = pure.liquid.com.len();
+    let mut mix = Liquid::mixture(vec![(k0, n / 2), (k1, n - n / 2)], n as f64 / SIDE.powi(3), SIDE, SIDE, 298.0, 7, 9.5, 11.5);
+    // The same geometry as the pure liquid, so only the labels differ.
+    mix.com = pure.liquid.com.clone();
+    mix.orientation = pure.liquid.orientation.clone();
+    (pure, mix, law2, alpha2)
+}
+
+/// Two labels for one kind of molecule, with every unlike pair given the like pair's entries, are one
+/// liquid: the mixture's energy, forces, torques and virial are the pure liquid's. A species
+/// bookkeeping slip (the wrong charges, the wrong polarisable sites, a constant taken off the wrong
+/// molecule) would move them.
+#[test]
+fn two_labels_of_one_molecule_are_one_liquid() {
+    let (pure, mix, law2, alpha2) = mixed_setup(1.0, 1.0);
+    assert!(!mix.homogeneous(), "the mixture has two species");
+    let polar = Polarisable { law: &pure.law, alpha: pure.alpha.clone() };
+    let polar2 = Polarisable { law: &law2, alpha: alpha2 };
+    let (a, b) = (pure.liquid.forces(&ewald_law(&polar, 3.0, pure.liquid.cell)), mix.forces(&ewald_law(&polar2, 3.0, mix.cell)));
+    let rel = |x: f64, y: f64| (x - y).abs() / y.abs().max(1e-12);
+    println!("energy {:.10} against {:.10}; virial {:.10} against {:.10}", b.energy, a.energy, b.virial, a.virial);
+    assert!(rel(b.energy, a.energy) < 1e-9, "energy");
+    assert!(rel(b.virial, a.virial) < 1e-8, "virial");
+    let worst = (0..a.force.len()).map(|i| (a.force[i] - b.force[i]).norm().max((a.torque[i] - b.torque[i]).norm())).fold(0.0, f64::max);
+    let scale = a.force.iter().map(|f| f.norm()).fold(0.0, f64::max);
+    println!("worst force or torque difference {worst:.2e} against the largest force {scale:.2e}");
+    assert!(worst < 1e-8 * scale, "forces or torques moved");
+    // And it is not trivially so: the same mixture with the second kind's charges scaled is different.
+    let (_, mix3, law3, alpha3) = mixed_setup(0.9, 1.0);
+    let polar3 = Polarisable { law: &law3, alpha: alpha3 };
+    let c = mix3.forces(&ewald_law(&polar3, 3.0, mix3.cell));
+    assert!(rel(c.energy, a.energy) > 1e-3, "a changed charge on one kind must change the energy");
+}
+
+/// In a mixture whose kinds differ (charges and polarisabilities), force and torque are still minus
+/// the derivative of the energy, for a molecule of each kind.
+#[test]
+fn a_mixtures_forces_are_the_energys_derivative() {
+    let (_, mix, law2, alpha2) = mixed_setup(0.9, 1.15);
+    let polar = Polarisable { law: &law2, alpha: alpha2 };
+    let law = ewald_law(&polar, 3.0, mix.cell);
+    let f0 = mix.forces(&law);
+    let first0 = (0..mix.com.len()).find(|&i| mix.species_of(i) == 0).expect("a molecule of the first kind");
+    let first1 = (0..mix.com.len()).find(|&i| mix.species_of(i) == 1).expect("a molecule of the second kind");
+    for &i in &[first0, first1] {
+        for axis in 0..3 {
+            let d = 2e-3;
+            let e_pos = |dx: f64| -> f64 {
+                let mut l = mix.clone();
+                let mut v = Vec3::ZERO;
+                match axis {
+                    0 => v.x = dx,
+                    1 => v.y = dx,
+                    _ => v.z = dx,
+                }
+                l.com[i] += v;
+                l.forces(&law).energy
+            };
+            let fd = -(e_pos(d) - e_pos(-d)) / (2.0 * d);
+            let fa = [f0.force[i].x, f0.force[i].y, f0.force[i].z][axis];
+            assert!((fa - fd).abs() < 2e-6, "molecule {i} (kind {}) axis {axis}: force {fa:e} against {fd:e}", mix.species_of(i));
+            let e_rot = |th: f64| -> f64 {
+                let mut l = mix.clone();
+                let e = [Vec3 { x: 1.0, y: 0.0, z: 0.0 }, Vec3 { x: 0.0, y: 1.0, z: 0.0 }, Vec3 { x: 0.0, y: 0.0, z: 1.0 }][axis];
+                l.orientation[i] = l.orientation[i].then(Quat::from_axis_angle(e, th)).unit();
+                l.forces(&law).energy
+            };
+            let td = -(e_rot(d) - e_rot(-d)) / (2.0 * d);
+            let tb = mix.orientation[i].conjugate().rotate(f0.torque[i]);
+            let ta = [tb.x, tb.y, tb.z][axis];
+            assert!((ta - td).abs() < 2e-6, "molecule {i} (kind {}) axis {axis}: torque {ta:e} against {td:e}", mix.species_of(i));
+        }
+    }
+}

@@ -57,7 +57,7 @@ fn lattice(side: usize, spacing: f64, temperature: f64) -> Liquid {
         *p -= mean;
     }
     let edge = side as f64 * spacing;
-    Liquid { kind, cell: [edge; 3], com, orientation, momentum, spin, r_on: 0.45 * edge - 2.0 * A, r_cut: 0.45 * edge }
+    Liquid { kind, other_kinds: Vec::new(), species: Vec::new(), cell: [edge; 3], com, orientation, momentum, spin, r_on: 0.45 * edge - 2.0 * A, r_cut: 0.45 * edge }
 }
 
 /// A kind is centred on its mass and turned onto its principal axes: its
@@ -82,7 +82,7 @@ fn a_kind_sits_on_its_principal_axes() {
 fn a_free_rotor_keeps_its_energy_and_angular_momentum() {
     let kind = water_kind();
     let spin = Vec3 { x: 3.0, y: -2.0, z: 1.5 };
-    let mut l = Liquid { kind, cell: [1e6; 3], com: vec![Vec3::ZERO], orientation: vec![Quat::IDENTITY], momentum: vec![Vec3::ZERO], spin: vec![spin], r_on: 1.0, r_cut: 2.0 };
+    let mut l = Liquid { kind, other_kinds: Vec::new(), species: Vec::new(), cell: [1e6; 3], com: vec![Vec3::ZERO], orientation: vec![Quat::IDENTITY], momentum: vec![Vec3::ZERO], spin: vec![spin], r_on: 1.0, r_cut: 2.0 };
     let lab = |l: &Liquid| l.orientation[0].rotate(l.spin[0]);
     let (e0, l0) = (l.kinetic().1, lab(&l));
     let mut f = l.forces(&Spc);

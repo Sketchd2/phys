@@ -245,6 +245,9 @@ pub fn run(args: Vec<String>) {
     let settle = steps / 5;
     let every = ((0.1 / PS) / dt) as usize;
     let mut samples: Vec<(f64, f64, f64, f64)> = Vec::new();
+    // The molecules' dipoles (permanent charges and induced dipoles) at each sample: the mean magnitude
+    // and the box's total, whose fluctuations give the dielectric constant (docs/SOLUTIONS.md 2, rows 23 and 29).
+    let mut dipoles: Vec<(f64, Vec3)> = Vec::new();
     // g(r) of the first atoms, 0.1 A bins out to half the shortest box edge.
     let bin = 0.1 / 0.529177210903;
     let r_max = 0.5 * l.cell.iter().cloned().fold(f64::INFINITY, f64::min);
@@ -259,6 +262,21 @@ pub fn run(args: Vec<String>) {
             writeln!(file, "{:.3} {:.4} {:.1} {:.1} {:.1}", step as f64 * dt * PS, s.0, s.1, s.2, s.3).ok();
             file.flush().ok();
             samples.push(s);
+            let (mut total, mut magnitude) = (Vec3::ZERO, 0.0);
+            for i in 0..n {
+                let mut p = Vec3::ZERO;
+                for (k, site) in l.kind.sites.iter().enumerate() {
+                    p += l.orientation[i].rotate(*site).scale(law.charge[l.kind.types[k]]);
+                }
+                if let Some(d) = f.dipoles.get(i) {
+                    for m in d {
+                        p += *m;
+                    }
+                }
+                total += p;
+                magnitude += p.norm();
+            }
+            dipoles.push((magnitude / n as f64, total));
             let first: Vec<Vec3> = (0..n).map(|i| l.com[i] + l.orientation[i].rotate(l.kind.sites[0])).collect();
             for i in 0..n {
                 for j in i + 1..n {
@@ -293,6 +311,29 @@ pub fn run(args: Vec<String>) {
     println!("  U/N {:.3} +- {:.3} kcal/mol; heat of vaporisation -U/N + RT = {:.3} kcal/mol", mean(0), spread(0), -mean(0) + rt);
     println!("  pressure {:.0} +- {:.0} bar at {density_g} g/cm3 (a liquid at the right density sits near 1 bar; positive says it wants to expand)", mean(1), spread(1));
     println!("  temperatures: translation {:.1} K, rotation {:.1} K (bath {temperature} K)", mean(2), mean(3));
+    {
+        // 1 e a0 = 2.541746 D. The dielectric constant of tin-foil boundaries: 1 + 4 pi (<M^2> - <M>^2) / (3 V k T).
+        const DEBYE: f64 = 2.541746;
+        let m = dipoles.len() as f64;
+        let mean_dip = dipoles.iter().map(|d| d.0).sum::<f64>() / m;
+        let mean_m = dipoles.iter().fold(Vec3::ZERO, |a, d| a + d.1).scale(1.0 / m);
+        let fluct = dipoles.iter().map(|d| (d.1 - mean_m).norm2()).sum::<f64>() / m;
+        let volume = l.cell[0] * l.cell[1] * l.cell[2];
+        let eps = 1.0 + 4.0 * std::f64::consts::PI * fluct / (3.0 * volume * K_B * temperature);
+        // Block estimates, for an honest error bar (the dielectric constant converges slowly).
+        let blocks = 5usize;
+        let per = dipoles.len() / blocks;
+        let be: Vec<f64> = (0..blocks)
+            .map(|c| {
+                let s = &dipoles[c * per..(c + 1) * per];
+                let mm = s.iter().fold(Vec3::ZERO, |a, d| a + d.1).scale(1.0 / per as f64);
+                1.0 + 4.0 * std::f64::consts::PI * s.iter().map(|d| (d.1 - mm).norm2()).sum::<f64>() / per as f64 / (3.0 * volume * K_B * temperature)
+            })
+            .collect();
+        let bm = be.iter().sum::<f64>() / blocks as f64;
+        let bs = (be.iter().map(|x| (x - bm).powi(2)).sum::<f64>() / (blocks - 1) as f64 / blocks as f64).sqrt();
+        println!("  mean molecular dipole {:.3} D (permanent charges and induced dipoles); dielectric constant {eps:.1} (blocks {bm:.1} +- {bs:.1}; slow to converge)", mean_dip * DEBYE);
+    }
     // The dispersion beyond the cut-off, from the law's own C6 (isotropic, g = 1):
     // P = -2 pi rho^2 C6 I, I = integral from r_on of (1 - S) / r^4; and the same for U/N.
     {
