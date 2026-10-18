@@ -5469,8 +5469,11 @@ the start of the phase, ahead of the renderer**. In order:
      - **Decided (the owner, 2026-10-18): if the transferability test fails, one
        candidate term at a time may be tried, each reported, none adopted without the
        owner's say-so,** the candidates drawn first from the checklist's absent rows.
-     - **Open, the owner's** (§8, four items remaining): a tolerance for an excess property
-       and a miscibility gap; the pressure range; the zero-point correction in a stored
+     - **Decided (the owner, 2026-10-18): tolerance.** Convergence by the plan's rule
+       (enough when tightening no longer moves the diagram beyond sampling error);
+       accuracy against experiment reported as a table with no pass/fail bound until
+       the first results exist, then fixed by the owner.
+     - **Open, the owner's** (§8, three items remaining): the pressure range; the zero-point correction in a stored
        diagram; and the Ewald GPU port as the enabling speed item.
      - **Cost, estimated and so flagged** (§9): about 40 hours a nanosecond of the
        rigid Ewald liquid on the present code, so thermodynamic integration is weeks

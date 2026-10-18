@@ -529,11 +529,16 @@ than chosen between, per `CLAUDE.md`.
    term is chosen because the checklist already named it; the owner expects the
    checklist to make this branch rare. A term outside the checklist is a finding
    to report before it is tried.
-7. **The tolerance for a derived phase diagram.** The plan gives 0.1 % on a
-   geometry and the 25 % boiling-point bound in a failing test; it states no
-   tolerance for an excess property or a miscibility gap. Boiling points are the
-   measure the owner chose for the basis tolerance; the same use is proposed here
-   (a looser tolerance that leaves the diagram unchanged is enough), to be agreed.
+7. **The tolerance for a derived phase diagram. DECIDED (the owner, 2026-10-18):
+   option C.** Two separate things. (a) *Convergence*, by the plan's own rule: a
+   tolerance (basis, grid, run length, box size) is enough when tightening it no
+   longer moves the derived diagram (boiling curve, activity coefficients,
+   miscibility gap) by more than the sampling error. (b) *Accuracy*: the error
+   against experiment is **reported as a table** for every derived quantity, with
+   **no pass/fail bound set** until the first results show what the law achieves;
+   **the owner then fixes the bounds with those numbers in front of them.** A
+   stage's done-when therefore reads "reported with its convergence shown", not
+   "within X %", until the owner sets X.
 8. **Pressure-dependence.** E11 says the range is determined by the world, not fixed
    in advance. Whether a solution's diagram is first derived at 1 atm only, or over
    a fixed set of pressures, is the owner's.
