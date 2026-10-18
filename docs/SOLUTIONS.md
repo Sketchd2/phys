@@ -564,11 +564,15 @@ than chosen between, per `CLAUDE.md`.
    which was not added; the water + methanol run contains methanol's torsions and is the
    only check on it.* If that run shows the hindered-rotor term is wrong, it goes to the
    owner before pure methanol or ethanol is added.
-10. **Simulation speed.** Free-energy runs need nanoseconds (§9). Porting the Ewald
-    reciprocal sum to the GPU in double precision, in the manner of the induction and
-    pair loops, is the large enabling item; it is engineering for shorter compute, which
-    the owner has said is acceptable, and must keep results to the tolerance the CPU
-    path holds. Confirm.
+10. **Simulation speed. DECIDED (the owner, 2026-10-18): port the Ewald reciprocal
+    sum to the GPU now (option A)**, before S3, in double precision, deterministic
+    (fixed-order sums, no atomics), and checked against the CPU path to the
+    tolerance it already holds (the induction and pair-loop ports are the model).
+    **And a standing rule: always check whether a process would be faster on the GPU,
+    to save real time.** Each long computation in this item is timed by part before it
+    is run, and a part that is compute-bound and parallel is a candidate for the card;
+    the check and its result are recorded, whether or not the port is made. Results
+    stay unchanged to the stated tolerance (the owner's earlier ruling).
 
 ## 9. Cost, from what has been measured
 
