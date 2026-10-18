@@ -634,6 +634,83 @@ external field and so needs its own kernel, and the rigid `Liquid` has no pair-l
 **Whether to port them is not decided here:** the owner approved the reciprocal sum; the
 others are reported as the result of the standing check and are the owner's to approve.
 
+### 9.2 The Ewald reciprocal sums on the card: what was built and what it gave (2026-10-18)
+
+Built (`src/ewald.rs`, `gpu/src/ewald.rs`, `gpu/src/ewald.wgsl`, committed `68e5b36`): a
+`ReciprocalEngine` / `ReciprocalSession` seam, the CPU's work behind it as the reference
+(`CpuReciprocal`), `phys-gpu`'s `GpuEwald` as the card's, and `phys-bulk` made a library
+function (`phys::bulk::run`) so `phys-bulk-gpu` can install the engine.
+
+```text
+the CPU path through the new session      phys-ewald check output identical to the code before it
+                                          (energy, pressure, forces, torques, virial, as printed);
+                                          force and torque against finite differences 1e-8
+the card against the CPU                  3e-15 relative on the structure factors, the field, the
+                                          response, the arm sums and both forces; virial and energy
+                                          to 1e-11; the same bits on two calls (gpu/tests/ewald.rs)
+```
+
+Speed, 216 molecules, one force evaluation, machine otherwise idle:
+
+```text
+                                          CPU            card
+first card version (a thread a wave vector, serial over the sites)
+   dipole response in the solve           28 ms          27.8 ms    -> no gain: 1,535 threads left the card idle
+reduction version (a workgroup a wave vector or site, fixed-tree sums)
+   before the solve (phases, S_q, field)  12.5 ms        4.9 ms
+   dipole response in the solve (11 calls) 26-28 ms      22.4 ms
+   whole force evaluation                 99-108 ms      86-88 ms     (about 15 % better)
+```
+
+**This is far short of the estimate in 9.1 (93 -> about 50 ms), and the reason is measured.**
+Run back to back, the kernels take 0.38 ms each (k_dsum, k_resp, k_sq, k_gch) and a
+submission's floor is 0.13 ms (`where_a_submission_goes`). Inside the liquid each submission
+averages **2.08 ms** on the card, five times longer, and `nvidia-smi` shows the card at **540
+MHz against its 2145 MHz maximum** (P8) throughout the run: a sub-millisecond kernel every few
+milliseconds, with the CPU doing the real-space work between, never lets the driver raise the
+clock. The clocks cannot be set without administrator rights (`nvidia-smi -lgc` is refused).
+So a GPU port of one part of a step is worth much less than its benchmark; the gain arrives
+when **the whole step is resident on the card**, as the flexible-water ports were (22 ms a
+step with both the induced-dipole solve and the pair loop on it, `PLAY.md` E8c).
+
+What the standing GPU check therefore recommends, **for the owner's decision** (the owner
+approved the reciprocal sums only): port the Ewald law's real-space induced-dipole solve (its
+own kernels: the differenced `erf` terms and an external field) and the rigid liquid's pair
+loop, so that a step is a stream of kernels with one readback. Estimated from the flexible
+ports, a step of the order of 20 ms against 87 now. Until then `phys-bulk-gpu` is the
+better of the two binaries by about 15 %, and runs at the same numbers to round-off.
+
+## 9.3 Keeping the machine busy (the owner, 2026-10-18)
+
+*"Try to ensure no down time of the CPU and GPU. If there are other tasks such as pairwise
+calcs that can run that are not dependent on previous work, these can be run earlier in the
+plan."* Recorded as a standing rule of this item: **whenever the CPU or the GPU is idle and
+a calculation that depends on nothing still undecided or unbuilt is waiting, it is started**,
+resumably and at low priority, and the stage it belongs to is noted. A job that would give a
+result that a later decision invalidates is not started (the data or the shape it needs does
+not yet exist, or a law it would be fitted to is still to be rebuilt).
+
+Started on 2026-10-18, on the CPU (`runs/e8e/grow/run.sh`, below-normal priority, resumable,
+logs in `runs/e8e/grow/grow-<name>.log`): **basis growth to the stopping rule (E5b) for
+ammonia (carrying on from round 11), methanol, ethanol (never begun) and methane**, one after
+another. Nothing in it depends on any law, and every later pair and cluster calculation for
+those molecules needs the converged shape and basis.
+
+Not started, and why (each waits on a named thing, which is the list to start from):
+
+| Work | Stage | Waits on |
+|---|---|---|
+| MP2 pairs of ammonia and of methanol, uniform draw and wall draw (law-independent) | S1 | the converged shape of the molecule, so no pair is computed at a geometry that growth still moves (hours for ammonia) |
+| MP2 pairs of unlike molecules (water + ammonia, + methanol, + methane, + ethanol) | S2 | **code**: `pairs.rs` samples pairs of one molecule; two different monomers need it generalised (a small, independent piece of engineering, the first thing to build); and the monomers' converged shapes |
+| Monomer properties (polarisability, charge cloud, dispersion blocks, energy surface) for ammonia, methanol, ethanol | S1 | the converged shape |
+| Ion bases for Na+ and Cl- and ion-water MP2 pairs, trimers and shells | S5 | **code**: charged single atoms in the growth and pair tools; the diffuse functions an anion needs are found by the growth rule |
+| Hexamer-and-larger cluster reference for the water law (checklist row 18) | S0 | a liquid snapshot of any law (the reference energy does not depend on the law) and the GPU's free time |
+| Real-space solve and pair loop on the card (9.2) | speed | the owner's decision |
+
+While the cores are growing bases, the GPU is the one that can idle; the first job to put on it
+is whichever of the above has its prerequisite met, and the first piece of code to write
+(unlike-pair sampling) is on the critical path of S2 and S5.
+
 ## 10. What this document does not do
 
 It does not add a term to the law, choose a functional, change a default, or

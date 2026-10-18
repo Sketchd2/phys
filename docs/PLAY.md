@@ -5489,6 +5489,15 @@ the start of the phase, ahead of the renderer**. In order:
        earlier water laws are not inputs to this item; each substance's law is rebuilt
        under the E8 conditions in S1, the cross terms in S2. An old law may stand in only
        where the number measured does not depend on its values (a timing), and says so.
+     - **Ewald reciprocal sums on the GPU, built (2026-10-18)**, in double precision, agreeing with
+       the CPU to 3e-15 relative: a step of 216 molecules went from 99-108 ms to 86-88 ms, not the
+       estimated 50, because a card given a sub-millisecond kernel every few milliseconds stays at
+       540 of 2145 MHz. The gain is whole-step residency (the real-space solve and pair loop on the
+       card too, about 20 ms by the flexible ports), which awaits the owner's decision.
+       `docs/SOLUTIONS.md` 9.2.
+     - **Keep the CPU and GPU busy (the owner, 2026-10-18):** independent work (basis growth for
+       ammonia, methanol, ethanol and methane is running; pair and cluster calculations as their
+       prerequisites are met) is started early. `docs/SOLUTIONS.md` 9.3 lists what waits on what.
      - **Cost, estimated and so flagged** (§9): about 40 hours a nanosecond of the
        rigid Ewald liquid on the present code, so thermodynamic integration is weeks
        until the reciprocal sum is on the card.
