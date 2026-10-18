@@ -401,7 +401,7 @@ must be verified from sources before a test uses them.
 | water + ammonia | miscible; strongly negative deviation | unlike donor/acceptor balance; N has one lone pair for three N–H |
 | water + methane | near-immiscible; solubility x ~ 2.5e-5 at 1 atm and 298 K | hydrophobic hydration; the case a pair law is least likely to get |
 | methanol + methane, ammonia + methane | partially miscible at low T | dispersion-only partner against a polar one |
-| water + ethanol (if the alcohol is ethanol) | azeotrope near 95.6 wt % (78.2 °C) | an azeotrope derived from the law and nothing else is a sharp test |
+| water + ethanol, at the azeotrope and at x = 0.10 and 0.50 | azeotrope near 95.6 wt % (78.2 °C); the boiling curve and activity coefficients at the two other compositions | an azeotrope derived from the law and nothing else is a sharp test; the other two ratios show where the curve departs from Raoult |
 
 ## 7. Stages
 
@@ -433,7 +433,8 @@ routes to the pure vapour pressure agree within their errors. This is the check 
 the machinery all mixing depends on.
 
 **S4. Binary liquid–vapour and liquid–liquid.** Water + methanol first (the
-mildest), then water + ammonia, water + methane. *Done when* each gives `gamma_i(x)`
+mildest), then water + ammonia, water + methane. **S4b (after S4, the owner's
+decision 1):** water + ethanol at x = 0.10, 0.50 and the azeotrope's composition. *Done when* each gives `gamma_i(x)`
 satisfying Gibbs–Duhem within error, the bubble and dew curves, and miscibility or
 the gap, and one composition reproduced by direct mixed-slab coexistence.
 
@@ -468,10 +469,20 @@ its mixture's boiling point and gets the rule, flagged when outside its range.
 These came up while designing this; none has been decided. They are listed rather
 than chosen between, per `CLAUDE.md`.
 
-1. **Which alcohol.** E8's set has methanol; "alcohol" in the request may mean
-   ethanol. Methanol has a growth state and no pair data; ethanol has neither and
-   brings a torsion (treatment (2)) and an azeotrope, which makes it the better test
-   of the mixing law. *Default used here: methanol, with ethanol as the extension.*
+1. **Which alcohol. DECIDED (the owner, 2026-10-18): methanol first, ethanol
+   after** (option C). Methanol is E8's substance and goes through S1-S4 as
+   planned. Ethanol is added once the mixing law works, as the azeotrope test.
+   **And the ethanol-water solution is tested at two ratios besides the
+   azeotrope's.** Read as: the azeotrope composition (about 95.6 wt %, mole fraction
+   about 0.89; to be verified from sources) *plus* two other compositions. *The two
+   are the author's choice inside the item and the owner's to overrule:* mole
+   fraction of ethanol 0.10 (about 22 wt %, a water-rich solution where water's
+   network is still mostly intact) and 0.50 (about 72 wt %, the middle of the range).
+   Together with the azeotrope they sample both sides of the boiling curve's
+   extremum; the pure ends are already tested (§6.1). In a 216-molecule box 0.10 is 22
+   ethanol + 194 water and 0.50 is 108 + 108; the azeotrope's 0.89 is 192 + 24.
+   Ethanol needs everything methanol does (growth, MP2 pairs, fit) plus a second
+   rotor, so its torsions follow the treatment (2) result from methanol.
 2. **Solutions beyond the one asked for.** The request names only the saline
    solution as a solution; the binaries in §6.2 are included because a general
    mixing law cannot be judged on one electrolyte. Confirm the binaries are in

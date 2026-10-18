@@ -5453,9 +5453,10 @@ the start of the phase, ahead of the renderer**. In order:
        ammonia, methane); S5 ions; S6 the 1 % saline solution; S7 solid phases and the
        full diagram on E11's order; S8 ratio buckets and the stored rule with a quick
        derivation in front of the thorough one.
-     - **Open, the owner's** (§8, ten items): which alcohol (methanol is E8's and
-       has no pair data; ethanol is what is usually meant and brings a torsion and an
-       azeotrope); whether the binaries in the test set are in scope; solid phases and
+     - **Decided (the owner, 2026-10-18): the alcohol is methanol first, ethanol
+       after**, ethanol tested at the azeotrope and at two other ratios (the author's
+       choice, the owner's to overrule: mole fraction of ethanol 0.10 and 0.50).
+     - **Open, the owner's** (§8, nine items remaining): whether the binaries in the test set are in scope; solid phases and
        their order; hydrates and clathrates; the ice-disorder choice; what the law owes
        a mixture if the transferability test fails; a tolerance for an excess property
        and a miscibility gap; the pressure range; the zero-point correction in a stored
