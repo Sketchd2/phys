@@ -546,15 +546,24 @@ than chosen between, per `CLAUDE.md`.
    pressure and temperature range it was derived over and is flagged when used
    outside it. No set of pressures is fixed in advance.
 9. **Quantum nuclei in the diagram. DECIDED (the owner, 2026-10-18): option D,
-   with the check widened.** First the diagram is classical and labelled as such
-   (the results table states the known zero-point offset). Then a harmonic zero-point
-   correction from the engine's own vibrational frequencies is added. The
-   path-integral comparison that measures how good that correction is **is run on a
-   few solutions and not only on pure water.** *Which solutions is the author's
-   proposal and the owner's to overrule:* pure water (E8c's planned case), water +
-   methanol (a hydrogen-bonded mixture), and water + methane (a hydrophobic one), with
-   the 1 % saline solution added if the cost allows, the ions being the case where
-   the correction is least obvious. Costs 16-32 times a classical run each.
+   with the check widened, and the torsion handled as a hindered rotor.** First the
+   diagram is classical and labelled as such (the results table states the known
+   zero-point offset). Then a zero-point correction from the engine's own vibrational
+   frequencies is added. **The path-integral comparison that measures how good that
+   correction is runs on: pure water, pure methane, pure ammonia, water + methanol and
+   water + methane, with the 1 % saline solution added if the cost allows** (the
+   owner confirmed this set, 2026-10-18; each costs 16-32 times a classical run).
+   *Pure methane and ammonia were added to bracket the range: methane has no
+   hydrogen bonds and the weakest effect, ammonia sits between it and water.*
+   **Torsions (the owner: option B).** A molecule with a rotor (methanol's methyl and
+   O-H, ethanol's two) is a hindered rotor, for which neither a harmonic oscillator nor
+   a free rotor is right, so its torsional contribution is taken from the torsional
+   energy levels of the isolated molecule on the engine's own energy surface, in place of
+   the harmonic term. It is derived, and it does not capture the torsion's coupling to
+   the liquid. *The error of this is not measured by a pure-methanol path-integral run,
+   which was not added; the water + methanol run contains methanol's torsions and is the
+   only check on it.* If that run shows the hindered-rotor term is wrong, it goes to the
+   owner before pure methanol or ethanol is added.
 10. **Simulation speed.** Free-energy runs need nanoseconds (§9). Porting the Ewald
     reciprocal sum to the GPU in double precision, in the manner of the induction and
     pair loops, is the large enabling item; it is engineering for shorter compute, which
