@@ -5464,7 +5464,9 @@ the start of the phase, ahead of the renderer**. In order:
        derived diagram interacts with the rest of the engine waits until E11.**
      - **Decided (the owner, 2026-10-18): hydrates and clathrates (methane clathrate,
        the ammonia hydrates, hydrohalite) are included, as S9, after S7.**
-     - **Open, the owner's** (§8, six items remaining): the ice-disorder choice; what the law owes
+     - **Decided (the owner, 2026-10-18): ice's proton disorder is sampled** (several
+       arrangements obeying the ice rules, their spread part of the melting point's error).
+     - **Open, the owner's** (§8, five items remaining): what the law owes
        a mixture if the transferability test fails; a tolerance for an excess property
        and a miscibility gap; the pressure range; the zero-point correction in a stored
        diagram; and the Ewald GPU port as the enabling speed item.

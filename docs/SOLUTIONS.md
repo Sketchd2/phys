@@ -511,9 +511,15 @@ than chosen between, per `CLAUDE.md`.
    salt-water diagram. *Which hydrates, their structures and the order among them are
    the author's to propose when S9 is reached and the owner's to confirm; none is
    chosen here.*
-5. **The ice structure.** Ice Ih is proton-disordered; the choice of how to sample or
-   enumerate the disorder, or whether to use ice XI or another ordered proxy for the
-   free energy, is a modelling decision the plan does not make.
+5. **The ice structure. DECIDED (the owner, 2026-10-18): sample the proton
+   disorder** (option A). Ice Ih is run as several random hydrogen arrangements that
+   obey the ice rules, or a Monte Carlo over them, and the free energy is averaged
+   over them. *The number of arrangements, and whether a Monte Carlo replaces a fixed
+   set, are the author's to propose in S7 and the owner's to confirm.* The spread
+   between arrangements is reported as part of the melting point's error, so the
+   disorder is a measured contribution and is not hidden in it. If cost makes this
+   impractical the fallback is an ordered proxy (ice XI) plus the Pauling residual
+   entropy counted from the arrangements, and **that change goes to the owner first.**
 6. **What the law owes a mixture.** If the transferability test (§4.4) falls in the
    third branch, a term is missing from the form — a `PHYSICS.md`-weight addition.
    This document commits to reporting that and not to adding it.
