@@ -5391,6 +5391,78 @@ the start of the phase, ahead of the renderer**. In order:
        that they exist; (5) a second molecule, since only water has pair data.
        Not measured: Ewald dynamics for more than one law, runs longer than 30
        ps, the effect of the tin-foil boundary, any molecule but water.
+   - **E8e, liquid solutions: the water-law checklist and the plan for a
+     general solution (the owner, 2026-10-18; a plan, nothing in it run).**
+     *The owner asked for: the literature's list of what sets inter- and
+     intramolecular forces in a liquid recorded as a checklist for the water
+     law; `PLAY.md` reviewed; a general solution for liquid solutions designed;
+     the phase diagram of each solution derived from that law; and tests against
+     water, methane, ammonia, alcohol and a 1 % (by mass) sodium chloride
+     solution. Recorded in full in `docs/SOLUTIONS.md` so that a power or session
+     loss costs nothing; this entry is the summary and the stage list.*
+     - **The checklist** (SOLUTIONS.md §2): 38 rows over intermolecular forces
+       (repulsion and its anisotropy, permanent electrostatics and penetration,
+       long-range sums, induction and its damping, quenching and non-additivity,
+       charge transfer, dispersion C6, C8, tail and many-body, hydrogen-bond
+       cooperativity, higher-body terms), intramolecular (stretch, bend,
+       anharmonicity, geometry change in the liquid, dipole enhancement), condensed
+       phase (state point, sampling, nuclear quantum effects, screening, finite
+       size, dynamics) and method (reference basis and MP2, fit weighting,
+       conditioning, wall holes, simulator, like-for-like heat of vaporisation).
+       Each row says what the law has now, its status (derived, fitted to the
+       engine's own energies, partial, absent, unmeasured), the evidence already in
+       E8b-E8d, and what would settle it. **Rows 7/10, 18, 23, 29, 12, 28 and 11 are
+       the ones the project's own evidence ranks first.** No row adds a term to the
+       law; that is `PHYSICS.md`-weight and the owner's.
+     - **The general solution** (§4): a solution is the same law with every term a
+       function of two sites' derived records and no mixing rule typed in. Each
+       species supplies a monomer record derived once (geometry, cloud, polarisability,
+       dispersion blocks, energy surface); cross electrostatics, induction and
+       dispersion follow from the two records; the repulsion strengths are the one
+       fitted place, from the engine's MP2 energies of unlike pairs. **Transferability
+       is measured, not assumed:** the law formed from the pure components, with no
+       unlike data, is run against 40 MP2 pairs of each unlike combination, and three
+       outcomes (within 1.5x, 1.5-4x, worse) are defined before the result is known;
+       the third goes to the owner before anything is fitted. Ions are the same record
+       with a net charge and a grown diffuse basis, with their data from MP2 ion-water
+       pairs, trimers and shells.
+     - **The phase diagram** (§5): pure liquid-vapour by `phys-coexist` (with a
+       slab-appropriate Ewald boundary and an inhomogeneous dispersion tail),
+       solid-liquid and sublimation by crystal free energies on E11's order, and
+       solutions by chemical potentials (thermodynamic integration, the vapour by
+       second virial coefficients) so that composition does not drift as it does in a
+       mixed slab, with Gibbs-Duhem, the pure limit and one direct mixed-slab
+       composition as the checks on the machinery; miscibility from the Gibbs energy
+       of mixing; the freezing curve from the solvent's activity against the ice's
+       chemical potential.
+     - **The saline case** (§5.6): 1 % by mass is one NaCl to 321.2 waters, so the
+       smallest exact box is 321 H2O + Na+ + Cl- (1.0006 %), and the pair is
+       dominated by finite size in it (ion separation about 19 A against a 22 A box),
+       so the run is 321/642/1284 waters with 1/2/4 pairs, extrapolated. The solvent's
+       chemical potential moves only about 0.003 kcal/mol, below what sampling
+       resolves, so the solute's excess chemical potential is integrated and the
+       solvent's activity follows by Gibbs-Duhem; boiling elevation (about 0.16 K) and
+       freezing depression (about 0.6 K) come from that, structure, density and the
+       apparent molar volume are sampled directly, and each result is quoted with its
+       resolution.
+     - **Stages** (§7): S0 close the cheap checklist rows (mean dipole, dielectric
+       constant, quadrupole, polarisability anisotropy); S1 the four boiling points of
+       E8 by coexistence, which have not been run with the working law; S2 cross terms
+       and the transferability test; S3 chemical potentials checked against
+       coexistence; S4 binary liquid-vapour and liquid-liquid (water + methanol,
+       ammonia, methane); S5 ions; S6 the 1 % saline solution; S7 solid phases and the
+       full diagram on E11's order; S8 ratio buckets and the stored rule with a quick
+       derivation in front of the thorough one.
+     - **Open, the owner's** (§8, ten items): which alcohol (methanol is E8's and
+       has no pair data; ethanol is what is usually meant and brings a torsion and an
+       azeotrope); whether the binaries in the test set are in scope; solid phases and
+       their order; hydrates and clathrates; the ice-disorder choice; what the law owes
+       a mixture if the transferability test fails; a tolerance for an excess property
+       and a miscibility gap; the pressure range; the zero-point correction in a stored
+       diagram; and the Ewald GPU port as the enabling speed item.
+     - **Cost, estimated and so flagged** (§9): about 40 hours a nanosecond of the
+       rigid Ewald liquid on the present code, so thermodynamic integration is weeks
+       until the reciprocal sum is on the card.
    - **E8z, remove what was not chosen.** *Planned by the owner, to be done
      once the method above is validated and the owner confirms it; nothing is
      removed before that.* Every method the engine carries and the decision
