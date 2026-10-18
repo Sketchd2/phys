@@ -400,7 +400,7 @@ must be verified from sources before a test uses them.
 | water + methanol | miscible at all ratios; mild positive deviation from Raoult; no azeotrope at 1 atm | polar–polar, both hydrogen bonded |
 | water + ammonia | miscible; strongly negative deviation | unlike donor/acceptor balance; N has one lone pair for three N–H |
 | water + methane | near-immiscible; solubility x ~ 2.5e-5 at 1 atm and 298 K | hydrophobic hydration; the case a pair law is least likely to get |
-| methanol + methane, ammonia + methane | partially miscible at low T | dispersion-only partner against a polar one |
+| methanol + methane, ammonia + methane | partially miscible at low T | dispersion-only partner against a polar one. **Later, in due course (the owner, 2026-10-18); not in S4.** |
 | water + ethanol, at the azeotrope and at x = 0.10 and 0.50 | azeotrope near 95.6 wt % (78.2 °C); the boiling curve and activity coefficients at the two other compositions | an azeotrope derived from the law and nothing else is a sharp test; the other two ratios show where the curve departs from Raoult |
 
 ## 7. Stages
@@ -483,10 +483,12 @@ than chosen between, per `CLAUDE.md`.
    ethanol + 194 water and 0.50 is 108 + 108; the azeotrope's 0.89 is 192 + 24.
    Ethanol needs everything methanol does (growth, MP2 pairs, fit) plus a second
    rotor, so its torsions follow the treatment (2) result from methanol.
-2. **Solutions beyond the one asked for.** The request names only the saline
-   solution as a solution; the binaries in §6.2 are included because a general
-   mixing law cannot be judged on one electrolyte. Confirm the binaries are in
-   scope, and which.
+2. **Solutions beyond the one asked for. DECIDED (the owner, 2026-10-18):
+   option B.** The binaries in scope now are the three water binaries (water +
+   methanol, water + ammonia, water + methane), plus water + ethanol (decision 1)
+   and the 1 % saline solution. *Methanol + methane and ammonia + methane are not
+   dropped: the owner will have them tested in due course.* They stay in §6.2 marked
+   as later, and the design (§4) does not depend on them.
 3. **Solid phases in this item.** E11 puts the crystal free energies after the liquid
    and the owner placed it at the end; the phase diagram asked for here includes them. S7
    schedules them last, on E11's order. Say if they should come earlier.
