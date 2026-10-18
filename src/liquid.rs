@@ -253,6 +253,7 @@ impl Liquid {
     /// from `warm`: the last step's, which the next step's differ from by a
     /// little, so the solve takes a few iterations and not twenty.
     pub fn forces_from(&self, law: &dyn SiteLaw, warm: Option<&[Vec<Vec3>]>) -> Forces {
+        let t_forces = std::time::Instant::now();
         let n = self.com.len();
         let arms: Vec<Vec<Vec3>> = (0..n).map(|i| self.arms(i)).collect();
         let types = &self.kind.types;
@@ -309,8 +310,12 @@ impl Liquid {
         // Every pair is in two rows, with the same product `d . F`: half the
         // rows' sum is the sum over pairs.
         let mut forces = Forces { energy: energy_rows.iter().sum(), force, torque, virial: 0.5 * virial_rows.iter().sum::<f64>(), dipoles: Vec::new() };
+        let t_pairs = t_forces.elapsed();
         if let Some(ew) = law.ewald() {
             self.add_ewald(&mut forces, &arms, law, ew, warm);
+            if std::env::var_os("PHYS_PROFILE").is_some() {
+                eprintln!("  forces: pair loop {:.1} ms, whole {:.1} ms", t_pairs.as_secs_f64() * 1e3, t_forces.elapsed().as_secs_f64() * 1e3);
+            }
         } else if let Some((alpha, charge)) = law.induction() {
             self.add_induction(&mut forces, &arms, alpha, charge, law.charge_widths(), warm);
         }
@@ -435,7 +440,13 @@ impl Liquid {
             }
             let ph_d = ew.phases(&dpos);
             let e0_lr = ew.field_at_dipoles(&sq, &ph_d, dpos.len());
-            let response = |x: &[Vec3]| ew.dipole_response(&ph_d, x);
+            let t_response = std::cell::Cell::new(std::time::Duration::ZERO);
+            let response = |x: &[Vec3]| {
+                let t0 = std::time::Instant::now();
+                let r = ew.dipole_response(&ph_d, x);
+                t_response.set(t_response.get() + t0.elapsed());
+                r
+            };
             let mut cl = Cluster::default();
             for i in 0..n {
                 cl.pol.push(pol_sites.iter().map(|&k| PolSite { pos: self.com[i] + arms[i][k], alpha: alpha[types[k]] }).collect());
@@ -458,6 +469,9 @@ impl Liquid {
             let out = crate::induction::solve_ewald(&cl, &links, ew.s, &e0_lr, &response, warm, ind_tolerance());
             let _ = solve_ewald;
             let t_solve = t_b.elapsed();
+            if std::env::var_os("PHYS_PROFILE").is_some() {
+                eprintln!("  add_ewald: dipole phases etc. before solve {:.1} ms; solve {:.1} ms of which reciprocal response {:.1} ms", (t_b - t_a).as_secs_f64() * 1e3, t_solve.as_secs_f64() * 1e3, t_response.get().as_secs_f64() * 1e3);
+            }
             forces.energy += out.energy;
             forces.virial += out.virial;
             let mu: Vec<Vec3> = out.dipoles.iter().flatten().cloned().collect();

@@ -604,6 +604,36 @@ step for the flexible liquid. Estimates, flagged as such:
 None of this is a reason to drop a stage; it is the reason S0 and the speed item in §8
 come first.
 
+### 9.1 The GPU check on the Ewald step (2026-10-18; the owner's standing rule)
+
+Measured with `PHYS_PROFILE` on the 216-molecule water Ewald liquid (box 35.20 bohr, s'
+4.2 bohr, 1535 reciprocal vectors, 648 dipole sites, 8,640-8,755 links), the machine
+otherwise idle, one force evaluation, **using the existing water law as a stand-in because
+the timing depends on the sizes and not on the coefficients** (no earlier law is trusted
+as a result; see S1). About 93 ms in all:
+
+```text
+real-space site-site pair loop                              23 ms   25 %
+reciprocal sums                                            ~48 ms   52 %
+   charge phases + structure factor                          7
+   dipole phases, field of the charges at the dipoles       12.5
+   dipole response inside the conjugate-gradient solve       26   (11 iterations, 2.4 ms each)
+   after the solve: dipole sum, forces on charges/dipoles, virial   ~3
+real-space induced-dipole solve (links, matvec, forces)    ~29 ms   31 %
+```
+
+The reciprocal sum is the largest part and is the port asked for: it is dense,
+parallel, regular arithmetic (sites x 1535 vectors) and the `exp`-free recurrences
+for the phases are already in the code. Estimated gain if only it moves: 93 -> about 50 ms.
+The check also found the other two parts to be GPU-shaped: the flexible-water ports of
+the same two loops took the solve from about 27 to 8.8 ms and the pair loop from 21 to
+8.7 ms (`PLAY.md` E8c), so with all three on the card a step is of the order of 20 ms, a
+factor of 4-5 over the present code. Those two have GPU versions for the truncated law
+and for `Flex`; the Ewald law's real-space solve uses the differenced `erf` kernels and an
+external field and so needs its own kernel, and the rigid `Liquid` has no pair-loop engine.
+**Whether to port them is not decided here:** the owner approved the reciprocal sum; the
+others are reported as the result of the standing check and are the owner's to approve.
+
 ## 10. What this document does not do
 
 It does not add a term to the law, choose a functional, change a default, or
