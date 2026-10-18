@@ -936,10 +936,10 @@ fn r_sq(@builtin(workgroup_id) wg: vec3<u32>, @builtin(local_invocation_index) t
     }
 }
 
-fn dsum(j: u32, t: u32, src: u32) {
+fn dsum(j: u32, t: u32, src: u32, run: bool) {
     var sr = 0.0lf;
     var si = 0.0lf;
-    for (var a = t; a < p.n; a = a + 64u) {
+    for (var a = t; a < p.n && run; a = a + 64u) {
         let ph = phase(false, a, j);
         let m = rvec(src, a);
         let km = kdot(j, m.x, m.y, m.z);
@@ -958,12 +958,12 @@ fn dsum(j: u32, t: u32, src: u32) {
 
 @compute @workgroup_size(64)
 fn r_dsum_mu(@builtin(workgroup_id) wg: vec3<u32>, @builtin(local_invocation_index) t: u32) {
-    dsum(wg.x, t, 0u);
+    dsum(wg.x, t, 0u, true);
 }
 
 @compute @workgroup_size(64)
 fn r_dsum_p(@builtin(workgroup_id) wg: vec3<u32>, @builtin(local_invocation_index) t: u32) {
-    dsum(wg.x, t, 1u);
+    dsum(wg.x, t, 1u, sc[3] == 0.0lf);
 }
 
 @compute @workgroup_size(64)
@@ -986,11 +986,11 @@ fn sval(which: u32, j: u32) -> vec2<f64> {
     return vec2<f64>(stot[2u * j], stot[2u * j + 1u]);
 }
 
-fn grad_dip(is_charge: bool, site: u32, which: u32, t: u32) -> vec3<f64> {
+fn grad_dip(is_charge: bool, site: u32, which: u32, t: u32, run: bool) -> vec3<f64> {
     var gx = 0.0lf;
     var gy = 0.0lf;
     var gz = 0.0lf;
-    for (var j = t; j < rp.nk; j = j + 64u) {
+    for (var j = t; j < rp.nk && run; j = j + 64u) {
         let s = sval(which, j);
         let ph = phase(is_charge, site, j);
         let re = s.x * (-ph.y) + s.y * ph.x;
@@ -1011,7 +1011,7 @@ fn grad_dip(is_charge: bool, site: u32, which: u32, t: u32) -> vec3<f64> {
 @compute @workgroup_size(64)
 fn r_field(@builtin(workgroup_id) wg: vec3<u32>, @builtin(local_invocation_index) t: u32) {
     let a = wg.x;
-    let v = grad_dip(false, a, 0u, t);
+    let v = grad_dip(false, a, 0u, t, true);
     if (t == 0u) {
         e0x[3u * a] = -v.x;
         e0x[3u * a + 1u] = -v.y;
@@ -1020,9 +1020,9 @@ fn r_field(@builtin(workgroup_id) wg: vec3<u32>, @builtin(local_invocation_index
 }
 
 // Add the long-range dipole-dipole coupling less each dipole's own to the product A x.
-fn add_resp(a: u32, t: u32, src: u32) {
-    let v = grad_dip(false, a, 1u, t);
-    if (t == 0u) {
+fn add_resp(a: u32, t: u32, src: u32, run: bool) {
+    let v = grad_dip(false, a, 1u, t, run);
+    if (t == 0u && run) {
         let own = sc[8];
         let x = rvec(src, a);
         apv[3u * a] = apv[3u * a] + (v.x - x.x * own);
@@ -1033,21 +1033,19 @@ fn add_resp(a: u32, t: u32, src: u32) {
 
 @compute @workgroup_size(64)
 fn r_resp_mu(@builtin(workgroup_id) wg: vec3<u32>, @builtin(local_invocation_index) t: u32) {
-    add_resp(wg.x, t, 0u);
+    add_resp(wg.x, t, 0u, true);
 }
 
 // Only while the iteration is live, as the product itself is.
 @compute @workgroup_size(64)
 fn r_resp_p(@builtin(workgroup_id) wg: vec3<u32>, @builtin(local_invocation_index) t: u32) {
-    if (sc[3] == 0.0lf) {
-        add_resp(wg.x, t, 1u);
-    }
+    add_resp(wg.x, t, 1u, sc[3] == 0.0lf);
 }
 
 @compute @workgroup_size(64)
 fn r_gch(@builtin(workgroup_id) wg: vec3<u32>, @builtin(local_invocation_index) t: u32) {
     let i = wg.x;
-    let v = grad_dip(true, i, 2u, t);
+    let v = grad_dip(true, i, 2u, t, true);
     if (t == 0u) {
         let qi = rq[i];
         o_gch[3u * i] = v.x * qi;

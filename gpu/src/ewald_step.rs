@@ -149,6 +149,7 @@ pub struct GpuEwaldStep {
     work: Mutex<Option<Work>>,
     /// Seconds on the card (submit to readback) and the number of calls, for timing.
     pub timing: Mutex<(f64, f64, usize)>,
+    profiled: std::sync::atomic::AtomicBool,
 }
 
 fn layout_entries(storage: u32) -> Vec<wgpu::BindGroupLayoutEntry> {
@@ -177,7 +178,7 @@ impl GpuEwaldStep {
             .iter()
             .map(|n| device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor { label: Some(n), layout: Some(&pl), module: &module, entry_point: Some(n), compilation_options: Default::default(), cache: None }))
             .collect();
-        Ok(GpuEwaldStep { device, queue, layout0, layout1, pipelines, name: format!("gpu ewald step (f64, {} via {:?})", info.name, info.backend), work: Mutex::new(None), timing: Mutex::new((0.0, 0.0, 0)) })
+        Ok(GpuEwaldStep { device, queue, layout0, layout1, pipelines, name: format!("gpu ewald step (f64, {} via {:?})", info.name, info.backend), work: Mutex::new(None), timing: Mutex::new((0.0, 0.0, 0)), profiled: std::sync::atomic::AtomicBool::new(false) })
     }
 
     fn make_work(&self, key: Key) -> Work {
@@ -381,6 +382,48 @@ impl GpuEwaldStep {
         let (dd_n, cd_n, icd_n) = (nl * np * np, nl * 2 * np * nch, nm * np * nch);
         let in_n = nm * npairs;
         let groups = |count: usize, size: usize| count.div_ceil(size);
+        // `PHYS_GPU_PROFILE=1`: once, run each kernel on its own and say how long the card took
+        // (each includes a submission's fixed cost, so read them against one another).
+        if std::env::var("PHYS_GPU_PROFILE").is_ok() && !self.profiled.swap(true, std::sync::atomic::Ordering::SeqCst) {
+            let stages: Vec<(usize, usize)> = vec![
+                (K_TERMS_DD, groups(dd_n, 64)),
+                (K_TERMS_CD, groups(cd_n, 64)),
+                (K_TERMS_INTRA, groups(in_n, 64)),
+                (K_TERMS_ICD, groups(icd_n, 64)),
+                (R_SQ, nk),
+                (R_FIELD, n),
+                (K_E0, n),
+                (R_DSUM_MU, nk),
+                (K_MATVEC_MU, n),
+                (R_RESP_MU, n),
+                (K_CG_INIT, 1),
+                (R_DSUM_P, nk),
+                (K_MATVEC_P, n),
+                (R_RESP_P, n),
+                (K_CG_B, 1),
+                (K_LINK_FORCE, groups(nl, 64)),
+                (K_GATHER_POL, n),
+                (K_GATHER_CHARGE, nc),
+                (R_STOT, groups(nk, 64)),
+                (R_GCH, nrc),
+                (R_GDPOS, n),
+                (R_ARM_C, nk),
+                (R_ARM_D, nk),
+            ];
+            for rep in 0..3 {
+                let mut line = String::new();
+                for &(which, count) in &stages {
+                    let (_, _, secs) = self.submit(w, &[(which, count)], &[(0u8, SC, 1)]);
+                    line += &format!("{} {:.2} ms; ", NAMES[which], secs * 1000.0);
+                }
+                if rep == 2 {
+                    eprintln!("gpu ewald step profile ({n} dipoles, {nl} links, {nk} wave vectors; each alone, with a submission's floor): {line}");
+                }
+            }
+            // The profile ran kernels out of order; start the dipoles and flags afresh.
+            put0(MU, bytemuck::cast_slice(&mu0));
+            put0(SC, bytemuck::cast_slice(&sc0));
+        }
         let solve_reads = [(0u8, MU, 3 * n), (0, E0, 3 * n), (0, FPOL, 3 * n), (0, FCH, 3 * nc), (0, LFORCE, 3 * nl), (0, LVIR, nl), (0, SC, 16), (1, SQ, 2 * nk)];
         let mut first = true;
         let mut t_gpu = 0.0;
