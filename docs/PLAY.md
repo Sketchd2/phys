@@ -5475,8 +5475,11 @@ the start of the phase, ahead of the renderer**. In order:
        the first results exist, then fixed by the owner.
      - **Decided (the owner, 2026-10-18): pressure.** First derivation at 1 atm, then
        extended to the pressures a stage needs, each shortcut carrying its range.
-     - **Open, the owner's** (§8, two items remaining): the zero-point correction in a stored
-       diagram; and the Ewald GPU port as the enabling speed item.
+     - **Decided (the owner, 2026-10-18): quantum nuclei.** Classical and labelled
+       first, then a harmonic zero-point correction, with the path-integral check run
+       on a few solutions and not only pure water (proposed: water, water + methanol,
+       water + methane, saline if affordable; the owner's to overrule).
+     - **Open, the owner's** (§8, one item remaining): the Ewald GPU port as the enabling speed item.
      - **Cost, estimated and so flagged** (§9): about 40 hours a nanosecond of the
        rigid Ewald liquid on the present code, so thermodynamic integration is weeks
        until the reciprocal sum is on the card.

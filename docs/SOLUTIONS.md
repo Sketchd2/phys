@@ -545,11 +545,16 @@ than chosen between, per `CLAUDE.md`.
    clathrate needs MPa), in the manner of E11: every stored shortcut carries the
    pressure and temperature range it was derived over and is flagged when used
    outside it. No set of pressures is fixed in advance.
-9. **Quantum nuclei in the diagram.** A classical rigid liquid's heat of vaporisation
-   and its melting point are off by zero-point terms (about 2.8 kcal/mol in ice). Whether
-   the stored rule includes that correction (a path-integral run or a harmonic
-   correction) is not decided; E8c plans the path-integral comparison only for the
-   water liquid.
+9. **Quantum nuclei in the diagram. DECIDED (the owner, 2026-10-18): option D,
+   with the check widened.** First the diagram is classical and labelled as such
+   (the results table states the known zero-point offset). Then a harmonic zero-point
+   correction from the engine's own vibrational frequencies is added. The
+   path-integral comparison that measures how good that correction is **is run on a
+   few solutions and not only on pure water.** *Which solutions is the author's
+   proposal and the owner's to overrule:* pure water (E8c's planned case), water +
+   methanol (a hydrogen-bonded mixture), and water + methane (a hydrophobic one), with
+   the 1 % saline solution added if the cost allows, the ions being the case where
+   the correction is least obvious. Costs 16-32 times a classical run each.
 10. **Simulation speed.** Free-energy runs need nanoseconds (§9). Porting the Ewald
     reciprocal sum to the GPU in double precision, in the manner of the induction and
     pair loops, is the large enabling item; it is engineering for shorter compute, which
