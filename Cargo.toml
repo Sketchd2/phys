@@ -175,3 +175,7 @@ path = "src/bin/c6.rs"
 [[bin]]
 name = "phys-cloud"
 path = "src/bin/cloud.rs"
+
+[[bin]]
+name = "phys-cloudfit"
+path = "src/bin/cloudfit.rs"

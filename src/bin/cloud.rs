@@ -28,5 +28,6 @@ fn main() {
     let state = Resume::from_text(&std::fs::read_to_string(format!("grow-{name}.state")).expect("a state")).expect("readable");
     let pos: Vec<Vec3> = state.positions.iter().map(|r| Vec3 { x: r[0], y: r[1], z: r[2] }).collect();
     std::fs::write(format!("cloud-{name}.txt"), cloud.law_text(&pos)).expect("written");
+    std::fs::write(format!("cloud-{name}.cloud"), cloud.to_text()).expect("written");
     println!("  written to cloud-{name}.txt");
 }

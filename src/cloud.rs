@@ -59,6 +59,10 @@ pub struct Cloud {
     pub rms_points: f64,
     pub valence: f64,
     pub dipole_au: f64,
+    /// The unit vector along Hartree-Fock's dipole, in the molecule's coordinates. Pair energies are
+    /// invariant under reversing every charge in both molecules, so a fit to them alone can land on the
+    /// mirror-charge molecule (oxygen positive, hydrogens negative); the dipole's sign pins it.
+    pub dipole_dir: [f64; 3],
 }
 
 #[derive(Debug, Clone)]
@@ -422,7 +426,7 @@ pub fn fit(name: &str, mp2_dipole: bool, log: &mut dyn FnMut(String)) -> Cloud {
         })
         .collect();
     let _ = sites;
-    Cloud { name: name.to_string(), classes, core, lone, atom_pop: pops[..kclasses].to_vec(), atom_width: widths[..kclasses].to_vec(), rms, rms_points, valence, dipole_au: mu_target }
+    Cloud { name: name.to_string(), classes, core, lone, atom_pop: pops[..kclasses].to_vec(), atom_width: widths[..kclasses].to_vec(), rms, rms_points, valence, dipole_au: mu_target, dipole_dir: if norm3(&mu_hf) > 1e-8 { [mu_hf[0] / norm3(&mu_hf), mu_hf[1] / norm3(&mu_hf), mu_hf[2] / norm3(&mu_hf)] } else { [0.0; 3] } }
 }
 
 /// The frame coordinates `(a, b, c)` of `point` in the frame `ExtraSite` uses: `o + a u + b v + c n`
@@ -469,4 +473,270 @@ impl Cloud {
         }
         text
     }
+}
+
+// ---- the structure file, and the refit to the pairs' exact electrostatic energies ---------------
+
+impl Cloud {
+    /// The structure as text, for the next stage to read: `core`, `atom` and `lone` lines.
+    pub fn to_text(&self) -> String {
+        let mut s = format!("name {}\nclasses {}\nvalence {}\ndipole {:e}\ndipoledir {:e} {:e} {:e}\n", self.name, self.classes.iter().map(|c| c.to_string()).collect::<Vec<_>>().join(" "), self.valence, self.dipole_au, self.dipole_dir[0], self.dipole_dir[1], self.dipole_dir[2]);
+        for (c, q) in self.core.iter().enumerate() {
+            s += &format!("core {c} {q:e}\n");
+        }
+        for c in 0..self.atom_pop.len() {
+            s += &format!("atom {c} {:e} {:e}\n", self.atom_pop[c], self.atom_width[c]);
+        }
+        for lp in &self.lone {
+            for (a, d) in &lp.directions {
+                s += &format!("lone {} {} {} {:e} {:e} {:e} {a} {:e} {:e} {:e}\n", lp.class, lp.pairs, lp.directions.len(), lp.population, lp.width, lp.distance, d[0], d[1], d[2]);
+            }
+        }
+        s
+    }
+
+    pub fn from_text(text: &str) -> Option<Cloud> {
+        let (mut name, mut classes, mut core, mut valence, mut dipole) = (String::new(), Vec::new(), Vec::new(), 0.0, 0.0);
+        let mut dipole_dir = [0.0f64; 3];
+        let (mut atom_pop, mut atom_width): (Vec<f64>, Vec<f64>) = (Vec::new(), Vec::new());
+        let mut lone: Vec<LonePair> = Vec::new();
+        for line in text.lines() {
+            let w: Vec<&str> = line.split_whitespace().collect();
+            match w.first().copied() {
+                Some("name") => name = w[1].to_string(),
+                Some("classes") => classes = w[1..].iter().map(|x| x.parse().ok()).collect::<Option<Vec<usize>>>()?,
+                Some("valence") => valence = w[1].parse().ok()?,
+                Some("dipole") => dipole = w[1].parse().ok()?,
+                Some("dipoledir") => dipole_dir = [w[1].parse().ok()?, w[2].parse().ok()?, w[3].parse().ok()?],
+                Some("core") => core.push(w[2].parse().ok()?),
+                Some("atom") => {
+                    atom_pop.push(w[2].parse().ok()?);
+                    atom_width.push(w[3].parse().ok()?);
+                }
+                Some("lone") if w.len() == 11 => {
+                    let class: usize = w[1].parse().ok()?;
+                    let dir = (w[7].parse().ok()?, [w[8].parse().ok()?, w[9].parse().ok()?, w[10].parse().ok()?]);
+                    match lone.iter_mut().find(|l| l.class == class) {
+                        Some(l) => l.directions.push(dir),
+                        None => lone.push(LonePair { class, directions: vec![dir], pairs: w[2].parse().ok()?, population: w[4].parse().ok()?, width: w[5].parse().ok()?, distance: w[6].parse().ok()?, centroid_distance: w[6].parse().ok()? }),
+                    }
+                }
+                _ => {}
+            }
+        }
+        Some(Cloud { name, classes, core, lone, atom_pop, atom_width, rms: 0.0, rms_points: 0.0, valence, dipole_au: dipole, dipole_dir })
+    }
+}
+
+/// One pair with its exact first-order electrostatic energy, kcal/mol.
+pub struct EsRow {
+    pub index: usize,
+    pub a: Vec<(Vec3, usize)>,
+    pub b: Vec<(Vec3, usize)>,
+    pub reference: f64,
+}
+
+/// The pairs of `pairs-<name><tag>.txt` (comma-separated tags) that `es_file` (`k separation E`,
+/// hartree) holds an energy for.
+pub fn es_rows(name: &str, es_file: &str, tags: &str) -> Vec<EsRow> {
+    let es: std::collections::HashMap<usize, f64> = std::fs::read_to_string(es_file)
+        .unwrap_or_else(|_| panic!("no {es_file}"))
+        .lines()
+        .filter_map(|l| {
+            let w: Vec<&str> = l.split_whitespace().collect();
+            Some((w.first()?.parse().ok()?, w.get(2)?.parse().ok()?))
+        })
+        .collect();
+    let text: String = tags.split(',').map(|t| std::fs::read_to_string(format!("pairs-{name}{t}.txt")).unwrap_or_default()).collect::<Vec<_>>().join("\n");
+    let mut rows = Vec::new();
+    for line in text.lines().filter(|l| !l.starts_with('#') && l.contains('|')) {
+        let (head, tail) = line.split_once('|').expect("a |");
+        let k: usize = head.split_whitespace().next().and_then(|x| x.parse().ok()).expect("an index");
+        let Some(&reference) = es.get(&k) else { continue };
+        let t: Vec<&str> = tail.split_whitespace().collect();
+        let atoms: Vec<(Vec3, usize)> = t.chunks(4).map(|c| (Vec3 { x: c[0].parse().unwrap(), y: c[1].parse().unwrap(), z: c[2].parse().unwrap() }, c[3].parse().unwrap())).collect();
+        let n = atoms.len() / 2;
+        rows.push(EsRow { index: k, a: atoms[..n].to_vec(), b: atoms[n..].to_vec(), reference: reference * 627.509474 });
+    }
+    rows
+}
+
+/// The cloud's sites as `ExtraSite`s for a molecule whose atoms are `positions`, with the lone-pair
+/// distances given and the types numbered cores, lone-pair clouds, atom clouds.
+fn extra_sites(cloud: &Cloud, positions: &[Vec3], distances: &[f64]) -> Vec<crate::liquid::ExtraSite> {
+    let k = cloud.core.len();
+    let nl = cloud.lone.len();
+    let mut out = Vec::new();
+    for (l, lp) in cloud.lone.iter().enumerate() {
+        for (a, dir) in &lp.directions {
+            let site = positions[*a] + Vec3 { x: dir[0], y: dir[1], z: dir[2] }.scale(distances[l]);
+            out.push(crate::liquid::ExtraSite { ty: k + l, frame: frame_coordinates(positions, site) });
+        }
+    }
+    for a in 0..positions.len() {
+        out.push(crate::liquid::ExtraSite { ty: k + nl + cloud.classes[a], frame: frame_coordinates(positions, positions[a]) });
+    }
+    out
+}
+
+/// Refit a cloud's populations, widths and lone-pair distances to the pairs' exact first-order
+/// electrostatic energies (`phys-es-gpu`), half the pairs held out in alternation, the contact
+/// region weighted as in a liquid, and the dipole held to `dipole_au` if given. Starts from
+/// `start`. Returns the refitted cloud.
+pub fn fit_es(start: &Cloud, reference_atoms: &[Vec3], rows: &[EsRow], dipole_au: Option<f64>, log: &mut dyn FnMut(String)) -> Cloud {
+    use crate::liquid::{pair_energy, with_frame_sites, PairEnergy, SiteSite};
+    let k = start.core.len();
+    let nl = start.lone.len();
+    let ncl = k + nl;
+    let mult: Vec<f64> = (0..k).map(|c| start.classes.iter().filter(|&&x| x == c).count() as f64).collect();
+    let lp_mult: Vec<f64> = start.lone.iter().map(|l| l.directions.len() as f64).collect();
+    let cloud_mult = |i: usize| if i < k { mult[i] } else { lp_mult[i - k] };
+    // Parameters: ln widths of the atom clouds then the lone-pair clouds, the lone-pair distances, then
+    // the populations of every cloud but the last atom class (its follows from the valence electrons).
+    let build = |x: &[f64]| -> (Cloud, SiteSite) {
+        let mut c = start.clone();
+        for i in 0..k {
+            c.atom_width[i] = x[i].exp().clamp(0.15, 4.0);
+        }
+        for l in 0..nl {
+            c.lone[l].width = x[k + l].exp().clamp(0.15, 4.0);
+            c.lone[l].distance = x[ncl + l].abs().clamp(0.02, 1.6);
+        }
+        let mut pops = vec![0.0; ncl];
+        let free: Vec<usize> = (0..k - 1).chain(k..ncl).collect();
+        for (j, &i) in free.iter().enumerate() {
+            pops[i] = x[ncl + nl + j];
+        }
+        let used: f64 = (0..ncl).filter(|&i| i != k - 1).map(|i| cloud_mult(i) * pops[i]).sum();
+        pops[k - 1] = (start.valence - used) / mult[k - 1];
+        for i in 0..k {
+            c.atom_pop[i] = pops[i];
+        }
+        for l in 0..nl {
+            c.lone[l].population = pops[k + l];
+        }
+        let types = ncl + k;
+        let mut law = SiteSite { charge: Vec::new(), pair: vec![[0.0, 1.0, 0.0, 0.0]; types * types], sigma: Vec::new(), damp: Vec::new(), overlap: Vec::new() };
+        law.charge = c.core.clone();
+        law.sigma = vec![0.0; k];
+        for lp in &c.lone {
+            law.charge.push(-lp.population);
+            law.sigma.push(lp.width);
+        }
+        for i in 0..k {
+            law.charge.push(-c.atom_pop[i]);
+            law.sigma.push(c.atom_width[i]);
+        }
+        (c, law)
+    };
+    let energy = |x: &[f64], r: &EsRow| -> f64 {
+        let (c, law) = build(x);
+        let d: Vec<f64> = c.lone.iter().map(|l| l.distance).collect();
+        let place = |m: &[(Vec3, usize)]| {
+            let pos: Vec<Vec3> = m.iter().map(|p| p.0).collect();
+            with_frame_sites(m, &extra_sites(&c, &pos, &d))
+        };
+        pair_energy(&law, &PairEnergy { a: place(&r.a), b: place(&r.b), energy: 0.0 }) * 627.509474
+    };
+    let dipole_of = |x: &[f64]| -> f64 {
+        let (c, law) = build(x);
+        let d: Vec<f64> = c.lone.iter().map(|l| l.distance).collect();
+        let m: Vec<(Vec3, usize)> = reference_atoms.iter().zip(&c.classes).map(|(p, &t)| (*p, t)).collect();
+        let m = with_frame_sites(&m, &extra_sites(&c, reference_atoms, &d));
+        let mut mu = Vec3::ZERO;
+        for (p, t) in &m {
+            mu = mu + p.scale(law.charge[*t]);
+        }
+        // Signed, along Hartree-Fock's dipole: the mirror-charge molecule has the same pair energies.
+        mu.dot(Vec3 { x: start.dipole_dir[0], y: start.dipole_dir[1], z: start.dipole_dir[2] })
+    };
+    let (mut train, mut test): (Vec<&EsRow>, Vec<&EsRow>) = (Vec::new(), Vec::new());
+    for (i, r) in rows.iter().enumerate() {
+        if i % 2 == 0 {
+            train.push(r);
+        } else {
+            test.push(r);
+        }
+    }
+    let sep = |r: &EsRow| (r.a[0].0 - r.b[0].0).norm() * 0.529177210903;
+    let weight = |r: &EsRow| 1.0 / (1.0 + (sep(r) - 2.7).max(0.0).powi(2));
+    let cost = |x: &[f64]| -> f64 {
+        let base = train.iter().map(|r| weight(r) * (energy(x, r) - r.reference).powi(2)).sum::<f64>() / train.len() as f64;
+        let (c, _) = build(x);
+        let negative: f64 = c.atom_pop.iter().chain(c.lone.iter().map(|l| &l.population)).map(|p| (-p).max(0.0)).sum();
+        let dip = dipole_of(x);
+        let dipole_term = match dipole_au {
+            Some(t) => 3000.0 * ((dip - t) / t).powi(2),
+            None => 3000.0 * (-dip).max(0.0).powi(2),
+        };
+        base + 1e3 * negative + dipole_term
+    };
+    let mut x0: Vec<f64> = Vec::new();
+    for i in 0..k {
+        x0.push(start.atom_width[i].ln());
+    }
+    for lp in &start.lone {
+        x0.push(lp.width.ln());
+    }
+    for lp in &start.lone {
+        x0.push(lp.distance);
+    }
+    for i in (0..k - 1).chain(k..ncl) {
+        x0.push(if i < k { start.atom_pop[i] } else { start.lone[i - k].population });
+    }
+    let report = |label: &str, x: &[f64], log: &mut dyn FnMut(String)| {
+        let stat = |set: &[&EsRow]| -> (f64, f64) {
+            let n = set.len().max(1) as f64;
+            (set.iter().map(|r| energy(x, r) - r.reference).sum::<f64>() / n, (set.iter().map(|r| (energy(x, r) - r.reference).powi(2)).sum::<f64>() / n).sqrt())
+        };
+        log(format!("  {label}: train mean/rms {:+.3}/{:.3}, held-out {:+.3}/{:.3} kcal/mol", stat(&train).0, stat(&train).1, stat(&test).0, stat(&test).1));
+        for w in [0.0, 2.8, 3.1, 3.4, 4.7, 99.0].windows(2) {
+            let sel: Vec<&EsRow> = rows.iter().filter(|r| sep(r) >= w[0] && sep(r) < w[1]).collect();
+            if !sel.is_empty() {
+                let (m, s) = stat(&sel);
+                log(format!("      first-atom separation {:.1}-{:.1} A: {} pairs, mean {m:+.3}, rms {s:.3}", w[0], w[1].min(9.9), sel.len()));
+            }
+        }
+    };
+    report("before", &x0, log);
+    let step: Vec<f64> = (0..x0.len()).map(|i| if i < ncl { 0.2 } else if i < ncl + nl { 0.1 } else { 0.3 }).collect();
+    // The landscape has several minima (a lone-pair cloud sitting on its nucleus is one), so the given
+    // start is joined by seeded random ones: widths log-uniform in 0.3-2.2 bohr, lone-pair distances
+    // 0.1-0.8 bohr, populations spread over the valence electrons. The best fit on the training pairs wins.
+    let mut seed = 0x9e37_79b9_7f4a_7c15u64;
+    let mut rnd = move || {
+        seed ^= seed << 13;
+        seed ^= seed >> 7;
+        seed ^= seed << 17;
+        (seed >> 11) as f64 / (1u64 << 53) as f64
+    };
+    let mut best = nelder_mead(&cost, &x0, &step, 3000);
+    let mut best_cost = cost(&best);
+    let restarts = 24;
+    for r in 0..restarts {
+        let mut x = x0.clone();
+        for i in 0..ncl {
+            x[i] = (0.3f64.ln()) + rnd() * (2.2f64 / 0.3).ln();
+        }
+        for l in 0..nl {
+            x[ncl + l] = 0.1 + rnd() * 0.7;
+        }
+        let free: Vec<usize> = (0..k - 1).chain(k..ncl).collect();
+        let weights: Vec<f64> = (0..ncl).map(|_| 0.2 + rnd()).collect();
+        let total: f64 = (0..ncl).map(|i| cloud_mult(i) * weights[i]).sum();
+        for (j, &i) in free.iter().enumerate() {
+            x[ncl + nl + j] = start.valence * weights[i] / total;
+        }
+        let cand = nelder_mead(&cost, &x, &step, 3000);
+        let c = cost(&cand);
+        if c < best_cost {
+            log(format!("  restart {r}: cost {c:.4} beats {best_cost:.4}"));
+            best_cost = c;
+            best = cand;
+        }
+    }
+    report("after ", &best, log);
+    let (fitted, _) = build(&best);
+    log(format!("  dipole {:.4} au ({:.3} D)", dipole_of(&best), dipole_of(&best) * DEBYE_PER_AU));
+    fitted
 }
