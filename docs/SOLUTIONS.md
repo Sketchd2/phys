@@ -71,7 +71,7 @@ is what would settle the row; a row is closed by a number, not by a judgement.
 | 20 | Anharmonicity | Quartic surface. | D | E8c. | Fundamentals (3657, 3756, 1595 measured) not yet checked against the surface. |
 | 21 | Cross terms (stretch–bend) | In the quartic. | D | E8c. | — |
 | 22 | Environment changes the geometry (O–H lengthens, angle opens in the liquid) | Option 2 and 3 only: the cloud follows the angle (`GeoCloud`); bonds held in option 2. | P | E8c: the angle-following cloud gives 105.4° where a fixed cloud collapses it to 95°. | Option 3 run. |
-| 23 | Dipole enhancement 1.85 → 2.4–3 D | Through induction. | ? | `phys-bulk` does not report the mean dipole. | Report it. One line of output; compare with the 2.4–3.0 D of ab initio liquid water (a literature range, to be cited). |
+| 23 | Dipole enhancement 1.85 → 2.4–3 D | Through induction. | D | `phys-bulk` now reports it. The existing law (the hole-free one, `law-core-B5`, used as a stand-in) gives a mean molecular dipole of **2.99 D** in the liquid at 298 K (8 ps, 216 molecules, Ewald; `runs/e8e/validate/gpu`), at the top of the 2.4–3.0 D that ab initio liquid water is quoted at (a range from memory, to be cited). | Closed for this law; every rebuilt law reports it. |
 | 24 | Intramolecular non-bonded and conjugation | Not applicable to water (no 1–4). | n/a | — | Becomes real for methanol and every larger molecule: a torsion (methyl rotor) is the first test of treatment (2). |
 | 25 | Electronic-state effects (open shell, spin) | Closed shell. | n/a | — | Not for water; ions here are closed shell. |
 
@@ -82,7 +82,7 @@ is what would settle the row; a row is closed by a number, not by a judgement.
 | 26 | State point: density, temperature | Fixed-density runs at 298 K, a density scan 0.95 / 1.0 / 1.05. | D | E8d §10.7: equilibrium density 1.003–1.007. | NPT runs and the temperature of maximum density (277 K measured, absent in the plan's fitted law). |
 | 27 | Thermal sampling and length | 30–60 ps, 216 molecules. Pressure scatter ±600 bar instantaneous; ±89 bar after 60 ps. | P | E8d §10.7. | Sampling error stated per observable before a comparison counts. |
 | 28 | Nuclear quantum effects | Classical nuclei. Literature (Reddy; E8d §15): density shifted ~0.3 %, structure softened: lower first peak, broader correlations. | A, estimated | E8d §15 reads as small on density, wrong direction to explain the missing gap. | Path-integral run on the flexible law (planned, `PLAY.md` E8c). Heat of vaporisation needs the intermolecular zero-point (~2.8 kcal/mol in ice) added before it can be compared with 10.5. |
-| 29 | Environmental screening (effective dielectric, effective polarisability) | Self-consistent induction supplies it. | P | — | Dielectric constant from the dipole fluctuation, against the measured ~78 (to be cited): derived, not tuned, and a strong test of items 3, 6, 7. **?** |
+| 29 | Environmental screening (effective dielectric, effective polarisability) | Self-consistent induction supplies it. | ? | `phys-bulk` now reports the dielectric constant from the total dipole's fluctuations (tin-foil: 1 + 4 pi (<M^2> - <M>^2) / 3 V k T). **8 ps is far too short**: the one run so far gives 20 (blocks 8.1 +- 1.5), against ~78 measured (to be cited). It needs nanoseconds, which the card path now makes affordable (about 30 ms a step at 216 molecules). | A multi-nanosecond run of each rebuilt law. |
 | 30 | Finite size, periodic images | 216 molecules, tin-foil. | P | E8d §6.8: pressure oscillates with the cut-off, converged with Ewald. | Repeat at 512 and 1000 molecules; extrapolate as the owner's solution rule requires. |
 | 31 | Dynamics and transport (collective response, diffusion, viscosity) | Not measured. | ? | — | Self-diffusion (2.3e-5 cm²/s) and viscosity (0.89 mPa·s) are *dynamical* checks on the law; they are not in any done-when, so are listed only as a source of evidence. |
 
@@ -710,6 +710,14 @@ solve took 8.8 ms, because the Ewald solve adds a reciprocal response (two reduc
 link). Both can be tuned; neither has been. A run of the liquid for hours is the test that matters
 and has not been done with the card path: the snapshot comparison is of forces, not of a trajectory.
 
+**A trajectory on the card (2026-10-18, `runs/e8e/validate/gpu`).** 10 ps of the 216-molecule water Ewald
+liquid with the whole step and the pair loop on the GPU, the existing hole-free law as a stand-in, the
+card shared with four other jobs (1482 s wall): U/N -10.243 +- 0.042 kcal/mol, heat of vaporisation 10.84,
+pressure +81 +- 170 bar, g(OO) first peak 2.59 at 2.85 A, coordination 8.13 to the minimum at 4.05 A, mean
+molecular dipole 2.99 D. The CPU-made record of the same law (E8d section 10.7, 60 ps) has -10.21 to -10.23,
+10.8, -72 +- 89 to -88 +- 97 bar, 2.57 at 2.85 A and 7.56 to 3.95 A. They agree within the sampling error;
+a CPU run of the same 10 ps (started alongside) had not finished its first stage when this was written.
+
 ## 9.3 Keeping the machine busy (the owner, 2026-10-18)
 
 *"Try to ensure no down time of the CPU and GPU. If there are other tasks such as pairwise
@@ -750,6 +758,46 @@ Waiting, and why (each waits on a named thing, which is the list to start from):
 While the cores are growing bases, the GPU is the one that can idle; the first job to put on it
 is whichever of the above has its prerequisite met, and the first piece of code to write
 (unlike-pair sampling) is on the critical path of S2 and S5.
+
+## 9.4 Building a law for a molecule that is not water (S1's real work; 2026-10-18)
+
+E8's recipe (`scripts/water-shape.sh`, `PLAY.md` E8b-E8d) took weeks for water and is water-specific
+in places that matter. Read through, the chain and what generalises:
+
+```text
+step                                         generic?                                 state
+basis growth                                 yes (phys-grow takes any name)           ammonia settled; methanol, ethanol, methane running
+polarisabilities (phys-polar)                yes (four molecules named)               ethanol not added
+dispersion C6 (phys-c6, E6 kernel)           yes (four molecules named)               ethanol not added
+charge clouds from the potential (phys-esp)  NO: a cloud on O, one on each H, one     replaced by phys-cloud (below)
+                                             on the bisector; type numbers fixed
+exact first-order electrostatics (es-gpu)    probably (uses Monomer)                  to check
+cloud refit to those (phys-diag --fit-es)    NO: [0,1,1] atom types, water frame      to generalise
+the law fit (phys-fit)                       partly: --bisector, --charge-sites       to check
+pair data (like, wall, unlike)               yes; biased draw needs a first law       uniform and wall draws running
+the liquid (phys-bulk)                       yes (four molecules named)               ethanol not added
+```
+
+**phys-cloud (built, `src/cloud.rs`, `phys-cloud <molecule>`):** the core-and-cloud model for any
+molecule, nothing typed in. Cores are the nuclei less their innermost shells; every atom class gets a
+cloud; **an atom's lone pairs are found from the molecule's own Boys-localised orbitals** (an orbital
+whose centroid is within reach of one nucleus and farther than 1.6 bohr from every other) and share
+one cloud on the line from the nucleus to their mean centroid, at the centroid's distance, holding two
+electrons a pair; the atoms' populations are linear, non-negative and neutral; the widths are searched,
+bounded. For water that line is the bisector, for ammonia the three-fold axis, for methanol's oxygen the
+line away from C and H, and none of those is stated. Its output is the `charges`, `sigma` and `site`
+lines of a law, in the numbering `Kind::of_molecule_sites` takes (cores, lone-pair clouds, atom clouds).
+
+**A finding about the old pipeline, which explains a degeneracy the record puzzled over.**
+`PLAY.md` E8b/E8c found the unconstrained cloud fit to the potential degenerate (charges of -6.4, -1.9
+and +0.2, widths of 1e-15 and 1.6e15 bohr) and worked around it by restarting from a hand-found cloud.
+`phys-esp` scaled the **electrons' potential** to the MP2 dipole. That changes their monopole as well:
+the scaled electrons are no longer ten electrons, so the target is not the potential of a neutral
+molecule, and the fit, which assumes neutrality, is asked for the impossible. The scaling is dropped in
+`phys-cloud` (the potential is Hartree-Fock's, whose total charge is right); the MP2 dipole belongs in
+the refit to the pairs' energies, as an explicit dipole target there, and `phys-cloud --mp2-dipole` still
+reports it. The same applies to any later stage that rescales a density's potential to change one
+moment: change the moment, not the monopole.
 
 ## 10. What this document does not do
 

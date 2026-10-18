@@ -171,3 +171,7 @@ path = "src/bin/lawenergy.rs"
 [[bin]]
 name = "phys-c6"
 path = "src/bin/c6.rs"
+
+[[bin]]
+name = "phys-cloud"
+path = "src/bin/cloud.rs"

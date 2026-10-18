@@ -235,7 +235,7 @@ impl Bias {
 }
 
 /// The atoms of a molecule `phys-grow` knows by name.
-fn atoms_of(name: &str) -> Vec<u32> {
+pub fn atoms_of(name: &str) -> Vec<u32> {
     match name {
         "water" => vec![8, 1, 1],
         "methane" => vec![6, 1, 1, 1, 1],
