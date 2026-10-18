@@ -26,10 +26,12 @@
 //! sized to keep a dispatch short, with each row's running sums and their
 //! compensation carried from one to the next.
 
+pub mod ewald;
 pub mod fock;
 pub mod induction;
 pub mod sitepair;
 pub mod product;
+pub use ewald::{install_ewald, GpuEwald};
 pub use fock::install_fock;
 pub use induction::{install_induction, GpuInduction};
 pub use sitepair::{install_pairs, GpuPairs};

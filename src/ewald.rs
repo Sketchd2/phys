@@ -130,6 +130,38 @@ impl Ewald {
         self.idx.len()
     }
 
+    /// `e^(i m 2 pi x / L_a)` for `m = 0..=nmax[a]` along axis `a`: the table every phase is a
+    /// product of (negative `m` by conjugate). Rebuilt exactly every eighth step so the
+    /// recurrence's error does not creep. The GPU engine takes these from here, so that its
+    /// phases are built from the very same numbers.
+    pub fn axis_table(&self, x: f64, a: usize) -> Vec<C> {
+        let n = self.nmax[a] as usize;
+        let th = 2.0 * PI * x / self.cell[a];
+        let step = C { re: th.cos(), im: th.sin() };
+        let mut t = Vec::with_capacity(n + 1);
+        let mut cur = C { re: 1.0, im: 0.0 };
+        for m in 0..=n {
+            // Recompute exactly now and then so the error does not creep.
+            if m % 8 == 0 {
+                let a2 = th * m as f64;
+                cur = C { re: a2.cos(), im: a2.sin() };
+            }
+            t.push(cur);
+            cur = cur.mul(step);
+        }
+        t
+    }
+
+    /// The largest integer index on each axis (tables are `nmax + 1` long).
+    pub fn nmax(&self) -> [usize; 3] {
+        [self.nmax[0] as usize, self.nmax[1] as usize, self.nmax[2] as usize]
+    }
+
+    /// The integer vectors, the wave vectors and the weights `exp(-k^2 s'^2 / 4) / k^2`.
+    pub fn k_data(&self) -> (&[[i32; 3]], &[[f64; 3]], &[f64]) {
+        (&self.idx, &self.kv, &self.fk)
+    }
+
     /// `e^(i k.r)` for every site and every `k`, site-major. `lambda` scales the
     /// box (and so every `k`) for the virial; positions are taken as given.
     pub fn phases(&self, pos: &[Vec3]) -> Vec<C> {
@@ -146,22 +178,7 @@ impl Ewald {
                     for (si, row) in chunk.chunks_mut(nk).enumerate() {
                         let p = pos[ci * per + si];
                         // e^(i n theta) for n = 0..=nmax on each axis; negative n by conjugate.
-                        let table = |x: f64, a: usize| -> Vec<C> {
-                            let th = 2.0 * PI * x / self.cell[a];
-                            let step = C { re: th.cos(), im: th.sin() };
-                            let mut t = Vec::with_capacity(n[a] + 1);
-                            let mut cur = C { re: 1.0, im: 0.0 };
-                            for m in 0..=n[a] {
-                                // Recompute exactly now and then so the error does not creep.
-                                if m % 8 == 0 {
-                                    let a2 = th * m as f64;
-                                    cur = C { re: a2.cos(), im: a2.sin() };
-                                }
-                                t.push(cur);
-                                cur = cur.mul(step);
-                            }
-                            t
-                        };
+                        let table = |x: f64, a: usize| -> Vec<C> { self.axis_table(x, a) };
                         let (tx, ty, tz) = (table(p.x, 0), table(p.y, 1), table(p.z, 2));
                         let get = |t: &Vec<C>, m: i32| if m >= 0 { t[m as usize] } else { t[(-m) as usize].conj() };
                         for (j, m) in self.idx.iter().enumerate() {
@@ -425,6 +442,13 @@ impl Ewald {
     pub fn virial_analytic(&self, s: &[C], ph_charge: &[C], q: &[f64], carm: &[Vec3], ph_dip: &[C], mu: &[Vec3], darm: &[Vec3], d: &[C]) -> f64 {
         let tc = self.arm_sum(ph_charge, q, carm);
         let td = if mu.is_empty() { vec![C::default(); self.idx.len()] } else { self.dipole_arm_sum(ph_dip, mu, darm) };
+        self.virial_from_sums(s, &tc, &td, d)
+    }
+
+    /// The scalar part of [`Ewald::virial_analytic`], given the structure factor `s`, the sums
+    /// `tc = sum q (k.a) e^(ik.r)` and `td = sum (k.mu)(k.b) e^(ik.r)` and the dipoles' own sum
+    /// `d` (empty when there are none). The same loop in the same order whoever made the sums.
+    pub fn virial_from_sums(&self, s: &[C], tc: &[C], td: &[C], d: &[C]) -> f64 {
         let mut e = 0.0;
         let mut damp = 0.0;
         let mut cross = 0.0;
@@ -461,4 +485,105 @@ pub fn erf_over_r(r: f64, s: f64) -> (f64, f64) {
     let g = crate::induction::erf(x);
     let c = 2.0 / (PI.sqrt() * s) * (-x * x).exp();
     (g / r, c / r - g / (r * r))
+}
+
+/// What the reciprocal part of one force evaluation hands back after the dipoles are known.
+pub struct Finished {
+    /// The dipoles' own structure factor `D(k)` (empty when the liquid has no dipoles).
+    pub d: Vec<C>,
+    /// `sum q (k.a) e^(ik.r)` over the charges and `sum (k.mu)(k.b) e^(ik.r)` over the dipoles.
+    pub tc: Vec<C>,
+    pub td: Vec<C>,
+    /// `dE/dr` of every charge and of every dipole's site, for the total structure factor
+    /// `S_q + D` ([`Ewald::grad_charge_pos`], [`Ewald::grad_dipole_pos`]).
+    pub grad_charge: Vec<Vec3>,
+    pub grad_dipole_pos: Vec<Vec3>,
+}
+
+/// One force evaluation's reciprocal-space work, for the charges and dipole sites it was begun
+/// with (see [`begin_reciprocal`]). Two implementations: the CPU's, which is the reference
+/// ([`CpuReciprocal`]), and an installed engine's (`phys-gpu`'s `GpuEwald`), which agrees with it
+/// to round-off: its sums run in the same order, the arithmetic is the card's.
+pub trait ReciprocalSession {
+    /// `S_q(k)` of the permanent charges.
+    fn charge_sum(&mut self) -> Vec<C>;
+    /// The long-range field of the permanent charges at the dipoles' sites ([`Ewald::field_at_dipoles`]).
+    fn field_at_dipoles(&mut self) -> Vec<Vec3>;
+    /// The long-range dipole-dipole coupling less each dipole's own ([`Ewald::dipole_response`]).
+    fn dipole_response(&mut self, mu: &[Vec3]) -> Vec<Vec3>;
+    /// Everything the forces and the virial need once the dipoles are final.
+    fn finish(&mut self, mu: &[Vec3]) -> Finished;
+}
+
+/// Something that does a force evaluation's reciprocal work on a GPU. It may decline (`None`),
+/// and the CPU does it. A session owns copies of everything it needs.
+pub trait ReciprocalEngine: Send + Sync {
+    fn begin(&self, ew: &Ewald, cpos: &[Vec3], cq: &[f64], carm: &[Vec3], dpos: &[Vec3], darm: &[Vec3]) -> Option<Box<dyn ReciprocalSession>>;
+}
+
+static ENGINE: std::sync::Mutex<Option<std::sync::Arc<dyn ReciprocalEngine>>> = std::sync::Mutex::new(None);
+
+/// Install a reciprocal engine for this process (`None` removes it).
+pub fn set_reciprocal_engine(engine: Option<std::sync::Arc<dyn ReciprocalEngine>>) {
+    *ENGINE.lock().expect("the reciprocal engine") = engine;
+}
+
+/// The installed engine's session if there is one and it takes this system, else the CPU's.
+pub fn begin_reciprocal<'a>(ew: &'a Ewald, cpos: &[Vec3], cq: &[f64], carm: &[Vec3], dpos: &[Vec3], darm: &[Vec3]) -> Box<dyn ReciprocalSession + 'a> {
+    let engine = ENGINE.lock().expect("the reciprocal engine").clone();
+    if let Some(e) = engine {
+        if let Some(s) = e.begin(ew, cpos, cq, carm, dpos, darm) {
+            return s;
+        }
+    }
+    Box::new(CpuReciprocal::new(ew, cpos, cq, carm, dpos, darm))
+}
+
+/// The reference: the CPU's reciprocal work, the oracle the GPU is checked against.
+pub struct CpuReciprocal<'a> {
+    ew: &'a Ewald,
+    cq: Vec<f64>,
+    carm: Vec<Vec3>,
+    darm: Vec<Vec3>,
+    ph_c: Vec<C>,
+    ph_d: Vec<C>,
+    nd: usize,
+    sq: Vec<C>,
+}
+
+impl<'a> CpuReciprocal<'a> {
+    pub fn new(ew: &'a Ewald, cpos: &[Vec3], cq: &[f64], carm: &[Vec3], dpos: &[Vec3], darm: &[Vec3]) -> CpuReciprocal<'a> {
+        let ph_c = ew.phases(cpos);
+        let sq = ew.charge_sum(&ph_c, cq);
+        let ph_d = ew.phases(dpos);
+        CpuReciprocal { ew, cq: cq.to_vec(), carm: carm.to_vec(), darm: darm.to_vec(), ph_c, ph_d, nd: dpos.len(), sq }
+    }
+}
+
+impl ReciprocalSession for CpuReciprocal<'_> {
+    fn charge_sum(&mut self) -> Vec<C> {
+        self.sq.clone()
+    }
+    fn field_at_dipoles(&mut self) -> Vec<Vec3> {
+        self.ew.field_at_dipoles(&self.sq, &self.ph_d, self.nd)
+    }
+    fn dipole_response(&mut self, mu: &[Vec3]) -> Vec<Vec3> {
+        self.ew.dipole_response(&self.ph_d, mu)
+    }
+    fn finish(&mut self, mu: &[Vec3]) -> Finished {
+        let ew = self.ew;
+        let nk = ew.nk();
+        let (d, stot) = if self.nd > 0 {
+            let d = ew.dipole_sum(&self.ph_d, mu);
+            let stot: Vec<C> = self.sq.iter().zip(&d).map(|(a, b)| C { re: a.re + b.re, im: a.im + b.im }).collect();
+            (d, stot)
+        } else {
+            (Vec::new(), self.sq.clone())
+        };
+        let grad_charge = ew.grad_charge_pos(&stot, &self.ph_c, &self.cq);
+        let grad_dipole_pos = if self.nd > 0 { ew.grad_dipole_pos(&stot, &self.ph_d, mu) } else { Vec::new() };
+        let tc = ew.arm_sum(&self.ph_c, &self.cq, &self.carm);
+        let td = if self.nd == 0 { vec![C::default(); nk] } else { ew.dipole_arm_sum(&self.ph_d, mu, &self.darm) };
+        Finished { d, tc, td, grad_charge, grad_dipole_pos }
+    }
 }

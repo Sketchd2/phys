@@ -44,3 +44,7 @@ path = "src/bin/pairs_liquid_gpu.rs"
 [[bin]]
 name = "phys-flexbulk-gpu"
 path = "src/bin/flexbulk_gpu.rs"
+
+[[bin]]
+name = "phys-bulk-gpu"
+path = "src/bin/bulk_gpu.rs"

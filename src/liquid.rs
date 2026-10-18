@@ -409,8 +409,23 @@ impl Liquid {
         }
         let cq_original: Vec<f64> = (0..n).flat_map(|_| charged.iter().map(|&k| q_of(k))).collect();
         let t_a = std::time::Instant::now();
-        let ph_c = ew.phases(&cpos);
-        let sq = ew.charge_sum(&ph_c, &cq);
+        let induced = law.induction();
+        // The dipoles' sites, if the law has induction: the reciprocal work needs them from the start.
+        let pol_sites: Vec<usize> = match induced {
+            Some((alpha, _)) => (0..types.len()).filter(|&k| alpha[types[k]] > 0.0).collect(),
+            None => Vec::new(),
+        };
+        let (mut dpos, mut dcom, mut darm) = (Vec::new(), Vec::new(), Vec::new());
+        for i in 0..n {
+            for &k in &pol_sites {
+                dpos.push(self.com[i] + arms[i][k]);
+                dcom.push(self.com[i]);
+                darm.push(arms[i][k]);
+            }
+        }
+        // The reciprocal work (`ewald.rs`): the CPU's, or the installed engine's on the card.
+        let rec = std::cell::RefCell::new(crate::ewald::begin_reciprocal(ew, &cpos, &cq, &carm, &dpos, &darm));
+        let sq = rec.borrow_mut().charge_sum();
         let t_phases = t_a.elapsed();
         // The permanent charges: the reciprocal energy, less each charge's self
         // term and less the long-range part of the pairs inside a molecule (a
@@ -423,27 +438,15 @@ impl Liquid {
             }
         }
         forces.energy += ew.energy(&sq) - ew.charge_self(&cq_original) - intra * n as f64;
-        let induced = law.induction();
-        let (mut fch_rec, mut fdip_rec): (Vec<Vec3>, Vec<Vec3>) = (Vec::new(), Vec::new());
-        let mut virial_rec = 0.0;
         let mut dipoles = Vec::new();
+        let mut mu: Vec<Vec3> = Vec::new();
         if let Some((alpha, charge)) = induced {
             let widths = law.charge_widths();
-            let pol_sites: Vec<usize> = (0..types.len()).filter(|&k| alpha[types[k]] > 0.0).collect();
-            let (mut dpos, mut dcom, mut darm) = (Vec::new(), Vec::new(), Vec::new());
-            for i in 0..n {
-                for &k in &pol_sites {
-                    dpos.push(self.com[i] + arms[i][k]);
-                    dcom.push(self.com[i]);
-                    darm.push(arms[i][k]);
-                }
-            }
-            let ph_d = ew.phases(&dpos);
-            let e0_lr = ew.field_at_dipoles(&sq, &ph_d, dpos.len());
+            let e0_lr = rec.borrow_mut().field_at_dipoles();
             let t_response = std::cell::Cell::new(std::time::Duration::ZERO);
             let response = |x: &[Vec3]| {
                 let t0 = std::time::Instant::now();
-                let r = ew.dipole_response(&ph_d, x);
+                let r = rec.borrow_mut().dipole_response(x);
                 t_response.set(t_response.get() + t0.elapsed());
                 r
             };
@@ -474,12 +477,7 @@ impl Liquid {
             }
             forces.energy += out.energy;
             forces.virial += out.virial;
-            let mu: Vec<Vec3> = out.dipoles.iter().flatten().cloned().collect();
-            let d = ew.dipole_sum(&ph_d, &mu);
-            let stot: Vec<crate::ewald::C> = sq.iter().zip(&d).map(|(a, b)| crate::ewald::C { re: a.re + b.re, im: a.im + b.im }).collect();
-            fch_rec = ew.grad_charge_pos(&stot, &ph_c, &cq).into_iter().map(|g| -g).collect();
-            fdip_rec = ew.grad_dipole_pos(&stot, &ph_d, &mu).into_iter().map(|g| -g).collect();
-            virial_rec = if std::env::var_os("PHYS_EWALD_NUMERIC_VIRIAL").is_some() { ew.virial(&ccom, &carm, &cq, &dcom, &darm, &mu) } else { ew.virial_analytic(&stot, &ph_c, &cq, &carm, &ph_d, &mu, &darm, &d) };
+            mu = out.dipoles.iter().flatten().cloned().collect();
             for i in 0..n {
                 for (a, &k) in pol_sites.iter().enumerate() {
                     let f = out.force_pol[i][a];
@@ -496,20 +494,21 @@ impl Liquid {
                 forces.force[l.i] += out.link_force[k];
                 forces.force[l.j] -= out.link_force[k];
             }
-            // The reciprocal forces on the dipoles' sites.
-            let mut idx = 0;
-            for i in 0..n {
-                for &k in &pol_sites {
-                    let f = fdip_rec[idx];
-                    forces.force[i] += f;
-                    forces.torque[i] += arms[i][k].cross(f);
-                    idx += 1;
-                }
-            }
             dipoles = out.dipoles;
-        } else {
-            fch_rec = ew.grad_charge_pos(&sq, &ph_c, &cq).into_iter().map(|g| -g).collect();
-            virial_rec = if std::env::var_os("PHYS_EWALD_NUMERIC_VIRIAL").is_some() { ew.virial(&ccom, &carm, &cq, &[], &[], &[]) } else { ew.virial_analytic(&sq, &ph_c, &cq, &carm, &[], &[], &[], &[]) };
+        }
+        // The reciprocal forces on every charge and dipole site, and the reciprocal virial.
+        let fin = rec.borrow_mut().finish(&mu);
+        let stot: Vec<crate::ewald::C> = if fin.d.is_empty() { sq.clone() } else { sq.iter().zip(&fin.d).map(|(a, b)| crate::ewald::C { re: a.re + b.re, im: a.im + b.im }).collect() };
+        let fch_rec: Vec<Vec3> = fin.grad_charge.iter().map(|g| -*g).collect();
+        let virial_rec = if std::env::var_os("PHYS_EWALD_NUMERIC_VIRIAL").is_some() { ew.virial(&ccom, &carm, &cq, &dcom, &darm, &mu) } else { ew.virial_from_sums(&stot, &fin.tc, &fin.td, &fin.d) };
+        let mut idx = 0;
+        for i in 0..n {
+            for &k in &pol_sites {
+                let f = -fin.grad_dipole_pos[idx];
+                forces.force[i] += f;
+                forces.torque[i] += arms[i][k].cross(f);
+                idx += 1;
+            }
         }
         let mut idx = 0;
         for i in 0..n {
