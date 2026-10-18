@@ -149,6 +149,8 @@ pub struct Monomer {
     contact: Vec<f64>,
     masses: Vec<f64>,
     grown: bool,
+    /// The molecule's net charge (an ion: sodium +1, chloride -1).
+    pub charge: i32,
     /// Compute pairs at Hartree-Fock + RI-MP2 instead of with the density
     /// functional (`--mp2`): a line then carries the total interaction (HF
     /// plus correlation) where the PBE-exchange energy goes and the
@@ -240,12 +242,30 @@ fn atoms_of(name: &str) -> Vec<u32> {
         "ammonia" => vec![7, 1, 1, 1],
         "methanol" => vec![6, 8, 1, 1, 1, 1],
         "ethanol" => vec![6, 6, 8, 1, 1, 1, 1, 1, 1],
+        "sodium" => vec![11],
+        "chloride" => vec![17],
         other => panic!("no atoms known for {other}"),
+    }
+}
+
+/// The net charge of the ions `phys-pairs-unlike` knows by name: one atom each, closed shell.
+fn charge_of(name: &str) -> i32 {
+    match name {
+        "sodium" => 1,
+        "chloride" => -1,
+        _ => 0,
     }
 }
 
 impl Monomer {
     pub fn load(name: &str, grown: bool) -> Monomer {
+        // An ion is one atom: there is nothing to grow, and its shape is a point.
+        if charge_of(name) != 0 {
+            let z = atoms_of(name);
+            let contact: Vec<f64> = z.iter().map(|&zz| crate::chem::elements::Element(zz as u8).vdw_radius().unwrap_or(1.5e-10) / 0.529177210903e-10).collect();
+            let masses: Vec<f64> = z.iter().map(|&zz| crate::chem::elements::Element(zz as u8).mass_kg().expect("a mass")).collect();
+            return Monomer { name: name.to_string(), types: vec![0], extra: vec![Vec::new()], body: vec![Vec3 { x: 0.0, y: 0.0, z: 0.0 }], contact, masses, grown: false, charge: charge_of(name), z, mp2: false, bias: None, flex: None, wall: None };
+        }
         let state = Resume::from_text(&std::fs::read_to_string(format!("grow-{name}.state")).unwrap_or_else(|_| panic!("no grow-{name}.state"))).expect("a readable state");
         let z = atoms_of(name);
         let mono = Molecule { z: z.clone(), positions: state.positions.clone(), charge: 0, unpaired: 0 };
@@ -261,7 +281,7 @@ impl Monomer {
         }
         let body: Vec<Vec3> = mono.positions.iter().map(|p| Vec3 { x: p[0] - com[0], y: p[1] - com[1], z: p[2] - com[2] }).collect();
         let contact: Vec<f64> = z.iter().map(|&zz| crate::chem::elements::Element(zz as u8).vdw_radius().unwrap_or(1.5e-10) / 0.529177210903e-10).collect();
-        Monomer { name: name.to_string(), z, types, extra, body, contact, masses, grown, mp2: false, bias: None, flex: None, wall: None }
+        Monomer { name: name.to_string(), z, types, extra, body, contact, masses, grown, charge: 0, mp2: false, bias: None, flex: None, wall: None }
     }
 
     /// The molecule's atoms about its centre of mass: the relaxed shape, or a
@@ -1853,17 +1873,18 @@ pub fn unlike_interaction(a: &Monomer, b: &Monomer, pa: &[Vec3], pb: &[Vec3]) ->
     let (na, nb) = (a.z.len(), b.z.len());
     let z: Vec<u32> = a.z.iter().chain(b.z.iter()).cloned().collect();
     let positions: Vec<[f64; 3]> = pa.iter().chain(pb.iter()).map(|v| [v.x, v.y, v.z]).collect();
-    let cluster = Molecule { z: z.clone(), positions, charge: 0, unpaired: 0 };
+    let cluster = Molecule { z: z.clone(), positions, charge: a.charge + b.charge, unpaired: 0 };
     let base = cluster.problem(Functional::Pbe);
-    let ea: f64 = a.z.iter().map(|&zz| zz as f64).sum();
-    let eb: f64 = b.z.iter().map(|&zz| zz as f64).sum();
+    let ea: f64 = a.z.iter().map(|&zz| zz as f64).sum::<f64>() - a.charge as f64;
+    let eb: f64 = b.z.iter().map(|&zz| zz as f64).sum::<f64>() - b.charge as f64;
+    let charges: Vec<i32> = a.z.iter().map(|_| a.charge / a.z.len().max(1) as i32).chain(b.z.iter().map(|_| b.charge / b.z.len().max(1) as i32)).collect();
     let slots: [(Vec<usize>, f64); 3] = [((0..na + nb).collect(), ea + eb), ((0..na).collect(), ea), ((na..na + nb).collect(), eb)];
     let (mut hf, mut corr) = ([0.0; 3], [0.0; 3]);
     for (s, (keep, ne)) in slots.iter().enumerate() {
         let p = base.with_ghosts(keep, *ne);
         let sol = crate::electrons::hf::hartree_fock(&p, 200, 1e-9);
         assert!(sol.converged, "a Hartree-Fock field of an unlike pair did not converge");
-        corr[s] = crate::electrons::hf::mp2(&p, &sol, crate::electrons::hf::frozen_core(&z, keep)).correlation;
+        corr[s] = crate::electrons::hf::mp2(&p, &sol, crate::electrons::hf::frozen_core_charged(&z, &charges, keep)).correlation;
         hf[s] = sol.energy;
     }
     let (h, c) = (hf[0] - hf[1] - hf[2], corr[0] - corr[1] - corr[2]);

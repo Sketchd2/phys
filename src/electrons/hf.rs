@@ -466,6 +466,20 @@ pub fn frozen_core(z: &[u32], real: &[usize]) -> usize {
         .sum()
 }
 
+/// As [`frozen_core`] for atoms that may be ions: the core orbitals follow the electrons an atom
+/// holds (`z` less its `charge`), so a sodium ion with the ten electrons of neon freezes 1s and
+/// correlates its 2s and 2p, and a chloride ion with argon's eighteen freezes 1s, 2s and 2p.
+pub fn frozen_core_charged(z: &[u32], charge: &[i32], real: &[usize]) -> usize {
+    real.iter()
+        .map(|&i| match z[i] as i32 - charge[i] {
+            ..=2 => 0,
+            3..=10 => 1,
+            11..=18 => 5,
+            other => panic!("no frozen-core rule for {other} electrons"),
+        })
+        .sum()
+}
+
 /// The static dipole polarisability tensors of the molecule in `problem`, by
 /// finite field: minus the second derivative of the total energy with respect
 /// to a uniform field, from central differences of `step` atomic units. Returns
