@@ -489,9 +489,12 @@ than chosen between, per `CLAUDE.md`.
    and the 1 % saline solution. *Methanol + methane and ammonia + methane are not
    dropped: the owner will have them tested in due course.* They stay in §6.2 marked
    as later, and the design (§4) does not depend on them.
-3. **Solid phases in this item.** E11 puts the crystal free energies after the liquid
-   and the owner placed it at the end; the phase diagram asked for here includes them. S7
-   schedules them last, on E11's order. Say if they should come earlier.
+3. **Solid phases in this item. DECIDED (the owner, 2026-10-18): option A.** The
+   crystal free energies and the melting and sublimation curves stay last (S7), after
+   the liquid-vapour and miscibility work they depend on. **How the derived diagram
+   interacts with the rest of the physics engine (the registry, phase in `Mixture`,
+   `Eos`, the world's use of the stored rule) waits until E11, by the owner's
+   instruction;** this item derives the diagrams and does not wire them in.
 4. **Hydrates and clathrates** (ammonia hydrates; methane clathrate at several MPa)
    are phases of these mixtures. Not in the plan. In or out?
 5. **The ice structure.** Ice Ih is proton-disordered; the choice of how to sample or

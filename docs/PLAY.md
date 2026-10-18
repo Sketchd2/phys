@@ -5460,8 +5460,9 @@ the start of the phase, ahead of the renderer**. In order:
        binaries (methanol, ammonia, methane), plus water + ethanol and the saline
        solution.** Methanol + methane and ammonia + methane are to be tested in due
        course.
-     - **Open, the owner's** (§8, eight items remaining): solid phases and
-       their order; hydrates and clathrates; the ice-disorder choice; what the law owes
+     - **Decided (the owner, 2026-10-18): the solid phases stay last (S7), and how a
+       derived diagram interacts with the rest of the engine waits until E11.**
+     - **Open, the owner's** (§8, seven items remaining): hydrates and clathrates; the ice-disorder choice; what the law owes
        a mixture if the transferability test fails; a tolerance for an excess property
        and a miscibility gap; the pressure range; the zero-point correction in a stored
        diagram; and the Ewald GPU port as the enabling speed item.
