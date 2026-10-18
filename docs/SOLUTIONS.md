@@ -479,7 +479,7 @@ because it needs the same crystal-free-energy machinery.
 above).** Polyatomic and multiply charged ions: the carbonate dianion's stability test first, then the
 charge bookkeeping, then ion-water pairs, trimers and shells for Ca2+ and CO3(2-), a law for them under the
 E8 conditions, and the solution at a fixed speciation. The solubility product waits on S7's ionic crystals.
-Flexible and non-planar polyatomic ions are to be considered as well as rigid ones (section 8, item 11).
+Rigid first as a baseline (S10a), then flexible and non-planar (S10b), the owner's order (section 8, item 11).
 See section 8, item 11.
 
 **S8. Buckets and the stored rule.** The ratio bucket width, measured as the owner
@@ -630,7 +630,11 @@ than chosen between, per `CLAUDE.md`.
       "local, atom-based quantities" intended; (b) the monomer energy surface (`phys-pes`) exists for water
       only, and a polyatomic ion has 3N-6 coordinates, torsions possibly among them; (c) a flexible ion's
       shape depends on its environment, so its stored description is a rule over geometry, not one shape.
-      Whether S10 uses a rigid average shape first, as E8 did, or is flexible from the start is the owner's.
+      **Decided (the owner, 2026-10-19): rigid first, to get a baseline, and then flexible.** S10 therefore has two
+      parts: S10a, each ion rigid at its derived average shape (the E8 treatment), reported as the baseline; S10b,
+      the same ions flexible, the baseline kept beside it so the difference is the flexibility's alone. The
+      flexible part uses whichever of E8c's treatments the owner keeps for the neutral molecules; until that
+      comparison has been made for water (`PLAY.md` E8c), S10b waits on it, and is not started on a guess.
     - *Open for the owner when it is taken up:* the tolerance for a solubility; which speciation; whether
       calcite and aragonite are both wanted; and whether magnesium (dolomite) or sulphate (gypsum) come with it.
 

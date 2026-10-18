@@ -5507,7 +5507,8 @@ the start of the phase, ahead of the renderer**. In order:
      - **An extension (the owner, 2026-10-19): calcium carbonate in water**, as S10, after the 1 % saline
        solution and outside S0-S6: polyatomic and multiply charged ions. First test: whether an isolated
        carbonate dianion is stable enough to be a reference at all. Flexible and non-planar polyatomic ions are to
-       be considered as well as rigid ones (the owner, 2026-10-19). `docs/SOLUTIONS.md` section 8, item 11.
+       be considered as well as rigid ones; rigid first as a baseline (S10a), then flexible (S10b), the owner's
+       order, 2026-10-19. `docs/SOLUTIONS.md` section 8, item 11.
      - **Cost, estimated and so flagged** (§9): about 40 hours a nanosecond of the
        rigid Ewald liquid on the present code, so thermodynamic integration is weeks
        until the reciprocal sum is on the card.
