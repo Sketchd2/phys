@@ -457,6 +457,13 @@ points and sublimation by Clapeyron; then the solution freezing curve (§5.5).
 *Done when* the stored rule for each pure substance reproduces its own coexistence
 points and the triple point is where the curves cross.
 
+**S9. Hydrates and clathrates (the owner, 2026-10-18; after S7).** Methane clathrate,
+the ammonia hydrates and hydrohalite: their crystal free energies by S7's methods,
+their stability fields on the diagrams of water + methane, water + ammonia and
+salt + water. *Done when* each appears on its diagram where it is stable and the
+solution's freezing curve ends at its eutectic or peritectic. Ordered after S7
+because it needs the same crystal-free-energy machinery.
+
 **S8. Buckets and the stored rule.** The ratio bucket width, measured as the owner
 decided: the widest step in composition over which the derived excess terms change
 by less than the tolerance, on the representative mixtures above, then a three-
@@ -495,8 +502,15 @@ than chosen between, per `CLAUDE.md`.
    interacts with the rest of the physics engine (the registry, phase in `Mixture`,
    `Eos`, the world's use of the stored rule) waits until E11, by the owner's
    instruction;** this item derives the diagrams and does not wire them in.
-4. **Hydrates and clathrates** (ammonia hydrates; methane clathrate at several MPa)
-   are phases of these mixtures. Not in the plan. In or out?
+4. **Hydrates and clathrates. DECIDED (the owner, 2026-10-18): included, at some
+   point after S7.** Methane clathrate, the ammonia hydrates and the salt hydrate
+   (hydrohalite, near the eutectic) are scheduled as S9, after the pure solids and
+   the solution freezing curve. Each is a crystal with its own free energy, so S9
+   uses S7's machinery. The 1 % saline solution never reaches its hydrate (the
+   eutectic is far more concentrated), so the hydrohalite matters only to the full
+   salt-water diagram. *Which hydrates, their structures and the order among them are
+   the author's to propose when S9 is reached and the owner's to confirm; none is
+   chosen here.*
 5. **The ice structure.** Ice Ih is proton-disordered; the choice of how to sample or
    enumerate the disorder, or whether to use ice XI or another ordered proxy for the
    free energy, is a modelling decision the plan does not make.

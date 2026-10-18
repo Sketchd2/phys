@@ -5451,7 +5451,7 @@ the start of the phase, ahead of the renderer**. In order:
        and the transferability test; S3 chemical potentials checked against
        coexistence; S4 binary liquid-vapour and liquid-liquid (water + methanol,
        ammonia, methane); S5 ions; S6 the 1 % saline solution; S7 solid phases and the
-       full diagram on E11's order; S8 ratio buckets and the stored rule with a quick
+       full diagram on E11's order; S9 hydrates and clathrates after S7; S8 ratio buckets and the stored rule with a quick
        derivation in front of the thorough one.
      - **Decided (the owner, 2026-10-18): the alcohol is methanol first, ethanol
        after**, ethanol tested at the azeotrope and at two other ratios (the author's
@@ -5462,7 +5462,9 @@ the start of the phase, ahead of the renderer**. In order:
        course.
      - **Decided (the owner, 2026-10-18): the solid phases stay last (S7), and how a
        derived diagram interacts with the rest of the engine waits until E11.**
-     - **Open, the owner's** (§8, seven items remaining): hydrates and clathrates; the ice-disorder choice; what the law owes
+     - **Decided (the owner, 2026-10-18): hydrates and clathrates (methane clathrate,
+       the ammonia hydrates, hydrohalite) are included, as S9, after S7.**
+     - **Open, the owner's** (§8, six items remaining): the ice-disorder choice; what the law owes
        a mixture if the transferability test fails; a tolerance for an excess property
        and a miscibility gap; the pressure range; the zero-point correction in a stored
        diagram; and the Ewald GPU port as the enabling speed item.
