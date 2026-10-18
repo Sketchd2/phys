@@ -5466,8 +5466,10 @@ the start of the phase, ahead of the renderer**. In order:
        the ammonia hydrates, hydrohalite) are included, as S9, after S7.**
      - **Decided (the owner, 2026-10-18): ice's proton disorder is sampled** (several
        arrangements obeying the ice rules, their spread part of the melting point's error).
-     - **Open, the owner's** (§8, five items remaining): what the law owes
-       a mixture if the transferability test fails; a tolerance for an excess property
+     - **Decided (the owner, 2026-10-18): if the transferability test fails, one
+       candidate term at a time may be tried, each reported, none adopted without the
+       owner's say-so,** the candidates drawn first from the checklist's absent rows.
+     - **Open, the owner's** (§8, four items remaining): a tolerance for an excess property
        and a miscibility gap; the pressure range; the zero-point correction in a stored
        diagram; and the Ewald GPU port as the enabling speed item.
      - **Cost, estimated and so flagged** (§9): about 40 hours a nanosecond of the

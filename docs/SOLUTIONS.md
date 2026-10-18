@@ -520,9 +520,15 @@ than chosen between, per `CLAUDE.md`.
    disorder is a measured contribution and is not hidden in it. If cost makes this
    impractical the fallback is an ordered proxy (ice XI) plus the Pauling residual
    entropy counted from the arrangements, and **that change goes to the owner first.**
-6. **What the law owes a mixture.** If the transferability test (§4.4) falls in the
-   third branch, a term is missing from the form — a `PHYSICS.md`-weight addition.
-   This document commits to reporting that and not to adding it.
+6. **What the law owes a mixture. DECIDED (the owner, 2026-10-18): option B.** If
+   the transferability test (§4.4) falls in the third branch, I may try **one
+   candidate term at a time** and report each result, with **nothing adopted into the
+   law without the owner's say-so**. This is the E8b investigation-log rule, applied
+   here. The candidates come first from the checklist's intermolecular rows marked
+   absent (§2.1: 2, 8, 10, 11, 13, 15), in the order the evidence ranks them, so a
+   term is chosen because the checklist already named it; the owner expects the
+   checklist to make this branch rare. A term outside the checklist is a finding
+   to report before it is tried.
 7. **The tolerance for a derived phase diagram.** The plan gives 0.1 % on a
    geometry and the 25 % boiling-point bound in a failing test; it states no
    tolerance for an excess property or a miscibility gap. Boiling points are the
