@@ -475,6 +475,12 @@ salt + water. *Done when* each appears on its diagram where it is stable and the
 solution's freezing curve ends at its eutectic or peritectic. Ordered after S7
 because it needs the same crystal-free-energy machinery.
 
+**S10. Calcium carbonate in water (an extension, the owner, 2026-10-19; after S6, outside the done-whens
+above).** Polyatomic and multiply charged ions: the carbonate dianion's stability test first, then the
+charge bookkeeping, then ion-water pairs, trimers and shells for Ca2+ and CO3(2-), a law for them under the
+E8 conditions, and the solution at a fixed speciation. The solubility product waits on S7's ionic crystals.
+See section 8, item 11.
+
 **S8. Buckets and the stored rule.** The ratio bucket width, measured as the owner
 decided: the widest step in composition over which the derived excess terms change
 by less than the tolerance, on the representative mixtures above, then a three-
@@ -584,6 +590,34 @@ than chosen between, per `CLAUDE.md`.
     is run, and a part that is compute-bound and parallel is a candidate for the card;
     the check and its result are recorded, whether or not the port is made. Results
     stay unchanged to the stated tolerance (the owner's earlier ruling).
+
+11. **An extension: calcium carbonate in water (the owner, 2026-10-19: "add it there").** Polyatomic and
+    multiply charged ions, with Ca2+ and CO3(2-) as the case. **Recorded as an extension after the 1 %
+    saline solution (S6), outside S0-S6; nothing in them depends on it.** The owner has not set its
+    scope, tolerance or place in the order; what follows is the author's reading of what it needs.
+    - *Already carried over:* a charged monomer works in the unlike-pair code (Na+ and Cl- went through
+      it); Ca2+ has argon's 18 electrons, so `frozen_core_charged` freezes 1s2s2p and correlates 3s3p; the
+      cloud model has no assumption about charge.
+    - *Code to change first:* `unlike_interaction` spreads a net charge evenly over the atoms (`charge /
+      atom count`), which is right for one atom and wrong for a polyatomic ion, whose atoms each need their
+      own electron count for the frozen-core rule; `phys::cloud` takes the valence electrons from the neutral
+      atoms and would have to add an anion's extra electrons.
+    - *The first test, before anything is built on it:* **an isolated CO3(2-) is electronically unstable**
+      (its extra electrons are bound only by the surrounding field), so a carbonate-water pair at MP2 can
+      give a spurious loose electron or fail to converge. Check the highest occupied orbital's energy and the
+      carbonate-with-one-water and -with-several-waters energies against the number of waters; if the
+      reference needs a solvent field or a cluster of waters to be sound, that changes the data recipe for
+      every anion with charge below -1, and is reported to the owner before any carbonate law is fitted.
+    - *Physics the rigid, non-reactive liquid cannot do:* carbonate, bicarbonate and dissolved CO2 are in
+      equilibrium through proton transfer, which depends on pH; a rigid-molecule law cannot make or break an
+      O-H bond, so any carbonate run holds a fixed speciation, and which one is the owner's to say. Calcium
+      carbonate dissolves only to about 13 mg/L (author's recollection, to be cited), so the solution is
+      extremely dilute and the meaningful phase question is the solubility product against calcite and
+      aragonite, which needs the ionic crystals (S7) and the ion-pair free energies as well as the liquid.
+    - *Checklist rows that matter more here than for water:* 10 (exchange-induction quenching), 11 (charge
+      transfer) and 18 (higher-body terms), because Ca2+ and CO3(2-) polarise their shells hard.
+    - *Open for the owner when it is taken up:* the tolerance for a solubility; which speciation; whether
+      calcite and aragonite are both wanted; and whether magnesium (dolomite) or sulphate (gypsum) come with it.
 
 ## 9. Cost, from what has been measured
 
