@@ -47,6 +47,7 @@
 //! scaling of the molecules' centres (their shapes and the dipoles fixed),
 //! which is what the molecular virial of a liquid of rigid molecules is.
 
+use crate::induction::{Cluster, Induced, Link};
 use crate::math::Vec3;
 
 const PI: f64 = std::f64::consts::PI;
@@ -586,4 +587,35 @@ impl ReciprocalSession for CpuReciprocal<'_> {
         let td = if self.nd == 0 { vec![C::default(); nk] } else { ew.dipole_arm_sum(&self.ph_d, mu, &self.darm) };
         Finished { d, tc, td, grad_charge, grad_dipole_pos }
     }
+}
+
+/// A whole force evaluation's long-range work, done in one go on a card: the permanent charges'
+/// structure factor, the induced-dipole solve (the Ewald real-space tensors, the molecule's own
+/// terms off, the reciprocal field and response included) and everything the forces and the
+/// virial need from the reciprocal sums.
+pub struct EwaldStep {
+    pub sq: Vec<C>,
+    pub induced: Induced,
+    pub finished: Finished,
+}
+
+/// Something that does [`EwaldStep`] with the conjugate-gradient loop and the reciprocal response
+/// resident on a GPU (`phys-gpu`'s `GpuEwaldStep`). It answers to the reference's tolerance, not bit
+/// for bit, and may decline (`None`), when the CPU does it as [`CpuReciprocal`] and
+/// [`crate::induction::solve_ewald`] do together.
+pub trait EwaldStepEngine: Send + Sync {
+    #[allow(clippy::too_many_arguments)]
+    fn step(&self, ew: &Ewald, cl: &Cluster, links: &[Link], cpos: &[Vec3], cq: &[f64], carm: &[Vec3], dpos: &[Vec3], darm: &[Vec3], warm: Option<&[Vec<Vec3>]>, tolerance: f64) -> Option<EwaldStep>;
+}
+
+static STEP_ENGINE: std::sync::Mutex<Option<std::sync::Arc<dyn EwaldStepEngine>>> = std::sync::Mutex::new(None);
+
+/// Install a whole-step engine for this process (`None` removes it).
+pub fn set_step_engine(engine: Option<std::sync::Arc<dyn EwaldStepEngine>>) {
+    *STEP_ENGINE.lock().expect("the step engine") = engine;
+}
+
+/// The installed whole-step engine, if any.
+pub fn step_engine() -> Option<std::sync::Arc<dyn EwaldStepEngine>> {
+    STEP_ENGINE.lock().expect("the step engine").clone()
 }

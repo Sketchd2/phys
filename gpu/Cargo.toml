@@ -48,3 +48,7 @@ path = "src/bin/flexbulk_gpu.rs"
 [[bin]]
 name = "phys-bulk-gpu"
 path = "src/bin/bulk_gpu.rs"
+
+[[bin]]
+name = "phys-ewald-gpu"
+path = "src/bin/ewald_gpu.rs"

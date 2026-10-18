@@ -24,7 +24,7 @@ c = [1.0 / math.factorial(k) for k in range(15)]
 horner = "var poly = %s;\n" % lit(c[14]) + "".join("    poly = poly * r + %s;\n" % lit(c[k]) for k in range(13, -1, -1))
 
 common = open(os.path.join(here, "src", "common.wgsl.tpl"), encoding="utf8").read()
-for name in ("induction", "sitepair"):
+for name in ("induction", "sitepair", "ewald_step"):
     path = os.path.join(here, "src", name + ".wgsl.tpl")
     if not os.path.exists(path):
         continue

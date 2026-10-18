@@ -61,6 +61,7 @@ pub mod geolaw;
 pub mod ids;
 pub mod induction;
 pub mod ewald;
+pub mod ewaldcheck;
 pub mod liquid;
 pub mod pairs;
 pub mod queue;

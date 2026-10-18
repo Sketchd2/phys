@@ -27,11 +27,13 @@
 //! compensation carried from one to the next.
 
 pub mod ewald;
+pub mod ewald_step;
 pub mod fock;
 pub mod induction;
 pub mod sitepair;
 pub mod product;
 pub use ewald::{install_ewald, GpuEwald};
+pub use ewald_step::{install_ewald_step, GpuEwaldStep};
 pub use fock::install_fock;
 pub use induction::{install_induction, GpuInduction};
 pub use sitepair::{install_pairs, GpuPairs};

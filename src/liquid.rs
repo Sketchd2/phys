@@ -423,10 +423,65 @@ impl Liquid {
                 darm.push(arms[i][k]);
             }
         }
-        // The reciprocal work (`ewald.rs`): the CPU's, or the installed engine's on the card.
-        let rec = std::cell::RefCell::new(crate::ewald::begin_reciprocal(ew, &cpos, &cq, &carm, &dpos, &darm));
-        let sq = rec.borrow_mut().charge_sum();
-        let t_phases = t_a.elapsed();
+        // The dipoles' cluster and the pairs of molecules within the cut-off.
+        let mut cl = Cluster::default();
+        let mut links = Vec::new();
+        if let Some((alpha, charge)) = induced {
+            let widths = law.charge_widths();
+            for i in 0..n {
+                cl.pol.push(pol_sites.iter().map(|&k| PolSite { pos: self.com[i] + arms[i][k], alpha: alpha[types[k]] }).collect());
+                cl.charges.push(charged.iter().map(|&k| Charge { pos: self.com[i] + arms[i][k], q: charge[types[k]], sigma: widths.get(types[k]).copied().unwrap_or(0.0) }).collect());
+            }
+            for i in 0..n {
+                for j in i + 1..n {
+                    let raw = self.com[i] - self.com[j];
+                    let d = self.image(raw);
+                    let dist = d.norm();
+                    if dist >= self.r_cut {
+                        continue;
+                    }
+                    let (w, dw) = switch(dist, self.r_on, self.r_cut);
+                    links.push(Link { i, j, shift: raw - d, weight: w, dweight: dw, d });
+                }
+            }
+        }
+        // A whole-step engine on the card, if one is installed and takes this liquid; else the CPU's
+        // (or the reciprocal engine's) work in its parts.
+        let stepped = if induced.is_some() && !pol_sites.is_empty() && !links.is_empty() {
+            crate::ewald::step_engine().and_then(|e| e.step(ew, &cl, &links, &cpos, &cq, &carm, &dpos, &darm, warm, ind_tolerance()))
+        } else {
+            None
+        };
+        let (sq, out, fin) = match stepped {
+            Some(s) => (s.sq, if induced.is_some() { Some(s.induced) } else { None }, s.finished),
+            None => {
+                // The reciprocal work (`ewald.rs`): the CPU's, or the installed engine's on the card.
+                let rec = std::cell::RefCell::new(crate::ewald::begin_reciprocal(ew, &cpos, &cq, &carm, &dpos, &darm));
+                let sq = rec.borrow_mut().charge_sum();
+                let mut out = None;
+                let mut mu: Vec<Vec3> = Vec::new();
+                if induced.is_some() {
+                    let e0_lr = rec.borrow_mut().field_at_dipoles();
+                    let t_response = std::cell::Cell::new(std::time::Duration::ZERO);
+                    let response = |x: &[Vec3]| {
+                        let t0 = std::time::Instant::now();
+                        let r = rec.borrow_mut().dipole_response(x);
+                        t_response.set(t_response.get() + t0.elapsed());
+                        r
+                    };
+                    let t_b = std::time::Instant::now();
+                    let o = crate::induction::solve_ewald(&cl, &links, ew.s, &e0_lr, &response, warm, ind_tolerance());
+                    let _ = solve_ewald;
+                    if std::env::var_os("PHYS_PROFILE").is_some() {
+                        eprintln!("  add_ewald: before solve {:.1} ms; solve {:.1} ms of which reciprocal response {:.1} ms", (t_b - t_a).as_secs_f64() * 1e3, t_b.elapsed().as_secs_f64() * 1e3, t_response.get().as_secs_f64() * 1e3);
+                    }
+                    mu = o.dipoles.iter().flatten().cloned().collect();
+                    out = Some(o);
+                }
+                let fin = rec.borrow_mut().finish(&mu);
+                (sq, out, fin)
+            }
+        };
         // The permanent charges: the reciprocal energy, less each charge's self
         // term and less the long-range part of the pairs inside a molecule (a
         // rigid molecule's own constant), which the liquid does not have.
@@ -440,41 +495,7 @@ impl Liquid {
         forces.energy += ew.energy(&sq) - ew.charge_self(&cq_original) - intra * n as f64;
         let mut dipoles = Vec::new();
         let mut mu: Vec<Vec3> = Vec::new();
-        if let Some((alpha, charge)) = induced {
-            let widths = law.charge_widths();
-            let e0_lr = rec.borrow_mut().field_at_dipoles();
-            let t_response = std::cell::Cell::new(std::time::Duration::ZERO);
-            let response = |x: &[Vec3]| {
-                let t0 = std::time::Instant::now();
-                let r = rec.borrow_mut().dipole_response(x);
-                t_response.set(t_response.get() + t0.elapsed());
-                r
-            };
-            let mut cl = Cluster::default();
-            for i in 0..n {
-                cl.pol.push(pol_sites.iter().map(|&k| PolSite { pos: self.com[i] + arms[i][k], alpha: alpha[types[k]] }).collect());
-                cl.charges.push(charged.iter().map(|&k| Charge { pos: self.com[i] + arms[i][k], q: charge[types[k]], sigma: widths.get(types[k]).copied().unwrap_or(0.0) }).collect());
-            }
-            let mut links = Vec::new();
-            for i in 0..n {
-                for j in i + 1..n {
-                    let raw = self.com[i] - self.com[j];
-                    let d = self.image(raw);
-                    let dist = d.norm();
-                    if dist >= self.r_cut {
-                        continue;
-                    }
-                    let (w, dw) = switch(dist, self.r_on, self.r_cut);
-                    links.push(Link { i, j, shift: raw - d, weight: w, dweight: dw, d });
-                }
-            }
-            let t_b = std::time::Instant::now();
-            let out = crate::induction::solve_ewald(&cl, &links, ew.s, &e0_lr, &response, warm, ind_tolerance());
-            let _ = solve_ewald;
-            let t_solve = t_b.elapsed();
-            if std::env::var_os("PHYS_PROFILE").is_some() {
-                eprintln!("  add_ewald: dipole phases etc. before solve {:.1} ms; solve {:.1} ms of which reciprocal response {:.1} ms", (t_b - t_a).as_secs_f64() * 1e3, t_solve.as_secs_f64() * 1e3, t_response.get().as_secs_f64() * 1e3);
-            }
+        if let Some(out) = out {
             forces.energy += out.energy;
             forces.virial += out.virial;
             mu = out.dipoles.iter().flatten().cloned().collect();
@@ -497,7 +518,6 @@ impl Liquid {
             dipoles = out.dipoles;
         }
         // The reciprocal forces on every charge and dipole site, and the reciprocal virial.
-        let fin = rec.borrow_mut().finish(&mu);
         let stot: Vec<crate::ewald::C> = if fin.d.is_empty() { sq.clone() } else { sq.iter().zip(&fin.d).map(|(a, b)| crate::ewald::C { re: a.re + b.re, im: a.im + b.im }).collect() };
         let fch_rec: Vec<Vec3> = fin.grad_charge.iter().map(|g| -*g).collect();
         let virial_rec = if std::env::var_os("PHYS_EWALD_NUMERIC_VIRIAL").is_some() { ew.virial(&ccom, &carm, &cq, &dcom, &darm, &mu) } else { ew.virial_from_sums(&stot, &fin.tc, &fin.td, &fin.d) };
@@ -521,7 +541,7 @@ impl Liquid {
         }
         forces.virial += virial_rec;
         if std::env::var_os("PHYS_PROFILE").is_some() {
-            eprintln!("  add_ewald: charge phases+sum {:.1} ms; whole add_ewald {:.1} ms", t_phases.as_secs_f64() * 1e3, t_a.elapsed().as_secs_f64() * 1e3);
+            eprintln!("  add_ewald: whole {:.1} ms", t_a.elapsed().as_secs_f64() * 1e3);
         }
         if !dipoles.is_empty() {
             forces.dipoles = dipoles;
