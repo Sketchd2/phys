@@ -774,6 +774,24 @@ stopped when the owner asked for the machine; it has not been run. Scaling polar
 contradicts the engine's own gas-phase polarisability and is not proposed as a law.
 
 
+## 17. Induction 1.2x, and the induced-dipole width widened (probes, not laws)
+
+Same set-up as section 16 (Ewald, 216 molecules, 298 K, 30 ps, 1.0 g/cm3; `runs/e8d/indscale3.sh`,
+`runs/e8d/ewald/ind1.2`, `ind1.1_w1.2`). The runs were restarted after a Windows update killed the first attempt.
+
+| run | P bar | dHvap | g(2.8) | g(3.4) | g(3.8) | g(4.4) | g(4.9) | first peak |
+|---|---|---|---|---|---|---|---|---|
+| 1.2 x polarisability | -1552 +- 66 | 12.11 | 2.70 | 0.90 | 0.89 | 0.98 | 1.09 | 2.78 at 2.75 A |
+| 1.1 x polarisability, width x1.2 | +847 +- 46 | 9.59 | 2.00 | 1.21 | 0.93 | 0.80 | 0.94 | 2.35 at 2.95 A |
+| measured | ~1 | 10.5 | ~2.6 | ~0.8 | ~0.9 | ~1.1 | ~1.0 | |
+
+Reading: 1.2x continues the section 16 trend (pressure about -1550 against the -1400 expected, cohesion 12.1 too high,
+g(3.4) 0.90, shoulder 1.09), so no single polarisability scale gives structure and pressure together. Widening the
+induced-dipole width does not separate them: it weakens short-range induction, the first peak falls to 2.35 and moves out
+to 2.95 A, the first minimum moves to 4.35 A with coordination 10.4 (a loosened, less hydrogen-bonded liquid), cohesion
+drops to 9.6 and pressure goes to +847 bar. That is the opposite of the structure wanted. Width is not the lever.
+
+
 ## Sources
 
 Pair-only ab initio water collapses (coordination 11.9 for the CC-pol pair
