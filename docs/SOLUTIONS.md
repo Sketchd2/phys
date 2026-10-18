@@ -829,6 +829,12 @@ Not tested: two *large* GPU jobs together (the sodium job is small), and growth'
 A first version of this test stalled because the queue it meant to time had already finished and it had
 suspended the other jobs; see the watchdog above.
 
+**Is the pair job holding growth back? No (2026-10-19, `contention/growthtest.txt`).** Methanol growth used 9.0
+cores with the ammonia pair job running and 5.6 with it suspended for ten minutes, so the pair job does not
+limit it; growth's own phases vary between several cores and a few (an average of 2.1 cores over an earlier
+48 minutes, 6.6 over the next twelve). Round 12 of methanol was at probe 4 of 18 with about 337 minutes left in
+the round at 03:58 (393 at 03:11); how many rounds follow is not known. No change to the schedule.
+
 Waiting, and why (each waits on a named thing, which is the list to start from):
 
 | Work | Stage | Waits on |
