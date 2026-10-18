@@ -5473,7 +5473,9 @@ the start of the phase, ahead of the renderer**. In order:
        (enough when tightening no longer moves the diagram beyond sampling error);
        accuracy against experiment reported as a table with no pass/fail bound until
        the first results exist, then fixed by the owner.
-     - **Open, the owner's** (§8, three items remaining): the pressure range; the zero-point correction in a stored
+     - **Decided (the owner, 2026-10-18): pressure.** First derivation at 1 atm, then
+       extended to the pressures a stage needs, each shortcut carrying its range.
+     - **Open, the owner's** (§8, two items remaining): the zero-point correction in a stored
        diagram; and the Ewald GPU port as the enabling speed item.
      - **Cost, estimated and so flagged** (§9): about 40 hours a nanosecond of the
        rigid Ewald liquid on the present code, so thermodynamic integration is weeks

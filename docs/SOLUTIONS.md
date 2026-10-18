@@ -539,9 +539,12 @@ than chosen between, per `CLAUDE.md`.
    **the owner then fixes the bounds with those numbers in front of them.** A
    stage's done-when therefore reads "reported with its convergence shown", not
    "within X %", until the owner sets X.
-8. **Pressure-dependence.** E11 says the range is determined by the world, not fixed
-   in advance. Whether a solution's diagram is first derived at 1 atm only, or over
-   a fixed set of pressures, is the owner's.
+8. **Pressure range. DECIDED (the owner, 2026-10-18): option C.** The first
+   derivation is at 1 atm. The range then extends to the pressures a stage needs
+   (the coexistence runs already reach each pure liquid's critical region; S9's methane
+   clathrate needs MPa), in the manner of E11: every stored shortcut carries the
+   pressure and temperature range it was derived over and is flagged when used
+   outside it. No set of pressures is fixed in advance.
 9. **Quantum nuclei in the diagram.** A classical rigid liquid's heat of vaporisation
    and its melting point are off by zero-point terms (about 2.8 kcal/mol in ice). Whether
    the stored rule includes that correction (a path-integral run or a harmonic
