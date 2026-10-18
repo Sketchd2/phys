@@ -812,6 +812,23 @@ ethanol and methane, so it now runs at normal priority and the ammonia pair job 
 below-normal. Scripts that suspend or wait now carry a time limit on every stage and resume everything from an
 exit trap (`contention/run2.sh`).
 
+**GPU contention measured (the owner asked whether context switching was costing too much; 2026-10-19,
+`runs/e8e/contention/result2.txt`).** Seconds per pair, the other jobs suspended and resumed, not killed:
+
+```text
+ammonia alone                         118      (538 functions, three fields a pair)
+ammonia + basis growth (CPU)          150      +27 %
+ammonia + a sodium job                199      +68 %     the sodium pair 26 s against 21 alone (+24 %)
+all three                             ~164     (one 358 s outlier besides 148, 172, 171)   sodium ~30 s
+```
+
+Sharing the card **is a net gain**: ammonia at 59 % of its solo rate plus sodium at 81 % of its own is 1.40 of
+one job's throughput, and with all three about 0.72 + 0.70 = 1.42, so the jobs together do about 40 % more than
+the same jobs one after another. The slowdown per job is real and context switching is not the dominant cost.
+Not tested: two *large* GPU jobs together (the sodium job is small), and growth's own loss (it is CPU-bound).
+A first version of this test stalled because the queue it meant to time had already finished and it had
+suspended the other jobs; see the watchdog above.
+
 Waiting, and why (each waits on a named thing, which is the list to start from):
 
 | Work | Stage | Waits on |
