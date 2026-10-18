@@ -193,6 +193,15 @@ fn site_pair_with(ta: u32, tb: u32, r: f64, qa: f64, qb: f64, sa: f64, sb: f64) 
         coul = qq / r;
         dcoul = -qq / (r * r);
     }
+    // The Ewald remainder: only erf(r / s) - erf(r / s') of the Coulomb term is here (`EwaldLaw`).
+    let es = pair[4u * nt * nt];
+    if (es > 0.0lf && qq != 0.0lf) {
+        let xe = r / es;
+        let ge = gerf(xe);
+        let ce = 2.0lf / (SQRT_PI * es) * gauss(xe);
+        coul = coul - qq * ge / r;
+        dcoul = dcoul - qq * (ce / r - ge / (r * r));
+    }
     var ov = 0.0lf;
     var dov = 0.0lf;
     let k = ovk[ix];

@@ -145,6 +145,9 @@ pub struct PairProblem<'a> {
     pub charge: &'a [Vec<f64>],
     pub sigma: &'a [Vec<f64>],
     pub links: &'a [crate::induction::Link],
+    /// The Ewald splitting width, when the law has only the short-range remainder of its Coulomb
+    /// term: the pair loop takes `erf(r / s') / r` off each charged pair (`EwaldLaw::site_pair`).
+    pub ewald_width: Option<f64>,
 }
 
 /// What the pair loop gives back.
@@ -257,6 +260,26 @@ impl Liquid {
         let n = self.com.len();
         let arms: Vec<Vec<Vec3>> = (0..n).map(|i| self.arms(i)).collect();
         let types = &self.kind.types;
+        // The pair loop on an installed engine (the GPU), if there is one and it takes this law.
+        let engine_result = crate::liquid::pair_engine().filter(|_| law.site_site().is_some()).and_then(|e| {
+            let tab = law.site_site()?;
+            let mut links = Vec::new();
+            for i in 0..n {
+                for j in i + 1..n {
+                    let raw = self.com[i] - self.com[j];
+                    let d = self.image(raw);
+                    let dist = d.norm();
+                    if dist >= self.r_cut {
+                        continue;
+                    }
+                    let (w, dw) = switch(dist, self.r_on, self.r_cut);
+                    links.push(crate::induction::Link { i, j, shift: raw - d, weight: w, dweight: dw, d });
+                }
+            }
+            let qs: Vec<Vec<f64>> = (0..n).map(|_| types.iter().map(|&t| tab.charge[t]).collect()).collect();
+            let ss: Vec<Vec<f64>> = (0..n).map(|_| types.iter().map(|&t| tab.sigma.get(t).copied().unwrap_or(0.0)).collect()).collect();
+            e.pairs(&PairProblem { table: tab, types, rel: &arms, charge: &qs, sigma: &ss, links: &links, ewald_width: law.ewald().map(|w| w.s) })
+        });
         let job = |idx: &mut dyn Iterator<Item = usize>| {
             idx.map(|i| {
                 let (mut e, mut f, mut t, mut w) = (0.0, Vec3::ZERO, Vec3::ZERO, 0.0);
@@ -295,21 +318,30 @@ impl Liquid {
                 (i, e, f, t, w)
             }).collect::<Vec<_>>()
         };
-        let mut energy_rows = vec![0.0; n];
-        let mut virial_rows = vec![0.0; n];
-        let mut force = vec![Vec3::ZERO; n];
-        let mut torque = vec![Vec3::ZERO; n];
-        for part in crate::electrons::scf::parallel_interleaved(n, &job) {
-            for (i, e, f, t, w) in part {
-                energy_rows[i] = e;
-                force[i] = f;
-                torque[i] = t;
-                virial_rows[i] = w;
+        let mut forces = match engine_result {
+            Some(r) => {
+                let force: Vec<Vec3> = (0..n).map(|i| r.fsite[i].iter().fold(r.fcentre[i], |acc, f| acc + *f)).collect();
+                let torque: Vec<Vec3> = (0..n).map(|i| arms[i].iter().zip(&r.fsite[i]).fold(Vec3::ZERO, |acc, (p, f)| acc + p.cross(*f))).collect();
+                Forces { energy: r.energy, force, torque, virial: r.virial, dipoles: Vec::new() }
             }
-        }
-        // Every pair is in two rows, with the same product `d . F`: half the
-        // rows' sum is the sum over pairs.
-        let mut forces = Forces { energy: energy_rows.iter().sum(), force, torque, virial: 0.5 * virial_rows.iter().sum::<f64>(), dipoles: Vec::new() };
+            None => {
+                let mut energy_rows = vec![0.0; n];
+                let mut virial_rows = vec![0.0; n];
+                let mut force = vec![Vec3::ZERO; n];
+                let mut torque = vec![Vec3::ZERO; n];
+                for part in crate::electrons::scf::parallel_interleaved(n, &job) {
+                    for (i, e, f, t, w) in part {
+                        energy_rows[i] = e;
+                        force[i] = f;
+                        torque[i] = t;
+                        virial_rows[i] = w;
+                    }
+                }
+                // Every pair is in two rows, with the same product `d . F`: half the
+                // rows' sum is the sum over pairs.
+                Forces { energy: energy_rows.iter().sum(), force, torque, virial: 0.5 * virial_rows.iter().sum::<f64>(), dipoles: Vec::new() }
+            }
+        };
         let t_pairs = t_forces.elapsed();
         if let Some(ew) = law.ewald() {
             self.add_ewald(&mut forces, &arms, law, ew, warm);

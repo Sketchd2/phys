@@ -5495,6 +5495,12 @@ the start of the phase, ahead of the renderer**. In order:
        540 of 2145 MHz. The gain is whole-step residency (the real-space solve and pair loop on the
        card too, about 20 ms by the flexible ports), which awaits the owner's decision.
        `docs/SOLUTIONS.md` 9.2.
+     - **The whole Ewald step on the GPU, built and kept (2026-10-18; the owner: port anything to the GPU
+       to see if it is faster, and keep it if it is):** the induced-dipole solve with the reciprocal
+       response in its conjugate-gradient loop, the reciprocal forces, and the rigid liquid's pair
+       loop. Forces, torques, virial and energy equal the CPU's at every printed digit on a
+       216-molecule snapshot; a force evaluation went from 99-108 ms to 31 ms (3.2x).
+       `docs/SOLUTIONS.md` 9.2a.
      - **Keep the CPU and GPU busy (the owner, 2026-10-18):** independent work (basis growth for
        ammonia, methanol, ethanol and methane is running; pair and cluster calculations as their
        prerequisites are met) is started early. `docs/SOLUTIONS.md` 9.3 lists what waits on what.

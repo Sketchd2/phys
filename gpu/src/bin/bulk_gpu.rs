@@ -24,6 +24,16 @@ fn main() {
         }
         None => println!("Ewald reciprocal sums on the CPU"),
     }
+    let cpu_pairs = args.iter().any(|a| a == "--cpu-pairs");
+    let args: Vec<String> = args.into_iter().filter(|a| a != "--cpu-pairs").collect();
+    let pairs = if cpu_pairs || off { None } else { phys_gpu::GpuPairs::new().ok().map(std::sync::Arc::new) };
+    match &pairs {
+        Some(e) => {
+            println!("pair loop on the {}", e.name);
+            phys::liquid::set_pair_engine(Some(e.clone()));
+        }
+        None => println!("pair loop on the CPU"),
+    }
     phys::bulk::run(args);
     if let Some(e) = step {
         let t = e.timing.lock().expect("the timing");

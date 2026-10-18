@@ -335,7 +335,7 @@ impl Flex {
                 Some(gp) => ((0..n).map(|i| types.iter().map(|&t| gp[i].charge[t]).collect()).collect(), (0..n).map(|i| types.iter().map(|&t| gp[i].sigma[t]).collect()).collect()),
                 None => ((0..n).map(|_| types.iter().map(|&t| tab.charge[t]).collect()).collect(), (0..n).map(|_| types.iter().map(|&t| tab.sigma.get(t).copied().unwrap_or(0.0)).collect()).collect()),
             };
-            e.pairs(&crate::liquid::PairProblem { table: tab, types, rel: &rel, charge: &qs, sigma: &ss, links: &links })
+            e.pairs(&crate::liquid::PairProblem { table: tab, types, rel: &rel, charge: &qs, sigma: &ss, links: &links, ewald_width: None })
         });
         let job = |idx: &mut dyn Iterator<Item = usize>| {
             idx.map(|i| {

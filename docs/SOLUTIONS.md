@@ -680,6 +680,36 @@ loop, so that a step is a stream of kernels with one readback. Estimated from th
 ports, a step of the order of 20 ms against 87 now. Until then `phys-bulk-gpu` is the
 better of the two binaries by about 15 %, and runs at the same numbers to round-off.
 
+### 9.2a The whole step on the card (2026-10-18; the owner: port anything to the GPU to see if it is faster, and keep it if it is)
+
+Built and kept: the Ewald law's induced-dipole solve with its short-range tensors, the
+molecule's own charge-dipole terms, the reciprocal field and response inside the conjugate-gradient
+loop, the forces, and the reciprocal forces, all resident on the card (`gpu/src/ewald_step.rs`,
+`ewald_step.wgsl`, derived from the validated induction shader, which is untouched; the
+`EwaldStepEngine` seam in `ewald.rs`, `add_ewald` restructured to take either path); and the
+rigid liquid's site-site pair loop through the existing `PairEngine` seam with the Ewald remainder
+(`erf(r/s')/r` off each charged pair) added to the shader. `phys-bulk-gpu` and `phys-ewald-gpu`
+install them (`--cpu`, `--recip`, `--cpu-pairs` choose less).
+
+```text
+checked, 216-molecule snapshot, phys-ewald-gpu check against --cpu
+   energy, pressure (truncated and Ewald), forces, torques and virial equal at every printed digit;
+   the finite-difference checks pass at 1e-8; one reference torque differs in its 10th digit
+   gpu/tests/induction.rs (the flexible liquid's engines), gpu/tests/ewald.rs, tests/ewald.rs,
+   tests/flex.rs, tests/liquid.rs all pass
+
+one force evaluation, 216 molecules, ms        CPU        card
+   pair loop                                    23         9.4-10.8
+   Ewald part (solve + reciprocal)              70-77      20.6-21.0
+   whole                                        99-108     30.6-32.0     (3.2x; the CPU was also running basis growth)
+```
+
+What the card still leaves on the table: the Ewald part is 21 ms where the flexible liquid's
+solve took 8.8 ms, because the Ewald solve adds a reciprocal response (two reductions over the
+1,535 wave vectors) to each of its eleven iterations, and the pair loop is latency-bound (a thread a
+link). Both can be tuned; neither has been. A run of the liquid for hours is the test that matters
+and has not been done with the card path: the snapshot comparison is of forces, not of a trajectory.
+
 ## 9.3 Keeping the machine busy (the owner, 2026-10-18)
 
 *"Try to ensure no down time of the CPU and GPU. If there are other tasks such as pairwise

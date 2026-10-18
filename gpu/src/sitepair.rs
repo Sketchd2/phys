@@ -95,7 +95,7 @@ impl GpuPairs {
             n * ns * 3,                  // rel
             n * ns,                      // qv
             n * ns,                      // sv
-            ntypes * ntypes * 4,         // pair
+            ntypes * ntypes * 4 + 1,     // pair, then the Ewald width (0 for none)
             ntypes * ntypes,             // ovk
             ntypes * ntypes,             // bdamp
             ntypes,                      // sbase
@@ -167,7 +167,8 @@ impl GpuPairs {
         put(QV, bytemuck::cast_slice(&qv));
         let sv: Vec<f64> = p.sigma.iter().flatten().cloned().collect();
         put(SV, bytemuck::cast_slice(&sv));
-        let pair: Vec<f64> = table.pair.iter().flat_map(|a| a.iter().cloned()).collect();
+        let mut pair: Vec<f64> = table.pair.iter().flat_map(|a| a.iter().cloned()).collect();
+        pair.push(p.ewald_width.unwrap_or(0.0));
         put(PAIR, bytemuck::cast_slice(&pair));
         let mut ovk = vec![0.0f64; ntypes * ntypes];
         for (k, v) in table.overlap.iter().enumerate().take(ntypes * ntypes) {
