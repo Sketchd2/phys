@@ -1,6 +1,6 @@
 # Methanol's MP2 pair data, handed to whichever machines are working (class "any": Hartree-Fock and MP2 are double
 # precision on a CPU or a GPU machine alike). Pairs 0 and 1 of the first line were done by the local runner.
-mp2 methanol 2 150 any pairs-methanol-gpu-mp2.txt
-unlike water methanol 0 40 any pairs-water-methanol-mp2.txt
-mp2 methanol 0 100 any pairs-methanol-gpu-wall-mp2.txt wall=1.0,2.3
-unlike water methanol 0 40 any pairs-water-methanol-wall-mp2.txt wall=1.0,2.3
+mp2 methanol 2 150 any pairs-methanol-gpu-mp2.txt mem=4
+unlike water methanol 0 40 any pairs-water-methanol-mp2.txt mem=4
+mp2 methanol 0 100 any pairs-methanol-gpu-wall-mp2.txt wall=1.0,2.3 mem=4
+unlike water methanol 0 40 any pairs-water-methanol-wall-mp2.txt wall=1.0,2.3 mem=4

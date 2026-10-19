@@ -936,6 +936,19 @@ appear) -> `phys-cloud M` -> `phys-cloudfit M cloud-M.cloud es-M.txt -gpu-mp2,-g
 Still water-specific and to generalise: `phys-diag`'s other modes, `phys-fit`'s `--bisector` and its
 fixed `[0,1,1]` atom types, and the biased pair draw (it needs a first law).
 
+**The first ammonia cloud (2026-10-19, `runs/e8e/cloud/ammonia`)** from `phys-cloud` and `phys-cloudfit` on the 56 uniform
+pairs that have an exact electrostatic energy, the dipole held to the MP2 value (0.6060 au, 1.540 D; Hartree-Fock's is
+0.6424): held-out **0.61 kcal/mol** (train 0.21; 0.24 at 3.4-4.7 A, 0.06 beyond 4.7, 1.6 for the three pairs between 2.8 and
+3.1 A). Nitrogen 5.82 e (width 1.50 bohr), each hydrogen 0.73 e (1.33), so N -0.82 and H +0.27. **The lone-pair cloud came out
+empty** (4e-12 electrons at the 0.15 bohr bound): only four of the 56 pairs are inside 3.1 A, and a cloud 0.55 bohr
+off the nitrogen on the three-fold axis matters only where molecules touch. The wall pairs (100, nearest atoms 1.0-2.3 A) are
+what can constrain it, which needs their electrostatics, so `es2.sh` runs those first (`pairs/wall/`), then the methanol
+worker is restarted by `handoff2.sh`. Two bugs found on the way, both mine: the energies are keyed by pair index and the
+uniform and wall files both number from 0, so a shared `es-<name>.txt` silently skipped the wall file and a fit given both
+tags matched wall geometries to uniform energies (rms 27 kcal/mol, caught because it was absurd); and the methanol queue's
+worker stopped with exit 4 whenever basis growth left under the 7.5 GB the server had learned a task takes, though the
+earlier local runner worked with 2.9 GB free, so the plan lines now state `mem=4`.
+
 ## 10. What this document does not do
 
 It does not add a term to the law, choose a functional, change a default, or
