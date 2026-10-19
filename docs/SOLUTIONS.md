@@ -852,6 +852,19 @@ added". Until it is made, nothing is stopped; growth carries on, and a provision
 (`runs/e8e/pairs-methanol/run.sh`) has started methanol's MP2 pair data on a snapshot of the round-12 shape. If the
 shape ever moves past the tolerance those are the pairs to redo.
 
+**The pair data for methanol is a different order of cost (2026-10-19), found by the watchdog's first true stall alert.**
+The methanol dimer (816 functions in the per-element basis: 86 for C, 106 for O, 54 for each H) has a 9.5 GB three-centre
+table. It does not fit the card or the free memory, and without a disk spill the Hartree-Fock ran on the CPU at 54 minutes a
+field (about 2.4 h a pair). With `PHYS_SPILL_DIR=/h/phys-spill` (the SSD the owner chose for this, `PLAY.md` E8b; 26 of
+the 36 segments of the whitened table are on it) the card does the Hartree-Fock: 1439 s for the first field, 2.2x faster, so
+**about 75 minutes a pair**. The plan's data for a molecule is hundreds of pairs: 150 + 100 of its own and 40 + 40 with
+water is 330 pairs, **about 17 days for methanol, and ethanol (three more atoms) will be several times that**; ammonia took
+118 s a pair alone and water about 105 s. Whatever the cheap basis's merits, its size scales with the molecule, and this was
+not in the plan's estimates. Options, none taken: fewer pairs (the water fit used 380 in all, but its form was known by then);
+a smaller basis for pair data chosen by the E5b rule on groups (the interaction energy as what must stop changing; the
+only measurement so far, the water dimer, saves about a quarter); or the time. The methanol queue runs on in the
+meantime. The owner's to decide how many pairs and what basis methanol and ethanol are worth.
+
 Waiting, and why (each waits on a named thing, which is the list to start from):
 
 | Work | Stage | Waits on |
