@@ -2,3 +2,4 @@
 grow    | phys-grow.exe              | grow/grow-methanol.log,grow/grow-ethanol.log,grow/grow-methane.log | 180 | grow/all-done
 pairs   | phys-pairs-gpu.exe,phys-pairs-unlike-gpu.exe | pairs/run.log                                                      | 30  | pairs/all-done
 ions    | phys-pairs-unlike-gpu.exe  | ions/run.log,ions/run2.log                                         | 30  | ions/all-done
+methanol-pairs | phys-pairs-gpu.exe,phys-pairs-unlike-gpu.exe | pairs-methanol/run.log | 40 | pairs-methanol/all-done

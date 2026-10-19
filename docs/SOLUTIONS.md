@@ -835,6 +835,23 @@ limit it; growth's own phases vary between several cores and a few (an average o
 48 minutes, 6.6 over the next twelve). Round 12 of methanol was at probe 4 of 18 with about 337 minutes left in
 the round at 03:58 (393 at 03:11); how many rounds follow is not known. No change to the schedule.
 
+**Methanol growth: round 12 finished (2026-10-19 10:05), and what the pair data actually needs from it.**
+Round 12 took 13.9 h (5.5 h relaxing at 497 functions, then 18 probes of 236 candidates at about 28 minutes
+each; ammonia's last round took 59 minutes), added 4 functions, and left 4.05 in the code's stopping measure, so
+the code will run a round 13 of about the same length and the stopping rule as implemented ("nothing added") may
+want several more: days for methanol, and for ethanol (nine atoms, 21 internal coordinates) weeks. **But the
+shape has not been moving.** Methanol's C-O bond over the last rounds, bohr: 2.69659, 2.69678, 2.69706, 2.69714
+(a spread of 0.0006 %... of 2.697: under 0.01 % of its length); the C-O-H angle changes by under 0.02 degrees; and
+round 12's own predicted moves are 6e-5 A and 0.014 degrees at most. E5b's stated rule is that a stage is done when
+one more step moves every length by less than 0.1 % and every angle by less than 0.1 degree, with care for
+oscillation, and by that rule the shape was settled many rounds ago; what the code still does is complete the basis.
+And the pair data do not use the grown basis at all: `phys-pairs` takes the molecule's *shape* from the state and
+the *per-element* basis (the measured 0.2 % difference in E8, `PLAY.md`). **A decision for the owner, not taken
+here:** whether to stop methanol (and later ethanol and methane) growth on the movement rule and not on "nothing
+added". Until it is made, nothing is stopped; growth carries on, and a provisional queue
+(`runs/e8e/pairs-methanol/run.sh`) has started methanol's MP2 pair data on a snapshot of the round-12 shape. If the
+shape ever moves past the tolerance those are the pairs to redo.
+
 Waiting, and why (each waits on a named thing, which is the list to start from):
 
 | Work | Stage | Waits on |
