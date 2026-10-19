@@ -2,4 +2,5 @@
 grow    | phys-grow.exe              | grow/grow-methanol.log,grow/grow-ethanol.log,grow/grow-methane.log | 480 | grow/all-done
 pairs   | phys-pairs-gpu.exe,phys-pairs-unlike-gpu.exe | pairs/run.log                                                      | 30  | pairs/all-done
 ions    | phys-pairs-unlike-gpu.exe  | ions/run.log,ions/run2.log                                         | 30  | ions/all-done
-methanol-queue | phys-queue.exe,phys-worker-gpu.exe | pairs-methanol/worker.out,pairs-methanol/queue-server.log | 60 | pairs-methanol/queue-done
+methanol-server | phys-queue.exe | pairs-methanol/queue-server.log,pairs-methanol/server.out | 600 | pairs-methanol/queue-done
+methanol-worker | phys-worker-gpu.exe | pairs-methanol/worker.out | 90 | pairs-methanol/queue-done
