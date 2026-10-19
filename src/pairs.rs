@@ -623,6 +623,13 @@ pub fn run_snapshot(args: &[String], tag: &str) {
     }
 }
 
+/// `wall=LO,HI` (angstrom) as a pair of numbers.
+fn parse_wall(s: &str) -> Option<(f64, f64)> {
+    let v = s.strip_prefix("wall=")?;
+    let (lo, hi) = v.split_once(',')?;
+    Some((lo.parse().ok()?, hi.parse().ok()?))
+}
+
 /// Turn a plan into the tasks still to do. One line each, `#` for comments:
 ///
 /// ```text
@@ -666,6 +673,7 @@ pub fn plan(text: &str) -> Result<Vec<crate::queue::Task>, String> {
         let num = |s: &str| s.parse::<usize>().map_err(|_| at(&format!("{s:?} is not a number")));
         let check_basis = |b: &str| if b == "element" || b == "grown" { Ok(()) } else { Err(at("the basis is `element` or `grown`")) };
         let check_class = |c: &str| if c == "cpu" || c == "gpu" { Ok(()) } else { Err(at("the class is `cpu` or `gpu`")) };
+        let check_class_any = |c: &str| if c == "cpu" || c == "gpu" || c == "any" { Ok(()) } else { Err(at("the class is `cpu`, `gpu` or `any`")) };
         match w.first().copied() {
             Some("pair") if w.len() == 7 => {
                 let (name, from, to, basis, class, out) = (w[1], num(w[2])?, num(w[3])?, w[4], w[5], w[6]);
@@ -708,7 +716,63 @@ pub fn plan(text: &str) -> Result<Vec<crate::queue::Task>, String> {
                     }
                 }
             }
-            _ => return Err(at("expected `pair <name> <from> <to> <basis> <class> <out>` or `snap <name> <snapshot> <from> <to> <basis> <class> <out>`")),
+            // `mp2 <name> <from> <to> <class> <out> [wall=LO,HI]`: MP2 pairs of one molecule with itself, the
+            // per-element basis, the shape of this machine's `grow-<name>.state` (the spec carries its hash).
+            Some("mp2") if w.len() == 6 || w.len() == 7 => {
+                let (name, from, to, class, out) = (w[1], num(w[2])?, num(w[3])?, w[4], w[5]);
+                check_class_any(class)?;
+                if !["water", "methane", "ammonia", "methanol", "ethanol"].contains(&name) {
+                    return Err(at(&format!("no molecule {name:?}")));
+                }
+                let wall = match w.get(6) {
+                    Some(s) => Some(parse_wall(s).ok_or_else(|| at("wall=LO,HI in angstrom"))?),
+                    None => None,
+                };
+                if let Some(&(f0, t0)) = seen_out.get(out) {
+                    if from < t0 && f0 < to {
+                        return Err(at(&format!("{out} is already given indices {f0}..{t0}")));
+                    }
+                }
+                seen_out.insert(out.to_string(), (from, to));
+                let shape = Monomer::load(name, false).shape_hash();
+                let done = done_indices(out);
+                let wall_spec = wall.map(|(lo, hi)| format!(" {lo} {hi}")).unwrap_or_default();
+                for k in from..to {
+                    if !done.contains(&k) {
+                        tasks.push(crate::queue::Task { out: out.to_string(), index: k, class: class.to_string(), spec: format!("mp2 {name} {shape:x} {k}{wall_spec}"), header: MP2_HEADER.to_string(), kind: format!("mp2 {name}"), weight, need_mb });
+                    }
+                }
+            }
+            // `unlike <a> <b> <from> <to> <class> <out> [wall=LO,HI]`: MP2 pairs of two different molecules.
+            Some("unlike") if w.len() == 7 || w.len() == 8 => {
+                let (a, b, from, to, class, out) = (w[1], w[2], num(w[3])?, num(w[4])?, w[5], w[6]);
+                check_class_any(class)?;
+                for name in [a, b] {
+                    if !["water", "methane", "ammonia", "methanol", "ethanol", "sodium", "chloride"].contains(&name) {
+                        return Err(at(&format!("no molecule {name:?}")));
+                    }
+                }
+                let wall = match w.get(7) {
+                    Some(s) => Some(parse_wall(s).ok_or_else(|| at("wall=LO,HI in angstrom"))?),
+                    None => None,
+                };
+                if let Some(&(f0, t0)) = seen_out.get(out) {
+                    if from < t0 && f0 < to {
+                        return Err(at(&format!("{out} is already given indices {f0}..{t0}")));
+                    }
+                }
+                seen_out.insert(out.to_string(), (from, to));
+                let (ma, mb) = (Monomer::load(a, false), Monomer::load(b, false));
+                let (sa, sb) = (ma.shape_hash(), mb.shape_hash());
+                let done = done_indices(out);
+                let wall_spec = wall.map(|(lo, hi)| format!(" {lo} {hi}")).unwrap_or_default();
+                for k in from..to {
+                    if !done.contains(&k) {
+                        tasks.push(crate::queue::Task { out: out.to_string(), index: k, class: class.to_string(), spec: format!("unlike {a} {b} {sa:x} {sb:x} {k}{wall_spec}"), header: unlike_header(a, b, &ma, &mb), kind: format!("unlike {a} {b}"), weight, need_mb });
+                    }
+                }
+            }
+            _ => return Err(at("expected `pair <name> <from> <to> <basis> <class> <out>`, `snap <name> <snapshot> <from> <to> <basis> <class> <out>`, `mp2 <name> <from> <to> <class> <out> [wall=LO,HI]` or `unlike <a> <b> <from> <to> <class> <out> [wall=LO,HI]`")),
         }
     }
     Ok(tasks)
@@ -724,12 +788,58 @@ pub struct Executor {
 }
 
 impl Executor {
+    fn mono(&mut self, name: &str) -> Result<&Monomer, String> {
+        if charge_of(name) == 0 && !std::path::Path::new(&format!("grow-{name}.state")).exists() {
+            return Err(format!("no grow-{name}.state on this machine"));
+        }
+        Ok(self.monomers.entry((name.to_string(), false)).or_insert_with(|| Monomer::load(name, false)))
+    }
+
+    fn run_mp2(&mut self, w: &[&str], bad: &dyn Fn() -> String) -> Result<String, String> {
+        let t = Instant::now();
+        let hex = |s: Option<&&str>| s.and_then(|x| u64::from_str_radix(x, 16).ok());
+        let wall_at = |i: usize| -> Option<(f64, f64)> { Some((w.get(i)?.parse().ok()?, w.get(i + 1)?.parse().ok()?)) };
+        if w[0] == "mp2" {
+            let name = w.get(1).ok_or_else(bad)?.to_string();
+            let (shape, k) = (hex(w.get(2)).ok_or_else(bad)?, w.get(3).and_then(|s| s.parse::<usize>().ok()).ok_or_else(bad)?);
+            let wall = wall_at(4);
+            let mono = self.mono(&name)?;
+            if mono.shape_hash() != shape {
+                return Err(format!("grow-{name}.state here is not the server's shape ({:x}, wanted {shape:x})", mono.shape_hash()));
+            }
+            let mut mono = Monomer::load(&name, false);
+            mono.mp2 = true;
+            mono.wall = wall;
+            let (a, b, sep) = if wall.is_some() { mono.wall_pair(k) } else { mono.random_pair(k) };
+            let (r, line) = mono.compute(k, &a, &b, sep);
+            println!("pair {k}: R {sep:.2} bohr, E_int {:.4} / {:.4} kcal/mol (total / Hartree-Fock), {:.0} s ({} functions)", r.pbe * 627.509474, r.rev * 627.509474, t.elapsed().as_secs_f64(), r.functions);
+            Ok(line)
+        } else {
+            let (na, nb) = (w.get(1).ok_or_else(bad)?.to_string(), w.get(2).ok_or_else(bad)?.to_string());
+            let (sa, sb, k) = (hex(w.get(3)).ok_or_else(bad)?, hex(w.get(4)).ok_or_else(bad)?, w.get(5).and_then(|s| s.parse::<usize>().ok()).ok_or_else(bad)?);
+            let wall = wall_at(6);
+            let (ha, hb) = (self.mono(&na)?.shape_hash(), self.mono(&nb)?.shape_hash());
+            if ha != sa || hb != sb {
+                return Err(format!("the shape of {na} or {nb} here is not the server's"));
+            }
+            let (a, b) = (Monomer::load(&na, false), Monomer::load(&nb, false));
+            let (line, said) = unlike_line(&a, &b, k, wall);
+            println!("pair {k}: {said}, {:.0} s", t.elapsed().as_secs_f64());
+            Ok(line)
+        }
+    }
+
     /// `spec` is `pair <name> <basis> <k>` or
     /// `snap <name> <basis> <path> <fingerprint> <k>`; the result is the line
     /// that goes in the pairs file.
     pub fn run(&mut self, spec: &str) -> Result<String, String> {
         let w: Vec<&str> = spec.split_whitespace().collect();
         let bad = || format!("cannot read the task {spec:?}");
+        // MP2 pairs (`mp2 <name> <shape> <k> [lo hi]`, `unlike <a> <b> <shape a> <shape b> <k> [lo hi]`): the
+        // per-element basis, the molecule's shape checked against the server's by hash.
+        if w.first() == Some(&"mp2") || w.first() == Some(&"unlike") {
+            return self.run_mp2(&w, &bad);
+        }
         let (name, grown) = match (w.first().copied(), w.get(1), w.get(2)) {
             (Some("pair"), Some(n), Some(b)) | (Some("snap"), Some(n), Some(b)) => (n.to_string(), *b == "grown"),
             _ => return Err(bad()),
@@ -1896,6 +2006,42 @@ pub fn unlike_interaction(a: &Monomer, b: &Monomer, pa: &[Vec3], pb: &[Vec3]) ->
 /// `pairs-A-B-mp2.txt` (`-wall` when drawn at close contact). A line is
 /// `k separation total hartree_fock | x y z type ...` for the atoms of A, then of B, the types
 /// each molecule's own symmetry classes (the header names the species and their atom counts).
+pub fn unlike_header(name_a: &str, name_b: &str, a: &Monomer, b: &Monomer) -> String {
+    format!("# MP2 (Hartree-Fock + RI-MP2, frozen cores, counterpoise) of {name_a} ({} atoms) with {name_b} ({} atoms): index separation_bohr E_int_total E_int_hartree_fock (hartree) | then x y z type for each atom of {name_a}, then of {name_b} (bohr; types are each molecule's own)", a.z.len(), b.z.len())
+}
+
+/// The header of a like-pair MP2 file.
+pub const MP2_HEADER: &str = "# MP2 (Hartree-Fock + RI-MP2, frozen cores, counterpoise): index separation_bohr E_int_total E_int_hartree_fock (hartree) | then x y z type for each atom of the first molecule and of the second (bohr)";
+
+/// Pair `k` of two different molecules computed through to its line of the pairs file, and a sentence
+/// on it. The same thing `run_unlike` and a queue worker do.
+pub fn unlike_line(a: &Monomer, b: &Monomer, k: usize, wall: Option<(f64, f64)>) -> (String, String) {
+    let (pa, pb, sep) = unlike_pair(a, b, k, wall);
+    let (total, hf) = unlike_interaction(a, b, &pa, &pb);
+    let mut line = format!("{k} {sep:.6} {total:.10e} {hf:.10e} |");
+    for (v, ty) in pa.iter().zip(&a.types).chain(pb.iter().zip(&b.types)) {
+        line += &format!(" {:.8} {:.8} {:.8} {ty}", v.x, v.y, v.z);
+    }
+    (line, format!("R {sep:.2} bohr, E_int {:.4} kcal/mol (HF {:.4})", total * 627.509474, hf * 627.509474))
+}
+
+impl Monomer {
+    /// A hash of the molecule's shape, so that a worker holding another copy of `grow-<name>.state` (a
+    /// different round's shape) refuses a task rather than computing pairs of a different molecule.
+    pub fn shape_hash(&self) -> u64 {
+        let mut h: u64 = 0xcbf2_9ce4_8422_2325;
+        for p in &self.body {
+            for x in [p.x, p.y, p.z] {
+                for byte in format!("{x:.9}").bytes() {
+                    h ^= byte as u64;
+                    h = h.wrapping_mul(0x0000_0100_0000_01b3);
+                }
+            }
+        }
+        h
+    }
+}
+
 pub fn run_unlike(args: &[String]) {
     let (name_a, name_b) = (args.first().cloned().expect("two molecule names"), args.get(1).cloned().expect("two molecule names"));
     let count: usize = args.get(2).and_then(|s| s.parse().ok()).unwrap_or(40);
@@ -1909,7 +2055,7 @@ pub fn run_unlike(args: &[String]) {
     let done = done_indices(&out);
     let mut file = std::fs::OpenOptions::new().create(true).append(true).open(&out).expect("the output file");
     if done.is_empty() {
-        writeln!(file, "# MP2 (Hartree-Fock + RI-MP2, frozen cores, counterpoise) of {name_a} ({} atoms) with {name_b} ({} atoms): index separation_bohr E_int_total E_int_hartree_fock (hartree) | then x y z type for each atom of {name_a}, then of {name_b} (bohr; types are each molecule's own)", a.z.len(), b.z.len()).ok();
+        writeln!(file, "{}", unlike_header(&name_a, &name_b, &a, &b)).ok();
     }
     println!("{name_a} + {name_b}: {} pairs done, {count} wanted", done.len());
     for k in 0..count {
@@ -1917,15 +2063,10 @@ pub fn run_unlike(args: &[String]) {
             continue;
         }
         let t = Instant::now();
-        let (pa, pb, sep) = unlike_pair(&a, &b, k, wall);
-        let (total, hf) = unlike_interaction(&a, &b, &pa, &pb);
-        let mut line = format!("{k} {sep:.6} {total:.10e} {hf:.10e} |");
-        for (v, ty) in pa.iter().zip(&a.types).chain(pb.iter().zip(&b.types)) {
-            line += &format!(" {:.8} {:.8} {:.8} {ty}", v.x, v.y, v.z);
-        }
+        let (line, said) = unlike_line(&a, &b, k, wall);
         writeln!(file, "{line}").expect("the line written");
         file.flush().ok();
-        println!("pair {k}: R {sep:.2} bohr, E_int {:.4} kcal/mol (HF {:.4}), {:.0} s", total * 627.509474, hf * 627.509474, t.elapsed().as_secs_f64());
+        println!("pair {k}: {said}, {:.0} s", t.elapsed().as_secs_f64());
         std::io::stdout().flush().ok();
     }
 }

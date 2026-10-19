@@ -18,7 +18,10 @@
 //! **Class.** A worker names a class, and only tasks of that class go to it.
 //! The GPU's final non-local energy is single precision and the CPU's double;
 //! which of the two a dataset holds is a decision about the data, so a plan
-//! says it per task and the queue cannot mix them.
+//! says it per task and the queue cannot mix them. **Except `any`:** the MP2 tasks
+//! (`mp2`, `unlike`) are Hartree-Fock and MP2 in double precision on either kind of
+//! machine, the same physics, so their plan lines may say `any` and every worker
+//! takes them.
 //!
 //! **Classifying machines.** A worker says what it is on every request (its
 //! class, its cores, the memory it has free) and the server learns what it
@@ -205,7 +208,7 @@ impl Shared {
         let mut waiting = false;
         let mut too_big: Option<u64> = None;
         for i in 0..self.tasks.len() {
-            if self.tasks[i].class != class || self.failures[i] >= MAX_FAILURES {
+            if (self.tasks[i].class != class && self.tasks[i].class != "any") || self.failures[i] >= MAX_FAILURES {
                 continue;
             }
             let need = self.need(i);
