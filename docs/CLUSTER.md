@@ -252,3 +252,43 @@ is killed for memory anyway is seen only as a lease running out, so the task
 is retried elsewhere. The speeds are for the machines as they were while they
 were measured: a Pi that starts throttling is not noticed until its results
 come back slower. Classes are only `cpu` and `gpu`.
+
+## Methanol's MP2 pairs on more than one machine (2026-10-19)
+
+The MP2 pair data of a molecule too big for one desktop (methanol: 816 functions in the dimer, a 9.5 GB table,
+about 46 minutes a pair on the RTX 2060 with the disk spill; 330 pairs) goes through the queue as plan lines
+
+```text
+mp2 methanol 2 150 any pairs-methanol-gpu-mp2.txt
+unlike water methanol 0 40 any pairs-water-methanol-mp2.txt
+mp2 methanol 0 100 any pairs-methanol-gpu-wall-mp2.txt wall=1.0,2.3
+unlike water methanol 0 40 any pairs-water-methanol-wall-mp2.txt wall=1.0,2.3
+```
+
+`mp2 <name> <from> <to> <class> <out> [wall=LO,HI]` is MP2 pairs of a molecule with itself; `unlike <a> <b> ...` of two
+different molecules (ions included). Class `any` goes to every worker: Hartree-Fock and MP2 are double precision on a
+CPU or a GPU machine alike, so either class makes the same data (unlike the PBE tasks, whose final non-local energy is
+single precision on the card). Each task's spec carries a hash of each molecule's shape, so **a worker whose
+`grow-<name>.state` is another round's shape refuses the task** instead of computing pairs of a different molecule.
+Checked: `mp2 water 0` through the executor reproduces the stored MP2 pair 0, geometry and both energies, exactly
+(`gpu/tests/queue_mp2.rs`).
+
+The server runs on the desktop, in `runs/e8e/pairs-methanol` (token `e8e-methanol`, port 7878, lease 180 minutes), with a
+local GPU worker; there is already a Windows firewall rule named `phys-queue`. **To bring a second machine in:**
+
+1. The same commit (`150d1f5` or later), built: `cargo build --release --bin phys-worker` for a CPU machine, or
+   `cargo build --release -p phys-gpu --bin phys-worker-gpu` where there is a GPU with double precision.
+2. In its working directory, copy `grow-methanol.state` and `grow-water.state` from `runs/e8e/pairs-methanol` (the shape
+   the pairs are made at: the round-12 snapshot of methanol; the hash must match) and `scripts/worker-loop.sh`.
+3. Memory. The methanol dimer's table is 9.5 GB. With plenty of RAM keep it there: `PHYS_TABLE_RAM_FRACTION=0.8` (the
+   share of free memory the raw table may keep; the default 0.5 spills a table that would fit). A GPU worker also keeps
+   the whitened copy in tiers (card, system memory with `PHYS_STORE_RAM_GB`, then the `PHYS_SPILL_DIR` disk). A CPU worker
+   needs the whole table in memory or on a fast disk; an HDD spill will crawl.
+4. `PHYS_QUEUE_TOKEN=e8e-methanol sh worker-loop.sh 192.168.0.22:7878 z440 ./phys-worker` (or `./phys-worker-gpu`); 192.168.0.22 is
+   the desktop on the home LAN, 10.33.0.26 on ZeroTier. The loop restarts the worker after ten tasks and stops when
+   nothing is left.
+5. `phys-queue --status 192.168.0.22:7878` (same token) says who has done what and at what speed; the server hands the
+   heavy tasks to the faster machine on its own measurements.
+
+Results arrive at the desktop as lines in the four files; nothing is copied back by hand. The token is sent in the clear:
+trusted networks only.
