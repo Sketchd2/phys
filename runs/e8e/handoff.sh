@@ -7,7 +7,7 @@
 cd /e/Projects/phys/runs/e8e
 log() { echo "[$(date '+%m-%d %H:%M')] $*" >> alerts.log; }
 start=$(date +%s)
-while [ "$(wc -l < pairs/es-ammonia.txt)" -lt 100 ] && [ $(( $(date +%s) - start )) -lt 21600 ]; do sleep 60; done
+while [ "$(wc -l < pairs/es-ammonia.txt)" -lt 60 ] && [ $(( $(date +%s) - start )) -lt 21600 ]; do sleep 60; done
 n=$(wc -l < pairs/es-ammonia.txt)
 log "HANDOFF: ammonia electrostatics at $n pairs; stopping it and starting the methanol queue's worker"
 powershell -NoProfile -Command "Get-CimInstance Win32_Process | Where-Object { \$_.Name -eq 'bash.exe' -and \$_.CommandLine -eq '\"C:\Program Files\Git\usr\bin\bash.exe\" ./es.sh' } | ForEach-Object { Stop-Process -Id \$_.ProcessId -Force }; Stop-Process -Name phys-es-gpu -Force -ErrorAction SilentlyContinue"
