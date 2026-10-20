@@ -1,0 +1,29 @@
+final non-local energies on gpu (f32, NVIDIA GeForce RTX 2060 via Vulkan)
+Hartree-Fock passes on gpu Fock (f64, NVIDIA GeForce RTX 2060 via Vulkan)
+Hartree-Fock and MP2 products on gpu products (f32, NVIDIA GeForce RTX 2060 via Vulkan)
+water cluster of 3 about molecule 0 of bulk-water-298.snap: molecules [0, 167, 147]
+  the cluster: 642 functions, 2811 auxiliary, a table of at most 4.6 GB; a pair: 428 functions, at most 1.38 GB
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 30 s so far (30 s Hartree-Fock, 10 iterations; 0 s MP2)
+  field 2 of 3 done: 38 s so far (38 s Hartree-Fock, 9 iterations; 0 s MP2)
+  field 3 of 3 done: 46 s so far (46 s Hartree-Fock, 9 iterations; 0 s MP2)
+  pair 0 1: 2.7061 / 0.0000 kcal/mol, 46 s
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 30 s so far (30 s Hartree-Fock, 9 iterations; 0 s MP2)
+  field 2 of 3 done: 38 s so far (38 s Hartree-Fock, 9 iterations; 0 s MP2)
+  field 3 of 3 done: 45 s so far (45 s Hartree-Fock, 9 iterations; 0 s MP2)
+  pair 0 2: 0.1185 / 0.0000 kcal/mol, 45 s
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 30 s so far (30 s Hartree-Fock, 9 iterations; 0 s MP2)
+  field 2 of 3 done: 38 s so far (38 s Hartree-Fock, 9 iterations; 0 s MP2)
+  field 3 of 3 done: 46 s so far (46 s Hartree-Fock, 9 iterations; 0 s MP2)
+  pair 1 2: -1.3625 / 0.0000 kcal/mol, 46 s
+  the pairs' sum (HF / MP2 correlation): 1.4621 / 0.0000 kcal/mol = 1.4621; the law's sum: no law given
+  whitened integrals: 4.4 GB in 17 segments of 255 MB: 17 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 4 done: 161 s so far (161 s Hartree-Fock, 10 iterations; 0 s MP2)
+  field 2 of 4 done: 186 s so far (186 s Hartree-Fock, 9 iterations; 0 s MP2)
+  field 3 of 4 done: 210 s so far (210 s Hartree-Fock, 9 iterations; 0 s MP2)
+  field 4 of 4 done: 235 s so far (235 s Hartree-Fock, 9 iterations; 0 s MP2)
+  the cluster: 1.4556 / 0.0000 kcal/mol, 236 s (642 functions)
+3 molecules: cluster 1.4556 kcal/mol (HF + MP2), the MP2 pairs' sum 1.4621, so what is not additive is -0.0065 kcal/mol (-0.00 a molecule)
+  of which Hartree-Fock -0.0065 and MP2 correlation +0.0000 kcal/mol

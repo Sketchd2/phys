@@ -1,0 +1,5 @@
+methane: 74 pairs, 5 atoms a molecule, 2 site types [1, 4]
+  pbe: 19 iterations; RMS 0.081 kcal/mol fitted, 0.044 unseen; within 3 kcal/mol of the lowest: 0.058 over 58 fitted, 0.042 over 13 unseen
+    charges [3.87795986853395e-7, -9.694899671334874e-8]
+  revpbe: 30 iterations; RMS 0.113 kcal/mol fitted, 0.364 unseen; within 3 kcal/mol of the lowest: 0.017 over 57 fitted, 0.038 over 12 unseen
+    charges [-0.7620445886004994, 0.19051114715012485]

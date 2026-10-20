@@ -1,0 +1,1506 @@
+final non-local energies on gpu (f32, NVIDIA GeForce RTX 2060 via Vulkan)
+Hartree-Fock passes on gpu Fock (f64, NVIDIA GeForce RTX 2060 via Vulkan)
+water: 3 atoms, types [0, 1, 1], per-element basis; 0 pairs done, 300 wanted
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 51 s so far (49 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 60 s so far (58 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 69 s so far (66 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 0: R 5.64 bohr, E_int -3.3349 / -2.4751 kcal/mol (PBE x / revPBE x), 76 s (66 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 37 s so far (35 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 47 s so far (45 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 56 s so far (53 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 1: R 5.23 bohr, E_int -0.3792 / 1.1503 kcal/mol (PBE x / revPBE x), 56 s (53 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 55 s so far (53 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 64 s so far (62 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 74 s so far (71 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 2: R 4.95 bohr, E_int -1.9933 / 0.4290 kcal/mol (PBE x / revPBE x), 74 s (71 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 37 s so far (34 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 47 s so far (45 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 3 of 3 done: 56 s so far (53 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 3: R 4.99 bohr, E_int -1.0827 / 0.9407 kcal/mol (PBE x / revPBE x), 56 s (53 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 57 s so far (55 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 66 s so far (64 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 75 s so far (72 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 4: R 6.77 bohr, E_int -1.7489 / -1.5098 kcal/mol (PBE x / revPBE x), 75 s (72 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 36 s so far (34 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 47 s so far (45 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 56 s so far (54 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 5: R 5.81 bohr, E_int -2.1408 / -1.2058 kcal/mol (PBE x / revPBE x), 56 s (54 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 54 s so far (53 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 63 s so far (61 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 72 s so far (69 s Hartree-Fock, 8 iterations; 3 s MP2)
+pair 6: R 6.76 bohr, E_int 1.0857 / 1.5705 kcal/mol (PBE x / revPBE x), 72 s (69 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 8])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 35 s so far (33 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 46 s so far (44 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 55 s so far (52 s Hartree-Fock, 8 iterations; 3 s MP2)
+pair 7: R 7.37 bohr, E_int -0.1078 / 0.2583 kcal/mol (PBE x / revPBE x), 55 s (52 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 8])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 57 s so far (56 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 67 s so far (64 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 76 s so far (73 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 8: R 5.54 bohr, E_int -1.7605 / -1.0009 kcal/mol (PBE x / revPBE x), 76 s (73 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 35 s so far (34 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 46 s so far (44 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 55 s so far (53 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 9: R 7.67 bohr, E_int -1.2315 / -1.1013 kcal/mol (PBE x / revPBE x), 55 s (53 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 55 s so far (53 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 65 s so far (62 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 75 s so far (72 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 10: R 5.64 bohr, E_int -2.2887 / -0.8318 kcal/mol (PBE x / revPBE x), 75 s (72 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 37 s so far (35 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 48 s so far (45 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 3 of 3 done: 57 s so far (54 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 11: R 7.47 bohr, E_int -1.9000 / -1.8672 kcal/mol (PBE x / revPBE x), 57 s (54 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 55 s so far (54 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 66 s so far (63 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 76 s so far (73 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 12: R 5.94 bohr, E_int -0.6834 / 0.3651 kcal/mol (PBE x / revPBE x), 76 s (73 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 39 s so far (37 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 48 s so far (46 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 58 s so far (55 s Hartree-Fock, 8 iterations; 3 s MP2)
+pair 13: R 4.73 bohr, E_int 2.5536 / 5.3860 kcal/mol (PBE x / revPBE x), 58 s (55 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 8])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 48 s so far (46 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 58 s so far (56 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 68 s so far (65 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 14: R 7.36 bohr, E_int -1.7059 / -1.5372 kcal/mol (PBE x / revPBE x), 68 s (65 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 40 s so far (38 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 50 s so far (47 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 63 s so far (59 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 15: R 7.00 bohr, E_int -1.6828 / -1.5625 kcal/mol (PBE x / revPBE x), 63 s (59 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 40 s so far (38 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 51 s so far (48 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 61 s so far (58 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 16: R 6.95 bohr, E_int -1.7448 / -1.5527 kcal/mol (PBE x / revPBE x), 61 s (58 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 41 s so far (39 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 53 s so far (50 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 3 of 3 done: 68 s so far (64 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 17: R 4.83 bohr, E_int 3.7867 / 6.1492 kcal/mol (PBE x / revPBE x), 68 s (64 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 38 s so far (36 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 49 s so far (47 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 59 s so far (57 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 18: R 6.53 bohr, E_int -1.1445 / -0.6932 kcal/mol (PBE x / revPBE x), 59 s (57 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 37 s so far (36 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 51 s so far (48 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 3 of 3 done: 65 s so far (62 s Hartree-Fock, 9 iterations; 4 s MP2)
+pair 19: R 6.08 bohr, E_int -3.4723 / -2.9492 kcal/mol (PBE x / revPBE x), 65 s (62 s fields, 4 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 38 s so far (37 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 49 s so far (47 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 60 s so far (57 s Hartree-Fock, 8 iterations; 3 s MP2)
+pair 20: R 6.01 bohr, E_int -3.5532 / -3.0471 kcal/mol (PBE x / revPBE x), 60 s (57 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 8])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 39 s so far (37 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 53 s so far (51 s Hartree-Fock, 8 iterations; 3 s MP2)
+  field 3 of 3 done: 68 s so far (64 s Hartree-Fock, 9 iterations; 4 s MP2)
+pair 21: R 7.11 bohr, E_int -1.5177 / -1.3605 kcal/mol (PBE x / revPBE x), 68 s (64 s fields, 4 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 8, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 39 s so far (37 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 51 s so far (48 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 63 s so far (60 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 22: R 6.96 bohr, E_int 0.3179 / 0.6673 kcal/mol (PBE x / revPBE x), 63 s (60 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 54 s so far (52 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 65 s so far (63 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 76 s so far (73 s Hartree-Fock, 8 iterations; 3 s MP2)
+pair 23: R 7.35 bohr, E_int 0.7078 / 0.9965 kcal/mol (PBE x / revPBE x), 76 s (73 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 8])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 40 s so far (38 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 52 s so far (49 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 3 of 3 done: 63 s so far (60 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 24: R 6.50 bohr, E_int -2.6011 / -2.2337 kcal/mol (PBE x / revPBE x), 63 s (60 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 48 s so far (46 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 59 s so far (57 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 71 s so far (68 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 25: R 7.99 bohr, E_int -1.0828 / -1.0398 kcal/mol (PBE x / revPBE x), 71 s (68 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 41 s so far (40 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 56 s so far (53 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 3 of 3 done: 72 s so far (69 s Hartree-Fock, 8 iterations; 3 s MP2)
+pair 26: R 5.29 bohr, E_int 0.9281 / 2.5495 kcal/mol (PBE x / revPBE x), 72 s (69 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 8])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 40 s so far (38 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 52 s so far (50 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 64 s so far (61 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 27: R 4.95 bohr, E_int -3.9569 / -1.4980 kcal/mol (PBE x / revPBE x), 64 s (61 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 46 s so far (43 s Hartree-Fock, 10 iterations; 3 s MP2)
+  field 2 of 3 done: 64 s so far (60 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 77 s so far (73 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 28: R 5.16 bohr, E_int 0.0751 / 1.6947 kcal/mol (PBE x / revPBE x), 77 s (73 s fields, 5 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 38 s so far (37 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 51 s so far (49 s Hartree-Fock, 8 iterations; 2 s MP2)
+  field 3 of 3 done: 63 s so far (60 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 29: R 7.70 bohr, E_int -0.9999 / -0.9122 kcal/mol (PBE x / revPBE x), 63 s (60 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 8, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 50 s so far (49 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 63 s so far (61 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 76 s so far (73 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 30: R 7.43 bohr, E_int -1.4463 / -1.1996 kcal/mol (PBE x / revPBE x), 76 s (73 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 43 s so far (42 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 58 s so far (55 s Hartree-Fock, 8 iterations; 3 s MP2)
+  field 3 of 3 done: 75 s so far (71 s Hartree-Fock, 9 iterations; 4 s MP2)
+pair 31: R 5.43 bohr, E_int -4.0575 / -2.8380 kcal/mol (PBE x / revPBE x), 75 s (71 s fields, 4 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 8, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 41 s so far (39 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 54 s so far (52 s Hartree-Fock, 8 iterations; 2 s MP2)
+  field 3 of 3 done: 68 s so far (65 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 32: R 6.28 bohr, E_int -0.4312 / 0.4245 kcal/mol (PBE x / revPBE x), 68 s (65 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 8, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 57 s so far (55 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 70 s so far (68 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 83 s so far (80 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 33: R 7.61 bohr, E_int -0.5926 / -0.3996 kcal/mol (PBE x / revPBE x), 83 s (80 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 43 s so far (41 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 56 s so far (53 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 3 of 3 done: 69 s so far (66 s Hartree-Fock, 8 iterations; 4 s MP2)
+pair 34: R 6.22 bohr, E_int -0.7782 / -0.3523 kcal/mol (PBE x / revPBE x), 69 s (66 s fields, 4 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 8])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 45 s so far (43 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 59 s so far (56 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 72 s so far (69 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 35: R 6.90 bohr, E_int -0.9883 / -0.4555 kcal/mol (PBE x / revPBE x), 72 s (69 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 42 s so far (41 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 60 s so far (58 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 3 of 3 done: 75 s so far (72 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 36: R 6.07 bohr, E_int -3.1265 / -2.4827 kcal/mol (PBE x / revPBE x), 75 s (72 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 41 s so far (39 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 54 s so far (51 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 66 s so far (63 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 37: R 7.05 bohr, E_int -0.9748 / -0.8499 kcal/mol (PBE x / revPBE x), 66 s (63 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 59 s so far (57 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 74 s so far (72 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 88 s so far (85 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 38: R 6.31 bohr, E_int -0.4989 / 0.1163 kcal/mol (PBE x / revPBE x), 88 s (85 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 47 s so far (45 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 62 s so far (60 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 3 of 3 done: 83 s so far (79 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 39: R 6.45 bohr, E_int -1.7811 / -1.4880 kcal/mol (PBE x / revPBE x), 83 s (79 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 44 s so far (43 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 60 s so far (58 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 76 s so far (72 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 40: R 6.17 bohr, E_int -0.6504 / 0.1480 kcal/mol (PBE x / revPBE x), 76 s (72 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 52 s so far (49 s Hartree-Fock, 10 iterations; 3 s MP2)
+  field 2 of 3 done: 65 s so far (62 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 80 s so far (75 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 41: R 5.86 bohr, E_int -2.1880 / -1.0360 kcal/mol (PBE x / revPBE x), 80 s (75 s fields, 5 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 43 s so far (42 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 57 s so far (54 s Hartree-Fock, 8 iterations; 2 s MP2)
+  field 3 of 3 done: 71 s so far (69 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 42: R 7.04 bohr, E_int 1.1598 / 1.6090 kcal/mol (PBE x / revPBE x), 71 s (69 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 8, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 48 s so far (46 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 62 s so far (60 s Hartree-Fock, 8 iterations; 2 s MP2)
+  field 3 of 3 done: 77 s so far (74 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 43: R 5.79 bohr, E_int -2.9124 / -2.1556 kcal/mol (PBE x / revPBE x), 77 s (74 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 8, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 41 s so far (40 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 62 s so far (59 s Hartree-Fock, 8 iterations; 3 s MP2)
+  field 3 of 3 done: 77 s so far (74 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 44: R 6.66 bohr, E_int -0.8807 / -0.6409 kcal/mol (PBE x / revPBE x), 77 s (74 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 8, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 41 s so far (40 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 56 s so far (54 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 70 s so far (67 s Hartree-Fock, 8 iterations; 3 s MP2)
+pair 45: R 6.53 bohr, E_int -0.6291 / -0.3204 kcal/mol (PBE x / revPBE x), 70 s (67 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 8])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 48 s so far (47 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 65 s so far (62 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 80 s so far (78 s Hartree-Fock, 8 iterations; 3 s MP2)
+pair 46: R 6.55 bohr, E_int 2.0875 / 2.9676 kcal/mol (PBE x / revPBE x), 81 s (78 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 8])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 41 s so far (40 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 60 s so far (57 s Hartree-Fock, 8 iterations; 3 s MP2)
+  field 3 of 3 done: 76 s so far (72 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 47: R 6.31 bohr, E_int -1.8025 / -0.9378 kcal/mol (PBE x / revPBE x), 76 s (72 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 8, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 43 s so far (41 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 59 s so far (56 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 74 s so far (71 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 48: R 6.66 bohr, E_int 1.0202 / 1.6820 kcal/mol (PBE x / revPBE x), 74 s (71 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 48 s so far (47 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 65 s so far (63 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 80 s so far (77 s Hartree-Fock, 8 iterations; 3 s MP2)
+pair 49: R 4.97 bohr, E_int 2.0180 / 4.0102 kcal/mol (PBE x / revPBE x), 80 s (77 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 8])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 41 s so far (40 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 63 s so far (61 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 77 s so far (74 s Hartree-Fock, 8 iterations; 3 s MP2)
+pair 50: R 7.65 bohr, E_int -1.7904 / -1.7168 kcal/mol (PBE x / revPBE x), 77 s (74 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 8])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 43 s so far (42 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 57 s so far (55 s Hartree-Fock, 8 iterations; 2 s MP2)
+  field 3 of 3 done: 73 s so far (71 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 51: R 7.84 bohr, E_int -0.4910 / -0.3045 kcal/mol (PBE x / revPBE x), 73 s (71 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 8, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 49 s so far (47 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 65 s so far (63 s Hartree-Fock, 8 iterations; 2 s MP2)
+  field 3 of 3 done: 82 s so far (79 s Hartree-Fock, 8 iterations; 3 s MP2)
+pair 52: R 4.94 bohr, E_int 2.7810 / 4.7474 kcal/mol (PBE x / revPBE x), 82 s (79 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 8, 8])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 42 s so far (40 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 63 s so far (61 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 79 s so far (76 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 53: R 5.62 bohr, E_int 3.2933 / 4.4257 kcal/mol (PBE x / revPBE x), 79 s (76 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 44 s so far (43 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 60 s so far (57 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 77 s so far (75 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 54: R 5.66 bohr, E_int -0.6100 / 0.0546 kcal/mol (PBE x / revPBE x), 77 s (75 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 49 s so far (47 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 64 s so far (62 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 81 s so far (78 s Hartree-Fock, 8 iterations; 3 s MP2)
+pair 55: R 5.50 bohr, E_int 3.0084 / 4.0158 kcal/mol (PBE x / revPBE x), 81 s (78 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 8])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 42 s so far (41 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 66 s so far (64 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 85 s so far (82 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 56: R 4.83 bohr, E_int -2.5342 / -0.2241 kcal/mol (PBE x / revPBE x), 85 s (82 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 46 s so far (45 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 61 s so far (58 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 78 s so far (75 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 57: R 5.26 bohr, E_int -3.3970 / -1.1682 kcal/mol (PBE x / revPBE x), 78 s (75 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 49 s so far (47 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 65 s so far (62 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 83 s so far (80 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 58: R 4.90 bohr, E_int -0.3930 / 1.3787 kcal/mol (PBE x / revPBE x), 83 s (80 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 54 s so far (50 s Hartree-Fock, 10 iterations; 3 s MP2)
+  field 2 of 3 done: 71 s so far (67 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 89 s so far (84 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 59: R 5.22 bohr, E_int -3.1571 / -1.6057 kcal/mol (PBE x / revPBE x), 89 s (84 s fields, 5 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 47 s so far (46 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 65 s so far (62 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 87 s so far (84 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 60: R 6.66 bohr, E_int -1.6808 / -1.2538 kcal/mol (PBE x / revPBE x), 87 s (84 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 48 s so far (47 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 66 s so far (64 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 82 s so far (79 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 61: R 6.71 bohr, E_int -1.5448 / -1.3014 kcal/mol (PBE x / revPBE x), 82 s (79 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 65 s so far (64 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 85 s so far (82 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 100 s so far (98 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 62: R 6.82 bohr, E_int -2.5003 / -2.2166 kcal/mol (PBE x / revPBE x), 100 s (98 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 45 s so far (43 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 68 s so far (66 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 84 s so far (81 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 63: R 6.85 bohr, E_int 0.5395 / 0.9059 kcal/mol (PBE x / revPBE x), 84 s (81 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 46 s so far (44 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 61 s so far (59 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 81 s so far (78 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 64: R 6.55 bohr, E_int -0.5816 / -0.2649 kcal/mol (PBE x / revPBE x), 81 s (78 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 49 s so far (48 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 65 s so far (63 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 83 s so far (81 s Hartree-Fock, 8 iterations; 3 s MP2)
+pair 65: R 6.93 bohr, E_int 0.4930 / 0.7161 kcal/mol (PBE x / revPBE x), 83 s (81 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 8])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 52 s so far (49 s Hartree-Fock, 10 iterations; 3 s MP2)
+  field 2 of 3 done: 71 s so far (67 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 91 s so far (87 s Hartree-Fock, 9 iterations; 4 s MP2)
+pair 66: R 7.15 bohr, E_int 0.2197 / 0.5052 kcal/mol (PBE x / revPBE x), 91 s (87 s fields, 4 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 49 s so far (48 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 69 s so far (66 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 93 s so far (90 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 67: R 6.14 bohr, E_int -2.3947 / -2.0053 kcal/mol (PBE x / revPBE x), 93 s (90 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 48 s so far (46 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 68 s so far (66 s Hartree-Fock, 8 iterations; 2 s MP2)
+  field 3 of 3 done: 84 s so far (81 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 68: R 7.66 bohr, E_int -1.3860 / -1.3825 kcal/mol (PBE x / revPBE x), 84 s (81 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 8, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 56 s so far (55 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 75 s so far (73 s Hartree-Fock, 8 iterations; 2 s MP2)
+  field 3 of 3 done: 95 s so far (92 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 69: R 6.33 bohr, E_int -1.1306 / -0.7737 kcal/mol (PBE x / revPBE x), 95 s (92 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 8, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 44 s so far (43 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 70 s so far (68 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 91 s so far (88 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 70: R 7.71 bohr, E_int -1.1711 / -1.0569 kcal/mol (PBE x / revPBE x), 91 s (88 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 52 s so far (49 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 2 of 3 done: 72 s so far (68 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 97 s so far (91 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 71: R 6.29 bohr, E_int -1.1288 / -0.8511 kcal/mol (PBE x / revPBE x), 97 s (91 s fields, 5 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 49 s so far (48 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 70 s so far (68 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 87 s so far (84 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 72: R 5.52 bohr, E_int -1.5081 / -0.6947 kcal/mol (PBE x / revPBE x), 87 s (84 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 57 s so far (55 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 78 s so far (76 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 99 s so far (96 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 73: R 5.05 bohr, E_int 0.9193 / 2.6298 kcal/mol (PBE x / revPBE x), 99 s (96 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 45 s so far (43 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 70 s so far (68 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 3 of 3 done: 92 s so far (89 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 74: R 7.12 bohr, E_int -0.3858 / -0.1088 kcal/mol (PBE x / revPBE x), 92 s (89 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 51 s so far (49 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 72 s so far (70 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 97 s so far (95 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 75: R 7.40 bohr, E_int -0.4270 / -0.1956 kcal/mol (PBE x / revPBE x), 97 s (95 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 49 s so far (47 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 69 s so far (66 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 90 s so far (87 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 76: R 5.32 bohr, E_int -1.0657 / 0.5411 kcal/mol (PBE x / revPBE x), 90 s (87 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 52 s so far (51 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 70 s so far (68 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 92 s so far (89 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 77: R 6.95 bohr, E_int -1.6457 / -1.5121 kcal/mol (PBE x / revPBE x), 92 s (89 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 63 s so far (62 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 83 s so far (80 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 103 s so far (100 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 78: R 5.83 bohr, E_int -5.7511 / -4.4908 kcal/mol (PBE x / revPBE x), 103 s (100 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 50 s so far (48 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 76 s so far (74 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 95 s so far (92 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 79: R 6.06 bohr, E_int -2.0162 / -1.2346 kcal/mol (PBE x / revPBE x), 95 s (92 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 49 s so far (48 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 67 s so far (65 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 93 s so far (89 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 80: R 6.27 bohr, E_int -3.1700 / -2.6982 kcal/mol (PBE x / revPBE x), 93 s (89 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 53 s so far (51 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 75 s so far (73 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 91 s so far (89 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 81: R 7.45 bohr, E_int 0.3411 / 0.6880 kcal/mol (PBE x / revPBE x), 91 s (89 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 60 s so far (58 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 82 s so far (80 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 106 s so far (103 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 82: R 5.96 bohr, E_int -2.0632 / -1.2670 kcal/mol (PBE x / revPBE x), 106 s (103 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 50 s so far (47 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 72 s so far (68 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 94 s so far (90 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 83: R 6.69 bohr, E_int -0.3385 / -0.0824 kcal/mol (PBE x / revPBE x), 94 s (90 s fields, 5 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 55 s so far (53 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 80 s so far (78 s Hartree-Fock, 8 iterations; 3 s MP2)
+  field 3 of 3 done: 102 s so far (99 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 84: R 5.64 bohr, E_int -0.1625 / 1.2215 kcal/mol (PBE x / revPBE x), 102 s (99 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 8, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 47 s so far (45 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 64 s so far (62 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 88 s so far (84 s Hartree-Fock, 8 iterations; 3 s MP2)
+pair 85: R 7.07 bohr, E_int -1.6028 / -1.4706 kcal/mol (PBE x / revPBE x), 88 s (84 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 8])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 53 s so far (51 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 75 s so far (72 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 95 s so far (92 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 86: R 5.66 bohr, E_int -2.3773 / -1.5747 kcal/mol (PBE x / revPBE x), 95 s (92 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 68 s so far (66 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 93 s so far (91 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 116 s so far (113 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 87: R 6.00 bohr, E_int 2.1489 / 3.0987 kcal/mol (PBE x / revPBE x), 116 s (113 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 48 s so far (45 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 73 s so far (69 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 97 s so far (93 s Hartree-Fock, 9 iterations; 4 s MP2)
+pair 88: R 5.48 bohr, E_int -0.8785 / 0.3108 kcal/mol (PBE x / revPBE x), 97 s (93 s fields, 4 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 55 s so far (54 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 82 s so far (79 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 3 of 3 done: 103 s so far (99 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 89: R 6.43 bohr, E_int -3.1106 / -2.4941 kcal/mol (PBE x / revPBE x), 103 s (99 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 50 s so far (48 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 69 s so far (67 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 97 s so far (94 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 90: R 7.25 bohr, E_int 0.9841 / 1.2853 kcal/mol (PBE x / revPBE x), 97 s (94 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 53 s so far (52 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 78 s so far (75 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 96 s so far (93 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 91: R 6.16 bohr, E_int -4.0247 / -3.3735 kcal/mol (PBE x / revPBE x), 96 s (93 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 56 s so far (54 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 77 s so far (75 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 103 s so far (100 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 92: R 7.53 bohr, E_int -1.5834 / -1.4977 kcal/mol (PBE x / revPBE x), 103 s (100 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 67 s so far (65 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 88 s so far (85 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 108 s so far (105 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 93: R 5.33 bohr, E_int -0.7970 / 0.2263 kcal/mol (PBE x / revPBE x), 108 s (105 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 50 s so far (48 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 79 s so far (77 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 103 s so far (100 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 94: R 6.40 bohr, E_int -3.0068 / -2.6091 kcal/mol (PBE x / revPBE x), 103 s (100 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 53 s so far (51 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 77 s so far (75 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 105 s so far (102 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 95: R 6.34 bohr, E_int -1.8003 / -1.3426 kcal/mol (PBE x / revPBE x), 105 s (102 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 51 s so far (49 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 69 s so far (67 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 96 s so far (92 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 96: R 7.42 bohr, E_int -0.7566 / -0.6321 kcal/mol (PBE x / revPBE x), 96 s (92 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 53 s so far (52 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 77 s so far (75 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 96 s so far (93 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 97: R 6.11 bohr, E_int -2.7797 / -2.3709 kcal/mol (PBE x / revPBE x), 96 s (93 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 62 s so far (61 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 86 s so far (84 s Hartree-Fock, 8 iterations; 2 s MP2)
+  field 3 of 3 done: 111 s so far (108 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 98: R 5.11 bohr, E_int -0.7252 / 0.8351 kcal/mol (PBE x / revPBE x), 111 s (108 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 8, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 55 s so far (51 s Hartree-Fock, 10 iterations; 3 s MP2)
+  field 2 of 3 done: 77 s so far (73 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 100 s so far (96 s Hartree-Fock, 9 iterations; 4 s MP2)
+pair 99: R 5.32 bohr, E_int -1.7238 / -0.1732 kcal/mol (PBE x / revPBE x), 100 s (96 s fields, 4 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 52 s so far (50 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 81 s so far (78 s Hartree-Fock, 8 iterations; 2 s MP2)
+  field 3 of 3 done: 104 s so far (102 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 100: R 5.25 bohr, E_int 0.5777 / 2.6550 kcal/mol (PBE x / revPBE x), 105 s (102 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 8, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 54 s so far (53 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 79 s so far (77 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 106 s so far (103 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 101: R 5.90 bohr, E_int -2.1523 / -1.2304 kcal/mol (PBE x / revPBE x), 106 s (103 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 51 s so far (49 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 69 s so far (67 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 98 s so far (94 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 102: R 5.88 bohr, E_int -0.8827 / -0.0542 kcal/mol (PBE x / revPBE x), 98 s (94 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 56 s so far (54 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 82 s so far (79 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 3 of 3 done: 100 s so far (97 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 103: R 6.71 bohr, E_int 0.3248 / 1.0436 kcal/mol (PBE x / revPBE x), 100 s (97 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 59 s so far (57 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 81 s so far (79 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 107 s so far (104 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 104: R 7.77 bohr, E_int -0.6099 / -0.3815 kcal/mol (PBE x / revPBE x), 107 s (104 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 73 s so far (71 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 97 s so far (94 s Hartree-Fock, 8 iterations; 2 s MP2)
+  field 3 of 3 done: 119 s so far (116 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 105: R 4.95 bohr, E_int -0.4516 / 1.0399 kcal/mol (PBE x / revPBE x), 119 s (116 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 8, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 47 s so far (45 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 76 s so far (74 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 103 s so far (100 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 106: R 5.74 bohr, E_int -3.0310 / -2.0566 kcal/mol (PBE x / revPBE x), 103 s (100 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 56 s so far (54 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 85 s so far (83 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 108 s so far (105 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 107: R 6.48 bohr, E_int -2.4573 / -2.1038 kcal/mol (PBE x / revPBE x), 108 s (105 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 55 s so far (53 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 80 s so far (78 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 108 s so far (105 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 108: R 5.27 bohr, E_int -4.7012 / -3.1520 kcal/mol (PBE x / revPBE x), 108 s (105 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 50 s so far (48 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 68 s so far (66 s Hartree-Fock, 8 iterations; 2 s MP2)
+  field 3 of 3 done: 99 s so far (95 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 109: R 6.49 bohr, E_int -1.2440 / -0.9645 kcal/mol (PBE x / revPBE x), 99 s (95 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 8, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 56 s so far (55 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 83 s so far (81 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 107 s so far (104 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 110: R 5.70 bohr, E_int -3.8506 / -3.1358 kcal/mol (PBE x / revPBE x), 107 s (104 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 9])
+final non-local energies on gpu (f32, NVIDIA GeForce RTX 2060 via Vulkan)
+Hartree-Fock passes on gpu Fock (f64, NVIDIA GeForce RTX 2060 via Vulkan)
+water: 3 atoms, types [0, 1, 1], per-element basis; 111 pairs done, 300 wanted
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 75 s so far (73 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 88 s so far (84 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 99 s so far (95 s Hartree-Fock, 9 iterations; 4 s MP2)
+pair 111: R 7.61 bohr, E_int 0.6187 / 0.9291 kcal/mol (PBE x / revPBE x), 106 s (95 s fields, 4 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 75 s so far (72 s Hartree-Fock, 10 iterations; 3 s MP2)
+  field 2 of 3 done: 86 s so far (82 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 98 s so far (93 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 112: R 7.33 bohr, E_int -1.2258 / -1.0851 kcal/mol (PBE x / revPBE x), 98 s (93 s fields, 5 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 67 s so far (64 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 80 s so far (76 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 92 s so far (88 s Hartree-Fock, 9 iterations; 4 s MP2)
+pair 113: R 7.32 bohr, E_int 0.9331 / 1.3458 kcal/mol (PBE x / revPBE x), 92 s (88 s fields, 4 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 66 s so far (63 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 78 s so far (75 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 3 of 3 done: 90 s so far (85 s Hartree-Fock, 8 iterations; 4 s MP2)
+pair 114: R 6.39 bohr, E_int 1.6481 / 2.2686 kcal/mol (PBE x / revPBE x), 90 s (85 s fields, 4 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 8])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 67 s so far (65 s Hartree-Fock, 10 iterations; 3 s MP2)
+  field 2 of 3 done: 80 s so far (76 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 92 s so far (88 s Hartree-Fock, 9 iterations; 4 s MP2)
+pair 115: R 7.26 bohr, E_int -0.2660 / -0.1573 kcal/mol (PBE x / revPBE x), 92 s (88 s fields, 4 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 67 s so far (64 s Hartree-Fock, 10 iterations; 3 s MP2)
+  field 2 of 3 done: 80 s so far (76 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 92 s so far (88 s Hartree-Fock, 9 iterations; 4 s MP2)
+pair 116: R 6.94 bohr, E_int 0.9750 / 1.3917 kcal/mol (PBE x / revPBE x), 92 s (88 s fields, 4 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 68 s so far (65 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 80 s so far (77 s Hartree-Fock, 8 iterations; 3 s MP2)
+  field 3 of 3 done: 92 s so far (88 s Hartree-Fock, 9 iterations; 4 s MP2)
+pair 117: R 6.16 bohr, E_int -1.9440 / -1.5103 kcal/mol (PBE x / revPBE x), 92 s (88 s fields, 4 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 8, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 65 s so far (62 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 77 s so far (74 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 3 of 3 done: 89 s so far (85 s Hartree-Fock, 8 iterations; 4 s MP2)
+pair 118: R 7.36 bohr, E_int -1.1814 / -1.0271 kcal/mol (PBE x / revPBE x), 89 s (85 s fields, 4 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 8])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 65 s so far (62 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 77 s so far (74 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 3 of 3 done: 90 s so far (86 s Hartree-Fock, 9 iterations; 4 s MP2)
+pair 119: R 5.46 bohr, E_int -1.6185 / -0.6260 kcal/mol (PBE x / revPBE x), 90 s (86 s fields, 4 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 65 s so far (63 s Hartree-Fock, 10 iterations; 3 s MP2)
+  field 2 of 3 done: 79 s so far (75 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 91 s so far (87 s Hartree-Fock, 9 iterations; 4 s MP2)
+pair 120: R 6.95 bohr, E_int 0.5086 / 1.1179 kcal/mol (PBE x / revPBE x), 91 s (87 s fields, 4 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 65 s so far (62 s Hartree-Fock, 10 iterations; 3 s MP2)
+  field 2 of 3 done: 78 s so far (74 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 3 of 3 done: 90 s so far (86 s Hartree-Fock, 9 iterations; 4 s MP2)
+pair 121: R 7.27 bohr, E_int -0.2642 / -0.0379 kcal/mol (PBE x / revPBE x), 90 s (86 s fields, 4 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 67 s so far (64 s Hartree-Fock, 10 iterations; 3 s MP2)
+  field 2 of 3 done: 81 s so far (77 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 94 s so far (89 s Hartree-Fock, 8 iterations; 4 s MP2)
+pair 122: R 7.18 bohr, E_int -0.9415 / -0.8610 kcal/mol (PBE x / revPBE x), 94 s (89 s fields, 4 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 8])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 67 s so far (64 s Hartree-Fock, 10 iterations; 3 s MP2)
+  field 2 of 3 done: 80 s so far (76 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 93 s so far (88 s Hartree-Fock, 9 iterations; 4 s MP2)
+pair 123: R 6.69 bohr, E_int -1.4699 / -1.0867 kcal/mol (PBE x / revPBE x), 93 s (88 s fields, 4 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 68 s so far (66 s Hartree-Fock, 10 iterations; 3 s MP2)
+  field 2 of 3 done: 81 s so far (78 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 3 of 3 done: 94 s so far (90 s Hartree-Fock, 9 iterations; 4 s MP2)
+pair 124: R 7.14 bohr, E_int 0.0582 / 0.3222 kcal/mol (PBE x / revPBE x), 94 s (90 s fields, 4 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 67 s so far (65 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 79 s so far (77 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 92 s so far (89 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 125: R 7.10 bohr, E_int -2.2136 / -1.9934 kcal/mol (PBE x / revPBE x), 92 s (89 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 65 s so far (63 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 78 s so far (75 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 3 of 3 done: 90 s so far (87 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 126: R 5.67 bohr, E_int -1.9996 / -0.8838 kcal/mol (PBE x / revPBE x), 90 s (87 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 64 s so far (61 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 77 s so far (74 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 3 of 3 done: 91 s so far (87 s Hartree-Fock, 9 iterations; 4 s MP2)
+pair 127: R 6.66 bohr, E_int 0.4658 / 0.8172 kcal/mol (PBE x / revPBE x), 91 s (87 s fields, 4 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 64 s so far (61 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 78 s so far (74 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 3 of 3 done: 91 s so far (87 s Hartree-Fock, 9 iterations; 4 s MP2)
+pair 128: R 7.18 bohr, E_int -0.1869 / 0.0947 kcal/mol (PBE x / revPBE x), 91 s (87 s fields, 4 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 66 s so far (64 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 79 s so far (77 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 93 s so far (90 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 129: R 5.43 bohr, E_int -2.4684 / -0.9692 kcal/mol (PBE x / revPBE x), 93 s (90 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 60 s so far (58 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 72 s so far (69 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 3 of 3 done: 85 s so far (81 s Hartree-Fock, 9 iterations; 4 s MP2)
+pair 130: R 5.78 bohr, E_int -4.4559 / -3.4830 kcal/mol (PBE x / revPBE x), 85 s (81 s fields, 4 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 58 s so far (56 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 70 s so far (67 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 3 of 3 done: 80 s so far (77 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 131: R 5.79 bohr, E_int -2.8166 / -1.8745 kcal/mol (PBE x / revPBE x), 80 s (77 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 64 s so far (60 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 76 s so far (72 s Hartree-Fock, 8 iterations; 4 s MP2)
+  field 3 of 3 done: 94 s so far (89 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 132: R 5.73 bohr, E_int -2.7193 / -1.8306 kcal/mol (PBE x / revPBE x), 94 s (89 s fields, 5 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 8, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 54 s so far (51 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 67 s so far (63 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 80 s so far (75 s Hartree-Fock, 8 iterations; 5 s MP2)
+pair 133: R 5.77 bohr, E_int -1.7260 / -1.1841 kcal/mol (PBE x / revPBE x), 80 s (75 s fields, 5 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 8])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 53 s so far (50 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 71 s so far (67 s Hartree-Fock, 8 iterations; 4 s MP2)
+  field 3 of 3 done: 86 s so far (81 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 134: R 6.90 bohr, E_int -0.8823 / -0.5899 kcal/mol (PBE x / revPBE x), 86 s (81 s fields, 5 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 8, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 62 s so far (58 s Hartree-Fock, 10 iterations; 4 s MP2)
+  field 2 of 3 done: 76 s so far (71 s Hartree-Fock, 9 iterations; 5 s MP2)
+  field 3 of 3 done: 95 s so far (90 s Hartree-Fock, 9 iterations; 6 s MP2)
+pair 135: R 7.39 bohr, E_int -0.1854 / 0.0782 kcal/mol (PBE x / revPBE x), 95 s (90 s fields, 6 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 58 s so far (56 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 72 s so far (70 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 86 s so far (83 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 136: R 5.63 bohr, E_int -2.1245 / -1.4767 kcal/mol (PBE x / revPBE x), 86 s (83 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 51 s so far (49 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 71 s so far (69 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 3 of 3 done: 84 s so far (81 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 137: R 6.09 bohr, E_int -0.8275 / -0.3094 kcal/mol (PBE x / revPBE x), 84 s (81 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 65 s so far (62 s Hartree-Fock, 10 iterations; 3 s MP2)
+  field 2 of 3 done: 78 s so far (74 s Hartree-Fock, 8 iterations; 4 s MP2)
+  field 3 of 3 done: 98 s so far (93 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 138: R 5.90 bohr, E_int -1.9617 / -0.5606 kcal/mol (PBE x / revPBE x), 98 s (93 s fields, 5 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 8, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 56 s so far (53 s Hartree-Fock, 10 iterations; 3 s MP2)
+  field 2 of 3 done: 70 s so far (66 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 84 s so far (79 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 139: R 6.67 bohr, E_int 0.9528 / 1.6394 kcal/mol (PBE x / revPBE x), 84 s (79 s fields, 5 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 52 s so far (50 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 72 s so far (68 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 86 s so far (82 s Hartree-Fock, 9 iterations; 4 s MP2)
+pair 140: R 6.92 bohr, E_int -0.9077 / -0.8036 kcal/mol (PBE x / revPBE x), 86 s (82 s fields, 4 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 61 s so far (58 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 76 s so far (72 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 95 s so far (91 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 141: R 5.20 bohr, E_int -2.8284 / -1.1216 kcal/mol (PBE x / revPBE x), 95 s (91 s fields, 5 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 54 s so far (50 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 68 s so far (64 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 82 s so far (78 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 142: R 7.56 bohr, E_int -1.0879 / -0.9759 kcal/mol (PBE x / revPBE x), 82 s (78 s fields, 5 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 53 s so far (50 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 72 s so far (68 s Hartree-Fock, 8 iterations; 4 s MP2)
+  field 3 of 3 done: 87 s so far (82 s Hartree-Fock, 8 iterations; 5 s MP2)
+pair 143: R 6.71 bohr, E_int 0.7471 / 1.1891 kcal/mol (PBE x / revPBE x), 87 s (82 s fields, 5 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 8, 8])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 56 s so far (54 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 71 s so far (69 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 85 s so far (82 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 144: R 6.30 bohr, E_int -2.2740 / -1.6513 kcal/mol (PBE x / revPBE x), 85 s (82 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 53 s so far (51 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 74 s so far (71 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 3 of 3 done: 88 s so far (84 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 145: R 7.17 bohr, E_int -2.0623 / -2.0340 kcal/mol (PBE x / revPBE x), 88 s (84 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 59 s so far (57 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 75 s so far (72 s Hartree-Fock, 8 iterations; 3 s MP2)
+  field 3 of 3 done: 90 s so far (86 s Hartree-Fock, 9 iterations; 4 s MP2)
+pair 146: R 7.10 bohr, E_int -1.4522 / -1.3678 kcal/mol (PBE x / revPBE x), 90 s (86 s fields, 4 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 8, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 51 s so far (49 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 73 s so far (70 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 3 of 3 done: 87 s so far (84 s Hartree-Fock, 9 iterations; 4 s MP2)
+pair 147: R 5.31 bohr, E_int -1.4357 / -0.3907 kcal/mol (PBE x / revPBE x), 87 s (84 s fields, 4 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 65 s so far (63 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 81 s so far (78 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 3 of 3 done: 101 s so far (97 s Hartree-Fock, 9 iterations; 4 s MP2)
+pair 148: R 6.53 bohr, E_int -2.7437 / -2.3616 kcal/mol (PBE x / revPBE x), 101 s (97 s fields, 4 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 51 s so far (48 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 70 s so far (66 s Hartree-Fock, 8 iterations; 4 s MP2)
+  field 3 of 3 done: 87 s so far (82 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 149: R 6.55 bohr, E_int -1.0635 / -0.5761 kcal/mol (PBE x / revPBE x), 87 s (82 s fields, 5 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 8, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 54 s so far (52 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 67 s so far (65 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 89 s so far (86 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 150: R 6.23 bohr, E_int -2.0972 / -1.7630 kcal/mol (PBE x / revPBE x), 89 s (86 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 54 s so far (51 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 69 s so far (65 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 83 s so far (79 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 151: R 6.08 bohr, E_int -3.7196 / -3.2430 kcal/mol (PBE x / revPBE x), 83 s (79 s fields, 5 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 54 s so far (51 s Hartree-Fock, 10 iterations; 3 s MP2)
+  field 2 of 3 done: 74 s so far (70 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 91 s so far (86 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 152: R 7.62 bohr, E_int -1.5346 / -1.4811 kcal/mol (PBE x / revPBE x), 91 s (86 s fields, 5 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 52 s so far (50 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 69 s so far (66 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 3 of 3 done: 83 s so far (80 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 153: R 6.02 bohr, E_int -3.6447 / -2.9590 kcal/mol (PBE x / revPBE x), 83 s (80 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 54 s so far (51 s Hartree-Fock, 10 iterations; 3 s MP2)
+  field 2 of 3 done: 75 s so far (71 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 92 s so far (87 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 154: R 7.41 bohr, E_int 0.9787 / 1.2530 kcal/mol (PBE x / revPBE x), 92 s (87 s fields, 5 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 53 s so far (50 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 69 s so far (66 s Hartree-Fock, 8 iterations; 3 s MP2)
+  field 3 of 3 done: 83 s so far (79 s Hartree-Fock, 8 iterations; 4 s MP2)
+pair 155: R 5.32 bohr, E_int 1.7262 / 3.3479 kcal/mol (PBE x / revPBE x), 83 s (79 s fields, 4 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 8, 8])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 55 s so far (52 s Hartree-Fock, 10 iterations; 3 s MP2)
+  field 2 of 3 done: 76 s so far (71 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 94 s so far (89 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 156: R 6.04 bohr, E_int -3.2978 / -2.7624 kcal/mol (PBE x / revPBE x), 94 s (89 s fields, 5 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 53 s so far (50 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 72 s so far (68 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 3 of 3 done: 86 s so far (82 s Hartree-Fock, 9 iterations; 4 s MP2)
+pair 157: R 7.67 bohr, E_int 0.6764 / 0.9801 kcal/mol (PBE x / revPBE x), 86 s (82 s fields, 4 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 55 s so far (52 s Hartree-Fock, 10 iterations; 3 s MP2)
+  field 2 of 3 done: 76 s so far (72 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 94 s so far (89 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 158: R 6.89 bohr, E_int -1.2704 / -0.9222 kcal/mol (PBE x / revPBE x), 94 s (89 s fields, 5 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 51 s so far (48 s Hartree-Fock, 10 iterations; 3 s MP2)
+  field 2 of 3 done: 68 s so far (65 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 83 s so far (79 s Hartree-Fock, 9 iterations; 4 s MP2)
+pair 159: R 6.62 bohr, E_int -1.4631 / -1.1572 kcal/mol (PBE x / revPBE x), 83 s (79 s fields, 4 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 52 s so far (51 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 67 s so far (65 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 91 s so far (88 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 160: R 6.89 bohr, E_int -1.4136 / -1.2803 kcal/mol (PBE x / revPBE x), 91 s (88 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 54 s so far (50 s Hartree-Fock, 10 iterations; 3 s MP2)
+  field 2 of 3 done: 71 s so far (67 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 86 s so far (81 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 161: R 6.03 bohr, E_int -2.5634 / -1.9307 kcal/mol (PBE x / revPBE x), 86 s (81 s fields, 5 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 53 s so far (51 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 67 s so far (65 s Hartree-Fock, 8 iterations; 2 s MP2)
+  field 3 of 3 done: 91 s so far (88 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 162: R 6.64 bohr, E_int -1.3440 / -0.9047 kcal/mol (PBE x / revPBE x), 91 s (88 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 8, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 52 s so far (49 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 70 s so far (66 s Hartree-Fock, 8 iterations; 4 s MP2)
+  field 3 of 3 done: 87 s so far (82 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 163: R 4.89 bohr, E_int 0.7291 / 2.7542 kcal/mol (PBE x / revPBE x), 87 s (82 s fields, 5 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 8, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 53 s so far (52 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 68 s so far (66 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 92 s so far (89 s Hartree-Fock, 8 iterations; 3 s MP2)
+pair 164: R 6.07 bohr, E_int -0.5863 / -0.3118 kcal/mol (PBE x / revPBE x), 92 s (89 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 8])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 51 s so far (48 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 70 s so far (66 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 87 s so far (83 s Hartree-Fock, 9 iterations; 4 s MP2)
+pair 165: R 5.64 bohr, E_int -2.1875 / -1.3290 kcal/mol (PBE x / revPBE x), 87 s (83 s fields, 4 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 53 s so far (51 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 68 s so far (66 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 92 s so far (89 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 166: R 6.80 bohr, E_int -1.7086 / -1.1876 kcal/mol (PBE x / revPBE x), 92 s (89 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 52 s so far (49 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 70 s so far (67 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 88 s so far (83 s Hartree-Fock, 9 iterations; 4 s MP2)
+pair 167: R 6.28 bohr, E_int -1.5720 / -1.2280 kcal/mol (PBE x / revPBE x), 88 s (83 s fields, 4 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 52 s so far (51 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 67 s so far (64 s Hartree-Fock, 8 iterations; 2 s MP2)
+  field 3 of 3 done: 92 s so far (89 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 168: R 6.05 bohr, E_int -3.4964 / -2.9163 kcal/mol (PBE x / revPBE x), 92 s (89 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 8, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 53 s so far (50 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 72 s so far (68 s Hartree-Fock, 8 iterations; 4 s MP2)
+  field 3 of 3 done: 90 s so far (86 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 169: R 7.67 bohr, E_int -1.1831 / -1.1802 kcal/mol (PBE x / revPBE x), 90 s (86 s fields, 5 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 8, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 54 s so far (52 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 69 s so far (67 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 93 s so far (90 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 170: R 7.36 bohr, E_int -2.3277 / -2.1972 kcal/mol (PBE x / revPBE x), 93 s (90 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 51 s so far (48 s Hartree-Fock, 10 iterations; 3 s MP2)
+  field 2 of 3 done: 71 s so far (67 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 88 s so far (83 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 171: R 6.97 bohr, E_int -1.1635 / -0.9795 kcal/mol (PBE x / revPBE x), 88 s (83 s fields, 5 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 54 s so far (52 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 68 s so far (66 s Hartree-Fock, 8 iterations; 2 s MP2)
+  field 3 of 3 done: 93 s so far (90 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 172: R 5.58 bohr, E_int -0.2885 / 0.8762 kcal/mol (PBE x / revPBE x), 93 s (90 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 8, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 54 s so far (50 s Hartree-Fock, 10 iterations; 3 s MP2)
+  field 2 of 3 done: 74 s so far (71 s Hartree-Fock, 8 iterations; 4 s MP2)
+  field 3 of 3 done: 94 s so far (89 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 173: R 5.36 bohr, E_int -3.0855 / -1.2455 kcal/mol (PBE x / revPBE x), 94 s (89 s fields, 5 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 8, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 54 s so far (53 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 70 s so far (67 s Hartree-Fock, 8 iterations; 3 s MP2)
+  field 3 of 3 done: 96 s so far (92 s Hartree-Fock, 9 iterations; 4 s MP2)
+pair 174: R 4.98 bohr, E_int -1.7066 / 0.5311 kcal/mol (PBE x / revPBE x), 96 s (92 s fields, 4 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 8, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 64 s so far (62 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 84 s so far (82 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 103 s so far (99 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 175: R 5.16 bohr, E_int -4.1558 / -2.3807 kcal/mol (PBE x / revPBE x), 103 s (99 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 58 s so far (54 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 85 s so far (81 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 106 s so far (101 s Hartree-Fock, 8 iterations; 5 s MP2)
+pair 176: R 6.49 bohr, E_int -1.6492 / -1.0434 kcal/mol (PBE x / revPBE x), 106 s (101 s fields, 5 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 8])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 63 s so far (61 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 81 s so far (79 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 3 of 3 done: 108 s so far (103 s Hartree-Fock, 9 iterations; 4 s MP2)
+pair 177: R 5.51 bohr, E_int -3.9842 / -2.8211 kcal/mol (PBE x / revPBE x), 108 s (103 s fields, 4 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 66 s so far (64 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 89 s so far (86 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 106 s so far (103 s Hartree-Fock, 9 iterations; 4 s MP2)
+pair 178: R 6.53 bohr, E_int -1.4361 / -0.7719 kcal/mol (PBE x / revPBE x), 106 s (103 s fields, 4 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 57 s so far (54 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 84 s so far (81 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 3 of 3 done: 106 s so far (102 s Hartree-Fock, 8 iterations; 4 s MP2)
+pair 179: R 6.50 bohr, E_int -1.7549 / -1.4483 kcal/mol (PBE x / revPBE x), 106 s (102 s fields, 4 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 8])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 63 s so far (61 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 80 s so far (77 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 3 of 3 done: 106 s so far (102 s Hartree-Fock, 9 iterations; 4 s MP2)
+pair 180: R 7.81 bohr, E_int 0.5839 / 0.8963 kcal/mol (PBE x / revPBE x), 106 s (102 s fields, 4 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 66 s so far (65 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 87 s so far (85 s Hartree-Fock, 8 iterations; 2 s MP2)
+  field 3 of 3 done: 105 s so far (102 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 181: R 6.58 bohr, E_int 0.5681 / 1.2017 kcal/mol (PBE x / revPBE x), 105 s (102 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 8, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 62 s so far (59 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 89 s so far (85 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 110 s so far (105 s Hartree-Fock, 9 iterations; 4 s MP2)
+pair 182: R 6.29 bohr, E_int -2.2769 / -1.7410 kcal/mol (PBE x / revPBE x), 110 s (105 s fields, 4 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 62 s so far (60 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 83 s so far (79 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 107 s so far (103 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 183: R 7.27 bohr, E_int -1.1383 / -0.8546 kcal/mol (PBE x / revPBE x), 107 s (103 s fields, 5 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 54 s so far (51 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 80 s so far (77 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 3 of 3 done: 101 s so far (98 s Hartree-Fock, 9 iterations; 4 s MP2)
+pair 184: R 6.75 bohr, E_int -0.8633 / -0.5652 kcal/mol (PBE x / revPBE x), 101 s (98 s fields, 4 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 65 s so far (63 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 83 s so far (80 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 3 of 3 done: 111 s so far (107 s Hartree-Fock, 9 iterations; 4 s MP2)
+pair 185: R 5.36 bohr, E_int -1.4507 / -0.5462 kcal/mol (PBE x / revPBE x), 111 s (107 s fields, 4 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 65 s so far (63 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 85 s so far (83 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 3 of 3 done: 105 s so far (102 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 186: R 7.83 bohr, E_int 0.2942 / 0.6217 kcal/mol (PBE x / revPBE x), 105 s (102 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 56 s so far (55 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 74 s so far (71 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 100 s so far (97 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 187: R 5.83 bohr, E_int -4.4443 / -3.5133 kcal/mol (PBE x / revPBE x), 100 s (97 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 64 s so far (62 s Hartree-Fock, 10 iterations; 3 s MP2)
+  field 2 of 3 done: 85 s so far (81 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 104 s so far (100 s Hartree-Fock, 8 iterations; 4 s MP2)
+pair 188: R 6.05 bohr, E_int -2.7139 / -1.8159 kcal/mol (PBE x / revPBE x), 104 s (100 s fields, 4 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 8])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 57 s so far (55 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 74 s so far (72 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 3 of 3 done: 103 s so far (99 s Hartree-Fock, 9 iterations; 4 s MP2)
+pair 189: R 5.73 bohr, E_int -2.6274 / -1.6574 kcal/mol (PBE x / revPBE x), 103 s (99 s fields, 4 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 60 s so far (57 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 81 s so far (77 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 103 s so far (98 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 190: R 5.77 bohr, E_int -1.1533 / -0.3451 kcal/mol (PBE x / revPBE x), 103 s (98 s fields, 5 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 57 s so far (55 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 76 s so far (73 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 3 of 3 done: 106 s so far (102 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 191: R 7.48 bohr, E_int 0.3258 / 0.5862 kcal/mol (PBE x / revPBE x), 106 s (102 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 56 s so far (53 s Hartree-Fock, 10 iterations; 3 s MP2)
+  field 2 of 3 done: 79 s so far (75 s Hartree-Fock, 8 iterations; 4 s MP2)
+  field 3 of 3 done: 101 s so far (96 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 192: R 6.08 bohr, E_int -2.1472 / -1.6164 kcal/mol (PBE x / revPBE x), 101 s (96 s fields, 5 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 8, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 61 s so far (60 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 84 s so far (81 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 3 of 3 done: 112 s so far (109 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 193: R 7.86 bohr, E_int -0.6777 / -0.6583 kcal/mol (PBE x / revPBE x), 112 s (109 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 56 s so far (53 s Hartree-Fock, 10 iterations; 3 s MP2)
+  field 2 of 3 done: 80 s so far (77 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 102 s so far (98 s Hartree-Fock, 9 iterations; 4 s MP2)
+pair 194: R 5.61 bohr, E_int -3.4678 / -2.1130 kcal/mol (PBE x / revPBE x), 102 s (98 s fields, 4 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 63 s so far (61 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 85 s so far (83 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 3 of 3 done: 113 s so far (110 s Hartree-Fock, 9 iterations; 4 s MP2)
+pair 195: R 5.55 bohr, E_int -4.8498 / -3.6424 kcal/mol (PBE x / revPBE x), 113 s (110 s fields, 4 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 53 s so far (51 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 81 s so far (79 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 3 of 3 done: 103 s so far (100 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 196: R 7.64 bohr, E_int -0.8224 / -0.6506 kcal/mol (PBE x / revPBE x), 103 s (100 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 63 s so far (61 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 85 s so far (83 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 104 s so far (101 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 197: R 5.64 bohr, E_int -1.2304 / -0.4683 kcal/mol (PBE x / revPBE x), 104 s (101 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 56 s so far (54 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 77 s so far (75 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 105 s so far (103 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 198: R 6.47 bohr, E_int 1.1971 / 1.7387 kcal/mol (PBE x / revPBE x), 105 s (103 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 54 s so far (52 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 81 s so far (78 s Hartree-Fock, 8 iterations; 3 s MP2)
+  field 3 of 3 done: 104 s so far (101 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 199: R 5.81 bohr, E_int 1.6920 / 2.4258 kcal/mol (PBE x / revPBE x), 104 s (101 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 8, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 72 s so far (71 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 95 s so far (92 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 112 s so far (109 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 200: R 7.85 bohr, E_int 0.2912 / 0.5381 kcal/mol (PBE x / revPBE x), 112 s (109 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 57 s so far (55 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 76 s so far (74 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 106 s so far (103 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 201: R 7.91 bohr, E_int -0.1606 / -0.1293 kcal/mol (PBE x / revPBE x), 106 s (103 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 55 s so far (54 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 81 s so far (79 s Hartree-Fock, 8 iterations; 2 s MP2)
+  field 3 of 3 done: 103 s so far (100 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 202: R 7.10 bohr, E_int 1.2960 / 1.7194 kcal/mol (PBE x / revPBE x), 103 s (100 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 8, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 70 s so far (67 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 92 s so far (88 s Hartree-Fock, 8 iterations; 4 s MP2)
+  field 3 of 3 done: 111 s so far (107 s Hartree-Fock, 9 iterations; 4 s MP2)
+pair 203: R 6.47 bohr, E_int 0.5142 / 0.9508 kcal/mol (PBE x / revPBE x), 111 s (107 s fields, 4 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 8, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 57 s so far (55 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 79 s so far (76 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 107 s so far (104 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 204: R 7.45 bohr, E_int -0.5270 / -0.4148 kcal/mol (PBE x / revPBE x), 107 s (104 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 54 s so far (52 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 85 s so far (83 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 108 s so far (105 s Hartree-Fock, 8 iterations; 3 s MP2)
+pair 205: R 7.31 bohr, E_int -1.2644 / -0.9259 kcal/mol (PBE x / revPBE x), 108 s (105 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 8])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 67 s so far (63 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 2 of 3 done: 93 s so far (88 s Hartree-Fock, 9 iterations; 5 s MP2)
+  field 3 of 3 done: 117 s so far (111 s Hartree-Fock, 8 iterations; 5 s MP2)
+pair 206: R 7.60 bohr, E_int -1.3957 / -1.2954 kcal/mol (PBE x / revPBE x), 117 s (111 s fields, 5 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 8])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 65 s so far (63 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 89 s so far (86 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 109 s so far (106 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 207: R 6.29 bohr, E_int -3.2904 / -2.7182 kcal/mol (PBE x / revPBE x), 109 s (106 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 58 s so far (56 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 78 s so far (76 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 108 s so far (105 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 208: R 5.07 bohr, E_int -2.2768 / -0.3735 kcal/mol (PBE x / revPBE x), 108 s (105 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 54 s so far (52 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 81 s so far (78 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 3 of 3 done: 104 s so far (101 s Hartree-Fock, 9 iterations; 4 s MP2)
+pair 209: R 6.97 bohr, E_int -0.5733 / -0.1436 kcal/mol (PBE x / revPBE x), 105 s (101 s fields, 4 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 57 s so far (54 s Hartree-Fock, 10 iterations; 3 s MP2)
+  field 2 of 3 done: 81 s so far (77 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 104 s so far (99 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 210: R 7.25 bohr, E_int -0.6852 / -0.3138 kcal/mol (PBE x / revPBE x), 104 s (99 s fields, 5 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 70 s so far (68 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 94 s so far (92 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 117 s so far (114 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 211: R 7.42 bohr, E_int 0.5798 / 0.7912 kcal/mol (PBE x / revPBE x), 117 s (114 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 56 s so far (54 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 80 s so far (77 s Hartree-Fock, 8 iterations; 3 s MP2)
+  field 3 of 3 done: 104 s so far (100 s Hartree-Fock, 9 iterations; 4 s MP2)
+pair 212: R 5.61 bohr, E_int -1.1997 / -0.0322 kcal/mol (PBE x / revPBE x), 104 s (100 s fields, 4 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 8, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 57 s so far (55 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 76 s so far (74 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 107 s so far (104 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 213: R 6.52 bohr, E_int 1.3268 / 2.0328 kcal/mol (PBE x / revPBE x), 107 s (104 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 54 s so far (52 s Hartree-Fock, 10 iterations; 3 s MP2)
+  field 2 of 3 done: 83 s so far (79 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 106 s so far (101 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 214: R 5.17 bohr, E_int -1.3339 / 0.4066 kcal/mol (PBE x / revPBE x), 106 s (101 s fields, 5 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 58 s so far (55 s Hartree-Fock, 10 iterations; 3 s MP2)
+  field 2 of 3 done: 84 s so far (81 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 107 s so far (103 s Hartree-Fock, 9 iterations; 4 s MP2)
+pair 215: R 5.41 bohr, E_int -4.2237 / -2.9719 kcal/mol (PBE x / revPBE x), 107 s (103 s fields, 4 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 67 s so far (65 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 93 s so far (91 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 117 s so far (114 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 216: R 5.67 bohr, E_int -1.8281 / -0.9920 kcal/mol (PBE x / revPBE x), 117 s (114 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 57 s so far (56 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 82 s so far (80 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 103 s so far (100 s Hartree-Fock, 8 iterations; 3 s MP2)
+pair 217: R 6.36 bohr, E_int -1.8967 / -1.6198 kcal/mol (PBE x / revPBE x), 103 s (100 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 8])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 58 s so far (56 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 83 s so far (80 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 3 of 3 done: 111 s so far (107 s Hartree-Fock, 9 iterations; 4 s MP2)
+pair 218: R 5.01 bohr, E_int 0.3552 / 2.2185 kcal/mol (PBE x / revPBE x), 111 s (107 s fields, 4 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 57 s so far (55 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 76 s so far (74 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 106 s so far (103 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 219: R 6.35 bohr, E_int -2.3915 / -1.9377 kcal/mol (PBE x / revPBE x), 106 s (103 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 54 s so far (52 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 83 s so far (80 s Hartree-Fock, 8 iterations; 3 s MP2)
+  field 3 of 3 done: 105 s so far (102 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 220: R 6.44 bohr, E_int -1.6652 / -1.4469 kcal/mol (PBE x / revPBE x), 105 s (102 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 8, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 57 s so far (55 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 83 s so far (81 s Hartree-Fock, 8 iterations; 2 s MP2)
+  field 3 of 3 done: 107 s so far (104 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 221: R 7.12 bohr, E_int -2.4684 / -2.2885 kcal/mol (PBE x / revPBE x), 107 s (104 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 8, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 54 s so far (51 s Hartree-Fock, 10 iterations; 3 s MP2)
+  field 2 of 3 done: 77 s so far (73 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 100 s so far (96 s Hartree-Fock, 9 iterations; 4 s MP2)
+pair 222: R 5.41 bohr, E_int -1.7145 / -0.6296 kcal/mol (PBE x / revPBE x), 100 s (96 s fields, 4 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 72 s so far (70 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 99 s so far (97 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 125 s so far (121 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 223: R 5.14 bohr, E_int 3.0500 / 4.3919 kcal/mol (PBE x / revPBE x), 125 s (121 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 60 s so far (58 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 83 s so far (81 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 102 s so far (99 s Hartree-Fock, 8 iterations; 3 s MP2)
+pair 224: R 5.44 bohr, E_int -3.2725 / -2.1004 kcal/mol (PBE x / revPBE x), 102 s (99 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 8])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 57 s so far (56 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 84 s so far (81 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 3 of 3 done: 109 s so far (105 s Hartree-Fock, 8 iterations; 4 s MP2)
+pair 225: R 7.96 bohr, E_int -1.0698 / -1.0685 kcal/mol (PBE x / revPBE x), 109 s (105 s fields, 4 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 8])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 58 s so far (56 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 81 s so far (79 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 111 s so far (107 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 226: R 5.87 bohr, E_int -1.8361 / -1.2950 kcal/mol (PBE x / revPBE x), 111 s (107 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 58 s so far (56 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 77 s so far (75 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 108 s so far (106 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 227: R 7.35 bohr, E_int -0.3824 / -0.1853 kcal/mol (PBE x / revPBE x), 108 s (106 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 54 s so far (52 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 74 s so far (71 s Hartree-Fock, 8 iterations; 3 s MP2)
+  field 3 of 3 done: 104 s so far (101 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 228: R 4.84 bohr, E_int 3.7841 / 5.9037 kcal/mol (PBE x / revPBE x), 104 s (101 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 8, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 55 s so far (54 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 84 s so far (81 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 3 of 3 done: 108 s so far (105 s Hartree-Fock, 8 iterations; 4 s MP2)
+pair 229: R 7.68 bohr, E_int 0.4088 / 0.7268 kcal/mol (PBE x / revPBE x), 108 s (105 s fields, 4 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 8])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 57 s so far (56 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 88 s so far (86 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 3 of 3 done: 115 s so far (112 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 230: R 6.67 bohr, E_int -0.2980 / 0.2670 kcal/mol (PBE x / revPBE x), 115 s (112 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 53 s so far (49 s Hartree-Fock, 10 iterations; 3 s MP2)
+  field 2 of 3 done: 79 s so far (75 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 102 s so far (98 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 231: R 6.61 bohr, E_int 1.1739 / 1.8367 kcal/mol (PBE x / revPBE x), 102 s (98 s fields, 5 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 58 s so far (54 s Hartree-Fock, 10 iterations; 3 s MP2)
+  field 2 of 3 done: 81 s so far (77 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 105 s so far (100 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 232: R 5.93 bohr, E_int 0.7025 / 1.8045 kcal/mol (PBE x / revPBE x), 105 s (100 s fields, 5 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 73 s so far (71 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 100 s so far (98 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 127 s so far (124 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 233: R 7.82 bohr, E_int -1.2013 / -1.1054 kcal/mol (PBE x / revPBE x), 127 s (124 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 63 s so far (61 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 86 s so far (84 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 107 s so far (104 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 234: R 7.09 bohr, E_int 0.6719 / 1.2784 kcal/mol (PBE x / revPBE x), 107 s (104 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 57 s so far (56 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 85 s so far (82 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 107 s so far (104 s Hartree-Fock, 8 iterations; 3 s MP2)
+pair 235: R 6.35 bohr, E_int -0.5568 / 0.1083 kcal/mol (PBE x / revPBE x), 107 s (104 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 8])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 57 s so far (55 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 83 s so far (81 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 106 s so far (103 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 236: R 5.21 bohr, E_int -4.1248 / -2.5637 kcal/mol (PBE x / revPBE x), 106 s (103 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 59 s so far (58 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 86 s so far (83 s Hartree-Fock, 8 iterations; 3 s MP2)
+  field 3 of 3 done: 114 s so far (111 s Hartree-Fock, 9 iterations; 4 s MP2)
+pair 237: R 5.65 bohr, E_int -0.1837 / 0.9535 kcal/mol (PBE x / revPBE x), 114 s (111 s fields, 4 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 8, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 57 s so far (55 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 81 s so far (78 s Hartree-Fock, 8 iterations; 2 s MP2)
+  field 3 of 3 done: 110 s so far (107 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 238: R 6.49 bohr, E_int 2.0259 / 3.0914 kcal/mol (PBE x / revPBE x), 110 s (107 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 8, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 57 s so far (55 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 78 s so far (76 s Hartree-Fock, 8 iterations; 2 s MP2)
+  field 3 of 3 done: 110 s so far (106 s Hartree-Fock, 8 iterations; 3 s MP2)
+pair 239: R 5.08 bohr, E_int 3.5521 / 5.6132 kcal/mol (PBE x / revPBE x), 110 s (106 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 8, 8])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 56 s so far (54 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 75 s so far (73 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 107 s so far (104 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 240: R 6.42 bohr, E_int -2.5774 / -2.2025 kcal/mol (PBE x / revPBE x), 107 s (104 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 53 s so far (52 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 75 s so far (72 s Hartree-Fock, 8 iterations; 2 s MP2)
+  field 3 of 3 done: 106 s so far (102 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 241: R 6.47 bohr, E_int -3.4183 / -2.9594 kcal/mol (PBE x / revPBE x), 106 s (102 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 8, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 55 s so far (54 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 84 s so far (81 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 3 of 3 done: 109 s so far (106 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 242: R 7.90 bohr, E_int 0.9844 / 1.2515 kcal/mol (PBE x / revPBE x), 109 s (106 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 59 s so far (58 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 91 s so far (89 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 119 s so far (116 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 243: R 6.38 bohr, E_int -0.3855 / 0.1135 kcal/mol (PBE x / revPBE x), 119 s (116 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 50 s so far (49 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 77 s so far (75 s Hartree-Fock, 8 iterations; 2 s MP2)
+  field 3 of 3 done: 102 s so far (99 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 244: R 5.47 bohr, E_int -2.8373 / -1.9668 kcal/mol (PBE x / revPBE x), 102 s (99 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 8, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 52 s so far (49 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 78 s so far (74 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 101 s so far (97 s Hartree-Fock, 8 iterations; 4 s MP2)
+pair 245: R 7.02 bohr, E_int -0.0913 / 0.2388 kcal/mol (PBE x / revPBE x), 101 s (97 s fields, 4 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 8])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 55 s so far (52 s Hartree-Fock, 10 iterations; 3 s MP2)
+  field 2 of 3 done: 80 s so far (76 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 105 s so far (100 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 246: R 5.63 bohr, E_int -0.1625 / 0.9545 kcal/mol (PBE x / revPBE x), 105 s (100 s fields, 5 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 59 s so far (56 s Hartree-Fock, 10 iterations; 3 s MP2)
+  field 2 of 3 done: 83 s so far (79 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 108 s so far (103 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 247: R 7.14 bohr, E_int -0.7060 / -0.5702 kcal/mol (PBE x / revPBE x), 108 s (103 s fields, 5 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 62 s so far (60 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 87 s so far (84 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 112 s so far (109 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 248: R 6.20 bohr, E_int 1.6009 / 2.2571 kcal/mol (PBE x / revPBE x), 112 s (109 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 72 s so far (71 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 100 s so far (98 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 129 s so far (126 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 249: R 7.43 bohr, E_int -0.1095 / 0.0283 kcal/mol (PBE x / revPBE x), 129 s (126 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 77 s so far (75 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 104 s so far (101 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 131 s so far (128 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 250: R 5.04 bohr, E_int -2.4631 / -0.3088 kcal/mol (PBE x / revPBE x), 131 s (128 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 65 s so far (63 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 90 s so far (88 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 113 s so far (110 s Hartree-Fock, 8 iterations; 3 s MP2)
+pair 251: R 5.65 bohr, E_int -1.4068 / -0.7387 kcal/mol (PBE x / revPBE x), 113 s (110 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 8])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 59 s so far (57 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 83 s so far (81 s Hartree-Fock, 8 iterations; 2 s MP2)
+  field 3 of 3 done: 104 s so far (101 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 252: R 5.57 bohr, E_int -0.6082 / 0.7597 kcal/mol (PBE x / revPBE x), 104 s (101 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 8, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 57 s so far (56 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 85 s so far (83 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 108 s so far (105 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 253: R 7.79 bohr, E_int 0.4147 / 0.5995 kcal/mol (PBE x / revPBE x), 108 s (105 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 59 s so far (57 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 87 s so far (85 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 111 s so far (108 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 254: R 7.87 bohr, E_int -0.6041 / -0.4710 kcal/mol (PBE x / revPBE x), 111 s (108 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 58 s so far (57 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 87 s so far (84 s Hartree-Fock, 8 iterations; 2 s MP2)
+  field 3 of 3 done: 110 s so far (107 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 255: R 7.02 bohr, E_int -1.9638 / -1.7661 kcal/mol (PBE x / revPBE x), 110 s (107 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 8, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 60 s so far (58 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 88 s so far (85 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 112 s so far (109 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 256: R 6.60 bohr, E_int 1.6191 / 2.2503 kcal/mol (PBE x / revPBE x), 112 s (109 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 59 s so far (57 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 88 s so far (86 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 112 s so far (109 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 257: R 5.89 bohr, E_int 0.7495 / 1.5360 kcal/mol (PBE x / revPBE x), 112 s (109 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 60 s so far (58 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 88 s so far (86 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 3 of 3 done: 112 s so far (108 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 258: R 6.12 bohr, E_int -4.1266 / -3.4235 kcal/mol (PBE x / revPBE x), 112 s (108 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 59 s so far (58 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 89 s so far (86 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 112 s so far (109 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 259: R 5.02 bohr, E_int -3.2176 / -0.6694 kcal/mol (PBE x / revPBE x), 112 s (109 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 60 s so far (58 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 88 s so far (86 s Hartree-Fock, 8 iterations; 2 s MP2)
+  field 3 of 3 done: 112 s so far (109 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 260: R 7.48 bohr, E_int -1.1620 / -0.9465 kcal/mol (PBE x / revPBE x), 112 s (109 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 8, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 61 s so far (59 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 90 s so far (87 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 3 of 3 done: 115 s so far (112 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 261: R 5.70 bohr, E_int -2.4162 / -1.3741 kcal/mol (PBE x / revPBE x), 115 s (112 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 60 s so far (58 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 89 s so far (87 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 3 of 3 done: 113 s so far (110 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 262: R 7.54 bohr, E_int -0.6468 / -0.4902 kcal/mol (PBE x / revPBE x), 113 s (110 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 60 s so far (58 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 89 s so far (87 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 114 s so far (111 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 263: R 5.52 bohr, E_int 2.5490 / 3.5514 kcal/mol (PBE x / revPBE x), 114 s (111 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 60 s so far (58 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 89 s so far (87 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 3 of 3 done: 114 s so far (111 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 264: R 6.81 bohr, E_int -2.1150 / -1.7661 kcal/mol (PBE x / revPBE x), 114 s (111 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 61 s so far (59 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 90 s so far (87 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 3 of 3 done: 114 s so far (110 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 265: R 5.92 bohr, E_int -0.0796 / 0.9103 kcal/mol (PBE x / revPBE x), 114 s (110 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 61 s so far (59 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 91 s so far (88 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 3 of 3 done: 116 s so far (113 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 266: R 5.38 bohr, E_int -2.6224 / -1.4089 kcal/mol (PBE x / revPBE x), 116 s (113 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 61 s so far (59 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 90 s so far (87 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 3 of 3 done: 115 s so far (111 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 267: R 6.02 bohr, E_int -1.9992 / -1.2332 kcal/mol (PBE x / revPBE x), 115 s (111 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 59 s so far (58 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 89 s so far (87 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 3 of 3 done: 113 s so far (110 s Hartree-Fock, 8 iterations; 3 s MP2)
+pair 268: R 6.37 bohr, E_int -2.4295 / -2.0734 kcal/mol (PBE x / revPBE x), 113 s (110 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 8])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 60 s so far (58 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 89 s so far (87 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 113 s so far (110 s Hartree-Fock, 8 iterations; 3 s MP2)
+pair 269: R 7.02 bohr, E_int -1.1921 / -1.0299 kcal/mol (PBE x / revPBE x), 113 s (110 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 8])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 61 s so far (59 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 90 s so far (88 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 3 of 3 done: 115 s so far (112 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 270: R 5.44 bohr, E_int -2.4240 / -1.3687 kcal/mol (PBE x / revPBE x), 115 s (112 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 61 s so far (60 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 91 s so far (88 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 117 s so far (114 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 271: R 5.64 bohr, E_int -2.0285 / -0.7968 kcal/mol (PBE x / revPBE x), 117 s (114 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 61 s so far (59 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 90 s so far (87 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 3 of 3 done: 115 s so far (111 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 272: R 6.01 bohr, E_int -3.3729 / -2.5900 kcal/mol (PBE x / revPBE x), 115 s (111 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 60 s so far (58 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 90 s so far (87 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 114 s so far (112 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 273: R 5.92 bohr, E_int -3.2932 / -2.6267 kcal/mol (PBE x / revPBE x), 114 s (112 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 60 s so far (58 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 90 s so far (88 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 115 s so far (112 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 274: R 7.30 bohr, E_int -0.7962 / -0.6747 kcal/mol (PBE x / revPBE x), 115 s (112 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 60 s so far (58 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 90 s so far (88 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 115 s so far (112 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 275: R 5.67 bohr, E_int -2.0042 / -1.0791 kcal/mol (PBE x / revPBE x), 115 s (112 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 58 s so far (57 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 87 s so far (85 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 112 s so far (109 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 276: R 4.87 bohr, E_int -2.5344 / 0.0998 kcal/mol (PBE x / revPBE x), 112 s (109 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 60 s so far (58 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 90 s so far (87 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 114 s so far (111 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 277: R 5.42 bohr, E_int -1.9112 / -0.3862 kcal/mol (PBE x / revPBE x), 114 s (111 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 59 s so far (58 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 88 s so far (86 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 112 s so far (109 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 278: R 5.40 bohr, E_int -2.5425 / -0.4802 kcal/mol (PBE x / revPBE x), 112 s (109 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 60 s so far (58 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 90 s so far (87 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 114 s so far (111 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 279: R 7.47 bohr, E_int -1.4767 / -1.4265 kcal/mol (PBE x / revPBE x), 114 s (111 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 59 s so far (57 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 87 s so far (85 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 111 s so far (109 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 280: R 7.93 bohr, E_int -0.1585 / -0.0953 kcal/mol (PBE x / revPBE x), 111 s (109 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 60 s so far (58 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 90 s so far (87 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 114 s so far (112 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 281: R 7.59 bohr, E_int -0.2147 / 0.0024 kcal/mol (PBE x / revPBE x), 114 s (112 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 59 s so far (57 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 87 s so far (85 s Hartree-Fock, 8 iterations; 2 s MP2)
+  field 3 of 3 done: 111 s so far (108 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 282: R 7.35 bohr, E_int -1.0057 / -0.8066 kcal/mol (PBE x / revPBE x), 111 s (108 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 8, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 59 s so far (58 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 88 s so far (85 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 111 s so far (109 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 283: R 7.65 bohr, E_int 0.0256 / 0.3076 kcal/mol (PBE x / revPBE x), 111 s (109 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 60 s so far (58 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 88 s so far (86 s Hartree-Fock, 8 iterations; 2 s MP2)
+  field 3 of 3 done: 112 s so far (109 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 284: R 5.70 bohr, E_int -2.7969 / -2.1333 kcal/mol (PBE x / revPBE x), 112 s (109 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 8, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 61 s so far (60 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 91 s so far (89 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 117 s so far (113 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 285: R 5.01 bohr, E_int 0.3406 / 2.6190 kcal/mol (PBE x / revPBE x), 117 s (113 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 71 s so far (68 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 2 of 3 done: 99 s so far (95 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 129 s so far (124 s Hartree-Fock, 8 iterations; 5 s MP2)
+pair 286: R 7.08 bohr, E_int -1.2840 / -1.0644 kcal/mol (PBE x / revPBE x), 129 s (124 s fields, 5 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 8])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 74 s so far (72 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 104 s so far (101 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 3 of 3 done: 139 s so far (135 s Hartree-Fock, 9 iterations; 4 s MP2)
+pair 287: R 6.28 bohr, E_int -0.6836 / -0.3955 kcal/mol (PBE x / revPBE x), 139 s (135 s fields, 4 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 70 s so far (66 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 2 of 3 done: 96 s so far (91 s Hartree-Fock, 9 iterations; 6 s MP2)
+  field 3 of 3 done: 126 s so far (120 s Hartree-Fock, 9 iterations; 6 s MP2)
+pair 288: R 6.12 bohr, E_int -2.2390 / -1.5324 kcal/mol (PBE x / revPBE x), 126 s (120 s fields, 6 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 65 s so far (63 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 94 s so far (91 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 3 of 3 done: 122 s so far (119 s Hartree-Fock, 8 iterations; 3 s MP2)
+pair 289: R 5.98 bohr, E_int -3.0818 / -2.6351 kcal/mol (PBE x / revPBE x), 123 s (119 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 8])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 72 s so far (70 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 106 s so far (102 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 3 of 3 done: 132 s so far (128 s Hartree-Fock, 8 iterations; 4 s MP2)
+pair 290: R 5.64 bohr, E_int -0.4827 / 0.4351 kcal/mol (PBE x / revPBE x), 132 s (128 s fields, 4 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 8])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 68 s so far (65 s Hartree-Fock, 10 iterations; 3 s MP2)
+  field 2 of 3 done: 101 s so far (97 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 3 of 3 done: 127 s so far (122 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 291: R 6.92 bohr, E_int -2.7966 / -2.5573 kcal/mol (PBE x / revPBE x), 127 s (122 s fields, 5 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 64 s so far (62 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 95 s so far (92 s Hartree-Fock, 8 iterations; 3 s MP2)
+  field 3 of 3 done: 120 s so far (116 s Hartree-Fock, 9 iterations; 4 s MP2)
+pair 292: R 7.68 bohr, E_int 0.5075 / 0.6932 kcal/mol (PBE x / revPBE x), 120 s (116 s fields, 4 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 8, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 66 s so far (64 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 99 s so far (96 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 3 of 3 done: 126 s so far (122 s Hartree-Fock, 9 iterations; 4 s MP2)
+pair 293: R 5.33 bohr, E_int 0.4847 / 2.0381 kcal/mol (PBE x / revPBE x), 126 s (122 s fields, 4 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 65 s so far (63 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 98 s so far (95 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 3 of 3 done: 124 s so far (120 s Hartree-Fock, 9 iterations; 4 s MP2)
+pair 294: R 4.95 bohr, E_int -0.9998 / 2.3631 kcal/mol (PBE x / revPBE x), 124 s (120 s fields, 4 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 65 s so far (63 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 98 s so far (96 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 125 s so far (122 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 295: R 5.61 bohr, E_int 3.1679 / 4.3365 kcal/mol (PBE x / revPBE x), 125 s (122 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 66 s so far (64 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 99 s so far (96 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 3 of 3 done: 126 s so far (122 s Hartree-Fock, 9 iterations; 4 s MP2)
+pair 296: R 6.21 bohr, E_int -1.2411 / -0.5141 kcal/mol (PBE x / revPBE x), 126 s (122 s fields, 4 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 67 s so far (64 s Hartree-Fock, 10 iterations; 3 s MP2)
+  field 2 of 3 done: 101 s so far (98 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 130 s so far (126 s Hartree-Fock, 9 iterations; 4 s MP2)
+pair 297: R 5.87 bohr, E_int -3.4663 / -2.7818 kcal/mol (PBE x / revPBE x), 130 s (126 s fields, 4 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 67 s so far (64 s Hartree-Fock, 10 iterations; 3 s MP2)
+  field 2 of 3 done: 101 s so far (97 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 130 s so far (125 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 298: R 6.46 bohr, E_int -2.0334 / -1.5834 kcal/mol (PBE x / revPBE x), 130 s (125 s fields, 5 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 65 s so far (64 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 97 s so far (95 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 126 s so far (123 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 299: R 5.34 bohr, E_int -2.8857 / -0.9354 kcal/mol (PBE x / revPBE x), 126 s (123 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])

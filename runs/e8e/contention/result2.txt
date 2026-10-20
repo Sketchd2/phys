@@ -1,0 +1,8 @@
+pids grow 15248 ammonia 17960; started Mon Oct 19 01:33:27 EAST 2026
+1 ammonia alone: ammonia/first log 121 116 118 118  s per pair (waited 570 s)
+2 ammonia + growth: ammonia/first log 144 149 151 157  s per pair (waited 780 s)
+3 ammonia + sodium job: ammonia/first log 207 189 199 200  s per pair | sodium 25 26 23 23 29 29 28 24 25 26  s per pair (waited 940 s)
+4 sodium alone: ammonia/first log 21 20 21 21 21 21 21 21 21 22  s per pair (waited 220 s)
+5 all three: ammonia/first log 148 172 358 171  s per pair | sodium 25 29 31 33 34 32 30 30 29 32  s per pair (waited 1130 s)
+finished Mon Oct 19 02:35:27 EAST 2026
+cleanup: resumed

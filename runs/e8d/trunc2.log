@@ -1,0 +1,25 @@
+== no-wall law, r_cut 16
+induction, many-body solve: -6.155 kcal/mol per molecule (pair sum: -2.975); non-additive -3.180
+PRESSURE (kinetic + pairs + many-body induction)    -2466 bar   <- compare the run
+with the tail beyond the cut-off    -2583 bar
+dispersion beyond the cut-off (C6 25.95)       -117 bar  ->  with the tail     15231 bar
+== no-wall law, r_cut 20
+induction, many-body solve: -5.783 kcal/mol per molecule (pair sum: -2.986); non-additive -2.797
+PRESSURE (kinetic + pairs + many-body induction)     1476 bar   <- compare the run
+with the tail beyond the cut-off     1419 bar
+dispersion beyond the cut-off (C6 25.95)        -57 bar  ->  with the tail     16187 bar
+== no-wall law, r_cut 24
+induction, many-body solve: -5.624 kcal/mol per molecule (pair sum: -2.991); non-additive -2.634
+PRESSURE (kinetic + pairs + many-body induction)      667 bar   <- compare the run
+with the tail beyond the cut-off      634 bar
+dispersion beyond the cut-off (C6 25.95)        -32 bar  ->  with the tail     15763 bar
+== no-wall law, r_cut 28
+induction, many-body solve: -5.734 kcal/mol per molecule (pair sum: -2.993); non-additive -2.741
+PRESSURE (kinetic + pairs + many-body induction)     -702 bar   <- compare the run
+with the tail beyond the cut-off     -722 bar
+dispersion beyond the cut-off (C6 25.95)        -20 bar  ->  with the tail     15378 bar
+== no-wall law, r_cut 32
+induction, many-body solve: -5.794 kcal/mol per molecule (pair sum: -2.994); non-additive -2.800
+PRESSURE (kinetic + pairs + many-body induction)      -44 bar   <- compare the run
+with the tail beyond the cut-off      -57 bar
+dispersion beyond the cut-off (C6 25.95)        -13 bar  ->  with the tail     15650 bar

@@ -1,0 +1,4 @@
+[10-19 10:57] methanol: starting pair data on the round-12 shape
+[10-19 12:00] restarted with PHYS_SPILL_DIR=H:/phys-spill (the 9.5 GB table did not fit the card and memory and the CPU was doing Hartree-Fock: 54 min a field)
+[10-19 12:00] methanol: starting pair data on the round-12 shape
+[10-19 13:52] local runner stopped after pair 1 (2 pairs, 46 min each); the rest goes through the work queue (pairs 2 on), so that a second machine can take part

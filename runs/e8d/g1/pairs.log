@@ -1,0 +1,402 @@
+final non-local energies on gpu (f32, NVIDIA GeForce RTX 2060 via Vulkan)
+water: 2448 candidate pairs in wall-liquid.snap within 10.5 bohr; 0 done, 100 wanted
+  field 1 of 3 done: 34 s so far (32 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 54 s so far (51 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 74 s so far (69 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 0 (molecules 52, 184): R 8.73 bohr, E_int 0.1986 / 0.2988 kcal/mol (PBE x / revPBE x), 81 s
+  field 1 of 3 done: 35 s so far (33 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 55 s so far (51 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 76 s so far (71 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 1 (molecules 21, 168): R 10.11 bohr, E_int -0.0629 / -0.0284 kcal/mol (PBE x / revPBE x), 76 s
+  field 1 of 3 done: 35 s so far (33 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 55 s so far (52 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 76 s so far (71 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 2 (molecules 77, 138): R 9.36 bohr, E_int -0.5092 / -0.4781 kcal/mol (PBE x / revPBE x), 76 s
+  field 1 of 3 done: 35 s so far (33 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 55 s so far (52 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 76 s so far (71 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 3 (molecules 35, 101): R 9.54 bohr, E_int -0.6137 / -0.6219 kcal/mol (PBE x / revPBE x), 76 s
+  field 1 of 3 done: 35 s so far (32 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 56 s so far (52 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 77 s so far (71 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 4 (molecules 119, 150): R 9.36 bohr, E_int -0.8428 / -0.8742 kcal/mol (PBE x / revPBE x), 77 s
+  field 1 of 3 done: 36 s so far (33 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 57 s so far (53 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 78 s so far (73 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 5 (molecules 89, 138): R 9.39 bohr, E_int -0.6303 / -0.6147 kcal/mol (PBE x / revPBE x), 78 s
+  field 1 of 3 done: 36 s so far (34 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 57 s so far (53 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 79 s so far (74 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 6 (molecules 49, 192): R 5.70 bohr, E_int -4.4315 / -3.2346 kcal/mol (PBE x / revPBE x), 79 s
+  field 1 of 3 done: 36 s so far (34 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 57 s so far (53 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 78 s so far (73 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 7 (molecules 5, 199): R 9.22 bohr, E_int -0.3057 / -0.2227 kcal/mol (PBE x / revPBE x), 78 s
+  field 1 of 3 done: 36 s so far (34 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 57 s so far (53 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 78 s so far (73 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 8 (molecules 21, 39): R 5.96 bohr, E_int -2.5089 / -1.7272 kcal/mol (PBE x / revPBE x), 78 s
+  field 1 of 3 done: 36 s so far (33 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 57 s so far (53 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 79 s so far (74 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 9 (molecules 18, 93): R 6.02 bohr, E_int -1.8164 / -0.9086 kcal/mol (PBE x / revPBE x), 79 s
+  field 1 of 3 done: 38 s so far (35 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 60 s so far (56 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 82 s so far (77 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 10 (molecules 16, 95): R 5.75 bohr, E_int 1.7706 / 2.4484 kcal/mol (PBE x / revPBE x), 82 s
+  field 1 of 3 done: 39 s so far (36 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 61 s so far (57 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 83 s so far (77 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 11 (molecules 13, 73): R 5.89 bohr, E_int -4.3658 / -3.4450 kcal/mol (PBE x / revPBE x), 83 s
+  field 1 of 3 done: 40 s so far (38 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 61 s so far (58 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 83 s so far (77 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 12 (molecules 27, 99): R 9.14 bohr, E_int -0.4956 / -0.4599 kcal/mol (PBE x / revPBE x), 83 s
+  field 1 of 3 done: 37 s so far (34 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 59 s so far (55 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 82 s so far (76 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 13 (molecules 119, 161): R 6.46 bohr, E_int -0.4740 / -0.1862 kcal/mol (PBE x / revPBE x), 82 s
+  field 1 of 3 done: 38 s so far (36 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 60 s so far (56 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 82 s so far (76 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 14 (molecules 25, 164): R 9.14 bohr, E_int -0.8032 / -0.8267 kcal/mol (PBE x / revPBE x), 82 s
+  field 1 of 3 done: 37 s so far (35 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 60 s so far (56 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 82 s so far (76 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 15 (molecules 118, 161): R 9.84 bohr, E_int -0.4186 / -0.3956 kcal/mol (PBE x / revPBE x), 82 s
+  field 1 of 3 done: 39 s so far (36 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 61 s so far (57 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 86 s so far (80 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 16 (molecules 109, 112): R 8.70 bohr, E_int -0.9239 / -0.9809 kcal/mol (PBE x / revPBE x), 86 s
+  field 1 of 3 done: 38 s so far (36 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 61 s so far (57 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 86 s so far (81 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 17 (molecules 112, 131): R 6.14 bohr, E_int -1.9335 / -1.1640 kcal/mol (PBE x / revPBE x), 86 s
+  field 1 of 3 done: 37 s so far (34 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 59 s so far (55 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 81 s so far (76 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 18 (molecules 13, 65): R 8.69 bohr, E_int -0.7090 / -0.7097 kcal/mol (PBE x / revPBE x), 81 s
+  field 1 of 3 done: 37 s so far (34 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 59 s so far (55 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 81 s so far (76 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 19 (molecules 128, 169): R 8.31 bohr, E_int -0.9266 / -0.9448 kcal/mol (PBE x / revPBE x), 81 s
+  field 1 of 3 done: 37 s so far (34 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 60 s so far (56 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 82 s so far (77 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 20 (molecules 42, 206): R 5.49 bohr, E_int -1.0573 / -0.2983 kcal/mol (PBE x / revPBE x), 82 s
+  field 1 of 3 done: 37 s so far (35 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 60 s so far (56 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 82 s so far (77 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 21 (molecules 27, 132): R 5.60 bohr, E_int -3.7521 / -2.7696 kcal/mol (PBE x / revPBE x), 82 s
+  field 1 of 3 done: 38 s so far (35 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 60 s so far (56 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 83 s so far (78 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 22 (molecules 20, 155): R 8.37 bohr, E_int 0.7532 / 0.9459 kcal/mol (PBE x / revPBE x), 83 s
+  field 1 of 3 done: 37 s so far (35 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 60 s so far (56 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 83 s so far (78 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 23 (molecules 44, 141): R 10.35 bohr, E_int 0.0334 / 0.0651 kcal/mol (PBE x / revPBE x), 83 s
+  field 1 of 3 done: 40 s so far (37 s Hartree-Fock, 10 iterations; 3 s MP2)
+  field 2 of 3 done: 63 s so far (59 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 86 s so far (81 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 24 (molecules 103, 188): R 6.40 bohr, E_int 0.8304 / 1.4477 kcal/mol (PBE x / revPBE x), 86 s
+  field 1 of 3 done: 38 s so far (35 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 61 s so far (57 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 84 s so far (79 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 25 (molecules 144, 211): R 5.83 bohr, E_int 1.0799 / 1.6048 kcal/mol (PBE x / revPBE x), 84 s
+  field 1 of 3 done: 38 s so far (36 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 62 s so far (58 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 85 s so far (80 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 26 (molecules 40, 185): R 5.96 bohr, E_int 1.2044 / 1.7189 kcal/mol (PBE x / revPBE x), 85 s
+  field 1 of 3 done: 38 s so far (35 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 61 s so far (57 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 84 s so far (79 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 27 (molecules 26, 164): R 5.80 bohr, E_int -4.4933 / -3.5098 kcal/mol (PBE x / revPBE x), 84 s
+  field 1 of 3 done: 41 s so far (38 s Hartree-Fock, 10 iterations; 3 s MP2)
+  field 2 of 3 done: 64 s so far (60 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 87 s so far (82 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 28 (molecules 22, 159): R 5.20 bohr, E_int -1.9528 / -0.3119 kcal/mol (PBE x / revPBE x), 87 s
+  field 1 of 3 done: 38 s so far (35 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 61 s so far (58 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 84 s so far (79 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 29 (molecules 31, 63): R 8.40 bohr, E_int -0.8043 / -0.6482 kcal/mol (PBE x / revPBE x), 85 s
+  field 1 of 3 done: 39 s so far (36 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 62 s so far (59 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 86 s so far (81 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 30 (molecules 16, 187): R 8.74 bohr, E_int -0.6708 / -0.6707 kcal/mol (PBE x / revPBE x), 86 s
+  field 1 of 3 done: 39 s so far (36 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 62 s so far (58 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 85 s so far (80 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 31 (molecules 11, 201): R 9.30 bohr, E_int -0.1655 / -0.1418 kcal/mol (PBE x / revPBE x), 85 s
+  field 1 of 3 done: 39 s so far (37 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 63 s so far (59 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 87 s so far (82 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 32 (molecules 170, 178): R 7.73 bohr, E_int 0.1473 / 0.3610 kcal/mol (PBE x / revPBE x), 87 s
+  field 1 of 3 done: 39 s so far (36 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 63 s so far (59 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 86 s so far (81 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 33 (molecules 92, 152): R 9.93 bohr, E_int -0.6013 / -0.5925 kcal/mol (PBE x / revPBE x), 86 s
+  field 1 of 3 done: 39 s so far (36 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 63 s so far (59 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 87 s so far (82 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 34 (molecules 121, 162): R 8.90 bohr, E_int -0.2255 / -0.1766 kcal/mol (PBE x / revPBE x), 87 s
+  field 1 of 3 done: 39 s so far (36 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 63 s so far (59 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 87 s so far (82 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 35 (molecules 46, 140): R 5.97 bohr, E_int -2.8383 / -1.6202 kcal/mol (PBE x / revPBE x), 87 s
+  field 1 of 3 done: 39 s so far (37 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 64 s so far (60 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 88 s so far (83 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 36 (molecules 166, 193): R 4.76 bohr, E_int -1.1347 / 0.2051 kcal/mol (PBE x / revPBE x), 88 s
+  field 1 of 3 done: 39 s so far (37 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 63 s so far (59 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 87 s so far (82 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 37 (molecules 57, 66): R 8.89 bohr, E_int -0.7689 / -0.7827 kcal/mol (PBE x / revPBE x), 87 s
+  field 1 of 3 done: 40 s so far (37 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 65 s so far (61 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 89 s so far (84 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 38 (molecules 110, 145): R 9.40 bohr, E_int -0.3207 / -0.2732 kcal/mol (PBE x / revPBE x), 89 s
+  field 1 of 3 done: 40 s so far (37 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 64 s so far (60 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 89 s so far (83 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 39 (molecules 105, 148): R 8.67 bohr, E_int -0.3214 / -0.2584 kcal/mol (PBE x / revPBE x), 89 s
+  field 1 of 3 done: 40 s so far (37 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 64 s so far (60 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 89 s so far (84 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 40 (molecules 89, 131): R 7.74 bohr, E_int -1.4536 / -1.3401 kcal/mol (PBE x / revPBE x), 89 s
+  field 1 of 3 done: 39 s so far (37 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 64 s so far (60 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 88 s so far (83 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 41 (molecules 160, 192): R 6.44 bohr, E_int -3.7824 / -3.2406 kcal/mol (PBE x / revPBE x), 88 s
+  field 1 of 3 done: 40 s so far (37 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 65 s so far (61 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 90 s so far (85 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 42 (molecules 35, 107): R 5.34 bohr, E_int -3.6417 / -1.8856 kcal/mol (PBE x / revPBE x), 90 s
+  field 1 of 3 done: 40 s so far (37 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 65 s so far (61 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 89 s so far (84 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 43 (molecules 81, 137): R 8.79 bohr, E_int -0.1194 / -0.0437 kcal/mol (PBE x / revPBE x), 89 s
+  field 1 of 3 done: 40 s so far (38 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 65 s so far (62 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 90 s so far (85 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 44 (molecules 30, 58): R 6.41 bohr, E_int 0.3444 / 0.8712 kcal/mol (PBE x / revPBE x), 90 s
+  field 1 of 3 done: 40 s so far (38 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 65 s so far (61 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 90 s so far (85 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 45 (molecules 127, 176): R 6.89 bohr, E_int 0.0420 / 0.2991 kcal/mol (PBE x / revPBE x), 90 s
+  field 1 of 3 done: 41 s so far (38 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 66 s so far (62 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 91 s so far (86 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 46 (molecules 124, 173): R 8.36 bohr, E_int -0.9018 / -0.8670 kcal/mol (PBE x / revPBE x), 91 s
+  field 1 of 3 done: 40 s so far (38 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 65 s so far (61 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 90 s so far (85 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 47 (molecules 25, 49): R 9.39 bohr, E_int 0.4050 / 0.5348 kcal/mol (PBE x / revPBE x), 90 s
+  field 1 of 3 done: 41 s so far (39 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 67 s so far (63 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 93 s so far (88 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 48 (molecules 96, 198): R 6.79 bohr, E_int 0.6718 / 1.0761 kcal/mol (PBE x / revPBE x), 93 s
+  field 1 of 3 done: 41 s so far (38 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 66 s so far (62 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 91 s so far (86 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 49 (molecules 91, 94): R 6.54 bohr, E_int -0.3945 / 0.0242 kcal/mol (PBE x / revPBE x), 91 s
+  field 1 of 3 done: 42 s so far (40 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 69 s so far (65 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 95 s so far (89 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 50 (molecules 148, 195): R 9.75 bohr, E_int -0.1071 / -0.0741 kcal/mol (PBE x / revPBE x), 95 s
+  field 1 of 3 done: 41 s so far (38 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 67 s so far (63 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 93 s so far (87 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 51 (molecules 29, 171): R 7.79 bohr, E_int 0.6752 / 0.8784 kcal/mol (PBE x / revPBE x), 93 s
+  field 1 of 3 done: 42 s so far (39 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 68 s so far (64 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 94 s so far (89 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 52 (molecules 21, 162): R 6.67 bohr, E_int -0.1198 / 0.5353 kcal/mol (PBE x / revPBE x), 94 s
+  field 1 of 3 done: 41 s so far (39 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 67 s so far (63 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 93 s so far (88 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 53 (molecules 131, 179): R 7.63 bohr, E_int 0.0370 / 0.1292 kcal/mol (PBE x / revPBE x), 93 s
+  field 1 of 3 done: 42 s so far (39 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 69 s so far (65 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 95 s so far (90 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 54 (molecules 56, 64): R 10.40 bohr, E_int -0.2244 / -0.2501 kcal/mol (PBE x / revPBE x), 95 s
+  field 1 of 3 done: 42 s so far (40 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 69 s so far (65 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 95 s so far (90 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 55 (molecules 35, 149): R 10.25 bohr, E_int -0.6326 / -0.6803 kcal/mol (PBE x / revPBE x), 95 s
+  field 1 of 3 done: 43 s so far (40 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 69 s so far (66 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 96 s so far (91 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 56 (molecules 26, 156): R 8.74 bohr, E_int -0.5973 / -0.5882 kcal/mol (PBE x / revPBE x), 96 s
+  field 1 of 3 done: 42 s so far (39 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 69 s so far (65 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 96 s so far (90 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 57 (molecules 133, 200): R 10.12 bohr, E_int -0.1843 / -0.1698 kcal/mol (PBE x / revPBE x), 96 s
+  field 1 of 3 done: 42 s so far (39 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 69 s so far (65 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 92 s so far (87 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 58 (molecules 128, 189): R 5.46 bohr, E_int -2.5319 / -0.9369 kcal/mol (PBE x / revPBE x), 92 s
+  field 1 of 3 done: 41 s so far (38 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 67 s so far (63 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 94 s so far (88 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 59 (molecules 169, 203): R 5.79 bohr, E_int -2.2889 / -1.5556 kcal/mol (PBE x / revPBE x), 94 s
+  field 1 of 3 done: 42 s so far (40 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 69 s so far (65 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 96 s so far (91 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 60 (molecules 24, 213): R 7.03 bohr, E_int 0.4234 / 0.7897 kcal/mol (PBE x / revPBE x), 96 s
+  field 1 of 3 done: 42 s so far (39 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 68 s so far (65 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 95 s so far (90 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 61 (molecules 1, 189): R 6.00 bohr, E_int 0.8664 / 1.3981 kcal/mol (PBE x / revPBE x), 95 s
+  field 1 of 3 done: 43 s so far (41 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 71 s so far (67 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 98 s so far (93 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 62 (molecules 10, 169): R 9.84 bohr, E_int -0.1290 / -0.1022 kcal/mol (PBE x / revPBE x), 98 s
+  field 1 of 3 done: 42 s so far (40 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 69 s so far (66 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 97 s so far (91 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 63 (molecules 44, 126): R 5.81 bohr, E_int -0.1317 / 0.5314 kcal/mol (PBE x / revPBE x), 97 s
+  field 1 of 3 done: 43 s so far (40 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 70 s so far (66 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 98 s so far (92 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 64 (molecules 11, 102): R 7.01 bohr, E_int -0.3472 / -0.0010 kcal/mol (PBE x / revPBE x), 98 s
+  field 1 of 3 done: 43 s so far (40 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 70 s so far (66 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 97 s so far (92 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 65 (molecules 111, 158): R 5.73 bohr, E_int -3.5925 / -2.2144 kcal/mol (PBE x / revPBE x), 97 s
+  field 1 of 3 done: 44 s so far (41 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 72 s so far (68 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 100 s so far (94 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 66 (molecules 149, 209): R 10.08 bohr, E_int -0.4386 / -0.4274 kcal/mol (PBE x / revPBE x), 100 s
+  field 1 of 3 done: 43 s so far (40 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 70 s so far (66 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 98 s so far (92 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 67 (molecules 23, 197): R 6.52 bohr, E_int -1.6134 / -1.3597 kcal/mol (PBE x / revPBE x), 98 s
+  field 1 of 3 done: 44 s so far (41 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 72 s so far (68 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 100 s so far (95 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 68 (molecules 147, 182): R 10.30 bohr, E_int 0.2318 / 0.3163 kcal/mol (PBE x / revPBE x), 100 s
+  field 1 of 3 done: 44 s so far (41 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 72 s so far (68 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 100 s so far (95 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 69 (molecules 114, 171): R 10.37 bohr, E_int -0.4045 / -0.3813 kcal/mol (PBE x / revPBE x), 100 s
+  field 1 of 3 done: 44 s so far (41 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 71 s so far (68 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 99 s so far (94 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 70 (molecules 0, 24): R 7.16 bohr, E_int 1.1343 / 1.5334 kcal/mol (PBE x / revPBE x), 99 s
+  field 1 of 3 done: 44 s so far (41 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 72 s so far (68 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 100 s so far (95 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 71 (molecules 46, 100): R 9.81 bohr, E_int -0.3652 / -0.3699 kcal/mol (PBE x / revPBE x), 100 s
+  field 1 of 3 done: 44 s so far (41 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 72 s so far (68 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 100 s so far (95 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 72 (molecules 9, 71): R 6.08 bohr, E_int -1.6074 / -0.8852 kcal/mol (PBE x / revPBE x), 100 s
+  field 1 of 3 done: 44 s so far (41 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 72 s so far (68 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 100 s so far (95 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 73 (molecules 20, 137): R 9.85 bohr, E_int 0.2095 / 0.2881 kcal/mol (PBE x / revPBE x), 100 s
+  field 1 of 3 done: 45 s so far (42 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 74 s so far (70 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 103 s so far (98 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 74 (molecules 57, 148): R 10.12 bohr, E_int -0.5066 / -0.5372 kcal/mol (PBE x / revPBE x), 103 s
+  field 1 of 3 done: 44 s so far (41 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 72 s so far (68 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 100 s so far (95 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 75 (molecules 67, 109): R 6.24 bohr, E_int 1.2816 / 1.7976 kcal/mol (PBE x / revPBE x), 100 s
+  field 1 of 3 done: 45 s so far (42 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 73 s so far (69 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 102 s so far (96 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 76 (molecules 139, 191): R 9.10 bohr, E_int -0.4972 / -0.4897 kcal/mol (PBE x / revPBE x), 102 s
+  field 1 of 3 done: 44 s so far (41 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 72 s so far (68 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 101 s so far (95 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 77 (molecules 53, 173): R 6.34 bohr, E_int -3.7474 / -3.2928 kcal/mol (PBE x / revPBE x), 101 s
+  field 1 of 3 done: 45 s so far (42 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 74 s so far (70 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 103 s so far (98 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 78 (molecules 94, 100): R 7.32 bohr, E_int -0.5939 / -0.4625 kcal/mol (PBE x / revPBE x), 103 s
+  field 1 of 3 done: 44 s so far (42 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 73 s so far (69 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 102 s so far (96 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 79 (molecules 73, 166): R 6.51 bohr, E_int -1.8019 / -0.9909 kcal/mol (PBE x / revPBE x), 102 s
+  field 1 of 3 done: 44 s so far (42 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 74 s so far (70 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 103 s so far (97 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 80 (molecules 138, 203): R 6.07 bohr, E_int -3.7297 / -2.8236 kcal/mol (PBE x / revPBE x), 103 s
+  field 1 of 3 done: 45 s so far (42 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 74 s so far (70 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 103 s so far (98 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 81 (molecules 186, 213): R 10.03 bohr, E_int -0.3339 / -0.3614 kcal/mol (PBE x / revPBE x), 103 s
+  field 1 of 3 done: 45 s so far (43 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 75 s so far (71 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 104 s so far (99 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 82 (molecules 109, 145): R 7.36 bohr, E_int -0.8558 / -0.8022 kcal/mol (PBE x / revPBE x), 104 s
+  field 1 of 3 done: 46 s so far (43 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 75 s so far (71 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 104 s so far (99 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 83 (molecules 99, 120): R 7.81 bohr, E_int 0.3528 / 0.5687 kcal/mol (PBE x / revPBE x), 104 s
+  field 1 of 3 done: 45 s so far (43 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 76 s so far (72 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 106 s so far (101 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 84 (molecules 121, 206): R 10.15 bohr, E_int 0.0873 / 0.1225 kcal/mol (PBE x / revPBE x), 106 s
+  field 1 of 3 done: 46 s so far (43 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 75 s so far (71 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 105 s so far (99 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 85 (molecules 28, 203): R 6.81 bohr, E_int -2.1288 / -1.6685 kcal/mol (PBE x / revPBE x), 105 s
+  field 1 of 3 done: 46 s so far (43 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 77 s so far (73 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 107 s so far (102 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 86 (molecules 56, 156): R 10.06 bohr, E_int 0.3678 / 0.4159 kcal/mol (PBE x / revPBE x), 107 s
+  field 1 of 3 done: 45 s so far (43 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 75 s so far (71 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 104 s so far (99 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 87 (molecules 35, 44): R 7.25 bohr, E_int -1.0654 / -0.9637 kcal/mol (PBE x / revPBE x), 104 s
+  field 1 of 3 done: 47 s so far (44 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 77 s so far (73 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 108 s so far (103 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 88 (molecules 82, 145): R 10.04 bohr, E_int -0.2145 / -0.1932 kcal/mol (PBE x / revPBE x), 108 s
+  field 1 of 3 done: 46 s so far (43 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 76 s so far (72 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 106 s so far (101 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 89 (molecules 86, 122): R 9.08 bohr, E_int -0.6706 / -0.6276 kcal/mol (PBE x / revPBE x), 106 s
+  field 1 of 3 done: 46 s so far (43 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 76 s so far (73 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 107 s so far (102 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 90 (molecules 102, 186): R 9.74 bohr, E_int -0.5786 / -0.5733 kcal/mol (PBE x / revPBE x), 107 s
+  field 1 of 3 done: 46 s so far (43 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 76 s so far (72 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 106 s so far (100 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 91 (molecules 146, 185): R 8.00 bohr, E_int -0.8512 / -0.6323 kcal/mol (PBE x / revPBE x), 106 s
+  field 1 of 3 done: 46 s so far (44 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 77 s so far (73 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 108 s so far (103 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 92 (molecules 52, 205): R 9.94 bohr, E_int 0.0213 / 0.0559 kcal/mol (PBE x / revPBE x), 108 s
+  field 1 of 3 done: 46 s so far (43 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 76 s so far (72 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 106 s so far (101 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 93 (molecules 51, 176): R 10.40 bohr, E_int 0.0258 / 0.0838 kcal/mol (PBE x / revPBE x), 106 s
+  field 1 of 3 done: 47 s so far (45 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 78 s so far (75 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 109 s so far (104 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 94 (molecules 179, 186): R 10.23 bohr, E_int -0.2358 / -0.2260 kcal/mol (PBE x / revPBE x), 110 s
+  field 1 of 3 done: 45 s so far (43 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 76 s so far (72 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 105 s so far (100 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 95 (molecules 89, 116): R 8.62 bohr, E_int -0.4752 / -0.4510 kcal/mol (PBE x / revPBE x), 105 s
+  field 1 of 3 done: 46 s so far (44 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 77 s so far (73 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 108 s so far (102 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 96 (molecules 126, 161): R 10.18 bohr, E_int 0.0318 / 0.0675 kcal/mol (PBE x / revPBE x), 108 s
+  field 1 of 3 done: 46 s so far (44 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 77 s so far (73 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 107 s so far (102 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 97 (molecules 79, 149): R 9.79 bohr, E_int -0.3758 / -0.3557 kcal/mol (PBE x / revPBE x), 107 s
+  field 1 of 3 done: 47 s so far (44 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 77 s so far (73 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 108 s so far (102 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 98 (molecules 102, 131): R 7.59 bohr, E_int 0.4457 / 0.6213 kcal/mol (PBE x / revPBE x), 108 s
+  field 1 of 3 done: 47 s so far (44 s Hartree-Fock, 9 iterations; 3 s MP2)
+  field 2 of 3 done: 77 s so far (73 s Hartree-Fock, 9 iterations; 4 s MP2)
+  field 3 of 3 done: 108 s so far (103 s Hartree-Fock, 9 iterations; 5 s MP2)
+pair 99 (molecules 59, 64): R 7.01 bohr, E_int -0.7091 / -0.5801 kcal/mol (PBE x / revPBE x), 108 s

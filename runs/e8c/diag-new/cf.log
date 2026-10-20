@@ -1,0 +1,12 @@
+  before: train mean/rms +0.164/0.586, held-out +0.138/0.397 kcal/mol
+      O-O 0.0-2.8 A: 7 pairs, mean +0.561, rms 1.031
+      O-O 2.8-3.1 A: 17 pairs, mean +0.232, rms 0.683
+      O-O 3.1-3.4 A: 9 pairs, mean +0.011, rms 0.192
+      O-O 3.4-4.7 A: 33 pairs, mean +0.061, rms 0.158
+  after : train mean/rms +0.108/0.387, held-out +0.180/0.356 kcal/mol
+      O-O 0.0-2.8 A: 7 pairs, mean +0.126, rms 0.658
+      O-O 2.8-3.1 A: 17 pairs, mean +0.167, rms 0.467
+      O-O 3.1-3.4 A: 9 pairs, mean +0.223, rms 0.322
+      O-O 3.4-4.7 A: 33 pairs, mean +0.114, rms 0.209
+  dipole 0.7367 au (1.873 D)
+  charges [6.0, 1.0, -1.097667634829653, -6.078531998825243, -0.41190018317255195], widths [0.0, 0.0, 1.7997245213339184, 1.1533661513932194, 1.1867469375509838], bisector 0.5482 bohr

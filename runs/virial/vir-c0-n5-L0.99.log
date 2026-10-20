@@ -1,0 +1,117 @@
+final non-local energies on gpu (f32, NVIDIA GeForce RTX 2060 via Vulkan)
+Hartree-Fock passes on gpu Fock (f64, NVIDIA GeForce RTX 2060 via Vulkan)
+Hartree-Fock and MP2 products on gpu products (f32, NVIDIA GeForce RTX 2060 via Vulkan)
+water: many-body expansion of 5 about molecule 0 of bulk-water-298.snap, molecules [0, 167, 147, 77, 144]
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 29 s so far (29 s Hartree-Fock, 10 iterations; 0 s MP2)
+  field 2 of 3 done: 37 s so far (37 s Hartree-Fock, 9 iterations; 0 s MP2)
+  field 3 of 3 done: 45 s so far (45 s Hartree-Fock, 9 iterations; 0 s MP2)
+  pair 0 1: 2.9529 kcal/mol, 51 s
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 29 s so far (29 s Hartree-Fock, 9 iterations; 0 s MP2)
+  field 2 of 3 done: 36 s so far (36 s Hartree-Fock, 9 iterations; 0 s MP2)
+  field 3 of 3 done: 44 s so far (44 s Hartree-Fock, 9 iterations; 0 s MP2)
+  pair 0 2: 0.1803 kcal/mol, 44 s
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 30 s so far (30 s Hartree-Fock, 9 iterations; 0 s MP2)
+  field 2 of 3 done: 38 s so far (38 s Hartree-Fock, 9 iterations; 0 s MP2)
+  field 3 of 3 done: 45 s so far (45 s Hartree-Fock, 9 iterations; 0 s MP2)
+  pair 1 2: -1.3693 kcal/mol, 45 s
+  whitened integrals: 4.4 GB in 17 segments of 255 MB: 13 on the card, 4 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 4 done: 155 s so far (155 s Hartree-Fock, 10 iterations; 0 s MP2)
+  field 2 of 4 done: 234 s so far (234 s Hartree-Fock, 9 iterations; 0 s MP2)
+  field 3 of 4 done: 312 s so far (312 s Hartree-Fock, 9 iterations; 0 s MP2)
+  field 4 of 4 done: 390 s so far (390 s Hartree-Fock, 9 iterations; 0 s MP2)
+  triple 0 1 2: three-body -0.0121 kcal/mol, 390 s
+3 molecules: pairs +1.7639, three-body -0.0121, to three bodies +1.7517 kcal/mol (+0.58 a molecule)
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 29 s so far (29 s Hartree-Fock, 9 iterations; 0 s MP2)
+  field 2 of 3 done: 38 s so far (38 s Hartree-Fock, 9 iterations; 0 s MP2)
+  field 3 of 3 done: 46 s so far (46 s Hartree-Fock, 9 iterations; 0 s MP2)
+  pair 0 3: -0.8000 kcal/mol, 46 s
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 29 s so far (29 s Hartree-Fock, 9 iterations; 0 s MP2)
+  field 2 of 3 done: 37 s so far (37 s Hartree-Fock, 9 iterations; 0 s MP2)
+  field 3 of 3 done: 45 s so far (45 s Hartree-Fock, 9 iterations; 0 s MP2)
+  pair 1 3: -1.3264 kcal/mol, 45 s
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 30 s so far (30 s Hartree-Fock, 9 iterations; 0 s MP2)
+  field 2 of 3 done: 38 s so far (38 s Hartree-Fock, 9 iterations; 0 s MP2)
+  field 3 of 3 done: 46 s so far (46 s Hartree-Fock, 9 iterations; 0 s MP2)
+  pair 2 3: 0.1225 kcal/mol, 46 s
+  whitened integrals: 4.4 GB in 17 segments of 255 MB: 13 on the card, 4 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 4 done: 179 s so far (179 s Hartree-Fock, 10 iterations; 0 s MP2)
+  field 2 of 4 done: 273 s so far (273 s Hartree-Fock, 9 iterations; 0 s MP2)
+  field 3 of 4 done: 365 s so far (365 s Hartree-Fock, 9 iterations; 0 s MP2)
+  field 4 of 4 done: 460 s so far (460 s Hartree-Fock, 9 iterations; 0 s MP2)
+  triple 0 1 3: three-body -0.1034 kcal/mol, 460 s
+  whitened integrals: 4.4 GB in 17 segments of 255 MB: 13 on the card, 4 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 4 done: 172 s so far (172 s Hartree-Fock, 10 iterations; 0 s MP2)
+  field 2 of 4 done: 259 s so far (259 s Hartree-Fock, 9 iterations; 0 s MP2)
+  field 3 of 4 done: 347 s so far (347 s Hartree-Fock, 9 iterations; 0 s MP2)
+  field 4 of 4 done: 435 s so far (435 s Hartree-Fock, 9 iterations; 0 s MP2)
+  triple 0 2 3: three-body +0.0420 kcal/mol, 435 s
+  whitened integrals: 4.4 GB in 17 segments of 255 MB: 13 on the card, 4 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 4 done: 181 s so far (181 s Hartree-Fock, 10 iterations; 0 s MP2)
+  field 2 of 4 done: 280 s so far (280 s Hartree-Fock, 9 iterations; 0 s MP2)
+  field 3 of 4 done: 367 s so far (367 s Hartree-Fock, 9 iterations; 0 s MP2)
+  field 4 of 4 done: 451 s so far (451 s Hartree-Fock, 9 iterations; 0 s MP2)
+  triple 1 2 3: three-body -0.0369 kcal/mol, 451 s
+4 molecules: pairs -0.2400, three-body -0.1104, to three bodies -0.3504 kcal/mol (-0.09 a molecule)
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 32 s so far (32 s Hartree-Fock, 9 iterations; 0 s MP2)
+  field 2 of 3 done: 42 s so far (42 s Hartree-Fock, 9 iterations; 0 s MP2)
+  field 3 of 3 done: 51 s so far (51 s Hartree-Fock, 9 iterations; 0 s MP2)
+  pair 0 4: -1.7417 kcal/mol, 51 s
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 31 s so far (31 s Hartree-Fock, 9 iterations; 0 s MP2)
+  field 2 of 3 done: 40 s so far (40 s Hartree-Fock, 9 iterations; 0 s MP2)
+  field 3 of 3 done: 49 s so far (49 s Hartree-Fock, 9 iterations; 0 s MP2)
+  pair 1 4: -0.4073 kcal/mol, 49 s
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 32 s so far (32 s Hartree-Fock, 9 iterations; 0 s MP2)
+  field 2 of 3 done: 41 s so far (41 s Hartree-Fock, 9 iterations; 0 s MP2)
+  field 3 of 3 done: 51 s so far (51 s Hartree-Fock, 9 iterations; 0 s MP2)
+  pair 2 4: 0.0023 kcal/mol, 51 s
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 31 s so far (31 s Hartree-Fock, 9 iterations; 0 s MP2)
+  field 2 of 3 done: 41 s so far (41 s Hartree-Fock, 9 iterations; 0 s MP2)
+  field 3 of 3 done: 50 s so far (50 s Hartree-Fock, 9 iterations; 0 s MP2)
+  pair 3 4: 1.0326 kcal/mol, 50 s
+  whitened integrals: 4.4 GB in 17 segments of 255 MB: 13 on the card, 4 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 4 done: 177 s so far (177 s Hartree-Fock, 10 iterations; 0 s MP2)
+  field 2 of 4 done: 263 s so far (263 s Hartree-Fock, 9 iterations; 0 s MP2)
+  field 3 of 4 done: 348 s so far (348 s Hartree-Fock, 9 iterations; 0 s MP2)
+  field 4 of 4 done: 434 s so far (434 s Hartree-Fock, 9 iterations; 0 s MP2)
+  triple 0 1 4: three-body +0.0637 kcal/mol, 434 s
+  whitened integrals: 4.4 GB in 17 segments of 255 MB: 13 on the card, 4 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 4 done: 168 s so far (168 s Hartree-Fock, 10 iterations; 0 s MP2)
+  field 2 of 4 done: 255 s so far (255 s Hartree-Fock, 9 iterations; 0 s MP2)
+  field 3 of 4 done: 343 s so far (343 s Hartree-Fock, 9 iterations; 0 s MP2)
+  field 4 of 4 done: 429 s so far (429 s Hartree-Fock, 9 iterations; 0 s MP2)
+  triple 0 2 4: three-body -0.0403 kcal/mol, 429 s
+  whitened integrals: 4.4 GB in 17 segments of 255 MB: 13 on the card, 4 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 4 done: 167 s so far (167 s Hartree-Fock, 10 iterations; 0 s MP2)
+  field 2 of 4 done: 251 s so far (251 s Hartree-Fock, 9 iterations; 0 s MP2)
+  field 3 of 4 done: 335 s so far (335 s Hartree-Fock, 9 iterations; 0 s MP2)
+  field 4 of 4 done: 419 s so far (419 s Hartree-Fock, 9 iterations; 0 s MP2)
+  triple 1 2 4: three-body -0.0393 kcal/mol, 419 s
+  whitened integrals: 4.4 GB in 17 segments of 255 MB: 13 on the card, 4 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 4 done: 170 s so far (170 s Hartree-Fock, 10 iterations; 0 s MP2)
+  field 2 of 4 done: 255 s so far (255 s Hartree-Fock, 9 iterations; 0 s MP2)
+  field 3 of 4 done: 339 s so far (339 s Hartree-Fock, 9 iterations; 0 s MP2)
+  field 4 of 4 done: 423 s so far (423 s Hartree-Fock, 9 iterations; 0 s MP2)
+  triple 0 3 4: three-body +0.2102 kcal/mol, 423 s
+  whitened integrals: 4.4 GB in 17 segments of 255 MB: 13 on the card, 4 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 4 done: 160 s so far (160 s Hartree-Fock, 10 iterations; 0 s MP2)
+  field 2 of 4 done: 245 s so far (245 s Hartree-Fock, 9 iterations; 0 s MP2)
+  field 3 of 4 done: 329 s so far (329 s Hartree-Fock, 9 iterations; 0 s MP2)
+  field 4 of 4 done: 413 s so far (413 s Hartree-Fock, 9 iterations; 0 s MP2)
+  triple 1 3 4: three-body +0.0241 kcal/mol, 413 s
+  whitened integrals: 4.4 GB in 17 segments of 255 MB: 13 on the card, 4 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 4 done: 163 s so far (163 s Hartree-Fock, 10 iterations; 0 s MP2)
+  field 2 of 4 done: 249 s so far (249 s Hartree-Fock, 9 iterations; 0 s MP2)
+  field 3 of 4 done: 335 s so far (335 s Hartree-Fock, 9 iterations; 0 s MP2)
+  field 4 of 4 done: 421 s so far (421 s Hartree-Fock, 9 iterations; 0 s MP2)
+  triple 2 3 4: three-body -0.0002 kcal/mol, 421 s
+5 molecules: pairs -1.3541, three-body +0.1078, to three bodies -1.2463 kcal/mol (-0.25 a molecule)

@@ -1,0 +1,31 @@
+induced dipoles on the gpu induction (f64, NVIDIA GeForce RTX 2060 via Vulkan)
+pair loop on the gpu pair loop (f64, NVIDIA GeForce RTX 2060 via Vulkan)
+water at 298 K: 216 molecules, 1 g/cm3, box 35.20 bohr, cut-off 16.0 bohr; bonds held at 0.97894 A, angle free (production step 40 au = 0.97 fs); 12 threads
+  start: U/N -5.01 kcal/mol (one force evaluation took 0.06 s)
+  easing: U/N -9.79 kcal/mol, intra 0.63, T 321 (centres) / 315 (all) K, P -2214 bar; 48.6 ms a step
+  settling: U/N -11.51 kcal/mol, intra 0.67, T 273 (centres) / 299 (all) K, P -4220 bar; 34.6 ms a step
+  warming: U/N -11.88 kcal/mol, intra 0.67, T 295 (centres) / 277 (all) K, P -2633 bar; 34.6 ms a step
+  0% after 0 s: U/N -11.88 kcal/mol, P -2642 bar
+  8% after 15 s: U/N -11.82 kcal/mol, P -2093 bar
+  17% after 30 s: U/N -11.82 kcal/mol, P -4489 bar
+  25% after 45 s: U/N -11.71 kcal/mol, P -1875 bar
+  33% after 60 s: U/N -11.79 kcal/mol, P -3156 bar
+  42% after 75 s: U/N -11.77 kcal/mol, P -2694 bar
+  50% after 90 s: U/N -11.68 kcal/mol, P -3746 bar
+  58% after 104 s: U/N -11.65 kcal/mol, P -2691 bar
+  67% after 119 s: U/N -11.61 kcal/mol, P -4000 bar
+  75% after 134 s: U/N -11.68 kcal/mol, P -2885 bar
+  83% after 149 s: U/N -11.72 kcal/mol, P -2954 bar
+  92% after 164 s: U/N -11.77 kcal/mol, P -1773 bar
+  100% after 179 s: U/N -11.82 kcal/mol, P -2340 bar
+water at 298 K (40 samples over 4 ps, block standard errors; 179.3 s of production):
+  U_inter/N -11.735 +- 0.018 kcal/mol; E_intra/N 0.665 +- 0.005 (a classical gas molecule's: 0.638)
+  heat of vaporisation -(U_inter/N + E_intra/N - E_intra_gas) + RT = 12.300 kcal/mol
+  pressure -2591 +- 98 bar at 1 g/cm3
+  temperatures: centres 302.5 K, all atoms 297.6 K (bath 298 K)
+  mean r_OH 0.9789 +- 0.0000 A, mean H-O-H 105.62 degrees (the monomer's relaxed values: 0.9615 A, 104.15)
+  g(OO): first peak 2.87 at 2.85 A, first minimum 0.86 at 3.85 A, second peak 1.08 at 5.05 A, coordination to the minimum 7.07 (bulk-water-298-soft.gOO.txt)
+  snapshot in bulk-water-298-soft.snap
+  GPU solve: 23168 calls, 7.88 ms each on the card (submit to readback), 8.30 ms each with preparation and reading back
+  GPU pair loop: 23168 calls, 6.94 ms each on the card, 7.27 ms each with preparation and reading back
+finished

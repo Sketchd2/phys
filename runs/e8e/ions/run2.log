@@ -1,0 +1,122 @@
+Hartree-Fock passes on gpu Fock (f64, NVIDIA GeForce RTX 2060 via Vulkan)
+water + sodium: 60 pairs done, 120 wanted
+  whitened integrals: 0.6 GB in 3 segments of 255 MB: 3 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 60: R 7.92 bohr, E_int -0.2398 kcal/mol (HF 0.0273), 39 s
+  whitened integrals: 0.6 GB in 3 segments of 255 MB: 3 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 61: R 6.90 bohr, E_int 0.9269 kcal/mol (HF 1.0840), 23 s
+  whitened integrals: 0.6 GB in 3 segments of 255 MB: 3 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 62: R 6.08 bohr, E_int 4.4511 kcal/mol (HF 4.7642), 23 s
+  whitened integrals: 0.6 GB in 3 segments of 255 MB: 3 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 63: R 8.28 bohr, E_int -2.7175 kcal/mol (HF -2.6868), 22 s
+  whitened integrals: 0.6 GB in 3 segments of 255 MB: 3 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 64: R 4.84 bohr, E_int -2.1082 kcal/mol (HF -0.7636), 23 s
+  whitened integrals: 0.6 GB in 3 segments of 255 MB: 3 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 65: R 10.98 bohr, E_int -2.3013 kcal/mol (HF -2.4598), 20 s
+  whitened integrals: 0.6 GB in 3 segments of 255 MB: 3 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 66: R 7.08 bohr, E_int 6.3472 kcal/mol (HF 7.2234), 23 s
+  whitened integrals: 0.6 GB in 3 segments of 255 MB: 3 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 67: R 6.15 bohr, E_int 5.7835 kcal/mol (HF 7.0140), 21 s
+  whitened integrals: 0.6 GB in 3 segments of 255 MB: 3 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 68: R 7.84 bohr, E_int 0.6769 kcal/mol (HF 0.7213), 23 s
+  whitened integrals: 0.6 GB in 3 segments of 255 MB: 3 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 69: R 8.56 bohr, E_int -0.5333 kcal/mol (HF -0.3019), 24 s
+  whitened integrals: 0.6 GB in 3 segments of 255 MB: 3 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 70: R 8.28 bohr, E_int -4.2648 kcal/mol (HF -4.2655), 25 s
+  whitened integrals: 0.6 GB in 3 segments of 255 MB: 3 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 71: R 6.56 bohr, E_int 7.9931 kcal/mol (HF 8.8757), 23 s
+  whitened integrals: 0.6 GB in 3 segments of 255 MB: 3 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 72: R 6.58 bohr, E_int -8.7986 kcal/mol (HF -8.9849), 21 s
+  whitened integrals: 0.6 GB in 3 segments of 255 MB: 3 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 73: R 10.54 bohr, E_int 1.5991 kcal/mol (HF 1.7004), 25 s
+  whitened integrals: 0.6 GB in 3 segments of 255 MB: 3 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 74: R 10.59 bohr, E_int -3.4069 kcal/mol (HF -3.5367), 21 s
+  whitened integrals: 0.6 GB in 3 segments of 255 MB: 3 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 75: R 6.87 bohr, E_int 2.4471 kcal/mol (HF 2.7395), 24 s
+  whitened integrals: 0.6 GB in 3 segments of 255 MB: 3 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 76: R 9.26 bohr, E_int 2.0000 kcal/mol (HF 2.2576), 21 s
+  whitened integrals: 0.6 GB in 3 segments of 255 MB: 3 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 77: R 6.72 bohr, E_int -6.8242 kcal/mol (HF -6.9613), 25 s
+  whitened integrals: 0.6 GB in 3 segments of 255 MB: 3 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 78: R 8.06 bohr, E_int -3.0336 kcal/mol (HF -2.8891), 26 s
+  whitened integrals: 0.6 GB in 3 segments of 255 MB: 3 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 79: R 8.41 bohr, E_int -0.7616 kcal/mol (HF -0.4269), 25 s
+  whitened integrals: 0.6 GB in 3 segments of 255 MB: 3 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 80: R 9.04 bohr, E_int -2.8667 kcal/mol (HF -2.8515), 24 s
+  whitened integrals: 0.6 GB in 3 segments of 255 MB: 3 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 81: R 10.59 bohr, E_int 0.8442 kcal/mol (HF 0.8442), 26 s
+  whitened integrals: 0.6 GB in 3 segments of 255 MB: 3 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 82: R 6.42 bohr, E_int -5.3472 kcal/mol (HF -4.7201), 24 s
+  whitened integrals: 0.6 GB in 3 segments of 255 MB: 3 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 83: R 5.56 bohr, E_int -12.9985 kcal/mol (HF -13.0555), 24 s
+  whitened integrals: 0.6 GB in 3 segments of 255 MB: 3 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 84: R 8.14 bohr, E_int 2.4796 kcal/mol (HF 2.6367), 22 s
+  whitened integrals: 0.6 GB in 3 segments of 255 MB: 3 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 85: R 9.03 bohr, E_int -5.8212 kcal/mol (HF -6.1332), 26 s
+  whitened integrals: 0.6 GB in 3 segments of 255 MB: 3 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 86: R 6.54 bohr, E_int -7.4342 kcal/mol (HF -7.3193), 28 s
+  whitened integrals: 0.6 GB in 3 segments of 255 MB: 3 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 87: R 8.80 bohr, E_int 1.5616 kcal/mol (HF 1.9256), 27 s
+  whitened integrals: 0.6 GB in 3 segments of 255 MB: 3 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 88: R 8.98 bohr, E_int -1.9618 kcal/mol (HF -2.0984), 23 s
+  whitened integrals: 0.6 GB in 3 segments of 255 MB: 3 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 89: R 10.67 bohr, E_int 1.9844 kcal/mol (HF 2.2184), 25 s
+  whitened integrals: 0.6 GB in 3 segments of 255 MB: 3 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 90: R 6.75 bohr, E_int 4.0918 kcal/mol (HF 4.9713), 26 s
+  whitened integrals: 0.6 GB in 3 segments of 255 MB: 3 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 91: R 7.21 bohr, E_int 6.9815 kcal/mol (HF 7.6339), 23 s
+  whitened integrals: 0.6 GB in 3 segments of 255 MB: 3 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 92: R 7.95 bohr, E_int 5.1989 kcal/mol (HF 5.5603), 23 s
+  whitened integrals: 0.6 GB in 3 segments of 255 MB: 3 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 93: R 5.25 bohr, E_int -18.9203 kcal/mol (HF -19.4411), 29 s
+  whitened integrals: 0.6 GB in 3 segments of 255 MB: 3 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 94: R 8.43 bohr, E_int 1.3890 kcal/mol (HF 1.5192), 29 s
+  whitened integrals: 0.6 GB in 3 segments of 255 MB: 3 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 95: R 5.22 bohr, E_int -5.1567 kcal/mol (HF -4.8872), 28 s
+  whitened integrals: 0.6 GB in 3 segments of 255 MB: 3 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 96: R 9.17 bohr, E_int 3.2672 kcal/mol (HF 3.4451), 24 s
+  whitened integrals: 0.6 GB in 3 segments of 255 MB: 3 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 97: R 8.11 bohr, E_int 5.5441 kcal/mol (HF 5.9944), 25 s
+  whitened integrals: 0.6 GB in 3 segments of 255 MB: 3 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 98: R 7.08 bohr, E_int -3.5573 kcal/mol (HF -3.0989), 26 s
+  whitened integrals: 0.6 GB in 3 segments of 255 MB: 3 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 99: R 8.09 bohr, E_int 4.3642 kcal/mol (HF 4.7779), 23 s
+  whitened integrals: 0.6 GB in 3 segments of 255 MB: 3 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 100: R 6.37 bohr, E_int -5.9268 kcal/mol (HF -6.0262), 21 s
+  whitened integrals: 0.6 GB in 3 segments of 255 MB: 3 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 101: R 10.61 bohr, E_int 2.0726 kcal/mol (HF 2.2711), 20 s
+  whitened integrals: 0.6 GB in 3 segments of 255 MB: 3 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 102: R 7.25 bohr, E_int 2.0911 kcal/mol (HF 2.8141), 21 s
+  whitened integrals: 0.6 GB in 3 segments of 255 MB: 3 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 103: R 9.03 bohr, E_int -1.5681 kcal/mol (HF -1.4121), 21 s
+  whitened integrals: 0.6 GB in 3 segments of 255 MB: 3 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 104: R 8.09 bohr, E_int -6.8357 kcal/mol (HF -7.1445), 21 s
+  whitened integrals: 0.6 GB in 3 segments of 255 MB: 3 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 105: R 7.80 bohr, E_int 3.7959 kcal/mol (HF 4.4449), 21 s
+  whitened integrals: 0.6 GB in 3 segments of 255 MB: 3 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 106: R 9.13 bohr, E_int 4.5419 kcal/mol (HF 4.9242), 21 s
+  whitened integrals: 0.6 GB in 3 segments of 255 MB: 3 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 107: R 7.80 bohr, E_int -6.5289 kcal/mol (HF -6.8139), 21 s
+  whitened integrals: 0.6 GB in 3 segments of 255 MB: 3 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 108: R 8.78 bohr, E_int 3.5869 kcal/mol (HF 3.9994), 21 s
+  whitened integrals: 0.6 GB in 3 segments of 255 MB: 3 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 109: R 6.14 bohr, E_int -11.8706 kcal/mol (HF -11.9847), 22 s
+  whitened integrals: 0.6 GB in 3 segments of 255 MB: 3 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 110: R 5.16 bohr, E_int -17.8388 kcal/mol (HF -17.9599), 25 s
+  whitened integrals: 0.6 GB in 3 segments of 255 MB: 3 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 111: R 6.05 bohr, E_int 5.7841 kcal/mol (HF 6.6421), 29 s
+  whitened integrals: 0.6 GB in 3 segments of 255 MB: 3 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 112: R 8.44 bohr, E_int -3.6878 kcal/mol (HF -3.9101), 31 s
+  whitened integrals: 0.6 GB in 3 segments of 255 MB: 3 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 113: R 9.44 bohr, E_int 0.4403 kcal/mol (HF 0.4521), 33 s
+  whitened integrals: 0.6 GB in 3 segments of 255 MB: 3 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 114: R 9.84 bohr, E_int -1.4033 kcal/mol (HF -1.2875), 34 s
+  whitened integrals: 0.6 GB in 3 segments of 255 MB: 3 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 115: R 10.68 bohr, E_int -2.6396 kcal/mol (HF -2.7311), 32 s
+  whitened integrals: 0.6 GB in 3 segments of 255 MB: 3 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 116: R 6.33 bohr, E_int -5.1610 kcal/mol (HF -4.4705), 30 s
+  whitened integrals: 0.6 GB in 3 segments of 255 MB: 3 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 117: R 8.36 bohr, E_int 1.8089 kcal/mol (HF 1.8567), 30 s
+  whitened integrals: 0.6 GB in 3 segments of 255 MB: 3 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 118: R 7.87 bohr, E_int 5.5305 kcal/mol (HF 6.0914), 29 s
+  whitened integrals: 0.6 GB in 3 segments of 255 MB: 3 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 119: R 6.96 bohr, E_int -8.1296 kcal/mol (HF -8.3586), 32 s

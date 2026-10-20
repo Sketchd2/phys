@@ -1,0 +1,21 @@
+final non-local energies on gpu (f32, NVIDIA GeForce RTX 2060 via Vulkan)
+Hartree-Fock passes on gpu Fock (f64, NVIDIA GeForce RTX 2060 via Vulkan)
+methanol: 6 atoms, types [0, 1, 2, 3, 3, 4], per-element basis; 0 pairs done, 150 wanted
+  whitened integrals: 9.5 GB do not fit the card, memory and disk allowed; the CPU does this one
+  whitened integrals: 9.5 GB do not fit the card, memory and disk allowed; the CPU does this one
+  field 1 of 3 done: 3270 s so far (3108 s Hartree-Fock, 10 iterations; 162 s MP2)
+  whitened integrals: 9.5 GB do not fit the card, memory and disk allowed; the CPU does this one
+final non-local energies on gpu (f32, NVIDIA GeForce RTX 2060 via Vulkan)
+Hartree-Fock passes on gpu Fock (f64, NVIDIA GeForce RTX 2060 via Vulkan)
+methanol: 6 atoms, types [0, 1, 2, 3, 3, 4], per-element basis; 0 pairs done, 150 wanted
+  whitened integrals: 9.5 GB in 36 segments of 255 MB: 1 on the card, 9 in memory, 26 on disk; orbitals 32 to a block
+  field 1 of 3 done: 1494 s so far (1439 s Hartree-Fock, 10 iterations; 55 s MP2)
+  field 2 of 3 done: 2218 s so far (2131 s Hartree-Fock, 9 iterations; 87 s MP2)
+  field 3 of 3 done: 2930 s so far (2813 s Hartree-Fock, 9 iterations; 116 s MP2)
+pair 0: R 10.26 bohr, E_int 0.2772 / 0.4411 kcal/mol (PBE x / revPBE x), 2945 s (2813 s fields, 116 s fine non-local, 0 s exchange swap; 816 functions; field iterations [10, 9, 9])
+  whitened integrals: 9.5 GB in 36 segments of 255 MB: 1 on the card, 12 in memory, 23 on disk; orbitals 32 to a block
+  field 1 of 3 done: 1299 s so far (1245 s Hartree-Fock, 10 iterations; 54 s MP2)
+  field 2 of 3 done: 1981 s so far (1889 s Hartree-Fock, 9 iterations; 92 s MP2)
+  field 3 of 3 done: 2747 s so far (2626 s Hartree-Fock, 9 iterations; 121 s MP2)
+pair 1: R 12.94 bohr, E_int -0.0008 / 0.0334 kcal/mol (PBE x / revPBE x), 2747 s (2626 s fields, 121 s fine non-local, 0 s exchange swap; 816 functions; field iterations [10, 9, 9])
+  whitened integrals: 9.4 GB in 36 segments of 255 MB: 1 on the card, 10 in memory, 25 on disk; orbitals 32 to a block

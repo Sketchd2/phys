@@ -1,0 +1,21 @@
+water: 66 pairs with an exact electrostatic energy
+  before: train mean/rms +1.958/4.539, held-out +0.643/3.257 kcal/mol
+      first-atom separation 0.0-2.8 A: 7 pairs, mean +4.915, rms 6.751
+      first-atom separation 2.8-3.1 A: 17 pairs, mean +1.197, rms 4.771
+      first-atom separation 3.1-3.4 A: 9 pairs, mean +0.759, rms 3.508
+      first-atom separation 3.4-4.7 A: 33 pairs, mean +0.735, rms 2.541
+  restart 0: cost 0.7837 beats 1.0388
+  restart 2: cost 0.6715 beats 0.7837
+  restart 5: cost 0.6627 beats 0.6715
+  restart 9: cost 0.6455 beats 0.6627
+  restart 13: cost 0.6183 beats 0.6455
+  restart 15: cost 0.6143 beats 0.6183
+  restart 16: cost 0.6022 beats 0.6143
+  restart 21: cost 0.5485 beats 0.6022
+  after : train mean/rms +0.098/0.785, held-out +0.074/0.642 kcal/mol
+      first-atom separation 0.0-2.8 A: 7 pairs, mean -0.026, rms 1.367
+      first-atom separation 2.8-3.1 A: 17 pairs, mean +0.126, rms 0.752
+      first-atom separation 3.1-3.4 A: 9 pairs, mean +0.133, rms 0.503
+      first-atom separation 3.4-4.7 A: 33 pairs, mean +0.076, rms 0.522
+  dipole 0.7367 au (1.873 D)
+  written to cloud-water-fit.cloud and cloud-water-fit.txt

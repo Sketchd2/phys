@@ -1,0 +1,6 @@
+water: 214 functions, field step 0.002, 1 frozen cores
+  19 fields in 199 s
+  Hartree-Fock: mean 8.7887 bohr^3, diagonal 9.2523 9.1390 7.9749, off-diagonal -3.2e-1 -1.0e-7 -2.8e-7
+  MP2: mean 10.0121 bohr^3, diagonal 10.2025 10.1646 9.6691, off-diagonal -1.1e-1 -1.3e-7 -2.9e-7
+  atomic polarisabilities by class [9.27170001948971, 0.7826986454020877] bohr^3 (classes [0, 1, 1]); the model's tensor: mean 10.0121, diagonal 10.1992 10.1549 9.6821; residual rms 1.01e-2
+  written to polar-water.txt

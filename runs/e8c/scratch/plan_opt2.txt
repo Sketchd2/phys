@@ -1,0 +1,32 @@
+     **E8c, option 2's first law collapsed, and why (2026-10-11).** The chain
+     (`scripts/e8c-bend-fit.sh`) fitted the cloud's 18 numbers freely to the 83
+     exact electrostatic energies (42 of them fitted): train 0.22, **held-out
+     0.71 kcal/mol, no better than before the angle was allowed in (0.75)**, and
+     the cloud at the reference angle itself moved (bisector population 1.10 ->
+     0.61, width 1.80 -> 2.13). The law fitted on it (0.41 / 0.35 kcal/mol on the
+     pairs, dispersion C6 O-H 12.2 and H-H 0.83 against option 1's 2.7 and 3.8)
+     **collapsed in the liquid**: in the rigid liquid (`phys-bulk`) as well as the
+     flexible one, in the settling stage (U/N -91 to -592 kcal/mol, then NaN), and
+     the same on the CPU and the GPU, so the code was not the cause. *The fix is
+     the plan's own continuation rule:* `phys-geofit --hold-c0` keeps the cloud
+     at the reference angle as the already-fitted, already-tried one (option 1's)
+     and fits only the slopes and curvatures (12 numbers); the pair fit then starts
+     from option 1's law. ES train 0.29, held-out 0.67; the dipole follows MP2's
+     to 0.002 au at all eight angles; the pair fit is **0.255 fitted, 0.296 unseen
+     kcal/mol** (it was 0.41 / 0.35), C6 O-H 2.6 and H-H 4.7. A 2 ps run of the
+     flexible liquid with it: U/N -11.72, mean H-O-H 105.4 degrees, its own energy
+     0.647 against a classical gas molecule's 0.638, g(OO) first peak 2.82 at
+     2.75 A, first minimum 0.85 at 3.45 A, **4.91 neighbours to the minimum (option
+     1: 7.49)**. *Option 1's law in the flexible integrator, bonds held, angle
+     free, collapses the angle to 95 degrees* (pressure -3641 bar), which is the
+     measured case for the angle-following cloud.
+     **A weakness of both laws, found by the scan:** 400,000 random dimers with no
+     atom nearer than 0.64 A to another find energies of **-577 kcal/mol (option 1)
+     and -649 (option 2)** at O-O 1.59 A: neither law has a repulsive core, the
+     pair table's Born-Mayer strengths are zero and the only wall is the clouds'
+     overlap. The liquid does not visit those places at 298 K, and a hot or
+     compressed one can (this is how the unregularised law fell in). The pair data
+     stop at 2.2 A of oxygen separation and do not constrain it. *Proposed, for the
+     owner:* a close-contact set of MP2 pairs (the repulsive side, which MP2 does
+     well) and atom-pair Born-Mayer terms fitted to it (`phys-fit --bm`), before
+     option 3 and before E11 builds on this law.

@@ -1,0 +1,2 @@
+# water at 298 K, 216 molecules, 0.95 g/cm3, cut-off 16 bohr, law E:/Projects/phys/runs/e8c/avg/refit1/law-opt1.txt
+# ps  U_per_molecule_kcal  pressure_bar  T_translation  T_rotation

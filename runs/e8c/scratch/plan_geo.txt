@@ -1,0 +1,33 @@
+     **E8c, option 2's law: the cloud follows the angle (2026-10-11), and a
+     test that tested nothing.** *Form (the engine's author's choice inside the
+     item; the general form is option 3's, still open):* the core-and-cloud
+     model's six numbers - the three clouds' ln widths, the bisector cloud's
+     distance, the bisector and oxygen populations - are each **a quadratic in
+     the H-O-H angle** about the averaged shape's (`phys::geolaw::GeoCloud`,
+     `geo` and `geopoly` lines in a law's text); sites are on the atoms, which at
+     a held bond length is exactly where the frame sites put them; the
+     repulsion's overlap form keeps the *base* widths and the polarisabilities
+     are the atoms', so what is fitted afterwards does not depend on the cloud.
+     *Fitting:* `phys-geofit` fits the 18 coefficients to the exact
+     electrostatic energies of the bend pairs (each molecule at its own angle,
+     half held out, a ridge on slopes and curvatures), the model's dipole held
+     to the MP2 dipole at the angles `scripts/e8c-monomer-props.sh` computed
+     (`runs/e8c/monomer-bend`); `phys-fit --geo-correct` then takes off every
+     pair, slope and turn the part of electrostatics and induction that the
+     angles change (the same function, the angle-following cloud less the
+     reference one), so the existing fit finds the repulsion and dispersion for
+     what is left. *Forces:* the angle enters the energy through the atoms'
+     positions, through each charge and width, and through the bisector cloud's
+     distance; the parameters' part is `dE/dq` and `dE/dsigma` for every site
+     (the pair loop, `SiteSite::site_pair_with`; the induction, by
+     Hellmann-Feynman, `induction::charge_gradients`) times the parameters'
+     slopes in the angle, acting along `grad theta`. **Checked against the
+     energy's gradient** (`tests/flex.rs`, atoms of ten molecules of 27, 1e-8
+     of the force) and **the angle's terms change the largest force by 4.4e-2
+     against a worst error of 3e-9**, so the test can tell. *Found while
+     building it:* `tests/flex.rs`'s original force test used eight molecules
+     11 bohr apart with a cut-off of 10.5, so **no two molecules interacted and
+     the test checked only each molecule's own surface**; it could not fail on
+     the law's forces, the induction or the virtual site. It now has 27
+     molecules inside the cut-off (energy -0.049 hartree against 0.000), and
+     the older force and energy-conservation checks pass on it too.

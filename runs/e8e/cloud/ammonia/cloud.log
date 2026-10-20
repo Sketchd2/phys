@@ -1,0 +1,9 @@
+ammonia: dipole Hartree-Fock 0.6424 au (1.633 D), target 0.6060 au (1.540 D)
+  6933 potential points; the target's RMS 1.910e0, its mean -1.870e0 hartree/e
+  localised in 14 sweeps: 3 bond orbitals, 1 lone pairs (1 core orbitals frozen out of the localisation)
+  valence electrons 8, cores [5.0, 1.0]
+  atom class 0: cloud 2.305 electrons, width 0.378 bohr
+  atom class 1: cloud 1.250 electrons, width 1.157 bohr
+  lone-pair cloud of class 0: 1 pair(s) on 1 atom(s), 1.945 electrons, width 1.068 bohr, 0.641 bohr from the nucleus (the orbitals' centre is 0.641)
+  potential RMS 1.904e-2 hartree/e (atom-centred point charges alone: 7.648e-3)
+  written to cloud-ammonia.txt

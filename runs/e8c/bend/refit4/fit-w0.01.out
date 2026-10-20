@@ -1,0 +1,11 @@
+  83 slopes from deriv-water.txt, weight 3
+  150 turns from rotate-water.txt added to the slopes
+  angle-following cloud taken off 560 pairs and 233 slopes and turns (largest correction 122.608 kcal/mol)
+water: 560 pairs, 3 atoms a molecule, 2 site types [1, 2]
+  induced dipoles on, polarisabilities by type [9.234316455280853, 0.8544488912439157, 0.0, 0.0, 0.0] bohr^3
+    bisector site 0.5482 bohr from the first atom (weighted residual 3.220e-3)
+  pbe: 62 iterations; RMS 83.918 kcal/mol fitted, 78.225 unseen; within 3 kcal/mol of the lowest: 0.681 over 61 fitted, 0.857 over 15 unseen
+    charges [6.0, 1.0, -1.097667634829653, -6.078531998825243, -0.41190018317255195]
+    bisector site 0.5482 bohr from the first atom (weighted residual 2.811e-3)
+  revpbe: 20 iterations; RMS 82.231 kcal/mol fitted, 77.036 unseen; within 3 kcal/mol of the lowest: 0.471 over 95 fitted, 0.687 over 24 unseen
+    charges [6.0, 1.0, -1.097667634829653, -6.078531998825243, -0.41190018317255195]

@@ -15,3 +15,7 @@ tests/zz2.rs
 tests/zz3.rs
 grow-*.state
 grow-*.state.tmp
+
+# Binaries copied into run directories, and spill files from the engine (hundreds of MB).
+runs/**/*.exe
+runs/**/spill/

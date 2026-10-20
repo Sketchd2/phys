@@ -1,0 +1,4 @@
+start Mon Oct 19 03:11:48 EAST 2026 ammonia pid 17960
+with the pair job running: 9.00 cores
+with the pair job suspended: 5.60 cores
+resumed Mon Oct 19 03:26:52 EAST 2026

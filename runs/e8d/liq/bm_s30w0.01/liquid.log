@@ -1,0 +1,10 @@
+induced dipoles on, polarisabilities by site type [9.234316455280853, 0.8544488912439157, 0.0, 0.0, 0.0] bohr^3
+water at 298 K: 216 molecules, 1 g/cm3, box 35.20 bohr (18.63 A), cut-off 16.0 bohr
+  start: U/N -4.39 kcal/mol
+  easing: U/N -9.37 kcal/mol, T 317/316 K, P -2990 bar
+  settling: U/N -11.30 kcal/mol, T 313/286 K, P -3659 bar
+  warming: U/N -11.65 kcal/mol, T 294/314 K, P -3094 bar
+  0% after 1505 s: U/N -11.65 kcal/mol, P -3117 bar
+  8% after 2153 s: U/N -11.70 kcal/mol, P -2535 bar
+  17% after 2746 s: U/N -11.66 kcal/mol, P -3101 bar
+  25% after 3323 s: U/N -11.72 kcal/mol, P -2498 bar

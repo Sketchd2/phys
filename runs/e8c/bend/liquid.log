@@ -1,0 +1,6 @@
+induced dipoles on the gpu induction (f64, NVIDIA GeForce RTX 2060 via Vulkan)
+pair loop on the gpu pair loop (f64, NVIDIA GeForce RTX 2060 via Vulkan)
+water at 298 K: 216 molecules, 1 g/cm3, box 35.20 bohr, cut-off 16.0 bohr; bonds held at 0.97894 A, angle free (production step 40 au = 0.97 fs); 12 threads
+  start: U/N -5.03 kcal/mol (one force evaluation took 0.05 s)
+  easing: U/N -10.91 kcal/mol, intra 0.52, T 325 (centres) / 336 (all) K, P -8540 bar; 58.1 ms a step
+  settling: U/N -158.14 kcal/mol, intra 14.01, T 810 (centres) / 908 (all) K, P -59785 bar; 58.8 ms a step

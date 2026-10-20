@@ -1,0 +1,20 @@
+   Compiling phys v0.1.0 (E:\Projects\phys)
+warning: unused import: `Purpose`
+  --> src\flex.rs:32:18
+   |
+32 | use crate::rng::{Purpose, Stream};
+   |                  ^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `root2`
+   --> src\induction.rs:243:9
+    |
+243 |     let root2 = (2.0f64).sqrt();
+    |         ^^^^^ help: if this is intentional, prefix it with an underscore: `_root2`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+   Compiling phys-gpu v0.1.0 (E:\Projects\phys\gpu)
+warning: `phys` (lib) generated 2 warnings (run `cargo fix --lib -p phys` to apply 2 suggestions)
+    Finished `release` profile [optimized] target(s) in 1m 24s

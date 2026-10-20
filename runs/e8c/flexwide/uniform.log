@@ -1,0 +1,560 @@
+final non-local energies on gpu (f32, NVIDIA GeForce RTX 2060 via Vulkan)
+Hartree-Fock passes on gpu Fock (f64, NVIDIA GeForce RTX 2060 via Vulkan)
+water: 3 atoms, types [0, 1, 1], per-element basis; 0 pairs done, 5 wanted
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 32 s so far (30 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 41 s so far (39 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 50 s so far (47 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 0: R 7.33 bohr, E_int -1.5736 / -1.4944 kcal/mol (PBE x / revPBE x), 55 s (47 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 34 s so far (32 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 42 s so far (40 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 51 s so far (48 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 1: R 6.54 bohr, E_int 1.2621 / 1.8511 kcal/mol (PBE x / revPBE x), 51 s (48 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 34 s so far (32 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 43 s so far (40 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 51 s so far (49 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 2: R 7.74 bohr, E_int 0.4329 / 0.6095 kcal/mol (PBE x / revPBE x), 51 s (49 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 33 s so far (31 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 42 s so far (39 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 51 s so far (48 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 3: R 5.82 bohr, E_int -0.7586 / 0.2973 kcal/mol (PBE x / revPBE x), 51 s (48 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 34 s so far (32 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 43 s so far (41 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 52 s so far (49 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 4: R 5.16 bohr, E_int 2.7176 / 4.2743 kcal/mol (PBE x / revPBE x), 52 s (49 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+final non-local energies on gpu (f32, NVIDIA GeForce RTX 2060 via Vulkan)
+Hartree-Fock passes on gpu Fock (f64, NVIDIA GeForce RTX 2060 via Vulkan)
+water: 3 atoms, types [0, 1, 1], per-element basis; 5 pairs done, 10 wanted
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 32 s so far (31 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 41 s so far (39 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 49 s so far (47 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 5: R 9.64 bohr, E_int 0.5242 / 0.6190 kcal/mol (PBE x / revPBE x), 55 s (47 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 34 s so far (32 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 42 s so far (40 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 51 s so far (49 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 6: R 6.67 bohr, E_int -0.6912 / -0.1235 kcal/mol (PBE x / revPBE x), 51 s (49 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 33 s so far (31 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 41 s so far (39 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 50 s so far (47 s Hartree-Fock, 8 iterations; 3 s MP2)
+pair 7: R 6.93 bohr, E_int -1.5402 / -1.3394 kcal/mol (PBE x / revPBE x), 50 s (47 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 8])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 34 s so far (32 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 43 s so far (41 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 52 s so far (49 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 8: R 6.39 bohr, E_int -0.7619 / -0.4201 kcal/mol (PBE x / revPBE x), 52 s (49 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 33 s so far (31 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 41 s so far (39 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 50 s so far (47 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 9: R 10.36 bohr, E_int -0.0024 / 0.0227 kcal/mol (PBE x / revPBE x), 50 s (47 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 9])
+final non-local energies on gpu (f32, NVIDIA GeForce RTX 2060 via Vulkan)
+Hartree-Fock passes on gpu Fock (f64, NVIDIA GeForce RTX 2060 via Vulkan)
+water: 3 atoms, types [0, 1, 1], per-element basis; 10 pairs done, 15 wanted
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 33 s so far (31 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 42 s so far (40 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 51 s so far (48 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 10: R 4.84 bohr, E_int 9.0297 / 11.3395 kcal/mol (PBE x / revPBE x), 57 s (48 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 34 s so far (32 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 43 s so far (40 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 51 s so far (49 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 11: R 7.66 bohr, E_int -0.2704 / -0.1111 kcal/mol (PBE x / revPBE x), 51 s (49 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 35 s so far (33 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 43 s so far (41 s Hartree-Fock, 8 iterations; 2 s MP2)
+  field 3 of 3 done: 52 s so far (49 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 12: R 10.91 bohr, E_int -0.2389 / -0.2408 kcal/mol (PBE x / revPBE x), 52 s (49 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 8, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 35 s so far (33 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 44 s so far (42 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 53 s so far (50 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 13: R 6.01 bohr, E_int -4.0334 / -3.1403 kcal/mol (PBE x / revPBE x), 53 s (50 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 35 s so far (33 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 44 s so far (42 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 53 s so far (50 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 14: R 14.98 bohr, E_int 0.1086 / 0.1280 kcal/mol (PBE x / revPBE x), 53 s (50 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+final non-local energies on gpu (f32, NVIDIA GeForce RTX 2060 via Vulkan)
+Hartree-Fock passes on gpu Fock (f64, NVIDIA GeForce RTX 2060 via Vulkan)
+water: 3 atoms, types [0, 1, 1], per-element basis; 15 pairs done, 20 wanted
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 33 s so far (31 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 41 s so far (39 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 49 s so far (46 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 15: R 13.81 bohr, E_int -0.1074 / -0.1095 kcal/mol (PBE x / revPBE x), 55 s (46 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 34 s so far (32 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 42 s so far (40 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 50 s so far (48 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 16: R 13.22 bohr, E_int 0.0877 / 0.1050 kcal/mol (PBE x / revPBE x), 50 s (48 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 34 s so far (32 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 42 s so far (40 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 51 s so far (48 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 17: R 13.59 bohr, E_int -0.0243 / -0.0345 kcal/mol (PBE x / revPBE x), 51 s (48 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 33 s so far (32 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 42 s so far (40 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 50 s so far (48 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 18: R 14.76 bohr, E_int 0.0251 / 0.0345 kcal/mol (PBE x / revPBE x), 50 s (48 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 34 s so far (33 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 43 s so far (41 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 51 s so far (48 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 19: R 13.94 bohr, E_int 0.0458 / 0.0592 kcal/mol (PBE x / revPBE x), 51 s (48 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+final non-local energies on gpu (f32, NVIDIA GeForce RTX 2060 via Vulkan)
+Hartree-Fock passes on gpu Fock (f64, NVIDIA GeForce RTX 2060 via Vulkan)
+water: 3 atoms, types [0, 1, 1], per-element basis; 20 pairs done, 25 wanted
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 34 s so far (33 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 43 s so far (41 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 52 s so far (49 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 20: R 9.31 bohr, E_int -0.1150 / -0.0901 kcal/mol (PBE x / revPBE x), 58 s (49 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 33 s so far (32 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 42 s so far (39 s Hartree-Fock, 8 iterations; 2 s MP2)
+  field 3 of 3 done: 50 s so far (48 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 21: R 7.98 bohr, E_int -0.2378 / -0.1832 kcal/mol (PBE x / revPBE x), 50 s (48 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 8, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 33 s so far (31 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 41 s so far (39 s Hartree-Fock, 8 iterations; 2 s MP2)
+  field 3 of 3 done: 49 s so far (46 s Hartree-Fock, 8 iterations; 3 s MP2)
+pair 22: R 11.92 bohr, E_int -0.0776 / -0.0868 kcal/mol (PBE x / revPBE x), 49 s (46 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 8, 8])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 33 s so far (32 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 41 s so far (39 s Hartree-Fock, 8 iterations; 2 s MP2)
+  field 3 of 3 done: 50 s so far (47 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 23: R 14.03 bohr, E_int 0.1452 / 0.1701 kcal/mol (PBE x / revPBE x), 50 s (47 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 8, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 35 s so far (33 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 44 s so far (42 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 53 s so far (51 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 24: R 6.71 bohr, E_int -1.6686 / -1.4712 kcal/mol (PBE x / revPBE x), 53 s (51 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+final non-local energies on gpu (f32, NVIDIA GeForce RTX 2060 via Vulkan)
+Hartree-Fock passes on gpu Fock (f64, NVIDIA GeForce RTX 2060 via Vulkan)
+water: 3 atoms, types [0, 1, 1], per-element basis; 25 pairs done, 30 wanted
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 33 s so far (32 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 42 s so far (40 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 50 s so far (48 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 25: R 11.32 bohr, E_int -0.1331 / -0.1336 kcal/mol (PBE x / revPBE x), 56 s (48 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 33 s so far (32 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 42 s so far (40 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 51 s so far (48 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 26: R 8.28 bohr, E_int 0.0139 / 0.1224 kcal/mol (PBE x / revPBE x), 51 s (48 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 34 s so far (32 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 42 s so far (40 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 51 s so far (48 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 27: R 14.65 bohr, E_int 0.0715 / 0.0879 kcal/mol (PBE x / revPBE x), 51 s (48 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 34 s so far (33 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 43 s so far (41 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 52 s so far (49 s Hartree-Fock, 8 iterations; 3 s MP2)
+pair 28: R 6.27 bohr, E_int -2.1451 / -1.7059 kcal/mol (PBE x / revPBE x), 52 s (49 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 8])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 34 s so far (32 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 43 s so far (41 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 52 s so far (49 s Hartree-Fock, 8 iterations; 3 s MP2)
+pair 29: R 6.91 bohr, E_int -0.8229 / -0.5969 kcal/mol (PBE x / revPBE x), 52 s (49 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 8])
+final non-local energies on gpu (f32, NVIDIA GeForce RTX 2060 via Vulkan)
+Hartree-Fock passes on gpu Fock (f64, NVIDIA GeForce RTX 2060 via Vulkan)
+water: 3 atoms, types [0, 1, 1], per-element basis; 30 pairs done, 35 wanted
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 34 s so far (33 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 43 s so far (41 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 51 s so far (49 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 30: R 10.22 bohr, E_int -0.2949 / -0.3127 kcal/mol (PBE x / revPBE x), 58 s (49 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 34 s so far (33 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 43 s so far (41 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 52 s so far (49 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 31: R 5.26 bohr, E_int 1.8164 / 3.0645 kcal/mol (PBE x / revPBE x), 52 s (49 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 33 s so far (32 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 42 s so far (40 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 50 s so far (48 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 32: R 13.70 bohr, E_int 0.0734 / 0.0886 kcal/mol (PBE x / revPBE x), 50 s (48 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 34 s so far (33 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 44 s so far (42 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 53 s so far (50 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 33: R 5.32 bohr, E_int -1.7528 / -0.6177 kcal/mol (PBE x / revPBE x), 53 s (50 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 35 s so far (33 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 44 s so far (42 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 53 s so far (50 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 34: R 7.03 bohr, E_int 1.1136 / 1.5442 kcal/mol (PBE x / revPBE x), 53 s (50 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+final non-local energies on gpu (f32, NVIDIA GeForce RTX 2060 via Vulkan)
+Hartree-Fock passes on gpu Fock (f64, NVIDIA GeForce RTX 2060 via Vulkan)
+water: 3 atoms, types [0, 1, 1], per-element basis; 35 pairs done, 40 wanted
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 34 s so far (32 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 43 s so far (41 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 52 s so far (50 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 35: R 6.18 bohr, E_int -3.0717 / -2.7119 kcal/mol (PBE x / revPBE x), 58 s (50 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 33 s so far (32 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 42 s so far (40 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 50 s so far (48 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 36: R 13.37 bohr, E_int -0.1298 / -0.1460 kcal/mol (PBE x / revPBE x), 50 s (48 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 34 s so far (33 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 43 s so far (41 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 52 s so far (49 s Hartree-Fock, 8 iterations; 3 s MP2)
+pair 37: R 5.56 bohr, E_int 1.5473 / 3.1069 kcal/mol (PBE x / revPBE x), 52 s (49 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 8])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 34 s so far (32 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 42 s so far (40 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 51 s so far (48 s Hartree-Fock, 8 iterations; 3 s MP2)
+pair 38: R 10.51 bohr, E_int -0.2727 / -0.2979 kcal/mol (PBE x / revPBE x), 51 s (48 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 8])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 35 s so far (33 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 43 s so far (41 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 51 s so far (49 s Hartree-Fock, 8 iterations; 3 s MP2)
+pair 39: R 10.81 bohr, E_int 0.2583 / 0.3159 kcal/mol (PBE x / revPBE x), 51 s (49 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 8])
+final non-local energies on gpu (f32, NVIDIA GeForce RTX 2060 via Vulkan)
+Hartree-Fock passes on gpu Fock (f64, NVIDIA GeForce RTX 2060 via Vulkan)
+water: 3 atoms, types [0, 1, 1], per-element basis; 40 pairs done, 45 wanted
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 33 s so far (32 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 43 s so far (41 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 52 s so far (49 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 40: R 8.21 bohr, E_int 0.2841 / 0.4045 kcal/mol (PBE x / revPBE x), 58 s (49 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 35 s so far (34 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 44 s so far (42 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 52 s so far (50 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 41: R 9.48 bohr, E_int -0.1718 / -0.0713 kcal/mol (PBE x / revPBE x), 52 s (50 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 35 s so far (33 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 44 s so far (42 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 53 s so far (50 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 42: R 9.07 bohr, E_int -0.7822 / -0.7454 kcal/mol (PBE x / revPBE x), 53 s (50 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 34 s so far (32 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 42 s so far (40 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 51 s so far (48 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 43: R 10.61 bohr, E_int -0.0239 / -0.0020 kcal/mol (PBE x / revPBE x), 51 s (48 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 35 s so far (34 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 44 s so far (42 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 53 s so far (50 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 44: R 4.89 bohr, E_int 7.1158 / 9.8053 kcal/mol (PBE x / revPBE x), 53 s (50 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+final non-local energies on gpu (f32, NVIDIA GeForce RTX 2060 via Vulkan)
+Hartree-Fock passes on gpu Fock (f64, NVIDIA GeForce RTX 2060 via Vulkan)
+water: 3 atoms, types [0, 1, 1], per-element basis; 45 pairs done, 50 wanted
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 33 s so far (32 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 42 s so far (40 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 51 s so far (48 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 45: R 11.40 bohr, E_int -0.2504 / -0.2621 kcal/mol (PBE x / revPBE x), 57 s (48 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 35 s so far (33 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 44 s so far (42 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 52 s so far (50 s Hartree-Fock, 8 iterations; 3 s MP2)
+pair 46: R 7.94 bohr, E_int -0.3116 / -0.2113 kcal/mol (PBE x / revPBE x), 52 s (50 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 8])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 34 s so far (33 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 43 s so far (41 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 52 s so far (49 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 47: R 10.86 bohr, E_int 0.1008 / 0.1479 kcal/mol (PBE x / revPBE x), 52 s (49 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 34 s so far (32 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 43 s so far (41 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 51 s so far (49 s Hartree-Fock, 8 iterations; 3 s MP2)
+pair 48: R 8.18 bohr, E_int -0.3564 / -0.2479 kcal/mol (PBE x / revPBE x), 51 s (49 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 8])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 35 s so far (34 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 45 s so far (42 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 54 s so far (51 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 49: R 7.25 bohr, E_int -0.8186 / -0.5724 kcal/mol (PBE x / revPBE x), 54 s (51 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+final non-local energies on gpu (f32, NVIDIA GeForce RTX 2060 via Vulkan)
+Hartree-Fock passes on gpu Fock (f64, NVIDIA GeForce RTX 2060 via Vulkan)
+water: 3 atoms, types [0, 1, 1], per-element basis; 50 pairs done, 55 wanted
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 34 s so far (32 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 42 s so far (40 s Hartree-Fock, 8 iterations; 2 s MP2)
+  field 3 of 3 done: 51 s so far (49 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 50: R 7.21 bohr, E_int 1.2391 / 1.7677 kcal/mol (PBE x / revPBE x), 58 s (49 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 8, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 35 s so far (33 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 44 s so far (41 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 53 s so far (50 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 51: R 5.74 bohr, E_int 0.7675 / 1.7157 kcal/mol (PBE x / revPBE x), 53 s (50 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 35 s so far (33 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 44 s so far (42 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 53 s so far (50 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 52: R 7.31 bohr, E_int -1.3184 / -1.2462 kcal/mol (PBE x / revPBE x), 53 s (50 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 35 s so far (33 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 44 s so far (42 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 53 s so far (50 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 53: R 9.15 bohr, E_int 0.4261 / 0.5221 kcal/mol (PBE x / revPBE x), 53 s (50 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 35 s so far (34 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 44 s so far (42 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 53 s so far (50 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 54: R 8.70 bohr, E_int -0.7194 / -0.6661 kcal/mol (PBE x / revPBE x), 53 s (50 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+final non-local energies on gpu (f32, NVIDIA GeForce RTX 2060 via Vulkan)
+Hartree-Fock passes on gpu Fock (f64, NVIDIA GeForce RTX 2060 via Vulkan)
+water: 3 atoms, types [0, 1, 1], per-element basis; 55 pairs done, 60 wanted
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 34 s so far (32 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 43 s so far (41 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 52 s so far (49 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 55: R 6.11 bohr, E_int -0.9589 / -0.3601 kcal/mol (PBE x / revPBE x), 58 s (49 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 35 s so far (33 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 44 s so far (42 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 53 s so far (51 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 56: R 6.83 bohr, E_int 1.3900 / 2.0453 kcal/mol (PBE x / revPBE x), 53 s (51 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 34 s so far (32 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 42 s so far (40 s Hartree-Fock, 8 iterations; 2 s MP2)
+  field 3 of 3 done: 50 s so far (48 s Hartree-Fock, 8 iterations; 3 s MP2)
+pair 57: R 9.41 bohr, E_int 0.3929 / 0.4973 kcal/mol (PBE x / revPBE x), 50 s (48 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 8, 8])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 33 s so far (31 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 41 s so far (39 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 50 s so far (47 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 58: R 14.83 bohr, E_int -0.0912 / -0.0968 kcal/mol (PBE x / revPBE x), 50 s (47 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 34 s so far (32 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 43 s so far (41 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 52 s so far (49 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 59: R 10.26 bohr, E_int 0.1193 / 0.1666 kcal/mol (PBE x / revPBE x), 52 s (49 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+final non-local energies on gpu (f32, NVIDIA GeForce RTX 2060 via Vulkan)
+Hartree-Fock passes on gpu Fock (f64, NVIDIA GeForce RTX 2060 via Vulkan)
+water: 3 atoms, types [0, 1, 1], per-element basis; 60 pairs done, 65 wanted
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 34 s so far (32 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 42 s so far (40 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 50 s so far (48 s Hartree-Fock, 8 iterations; 3 s MP2)
+pair 60: R 10.37 bohr, E_int -0.0126 / 0.0388 kcal/mol (PBE x / revPBE x), 56 s (48 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 8])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 35 s so far (33 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 44 s so far (42 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 53 s so far (50 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 61: R 6.84 bohr, E_int 0.3121 / 0.6512 kcal/mol (PBE x / revPBE x), 53 s (50 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 35 s so far (33 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 43 s so far (41 s Hartree-Fock, 8 iterations; 2 s MP2)
+  field 3 of 3 done: 52 s so far (50 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 62: R 9.49 bohr, E_int 0.1312 / 0.2396 kcal/mol (PBE x / revPBE x), 52 s (50 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 8, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 34 s so far (32 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 42 s so far (40 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 51 s so far (49 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 63: R 10.26 bohr, E_int -0.4955 / -0.5015 kcal/mol (PBE x / revPBE x), 51 s (49 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 34 s so far (32 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 43 s so far (41 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 51 s so far (48 s Hartree-Fock, 8 iterations; 3 s MP2)
+pair 64: R 14.85 bohr, E_int -0.0152 / -0.0139 kcal/mol (PBE x / revPBE x), 51 s (48 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 8])
+final non-local energies on gpu (f32, NVIDIA GeForce RTX 2060 via Vulkan)
+Hartree-Fock passes on gpu Fock (f64, NVIDIA GeForce RTX 2060 via Vulkan)
+water: 3 atoms, types [0, 1, 1], per-element basis; 65 pairs done, 70 wanted
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 33 s so far (32 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 42 s so far (40 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 50 s so far (47 s Hartree-Fock, 8 iterations; 3 s MP2)
+pair 65: R 9.15 bohr, E_int -0.2031 / -0.2068 kcal/mol (PBE x / revPBE x), 56 s (47 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 8])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 34 s so far (33 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 43 s so far (41 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 52 s so far (50 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 66: R 8.08 bohr, E_int 0.6836 / 1.0482 kcal/mol (PBE x / revPBE x), 52 s (50 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 34 s so far (32 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 43 s so far (41 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 53 s so far (50 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 67: R 5.78 bohr, E_int -1.4190 / -0.6809 kcal/mol (PBE x / revPBE x), 53 s (50 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 35 s so far (33 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 43 s so far (41 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 52 s so far (50 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 68: R 12.24 bohr, E_int -0.2188 / -0.2327 kcal/mol (PBE x / revPBE x), 52 s (50 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 35 s so far (33 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 43 s so far (41 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 52 s so far (49 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 69: R 12.32 bohr, E_int -0.0521 / -0.0470 kcal/mol (PBE x / revPBE x), 52 s (49 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+final non-local energies on gpu (f32, NVIDIA GeForce RTX 2060 via Vulkan)
+Hartree-Fock passes on gpu Fock (f64, NVIDIA GeForce RTX 2060 via Vulkan)
+water: 3 atoms, types [0, 1, 1], per-element basis; 70 pairs done, 75 wanted
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 34 s so far (32 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 42 s so far (40 s Hartree-Fock, 8 iterations; 2 s MP2)
+  field 3 of 3 done: 51 s so far (48 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 70: R 8.59 bohr, E_int 0.7780 / 1.0129 kcal/mol (PBE x / revPBE x), 57 s (48 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 8, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 34 s so far (33 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 42 s so far (40 s Hartree-Fock, 8 iterations; 2 s MP2)
+  field 3 of 3 done: 51 s so far (48 s Hartree-Fock, 8 iterations; 3 s MP2)
+pair 71: R 8.63 bohr, E_int 0.2942 / 0.4052 kcal/mol (PBE x / revPBE x), 51 s (48 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 8, 8])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 35 s so far (33 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 43 s so far (41 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 52 s so far (49 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 72: R 10.07 bohr, E_int 0.4452 / 0.5682 kcal/mol (PBE x / revPBE x), 52 s (49 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 33 s so far (31 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 41 s so far (39 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 50 s so far (47 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 73: R 14.54 bohr, E_int -0.1168 / -0.1294 kcal/mol (PBE x / revPBE x), 50 s (47 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 35 s so far (34 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 44 s so far (42 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 52 s so far (50 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 74: R 14.79 bohr, E_int -0.0818 / -0.0843 kcal/mol (PBE x / revPBE x), 52 s (50 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+final non-local energies on gpu (f32, NVIDIA GeForce RTX 2060 via Vulkan)
+Hartree-Fock passes on gpu Fock (f64, NVIDIA GeForce RTX 2060 via Vulkan)
+water: 3 atoms, types [0, 1, 1], per-element basis; 75 pairs done, 80 wanted
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 33 s so far (32 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 42 s so far (40 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 50 s so far (47 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 75: R 12.15 bohr, E_int -0.2269 / -0.2414 kcal/mol (PBE x / revPBE x), 56 s (47 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 34 s so far (32 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 43 s so far (41 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 52 s so far (49 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 76: R 8.22 bohr, E_int 0.5840 / 0.7866 kcal/mol (PBE x / revPBE x), 52 s (49 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 34 s so far (33 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 43 s so far (41 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 51 s so far (48 s Hartree-Fock, 8 iterations; 3 s MP2)
+pair 77: R 13.49 bohr, E_int -0.1891 / -0.2049 kcal/mol (PBE x / revPBE x), 51 s (48 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 8])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 34 s so far (33 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 43 s so far (41 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 52 s so far (50 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 78: R 9.23 bohr, E_int 0.3625 / 0.5406 kcal/mol (PBE x / revPBE x), 52 s (50 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 33 s so far (32 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 42 s so far (40 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 51 s so far (49 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 79: R 9.47 bohr, E_int -0.1249 / -0.0985 kcal/mol (PBE x / revPBE x), 51 s (49 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 9])
+final non-local energies on gpu (f32, NVIDIA GeForce RTX 2060 via Vulkan)
+Hartree-Fock passes on gpu Fock (f64, NVIDIA GeForce RTX 2060 via Vulkan)
+water: 3 atoms, types [0, 1, 1], per-element basis; 80 pairs done, 85 wanted
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 32 s so far (31 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 40 s so far (38 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 48 s so far (46 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 80: R 13.09 bohr, E_int -0.1293 / -0.1255 kcal/mol (PBE x / revPBE x), 54 s (46 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 34 s so far (32 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 43 s so far (41 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 51 s so far (49 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 81: R 9.60 bohr, E_int 0.1820 / 0.2804 kcal/mol (PBE x / revPBE x), 51 s (49 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 35 s so far (33 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 44 s so far (42 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 53 s so far (50 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 82: R 8.15 bohr, E_int 0.6533 / 0.8670 kcal/mol (PBE x / revPBE x), 53 s (50 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 34 s so far (33 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 43 s so far (41 s Hartree-Fock, 8 iterations; 2 s MP2)
+  field 3 of 3 done: 52 s so far (49 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 83: R 5.92 bohr, E_int -2.0386 / -1.2089 kcal/mol (PBE x / revPBE x), 52 s (49 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 8, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 34 s so far (32 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 44 s so far (42 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 53 s so far (50 s Hartree-Fock, 8 iterations; 3 s MP2)
+pair 84: R 4.97 bohr, E_int 0.0311 / 1.2973 kcal/mol (PBE x / revPBE x), 53 s (50 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 8])
+final non-local energies on gpu (f32, NVIDIA GeForce RTX 2060 via Vulkan)
+Hartree-Fock passes on gpu Fock (f64, NVIDIA GeForce RTX 2060 via Vulkan)
+water: 3 atoms, types [0, 1, 1], per-element basis; 85 pairs done, 90 wanted
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 34 s so far (32 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 42 s so far (40 s Hartree-Fock, 8 iterations; 2 s MP2)
+  field 3 of 3 done: 51 s so far (48 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 85: R 8.31 bohr, E_int -0.9219 / -0.9066 kcal/mol (PBE x / revPBE x), 57 s (48 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 8, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 34 s so far (33 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 43 s so far (41 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 52 s so far (50 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 86: R 7.20 bohr, E_int -1.7043 / -1.4642 kcal/mol (PBE x / revPBE x), 52 s (50 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 35 s so far (33 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 44 s so far (42 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 52 s so far (49 s Hartree-Fock, 8 iterations; 3 s MP2)
+pair 87: R 10.84 bohr, E_int -0.0902 / -0.0790 kcal/mol (PBE x / revPBE x), 52 s (49 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 8])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 35 s so far (33 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 44 s so far (42 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 53 s so far (50 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 88: R 7.36 bohr, E_int -0.0365 / 0.1854 kcal/mol (PBE x / revPBE x), 53 s (50 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 34 s so far (33 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 43 s so far (41 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 52 s so far (49 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 89: R 12.83 bohr, E_int -0.1115 / -0.1229 kcal/mol (PBE x / revPBE x), 52 s (49 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+final non-local energies on gpu (f32, NVIDIA GeForce RTX 2060 via Vulkan)
+Hartree-Fock passes on gpu Fock (f64, NVIDIA GeForce RTX 2060 via Vulkan)
+water: 3 atoms, types [0, 1, 1], per-element basis; 90 pairs done, 95 wanted
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 33 s so far (32 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 42 s so far (40 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 50 s so far (47 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 90: R 12.52 bohr, E_int 0.0977 / 0.1294 kcal/mol (PBE x / revPBE x), 56 s (47 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 33 s so far (32 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 42 s so far (40 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 49 s so far (47 s Hartree-Fock, 8 iterations; 3 s MP2)
+pair 91: R 12.17 bohr, E_int -0.2178 / -0.2289 kcal/mol (PBE x / revPBE x), 49 s (47 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 8])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 33 s so far (32 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 41 s so far (39 s Hartree-Fock, 8 iterations; 2 s MP2)
+  field 3 of 3 done: 50 s so far (47 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 92: R 12.62 bohr, E_int 0.1831 / 0.2093 kcal/mol (PBE x / revPBE x), 50 s (47 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 8, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 33 s so far (31 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 41 s so far (39 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 50 s so far (47 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 93: R 13.31 bohr, E_int -0.1619 / -0.1704 kcal/mol (PBE x / revPBE x), 50 s (47 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 33 s so far (31 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 41 s so far (39 s Hartree-Fock, 8 iterations; 2 s MP2)
+  field 3 of 3 done: 49 s so far (47 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 94: R 14.18 bohr, E_int -0.0894 / -0.1007 kcal/mol (PBE x / revPBE x), 49 s (47 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 8, 9])
+final non-local energies on gpu (f32, NVIDIA GeForce RTX 2060 via Vulkan)
+Hartree-Fock passes on gpu Fock (f64, NVIDIA GeForce RTX 2060 via Vulkan)
+water: 3 atoms, types [0, 1, 1], per-element basis; 95 pairs done, 100 wanted
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 33 s so far (32 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 42 s so far (39 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 50 s so far (48 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 95: R 9.80 bohr, E_int 0.4021 / 0.4880 kcal/mol (PBE x / revPBE x), 56 s (48 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 34 s so far (32 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 42 s so far (40 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 50 s so far (47 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 96: R 13.12 bohr, E_int 0.0498 / 0.0693 kcal/mol (PBE x / revPBE x), 50 s (47 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 35 s so far (33 s Hartree-Fock, 10 iterations; 2 s MP2)
+  field 2 of 3 done: 44 s so far (42 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 53 s so far (50 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 97: R 9.44 bohr, E_int 0.0923 / 0.1189 kcal/mol (PBE x / revPBE x), 53 s (50 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [10, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 34 s so far (32 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 43 s so far (41 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 3 of 3 done: 53 s so far (50 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 98: R 5.98 bohr, E_int -1.9236 / -1.4155 kcal/mol (PBE x / revPBE x), 53 s (50 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 9, 9])
+  whitened integrals: 1.3 GB in 5 segments of 255 MB: 5 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+  field 1 of 3 done: 34 s so far (32 s Hartree-Fock, 9 iterations; 2 s MP2)
+  field 2 of 3 done: 43 s so far (40 s Hartree-Fock, 8 iterations; 2 s MP2)
+  field 3 of 3 done: 52 s so far (49 s Hartree-Fock, 9 iterations; 3 s MP2)
+pair 99: R 6.62 bohr, E_int 0.1392 / 0.5428 kcal/mol (PBE x / revPBE x), 52 s (49 s fields, 3 s fine non-local, 0 s exchange swap; 428 functions; field iterations [9, 8, 9])

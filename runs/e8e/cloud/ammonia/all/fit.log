@@ -1,0 +1,17 @@
+ammonia: 154 pairs with an exact electrostatic energy
+  before: train mean/rms +15.872/57.309, held-out +9.844/35.979 kcal/mol
+      first-atom separation 0.0-2.8 A: 52 pairs, mean +36.915, rms 82.206
+      first-atom separation 2.8-3.1 A: 13 pairs, mean +3.766, rms 7.959
+      first-atom separation 3.1-3.4 A: 6 pairs, mean +0.717, rms 4.804
+      first-atom separation 3.4-4.7 A: 26 pairs, mean +0.150, rms 2.578
+      first-atom separation 4.7-9.9 A: 57 pairs, mean +0.060, rms 0.624
+  restart 12: cost 12.6334 beats 13.6682
+  restart 20: cost 12.6334 beats 12.6334
+  after : train mean/rms +0.196/3.589, held-out +0.551/7.698 kcal/mol
+      first-atom separation 0.0-2.8 A: 52 pairs, mean +1.155, rms 10.141
+      first-atom separation 2.8-3.1 A: 13 pairs, mean +1.028, rms 3.173
+      first-atom separation 3.1-3.4 A: 6 pairs, mean -1.922, rms 2.951
+      first-atom separation 3.4-4.7 A: 26 pairs, mean -0.187, rms 0.914
+      first-atom separation 4.7-9.9 A: 57 pairs, mean +0.009, rms 0.183
+  dipole 0.6063 au (1.541 D)
+  written to cloud-ammonia-fit.cloud and cloud-ammonia-fit.txt

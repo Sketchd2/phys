@@ -1,0 +1,22 @@
+ammonia: 4 atoms, 3 bonds; carrying on from round 11
+  relaxed at 530 functions, 1347 s into round 11; 4 probes of 162 candidates to go
+  round 11 probe 1/4: 50/162 candidates, 1858 s into the round; about 26 min left in it
+  round 11 probe 1/4: 100/162 candidates, 1858 s into the round; about 26 min left in it
+  round 11 probe 1/4: 150/162 candidates, 1860 s into the round; about 26 min left in it
+  round 11 probe 1/4: 162/162 candidates, 1861 s into the round; about 26 min left in it
+  round 11 probe 2/4: 50/162 candidates, 2427 s into the round; about 19 min left in it
+  round 11 probe 2/4: 100/162 candidates, 2427 s into the round; about 19 min left in it
+  round 11 probe 2/4: 150/162 candidates, 2429 s into the round; about 19 min left in it
+  round 11 probe 2/4: 162/162 candidates, 2430 s into the round; about 19 min left in it
+  round 11 probe 3/4: 50/162 candidates, 2988 s into the round; about 9 min left in it
+  round 11 probe 3/4: 100/162 candidates, 2989 s into the round; about 9 min left in it
+  round 11 probe 3/4: 150/162 candidates, 2991 s into the round; about 9 min left in it
+  round 11 probe 3/4: 162/162 candidates, 2992 s into the round; about 9 min left in it
+  round 11 probe 4/4: 50/162 candidates, 3548 s into the round; under a minute left in it
+  round 11 probe 4/4: 100/162 candidates, 3549 s into the round; under a minute left in it
+  round 11 probe 4/4: 150/162 candidates, 3551 s into the round; under a minute left in it
+  round 11 probe 4/4: 162/162 candidates, 3552 s into the round; under a minute left in it
+round 11: 530 functions, E -56.51736555, 3552 s
+  shape (A, deg): 1.02115 1.02115 1.02115 106.327 106.328 106.327
+  added 0, predicted to move: +0.00000 +0.00000 +0.00000 +0.000 +0.000 +0.000; left 0.58
+ammonia: settled after 12 rounds, 3552 s

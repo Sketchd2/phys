@@ -1,0 +1,4 @@
+water: 214 functions, field step 0.002, 1 frozen cores
+  19 fields in 130 s
+  Hartree-Fock: mean 8.7269 bohr^3, diagonal 9.9504 8.2241 8.0062, off-diagonal -2.0e-1 2.6e-7 -1.7e-7
+  MP2: mean 9.9698 bohr^3, diagonal 10.8212 9.4076 9.6806, off-diagonal -2.1e-2 2.5e-7 -1.1e-7

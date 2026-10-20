@@ -1,0 +1,30 @@
+induced dipoles on the gpu induction (f64, NVIDIA GeForce RTX 2060 via Vulkan)
+pair loop on the gpu pair loop (f64, NVIDIA GeForce RTX 2060 via Vulkan)
+water at 298 K: 216 molecules, 1 g/cm3, box 35.20 bohr, cut-off 16.0 bohr; bonds held at 0.97894 A, angle free (production step 40 au = 0.97 fs); 12 threads
+  start: U/N -4.11 kcal/mol (one force evaluation took 0.04 s)
+  easing: U/N -9.26 kcal/mol, intra 0.61, T 317 (centres) / 312 (all) K, P -2313 bar; 34.3 ms a step
+  settling: U/N -11.30 kcal/mol, intra 0.63, T 287 (centres) / 295 (all) K, P -534 bar; 34.7 ms a step
+  warming: U/N -11.63 kcal/mol, intra 0.62, T 291 (centres) / 292 (all) K, P -1308 bar; 34.8 ms a step
+  0% after 0 s: U/N -11.62 kcal/mol, P -1337 bar
+  8% after 299 s: U/N -11.75 kcal/mol, P -1857 bar
+  17% after 599 s: U/N -11.73 kcal/mol, P -1959 bar
+  25% after 899 s: U/N -11.86 kcal/mol, P 277 bar
+  33% after 1198 s: U/N -11.79 kcal/mol, P -2969 bar
+  42% after 1498 s: U/N -11.85 kcal/mol, P -1471 bar
+  50% after 1797 s: U/N -11.95 kcal/mol, P -1297 bar
+  58% after 2097 s: U/N -12.01 kcal/mol, P -2231 bar
+  67% after 2397 s: U/N -12.01 kcal/mol, P -2213 bar
+  75% after 2696 s: U/N -12.01 kcal/mol, P -2566 bar
+  83% after 3030 s: U/N -11.92 kcal/mol, P -1615 bar
+  92% after 3329 s: U/N -11.92 kcal/mol, P -1525 bar
+  100% after 3628 s: U/N -12.15 kcal/mol, P -1712 bar
+water at 298 K (803 samples over 80 ps, block standard errors; 3628.5 s of production):
+  U_inter/N -11.949 +- 0.039 kcal/mol; E_intra/N 0.639 +- 0.003 (a classical gas molecule's: 0.638)
+  heat of vaporisation -(U_inter/N + E_intra/N - E_intra_gas) + RT = 12.541 kcal/mol
+  pressure -2146 +- 84 bar at 1 g/cm3
+  temperatures: centres 298.7 K, all atoms 297.4 K (bath 298 K)
+  mean r_OH 0.9789 +- 0.0000 A, mean H-O-H 105.45 degrees (the monomer's relaxed values: 0.9615 A, 104.15)
+  g(OO): first peak 2.93 at 2.75 A, first minimum 0.84 at 3.25 A, second peak 1.12 at 4.75 A, coordination to the minimum 4.08 (bulk-water-298-flex2.gOO.txt)
+  snapshot in bulk-water-298-flex2.snap
+  GPU solve: 121354 calls, 7.32 ms each on the card (submit to readback), 7.73 ms each with preparation and reading back
+  GPU pair loop: 121354 calls, 6.67 ms each on the card, 7.03 ms each with preparation and reading back

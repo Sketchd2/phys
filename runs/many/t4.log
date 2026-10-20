@@ -1,0 +1,8 @@
+final non-local energies on gpu (f32, NVIDIA GeForce RTX 2060 via Vulkan)
+Hartree-Fock passes on gpu Fock (f64, NVIDIA GeForce RTX 2060 via Vulkan)
+Hartree-Fock and MP2 products on gpu products (f32, NVIDIA GeForce RTX 2060 via Vulkan)
+water cluster of 4 about molecule 0 of bulk-water-298.snap: molecules [0, 167, 147, 77]
+  the cluster: 856 functions, 3748 auxiliary, a table of at most 11.0 GB; a pair: 428 functions, at most 1.38 GB
+  whitened integrals: 10.3 GB in 39 segments of 255 MB: 13 on the card, 9 in memory, 17 on disk; orbitals 32 to a block
+  field 1 of 5 done: 2348 s so far (2348 s Hartree-Fock, 10 iterations; 0 s MP2)
+the first field of the cluster of 4: 2348 s

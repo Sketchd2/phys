@@ -1,0 +1,170 @@
+    pub fn forces(&self, law: &dyn SiteLaw, warm: Option<&[Vec<Vec3>]>) -> FlexForces {
+        let n = self.pos.len();
+        let ns = self.sites.types.len();
+        let centres: Vec<Vec3> = (0..n).map(|i| self.centre(i)).collect();
+        let sites: Vec<Vec<Vec3>> = (0..n).map(|i| self.site_positions(i)).collect();
+        let types = &self.sites.types;
+        let mtot = self.total_mass();
+        // A cloud that follows each molecule's angle: its parameters, and the law's table.
+        let geo_params: Option<Vec<crate::geolaw::CloudParams>> = self.geo.as_ref().map(|g| self.pos.iter().map(|p| g.params(crate::geolaw::GeoCloud::angle(p))).collect());
+        let table: Option<&crate::liquid::SiteSite> = if self.geo.is_some() { Some(law.site_site().expect("a geometry-following cloud needs a site-site law")) } else { None };
+        let job = |idx: &mut dyn Iterator<Item = usize>| {
+            idx.map(|i| {
+                let mut fsite = vec![Vec3::ZERO; ns];
+                let (mut gq, mut gs) = (vec![0.0; ns], vec![0.0; ns]);
+                let (mut e, mut fc, mut w) = (0.0, Vec3::ZERO, 0.0);
+                for j in 0..n {
+                    if j == i {
+                        continue;
+                    }
+                    let d = self.image(centres[i] - centres[j]);
+                    let dist = d.norm();
+                    if dist >= self.r_cut {
+                        continue;
+                    }
+                    let (s, ds) = switch(dist, self.r_on, self.r_cut);
+                    let mut u = 0.0;
+                    let mut net = Vec3::ZERO;
+                    for a in 0..ns {
+                        let pa = sites[i][a] - centres[i];
+                        for b in 0..ns {
+                            let pb = sites[j][b] - centres[j];
+                            let r = d + pa - pb;
+                            let rr = r.norm();
+                            let (v, dv) = match (&geo_params, table) {
+                                (Some(gp), Some(t)) => {
+                                    let (v, dv, g) = t.site_pair_with(types[a], types[b], rr, gp[i].charge[types[a]], gp[j].charge[types[b]], gp[i].sigma[types[a]], gp[j].sigma[types[b]]);
+                                    gq[a] += s * g[0];
+                                    gs[a] += s * g[2];
+                                    (v, dv)
+                                }
+                                _ => law.site_pair(types[a], types[b], rr),
+                            };
+                            u += v;
+                            let f = r.scale(-dv / rr);
+                            fsite[a] += f.scale(s);
+                            net += f.scale(s);
+                        }
+                    }
+                    e += 0.5 * s * u;
+                    let switch_force = d.scale(-u * ds / dist);
+                    fc += switch_force;
+                    w += d.dot(net + switch_force);
+                }
+                (i, e, fsite, fc, w, gq, gs)
+            })
+            .collect::<Vec<_>>()
+        };
+        let mut energy = 0.0;
+        let mut virial = 0.0;
+        let mut force = vec![[Vec3::ZERO; 3]; n];
+        // Per molecule, per site: the energy's derivative with respect to the site's charge and
+        // Coulomb width, and the force on the bisector site, for the angle's part of the force.
+        let mut gq = vec![vec![0.0; ns]; n];
+        let mut gs = vec![vec![0.0; ns]; n];
+        let mut fbis = vec![Vec3::ZERO; n];
+        let bis_site: Option<usize> = self.sites.anchors.iter().position(|a| matches!(a, Anchor::Bisector(_)));
+        for part in crate::electrons::scf::parallel_interleaved(n, &job) {
+            for (i, e, fsite, fc, w, q, sg) in part {
+                energy += e;
+                virial += 0.5 * w;
+                if let Some(kb) = bis_site {
+                    fbis[i] += fsite[kb];
+                }
+                gq[i] = q;
+                gs[i] = sg;
+                let mut atoms = self.to_atoms(i, &fsite);
+                for a in 0..3 {
+                    atoms[a] += fc.scale(self.masses[a] / mtot);
+                }
+                for a in 0..3 {
+                    force[i][a] += atoms[a];
+                }
+            }
+        }
+        let mut dipoles = Vec::new();
+        if let Some((alpha, charge)) = law.induction() {
+            let widths = law.charge_widths();
+            let pol: Vec<usize> = (0..ns).filter(|&k| alpha[types[k]] > 0.0).collect();
+            let charged: Vec<usize> = (0..ns).filter(|&k| charge[types[k]] != 0.0).collect();
+            let mut cl = Cluster::default();
+            for i in 0..n {
+                cl.pol.push(pol.iter().map(|&k| PolSite { pos: sites[i][k], alpha: alpha[types[k]] }).collect());
+                cl.charges.push(
+                    charged
+                        .iter()
+                        .map(|&k| match &geo_params {
+                            Some(gp) => Charge { pos: sites[i][k], q: gp[i].charge[types[k]], sigma: gp[i].sigma[types[k]] },
+                            None => Charge { pos: sites[i][k], q: charge[types[k]], sigma: widths.get(types[k]).copied().unwrap_or(0.0) },
+                        })
+                        .collect(),
+                );
+            }
+            let mut links = Vec::new();
+            for i in 0..n {
+                for j in i + 1..n {
+                    let raw = centres[i] - centres[j];
+                    let d = self.image(raw);
+                    let dist = d.norm();
+                    if dist >= self.r_cut {
+                        continue;
+                    }
+                    let (wgt, dw) = switch(dist, self.r_on, self.r_cut);
+                    links.push(Link { i, j, shift: raw - d, weight: wgt, dweight: dw, d });
+                }
+            }
+            let out = solve(&cl, &links, warm, 1e-9);
+            energy += out.energy;
+            virial += out.virial;
+            if geo_params.is_some() {
+                let (dq, ds) = crate::induction::charge_gradients(&cl, &links, &out.dipoles);
+                for i in 0..n {
+                    for (c, &k) in charged.iter().enumerate() {
+                        gq[i][k] += dq[i][c];
+                        gs[i][k] += ds[i][c];
+                    }
+                }
+            }
+            for i in 0..n {
+                let mut fsite = vec![Vec3::ZERO; ns];
+                for (a, &k) in pol.iter().enumerate() {
+                    fsite[k] += out.force_pol[i][a];
+                }
+                for (c, &k) in charged.iter().enumerate() {
+                    fsite[k] += out.force_charge[i][c];
+                }
+                if let Some(kb) = bis_site {
+                    fbis[i] += fsite[kb];
+                }
+                let atoms = self.to_atoms(i, &fsite);
+                for a in 0..3 {
+                    force[i][a] += atoms[a];
+                }
+            }
+            for (k, l) in links.iter().enumerate() {
+                for a in 0..3 {
+                    force[l.i][a] += out.link_force[k].scale(self.masses[a] / mtot);
+                    force[l.j][a] -= out.link_force[k].scale(self.masses[a] / mtot);
+                }
+            }
+            dipoles = out.dipoles;
+        }
+        // The angle enters the energy twice more: through each charge and width, and through the
+        // bisector cloud's distance. With theta the molecule's angle, the generalised force
+        // `F_bis . w_hat * d'(theta) - dE/dtheta` acts along `grad theta`.
+        if let Some(g) = &self.geo {
+            for i in 0..n {
+                let th = crate::geolaw::GeoCloud::angle(&self.pos[i]);
+                let dp = g.dparams(th);
+                let mut de_dth = 0.0;
+                for k in 0..ns {
+                    de_dth += gq[i][k] * dp.charge[types[k]] + gs[i][k] * dp.sigma[types[k]];
+                }
+                let (u, v) = ((self.pos[i][1] - self.pos[i][0]).unit(), (self.pos[i][2] - self.pos[i][0]).unit());
+                let kappa = fbis[i].dot((u + v).unit()) * dp.d - de_dth;
+                let grad = angle_gradient(&self.pos[i]);
+                for a in 0..3 {
+                    force[i][a] += grad[a].scale(kappa);
+                }
+            }
+        }

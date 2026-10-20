@@ -1,0 +1,16 @@
+216 molecules, box 35.197 bohr, cut-off 14-16, law law.txt
+  truncated (as phys-bulk)     U/N  -10.4235 kcal/mol   P     577.5 bar   (0.1 s)
+  Ewald s' = 4.2 (2568 k)      U/N  -10.5657 kcal/mol   P     819.1 bar   (0.3 s)
+force and torque of molecules against central differences of the energy (s' = 4.2):
+  molecule   0 axis 0: force +4.098601e-3 vs +4.098592e-3 (diff +8.5e-9); torque +1.786236e-3 vs +1.786239e-3 (diff -2.7e-9)
+  molecule   0 axis 1: force -1.509670e-3 vs -1.509669e-3 (diff -7.8e-10); torque +6.482686e-3 vs +6.482667e-3 (diff +1.9e-8)
+  molecule   0 axis 2: force +1.600357e-3 vs +1.600367e-3 (diff -9.5e-9); torque +1.896774e-3 vs +1.896732e-3 (diff +4.1e-8)
+  molecule  17 axis 0: force +5.501089e-4 vs +5.500868e-4 (diff +2.2e-8); torque +4.659594e-3 vs +4.659598e-3 (diff -3.6e-9)
+  molecule  17 axis 1: force +3.603326e-3 vs +3.603323e-3 (diff +3.0e-9); torque +1.584032e-7 vs +1.582541e-7 (diff +1.5e-10)
+  molecule  17 axis 2: force -7.700546e-4 vs -7.700660e-4 (diff +1.1e-8); torque -2.994962e-3 vs -2.994950e-3 (diff -1.2e-8)
+  molecule 101 axis 0: force -1.082369e-2 vs -1.082368e-2 (diff -3.6e-9); torque +7.154518e-3 vs +7.154499e-3 (diff +2.0e-8)
+  molecule 101 axis 1: force +1.300355e-3 vs +1.300363e-3 (diff -8.2e-9); torque +6.337592e-3 vs +6.337567e-3 (diff +2.6e-8)
+  molecule 101 axis 2: force +1.176073e-2 vs +1.176074e-2 (diff -1.3e-8); torque -8.967729e-4 vs -8.967258e-4 (diff -4.7e-8)
+virial against -dU/dln(lambda) under rigid scaling of the box and the centres:
+  truncated  virial -3.547303e-1  finite difference -3.547123e-1  (diff -1.81e-5 hartree = -0.0 bar)
+  Ewald      virial -2.473376e-1  finite difference -2.473201e-1  (diff -1.75e-5 hartree = -0.0 bar)

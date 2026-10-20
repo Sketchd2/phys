@@ -1,0 +1,39 @@
+  pair    8 O-O 3.14  shortest H..O 2.30 A at O-H..O 144 deg | MP2 slope +0.318 law +0.440 err +0.122 | es +2.77 ind +0.65 rep -3.46 disp +0.47
+  pair    9 O-O 3.19  shortest H..O 2.22 A at O-H..O 171 deg | MP2 slope +0.155 law +0.404 err +0.249 | es +3.08 ind +0.81 rep -4.20 disp +0.71
+  pair   10 O-O 3.35  shortest H..O 2.89 A at O-H..O 110 deg | MP2 slope -1.637 law -1.269 err +0.369 | es -0.27 ind +0.09 rep -1.57 disp +0.48
+  pair   11 O-O 3.02  shortest H..O 2.09 A at O-H..O 156 deg | MP2 slope +0.734 law +0.723 err -0.011 | es +5.68 ind +1.24 rep -6.92 disp +0.72
+  pair   17 O-O 3.08  shortest H..O 2.20 A at O-H..O 149 deg | MP2 slope -0.447 law +0.052 err +0.499 | es +3.06 ind +0.85 rep -4.49 disp +0.63
+  pair   20 O-O 3.03  shortest H..O 2.46 A at O-H..O 117 deg | MP2 slope -1.568 law -1.344 err +0.223 | es +2.26 ind +0.46 rep -4.58 disp +0.52
+  pair   21 O-O 3.02  shortest H..O 2.07 A at O-H..O 161 deg | MP2 slope +0.145 law +0.084 err -0.061 | es +5.94 ind +1.32 rep -7.92 disp +0.74
+  pair   24 O-O 3.44  shortest H..O 2.83 A at O-H..O 121 deg | MP2 slope -0.887 law -1.058 err -0.171 | es -0.68 ind +0.14 rep -1.00 disp +0.48
+  pair   25 O-O 3.46  shortest H..O 3.11 A at O-H..O 103 deg | MP2 slope -1.001 law -0.756 err +0.245 | es -0.20 ind +0.05 rep -0.96 disp +0.35
+  pair   26 O-O 3.41  shortest H..O 3.13 A at O-H..O 98 deg | MP2 slope -1.096 law -0.805 err +0.291 | es -0.32 ind +0.06 rep -0.83 disp +0.28
+  pair   35 O-O 3.08  shortest H..O 2.16 A at O-H..O 155 deg | MP2 slope +0.470 law +0.345 err -0.125 | es +4.02 ind +0.98 rep -5.34 disp +0.68
+  pair   41 O-O 3.20  shortest H..O 2.27 A at O-H..O 157 deg | MP2 slope +1.395 law +1.502 err +0.107 | es +3.14 ind +0.73 rep -2.81 disp +0.44
+  pair   44 O-O 3.59  shortest H..O 3.03 A at O-H..O 118 deg | MP2 slope -0.263 law -0.070 err +0.193 | es +0.05 ind +0.06 rep -0.41 disp +0.22
+  pair   48 O-O 3.44  shortest H..O 2.84 A at O-H..O 120 deg | MP2 slope -0.752 law -0.561 err +0.191 | es -0.46 ind +0.11 rep -0.50 disp +0.28
+  pair   49 O-O 3.84  shortest H..O 2.92 A at O-H..O 158 deg | MP2 slope +0.183 law +0.233 err +0.050 | es +0.28 ind +0.10 rep -0.49 disp +0.34
+  pair   52 O-O 3.21  shortest H..O 2.58 A at O-H..O 122 deg | MP2 slope -0.553 law -0.191 err +0.362 | es +0.37 ind +0.25 rep -1.08 disp +0.27
+  pair   59 O-O 3.10  shortest H..O 2.24 A at O-H..O 145 deg | MP2 slope -0.534 law -0.259 err +0.275 | es +3.14 ind +0.75 rep -4.78 disp +0.63
+  pair   60 O-O 3.67  shortest H..O 2.92 A at O-H..O 135 deg | MP2 slope -0.368 law -0.299 err +0.070 | es -0.36 ind +0.10 rep -0.28 disp +0.24
+  pair   61 O-O 3.85  shortest H..O 3.20 A at O-H..O 125 deg | MP2 slope -0.541 law -0.534 err +0.008 | es -0.45 ind +0.06 rep -0.52 disp +0.38
+  pair   63 O-O 3.51  shortest H..O 2.79 A at O-H..O 131 deg | MP2 slope -0.429 law -0.475 err -0.045 | es +0.56 ind +0.21 rep -1.97 disp +0.72
+  pair   64 O-O 3.49  shortest H..O 3.05 A at O-H..O 108 deg | MP2 slope +0.001 law -0.011 err -0.012 | es +0.03 ind +0.07 rep -0.25 disp +0.13
+  pair   67 O-O 3.57  shortest H..O 2.75 A at O-H..O 142 deg | MP2 slope +0.540 law +0.678 err +0.138 | es +0.85 ind +0.15 rep -0.64 disp +0.31
+  pair   70 O-O 3.87  shortest H..O 3.01 A at O-H..O 148 deg | MP2 slope -0.686 law -0.685 err +0.001 | es -0.84 ind +0.10 rep -0.26 disp +0.32
+  pair   72 O-O 3.17  shortest H..O 2.37 A at O-H..O 138 deg | MP2 slope +0.177 law +0.588 err +0.411 | es +2.28 ind +0.48 rep -2.68 disp +0.50
+  pair   75 O-O 3.48  shortest H..O 3.25 A at O-H..O 95 deg | MP2 slope -0.981 law -0.818 err +0.163 | es -0.60 ind +0.05 rep -0.50 disp +0.23
+  pair   77 O-O 3.30  shortest H..O 2.35 A at O-H..O 164 deg | MP2 slope +1.483 law +1.448 err -0.036 | es +2.67 ind +0.59 rep -2.20 disp +0.39
+  pair   79 O-O 3.10  shortest H..O 2.44 A at O-H..O 124 deg | MP2 slope +0.153 law +0.360 err +0.207 | es +1.51 ind +0.40 rep -1.87 disp +0.32
+  pair   80 O-O 3.03  shortest H..O 2.06 A at O-H..O 172 deg | MP2 slope +0.394 law +0.485 err +0.091 | es +5.36 ind +1.37 rep -6.90 disp +0.66
+  pair   82 O-O 3.82  shortest H..O 3.31 A at O-H..O 114 deg | MP2 slope +0.231 law +0.242 err +0.011 | es +0.18 ind +0.04 rep -0.07 disp +0.09
+  pair   85 O-O 3.29  shortest H..O 2.56 A at O-H..O 132 deg | MP2 slope +0.873 law +1.008 err +0.135 | es +1.38 ind +0.28 rep -0.92 disp +0.27
+  pair   91 O-O 3.82  shortest H..O 3.16 A at O-H..O 125 deg | MP2 slope +0.452 law +0.405 err -0.048 | es +0.31 ind +0.07 rep -0.04 disp +0.07
+  pair   99 O-O 3.60  shortest H..O 3.27 A at O-H..O 102 deg | MP2 slope +0.070 law +0.202 err +0.131 | es +0.20 ind +0.05 rep -0.16 disp +0.10
+slopes along the line of centres, kcal/mol per bohr, mean over the pairs in each O-O shell: 83 pairs
+  O-O (A)      n     MP2    law   law-MP2 | electrostatics  induction  repulsion  dispersion
+  0.0-2.8     4   -4.157  -4.096   0.061 |     11.825      2.300    -19.465      1.244
+  2.8-3.1    11   -0.218  -0.189   0.029 |      5.016      1.168     -7.054      0.681
+  3.1-3.4     8    0.276   0.491   0.215 |      1.929      0.485     -2.364      0.441
+  3.4-3.8    11   -0.470  -0.361   0.109 |     -0.083      0.097     -0.681      0.306
+  3.8-4.7    29    0.130   0.108  -0.022 |      0.051      0.030     -0.065      0.091

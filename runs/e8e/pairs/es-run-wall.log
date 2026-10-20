@@ -1,0 +1,121 @@
+Hartree-Fock passes on gpu Fock (f64, NVIDIA GeForce RTX 2060 via Vulkan)
+  whitened integrals: 2.6 GB in 10 segments of 255 MB: 10 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 0: O-O 2.15 A, electrostatic -16.861 kcal/mol, 102 s
+  whitened integrals: 2.6 GB in 10 segments of 255 MB: 10 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 1: O-O 2.17 A, electrostatic -32.883 kcal/mol, 135 s
+  whitened integrals: 2.5 GB in 10 segments of 255 MB: 10 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 2: O-O 1.38 A, electrostatic -297.454 kcal/mol, 116 s
+  whitened integrals: 2.6 GB in 10 segments of 255 MB: 10 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 3: O-O 2.09 A, electrostatic -37.148 kcal/mol, 129 s
+  whitened integrals: 2.5 GB in 10 segments of 255 MB: 10 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 4: O-O 2.43 A, electrostatic -30.794 kcal/mol, 97 s
+  whitened integrals: 2.6 GB in 10 segments of 255 MB: 10 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 5: O-O 2.90 A, electrostatic -4.481 kcal/mol, 111 s
+  whitened integrals: 2.6 GB in 10 segments of 255 MB: 10 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 6: O-O 2.78 A, electrostatic -6.598 kcal/mol, 106 s
+  whitened integrals: 2.6 GB in 10 segments of 255 MB: 10 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 7: O-O 1.89 A, electrostatic -55.068 kcal/mol, 110 s
+  whitened integrals: 2.5 GB in 10 segments of 255 MB: 10 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 8: O-O 1.63 A, electrostatic -174.406 kcal/mol, 100 s
+  whitened integrals: 2.5 GB in 10 segments of 255 MB: 10 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 9: O-O 1.68 A, electrostatic -177.425 kcal/mol, 113 s
+  whitened integrals: 2.5 GB in 10 segments of 255 MB: 10 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 10: O-O 1.85 A, electrostatic -87.714 kcal/mol, 101 s
+  whitened integrals: 2.5 GB in 10 segments of 255 MB: 10 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 11: O-O 1.59 A, electrostatic -152.222 kcal/mol, 113 s
+  whitened integrals: 2.6 GB in 10 segments of 255 MB: 10 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 12: O-O 2.48 A, electrostatic -7.758 kcal/mol, 112 s
+  whitened integrals: 2.5 GB in 10 segments of 255 MB: 10 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 13: O-O 2.33 A, electrostatic -26.430 kcal/mol, 118 s
+  whitened integrals: 2.5 GB in 10 segments of 255 MB: 10 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 14: O-O 2.42 A, electrostatic -24.501 kcal/mol, 250 s
+  whitened integrals: 2.6 GB in 10 segments of 255 MB: 10 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 15: O-O 2.81 A, electrostatic -9.427 kcal/mol, 109 s
+  whitened integrals: 2.6 GB in 10 segments of 255 MB: 10 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 16: O-O 2.12 A, electrostatic -32.543 kcal/mol, 151 s
+  whitened integrals: 2.5 GB in 10 segments of 255 MB: 10 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 17: O-O 1.66 A, electrostatic -154.374 kcal/mol, 102 s
+  whitened integrals: 2.5 GB in 10 segments of 255 MB: 10 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 18: O-O 1.44 A, electrostatic -242.925 kcal/mol, 104 s
+  whitened integrals: 2.6 GB in 10 segments of 255 MB: 10 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 19: O-O 2.45 A, electrostatic -13.308 kcal/mol, 107 s
+  whitened integrals: 2.5 GB in 10 segments of 255 MB: 10 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 20: O-O 2.27 A, electrostatic -27.367 kcal/mol, 104 s
+  whitened integrals: 2.6 GB in 10 segments of 255 MB: 10 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 21: O-O 2.25 A, electrostatic -32.227 kcal/mol, 106 s
+  whitened integrals: 2.6 GB in 10 segments of 255 MB: 10 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 22: O-O 2.46 A, electrostatic -14.744 kcal/mol, 105 s
+  whitened integrals: 2.6 GB in 10 segments of 255 MB: 10 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 23: O-O 2.79 A, electrostatic -9.946 kcal/mol, 106 s
+  whitened integrals: 2.6 GB in 10 segments of 255 MB: 10 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 24: O-O 2.83 A, electrostatic -6.966 kcal/mol, 106 s
+  whitened integrals: 2.6 GB in 10 segments of 255 MB: 10 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 25: O-O 2.17 A, electrostatic -40.706 kcal/mol, 107 s
+  whitened integrals: 2.6 GB in 10 segments of 255 MB: 10 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 26: O-O 2.55 A, electrostatic -6.463 kcal/mol, 104 s
+  whitened integrals: 2.6 GB in 10 segments of 255 MB: 10 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 27: O-O 2.56 A, electrostatic -13.766 kcal/mol, 105 s
+  whitened integrals: 2.6 GB in 10 segments of 255 MB: 10 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 28: O-O 2.08 A, electrostatic -33.818 kcal/mol, 105 s
+  whitened integrals: 2.5 GB in 10 segments of 255 MB: 10 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 29: O-O 1.89 A, electrostatic -85.661 kcal/mol, 105 s
+  whitened integrals: 2.6 GB in 10 segments of 255 MB: 10 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 30: O-O 2.74 A, electrostatic -11.597 kcal/mol, 105 s
+  whitened integrals: 2.6 GB in 10 segments of 255 MB: 10 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 31: O-O 2.27 A, electrostatic -38.521 kcal/mol, 106 s
+  whitened integrals: 2.6 GB in 10 segments of 255 MB: 10 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 32: O-O 1.88 A, electrostatic -57.617 kcal/mol, 105 s
+  whitened integrals: 2.6 GB in 10 segments of 255 MB: 10 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 33: O-O 2.60 A, electrostatic -15.071 kcal/mol, 200 s
+  whitened integrals: 2.5 GB in 10 segments of 255 MB: 10 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 34: O-O 2.15 A, electrostatic -30.691 kcal/mol, 192 s
+  whitened integrals: 2.6 GB in 10 segments of 255 MB: 10 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 35: O-O 2.98 A, electrostatic -3.789 kcal/mol, 135 s
+  whitened integrals: 2.5 GB in 10 segments of 255 MB: 10 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 36: O-O 2.12 A, electrostatic -38.632 kcal/mol, 98 s
+  whitened integrals: 2.6 GB in 10 segments of 255 MB: 10 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 37: O-O 2.53 A, electrostatic -14.375 kcal/mol, 123 s
+  whitened integrals: 2.5 GB in 10 segments of 255 MB: 10 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 38: O-O 1.54 A, electrostatic -223.476 kcal/mol, 113 s
+  whitened integrals: 2.5 GB in 10 segments of 255 MB: 10 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 39: O-O 1.88 A, electrostatic -105.768 kcal/mol, 117 s
+  whitened integrals: 2.6 GB in 10 segments of 255 MB: 10 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 40: O-O 2.80 A, electrostatic -11.671 kcal/mol, 112 s
+  whitened integrals: 2.5 GB in 10 segments of 255 MB: 10 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 41: O-O 1.46 A, electrostatic -301.815 kcal/mol, 117 s
+  whitened integrals: 2.5 GB in 10 segments of 255 MB: 10 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 42: O-O 2.50 A, electrostatic -13.626 kcal/mol, 116 s
+  whitened integrals: 2.6 GB in 10 segments of 255 MB: 10 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 43: O-O 2.88 A, electrostatic -1.277 kcal/mol, 117 s
+  whitened integrals: 2.5 GB in 10 segments of 255 MB: 10 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 44: O-O 1.62 A, electrostatic -182.478 kcal/mol, 105 s
+  whitened integrals: 2.5 GB in 10 segments of 255 MB: 10 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 45: O-O 2.46 A, electrostatic -14.112 kcal/mol, 114 s
+  whitened integrals: 2.6 GB in 10 segments of 255 MB: 10 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 46: O-O 1.94 A, electrostatic -54.896 kcal/mol, 108 s
+  whitened integrals: 2.5 GB in 10 segments of 255 MB: 10 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 47: O-O 2.19 A, electrostatic -23.701 kcal/mol, 113 s
+  whitened integrals: 2.6 GB in 10 segments of 255 MB: 10 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 48: O-O 2.04 A, electrostatic -30.682 kcal/mol, 139 s
+  whitened integrals: 2.6 GB in 10 segments of 255 MB: 10 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 49: O-O 2.34 A, electrostatic -17.577 kcal/mol, 240 s
+  whitened integrals: 2.6 GB in 10 segments of 255 MB: 10 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 50: O-O 2.81 A, electrostatic -13.876 kcal/mol, 115 s
+  whitened integrals: 2.6 GB in 10 segments of 255 MB: 10 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 51: O-O 2.41 A, electrostatic -16.204 kcal/mol, 130 s
+  whitened integrals: 2.6 GB in 10 segments of 255 MB: 10 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 52: O-O 2.26 A, electrostatic -10.289 kcal/mol, 105 s
+  whitened integrals: 2.6 GB in 10 segments of 255 MB: 10 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 53: O-O 2.50 A, electrostatic -15.343 kcal/mol, 105 s
+  whitened integrals: 2.5 GB in 10 segments of 255 MB: 10 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 54: O-O 1.82 A, electrostatic -102.121 kcal/mol, 107 s
+  whitened integrals: 2.5 GB in 10 segments of 255 MB: 10 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 55: O-O 2.65 A, electrostatic -10.546 kcal/mol, 105 s
+  whitened integrals: 2.5 GB in 10 segments of 255 MB: 10 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 56: O-O 2.50 A, electrostatic -7.944 kcal/mol, 108 s
+  whitened integrals: 2.6 GB in 10 segments of 255 MB: 10 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 57: O-O 2.91 A, electrostatic -1.667 kcal/mol, 103 s
+  whitened integrals: 2.6 GB in 10 segments of 255 MB: 10 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 58: O-O 2.87 A, electrostatic -5.692 kcal/mol, 106 s
+  whitened integrals: 2.5 GB in 10 segments of 255 MB: 10 on the card, 0 in memory, 0 on disk; orbitals 32 to a block
+pair 59: O-O 1.56 A, electrostatic -181.645 kcal/mol, 103 s

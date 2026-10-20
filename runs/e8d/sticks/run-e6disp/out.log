@@ -1,0 +1,38 @@
+sticks: 216 flexible waters, 1 g/cm3, 298 K, box 35.20 bohr, cut-off 14-16, Ewald s' 4.2 (1535 k), q_H 0.3238
+  easing 0% after 0 s: inter U/N -3.50, spring 0.00 kcal/mol, T 275 K, P 7967 bar
+  easing 17% after 19 s: inter U/N -6.03, spring 1.04 kcal/mol, T 328 K, P -5344 bar
+  easing 33% after 39 s: inter U/N -6.35, spring 0.97 kcal/mol, T 297 K, P 675 bar
+  easing 50% after 142 s: inter U/N -6.57, spring 1.00 kcal/mol, T 295 K, P -5761 bar
+  easing 67% after 165 s: inter U/N -6.57, spring 0.98 kcal/mol, T 292 K, P 2691 bar
+  easing 83% after 185 s: inter U/N -6.63, spring 1.03 kcal/mol, T 301 K, P -586 bar
+  easing 100% after 205 s: inter U/N -6.73, spring 1.09 kcal/mol, T 281 K, P -2558 bar
+  settling 0% after 205 s: inter U/N -6.72, spring 1.08 kcal/mol, T 282 K, P -2483 bar
+  settling 17% after 239 s: inter U/N -6.61, spring 1.02 kcal/mol, T 310 K, P 987 bar
+  settling 33% after 306 s: inter U/N -6.72, spring 1.12 kcal/mol, T 304 K, P -1977 bar
+  settling 50% after 368 s: inter U/N -6.84, spring 1.12 kcal/mol, T 306 K, P -1767 bar
+  settling 67% after 433 s: inter U/N -6.79, spring 1.23 kcal/mol, T 295 K, P -1904 bar
+  settling 83% after 467 s: inter U/N -6.63, spring 1.12 kcal/mol, T 316 K, P -2015 bar
+  settling 100% after 500 s: inter U/N -6.77, spring 1.14 kcal/mol, T 291 K, P 421 bar
+  settling 100% after 500 s: inter U/N -6.77, spring 1.14 kcal/mol, T 292 K, P 623 bar
+  warming 0% after 500 s: inter U/N -6.77, spring 1.13 kcal/mol, T 291 K, P 927 bar
+  warming 17% after 573 s: inter U/N -6.72, spring 1.10 kcal/mol, T 305 K, P -2255 bar
+  warming 33% after 657 s: inter U/N -6.63, spring 1.06 kcal/mol, T 300 K, P 2322 bar
+  warming 50% after 731 s: inter U/N -6.78, spring 1.05 kcal/mol, T 280 K, P 1046 bar
+  warming 67% after 809 s: inter U/N -6.63, spring 1.05 kcal/mol, T 296 K, P 4055 bar
+  warming 83% after 884 s: inter U/N -6.67, spring 1.09 kcal/mol, T 282 K, P -1308 bar
+  warming 100% after 964 s: inter U/N -6.59, spring 1.04 kcal/mol, T 307 K, P 1302 bar
+  warming 100% after 965 s: inter U/N -6.60, spring 1.05 kcal/mol, T 305 K, P 1410 bar
+  production 0% after 965 s: inter U/N -6.61, spring 1.06 kcal/mol, T 305 K, P 1202 bar
+  production 17% after 1269 s: inter U/N -6.73, spring 1.16 kcal/mol, T 295 K, P 866 bar
+  production 33% after 1578 s: inter U/N -6.85, spring 1.15 kcal/mol, T 284 K, P -2394 bar
+  production 50% after 1901 s: inter U/N -6.66, spring 1.22 kcal/mol, T 291 K, P -482 bar
+  production 67% after 2206 s: inter U/N -6.78, spring 1.17 kcal/mol, T 310 K, P -3408 bar
+  production 83% after 2531 s: inter U/N -6.73, spring 1.24 kcal/mol, T 306 K, P -3214 bar
+  production 100% after 2815 s: inter U/N -6.68, spring 1.12 kcal/mol, T 292 K, P 1505 bar
+sticks at 298 K, 216 molecules, 1 g/cm3 (160 samples over 16 ps):
+  intermolecular U/N -6.728 +- 0.026 kcal/mol (with the dispersion tail -6.830); heat of vaporisation -U/N + RT = 7.321 (7.422 with the tail)
+  spring energy 1.129 kcal/mol a molecule (equipartition: 3 x 1/2 RT = 0.888)
+  pressure 379 +- 147 bar (block); with the dispersion tail 143 bar [tail -235]
+  temperature 297.7 K; energy parts a molecule: Coulomb -6.16, repulsion 5.06, dispersion 5.63
+  g(OO): first peak 2.20 at 2.85 A, first minimum 0.84 at 4.45 A, 12.01 neighbours inside it
+  wall time 2815 s

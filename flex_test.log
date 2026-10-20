@@ -1,0 +1,40 @@
+   Compiling phys v0.1.0 (E:\Projects\phys)
+warning: unused import: `Purpose`
+  --> src\flex.rs:32:18
+   |
+32 | use crate::rng::{Purpose, Stream};
+   |                  ^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `root2`
+   --> src\induction.rs:243:9
+    |
+243 |     let root2 = (2.0f64).sqrt();
+    |         ^^^^^ help: if this is intentional, prefix it with an underscore: `_root2`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: `phys` (lib) generated 2 warnings (run `cargo fix --lib -p phys` to apply 2 suggestions)
+warning: `phys` (lib) generated 2 warnings (2 duplicates)
+    Finished `release` profile [optimized] target(s) in 1m 27s
+     Running tests\flex.rs (target/dev2\release\deps\flex-0fe85c522945de80.exe)
+
+running 4 tests
+test the_virtual_site_hands_its_force_to_the_atoms_consistently ... ok
+test the_surface_has_its_minimum_at_zero_and_its_forces_are_its_gradient ... ok
+  molecule 0 atom 0 axis 0: force +2.06921900e-3, minus the gradient +2.06921904e-3
+  molecule 0 atom 1 axis 1: force -2.09368303e-3, minus the gradient -2.09368594e-3
+  molecule 0 atom 2 axis 2: force -5.86973155e-3, minus the gradient -5.86973030e-3
+  molecule 3 atom 0 axis 1: force +3.64998038e-3, minus the gradient +3.64998016e-3
+  molecule 5 atom 1 axis 0: force +2.01473374e-2, minus the gradient +2.01473370e-2
+  molecule 7 atom 2 axis 2: force +2.50691587e-3, minus the gradient +2.50691549e-3
+  molecule 2 atom 0 axis 2: force +2.11320989e-2, minus the gradient +2.11320998e-2
+  molecule 6 atom 1 axis 1: force -4.75214229e-3, minus the gradient -4.75214215e-3
+test the_forces_are_minus_the_gradient_of_the_energy ... ok
+  bond None: energy wandered by 1.869e-4 hartree over 150 steps of 20, worst bond error 0.00e0
+  bond Some(1.8498529033961664): energy wandered by 2.621e-5 hartree over 150 steps of 40, worst bond error 8.40e-16
+test bonds_hold_and_a_short_run_conserves_energy ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s
+

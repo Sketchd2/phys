@@ -1,0 +1,27 @@
+induced dipoles on, polarisabilities by site type [9.234316455280853, 0.8544488912439157, 0.0, 0.0, 0.0] bohr^3
+water at 298 K: 216 molecules, 0.95 g/cm3, box 35.80 bohr (18.95 A), cut-off 16.0 bohr
+  Ewald sum on: s' = 4.2 bohr, 1619 reciprocal vectors
+  start: U/N -3.71 kcal/mol
+  easing: U/N -8.41 kcal/mol, T 321/319 K, P -2940 bar
+  settling: U/N -10.04 kcal/mol, T 299/282 K, P -825 bar
+  warming: U/N -10.08 kcal/mol, T 302/307 K, P -68 bar
+  0% after 2001 s: U/N -10.06 kcal/mol, P -20 bar
+  8% after 2264 s: U/N -10.19 kcal/mol, P -1591 bar
+  17% after 2527 s: U/N -9.94 kcal/mol, P -736 bar
+  25% after 2790 s: U/N -10.01 kcal/mol, P -1315 bar
+  33% after 3053 s: U/N -10.19 kcal/mol, P -1063 bar
+  42% after 3316 s: U/N -10.03 kcal/mol, P -1572 bar
+  50% after 3578 s: U/N -10.24 kcal/mol, P -1396 bar
+  58% after 3840 s: U/N -10.18 kcal/mol, P -914 bar
+  67% after 4101 s: U/N -10.03 kcal/mol, P -143 bar
+  75% after 4363 s: U/N -10.20 kcal/mol, P -948 bar
+  83% after 4625 s: U/N -10.20 kcal/mol, P -1260 bar
+  92% after 4887 s: U/N -10.28 kcal/mol, P -2070 bar
+  100% after 5149 s: U/N -10.32 kcal/mol, P -568 bar
+water at 298 K (241 samples over 24 ps, block standard errors):
+  U/N -10.146 +- 0.029 kcal/mol; heat of vaporisation -U/N + RT = 10.738 kcal/mol
+  pressure -1045 +- 41 bar at 0.95 g/cm3 (a liquid at the right density sits near 1 bar; positive says it wants to expand)
+  temperatures: translation 294.7 K, rotation 297.1 K (bath 298 K)
+  dispersion beyond the cut-off (C6 25.95): -105 bar and -0.048 kcal/mol a molecule, so pressure with it -1151 bar, U/N -10.193
+  g(first atoms): first peak 2.67 at 2.85 A, first minimum 0.88 at 3.45 A, second peak 1.09 at 4.95 A, coordination to the minimum 4.65 (bulk-water-298.gOO.txt)
+  snapshot in bulk-water-298.snap

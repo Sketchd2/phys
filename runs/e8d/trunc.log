@@ -1,0 +1,35 @@
+== r_cut 16 (r_on 14)
+induction, many-body solve: -4.889 kcal/mol per molecule (pair sum: -2.456); non-additive -2.432
+pair virial (all terms, pair induction)      10798 bar
+many-body induction virial beyond the pairs'    -13939 bar  (solve -28786, pairs -14847)
+PRESSURE (kinetic + pairs + many-body induction)    -1766 bar   <- compare the run
+                           with the tail beyond the cut-off    -1980 bar
+dispersion beyond the cut-off (C6 47.66)       -214 bar  ->  with the tail     11959 bar
+== r_cut 20 (r_on 18)
+induction, many-body solve: -4.573 kcal/mol per molecule (pair sum: -2.468); non-additive -2.105
+pair virial (all terms, pair induction)      11360 bar
+many-body induction virial beyond the pairs'    -11852 bar  (solve -26726, pairs -14874)
+PRESSURE (kinetic + pairs + many-body induction)      883 bar   <- compare the run
+                           with the tail beyond the cut-off      778 bar
+dispersion beyond the cut-off (C6 47.66)       -105 bar  ->  with the tail     12630 bar
+== r_cut 24 (r_on 22)
+induction, many-body solve: -4.451 kcal/mol per molecule (pair sum: -2.473); non-additive -1.979
+pair virial (all terms, pair induction)      11037 bar
+many-body induction virial beyond the pairs'    -11894 bar  (solve -26779, pairs -14885)
+PRESSURE (kinetic + pairs + many-body induction)      519 bar   <- compare the run
+                           with the tail beyond the cut-off      460 bar
+dispersion beyond the cut-off (C6 47.66)        -59 bar  ->  with the tail     12353 bar
+== r_cut 28 (r_on 26)
+induction, many-body solve: -4.539 kcal/mol per molecule (pair sum: -2.475); non-additive -2.064
+pair virial (all terms, pair induction)      10402 bar
+many-body induction virial beyond the pairs'    -12908 bar  (solve -27798, pairs -14891)
+PRESSURE (kinetic + pairs + many-body induction)    -1130 bar   <- compare the run
+                           with the tail beyond the cut-off    -1167 bar
+dispersion beyond the cut-off (C6 47.66)        -37 bar  ->  with the tail     11741 bar
+== r_cut 32 (r_on 30)
+induction, many-body solve: -4.594 kcal/mol per molecule (pair sum: -2.476); non-additive -2.118
+pair virial (all terms, pair induction)      10800 bar
+many-body induction virial beyond the pairs'    -12575 bar  (solve -27469, pairs -14894)
+PRESSURE (kinetic + pairs + many-body induction)     -400 bar   <- compare the run
+                           with the tail beyond the cut-off     -424 bar
+dispersion beyond the cut-off (C6 47.66)        -24 bar  ->  with the tail     12151 bar

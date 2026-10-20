@@ -1,0 +1,2 @@
+pids grow 15248 ammonia 17960 ions 2452
+stage 1: ions alone

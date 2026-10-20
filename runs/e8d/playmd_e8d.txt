@@ -1,0 +1,90 @@
+   - **E8d, where the liquid's pressure comes from: the many-body probe, the
+     pressure budget, the cut-off, and Ewald (2026-10-14 to 16; the owner asked
+     for a 3-to-10-molecule probe, then the pressure cross-check, then Ewald).**
+     *Detail, tables and the run log: `docs/E8D.md`. What follows is what was
+     measured and what it supports; the Ewald dynamics were still running when
+     this was written and their numbers are in `docs/E8D.md`.* The E8c question
+     was whether a many-body term, a pressure-weighted fit, or acceptance was the
+     way out of the -1.9 / -2.9 kbar pressure. None of the three was the finding.
+     - **The many-body probe.** Clusters of the N nearest molecules cut from the
+       298 K liquid, Hartree-Fock pairs and triples (`phys-cluster-gpu --manybody
+       --method hf`; a direct 4-molecule field alone was 2348 s and spilled to
+       disk, so the three-body expansion was the route), ten centres to 6
+       molecules and one to 10, against the law's induction on the same triples
+       (`phys-manybody`). Three-body energy, kcal/mol: n = 3 -0.12 +- 0.08, 4
+       -0.13 +- 0.06, 5 -0.09 +- 0.13, 6 -0.35 +- 0.18 (ten centres); the one
+       centre taken to 10 goes -0.16, +0.19, +0.33, +1.11 at 7, 8, 9, 10. A
+       few per cent of the pair sum, no steady trend. Over 300 triples the law's
+       induction tracks the reference (correlation 0.75, slope 0.64: it is
+       about 1.5 times too strong per triple) and triples without a hydrogen-bonded
+       pair carry nothing (|mean| <= 0.003, sd 0.006); a three-body exchange form
+       fitted to them has R^2 0.01-0.05 and the attractive sign. No repulsive
+       core is in the data. The direct three-body virial (finite difference of
+       the HF triples under scaling of the centres, one 5-molecule cluster):
+       -144 bar, the law's induction on the same triples +819 bar.
+     - **The pressure is a small residual of terms of order 10^4 bar.**
+       `phys-virial` (pair virial term by term, plus the many-body induction by
+       finite difference of the dipole solve) reproduces the E8c run: -1766 bar
+       for its last frame against -1872 +- 73, and U/N -11.09 against -11.18. For
+       the wall-fit law: kinetic +1375, repulsion +118,233, electrostatics
+       -64,994, dispersion -27,595, pair induction -14,847, **many-body induction
+       beyond the pairs -13,939** bar. Each 5% of polarisability is about 1,100
+       bar (alpha x 0.95 -706, x 0.90 +431, x 0.80 +2,937 on that frame), and the
+       law's own molecular polarisability is right to 1.4% (10.05 against MP2's
+       9.908 bohr^3). The three-body triples prefer alpha x 0.70, the pressure
+       x 0.92, the pair data have no preference (held-out 0.164-0.166 at every
+       scale, the repulsion absorbs it). Non-additive induction is -2.43
+       kcal/mol a molecule in the liquid, 22% of U/N, and about zero in a
+       10-molecule cluster: a compact cluster cannot sample it.
+     - **Why the wall data moved the pressure.** The repulsion of these laws is
+       entirely the Gaussian cloud overlap, its widths fixed by the electrostatic
+       clouds (every Born-Mayer amplitude is 1e-300 in the file). One shape cannot
+       serve the wall (0.6-2.3 A) and the contact shell (2.8-3.1 A); the wall fit
+       costs the first shell 0.27 kcal/mol/bohr of slope, about 2,300 bar by E8b's
+       arithmetic, the size of the -1007 -> -1872 move. `phys-fit --bm` (already
+       there, off in E8c) gives the repulsion a second shape: held-out error
+       0.166-0.170 (E8c 0.304), inner and first-shell slope errors halved, a
+       dispersion of C6 48-51 hartree bohr^6 with nothing pinned (E6 derived 52.3),
+       and **no holes in 400,000 random dimers** (lowest energy at 0.6-0.8 A +33
+       to +35 kcal/mol, against -298; the deepest dimer -4.65 to -4.72 at 2.92 A).
+       That meets E8c's "holes inside 1.0 A" limit. Its truncated liquid is more
+       collapsed, -2,500 to -3,100 bar, so it is a hole fix and not a pressure fix.
+     - **The cut-off.** `phys-bulk` truncates every pair term at 16 bohr with a
+       switch on the centres and has no long-range sum (its own header says so;
+       the E8b list named it and noted it unmeasured). On one configuration with
+       the law fixed the pressure, with the dispersion tail (-214 bar, from the
+       law's C6 and the switch), reads -1,980 (16 bohr), +499 (17.5), +778 (20),
+       +460 (24), -1,167 (28), -424 (32; the configuration repeated 2x2x2): it
+       oscillates by 1-2 kbar and is still doing so at 32. A second law and
+       configuration does the same (-2,583 at 16, then +1,419, +634, -722, -57).
+       But truncated *dynamics* is self-consistent at each cut-off: at 17.5 bohr
+       the E8c law re-equilibrates to -1,667 +- 67 bar and the same 9.0
+       neighbours as at 16.
+     - **Ewald** (`src/ewald.rs`, `induction::solve_ewald`, `liquid::EwaldLaw`,
+       `PHYS_EWALD=<s' bohr>` in `phys-bulk`, `phys-ewald`, `tests/ewald.rs`).
+       Every charge and dipole is a Gaussian of width w and any two interact
+       through derivatives of erf(r/s)/r, s^2 = w_a^2 + w_b^2, so one common
+       s' >= s for all pairs splits each into [kernel(s) - kernel(s')] in real
+       space (the engine's own tensors, differenced) and kernel(s') in reciprocal
+       space for point multipoles; self terms and same-molecule terms are taken off,
+       the virial is the derivative of E_rec under rigid scaling. Checked: the
+       energy per molecule is -10.5170 (s' 3.4), -10.5170 (3.8), -10.5175 (4.2)
+       kcal/mol; forces and torques equal finite differences of the re-minimised
+       energy to ~1e-8; the virial equals -dU/d ln(lambda) to 0.0 bar. On the
+       final frames of the truncated runs the Ewald pressure is +170 bar (E8c
+       wall-fit law, truncated -1,782) and +510 (no-wall law, truncated -2,481);
+       U/N is 0.6 kcal/mol less bound. **Ewald dynamics**, E8c law, 216
+       molecules, 1 g/cm3, s' 4.2: settling -206 bar, production samples -718,
+       +153, -80 so far (truncated -1,872 +- 73), U/N -10.4 (truncated -11.18);
+       the averages, g(OO), q and hydrogen bonds are in `docs/E8D.md`.
+     - **Open, the owner's.** (1) Whether the Ewald dynamics' structure
+       (neighbours, tetrahedral q) is water's, which decides if the pressure
+       was the truncation's and the 9-neighbour liquid with it; (2) the
+       polarisability / induction at liquid contacts (the triples say weaker, the
+       pressure says a little weaker, exchange-induction quenching is the physics
+       a point-dipole model lacks) - a law-level addition the plan does not name;
+       (3) the Born-Mayer second repulsion shape as the E8c refit; (4) the
+       dispersion tail (-117 to -214 bar) and a long-range sum as part of every
+       liquid run; (5) a second molecule, since only water has pair data.
+       Not measured: the Ewald pressure over a long run for more than one law;
+       the effect of the tin-foil boundary; any molecule but water.

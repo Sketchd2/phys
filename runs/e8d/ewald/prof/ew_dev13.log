@@ -1,0 +1,3 @@
+216 molecules, box 35.197 bohr, cut-off 14-16, law law.txt
+  truncated (as phys-bulk)     U/N  -10.4235 kcal/mol   P     577.5 bar   (0.1 s)
+  Ewald s' = 4.2 (2568 k)      U/N  -10.5657 kcal/mol   P     819.1 bar   (0.1 s)

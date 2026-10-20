@@ -1,0 +1,25 @@
+methane at 111 K: 216 molecules, 0.4226 g/cm3, box 45.13 bohr (23.88 A), cut-off 16.0 bohr
+  start: U/N -1.17 kcal/mol
+  easing: U/N -1.26 kcal/mol, T 110/117 K, P 855 bar
+  settling: U/N -1.42 kcal/mol, T 99/114 K, P 17 bar
+  warming: U/N -1.44 kcal/mol, T 110/115 K, P 186 bar
+  0% after 84 s: U/N -1.44 kcal/mol, P 186 bar
+  8% after 117 s: U/N -1.44 kcal/mol, P 96 bar
+  17% after 151 s: U/N -1.44 kcal/mol, P -2 bar
+  25% after 171 s: U/N -1.44 kcal/mol, P 35 bar
+  33% after 196 s: U/N -1.44 kcal/mol, P 76 bar
+  42% after 215 s: U/N -1.44 kcal/mol, P -189 bar
+  50% after 222 s: U/N -1.44 kcal/mol, P -24 bar
+  58% after 238 s: U/N -1.45 kcal/mol, P 40 bar
+  67% after 255 s: U/N -1.41 kcal/mol, P 135 bar
+  75% after 266 s: U/N -1.44 kcal/mol, P 26 bar
+  83% after 276 s: U/N -1.42 kcal/mol, P 196 bar
+  92% after 286 s: U/N -1.44 kcal/mol, P -7 bar
+  100% after 320 s: U/N -1.41 kcal/mol, P 100 bar
+methane at 111 K (321 samples over 32 ps, block standard errors):
+  U/N -1.437 +- 0.002 kcal/mol; heat of vaporisation -U/N + RT = 1.658 kcal/mol
+  pressure 29 +- 8 bar at 0.4226 g/cm3 (a liquid at the right density sits near 1 bar; positive says it wants to expand)
+  temperatures: translation 110.9 K, rotation 111.8 K (bath 111 K)
+  dispersion beyond the cut-off (C6 33.53): -34 bar and -0.031 kcal/mol a molecule, so pressure with it -5 bar, U/N -1.468
+  g(first atoms): first peak 0.04 at 3.35 A, first minimum 0.54 at 3.55 A, second peak 2.61 at 4.05 A, coordination to the minimum 0.05 (bulk-methane-111.gOO.txt)
+  snapshot in bulk-methane-111.snap

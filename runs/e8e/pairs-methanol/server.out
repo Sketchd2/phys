@@ -1,0 +1,47 @@
+328 tasks to do, listening on 0.0.0.0:7878, lease 180 min
+  148 for any machines into pairs-methanol-gpu-mp2.txt
+  100 for any machines into pairs-methanol-gpu-wall-mp2.txt
+  40 for any machines into pairs-water-methanol-mp2.txt
+  40 for any machines into pairs-water-methanol-wall-mp2.txt
+[1792384617] pairs-methanol-gpu-mp2.txt #2 from desk in 2599 s: 1/328 done, 0 leased, 0 failed for good, about 14234 min to go at this rate
+[1792386711] pairs-methanol-gpu-mp2.txt #3 from desk in 2093 s: 2/328 done, 0 leased, 0 failed for good, about 12782 min to go at this rate
+[1792387534] pairs-water-methanol-mp2.txt #0 from desk in 823 s: 3/328 done, 0 leased, 0 failed for good, about 9982 min to go at this rate
+325 tasks to do, listening on 0.0.0.0:7878, lease 180 min
+  146 for any machines into pairs-methanol-gpu-mp2.txt
+  100 for any machines into pairs-methanol-gpu-wall-mp2.txt
+  39 for any machines into pairs-water-methanol-mp2.txt
+  40 for any machines into pairs-water-methanol-wall-mp2.txt
+[1792413362] pairs-methanol-gpu-mp2.txt #4 from desk in 1429 s: 1/325 done, 0 leased, 0 failed for good, about 67143 min to go at this rate
+[1792414768] pairs-methanol-gpu-mp2.txt #5 from desk in 1405 s: 2/325 done, 0 leased, 0 failed for good, about 37251 min to go at this rate
+[1792416045] pairs-methanol-gpu-mp2.txt #6 from desk in 1277 s: 3/325 done, 0 leased, 0 failed for good, about 27041 min to go at this rate
+[1792417465] pairs-methanol-gpu-mp2.txt #7 from desk in 1420 s: 4/325 done, 0 leased, 0 failed for good, about 22118 min to go at this rate
+[1792418774] pairs-methanol-gpu-mp2.txt #8 from desk in 1308 s: 5/325 done, 0 leased, 0 failed for good, about 19035 min to go at this rate
+[1792420181] pairs-methanol-gpu-mp2.txt #9 from desk in 1407 s: 6/325 done, 0 leased, 0 failed for good, about 17060 min to go at this rate
+[1792444062] pairs-methanol-gpu-mp2.txt #10 from desk in 1560 s: 7/325 done, 0 leased, 0 failed for good, about 32659 min to go at this rate
+[1792445339] pairs-methanol-gpu-mp2.txt #11 from desk in 1277 s: 8/325 done, 0 leased, 0 failed for good, about 29330 min to go at this rate
+[1792446719] pairs-methanol-gpu-mp2.txt #12 from desk in 1380 s: 9/325 done, 0 leased, 0 failed for good, about 26796 min to go at this rate
+[1792447967] pairs-methanol-gpu-mp2.txt #13 from desk in 1248 s: 10/325 done, 0 leased, 0 failed for good, about 24695 min to go at this rate
+[1792449403] pairs-methanol-gpu-mp2.txt #14 from desk in 1436 s: 11/325 done, 0 leased, 0 failed for good, about 23062 min to go at this rate
+[1792450671] pairs-methanol-gpu-mp2.txt #15 from desk in 1268 s: 12/325 done, 0 leased, 0 failed for good, about 21624 min to go at this rate
+[1792451911] pairs-methanol-gpu-mp2.txt #16 from desk in 1239 s: 13/325 done, 0 leased, 0 failed for good, about 20393 min to go at this rate
+[1792453583] pairs-methanol-gpu-mp2.txt #17 from desk in 1673 s: 14/325 done, 0 leased, 0 failed for good, about 19495 min to go at this rate
+[1792455105] pairs-methanol-gpu-mp2.txt #18 from desk in 1522 s: 15/325 done, 0 leased, 0 failed for good, about 18661 min to go at this rate
+[1792456392] pairs-methanol-gpu-mp2.txt #19 from desk in 1287 s: 16/325 done, 0 leased, 0 failed for good, about 17852 min to go at this rate
+[1792457789] pairs-methanol-gpu-mp2.txt #20 from desk in 1395 s: 17/325 done, 0 leased, 0 failed for good, about 17170 min to go at this rate
+[1792459037] pairs-methanol-gpu-mp2.txt #21 from desk in 1248 s: 18/325 done, 0 leased, 0 failed for good, about 16518 min to go at this rate
+[1792460423] pairs-methanol-gpu-mp2.txt #22 from desk in 1371 s: 19/325 done, 0 leased, 0 failed for good, about 15970 min to go at this rate
+[1792461706] pairs-methanol-gpu-mp2.txt #23 from desk in 1284 s: 20/325 done, 0 leased, 0 failed for good, about 15448 min to go at this rate
+[1792463122] pairs-methanol-gpu-mp2.txt #24 from desk in 1415 s: 21/325 done, 0 leased, 0 failed for good, about 15005 min to go at this rate
+[1792464371] pairs-methanol-gpu-mp2.txt #25 from desk in 1249 s: 22/325 done, 0 leased, 0 failed for good, about 14563 min to go at this rate
+[1792465828] pairs-methanol-gpu-mp2.txt #26 from desk in 1457 s: 23/325 done, 0 leased, 0 failed for good, about 14203 min to go at this rate
+[1792467076] pairs-methanol-gpu-mp2.txt #27 from desk in 1247 s: 24/325 done, 0 leased, 0 failed for good, about 13827 min to go at this rate
+[1792468480] pairs-methanol-gpu-mp2.txt #28 from desk in 1404 s: 25/325 done, 0 leased, 0 failed for good, about 13510 min to go at this rate
+[1792469725] pairs-methanol-gpu-mp2.txt #29 from desk in 1245 s: 26/325 done, 0 leased, 0 failed for good, about 13186 min to go at this rate
+[1792470995] pairs-methanol-gpu-mp2.txt #30 from desk in 1268 s: 27/325 done, 0 leased, 0 failed for good, about 12889 min to go at this rate
+[1792472447] pairs-methanol-gpu-mp2.txt #31 from desk in 1452 s: 28/325 done, 0 leased, 0 failed for good, about 12643 min to go at this rate
+[1792473705] pairs-methanol-gpu-mp2.txt #32 from desk in 1258 s: 29/325 done, 0 leased, 0 failed for good, about 12380 min to go at this rate
+[1792474963] pairs-methanol-gpu-mp2.txt #33 from desk in 1258 s: 30/325 done, 0 leased, 0 failed for good, about 12133 min to go at this rate
+[1792476192] pairs-methanol-gpu-mp2.txt #34 from desk in 1229 s: 31/325 done, 0 leased, 0 failed for good, about 11896 min to go at this rate
+[1792477301] pairs-methanol-gpu-mp2.txt #35 from desk in 1109 s: 32/325 done, 0 leased, 0 failed for good, about 11655 min to go at this rate
+[1792478476] pairs-methanol-gpu-mp2.txt #36 from desk in 1175 s: 33/325 done, 0 leased, 0 failed for good, about 11436 min to go at this rate
+[1792479742] pairs-methanol-gpu-mp2.txt #37 from desk in 1262 s: 34/325 done, 0 leased, 0 failed for good, about 11242 min to go at this rate

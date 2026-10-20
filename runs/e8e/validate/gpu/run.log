@@ -1,0 +1,32 @@
+Ewald step on the gpu ewald step (f64, NVIDIA GeForce RTX 2060 via Vulkan)
+Ewald reciprocal sums on the CPU
+pair loop on the gpu pair loop (f64, NVIDIA GeForce RTX 2060 via Vulkan)
+induced dipoles on, polarisabilities by site type [9.234316455280853, 0.8544488912439157, 0.0, 0.0, 0.0] bohr^3
+water at 298 K: 216 molecules, 1 g/cm3, box 35.20 bohr (18.63 A), cut-off 16.0 bohr
+  Ewald sum on: s' = 4.2 bohr, 1535 reciprocal vectors
+  start: U/N -3.94 kcal/mol
+  easing: U/N -8.69 kcal/mol, T 314/310 K, P -1013 bar
+  settling: U/N -9.87 kcal/mol, T 294/287 K, P -879 bar
+  warming: U/N -10.36 kcal/mol, T 312/303 K, P 1805 bar
+  0% after 860 s: U/N -10.36 kcal/mol, P 1812 bar
+  8% after 902 s: U/N -10.27 kcal/mol, P 784 bar
+  17% after 945 s: U/N -10.15 kcal/mol, P 257 bar
+  25% after 986 s: U/N -10.20 kcal/mol, P 1541 bar
+  33% after 1049 s: U/N -10.36 kcal/mol, P -21 bar
+  42% after 1123 s: U/N -10.40 kcal/mol, P 487 bar
+  50% after 1189 s: U/N -10.27 kcal/mol, P 134 bar
+  58% after 1232 s: U/N -10.31 kcal/mol, P 812 bar
+  67% after 1279 s: U/N -10.32 kcal/mol, P 224 bar
+  75% after 1324 s: U/N -10.02 kcal/mol, P 184 bar
+  83% after 1364 s: U/N -10.15 kcal/mol, P 1308 bar
+  92% after 1426 s: U/N -10.10 kcal/mol, P 111 bar
+  100% after 1482 s: U/N -9.92 kcal/mol, P 452 bar
+water at 298 K (80 samples over 8 ps, block standard errors):
+  U/N -10.243 +- 0.042 kcal/mol; heat of vaporisation -U/N + RT = 10.835 kcal/mol
+  pressure 81 +- 170 bar at 1 g/cm3 (a liquid at the right density sits near 1 bar; positive says it wants to expand)
+  temperatures: translation 296.2 K, rotation 289.7 K (bath 298 K)
+  mean molecular dipole 2.989 D (permanent charges and induced dipoles); dielectric constant 20.0 (blocks 8.1 +- 1.5; slow to converge)
+  dispersion beyond the cut-off (C6 25.95): -117 bar and -0.050 kcal/mol a molecule, so pressure with it -36 bar, U/N -10.293
+  g(first atoms): first peak 2.59 at 2.85 A, first minimum 0.90 at 4.05 A, second peak 1.09 at 4.85 A, coordination to the minimum 8.13 (bulk-water-298.gOO.txt)
+  snapshot in bulk-water-298.snap
+  GPU Ewald step: 28336 calls, 30.13 ms each on the card, 33.21 ms each with preparation and reading back

@@ -1,0 +1,248 @@
+final non-local energies on gpu (f32, NVIDIA GeForce RTX 2060 via Vulkan)
+Hartree-Fock passes on gpu Fock (f64, NVIDIA GeForce RTX 2060 via Vulkan)
+removed phys-fit-10344-0.bin, left by process 10344 (0.1 GB)
+desk (gpu) working for 127.0.0.1:7878
+  whitened integrals: 9.4 GB in 36 segments of 255 MB: 5 on the card, 8 in memory, 23 on disk; orbitals 32 to a block
+  field 1 of 3 done: 1442 s so far (1375 s Hartree-Fock, 10 iterations; 67 s MP2)
+  field 2 of 3 done: 2117 s so far (2018 s Hartree-Fock, 9 iterations; 99 s MP2)
+  field 3 of 3 done: 2580 s so far (2461 s Hartree-Fock, 9 iterations; 119 s MP2)
+pair 2: R 12.09 bohr, E_int -0.1165 / -0.0569 kcal/mol (total / Hartree-Fock), 2599 s (816 functions)
+pairs-methanol-gpu-mp2.txt #2: 2599 s, server says OK
+  whitened integrals: 9.4 GB in 35 segments of 255 MB: 5 on the card, 12 in memory, 18 on disk; orbitals 32 to a block
+  field 1 of 3 done: 924 s so far (885 s Hartree-Fock, 10 iterations; 38 s MP2)
+  field 2 of 3 done: 1453 s so far (1384 s Hartree-Fock, 9 iterations; 69 s MP2)
+  field 3 of 3 done: 2093 s so far (1996 s Hartree-Fock, 9 iterations; 97 s MP2)
+pair 3: R 8.12 bohr, E_int 0.0038 / 1.4143 kcal/mol (total / Hartree-Fock), 2093 s (816 functions)
+pairs-methanol-gpu-mp2.txt #3: 2093 s, server says OK
+  whitened integrals: 4.1 GB in 16 segments of 255 MB: 6 on the card, 10 in memory, 0 on disk; orbitals 32 to a block
+pair 0: R 9.37 bohr, E_int -0.0602 kcal/mol (HF 0.0337), 823 s
+pairs-water-methanol-mp2.txt #0: 823 s, server says OK
+what is left needs 7503 MB and this machine offers 1983
+worker stopped: TooSmall
+final non-local energies on gpu (f32, NVIDIA GeForce RTX 2060 via Vulkan)
+Hartree-Fock passes on gpu Fock (f64, NVIDIA GeForce RTX 2060 via Vulkan)
+desk (gpu) working for 127.0.0.1:7878
+what is left needs 7503 MB and this machine offers 4912
+worker stopped: TooSmall
+final non-local energies on gpu (f32, NVIDIA GeForce RTX 2060 via Vulkan)
+Hartree-Fock passes on gpu Fock (f64, NVIDIA GeForce RTX 2060 via Vulkan)
+removed phys-fit-17856-12.bin, left by process 17856 (0.7 GB)
+desk (gpu) working for 127.0.0.1:7878
+  whitened integrals: 9.4 GB in 36 segments of 255 MB: 12 on the card, 9 in memory, 15 on disk; orbitals 32 to a block
+  field 1 of 3 done: 865 s so far (794 s Hartree-Fock, 10 iterations; 71 s MP2)
+  field 2 of 3 done: 1140 s so far (1059 s Hartree-Fock, 9 iterations; 82 s MP2)
+  field 3 of 3 done: 1418 s so far (1325 s Hartree-Fock, 9 iterations; 92 s MP2)
+pair 4: R 9.13 bohr, E_int 0.5102 / 0.8168 kcal/mol (total / Hartree-Fock), 1429 s (816 functions)
+pairs-methanol-gpu-mp2.txt #4: 1429 s, server says OK
+  whitened integrals: 9.4 GB in 36 segments of 255 MB: 12 on the card, 11 in memory, 13 on disk; orbitals 32 to a block
+  field 1 of 3 done: 730 s so far (700 s Hartree-Fock, 10 iterations; 30 s MP2)
+  field 2 of 3 done: 999 s so far (958 s Hartree-Fock, 9 iterations; 41 s MP2)
+  field 3 of 3 done: 1405 s so far (1354 s Hartree-Fock, 9 iterations; 52 s MP2)
+pair 5: R 10.45 bohr, E_int -0.1052 / 0.0574 kcal/mol (total / Hartree-Fock), 1405 s (816 functions)
+pairs-methanol-gpu-mp2.txt #5: 1405 s, server says OK
+  whitened integrals: 9.4 GB in 36 segments of 255 MB: 12 on the card, 14 in memory, 10 on disk; orbitals 32 to a block
+  field 1 of 3 done: 730 s so far (699 s Hartree-Fock, 10 iterations; 30 s MP2)
+  field 2 of 3 done: 1004 s so far (962 s Hartree-Fock, 9 iterations; 42 s MP2)
+  field 3 of 3 done: 1277 s so far (1224 s Hartree-Fock, 9 iterations; 53 s MP2)
+pair 6: R 11.55 bohr, E_int -0.1943 / -0.1080 kcal/mol (total / Hartree-Fock), 1277 s (816 functions)
+pairs-methanol-gpu-mp2.txt #6: 1277 s, server says OK
+  whitened integrals: 9.4 GB in 36 segments of 255 MB: 12 on the card, 14 in memory, 10 on disk; orbitals 32 to a block
+  field 1 of 3 done: 869 s so far (834 s Hartree-Fock, 10 iterations; 35 s MP2)
+  field 2 of 3 done: 1147 s so far (1101 s Hartree-Fock, 9 iterations; 46 s MP2)
+  field 3 of 3 done: 1420 s so far (1363 s Hartree-Fock, 9 iterations; 57 s MP2)
+pair 7: R 10.00 bohr, E_int -0.5196 / -0.3103 kcal/mol (total / Hartree-Fock), 1420 s (816 functions)
+pairs-methanol-gpu-mp2.txt #7: 1421 s, server says OK
+  whitened integrals: 9.4 GB in 35 segments of 255 MB: 12 on the card, 14 in memory, 9 on disk; orbitals 32 to a block
+  field 1 of 3 done: 739 s so far (709 s Hartree-Fock, 10 iterations; 29 s MP2)
+  field 2 of 3 done: 1018 s so far (978 s Hartree-Fock, 9 iterations; 40 s MP2)
+  field 3 of 3 done: 1308 s so far (1253 s Hartree-Fock, 9 iterations; 55 s MP2)
+pair 8: R 6.47 bohr, E_int 5.4301 / 10.4102 kcal/mol (total / Hartree-Fock), 1309 s (816 functions)
+pairs-methanol-gpu-mp2.txt #8: 1309 s, server says OK
+  whitened integrals: 9.4 GB in 35 segments of 255 MB: 12 on the card, 14 in memory, 9 on disk; orbitals 32 to a block
+  field 1 of 3 done: 826 s so far (796 s Hartree-Fock, 10 iterations; 30 s MP2)
+  field 2 of 3 done: 1116 s so far (1075 s Hartree-Fock, 9 iterations; 41 s MP2)
+  field 3 of 3 done: 1407 s so far (1354 s Hartree-Fock, 9 iterations; 53 s MP2)
+pair 9: R 6.54 bohr, E_int 5.3350 / 8.1299 kcal/mol (total / Hartree-Fock), 1407 s (816 functions)
+pairs-methanol-gpu-mp2.txt #9: 1407 s, server says OK
+what is left needs 4096 MB and this machine offers 3817
+worker stopped: TooSmall
+final non-local energies on gpu (f32, NVIDIA GeForce RTX 2060 via Vulkan)
+Hartree-Fock passes on gpu Fock (f64, NVIDIA GeForce RTX 2060 via Vulkan)
+desk (gpu) working for 127.0.0.1:7878
+  whitened integrals: 9.5 GB in 36 segments of 255 MB: 12 on the card, 7 in memory, 17 on disk; orbitals 32 to a block
+  field 1 of 3 done: 786 s so far (752 s Hartree-Fock, 10 iterations; 34 s MP2)
+  field 2 of 3 done: 1278 s so far (1233 s Hartree-Fock, 9 iterations; 46 s MP2)
+  field 3 of 3 done: 1549 s so far (1493 s Hartree-Fock, 9 iterations; 57 s MP2)
+pair 10: R 14.68 bohr, E_int -0.1715 / -0.1765 kcal/mol (total / Hartree-Fock), 1560 s (816 functions)
+pairs-methanol-gpu-mp2.txt #10: 1560 s, server says OK
+  whitened integrals: 9.4 GB in 36 segments of 255 MB: 12 on the card, 11 in memory, 13 on disk; orbitals 32 to a block
+  field 1 of 3 done: 728 s so far (699 s Hartree-Fock, 10 iterations; 29 s MP2)
+  field 2 of 3 done: 1003 s so far (963 s Hartree-Fock, 9 iterations; 40 s MP2)
+  field 3 of 3 done: 1276 s so far (1226 s Hartree-Fock, 9 iterations; 51 s MP2)
+pair 11: R 7.55 bohr, E_int -2.7263 / -1.9869 kcal/mol (total / Hartree-Fock), 1276 s (816 functions)
+pairs-methanol-gpu-mp2.txt #11: 1277 s, server says OK
+  whitened integrals: 9.4 GB in 35 segments of 255 MB: 12 on the card, 12 in memory, 11 on disk; orbitals 32 to a block
+  field 1 of 3 done: 728 s so far (699 s Hartree-Fock, 10 iterations; 29 s MP2)
+  field 2 of 3 done: 1009 s so far (965 s Hartree-Fock, 9 iterations; 44 s MP2)
+  field 3 of 3 done: 1380 s so far (1326 s Hartree-Fock, 9 iterations; 54 s MP2)
+pair 12: R 7.89 bohr, E_int 0.5028 / 2.1766 kcal/mol (total / Hartree-Fock), 1380 s (816 functions)
+pairs-methanol-gpu-mp2.txt #12: 1380 s, server says OK
+  whitened integrals: 9.5 GB in 36 segments of 255 MB: 12 on the card, 13 in memory, 11 on disk; orbitals 32 to a block
+  field 1 of 3 done: 718 s so far (688 s Hartree-Fock, 10 iterations; 30 s MP2)
+  field 2 of 3 done: 983 s so far (942 s Hartree-Fock, 9 iterations; 41 s MP2)
+  field 3 of 3 done: 1247 s so far (1195 s Hartree-Fock, 9 iterations; 52 s MP2)
+pair 13: R 14.14 bohr, E_int -0.0095 / 0.0041 kcal/mol (total / Hartree-Fock), 1248 s (816 functions)
+pairs-methanol-gpu-mp2.txt #13: 1248 s, server says OK
+  whitened integrals: 9.4 GB in 35 segments of 255 MB: 12 on the card, 14 in memory, 9 on disk; orbitals 32 to a block
+  field 1 of 3 done: 739 s so far (709 s Hartree-Fock, 10 iterations; 29 s MP2)
+  field 2 of 3 done: 1018 s so far (977 s Hartree-Fock, 9 iterations; 41 s MP2)
+  field 3 of 3 done: 1435 s so far (1384 s Hartree-Fock, 9 iterations; 52 s MP2)
+pair 14: R 8.25 bohr, E_int -0.7831 / 0.1815 kcal/mol (total / Hartree-Fock), 1436 s (816 functions)
+pairs-methanol-gpu-mp2.txt #14: 1436 s, server says OK
+  whitened integrals: 9.4 GB in 36 segments of 255 MB: 12 on the card, 14 in memory, 10 on disk; orbitals 32 to a block
+  field 1 of 3 done: 729 s so far (699 s Hartree-Fock, 10 iterations; 30 s MP2)
+  field 2 of 3 done: 999 s so far (958 s Hartree-Fock, 9 iterations; 41 s MP2)
+  field 3 of 3 done: 1268 s so far (1217 s Hartree-Fock, 9 iterations; 51 s MP2)
+pair 15: R 9.37 bohr, E_int -0.4687 / -0.0081 kcal/mol (total / Hartree-Fock), 1268 s (816 functions)
+pairs-methanol-gpu-mp2.txt #15: 1268 s, server says OK
+  whitened integrals: 9.5 GB in 36 segments of 255 MB: 12 on the card, 14 in memory, 10 on disk; orbitals 32 to a block
+  field 1 of 3 done: 713 s so far (683 s Hartree-Fock, 10 iterations; 30 s MP2)
+  field 2 of 3 done: 977 s so far (936 s Hartree-Fock, 9 iterations; 41 s MP2)
+  field 3 of 3 done: 1239 s so far (1187 s Hartree-Fock, 9 iterations; 52 s MP2)
+pair 16: R 13.84 bohr, E_int -0.0183 / 0.0157 kcal/mol (total / Hartree-Fock), 1239 s (816 functions)
+pairs-methanol-gpu-mp2.txt #16: 1239 s, server says OK
+  whitened integrals: 9.4 GB in 36 segments of 255 MB: 12 on the card, 8 in memory, 16 on disk; orbitals 32 to a block
+  field 1 of 3 done: 937 s so far (902 s Hartree-Fock, 10 iterations; 35 s MP2)
+  field 2 of 3 done: 1297 s so far (1246 s Hartree-Fock, 9 iterations; 51 s MP2)
+  field 3 of 3 done: 1672 s so far (1604 s Hartree-Fock, 9 iterations; 69 s MP2)
+pair 17: R 12.65 bohr, E_int -0.2772 / -0.2663 kcal/mol (total / Hartree-Fock), 1673 s (816 functions)
+pairs-methanol-gpu-mp2.txt #17: 1673 s, server says OK
+  whitened integrals: 9.5 GB in 36 segments of 255 MB: 12 on the card, 10 in memory, 14 on disk; orbitals 32 to a block
+  field 1 of 3 done: 831 s so far (795 s Hartree-Fock, 10 iterations; 36 s MP2)
+  field 2 of 3 done: 1255 s so far (1208 s Hartree-Fock, 9 iterations; 46 s MP2)
+  field 3 of 3 done: 1522 s so far (1464 s Hartree-Fock, 9 iterations; 58 s MP2)
+pair 18: R 13.59 bohr, E_int 0.1058 / 0.1381 kcal/mol (total / Hartree-Fock), 1522 s (816 functions)
+pairs-methanol-gpu-mp2.txt #18: 1522 s, server says OK
+  whitened integrals: 9.5 GB in 36 segments of 255 MB: 12 on the card, 11 in memory, 13 on disk; orbitals 32 to a block
+  field 1 of 3 done: 733 s so far (703 s Hartree-Fock, 10 iterations; 30 s MP2)
+  field 2 of 3 done: 1006 s so far (964 s Hartree-Fock, 9 iterations; 41 s MP2)
+  field 3 of 3 done: 1287 s so far (1233 s Hartree-Fock, 9 iterations; 54 s MP2)
+pair 19: R 13.13 bohr, E_int -0.1901 / -0.1745 kcal/mol (total / Hartree-Fock), 1287 s (816 functions)
+pairs-methanol-gpu-mp2.txt #19: 1287 s, server says OK
+worker stopped: Limit
+final non-local energies on gpu (f32, NVIDIA GeForce RTX 2060 via Vulkan)
+Hartree-Fock passes on gpu Fock (f64, NVIDIA GeForce RTX 2060 via Vulkan)
+desk (gpu) working for 127.0.0.1:7878
+  whitened integrals: 9.5 GB in 36 segments of 255 MB: 12 on the card, 7 in memory, 17 on disk; orbitals 32 to a block
+  field 1 of 3 done: 853 s so far (809 s Hartree-Fock, 10 iterations; 44 s MP2)
+  field 2 of 3 done: 1115 s so far (1060 s Hartree-Fock, 9 iterations; 56 s MP2)
+  field 3 of 3 done: 1384 s so far (1318 s Hartree-Fock, 9 iterations; 67 s MP2)
+pair 20: R 14.94 bohr, E_int -0.0658 / -0.0592 kcal/mol (total / Hartree-Fock), 1395 s (816 functions)
+pairs-methanol-gpu-mp2.txt #20: 1395 s, server says OK
+  whitened integrals: 9.5 GB in 36 segments of 255 MB: 12 on the card, 11 in memory, 13 on disk; orbitals 32 to a block
+  field 1 of 3 done: 710 s so far (680 s Hartree-Fock, 10 iterations; 30 s MP2)
+  field 2 of 3 done: 980 s so far (939 s Hartree-Fock, 9 iterations; 41 s MP2)
+  field 3 of 3 done: 1247 s so far (1195 s Hartree-Fock, 9 iterations; 52 s MP2)
+pair 21: R 14.28 bohr, E_int -0.1097 / -0.0983 kcal/mol (total / Hartree-Fock), 1248 s (816 functions)
+pairs-methanol-gpu-mp2.txt #21: 1248 s, server says OK
+  whitened integrals: 9.4 GB in 36 segments of 255 MB: 12 on the card, 12 in memory, 12 on disk; orbitals 32 to a block
+  field 1 of 3 done: 743 s so far (704 s Hartree-Fock, 10 iterations; 39 s MP2)
+  field 2 of 3 done: 1100 s so far (1050 s Hartree-Fock, 9 iterations; 50 s MP2)
+  field 3 of 3 done: 1370 s so far (1309 s Hartree-Fock, 9 iterations; 61 s MP2)
+pair 22: R 10.41 bohr, E_int -0.3279 / -0.1375 kcal/mol (total / Hartree-Fock), 1371 s (816 functions)
+the server 127.0.0.1:7878 cannot be reached (An established connection was aborted by the software in your host machine. (os error 10053)); trying again
+pairs-methanol-gpu-mp2.txt #22: 1371 s, server says OK
+  whitened integrals: 9.4 GB in 36 segments of 255 MB: 12 on the card, 13 in memory, 11 on disk; orbitals 32 to a block
+  field 1 of 3 done: 730 s so far (699 s Hartree-Fock, 10 iterations; 30 s MP2)
+  field 2 of 3 done: 1006 s so far (965 s Hartree-Fock, 9 iterations; 41 s MP2)
+  field 3 of 3 done: 1283 s so far (1231 s Hartree-Fock, 9 iterations; 52 s MP2)
+pair 23: R 12.09 bohr, E_int -0.0814 / -0.0335 kcal/mol (total / Hartree-Fock), 1284 s (816 functions)
+pairs-methanol-gpu-mp2.txt #23: 1284 s, server says OK
+  whitened integrals: 9.5 GB in 36 segments of 255 MB: 12 on the card, 13 in memory, 11 on disk; orbitals 32 to a block
+  field 1 of 3 done: 724 s so far (694 s Hartree-Fock, 10 iterations; 30 s MP2)
+  field 2 of 3 done: 1139 s so far (1096 s Hartree-Fock, 9 iterations; 43 s MP2)
+  field 3 of 3 done: 1415 s so far (1360 s Hartree-Fock, 9 iterations; 55 s MP2)
+pair 24: R 12.34 bohr, E_int 0.0427 / 0.0798 kcal/mol (total / Hartree-Fock), 1415 s (816 functions)
+pairs-methanol-gpu-mp2.txt #24: 1415 s, server says OK
+  whitened integrals: 9.4 GB in 35 segments of 255 MB: 12 on the card, 13 in memory, 10 on disk; orbitals 32 to a block
+  field 1 of 3 done: 713 s so far (684 s Hartree-Fock, 10 iterations; 29 s MP2)
+  field 2 of 3 done: 982 s so far (941 s Hartree-Fock, 9 iterations; 40 s MP2)
+  field 3 of 3 done: 1249 s so far (1198 s Hartree-Fock, 9 iterations; 51 s MP2)
+pair 25: R 8.88 bohr, E_int -0.1740 / 1.5719 kcal/mol (total / Hartree-Fock), 1249 s (816 functions)
+pairs-methanol-gpu-mp2.txt #25: 1249 s, server says OK
+  whitened integrals: 9.4 GB in 36 segments of 255 MB: 12 on the card, 13 in memory, 11 on disk; orbitals 32 to a block
+  field 1 of 3 done: 733 s so far (703 s Hartree-Fock, 10 iterations; 30 s MP2)
+  field 2 of 3 done: 1173 s so far (1130 s Hartree-Fock, 9 iterations; 43 s MP2)
+  field 3 of 3 done: 1457 s so far (1403 s Hartree-Fock, 9 iterations; 54 s MP2)
+pair 26: R 10.37 bohr, E_int 0.0121 / 0.2814 kcal/mol (total / Hartree-Fock), 1457 s (816 functions)
+pairs-methanol-gpu-mp2.txt #26: 1457 s, server says OK
+  whitened integrals: 9.4 GB in 36 segments of 255 MB: 12 on the card, 13 in memory, 11 on disk; orbitals 32 to a block
+  field 1 of 3 done: 714 s so far (684 s Hartree-Fock, 10 iterations; 31 s MP2)
+  field 2 of 3 done: 982 s so far (941 s Hartree-Fock, 9 iterations; 41 s MP2)
+  field 3 of 3 done: 1247 s so far (1195 s Hartree-Fock, 9 iterations; 52 s MP2)
+pair 27: R 13.59 bohr, E_int 0.0565 / 0.0818 kcal/mol (total / Hartree-Fock), 1247 s (816 functions)
+pairs-methanol-gpu-mp2.txt #27: 1247 s, server says OK
+  whitened integrals: 9.5 GB in 36 segments of 255 MB: 12 on the card, 13 in memory, 11 on disk; orbitals 32 to a block
+  field 1 of 3 done: 719 s so far (689 s Hartree-Fock, 10 iterations; 30 s MP2)
+  field 2 of 3 done: 991 s so far (950 s Hartree-Fock, 9 iterations; 41 s MP2)
+  field 3 of 3 done: 1404 s so far (1353 s Hartree-Fock, 9 iterations; 52 s MP2)
+pair 28: R 14.59 bohr, E_int 0.0123 / 0.0391 kcal/mol (total / Hartree-Fock), 1404 s (816 functions)
+pairs-methanol-gpu-mp2.txt #28: 1404 s, server says OK
+  whitened integrals: 9.5 GB in 36 segments of 255 MB: 12 on the card, 14 in memory, 10 on disk; orbitals 32 to a block
+  field 1 of 3 done: 699 s so far (669 s Hartree-Fock, 10 iterations; 31 s MP2)
+  field 2 of 3 done: 965 s so far (924 s Hartree-Fock, 9 iterations; 41 s MP2)
+  field 3 of 3 done: 1244 s so far (1192 s Hartree-Fock, 9 iterations; 53 s MP2)
+pair 29: R 14.97 bohr, E_int 0.0342 / 0.0525 kcal/mol (total / Hartree-Fock), 1245 s (816 functions)
+pairs-methanol-gpu-mp2.txt #29: 1245 s, server says OK
+worker stopped: Limit
+final non-local energies on gpu (f32, NVIDIA GeForce RTX 2060 via Vulkan)
+Hartree-Fock passes on gpu Fock (f64, NVIDIA GeForce RTX 2060 via Vulkan)
+desk (gpu) working for 127.0.0.1:7878
+  whitened integrals: 9.4 GB in 36 segments of 255 MB: 12 on the card, 8 in memory, 16 on disk; orbitals 32 to a block
+  field 1 of 3 done: 708 s so far (678 s Hartree-Fock, 10 iterations; 30 s MP2)
+  field 2 of 3 done: 981 s so far (941 s Hartree-Fock, 9 iterations; 41 s MP2)
+  field 3 of 3 done: 1257 s so far (1206 s Hartree-Fock, 9 iterations; 51 s MP2)
+pair 30: R 9.64 bohr, E_int -0.3390 / -0.0056 kcal/mol (total / Hartree-Fock), 1268 s (816 functions)
+pairs-methanol-gpu-mp2.txt #30: 1268 s, server says OK
+  whitened integrals: 9.4 GB in 36 segments of 255 MB: 12 on the card, 11 in memory, 13 on disk; orbitals 32 to a block
+  field 1 of 3 done: 913 s so far (882 s Hartree-Fock, 10 iterations; 30 s MP2)
+  field 2 of 3 done: 1182 s so far (1141 s Hartree-Fock, 9 iterations; 41 s MP2)
+  field 3 of 3 done: 1451 s so far (1399 s Hartree-Fock, 9 iterations; 52 s MP2)
+pair 31: R 9.57 bohr, E_int -1.2287 / -1.0334 kcal/mol (total / Hartree-Fock), 1452 s (816 functions)
+pairs-methanol-gpu-mp2.txt #31: 1452 s, server says OK
+  whitened integrals: 9.4 GB in 36 segments of 255 MB: 12 on the card, 12 in memory, 12 on disk; orbitals 32 to a block
+  field 1 of 3 done: 720 s so far (689 s Hartree-Fock, 10 iterations; 30 s MP2)
+  field 2 of 3 done: 991 s so far (949 s Hartree-Fock, 9 iterations; 41 s MP2)
+  field 3 of 3 done: 1258 s so far (1205 s Hartree-Fock, 9 iterations; 52 s MP2)
+pair 32: R 10.29 bohr, E_int 0.2044 / 0.3862 kcal/mol (total / Hartree-Fock), 1258 s (816 functions)
+pairs-methanol-gpu-mp2.txt #32: 1258 s, server says OK
+  whitened integrals: 9.4 GB in 36 segments of 255 MB: 12 on the card, 13 in memory, 11 on disk; orbitals 32 to a block
+  field 1 of 3 done: 716 s so far (687 s Hartree-Fock, 10 iterations; 29 s MP2)
+  field 2 of 3 done: 988 s so far (948 s Hartree-Fock, 9 iterations; 40 s MP2)
+  field 3 of 3 done: 1257 s so far (1207 s Hartree-Fock, 9 iterations; 50 s MP2)
+pair 33: R 7.66 bohr, E_int -0.8525 / 0.6682 kcal/mol (total / Hartree-Fock), 1257 s (816 functions)
+pairs-methanol-gpu-mp2.txt #33: 1257 s, server says OK
+  whitened integrals: 9.5 GB in 36 segments of 255 MB: 12 on the card, 13 in memory, 11 on disk; orbitals 32 to a block
+  field 1 of 3 done: 705 s so far (675 s Hartree-Fock, 10 iterations; 30 s MP2)
+  field 2 of 3 done: 975 s so far (934 s Hartree-Fock, 9 iterations; 41 s MP2)
+  field 3 of 3 done: 1229 s so far (1177 s Hartree-Fock, 9 iterations; 52 s MP2)
+pair 34: R 14.77 bohr, E_int -0.1951 / -0.1994 kcal/mol (total / Hartree-Fock), 1229 s (816 functions)
+pairs-methanol-gpu-mp2.txt #34: 1229 s, server says OK
+  whitened integrals: 9.5 GB in 36 segments of 255 MB: 12 on the card, 14 in memory, 10 on disk; orbitals 32 to a block
+  field 1 of 3 done: 635 s so far (606 s Hartree-Fock, 10 iterations; 30 s MP2)
+  field 2 of 3 done: 871 s so far (831 s Hartree-Fock, 9 iterations; 40 s MP2)
+  field 3 of 3 done: 1109 s so far (1058 s Hartree-Fock, 9 iterations; 51 s MP2)
+pair 35: R 12.17 bohr, E_int 0.1452 / 0.2014 kcal/mol (total / Hartree-Fock), 1109 s (816 functions)
+pairs-methanol-gpu-mp2.txt #35: 1109 s, server says OK
+  whitened integrals: 9.4 GB in 36 segments of 255 MB: 12 on the card, 16 in memory, 8 on disk; orbitals 32 to a block
+  field 1 of 3 done: 655 s so far (624 s Hartree-Fock, 10 iterations; 31 s MP2)
+  field 2 of 3 done: 909 s so far (868 s Hartree-Fock, 9 iterations; 41 s MP2)
+  field 3 of 3 done: 1175 s so far (1123 s Hartree-Fock, 9 iterations; 52 s MP2)
+pair 36: R 13.97 bohr, E_int 0.1202 / 0.1569 kcal/mol (total / Hartree-Fock), 1175 s (816 functions)
+pairs-methanol-gpu-mp2.txt #36: 1175 s, server says OK
+  whitened integrals: 9.4 GB in 36 segments of 255 MB: 12 on the card, 14 in memory, 10 on disk; orbitals 32 to a block
+  field 1 of 3 done: 733 s so far (703 s Hartree-Fock, 10 iterations; 30 s MP2)
+  field 2 of 3 done: 998 s so far (957 s Hartree-Fock, 9 iterations; 41 s MP2)
+  field 3 of 3 done: 1262 s so far (1210 s Hartree-Fock, 9 iterations; 52 s MP2)
+pair 37: R 11.46 bohr, E_int -0.2899 / -0.2182 kcal/mol (total / Hartree-Fock), 1262 s (816 functions)
+pairs-methanol-gpu-mp2.txt #37: 1262 s, server says OK

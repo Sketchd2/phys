@@ -1,0 +1,9 @@
+water: dipole Hartree-Fock 0.7890 au (2.006 D), target 0.7890 au (2.006 D)
+  5530 potential points; the target's RMS 1.973e0, its mean -1.928e0 hartree/e
+  localised in 21 sweeps: 2 bond orbitals, 2 lone pairs (1 core orbitals frozen out of the localisation)
+  valence electrons 8, cores [6.0, 1.0]
+  atom class 0: cloud 1.870 electrons, width 0.258 bohr
+  atom class 1: cloud 1.079 electrons, width 1.273 bohr
+  lone-pair cloud of class 0: 2 pair(s) on 1 atom(s), 3.972 electrons, width 1.197 bohr, 0.262 bohr from the nucleus (the orbitals' centre is 0.262)
+  potential RMS 2.100e-2 hartree/e (atom-centred point charges alone: 6.607e-3)
+  written to cloud-water.txt
