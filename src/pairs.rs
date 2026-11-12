@@ -2085,10 +2085,11 @@ pub fn run_unlike(args: &[String]) {
 /// on the pair's own quadrature grid from the occupied orbitals.
 ///
 /// `phys-overlap water pairs-file [--every n] [--max n] [--out file]` appends
-/// `k separation E_total E_hf E_es S dT_tf dT_w dE_x E_hl` (bohr, hartree; `E_hl`
-/// the Heitler-London interaction, electrostatics plus exchange;
-/// electrons^2 / bohr^3), the first two energies copied from the pairs file and
-/// the last three the electron-gas terms described at the sum below, resuming.
+/// `k separation E_total E_hf E_es S S_no1s S_valence E_hl` (bohr, hartree; `E_hl`
+/// the Heitler-London interaction, electrostatics plus exchange; the three
+/// overlaps as described at the sum below;
+/// electrons^2 / bohr^3), the first two energies copied from the pairs file,
+/// resuming.
 pub fn overlap_main(args: &[String]) {
     use crate::electrons::integrals::one_electron;
     use crate::electrons::scf::Fitted;
@@ -2189,63 +2190,55 @@ pub fn overlap_main(args: &[String]) {
         let sites: Vec<([f64; 3], f64)> = base.nuclei.iter().zip(&base.sizes).map(|(nu, sz)| (nu.1, *sz)).collect();
         let grid = crate::electrons::grid::molecular_pruned(&sites, base.radial, base.theta, base.prune);
         let basis = &base.basis;
-        // Beside the overlap, the electron-gas account of the same two
-        // densities (Gordon and Kim): what the kinetic energy and the exchange
-        // of the summed density have over the two apart, each a functional of
-        // the density with no constant of its own — Thomas-Fermi, von
-        // Weizsacker's gradient term (the whole of it; a ninth is the gradient
-        // expansion's share) and Dirac's exchange. Sums are
-        // `[S, n_a, n_b, dT_tf, dT_w, dE_x]`.
+        // Three overlaps: of the whole densities; of the densities without each
+        // molecule's 1s cores (its lowest orbitals, one per atom heavier than
+        // helium); and of the valence densities as Wing and Tkatchenko's model
+        // takes them (arXiv 2510.25629), which also leaves out the 2s-like
+        // orbital of each nitrogen, oxygen and fluorine. Orbitals come in
+        // ascending energy, so "the lowest m" is what is left out. The
+        // electron-gas terms this probe carried before (Thomas-Fermi, von
+        // Weizsacker, Dirac) were measured and are not the repulsion: 0.45 to
+        // 0.55 of methane's and 0.81 of water's (runs/e8f/v2).
+        let heavy = mono.z.iter().filter(|&&z| z > 2).count();
+        let deep = heavy + mono.z.iter().filter(|&&z| (7..=9).contains(&z)).count();
         let parts = crate::electrons::scf::parallel_interleaved(grid.points.len(), &|it: &mut dyn Iterator<Item = usize>| {
             let mut phi = vec![0.0f64; nb];
-            let mut dphi = vec![0.0f64; 3 * nb];
-            let mut sum = [0.0f64; 6];
-            let cf = 0.3 * (3.0 * std::f64::consts::PI * std::f64::consts::PI).powf(2.0 / 3.0);
-            let cx = 0.75 * (3.0 / std::f64::consts::PI).cbrt();
+            let mut sum = [0.0f64; 5];
             for g in it {
-                crate::electrons::values::at(basis, grid.points[g], &mut phi, Some(&mut dphi));
-                let mut rho = [0.0f64; 2];
-                let mut grad = [[0.0f64; 3]; 2];
+                crate::electrons::values::at(basis, grid.points[g], &mut phi, None);
+                // rho[molecule][0: all, 1: without 1s, 2: valence]
+                let mut rho = [[0.0f64; 3]; 2];
                 for (i, (c, m, occ)) in orbitals.iter().enumerate() {
                     for o in 0..*occ {
-                        let (mut v, mut dv) = (0.0f64, [0.0f64; 3]);
-                        for x in 0..nb {
-                            let cc = c[x * m + o];
-                            v += cc * phi[x];
-                            dv[0] += cc * dphi[3 * x];
-                            dv[1] += cc * dphi[3 * x + 1];
-                            dv[2] += cc * dphi[3 * x + 2];
+                        let v: f64 = (0..nb).map(|x| c[x * m + o] * phi[x]).sum();
+                        let d = 2.0 * v * v;
+                        rho[i][0] += d;
+                        if o >= heavy {
+                            rho[i][1] += d;
                         }
-                        rho[i] += 2.0 * v * v;
-                        for q in 0..3 {
-                            grad[i][q] += 4.0 * v * dv[q];
+                        if o >= deep {
+                            rho[i][2] += d;
                         }
                     }
                 }
                 let w = grid.weights[g];
-                let (ra, rb) = (rho[0].max(0.0), rho[1].max(0.0));
-                let rt = ra + rb;
-                let g2 = |v: [f64; 3]| v[0] * v[0] + v[1] * v[1] + v[2] * v[2];
-                let weiz = |r: f64, gg: f64| if r > 1e-14 { gg / (8.0 * r) } else { 0.0 };
-                let gt = [grad[0][0] + grad[1][0], grad[0][1] + grad[1][1], grad[0][2] + grad[1][2]];
-                sum[0] += w * ra * rb;
-                sum[1] += w * ra;
-                sum[2] += w * rb;
-                sum[3] += w * cf * (rt.powf(5.0 / 3.0) - ra.powf(5.0 / 3.0) - rb.powf(5.0 / 3.0));
-                sum[4] += w * (weiz(rt, g2(gt)) - weiz(ra, g2(grad[0])) - weiz(rb, g2(grad[1])));
-                sum[5] -= w * cx * (rt.powf(4.0 / 3.0) - ra.powf(4.0 / 3.0) - rb.powf(4.0 / 3.0));
+                sum[0] += w * rho[0][0] * rho[1][0];
+                sum[1] += w * rho[0][0];
+                sum[2] += w * rho[1][0];
+                sum[3] += w * rho[0][1] * rho[1][1];
+                sum[4] += w * rho[0][2] * rho[1][2];
             }
             sum
         });
-        let tot = parts.iter().fold([0.0f64; 6], |mut acc, p| {
-            for q in 0..6 {
+        let tot = parts.iter().fold([0.0f64; 5], |mut acc, p| {
+            for q in 0..5 {
                 acc[q] += p[q];
             }
             acc
         });
         let (ov, ca, cb) = (tot[0], tot[1], tot[2]);
         let sep = (a[0] - b[0]).norm();
-        writeln!(outfile, "{k} {sep:.6} {} {} {e:.10e} {ov:.10e} {:.10e} {:.10e} {:.10e} {e_hl:.10e}", h[2], h[3], tot[3], tot[4], tot[5]).expect("written");
+        writeln!(outfile, "{k} {sep:.6} {} {} {e:.10e} {ov:.10e} {:.10e} {:.10e} {e_hl:.10e}", h[2], h[3], tot[3], tot[4]).expect("written");
         outfile.flush().ok();
         println!("pair {k}: first atoms {:.2} A, electrostatic {:.3} kcal/mol, exchange {:.3}, Hartree-Fock beyond both {:.3}, overlap {ov:.4e}, electrons {ca:.5} {cb:.5}, {nb} functions, {:.0} s", sep * 0.529177210903, e * 627.509474, (e_hl - e) * 627.509474, (h[3].parse::<f64>().unwrap() - e_hl) * 627.509474, start.elapsed().as_secs_f64());
         std::io::stdout().flush().ok();
