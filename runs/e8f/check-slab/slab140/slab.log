@@ -12,3 +12,11 @@ methane at 140 K: 256 molecules, 620120 steps (600 ps), settling for 124024
   50% after 1383 s
   55% after 1513 s
   60% after 1635 s
+  65% after 1758 s
+  70% after 1877 s
+  75% after 1997 s
+  80% after 2115 s
+  85% after 2235 s
+  90% after 2353 s
+  95% after 2473 s
+methane at 140 K: done in 2595 s; samples in coexist-methane-140.txt

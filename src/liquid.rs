@@ -244,6 +244,36 @@ impl Liquid {
         d
     }
 
+    /// The energy a molecule of the first kind would have with every molecule
+    /// in the box if it were put at `com` turned by `orientation`: the pair
+    /// terms as [`Liquid::forces`] sums them (nearest image of the centres,
+    /// the whole pair switched off between `r_on` and `r_cut`), for Widom's
+    /// test-particle average `mu_ex = -kT ln <exp(-dU/kT)>`. Pair terms only:
+    /// a law with induced dipoles is refused, because an inserted molecule
+    /// changes every other's dipole and that is not a sum over pairs.
+    pub fn insertion_energy(&self, law: &dyn SiteLaw, com: Vec3, orientation: Quat) -> f64 {
+        assert!(law.induction().is_none(), "an insertion energy is a pair sum; this law has induced dipoles");
+        let arms: Vec<Vec3> = self.kind.sites.iter().map(|s| orientation.rotate(*s)).collect();
+        let mut e = 0.0;
+        for j in 0..self.com.len() {
+            let d = self.image(com - self.com[j]);
+            let dist = d.norm();
+            if dist >= self.r_cut {
+                continue;
+            }
+            let kj = self.kind_of(j);
+            let mut pair = 0.0;
+            for (a, ta) in arms.iter().zip(&self.kind.types) {
+                for (sb, tb) in kj.sites.iter().zip(&kj.types) {
+                    let r = (d + *a - self.orientation[j].rotate(*sb)).norm();
+                    pair += law.site_pair(*ta, *tb, r).0;
+                }
+            }
+            e += pair * switch(dist, self.r_on, self.r_cut).0;
+        }
+        e
+    }
+
     /// Which kind molecule `i` is: 0 for the first.
     pub fn species_of(&self, i: usize) -> usize {
         self.species.get(i).copied().unwrap_or(0)

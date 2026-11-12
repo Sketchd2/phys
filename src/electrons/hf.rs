@@ -374,6 +374,76 @@ pub fn hartree_fock_in_field(problem: &Problem, field: [f64; 3], max_iterations:
     HartreeFock { energy, converged, iterations, c, m, levels, occupied }
 }
 
+/// The Hartree-Fock energy of `problem` for a given set of doubly occupied
+/// orbitals, `c[ao * count + orbital]`, with no field solved: the orbitals are
+/// first made orthonormal among themselves (Lowdin's symmetric way, which
+/// moves each the least), and the energy is the functional's value for the
+/// determinant they make.
+///
+/// What it is for: given the occupied orbitals of two molecules, each solved
+/// alone, this is the Heitler-London energy of the pair — the molecules as
+/// they are, antisymmetrised, before either responds to the other. Less the
+/// two molecules' own energies it is the exact electrostatic energy plus the
+/// exchange repulsion, and what Hartree-Fock's interaction has beyond it is
+/// induction. `fit` is the pair's fit, built once by the caller.
+pub fn energy_of_orbitals(problem: &Problem, fit: &Fitted, c: &[f64], count: usize) -> f64 {
+    let basis = &problem.basis;
+    let n = basis.size;
+    let (s, t, v) = one_electron(basis, &problem.nuclei);
+    // sigma = c^T S c, and c sigma^(-1/2).
+    let mut sc = vec![0.0f64; n * count];
+    for i in 0..n {
+        for j in 0..n {
+            let sij = s.a[i * n + j];
+            if sij == 0.0 {
+                continue;
+            }
+            for o in 0..count {
+                sc[i * count + o] += sij * c[j * count + o];
+            }
+        }
+    }
+    let mut sigma = Matrix::zeros(count);
+    for a in 0..count {
+        for b in 0..count {
+            sigma.set(a, b, (0..n).map(|i| c[i * count + a] * sc[i * count + b]).sum());
+        }
+    }
+    let (vals, vecs) = super::linalg::eigh(&sigma);
+    let mut root = Matrix::zeros(count);
+    for a in 0..count {
+        for b in 0..count {
+            root.set(a, b, (0..count).map(|k| vecs.get(a, k) * vecs.get(b, k) / vals[k].sqrt()).sum());
+        }
+    }
+    let mut co = vec![0.0f64; n * count];
+    for i in 0..n {
+        for b in 0..count {
+            co[i * count + b] = (0..count).map(|a| c[i * count + a] * root.get(a, b)).sum();
+        }
+    }
+    let p = closed_shell_density(&co, n, count, count);
+    let mut d = p.clone();
+    for a in d.a.iter_mut() {
+        *a *= 2.0;
+    }
+    let (_, ej) = fit.coulomb_and_energy(&d);
+    let (y, nk) = fit.whitened_half(&co, count, 0, count);
+    let k = exchange(&y, n, count, nk);
+    let mut e_nn = 0.0;
+    for (i, (zi, pi)) in problem.nuclei.iter().enumerate() {
+        for (zj, pj) in problem.nuclei.iter().take(i) {
+            let r = ((pi[0] - pj[0]).powi(2) + (pi[1] - pj[1]).powi(2) + (pi[2] - pj[2]).powi(2)).sqrt();
+            e_nn += zi * zj / r;
+        }
+    }
+    let mut h = t;
+    for q in 0..n * n {
+        h.a[q] += v.a[q];
+    }
+    h.dot(&d) + ej - 0.5 * d.dot(&k) + e_nn
+}
+
 /// The RI-MP2 correlation energy and its spin parts.
 #[derive(Debug, Clone, Copy)]
 pub struct Mp2 {

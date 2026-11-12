@@ -254,6 +254,12 @@ pub fn run(args: Vec<String>) {
     let nbins = (r_max / bin) as usize;
     let mut hist = vec![0.0f64; nbins];
     let mut frames = 0usize;
+    // `PHYS_WIDOM=<insertions a sample>`: Widom's test particle, the excess chemical potential by a
+    // route that shares nothing with a free-energy path but the law (PLAY.md E8f). A molecule is put
+    // at a random place and turn, from its own seeded stream, and `exp(-dU/kT)` averaged.
+    let widom: usize = std::env::var("PHYS_WIDOM").ok().and_then(|v| v.parse().ok()).unwrap_or(0);
+    let mut widom_stream = Liquid::noise(0x71d0 ^ temperature.to_bits());
+    let mut widom_sums: Vec<f64> = Vec::new();
     for step in 0..steps {
         f = l.step(law_ref, f, dt, Some((temperature, tau(1.0), &mut stream)));
         if step >= settle && step % every == 0 {
@@ -262,6 +268,15 @@ pub fn run(args: Vec<String>) {
             writeln!(file, "{:.3} {:.4} {:.1} {:.1} {:.1}", step as f64 * dt * PS, s.0, s.1, s.2, s.3).ok();
             file.flush().ok();
             samples.push(s);
+            if widom > 0 {
+                let mut acc = 0.0;
+                for _ in 0..widom {
+                    let at = Vec3 { x: (widom_stream.uniform() - 0.5) * l.cell[0], y: (widom_stream.uniform() - 0.5) * l.cell[1], z: (widom_stream.uniform() - 0.5) * l.cell[2] };
+                    let du = l.insertion_energy(law_ref, at, random_rotation(&mut widom_stream));
+                    acc += (-du / (K_B * temperature)).exp();
+                }
+                widom_sums.push(acc / widom as f64);
+            }
             let (mut total, mut magnitude) = (Vec3::ZERO, 0.0);
             for i in 0..n {
                 let mut p = Vec3::ZERO;
@@ -397,4 +412,15 @@ pub fn run(args: Vec<String>) {
         writeln!(sf, "{line}").ok();
     }
     println!("  snapshot in {snap}");
+    if !widom_sums.is_empty() {
+        // Five blocks, each its own estimate, for the error.
+        let nb = 5.min(widom_sums.len());
+        let per = widom_sums.len() / nb;
+        let kt = K_B * temperature * KCAL;
+        let mu: Vec<f64> = (0..nb).map(|b| -kt * (widom_sums[b * per..(b + 1) * per].iter().sum::<f64>() / per as f64).ln()).collect();
+        let all = -kt * (widom_sums.iter().sum::<f64>() / widom_sums.len() as f64).ln();
+        let mean = mu.iter().sum::<f64>() / nb as f64;
+        let err = (mu.iter().map(|m| (m - mean) * (m - mean)).sum::<f64>() / (nb * (nb - 1)).max(1) as f64).sqrt();
+        println!("  test particle ({widom} insertions a sample, {} samples): mu_ex {all:.4} +- {err:.4} kcal/mol (no tail beyond the cut-off)", widom_sums.len());
+    }
 }

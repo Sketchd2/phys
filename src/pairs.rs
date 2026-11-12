@@ -2085,7 +2085,8 @@ pub fn run_unlike(args: &[String]) {
 /// on the pair's own quadrature grid from the occupied orbitals.
 ///
 /// `phys-overlap water pairs-file [--every n] [--max n] [--out file]` appends
-/// `k separation E_total E_hf E_es S dT_tf dT_w dE_x` (bohr, hartree,
+/// `k separation E_total E_hf E_es S dT_tf dT_w dE_x E_hl` (bohr, hartree; `E_hl`
+/// the Heitler-London interaction, electrostatics plus exchange;
 /// electrons^2 / bohr^3), the first two energies copied from the pairs file and
 /// the last three the electron-gas terms described at the sum below, resuming.
 pub fn overlap_main(args: &[String]) {
@@ -2131,6 +2132,7 @@ pub fn overlap_main(args: &[String]) {
         let nb = base.basis.size;
         let mut dens = Vec::new();
         let mut orbitals: Vec<(Vec<f64>, usize, usize)> = Vec::new();
+        let mut monomer_energy: Vec<f64> = Vec::new();
         for i in 0..2 {
             let keep: Vec<usize> = (i * n..(i + 1) * n).collect();
             let p = base.with_ghosts(&keep, electrons);
@@ -2144,6 +2146,7 @@ pub fn overlap_main(args: &[String]) {
                 }
             }
             dens.push(d);
+            monomer_energy.push(hf.energy);
             orbitals.push((hf.c, hf.m, hf.occupied));
         }
         let nuc = |m: &[Vec3]| -> Vec<(f64, [f64; 3])> { m.iter().zip(&mono.z).map(|(p, zz)| (*zz as f64, [p.x, p.y, p.z])).collect() };
@@ -2165,6 +2168,21 @@ pub fn overlap_main(args: &[String]) {
         for x in 0..nb * nb {
             e += dens[1].a[x] * j.a[x];
         }
+        // The Heitler-London energy: the two molecules' own occupied orbitals,
+        // antisymmetrised, nothing responding. Less the molecules' energies and
+        // the electrostatics above, it is the exchange repulsion alone.
+        let count: usize = orbitals.iter().map(|o| o.2).sum();
+        let mut both = vec![0.0f64; nb * count];
+        let mut col = 0;
+        for (c, m, occ) in &orbitals {
+            for o in 0..*occ {
+                for x in 0..nb {
+                    both[x * count + col] = c[x * m + o];
+                }
+                col += 1;
+            }
+        }
+        let e_hl = crate::electrons::hf::energy_of_orbitals(&base, &fit, &both, count) - monomer_energy[0] - monomer_energy[1];
         // The overlap, on the pair's grid. Each density from its occupied
         // orbitals, `rho = 2 sum_o (sum_m c_mo phi_m)^2`, and the count of
         // electrons each integrates to is printed as the grid's own check.
@@ -2227,9 +2245,9 @@ pub fn overlap_main(args: &[String]) {
         });
         let (ov, ca, cb) = (tot[0], tot[1], tot[2]);
         let sep = (a[0] - b[0]).norm();
-        writeln!(outfile, "{k} {sep:.6} {} {} {e:.10e} {ov:.10e} {:.10e} {:.10e} {:.10e}", h[2], h[3], tot[3], tot[4], tot[5]).expect("written");
+        writeln!(outfile, "{k} {sep:.6} {} {} {e:.10e} {ov:.10e} {:.10e} {:.10e} {:.10e} {e_hl:.10e}", h[2], h[3], tot[3], tot[4], tot[5]).expect("written");
         outfile.flush().ok();
-        println!("pair {k}: first atoms {:.2} A, electrostatic {:.3} kcal/mol, overlap {ov:.4e}, electrons {ca:.5} {cb:.5}, {nb} functions, {:.0} s", sep * 0.529177210903, e * 627.509474, start.elapsed().as_secs_f64());
+        println!("pair {k}: first atoms {:.2} A, electrostatic {:.3} kcal/mol, exchange {:.3}, Hartree-Fock beyond both {:.3}, overlap {ov:.4e}, electrons {ca:.5} {cb:.5}, {nb} functions, {:.0} s", sep * 0.529177210903, e * 627.509474, (e_hl - e) * 627.509474, (h[3].parse::<f64>().unwrap() - e_hl) * 627.509474, start.elapsed().as_secs_f64());
         std::io::stdout().flush().ok();
     }
 }

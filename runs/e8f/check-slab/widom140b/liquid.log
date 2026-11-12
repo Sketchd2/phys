@@ -1,0 +1,15 @@
+methane at 140 K: 108 molecules, 0.4226 g/cm3, box 35.82 bohr (18.95 A), cut-off 14.0 bohr
+  8 molecules could not be turned clear of their neighbours
+  start: U/N 89.77 kcal/mol
+  easing: U/N -1.23 kcal/mol, T 146/141 K, P 3026 bar
+  settling: U/N -1.60 kcal/mol, T 163/116 K, P 663 bar
+  warming: U/N -1.64 kcal/mol, T 146/152 K, P 280 bar
+  0% after 44 s: U/N -1.64 kcal/mol, P 288 bar
+  8% after 91 s: U/N -1.60 kcal/mol, P 659 bar
+  17% after 135 s: U/N -1.66 kcal/mol, P 107 bar
+  25% after 193 s: U/N -1.66 kcal/mol, P 147 bar
+  33% after 259 s: U/N -1.66 kcal/mol, P 360 bar
+  42% after 322 s: U/N -1.60 kcal/mol, P 415 bar
+  50% after 396 s: U/N -1.63 kcal/mol, P 572 bar
+  58% after 458 s: U/N -1.63 kcal/mol, P 279 bar
+  67% after 522 s: U/N -1.64 kcal/mol, P 382 bar
