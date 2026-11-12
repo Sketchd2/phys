@@ -1,3 +1,23 @@
 methane at 165 K: 256 molecules, 413413 steps (400 ps), settling for 82682
   0% after 0 s
   5% after 93 s
+  10% after 187 s
+  15% after 278 s
+  20% after 371 s
+  25% after 465 s
+  30% after 565 s
+  35% after 666 s
+  40% after 769 s
+  45% after 865 s
+  50% after 963 s
+  55% after 1064 s
+  60% after 1154 s
+  65% after 1255 s
+  70% after 1348 s
+  75% after 1438 s
+  80% after 1528 s
+  85% after 1615 s
+  90% after 1702 s
+  95% after 1782 s
+  100% after 1869 s
+methane at 165 K: done in 1869 s; samples in coexist-methane-165.txt

@@ -112,7 +112,7 @@ for T, v in ch:
         for _ in range(100): rv = rn * math.exp(mu * b - 2 * B2[T] * rv)
     except OverflowError:
         continue
-    if abs(B2[T] * rv) > 0.35: continue        # the virial series is no use this near the critical point
+    if abs(B2[T] * rv) > 0.35: note += " (B2 rho_V %.2f: virial series doubtful)" % (B2[T]*rv)        # the virial series is no use this near the critical point
     p = rv * (1 + B2[T] * rv) * RBAR * T / 1.01325
     print(f"{T:6.1f} {rho0:.4f} {F:+.4f} {mu:+.4f} {dbF/b:.4f}  {p:9.4f} x/{math.exp(dbF):.3f}  {rv*M:.5f}{note}")
     out.append((T, p))

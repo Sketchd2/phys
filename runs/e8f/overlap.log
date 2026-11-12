@@ -1,10 +1,2 @@
-pair 0: first atoms 2.42 A, electrostatic -12.956 kcal/mol, overlap 4.8108e-3, electrons 10.00000 10.00000, 428 functions, 87 s
-pair 10: first atoms 2.85 A, electrostatic -3.945 kcal/mol, overlap 1.2304e-3, electrons 10.00000 10.00000, 428 functions, 85 s
-pair 20: first atoms 3.68 A, electrostatic -0.206 kcal/mol, overlap 6.8087e-5, electrons 10.00000 10.00000, 428 functions, 187 s
-pair 29: first atoms 3.21 A, electrostatic -3.138 kcal/mol, overlap 3.6206e-4, electrons 10.00000 10.00000, 428 functions, 223 s
-pair 38: first atoms 3.61 A, electrostatic 1.047 kcal/mol, overlap 1.6655e-4, electrons 10.00000 10.00000, 428 functions, 185 s
-pair 48: first atoms 3.06 A, electrostatic -3.179 kcal/mol, overlap 3.7061e-4, electrons 10.00000 10.00000, 428 functions, 171 s
-pair 56: first atoms 3.22 A, electrostatic 2.012 kcal/mol, overlap 1.4841e-4, electrons 10.00000 10.00000, 428 functions, 168 s
-pair 71: first atoms 2.86 A, electrostatic -6.043 kcal/mol, overlap 9.9655e-4, electrons 10.00000 10.00000, 428 functions, 79 s
-pair 80: first atoms 3.48 A, electrostatic 1.323 kcal/mol, overlap 4.9900e-5, electrons 10.00000 10.00000, 428 functions, 75 s
-pair 91: first atoms 3.07 A, electrostatic -2.325 kcal/mol, overlap 4.2659e-4, electrons 10.00000 10.00000, 428 functions, 85 s
+pair 0: first atoms 3.59 A, electrostatic -0.705 kcal/mol, overlap 3.8350e-4, electrons 10.00000 10.00000, 604 functions, 240 s
+pair 15: first atoms 4.71 A, electrostatic 0.005 kcal/mol, overlap 3.0635e-6, electrons 10.00000 10.00000, 604 functions, 226 s
