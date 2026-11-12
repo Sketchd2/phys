@@ -187,3 +187,7 @@ path = "src/bin/overlap.rs"
 [[bin]]
 name = "phys-b2"
 path = "src/bin/b2.rs"
+
+[[bin]]
+name = "phys-density"
+path = "src/bin/density.rs"

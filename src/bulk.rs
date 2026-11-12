@@ -229,7 +229,12 @@ pub fn run(args: Vec<String>) {
     // Easing in: tiny steps and a strong bath, then longer.
     let tau = |ps: f64| 1.0 / (ps / PS);
     let t0 = Instant::now();
+    // `PHYS_EASE=<fraction>` shortens the easing-in for a run started from a snapshot that is
+    // already a liquid near this state (a chain of states along a free-energy path, PLAY.md E8f):
+    // the stages keep their steps and baths and run that fraction of their length.
+    let ease: f64 = std::env::var("PHYS_EASE").ok().and_then(|v| v.parse().ok()).unwrap_or(1.0);
     for (label, dt, steps, friction) in [("easing", 2.0, 4000usize, tau(0.02)), ("settling", 10.0, 6000, tau(0.1)), ("warming", 25.0, 8000, tau(0.5))] {
+        let steps = (steps as f64 * ease).round() as usize;
         for _ in 0..steps {
             f = l.step(law_ref, f, dt, Some((temperature, friction, &mut stream)));
         }
