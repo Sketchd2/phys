@@ -179,3 +179,11 @@ path = "src/bin/cloud.rs"
 [[bin]]
 name = "phys-cloudfit"
 path = "src/bin/cloudfit.rs"
+
+[[bin]]
+name = "phys-overlap"
+path = "src/bin/overlap.rs"
+
+[[bin]]
+name = "phys-b2"
+path = "src/bin/b2.rs"

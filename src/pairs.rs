@@ -2070,3 +2070,130 @@ pub fn run_unlike(args: &[String]) {
         std::io::stdout().flush().ok();
     }
 }
+
+/// The overlap of two molecules' electron densities, `S = integral rho_a rho_b`,
+/// for pairs already computed, beside the exact electrostatic energy of the
+/// same two densities — the first probe of the monomer-record law (the
+/// owner approved the direction, 2026-11-12; nothing here is a law yet).
+///
+/// The question it is for: whether the repulsion between two closed-shell
+/// molecules is one constant times this overlap, the same constant for every
+/// species. Each monomer is solved as `es_main` solves it (Hartree-Fock in the
+/// pair's basis, the partner a ghost), so the electrostatic energy printed
+/// here must equal `es-<name>.txt`'s where that file has the pair, which is
+/// the check that this reads the densities correctly. The overlap is summed
+/// on the pair's own quadrature grid from the occupied orbitals.
+///
+/// `phys-overlap water pairs-file [--every n] [--max n] [--out file]` appends
+/// `k separation E_total E_hf E_es S` (bohr, hartree, electrons^2 / bohr^3),
+/// the first two energies copied from the pairs file, resuming.
+pub fn overlap_main(args: &[String]) {
+    use crate::electrons::integrals::one_electron;
+    use crate::electrons::scf::Fitted;
+    let name = args.first().cloned().unwrap_or_else(|| "water".into());
+    let file = args.get(1).cloned().expect("a pairs file");
+    let flag = |f: &str| args.iter().position(|a| a == f).and_then(|i| args.get(i + 1)).cloned();
+    let every: usize = flag("--every").and_then(|v| v.parse().ok()).unwrap_or(1);
+    let max: usize = flag("--max").and_then(|v| v.parse().ok()).unwrap_or(usize::MAX);
+    let out = flag("--out").unwrap_or_else(|| format!("overlap-{name}.txt"));
+    // Only pairs whose separation (the pairs file's own column) is under this: a
+    // uniform draw is mostly pairs too far apart to overlap at all.
+    let max_sep: f64 = flag("--max-sep").and_then(|v| v.parse().ok()).unwrap_or(f64::INFINITY);
+    let mono = Monomer::load(&name, false);
+    let n = mono.z.len();
+    let done = done_indices(&out);
+    let mut outfile = std::fs::OpenOptions::new().create(true).append(true).open(&out).expect("the output file");
+    let text = std::fs::read_to_string(&file).unwrap_or_else(|_| panic!("no {file}"));
+    let mut seen = 0usize;
+    let mut taken = 0usize;
+    for line in text.lines().filter(|l| !l.starts_with('#') && l.contains('|')) {
+        let (head, tail) = line.split_once('|').expect("a |");
+        let h: Vec<&str> = head.split_whitespace().collect();
+        let k: usize = h[0].parse().expect("an index");
+        if h[1].parse::<f64>().expect("a separation") > max_sep {
+            continue;
+        }
+        seen += 1;
+        if (seen - 1) % every != 0 || done.contains(&k) {
+            continue;
+        }
+        if taken >= max {
+            break;
+        }
+        taken += 1;
+        let t: Vec<&str> = tail.split_whitespace().collect();
+        let atoms: Vec<Vec3> = t.chunks(4).map(|c| Vec3 { x: c[0].parse().unwrap(), y: c[1].parse().unwrap(), z: c[2].parse().unwrap() }).collect();
+        let (a, b) = (atoms[..n].to_vec(), atoms[n..].to_vec());
+        let start = Instant::now();
+        let base = mono.cluster_problem(&[a.clone(), b.clone()]);
+        let electrons: f64 = mono.z.iter().map(|&zz| zz as f64).sum();
+        let nb = base.basis.size;
+        let mut dens = Vec::new();
+        let mut orbitals: Vec<(Vec<f64>, usize, usize)> = Vec::new();
+        for i in 0..2 {
+            let keep: Vec<usize> = (i * n..(i + 1) * n).collect();
+            let p = base.with_ghosts(&keep, electrons);
+            let hf = crate::electrons::hf::hartree_fock(&p, 200, 1e-9);
+            assert!(hf.converged, "a monomer did not converge");
+            let mut d = crate::electrons::linalg::Matrix::zeros(nb);
+            for x in 0..nb {
+                for y in 0..nb {
+                    let s: f64 = (0..hf.occupied).map(|o| hf.c[x * hf.m + o] * hf.c[y * hf.m + o]).sum();
+                    d.set(x, y, 2.0 * s);
+                }
+            }
+            dens.push(d);
+            orbitals.push((hf.c, hf.m, hf.occupied));
+        }
+        let nuc = |m: &[Vec3]| -> Vec<(f64, [f64; 3])> { m.iter().zip(&mono.z).map(|(p, zz)| (*zz as f64, [p.x, p.y, p.z])).collect() };
+        let (na, nbn) = (nuc(&a), nuc(&b));
+        let mut e = 0.0;
+        for (za, pa) in &na {
+            for (zb, pb) in &nbn {
+                e += za * zb / ((pa[0] - pb[0]).powi(2) + (pa[1] - pb[1]).powi(2) + (pa[2] - pb[2]).powi(2)).sqrt();
+            }
+        }
+        let (s, _, v_b) = one_electron(&base.basis, &nbn);
+        let (_, _, v_a) = one_electron(&base.basis, &na);
+        for x in 0..nb * nb {
+            e += dens[0].a[x] * v_b.a[x] + dens[1].a[x] * v_a.a[x];
+        }
+        let aux = base.auxiliary.as_ref().expect("an auxiliary basis");
+        let fit = Fitted::new(&base.basis, aux, &s);
+        let (j, _) = fit.coulomb_and_energy(&dens[0]);
+        for x in 0..nb * nb {
+            e += dens[1].a[x] * j.a[x];
+        }
+        // The overlap, on the pair's grid. Each density from its occupied
+        // orbitals, `rho = 2 sum_o (sum_m c_mo phi_m)^2`, and the count of
+        // electrons each integrates to is printed as the grid's own check.
+        let sites: Vec<([f64; 3], f64)> = base.nuclei.iter().zip(&base.sizes).map(|(nu, sz)| (nu.1, *sz)).collect();
+        let grid = crate::electrons::grid::molecular_pruned(&sites, base.radial, base.theta, base.prune);
+        let basis = &base.basis;
+        let parts = crate::electrons::scf::parallel_interleaved(grid.points.len(), &|it: &mut dyn Iterator<Item = usize>| {
+            let mut phi = vec![0.0f64; nb];
+            let (mut ov, mut ca, mut cb) = (0.0f64, 0.0f64, 0.0f64);
+            for g in it {
+                crate::electrons::values::at(basis, grid.points[g], &mut phi, None);
+                let mut rho = [0.0f64; 2];
+                for (i, (c, m, occ)) in orbitals.iter().enumerate() {
+                    for o in 0..*occ {
+                        let v: f64 = (0..nb).map(|x| c[x * m + o] * phi[x]).sum();
+                        rho[i] += 2.0 * v * v;
+                    }
+                }
+                let w = grid.weights[g];
+                ov += w * rho[0] * rho[1];
+                ca += w * rho[0];
+                cb += w * rho[1];
+            }
+            (ov, ca, cb)
+        });
+        let (ov, ca, cb) = parts.iter().fold((0.0, 0.0, 0.0), |acc, p| (acc.0 + p.0, acc.1 + p.1, acc.2 + p.2));
+        let sep = (a[0] - b[0]).norm();
+        writeln!(outfile, "{k} {sep:.6} {} {} {e:.10e} {ov:.10e}", h[2], h[3]).expect("written");
+        outfile.flush().ok();
+        println!("pair {k}: first atoms {:.2} A, electrostatic {:.3} kcal/mol, overlap {ov:.4e}, electrons {ca:.5} {cb:.5}, {nb} functions, {:.0} s", sep * 0.529177210903, e * 627.509474, start.elapsed().as_secs_f64());
+        std::io::stdout().flush().ok();
+    }
+}

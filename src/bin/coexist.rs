@@ -2,7 +2,7 @@
 //! direct coexistence, by the owner's decision.
 //!
 //! ```sh
-//! cargo run --release --bin phys-coexist -- water law-water.txt 400 [molecules] [cut-off bohr] [ps]
+//! cargo run --release --bin phys-coexist -- water law-water.txt 400 [molecules] [cut-off bohr] [ps] [starting g/cm3]
 //! ```
 //!
 //! The molecule at the shape its growth relaxed it to (`grow-<name>.state`),
@@ -51,7 +51,8 @@ fn main() {
     // A starting density from the molecule's mass at about a liquid's 0.8
     // g/cm^3; the slab finds its own as it settles.
     let molecule_g = kind.mass / AMU * 1.66053906660e-24;
-    let start_density = 0.8 / molecule_g * 0.529177210903e-8f64.powi(3);
+    let start_g: f64 = args.get(6).and_then(|s| s.parse().ok()).unwrap_or(0.8);
+    let start_density = start_g / molecule_g * 0.529177210903e-8f64.powi(3);
     let side = 2.5 * r_cut;
     let thickness = n as f64 / (start_density * side * side);
     let length = 3.0 * thickness + 2.0 * r_cut;

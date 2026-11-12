@@ -1,0 +1,2 @@
+# methane at 165 K: 256 molecules, box 35.00 x 35.00 x 359.50 bohr, cut-off 14 bohr, step 40 a.u.; law law.txt
+# ps liquid_density vapour_density (molecules/bohr^3) potential_per_molecule (hartree) temperature_K

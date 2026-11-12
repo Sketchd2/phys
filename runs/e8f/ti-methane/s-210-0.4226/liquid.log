@@ -1,0 +1,27 @@
+methane at 210 K: 108 molecules, 0.4226 g/cm3, box 35.82 bohr (18.95 A), cut-off 16.0 bohr
+  8 molecules could not be turned clear of their neighbours
+  start: U/N 89.68 kcal/mol
+  easing: U/N -1.10 kcal/mol, T 235/202 K, P 4310 bar
+  settling: U/N -1.56 kcal/mol, T 192/197 K, P 1420 bar
+  warming: U/N -1.62 kcal/mol, T 232/237 K, P 1063 bar
+  0% after 494 s: U/N -1.62 kcal/mol, P 1053 bar
+  8% after 537 s: U/N -1.60 kcal/mol, P 1163 bar
+  17% after 585 s: U/N -1.63 kcal/mol, P 805 bar
+  25% after 630 s: U/N -1.63 kcal/mol, P 1083 bar
+  33% after 671 s: U/N -1.55 kcal/mol, P 1445 bar
+  42% after 711 s: U/N -1.60 kcal/mol, P 1148 bar
+  50% after 748 s: U/N -1.61 kcal/mol, P 1201 bar
+  58% after 783 s: U/N -1.58 kcal/mol, P 1186 bar
+  67% after 817 s: U/N -1.55 kcal/mol, P 1308 bar
+  75% after 850 s: U/N -1.64 kcal/mol, P 965 bar
+  83% after 880 s: U/N -1.62 kcal/mol, P 1088 bar
+  92% after 913 s: U/N -1.62 kcal/mol, P 1038 bar
+  100% after 944 s: U/N -1.57 kcal/mol, P 1453 bar
+methane at 210 K (160 samples over 16 ps, block standard errors):
+  U/N -1.605 +- 0.005 kcal/mol; heat of vaporisation -U/N + RT = 2.022 kcal/mol
+  pressure 1104 +- 38 bar at 0.4226 g/cm3 (a liquid at the right density sits near 1 bar; positive says it wants to expand)
+  temperatures: translation 206.4 K, rotation 205.3 K (bath 210 K)
+  mean molecular dipole 0.000 D (permanent charges and induced dipoles); dielectric constant 1.0 (blocks 1.0 +- 0.0; slow to converge)
+  dispersion beyond the cut-off (C6 132.91): -135 bar and -0.122 kcal/mol a molecule, so pressure with it 969 bar, U/N -1.727
+  g(first atoms): first peak 0.18 at 3.35 A, first minimum 0.92 at 3.55 A, second peak 2.30 at 3.95 A, coordination to the minimum 0.17 (bulk-methane-210.gOO.txt)
+  snapshot in bulk-methane-210.snap
