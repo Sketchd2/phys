@@ -35,3 +35,5 @@ pair 32: first atoms 1.88 A, electrostatic -57.617 kcal/mol, exchange 167.267, H
 pair 48: first atoms 2.04 A, electrostatic -30.682 kcal/mol, exchange 101.595, Hartree-Fock beyond both -12.514, overlap 2.2280e-2, electrons 10.00000 10.00000, 538 functions, 132 s
 pair 64: first atoms 2.76 A, electrostatic -7.623 kcal/mol, exchange 18.148, Hartree-Fock beyond both -2.414, overlap 3.4658e-3, electrons 10.00000 9.99999, 538 functions, 135 s
 pair 80: first atoms 2.17 A, electrostatic -32.733 kcal/mol, exchange 94.512, Hartree-Fock beyond both -12.126, overlap 1.9444e-2, electrons 9.99999 10.00000, 538 functions, 138 s
+pair 96: first atoms 1.94 A, electrostatic -89.767 kcal/mol, exchange 269.219, Hartree-Fock beyond both -54.436, overlap 5.6006e-2, electrons 10.00000 10.00000, 538 functions, 136 s
+pair 0: first atoms 1.60 A, electrostatic -114.861 kcal/mol, exchange 356.006, Hartree-Fock beyond both -50.770, overlap 9.0915e-2, electrons 10.00000 10.00000, 428 functions, 80 s
