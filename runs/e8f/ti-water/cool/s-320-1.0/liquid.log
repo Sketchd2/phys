@@ -18,3 +18,11 @@ water at 320 K: 64 molecules, 1 g/cm3, box 23.46 bohr (12.42 A), cut-off 11.5 bo
   75% after 604 s: U/N -9.08 kcal/mol, P 2899 bar
   83% after 663 s: U/N -8.51 kcal/mol, P 446 bar
   92% after 716 s: U/N -8.65 kcal/mol, P 1353 bar
+water at 320 K (192 samples over 19 ps, block standard errors):
+  U/N -8.582 +- 0.046 kcal/mol; heat of vaporisation -U/N + RT = 9.218 kcal/mol
+  pressure 997 +- 197 bar at 1 g/cm3 (a liquid at the right density sits near 1 bar; positive says it wants to expand)
+  temperatures: translation 318.3 K, rotation 320.2 K (bath 320 K)
+  mean molecular dipole 2.780 D (permanent charges and induced dipoles); dielectric constant 26.9 (blocks 16.7 +- 2.5; slow to converge)
+  dispersion beyond the cut-off (C6 25.95): -342 bar and -0.147 kcal/mol a molecule, so pressure with it 655 bar, U/N -8.729
+  g(first atoms): first peak 2.39 at 2.85 A, first minimum 0.87 at 4.05 A, second peak 1.04 at 5.15 A, coordination to the minimum 8.42 (bulk-water-320.gOO.txt)
+  snapshot in bulk-water-320.snap
