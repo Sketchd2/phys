@@ -3,3 +3,27 @@ water at 400 K: 64 molecules, 0.84 g/cm3, box 24.87 bohr (13.16 A), cut-off 12.2
   Ewald sum on: s' = 4.2 bohr, 919 reciprocal vectors
   started from /home/user/phys/runs/e8f/ti-water/cool/s-400-0.88/bulk-water-400.snap, centres scaled by 1.0156
   start: U/N -7.11 kcal/mol
+  easing: U/N -7.08 kcal/mol, T 432/461 K, P -2069 bar
+  settling: U/N -7.00 kcal/mol, T 342/357 K, P 1324 bar
+  warming: U/N -7.06 kcal/mol, T 323/407 K, P -1302 bar
+  0% after 65 s: U/N -7.05 kcal/mol, P -1295 bar
+  8% after 91 s: U/N -7.01 kcal/mol, P 905 bar
+  17% after 116 s: U/N -7.01 kcal/mol, P 392 bar
+  25% after 141 s: U/N -7.28 kcal/mol, P 79 bar
+  33% after 166 s: U/N -7.62 kcal/mol, P -1530 bar
+  42% after 192 s: U/N -7.64 kcal/mol, P 774 bar
+  50% after 219 s: U/N -7.61 kcal/mol, P 1832 bar
+  58% after 244 s: U/N -7.14 kcal/mol, P 1574 bar
+  67% after 269 s: U/N -7.18 kcal/mol, P 1032 bar
+  75% after 294 s: U/N -7.27 kcal/mol, P 1427 bar
+  83% after 321 s: U/N -7.51 kcal/mol, P -1195 bar
+  92% after 348 s: U/N -7.64 kcal/mol, P -577 bar
+  100% after 376 s: U/N -7.38 kcal/mol, P -1715 bar
+water at 400 K (96 samples over 10 ps, block standard errors):
+  U/N -7.371 +- 0.057 kcal/mol; heat of vaporisation -U/N + RT = 8.166 kcal/mol
+  pressure -160 +- 67 bar at 0.84 g/cm3 (a liquid at the right density sits near 1 bar; positive says it wants to expand)
+  temperatures: translation 390.8 K, rotation 397.1 K (bath 400 K)
+  mean molecular dipole 2.624 D (permanent charges and induced dipoles); dielectric constant 29.9 (blocks 12.9 +- 1.8; slow to converge)
+  dispersion beyond the cut-off (C6 25.95): -199 bar and -0.102 kcal/mol a molecule, so pressure with it -360 bar, U/N -7.473
+  g(first atoms): first peak 2.18 at 2.85 A, first minimum 0.87 at 3.95 A, second peak 1.04 at 5.35 A, coordination to the minimum 6.45 (bulk-water-400.gOO.txt)
+  snapshot in bulk-water-400.snap
