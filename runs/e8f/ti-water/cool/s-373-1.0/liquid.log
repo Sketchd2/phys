@@ -10,3 +10,9 @@ water at 373 K: 64 molecules, 1 g/cm3, box 23.46 bohr (12.42 A), cut-off 11.5 bo
   8% after 136 s: U/N -8.12 kcal/mol, P 1641 bar
   17% after 198 s: U/N -8.40 kcal/mol, P 3860 bar
   25% after 258 s: U/N -8.36 kcal/mol, P 2324 bar
+  33% after 319 s: U/N -8.22 kcal/mol, P 1791 bar
+  42% after 381 s: U/N -8.30 kcal/mol, P -1716 bar
+  50% after 440 s: U/N -8.31 kcal/mol, P 343 bar
+  58% after 496 s: U/N -7.60 kcal/mol, P 3264 bar
+  67% after 554 s: U/N -8.07 kcal/mol, P 3245 bar
+  75% after 609 s: U/N -8.45 kcal/mol, P 2876 bar
