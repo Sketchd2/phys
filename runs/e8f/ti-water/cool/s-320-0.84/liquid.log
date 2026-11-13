@@ -1,0 +1,29 @@
+induced dipoles on, polarisabilities by site type [9.234316455280853, 0.8544488912439157, 0.0, 0.0, 0.0] bohr^3
+water at 320 K: 64 molecules, 0.84 g/cm3, box 24.87 bohr (13.16 A), cut-off 12.2 bohr
+  Ewald sum on: s' = 4.2 bohr, 919 reciprocal vectors
+  started from /home/user/phys/runs/e8f/ti-water/cool/s-320-0.88/bulk-water-320.snap, centres scaled by 1.0156
+  start: U/N -8.23 kcal/mol
+  easing: U/N -8.21 kcal/mol, T 302/336 K, P -2522 bar
+  settling: U/N -8.17 kcal/mol, T 318/302 K, P -1142 bar
+  warming: U/N -8.18 kcal/mol, T 321/275 K, P 1428 bar
+  0% after 84 s: U/N -8.15 kcal/mol, P 1507 bar
+  8% after 121 s: U/N -8.19 kcal/mol, P -2840 bar
+  17% after 156 s: U/N -8.10 kcal/mol, P -554 bar
+  25% after 192 s: U/N -8.05 kcal/mol, P -2021 bar
+  33% after 226 s: U/N -8.33 kcal/mol, P -1881 bar
+  42% after 260 s: U/N -8.40 kcal/mol, P -562 bar
+  50% after 293 s: U/N -8.02 kcal/mol, P -1477 bar
+  58% after 326 s: U/N -7.88 kcal/mol, P -1568 bar
+  67% after 358 s: U/N -7.96 kcal/mol, P 883 bar
+  75% after 391 s: U/N -8.19 kcal/mol, P 1393 bar
+  83% after 427 s: U/N -8.18 kcal/mol, P -2791 bar
+  92% after 463 s: U/N -8.20 kcal/mol, P -1325 bar
+  100% after 498 s: U/N -8.25 kcal/mol, P -733 bar
+water at 320 K (96 samples over 10 ps, block standard errors):
+  U/N -8.182 +- 0.048 kcal/mol; heat of vaporisation -U/N + RT = 8.818 kcal/mol
+  pressure -1355 +- 87 bar at 0.84 g/cm3 (a liquid at the right density sits near 1 bar; positive says it wants to expand)
+  temperatures: translation 314.1 K, rotation 316.8 K (bath 320 K)
+  mean molecular dipole 2.718 D (permanent charges and induced dipoles); dielectric constant 23.0 (blocks 12.8 +- 2.4; slow to converge)
+  dispersion beyond the cut-off (C6 25.95): -199 bar and -0.102 kcal/mol a molecule, so pressure with it -1555 bar, U/N -8.284
+  g(first atoms): first peak 2.52 at 2.85 A, first minimum 0.83 at 3.95 A, second peak 1.07 at 5.15 A, coordination to the minimum 6.31 (bulk-water-320.gOO.txt)
+  snapshot in bulk-water-320.snap
