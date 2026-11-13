@@ -1,0 +1,2 @@
+# water at 900 K, 64 molecules, 0.02 g/cm3, cut-off 16 bohr, law law.txt
+# ps  U_per_molecule_kcal  pressure_bar  T_translation  T_rotation

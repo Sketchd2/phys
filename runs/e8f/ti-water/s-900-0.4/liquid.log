@@ -1,0 +1,29 @@
+induced dipoles on, polarisabilities by site type [9.234316455280853, 0.8544488912439157, 0.0, 0.0, 0.0] bohr^3
+water at 900 K: 64 molecules, 0.4 g/cm3, box 31.85 bohr (16.85 A), cut-off 15.6 bohr
+  Ewald sum on: s' = 4.2 bohr, 1895 reciprocal vectors
+  started from /home/user/phys/runs/e8f/ti-water/s-900-0.52/bulk-water-900.snap, centres scaled by 1.0914
+  start: U/N -2.65 kcal/mol
+  easing: U/N -2.44 kcal/mol, T 864/759 K, P 117 bar
+  settling: U/N -2.10 kcal/mol, T 725/800 K, P 1756 bar
+  warming: U/N -2.39 kcal/mol, T 909/946 K, P 1376 bar
+  0% after 85 s: U/N -2.42 kcal/mol, P 1357 bar
+  8% after 119 s: U/N -2.49 kcal/mol, P 712 bar
+  17% after 153 s: U/N -2.46 kcal/mol, P 1061 bar
+  25% after 187 s: U/N -2.22 kcal/mol, P 1667 bar
+  33% after 222 s: U/N -2.51 kcal/mol, P 1239 bar
+  42% after 256 s: U/N -2.54 kcal/mol, P 1067 bar
+  50% after 289 s: U/N -2.30 kcal/mol, P 2211 bar
+  58% after 323 s: U/N -2.81 kcal/mol, P 890 bar
+  67% after 358 s: U/N -2.37 kcal/mol, P 1003 bar
+  75% after 392 s: U/N -2.53 kcal/mol, P 1706 bar
+  83% after 426 s: U/N -2.22 kcal/mol, P 1172 bar
+  92% after 460 s: U/N -2.74 kcal/mol, P 2121 bar
+  100% after 495 s: U/N -2.52 kcal/mol, P 2797 bar
+water at 900 K (96 samples over 10 ps, block standard errors):
+  U/N -2.510 +- 0.053 kcal/mol; heat of vaporisation -U/N + RT = 4.298 kcal/mol
+  pressure 1617 +- 55 bar at 0.4 g/cm3 (a liquid at the right density sits near 1 bar; positive says it wants to expand)
+  temperatures: translation 894.1 K, rotation 870.6 K (bath 900 K)
+  mean molecular dipole 2.089 D (permanent charges and induced dipoles); dielectric constant 4.3 (blocks 4.1 +- 0.4; slow to converge)
+  dispersion beyond the cut-off (C6 25.95): -20 bar and -0.022 kcal/mol a molecule, so pressure with it 1596 bar, U/N -2.531
+  g(first atoms): first peak 1.59 at 3.05 A, first minimum 0.95 at 4.15 A, second peak 1.03 at 5.45 A, coordination to the minimum 3.63 (bulk-water-900.gOO.txt)
+  snapshot in bulk-water-900.snap

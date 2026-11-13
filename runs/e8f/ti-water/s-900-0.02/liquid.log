@@ -1,0 +1,7 @@
+induced dipoles on, polarisabilities by site type [9.234316455280853, 0.8544488912439157, 0.0, 0.0, 0.0] bohr^3
+water at 900 K: 64 molecules, 0.02 g/cm3, box 86.45 bohr (45.75 A), cut-off 16.0 bohr
+  Ewald sum on: s' = 4.2 bohr, 38118 reciprocal vectors
+  started from /home/user/phys/runs/e8f/ti-water/s-900-0.06/bulk-water-900.snap, centres scaled by 1.4422
+  start: U/N -0.13 kcal/mol
+  easing: U/N -0.07 kcal/mol, T 859/734 K, P 75 bar
+  settling: U/N -0.14 kcal/mol, T 763/904 K, P 63 bar

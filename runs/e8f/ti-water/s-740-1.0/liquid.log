@@ -5,3 +5,25 @@ water at 740 K: 64 molecules, 1 g/cm3, box 23.46 bohr (12.42 A), cut-off 11.5 bo
   start: U/N -6.36 kcal/mol
   easing: U/N -5.88 kcal/mol, T 804/613 K, P 11120 bar
   settling: U/N -5.10 kcal/mol, T 744/601 K, P 11506 bar
+  warming: U/N -5.67 kcal/mol, T 645/681 K, P 9271 bar
+  0% after 64 s: U/N -5.65 kcal/mol, P 9404 bar
+  8% after 89 s: U/N -5.57 kcal/mol, P 10067 bar
+  17% after 113 s: U/N -6.09 kcal/mol, P 8718 bar
+  25% after 137 s: U/N -5.73 kcal/mol, P 10345 bar
+  33% after 161 s: U/N -5.13 kcal/mol, P 11736 bar
+  42% after 185 s: U/N -5.15 kcal/mol, P 13326 bar
+  50% after 210 s: U/N -5.71 kcal/mol, P 12790 bar
+  58% after 236 s: U/N -5.84 kcal/mol, P 8961 bar
+  67% after 261 s: U/N -5.83 kcal/mol, P 10224 bar
+  75% after 285 s: U/N -5.98 kcal/mol, P 10405 bar
+  83% after 309 s: U/N -5.62 kcal/mol, P 10076 bar
+  92% after 335 s: U/N -5.32 kcal/mol, P 12506 bar
+  100% after 360 s: U/N -5.57 kcal/mol, P 9634 bar
+water at 740 K (96 samples over 10 ps, block standard errors):
+  U/N -5.599 +- 0.071 kcal/mol; heat of vaporisation -U/N + RT = 7.070 kcal/mol
+  pressure 10910 +- 260 bar at 1 g/cm3 (a liquid at the right density sits near 1 bar; positive says it wants to expand)
+  temperatures: translation 729.7 K, rotation 737.5 K (bath 740 K)
+  mean molecular dipole 2.515 D (permanent charges and induced dipoles); dielectric constant 18.6 (blocks 15.2 +- 2.9; slow to converge)
+  dispersion beyond the cut-off (C6 25.95): -342 bar and -0.147 kcal/mol a molecule, so pressure with it 10568 bar, U/N -5.747
+  g(first atoms): first peak 1.91 at 2.95 A, first minimum 0.84 at 4.35 A, second peak 1.05 at 5.65 A, coordination to the minimum 10.64 (bulk-water-740.gOO.txt)
+  snapshot in bulk-water-740.snap
