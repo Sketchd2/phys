@@ -1,0 +1,29 @@
+induced dipoles on, polarisabilities by site type [9.234316455280853, 0.8544488912439157, 0.0, 0.0, 0.0] bohr^3
+water at 350 K: 64 molecules, 0.84 g/cm3, box 24.87 bohr (13.16 A), cut-off 12.2 bohr
+  Ewald sum on: s' = 4.2 bohr, 919 reciprocal vectors
+  started from /home/user/phys/runs/e8f/newlaw/../ti-water/cool/s-350-0.84/bulk-water-350.snap, centres scaled by 1.0000
+  start: U/N -7.12 kcal/mol
+  easing: U/N -7.51 kcal/mol, T 447/380 K, P 3337 bar
+  settling: U/N -7.28 kcal/mol, T 263/360 K, P -1467 bar
+  warming: U/N -7.49 kcal/mol, T 385/402 K, P -1994 bar
+  0% after 60 s: U/N -7.47 kcal/mol, P -1918 bar
+  8% after 82 s: U/N -7.40 kcal/mol, P -1287 bar
+  17% after 103 s: U/N -7.32 kcal/mol, P -203 bar
+  25% after 125 s: U/N -7.45 kcal/mol, P -1491 bar
+  33% after 148 s: U/N -7.56 kcal/mol, P -1540 bar
+  42% after 171 s: U/N -7.31 kcal/mol, P -1776 bar
+  50% after 192 s: U/N -7.27 kcal/mol, P -880 bar
+  58% after 214 s: U/N -7.39 kcal/mol, P -1009 bar
+  67% after 236 s: U/N -7.44 kcal/mol, P -1501 bar
+  75% after 259 s: U/N -7.41 kcal/mol, P 2333 bar
+  83% after 285 s: U/N -7.34 kcal/mol, P -1753 bar
+  92% after 308 s: U/N -7.88 kcal/mol, P -1148 bar
+  100% after 332 s: U/N -7.73 kcal/mol, P -2210 bar
+water at 350 K (96 samples over 10 ps, block standard errors):
+  U/N -7.505 +- 0.048 kcal/mol; heat of vaporisation -U/N + RT = 8.201 kcal/mol
+  pressure -544 +- 32 bar at 0.84 g/cm3 (a liquid at the right density sits near 1 bar; positive says it wants to expand)
+  temperatures: translation 350.9 K, rotation 340.6 K (bath 350 K)
+  mean molecular dipole 2.601 D (permanent charges and induced dipoles); dielectric constant 14.4 (blocks 11.2 +- 1.4; slow to converge)
+  dispersion beyond the cut-off (C6 25.95): -199 bar and -0.102 kcal/mol a molecule, so pressure with it -743 bar, U/N -7.607
+  g(first atoms): first peak 2.39 at 2.95 A, first minimum 0.84 at 3.95 A, second peak 1.04 at 5.45 A, coordination to the minimum 6.48 (bulk-water-350.gOO.txt)
+  snapshot in bulk-water-350.snap
