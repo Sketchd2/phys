@@ -1,0 +1,9 @@
+ammonia-full-1e-14 break ./job.sh ammonia full 1e-14 8 3
+ammonia-full-1e-10 break ./job.sh ammonia full 1e-10 8 3
+ammonia-full-1e-8 break ./job.sh ammonia full 1e-8 8 3
+ammonia-full-1e-6 break ./job.sh ammonia full 1e-6 8 3
+ammonia-full-1e-5 break ./job.sh ammonia full 1e-5 8 3
+ammonia-full-1e-4 break ./job.sh ammonia full 1e-4 8 3
+ammonia-full-1e-3 break ./job.sh ammonia full 1e-3 8 3
+ammonia-full-1e-2 break ./job.sh ammonia full 1e-2 8 3
+STOP

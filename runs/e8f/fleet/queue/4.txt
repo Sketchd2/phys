@@ -1,0 +1,6 @@
+methanol-frozen-1e-14 break ./job.sh methanol frozen 1e-14 9 2
+methanol-frozen-1e-6 break ./job.sh methanol frozen 1e-6 9 2
+methanol-frozen-1e-4 break ./job.sh methanol frozen 1e-4 9 2
+methanol-full-1e-6 break ./job.sh methanol full 1e-6 9 1
+methanol-full-1e-14 break ./job.sh methanol full 1e-14 9 1
+STOP

@@ -407,7 +407,7 @@ impl Fitted {
         let pairs: Vec<(usize, usize)> = (0..shells.len()).flat_map(|a| (0..=a).map(move |b| (a, b))).filter(|&(a, b)| {
             let (sa, sb) = (&shells[a], &shells[b]);
             let r2: f64 = (0..3).map(|d| (sa.centre[d] - sb.centre[d]).powi(2)).sum();
-            sa.exponents.iter().any(|x| sb.exponents.iter().any(|y| (-(x * y) / (x + y) * r2).exp() > 1e-14))
+            sa.exponents.iter().any(|x| sb.exponents.iter().any(|y| (-(x * y) / (x + y) * r2).exp() > pair_cutoff()))
         }).collect();
         // Each auxiliary shell's pair with the unit function, built once.
         let kets: Vec<Vec<super::integrals::Pair>> = aux.shells.iter().map(|p| super::integrals::pairs(p, &unit, 0)).collect();
@@ -891,6 +891,14 @@ fn worker_count(len: usize) -> usize {
 
 /// How much of the three-centre table may stay in memory, given the memory
 /// free (`None` where the system does not say: no limit) and the setting of
+/// Below this a shell pair's product is left out of the three-centre table
+/// altogether: 1e-14 unless `PHYS_PAIR_CUTOFF` names another (E8f measures how
+/// far it can be raised before a pair's interaction energy moves).
+pub fn pair_cutoff() -> f64 {
+    static CUT: std::sync::OnceLock<f64> = std::sync::OnceLock::new();
+    *CUT.get_or_init(|| std::env::var("PHYS_PAIR_CUTOFF").ok().and_then(|v| v.parse::<f64>().ok()).filter(|v| *v > 0.0 && *v < 1.0).unwrap_or(1e-14))
+}
+
 /// `PHYS_TABLE_RAM_FRACTION`: half of what is free unless that names a
 /// fraction from 0.05 to 0.9. The rest of the table goes to the spill disk or
 /// is rebuilt when visited; every one of those is the same bits, so this moves

@@ -2109,6 +2109,15 @@ pub fn overlap_main(args: &[String]) {
     // Only pairs whose separation (the pairs file's own column) is under this: a
     // uniform draw is mostly pairs too far apart to overlap at all.
     let max_sep: f64 = flag("--max-sep").and_then(|v| v.parse().ok()).unwrap_or(f64::INFINITY);
+    // `--frozen`: each molecule solved alone, in its own basis, and its orbitals carried into
+    // the pair's basis as they are (zero on the partner's functions), where the default solves
+    // each in the pair's basis with the partner a ghost. No solve in the pair's basis is left:
+    // what a pair costs is one pass over its table. `--full` adds the pair's own Hartree-Fock
+    // and MP2 against the molecules alone (the interaction energy with no counterpoise
+    // correction: one solve in the pair's basis where the corrected energy takes three), as
+    // two more columns, `E_hf_uncorrected E_total_uncorrected`.
+    let frozen = args.iter().any(|a| a == "--frozen");
+    let full = args.iter().any(|a| a == "--full");
     let mono = Monomer::load(&name, false);
     let n = mono.z.len();
     let done = done_indices(&out);
@@ -2141,11 +2150,42 @@ pub fn overlap_main(args: &[String]) {
         let mut dens = Vec::new();
         let mut orbitals: Vec<(Vec<f64>, usize, usize)> = Vec::new();
         let mut monomer_energy: Vec<f64> = Vec::new();
+        let mut alone_hf = [0.0f64; 2];
+        let mut alone_total = [0.0f64; 2];
         for i in 0..2 {
             let keep: Vec<usize> = (i * n..(i + 1) * n).collect();
-            let p = base.with_ghosts(&keep, electrons);
-            let hf = crate::electrons::hf::hartree_fock(&p, 200, 1e-9);
-            assert!(hf.converged, "a monomer did not converge");
+            // The molecule alone, in its own basis, with its orbitals written over the pair's
+            // functions.
+            let mut alone = None;
+            if frozen || full {
+                let own = mono.cluster_problem(&[if i == 0 { a.clone() } else { b.clone() }]);
+                let nm = own.basis.size;
+                assert_eq!(2 * nm, nb, "the pair's basis is not its two molecules' bases end to end");
+                let mut hf = crate::electrons::hf::hartree_fock(&own, 200, 1e-9);
+                assert!(hf.converged, "a molecule alone did not converge");
+                alone_hf[i] = hf.energy;
+                if full {
+                    let all: Vec<usize> = (0..n).collect();
+                    alone_total[i] = hf.energy + crate::electrons::hf::mp2(&own, &hf, crate::electrons::hf::frozen_core(&mono.z, &all)).correlation;
+                }
+                let mut c = vec![0.0f64; nb * hf.m];
+                for x in 0..nm {
+                    for o in 0..hf.m {
+                        c[(i * nm + x) * hf.m + o] = hf.c[x * hf.m + o];
+                    }
+                }
+                hf.c = c;
+                alone = Some(hf);
+            }
+            let hf = match alone {
+                Some(hf) if frozen => hf,
+                _ => {
+                    let p = base.with_ghosts(&keep, electrons);
+                    let hf = crate::electrons::hf::hartree_fock(&p, 200, 1e-9);
+                    assert!(hf.converged, "a monomer did not converge");
+                    hf
+                }
+            };
             let mut d = crate::electrons::linalg::Matrix::zeros(nb);
             for x in 0..nb {
                 for y in 0..nb {
@@ -2245,7 +2285,17 @@ pub fn overlap_main(args: &[String]) {
         });
         let (ov, ca, cb) = (tot[0], tot[1], tot[2]);
         let sep = (a[0] - b[0]).norm();
-        writeln!(outfile, "{k} {sep:.6} {} {} {e:.10e} {ov:.10e} {:.10e} {:.10e} {e_hl:.10e}", h[2], h[3], tot[3], tot[4]).expect("written");
+        let more = if full {
+            let hf = crate::electrons::hf::hartree_fock(&base, 200, 1e-9);
+            assert!(hf.converged, "the pair did not converge");
+            let zz: Vec<u32> = mono.z.iter().chain(&mono.z).cloned().collect();
+            let all: Vec<usize> = (0..2 * n).collect();
+            let corr = crate::electrons::hf::mp2(&base, &hf, crate::electrons::hf::frozen_core(&zz, &all)).correlation;
+            format!(" {:.10e} {:.10e}", hf.energy - alone_hf[0] - alone_hf[1], hf.energy + corr - alone_total[0] - alone_total[1])
+        } else {
+            String::new()
+        };
+        writeln!(outfile, "{k} {sep:.6} {} {} {e:.10e} {ov:.10e} {:.10e} {:.10e} {e_hl:.10e}{more}", h[2], h[3], tot[3], tot[4]).expect("written");
         outfile.flush().ok();
         println!("pair {k}: first atoms {:.2} A, electrostatic {:.3} kcal/mol, exchange {:.3}, Hartree-Fock beyond both {:.3}, overlap {ov:.4e}, electrons {ca:.5} {cb:.5}, {nb} functions, {:.0} s", sep * 0.529177210903, e * 627.509474, (e_hl - e) * 627.509474, (h[3].parse::<f64>().unwrap() - e_hl) * 627.509474, start.elapsed().as_secs_f64());
         std::io::stdout().flush().ok();

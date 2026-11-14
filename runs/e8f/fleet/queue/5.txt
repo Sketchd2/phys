@@ -1,0 +1,3 @@
+water-frozen-many break ./job.sh water frozen 1e-14 7 40
+ammonia-frozen-many break ./job.sh ammonia frozen 1e-14 8 40
+STOP
