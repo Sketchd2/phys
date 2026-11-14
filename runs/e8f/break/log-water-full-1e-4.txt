@@ -1,0 +1,9 @@
+
+thread 'main' (5597) panicked at src/pairs.rs:2290:13:
+the pair did not converge
+stack backtrace:
+   0: __rustc::rust_begin_unwind
+   1: core::panicking::panic_fmt
+   2: phys::pairs::overlap_main
+   3: phys_overlap::main
+note: Some details are omitted, run with `RUST_BACKTRACE=full` for a verbose backtrace.
