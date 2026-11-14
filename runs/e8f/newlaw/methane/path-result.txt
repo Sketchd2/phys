@@ -1,0 +1,6 @@
+148 K leg densities [0.4226, 0.44, 0.46, 0.48]
+   T    rho_0   F_ex/N    mu_ex   p_sat(atm)
+ 148.0 0.4453 -1.0005 -1.2946    4.4601   (leg densities [0.4226, 0.44, 0.46, 0.48])
+ 134.0 0.4716 -1.1187 -1.3850    1.8578   (leg densities [0.46, 0.48, 0.5])
+ 122.0 0.4825 -1.2268 -1.4693    0.7178   (leg densities [0.46, 0.48, 0.5])
+ln p against 1/T (straight line) crosses one atmosphere at 125.9 K; heat of vaporisation 2.52 kcal/mol
