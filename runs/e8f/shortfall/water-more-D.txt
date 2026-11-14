@@ -1,1 +1,2 @@
 # water dimer (S22; CCSD(T)/CBS -5.020 kcal/mol at scale 1): scale, heavy-atom distance (A), counterpoise HF, MP2 correlation, total; uncorrected HF, MP2 correlation, total; seconds
+1.000 2.9104 [464 functions] -3.5750 -1.2058 -4.7809 -3.6105 -1.5089 -5.1194 218

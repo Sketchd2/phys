@@ -185,8 +185,27 @@ whether a placeholder of that quality is wanted at all.
 
 ## 5. Measurements made for D1
 
-See `shortfall/water-more-*.txt`; the table is filled in at the end of this
-file as the runs finish.
+Water dimer at its minimum, kcal/mol (accurate value -5.020):
+
+| Basis | Functions | Counterpoise | Uncorrected | Gap |
+|---|---|---|---|---|
+| the engine's | 428 | -4.778 | -5.161 | 0.383 |
+| + diffuse s, p, d on O and s, p on H | 464 | -4.781 | -5.119 | 0.338 |
+| + one g on O (2.0) and one f on H (1.6) | 498 | -4.826 | -5.045 | 0.219 |
+
+Higher angular momentum closes the bracket (43% narrower for one shell, 9
+minutes instead of 2.5); diffuse functions barely move it. The two ends are
+closing on about -4.95, which is where MP2 at the complete basis is expected,
+a little above the accurate -5.020. `shortfall/more.sh` holds two further
+levels (both kinds together, then a second g and f) that had not finished
+when this was written; run it again to complete them.
+
+Ammonia dimer at its minimum: counterpoise -3.049, uncorrected -3.236,
+accurate -3.171 (65% across the gap; water 63%, methane 30%).
+
+Along the water dimer's approach the gap is 5.5 to 8% of the binding from 2.9
+to 4.7 A; along methane's it is 39% at the minimum and 58% at 4.6 A. So the
+order of work for D1 is methane first: it is where the reference is worst.
 
 ## 6. Open, for the owner
 
