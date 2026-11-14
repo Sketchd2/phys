@@ -1,0 +1,27 @@
+methane at 400 K: 108 molecules, 0.07607 g/cm3, box 63.43 bohr (33.57 A), cut-off 16.0 bohr
+  8 molecules could not be turned clear of their neighbours
+  start: U/N 2.68 kcal/mol
+  easing: U/N -0.05 kcal/mol, T 379/407 K, P 156 bar
+  settling: U/N -0.18 kcal/mol, T 386/397 K, P 163 bar
+  warming: U/N -0.29 kcal/mol, T 445/377 K, P 148 bar
+  0% after 106 s: U/N -0.29 kcal/mol, P 148 bar
+  8% after 116 s: U/N -0.23 kcal/mol, P 190 bar
+  17% after 127 s: U/N -0.29 kcal/mol, P 176 bar
+  25% after 138 s: U/N -0.28 kcal/mol, P 147 bar
+  33% after 148 s: U/N -0.25 kcal/mol, P 157 bar
+  42% after 159 s: U/N -0.26 kcal/mol, P 171 bar
+  50% after 170 s: U/N -0.35 kcal/mol, P 134 bar
+  58% after 181 s: U/N -0.31 kcal/mol, P 112 bar
+  67% after 192 s: U/N -0.24 kcal/mol, P 165 bar
+  75% after 202 s: U/N -0.23 kcal/mol, P 171 bar
+  83% after 213 s: U/N -0.20 kcal/mol, P 189 bar
+  92% after 223 s: U/N -0.30 kcal/mol, P 110 bar
+  100% after 234 s: U/N -0.27 kcal/mol, P 148 bar
+methane at 400 K (160 samples over 16 ps, block standard errors):
+  U/N -0.258 +- 0.004 kcal/mol; heat of vaporisation -U/N + RT = 1.052 kcal/mol
+  pressure 159 +- 7 bar at 0.07607 g/cm3 (a liquid at the right density sits near 1 bar; positive says it wants to expand)
+  temperatures: translation 406.2 K, rotation 393.6 K (bath 400 K)
+  mean molecular dipole 0.000 D (permanent charges and induced dipoles); dielectric constant 1.0 (blocks 1.0 +- 0.0; slow to converge)
+  dispersion beyond the cut-off (C6 132.91): -4 bar and -0.022 kcal/mol a molecule, so pressure with it 154 bar, U/N -0.280
+  g(first atoms): first peak 0.26 at 3.35 A, first minimum 0.78 at 3.55 A, second peak 1.58 at 3.95 A, coordination to the minimum 0.04 (bulk-methane-400.gOO.txt)
+  snapshot in bulk-methane-400.snap
