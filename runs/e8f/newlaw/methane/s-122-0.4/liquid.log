@@ -1,3 +1,5 @@
 methane at 122 K: 108 molecules, 0.4 g/cm3, box 36.48 bohr (19.30 A), cut-off 16.0 bohr
   8 molecules could not be turned clear of their neighbours
   start: U/N 40.80 kcal/mol
+  easing: U/N -1.53 kcal/mol, T 135/129 K, P 1069 bar
+  settling: U/N -1.80 kcal/mol, T 120/107 K, P -240 bar
