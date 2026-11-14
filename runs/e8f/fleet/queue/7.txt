@@ -1,0 +1,4 @@
+methane-full-1e-14 break ./job.sh methane full 1e-14 9 3
+methane-full-1e-10 break ./job.sh methane full 1e-10 9 3
+methane-full-1e-8 break ./job.sh methane full 1e-8 9 3
+STOP
