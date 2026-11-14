@@ -1,0 +1,29 @@
+induced dipoles on, polarisabilities by site type [9.234316455280853, 0.8544488912439157, 0.0, 0.0, 0.0] bohr^3
+water at 320 K: 64 molecules, 0.84 g/cm3, box 24.87 bohr (13.16 A), cut-off 12.2 bohr
+  Ewald sum on: s' = 4.2 bohr, 919 reciprocal vectors
+  started from /home/user/phys/runs/e8f/newlaw/../ti-water/cool/s-320-0.84/bulk-water-320.snap, centres scaled by 1.0000
+  start: U/N -8.02 kcal/mol
+  easing: U/N -8.00 kcal/mol, T 294/319 K, P 1407 bar
+  settling: U/N -8.17 kcal/mol, T 321/316 K, P -363 bar
+  warming: U/N -7.58 kcal/mol, T 238/322 K, P -792 bar
+  0% after 72 s: U/N -7.59 kcal/mol, P -788 bar
+  8% after 101 s: U/N -7.91 kcal/mol, P -1647 bar
+  17% after 128 s: U/N -8.01 kcal/mol, P 206 bar
+  25% after 155 s: U/N -7.85 kcal/mol, P 2624 bar
+  33% after 183 s: U/N -8.00 kcal/mol, P -2091 bar
+  42% after 211 s: U/N -8.03 kcal/mol, P -1810 bar
+  50% after 238 s: U/N -7.99 kcal/mol, P -2300 bar
+  58% after 266 s: U/N -7.97 kcal/mol, P -1386 bar
+  67% after 294 s: U/N -8.19 kcal/mol, P -909 bar
+  75% after 322 s: U/N -7.81 kcal/mol, P -625 bar
+  83% after 349 s: U/N -7.85 kcal/mol, P -1448 bar
+  92% after 378 s: U/N -7.82 kcal/mol, P 884 bar
+  100% after 407 s: U/N -7.67 kcal/mol, P -94 bar
+water at 320 K (96 samples over 10 ps, block standard errors):
+  U/N -7.946 +- 0.055 kcal/mol; heat of vaporisation -U/N + RT = 8.581 kcal/mol
+  pressure -850 +- 188 bar at 0.84 g/cm3 (a liquid at the right density sits near 1 bar; positive says it wants to expand)
+  temperatures: translation 309.8 K, rotation 311.6 K (bath 320 K)
+  mean molecular dipole 2.649 D (permanent charges and induced dipoles); dielectric constant 32.2 (blocks 12.0 +- 2.1; slow to converge)
+  dispersion beyond the cut-off (C6 25.95): -199 bar and -0.102 kcal/mol a molecule, so pressure with it -1050 bar, U/N -8.048
+  g(first atoms): first peak 2.58 at 2.95 A, first minimum 0.82 at 4.05 A, second peak 1.05 at 5.25 A, coordination to the minimum 7.02 (bulk-water-320.gOO.txt)
+  snapshot in bulk-water-320.snap
