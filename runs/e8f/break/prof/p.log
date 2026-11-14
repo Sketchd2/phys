@@ -1,0 +1,44 @@
+  starting orbitals: grid 0.03 s, basis on the grid 0.06 s, local exchange 3.00 s
+  Hartree-Fock setup: one-electron 0.15 s, fit 6.78 s, starting orbitals 3.57 s
+  whitened_half: 1.49 s gathering from the table, 1.09 s whitening (9 orbitals, 408 functions, 1774 directions)
+  HF iteration 1: Coulomb 0.43 s, half transform 2.59 s, exchange 0.17 s, diagonalisation 0.16 s; the whole iteration 3.41 s
+  whitened_half: 1.39 s gathering from the table, 1.05 s whitening (9 orbitals, 408 functions, 1774 directions)
+  HF iteration 2: Coulomb 0.43 s, half transform 2.44 s, exchange 0.13 s, diagonalisation 0.16 s; the whole iteration 3.22 s
+  whitened_half: 1.68 s gathering from the table, 1.06 s whitening (9 orbitals, 408 functions, 1774 directions)
+  HF iteration 3: Coulomb 0.42 s, half transform 2.74 s, exchange 0.13 s, diagonalisation 0.16 s; the whole iteration 3.50 s
+  whitened_half: 1.45 s gathering from the table, 1.05 s whitening (9 orbitals, 408 functions, 1774 directions)
+  HF iteration 4: Coulomb 0.45 s, half transform 2.49 s, exchange 0.16 s, diagonalisation 0.16 s; the whole iteration 3.32 s
+  whitened_half: 1.43 s gathering from the table, 1.02 s whitening (9 orbitals, 408 functions, 1774 directions)
+  HF iteration 5: Coulomb 0.42 s, half transform 2.45 s, exchange 0.12 s, diagonalisation 0.16 s; the whole iteration 3.21 s
+  whitened_half: 1.33 s gathering from the table, 1.02 s whitening (9 orbitals, 408 functions, 1774 directions)
+  HF iteration 6: Coulomb 0.37 s, half transform 2.36 s, exchange 0.13 s, diagonalisation 0.16 s; the whole iteration 3.08 s
+  whitened_half: 1.34 s gathering from the table, 1.04 s whitening (9 orbitals, 408 functions, 1774 directions)
+  HF iteration 7: Coulomb 0.40 s, half transform 2.38 s, exchange 0.13 s, diagonalisation 0.16 s; the whole iteration 3.12 s
+  whitened_half: 1.33 s gathering from the table, 1.02 s whitening (9 orbitals, 408 functions, 1774 directions)
+  HF iteration 8: Coulomb 0.38 s, half transform 2.36 s, exchange 0.12 s, diagonalisation 0.16 s; the whole iteration 3.07 s
+  whitened_half: 1.26 s gathering from the table, 0.86 s whitening (9 orbitals, 408 functions, 1774 directions)
+  starting orbitals: grid 0.03 s, basis on the grid 0.06 s, local exchange 1.70 s
+  Hartree-Fock setup: one-electron 0.14 s, fit 6.72 s, starting orbitals 2.18 s
+  whitened_half: 1.30 s gathering from the table, 1.03 s whitening (9 orbitals, 408 functions, 1772 directions)
+  HF iteration 1: Coulomb 0.38 s, half transform 2.33 s, exchange 0.15 s, diagonalisation 0.16 s; the whole iteration 3.08 s
+  whitened_half: 1.28 s gathering from the table, 1.06 s whitening (9 orbitals, 408 functions, 1772 directions)
+  HF iteration 2: Coulomb 0.43 s, half transform 2.34 s, exchange 0.13 s, diagonalisation 0.16 s; the whole iteration 3.12 s
+  whitened_half: 1.45 s gathering from the table, 1.05 s whitening (9 orbitals, 408 functions, 1772 directions)
+  HF iteration 3: Coulomb 0.42 s, half transform 2.51 s, exchange 0.15 s, diagonalisation 0.16 s; the whole iteration 3.29 s
+  whitened_half: 1.42 s gathering from the table, 1.08 s whitening (9 orbitals, 408 functions, 1772 directions)
+  HF iteration 4: Coulomb 0.44 s, half transform 2.50 s, exchange 0.13 s, diagonalisation 0.16 s; the whole iteration 3.28 s
+  whitened_half: 1.39 s gathering from the table, 1.01 s whitening (9 orbitals, 408 functions, 1772 directions)
+  HF iteration 5: Coulomb 0.39 s, half transform 2.40 s, exchange 0.13 s, diagonalisation 0.16 s; the whole iteration 3.15 s
+  whitened_half: 1.47 s gathering from the table, 1.05 s whitening (9 orbitals, 408 functions, 1772 directions)
+  HF iteration 6: Coulomb 0.43 s, half transform 2.52 s, exchange 0.13 s, diagonalisation 0.16 s; the whole iteration 3.33 s
+  whitened_half: 1.43 s gathering from the table, 1.03 s whitening (9 orbitals, 408 functions, 1772 directions)
+  HF iteration 7: Coulomb 0.41 s, half transform 2.46 s, exchange 0.15 s, diagonalisation 0.16 s; the whole iteration 3.26 s
+  whitened_half: 1.45 s gathering from the table, 1.03 s whitening (9 orbitals, 408 functions, 1772 directions)
+  HF iteration 8: Coulomb 0.43 s, half transform 2.48 s, exchange 0.16 s, diagonalisation 0.18 s; the whole iteration 3.32 s
+  whitened_half: 1.35 s gathering from the table, 1.00 s whitening (9 orbitals, 408 functions, 1772 directions)
+  whitened_half: 15.83 s gathering from the table, 15.08 s whitening (18 orbitals, 816 functions, 3520 directions)
+pair 3: first atoms 4.08 A, electrostatic 0.293 kcal/mol, exchange 1.606, Hartree-Fock beyond both -0.484, overlap 2.7277e-4, electrons 18.00000 18.00000, 816 functions, 186 s
+
+real	3m5.711s
+user	8m0.673s
+sys	0m44.297s
