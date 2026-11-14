@@ -29,7 +29,12 @@ fn main() {
         let t: Vec<&str> = tail.split_whitespace().collect();
         let atoms: Vec<(Vec3, usize)> = t.chunks(4).map(|c| (Vec3 { x: c[0].parse().unwrap(), y: c[1].parse().unwrap(), z: c[2].parse().unwrap() }, c[3].parse().unwrap())).collect();
         let n = atoms.len() / 2;
-        let place = |m: &[(Vec3, usize)]| with_frame_sites(&with_bisector_site(m, atom_types, bis.unwrap_or(0.0)), &frame);
+        // A law with no `bisector` line has no bisector site: adding one at distance zero put a
+        // second cloud on the first atom of every molecule that is not water.
+        let place = |m: &[(Vec3, usize)]| match bis {
+            Some(d) => with_frame_sites(&with_bisector_site(m, atom_types, d), &frame),
+            None => with_frame_sites(m, &frame),
+        };
         let e_law = pair_energy(&polar, &PairEnergy { a: place(&atoms[..n]), b: place(&atoms[n..]), energy: 0.0 });
         println!("{k} {:.4} {:.10e} {:.10e}", (atoms[0].0 - atoms[n].0).norm() * 0.529177210903, e_ref, e_law);
     }
