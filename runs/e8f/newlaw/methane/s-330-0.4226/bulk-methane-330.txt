@@ -1,0 +1,2 @@
+# methane at 330 K, 108 molecules, 0.4226 g/cm3, cut-off 16 bohr, law law.txt
+# ps  U_per_molecule_kcal  pressure_bar  T_translation  T_rotation
