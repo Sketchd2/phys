@@ -1,0 +1,10 @@
+induced dipoles on, polarisabilities by site type [9.234316455280853, 0.8544488912439157, 0.0, 0.0, 0.0] bohr^3
+water at 630 K: 64 molecules, 1 g/cm3, box 23.46 bohr (12.42 A), cut-off 11.5 bohr
+  Ewald sum on: s' = 4.2 bohr, 751 reciprocal vectors
+  started from /home/user/phys/runs/e8f/newlaw/../ti-water/s-630-1.0/bulk-water-630.snap, centres scaled by 1.0000
+  start: U/N -6.25 kcal/mol
+  easing: U/N -6.01 kcal/mol, T 558/651 K, P 10332 bar
+  settling: U/N -5.92 kcal/mol, T 679/634 K, P 8265 bar
+  warming: U/N -6.19 kcal/mol, T 613/735 K, P 10923 bar
+  0% after 68 s: U/N -6.23 kcal/mol, P 10654 bar
+  8% after 95 s: U/N -5.34 kcal/mol, P 11665 bar
