@@ -1,0 +1,1 @@
+./job.sh: line 22: 14813 Aborted                 $ROOT/target/release/phys-overlap $S $P --max-sep $SEP --max $MAX $F --out $O > log-$S-$MODE-$CUT.txt 2>&1
