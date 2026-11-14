@@ -37,3 +37,4 @@ pair 117: first atoms 3.78 A, electrostatic -1.061 kcal/mol, exchange 0.964, Har
 pair 126: first atoms 3.46 A, electrostatic -1.798 kcal/mol, exchange 0.853, Hartree-Fock beyond both -0.201, overlap 1.5311e-4, electrons 10.00000 10.00000, 538 functions, 39 s
 pair 127: first atoms 3.96 A, electrostatic -0.090 kcal/mol, exchange 0.627, Hartree-Fock beyond both -0.127, overlap 9.6733e-5, electrons 10.00000 10.00000, 538 functions, 38 s
 pair 128: first atoms 3.40 A, electrostatic -0.932 kcal/mol, exchange 2.115, Hartree-Fock beyond both -0.398, overlap 3.5889e-4, electrons 10.00000 10.00000, 538 functions, 38 s
+pair 129: first atoms 3.62 A, electrostatic 2.255 kcal/mol, exchange 0.678, Hartree-Fock beyond both -0.258, overlap 1.2685e-4, electrons 10.00000 10.00000, 538 functions, 40 s
