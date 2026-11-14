@@ -15,3 +15,13 @@ methane at 134 K: 108 molecules, 0.4226 g/cm3, box 35.82 bohr (18.95 A), cut-off
   67% after 1042 s: U/N -1.84 kcal/mol, P -341 bar
   75% after 1098 s: U/N -1.84 kcal/mol, P -310 bar
   83% after 1154 s: U/N -1.84 kcal/mol, P -165 bar
+  92% after 1210 s: U/N -1.82 kcal/mol, P 28 bar
+  100% after 1265 s: U/N -1.83 kcal/mol, P -448 bar
+methane at 134 K (160 samples over 16 ps, block standard errors):
+  U/N -1.851 +- 0.003 kcal/mol; heat of vaporisation -U/N + RT = 2.117 kcal/mol
+  pressure -261 +- 36 bar at 0.4226 g/cm3 (a liquid at the right density sits near 1 bar; positive says it wants to expand)
+  temperatures: translation 130.3 K, rotation 131.0 K (bath 134 K)
+  mean molecular dipole 0.000 D (permanent charges and induced dipoles); dielectric constant 1.0 (blocks 1.0 +- 0.0; slow to converge)
+  dispersion beyond the cut-off (C6 132.91): -135 bar and -0.122 kcal/mol a molecule, so pressure with it -395 bar, U/N -1.973
+  g(first atoms): first peak 0.10 at 3.35 A, first minimum 0.78 at 3.55 A, second peak 2.51 at 3.95 A, coordination to the minimum 0.10 (bulk-methane-134.gOO.txt)
+  snapshot in bulk-methane-134.snap
