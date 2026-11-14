@@ -14,6 +14,7 @@ owner when the plan is silent applies to every "owner decision" marked below.
 | Stored water law boils at | 333.3 K (real 373.1) | `ti-water/path-result.txt` |
 | One-constant water law boils at | 327.5 K | `newlaw/water/path-result.txt` |
 | One-constant methane law (unweighted fit) boils at | 125.9 K (real 111.7) | `newlaw/methane/path-result.txt` |
+| Methane law refitted with liquid-weighted pairs and fitted damping boils at | 98.2 K | `newlaw/methane2/path-result.txt` |
 | System size, water, 64 against 216 molecules | within about 4 K | `ti-water/n216/` |
 | A law scaled by x at T is the law at T / x | 5% more binding: 348.7 K; 12.7%: 373 K | commit `71e9722` |
 | Water dimer in the engine's basis | counterpoise -4.778, uncorrected -5.161, accurate -5.020 | `shortfall/water.txt` |
@@ -192,13 +193,16 @@ Water dimer at its minimum, kcal/mol (accurate value -5.020):
 | the engine's | 428 | -4.778 | -5.161 | 0.383 |
 | + diffuse s, p, d on O and s, p on H | 464 | -4.781 | -5.119 | 0.338 |
 | + one g on O (2.0) and one f on H (1.6) | 498 | -4.826 | -5.045 | 0.219 |
+| + both of the above | 534 | -4.828 | -5.023 | 0.195 |
+| + a second g and f, an f on O and a d on H | 648 | -4.870 | -5.021 | 0.151 |
 
 Higher angular momentum closes the bracket (43% narrower for one shell, 9
 minutes instead of 2.5); diffuse functions barely move it. The two ends are
 closing on about -4.95, which is where MP2 at the complete basis is expected,
-a little above the accurate -5.020. `shortfall/more.sh` holds two further
-levels (both kinds together, then a second g and f) that had not finished
-when this was written; run it again to complete them.
+a little above the accurate -5.020. With two further levels the uncorrected
+value settles at -5.02 (-5.045, -5.023, -5.021) and the counterpoise one keeps
+climbing toward it: for water the complete basis gives the accurate answer,
+and the uncorrected energy gets there first.
 
 Ammonia dimer at its minimum: counterpoise -3.049, uncorrected -3.236,
 accurate -3.171 (65% across the gap; water 63%, methane 30%).

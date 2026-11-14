@@ -1,3 +1,6 @@
 # ammonia dimer (S22; CCSD(T)/CBS -3.171 kcal/mol at scale 1): scale, heavy-atom distance (A), counterpoise HF, MP2 correlation, total; uncorrected HF, MP2 correlation, total; seconds
 0.900 2.8429 [538 functions] 1.2028 -2.9666 -1.7638 1.1822 -3.2345 -2.0523 357
 1.000 3.1588 [538 functions] -1.4015 -1.6471 -3.0486 -1.4154 -1.8210 -3.2363 369
+1.100 3.4747 [538 functions] -1.7743 -0.9279 -2.7022 -1.7844 -1.0457 -2.8301 379
+1.250 3.9485 [538 functions] -1.3688 -0.4046 -1.7734 -1.3756 -0.4735 -1.8490 383
+1.500 4.7382 [538 functions] -0.7081 -0.1104 -0.8185 -0.7125 -0.1432 -0.8557 344
