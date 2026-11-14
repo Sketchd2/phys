@@ -116,6 +116,9 @@ fn main() {
     let mol = Molecule::from_arrangement(&arr);
     let all_bonds: Vec<(usize, usize)> = arr.bonds.iter().map(|b| (b.a as usize, b.b as usize)).collect();
     let state = format!("grow-{name}.state");
+    // The atomic numbers in the order of the state's positions, for every tool that reads the
+    // state (`phys::pairs::atoms_of`): the state file itself holds positions and no elements.
+    std::fs::write(format!("grow-{name}.atoms"), mol.z.iter().map(|z| z.to_string()).collect::<Vec<_>>().join(" ") + "\n").expect("the atoms file written");
     let resume = std::fs::read_to_string(&state).ok().and_then(|t| Resume::from_text(&t));
     let a = 1.0 / 0.529177210903;
     let mut round = resume.as_ref().map(|r| r.history.len()).unwrap_or(0);

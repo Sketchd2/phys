@@ -26,13 +26,7 @@ fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let name = args.first().cloned().unwrap_or_else(|| "water".into());
     let step: f64 = args.get(1).and_then(|s| s.parse().ok()).unwrap_or(0.002);
-    let z: Vec<u32> = match name.as_str() {
-        "water" => vec![8, 1, 1],
-        "methane" => vec![6, 1, 1, 1, 1],
-        "ammonia" => vec![7, 1, 1, 1],
-        "methanol" => vec![6, 8, 1, 1, 1, 1],
-        other => panic!("no atoms known for {other}"),
-    };
+    let z: Vec<u32> = phys::pairs::atoms_of(&name);
     let state = Resume::from_text(&std::fs::read_to_string(format!("grow-{name}.state")).expect("a growth state")).expect("readable");
     let mol = Molecule { z: z.clone(), positions: state.positions.clone(), charge: 0, unpaired: 0 };
     let types = equivalent_atoms(&mol);

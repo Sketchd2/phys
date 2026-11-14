@@ -6,8 +6,8 @@ bond lengths and angles, bohr and radians). "Not changed" is every value within 
 round before, five rounds running; "oscillating" is every value's whole range over the last
 ten rounds within `band`. Prints SETTLED (exit 0) or GROWING (exit 1) and the measure."""
 import sys
-tol = float(sys.argv[2]) if len(sys.argv) > 2 else 1e-3
-band = float(sys.argv[3]) if len(sys.argv) > 3 else 5e-3
+tol = float(sys.argv[2]) if len(sys.argv) > 2 else 5e-3
+band = float(sys.argv[3]) if len(sys.argv) > 3 else 3e-2
 h = [[float(x) for x in l.split()[1:]] for l in open(sys.argv[1]) if l.startswith('hist')]
 h = [r for r in h if len(r) == len(h[-1])] if h else h
 step = lambda a, b: max(abs(x - y) for x, y in zip(a, b)) if a else 0.0

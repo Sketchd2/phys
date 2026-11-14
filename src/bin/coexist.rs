@@ -37,13 +37,7 @@ fn main() {
     let total_ps: f64 = args.get(5).and_then(|s| s.parse().ok()).unwrap_or(500.0);
     let law = SiteSite::from_text(&std::fs::read_to_string(&law_file).unwrap_or_else(|_| panic!("no {law_file}"))).expect("a readable law");
     let state = Resume::from_text(&std::fs::read_to_string(format!("grow-{name}.state")).expect("a growth state")).expect("readable");
-    let z: Vec<u32> = match name.as_str() {
-        "water" => vec![8, 1, 1],
-        "methane" => vec![6, 1, 1, 1, 1],
-        "ammonia" => vec![7, 1, 1, 1],
-        "methanol" => vec![6, 8, 1, 1, 1, 1],
-        other => panic!("no atoms known for {other}"),
-    };
+    let z: Vec<u32> = phys::pairs::atoms_of(&name);
     let mono = Molecule { z: z.clone(), positions: state.positions.clone(), charge: 0, unpaired: 0 };
     let types = equivalent_atoms(&mono);
     let masses: Vec<f64> = z.iter().map(|&zz| phys::chem::elements::Element(zz as u8).mass_kg().expect("a mass") / 1.66053906660e-27 * AMU).collect();

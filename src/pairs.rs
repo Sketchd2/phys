@@ -244,7 +244,14 @@ pub fn atoms_of(name: &str) -> Vec<u32> {
         "ethanol" => vec![6, 6, 8, 1, 1, 1, 1, 1, 1],
         "sodium" => vec![11],
         "chloride" => vec![17],
-        other => panic!("no atoms known for {other}"),
+        // Any other molecule is the one `phys-grow` grew under that name: it writes the atomic
+        // numbers, in the order of the state file's positions, to `grow-<name>.atoms` beside
+        // `grow-<name>.state`, so that no tool needs a molecule typed into it.
+        other => std::fs::read_to_string(format!("grow-{other}.atoms"))
+            .ok()
+            .and_then(|t| t.split_whitespace().map(|w| w.parse().ok()).collect::<Option<Vec<u32>>>())
+            .filter(|z| !z.is_empty())
+            .unwrap_or_else(|| panic!("no atoms known for {other}: no grow-{other}.atoms in the working directory")),
     }
 }
 

@@ -18,13 +18,7 @@ use phys::electrons::vdw::Z_AB_DF1;
 
 fn main() {
     let name = std::env::args().nth(1).unwrap_or_else(|| "water".into());
-    let z: Vec<u32> = match name.as_str() {
-        "water" => vec![8, 1, 1],
-        "methane" => vec![6, 1, 1, 1, 1],
-        "ammonia" => vec![7, 1, 1, 1],
-        "methanol" => vec![6, 8, 1, 1, 1, 1],
-        other => panic!("no atoms known for {other}"),
-    };
+    let z: Vec<u32> = phys::pairs::atoms_of(&name);
     let state = Resume::from_text(&std::fs::read_to_string(format!("grow-{name}.state")).expect("a growth state")).expect("readable");
     let mol = Molecule { z: z.clone(), positions: state.positions.clone(), charge: 0, unpaired: 0 };
     let types = equivalent_atoms(&mol);

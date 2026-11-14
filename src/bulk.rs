@@ -113,13 +113,7 @@ pub fn run(args: Vec<String>) {
         println!("induced dipoles on, polarisabilities by site type {alpha:?} bohr^3");
     }
     let state = Resume::from_text(&std::fs::read_to_string(format!("grow-{name}.state")).expect("a growth state")).expect("readable");
-    let z: Vec<u32> = match name.as_str() {
-        "water" => vec![8, 1, 1],
-        "methane" => vec![6, 1, 1, 1, 1],
-        "ammonia" => vec![7, 1, 1, 1],
-        "methanol" => vec![6, 8, 1, 1, 1, 1],
-        other => panic!("no atoms known for {other}"),
-    };
+    let z: Vec<u32> = crate::pairs::atoms_of(&name);
     let mono = Molecule { z: z.clone(), positions: state.positions.clone(), charge: 0, unpaired: 0 };
     let atom_types = equivalent_atoms(&mono);
     let frame = crate::liquid::extra_sites_from_text(&law_text);
