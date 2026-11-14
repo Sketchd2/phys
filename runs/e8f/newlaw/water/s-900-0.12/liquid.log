@@ -12,3 +12,18 @@ water at 900 K: 64 molecules, 0.12 g/cm3, box 47.57 bohr (25.17 A), cut-off 16.0
   25% after 408 s: U/N -0.79 kcal/mol, P 472 bar
   33% after 481 s: U/N -0.72 kcal/mol, P 569 bar
   42% after 550 s: U/N -0.83 kcal/mol, P 489 bar
+  50% after 624 s: U/N -0.89 kcal/mol, P 307 bar
+  58% after 706 s: U/N -1.35 kcal/mol, P 458 bar
+  67% after 782 s: U/N -0.99 kcal/mol, P 367 bar
+  75% after 854 s: U/N -0.87 kcal/mol, P 509 bar
+  83% after 928 s: U/N -0.61 kcal/mol, P 328 bar
+  92% after 1001 s: U/N -0.67 kcal/mol, P 635 bar
+  100% after 1070 s: U/N -0.81 kcal/mol, P 395 bar
+water at 900 K (96 samples over 10 ps, block standard errors):
+  U/N -0.869 +- 0.067 kcal/mol; heat of vaporisation -U/N + RT = 2.657 kcal/mol
+  pressure 477 +- 22 bar at 0.12 g/cm3 (a liquid at the right density sits near 1 bar; positive says it wants to expand)
+  temperatures: translation 923.2 K, rotation 888.7 K (bath 900 K)
+  mean molecular dipole 1.899 D (permanent charges and induced dipoles); dielectric constant 1.6 (blocks 1.6 +- 0.1; slow to converge)
+  dispersion beyond the cut-off (C6 25.95): -2 bar and -0.006 kcal/mol a molecule, so pressure with it 475 bar, U/N -0.875
+  g(first atoms): first peak 1.85 at 3.15 A, first minimum 1.04 at 4.35 A, second peak 1.10 at 4.65 A, coordination to the minimum 1.38 (bulk-water-900.gOO.txt)
+  snapshot in bulk-water-900.snap

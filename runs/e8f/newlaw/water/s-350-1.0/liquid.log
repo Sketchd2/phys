@@ -1,0 +1,7 @@
+induced dipoles on, polarisabilities by site type [9.234316455280853, 0.8544488912439157, 0.0, 0.0, 0.0] bohr^3
+water at 350 K: 64 molecules, 1 g/cm3, box 23.46 bohr (12.42 A), cut-off 11.5 bohr
+  Ewald sum on: s' = 4.2 bohr, 751 reciprocal vectors
+  started from /home/user/phys/runs/e8f/newlaw/../ti-water/cool/s-350-1.0/bulk-water-350.snap, centres scaled by 1.0000
+  start: U/N -7.98 kcal/mol
+  easing: U/N -8.00 kcal/mol, T 450/360 K, P 5576 bar
+  settling: U/N -8.14 kcal/mol, T 350/283 K, P 2267 bar
