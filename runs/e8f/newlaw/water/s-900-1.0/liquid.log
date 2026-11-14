@@ -1,0 +1,29 @@
+induced dipoles on, polarisabilities by site type [9.234316455280853, 0.8544488912439157, 0.0, 0.0, 0.0] bohr^3
+water at 900 K: 64 molecules, 1 g/cm3, box 23.46 bohr (12.42 A), cut-off 11.5 bohr
+  Ewald sum on: s' = 4.2 bohr, 751 reciprocal vectors
+  started from /home/user/phys/runs/e8f/newlaw/../ti-water/s-900-1.0/bulk-water-900.snap, centres scaled by 1.0000
+  start: U/N -4.69 kcal/mol
+  easing: U/N -4.49 kcal/mol, T 915/693 K, P 13969 bar
+  settling: U/N -5.12 kcal/mol, T 926/941 K, P 10859 bar
+  warming: U/N -5.02 kcal/mol, T 752/879 K, P 11449 bar
+  0% after 53 s: U/N -4.99 kcal/mol, P 11516 bar
+  8% after 74 s: U/N -4.85 kcal/mol, P 12295 bar
+  17% after 95 s: U/N -4.36 kcal/mol, P 14066 bar
+  25% after 116 s: U/N -4.78 kcal/mol, P 14750 bar
+  33% after 135 s: U/N -4.73 kcal/mol, P 13901 bar
+  42% after 156 s: U/N -4.60 kcal/mol, P 15883 bar
+  50% after 176 s: U/N -4.88 kcal/mol, P 13132 bar
+  58% after 196 s: U/N -5.04 kcal/mol, P 12828 bar
+  67% after 217 s: U/N -5.10 kcal/mol, P 13445 bar
+  75% after 238 s: U/N -4.81 kcal/mol, P 14900 bar
+  83% after 259 s: U/N -4.34 kcal/mol, P 15040 bar
+  92% after 281 s: U/N -4.44 kcal/mol, P 16326 bar
+  100% after 304 s: U/N -4.79 kcal/mol, P 15089 bar
+water at 900 K (96 samples over 10 ps, block standard errors):
+  U/N -4.659 +- 0.037 kcal/mol; heat of vaporisation -U/N + RT = 6.448 kcal/mol
+  pressure 14965 +- 331 bar at 1 g/cm3 (a liquid at the right density sits near 1 bar; positive says it wants to expand)
+  temperatures: translation 897.1 K, rotation 871.7 K (bath 900 K)
+  mean molecular dipole 2.419 D (permanent charges and induced dipoles); dielectric constant 15.0 (blocks 14.0 +- 0.8; slow to converge)
+  dispersion beyond the cut-off (C6 25.95): -342 bar and -0.147 kcal/mol a molecule, so pressure with it 14623 bar, U/N -4.806
+  g(first atoms): first peak 1.89 at 3.05 A, first minimum 0.82 at 4.35 A, second peak 1.09 at 5.65 A, coordination to the minimum 10.65 (bulk-water-900.gOO.txt)
+  snapshot in bulk-water-900.snap
