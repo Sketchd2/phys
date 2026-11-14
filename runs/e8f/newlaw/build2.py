@@ -9,7 +9,7 @@ import sys, math
 cloud = [l for l in open(sys.argv[1]).read().splitlines() if l.strip()]
 c6 = {tuple(sorted(map(int, k.split('-')))): float(v) for k, v in (x.split('=') for x in sys.argv[2].replace('--c6', '').split(','))}
 alpha = [l for l in open(sys.argv[3]).read().splitlines() if l.startswith('alpha')]
-K = float(sys.argv[4])
+K = float(sys.argv[4]); import os; DAMP = os.environ.get("DAMP", "2.0")
 core = {}
 if len(sys.argv) > 6:
     for x in sys.argv[6].split(','):
@@ -30,4 +30,4 @@ for l in cloud:
     if l.split()[0] in ('sigma', 'site', 'bisector'): print(l)
 for l in alpha: print(l)
 for a in range(atoms):
-    for b in range(a, atoms): print(f"damp {a} {b} 2.0")
+    for b in range(a, atoms): print(f"damp {a} {b} {DAMP}")
