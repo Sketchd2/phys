@@ -1,0 +1,15 @@
+induced dipoles on, polarisabilities by site type [9.234316455280853, 0.8544488912439157, 0.0, 0.0, 0.0] bohr^3
+water at 440 K: 64 molecules, 0.88 g/cm3, box 24.49 bohr (12.96 A), cut-off 12.0 bohr
+  Ewald sum on: s' = 4.2 bohr, 871 reciprocal vectors
+  started from /home/user/phys/runs/e8f/newlaw/../ti-water/cool/s-440-0.88/bulk-water-440.snap, centres scaled by 1.0000
+  start: U/N -6.84 kcal/mol
+  easing: U/N -6.83 kcal/mol, T 441/384 K, P 4271 bar
+  settling: U/N -7.07 kcal/mol, T 361/454 K, P 345 bar
+  warming: U/N -6.89 kcal/mol, T 392/397 K, P 730 bar
+  0% after 72 s: U/N -6.89 kcal/mol, P 715 bar
+  8% after 100 s: U/N -6.79 kcal/mol, P 226 bar
+  17% after 129 s: U/N -6.93 kcal/mol, P 1176 bar
+  25% after 156 s: U/N -6.71 kcal/mol, P 315 bar
+  33% after 185 s: U/N -6.60 kcal/mol, P 1975 bar
+  42% after 212 s: U/N -6.53 kcal/mol, P 1897 bar
+  50% after 241 s: U/N -6.79 kcal/mol, P 732 bar
