@@ -1,0 +1,29 @@
+induced dipoles on, polarisabilities by site type [9.234316455280853, 0.8544488912439157, 0.0, 0.0, 0.0] bohr^3
+water at 373 K: 64 molecules, 0.88 g/cm3, box 24.49 bohr (12.96 A), cut-off 12.0 bohr
+  Ewald sum on: s' = 4.2 bohr, 871 reciprocal vectors
+  started from /home/user/phys/runs/e8f/newlaw/../ti-water/cool/s-373-0.88/bulk-water-373.snap, centres scaled by 1.0000
+  start: U/N -7.37 kcal/mol
+  easing: U/N -7.14 kcal/mol, T 340/350 K, P 2168 bar
+  settling: U/N -7.47 kcal/mol, T 370/391 K, P 2505 bar
+  warming: U/N -7.20 kcal/mol, T 364/388 K, P -1267 bar
+  0% after 75 s: U/N -7.23 kcal/mol, P -1356 bar
+  8% after 105 s: U/N -7.11 kcal/mol, P 2285 bar
+  17% after 138 s: U/N -7.71 kcal/mol, P -2554 bar
+  25% after 170 s: U/N -7.49 kcal/mol, P -1010 bar
+  33% after 199 s: U/N -7.38 kcal/mol, P 698 bar
+  42% after 230 s: U/N -7.30 kcal/mol, P 759 bar
+  50% after 262 s: U/N -7.31 kcal/mol, P 1105 bar
+  58% after 293 s: U/N -7.32 kcal/mol, P 735 bar
+  67% after 322 s: U/N -7.38 kcal/mol, P 259 bar
+  75% after 351 s: U/N -7.70 kcal/mol, P 1452 bar
+  83% after 380 s: U/N -7.47 kcal/mol, P 1265 bar
+  92% after 409 s: U/N -7.48 kcal/mol, P 493 bar
+  100% after 438 s: U/N -7.29 kcal/mol, P -1178 bar
+water at 373 K (96 samples over 10 ps, block standard errors):
+  U/N -7.406 +- 0.075 kcal/mol; heat of vaporisation -U/N + RT = 8.147 kcal/mol
+  pressure 483 +- 209 bar at 0.88 g/cm3 (a liquid at the right density sits near 1 bar; positive says it wants to expand)
+  temperatures: translation 378.4 K, rotation 375.9 K (bath 373 K)
+  mean molecular dipole 2.600 D (permanent charges and induced dipoles); dielectric constant 23.0 (blocks 16.5 +- 1.0; slow to converge)
+  dispersion beyond the cut-off (C6 25.95): -230 bar and -0.113 kcal/mol a molecule, so pressure with it 253 bar, U/N -7.518
+  g(first atoms): first peak 2.35 at 2.95 A, first minimum 0.86 at 4.05 A, second peak 1.06 at 5.65 A, coordination to the minimum 7.33 (bulk-water-373.gOO.txt)
+  snapshot in bulk-water-373.snap
