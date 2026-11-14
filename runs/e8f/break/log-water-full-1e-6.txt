@@ -1,0 +1,1 @@
+pair 0: first atoms 2.42 A, electrostatic -12.939 kcal/mol, exchange 22.323, Hartree-Fock beyond both -4.910, overlap 4.8020e-3, electrons 10.00000 10.00000, 428 functions, 61 s
