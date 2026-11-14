@@ -9,5 +9,6 @@ isochore 0.4226 g/cm3, 12 states; U/N fit residuals (kcal/mol): +0.0018 -0.0026 
    T    rho_0   F_ex/N    mu_ex    +-     p_sat(atm)  rho_V(g/cm3)   [kcal/mol]
  100.0 0.4263 -0.8466 -1.0453 0.0035     1.1773 x/1.018  0.00240
  111.0 0.4091 -0.7595 -0.9801 0.0037     2.9379 x/1.017  0.00560
+ 122.0 0.3802 -0.6798 -0.9223 0.0044     5.9290 x/1.018  0.01083
  134.0 0.4226 -0.6053 -0.8715 0.0043    13.5807 x/1.016  0.02645 1st order (liquid at +440 bar)
-ln p against 1/T crosses one atmosphere at 98.2 K
+ln p against 1/T crosses one atmosphere at 97.9 K
