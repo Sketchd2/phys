@@ -191,3 +191,7 @@ path = "src/bin/b2.rs"
 [[bin]]
 name = "phys-density"
 path = "src/bin/density.rs"
+
+[[bin]]
+name = "phys-shortfall"
+path = "src/bin/shortfall.rs"
