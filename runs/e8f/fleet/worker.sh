@@ -15,12 +15,23 @@
 W=$1; MAIN=${MAIN:-claude/laughing-keller-sagqde}; BR=${BR:-claude/e8f-w-$W}
 ROOT=$(cd "$(dirname "$0")/../../.." && pwd); F=$ROOT/runs/e8f/fleet; cd "$ROOT"
 mkdir -p $F/log $F/done $F/failed /tmp/fleet; PID=/tmp/fleet/pid; CUR=/tmp/fleet/job
+# This script as the main branch has it now: a worker cannot be told anything once it is running
+# (it reads no messages), so a correction reaches it only by being fetched here.
+git fetch -q origin $MAIN 2>/dev/null
+if [ -z "$FLEET_UPDATED" ] && git show FETCH_HEAD:runs/e8f/fleet/worker.sh > /tmp/fleet/worker.new 2>/dev/null && ! cmp -s /tmp/fleet/worker.new "$0"; then
+  cp /tmp/fleet/worker.new "$0"; FLEET_UPDATED=1 exec bash "$0" "$@"
+fi
+# The local branch carries the name it is pushed under: a push of HEAD to another name was
+# refused for every worker of the first fleet, silently, because its errors were thrown away.
+git checkout -q -B $BR 2>/dev/null
+PUSHED=""
 push() {  # commit everything under runs/e8f and push to this worker's branch, four tries
   git add -A runs/e8f >/dev/null 2>&1; git commit -qm "fleet worker $W: $1" >/dev/null 2>&1
-  for t in 2 4 8 16; do git push -q origin HEAD:$BR 2>/dev/null && return 0; sleep $t; done; return 1
+  for t in 2 4 8 16; do git push -q -u origin $BR 2>/tmp/fleet/push.err && return 0; sleep $t; done
+  PUSHED=" (PUSH FAILED: $(tail -1 /tmp/fleet/push.err | cut -c1-120))"; return 1
 }
-wait_for() {  # wait up to 8 minutes for process $1 to end; 0 if it ended
-  for i in $(seq 1 96); do kill -0 $1 2>/dev/null || return 0; sleep 5; done; return 1
+wait_for() {  # wait up to 5 minutes for process $1 to end; 0 if it ended
+  for i in $(seq 1 60); do kill -0 $1 2>/dev/null || return 0; sleep 5; done; return 1
 }
 # 0. on a fresh machine, take back what this worker had already pushed (finished jobs, partial runs)
 if [ ! -f /tmp/fleet/synced ]; then
@@ -43,9 +54,9 @@ if [ -f $PID ] && [ -f $CUR ]; then
   J=$(cat $CUR)
   if wait_for $(cat $PID); then
     rm -f $PID $CUR
-    if [ -f /tmp/fleet/ok-$J ]; then touch $F/done/$J; push "$J done"; echo "FINISHED $J"
-    else tail -30 $F/log/$J.log > $F/failed/$J; push "$J failed"; echo "FAILED $J"; fi
-  else push "$J in progress"; echo "RUNNING $J"; fi
+    if [ -f /tmp/fleet/ok-$J ]; then touch $F/done/$J; push "$J done"; echo "FINISHED $J$PUSHED"
+    else tail -30 $F/log/$J.log > $F/failed/$J; push "$J failed"; echo "FAILED $J$PUSHED"; fi
+  else push "$J in progress"; echo "RUNNING $J$PUSHED"; fi
   exit 0
 fi
 # 3. the next job of this worker's queue (the queue is read fresh from the main branch)
@@ -61,9 +72,9 @@ while read -r J D CMD; do
   sleep 2
   if wait_for $(cat $PID); then
     rm -f $PID $CUR
-    if [ -f /tmp/fleet/ok-$J ]; then touch $F/done/$J; push "$J done"; echo "FINISHED $J"
-    else tail -30 $F/log/$J.log > $F/failed/$J; push "$J failed"; echo "FAILED $J"; fi
-  else push "$J started"; echo "RUNNING $J"; fi
+    if [ -f /tmp/fleet/ok-$J ]; then touch $F/done/$J; push "$J done"; echo "FINISHED $J$PUSHED"
+    else tail -30 $F/log/$J.log > $F/failed/$J; push "$J failed"; echo "FAILED $J$PUSHED"; fi
+  else push "$J started"; echo "RUNNING $J$PUSHED"; fi
   exit 0
 done <<< "$Q"
 sleep 240; echo IDLE
