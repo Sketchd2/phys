@@ -1,0 +1,6 @@
+methane: 302 functions, field step 0.002, 1 frozen cores
+  19 fields in 230 s (dipole width scale 1)
+  Hartree-Fock: mean 16.2514 bohr^3, diagonal 16.2514 16.2513 16.2515, off-diagonal -3.2e-7 -1.6e-8 4.1e-5
+  MP2: mean 16.8064 bohr^3, diagonal 16.8064 16.8063 16.8064, off-diagonal -3.9e-7 -1.6e-7 3.4e-5
+  atomic polarisabilities by class [6.863160495432861, 3.5530895569144945] bohr^3 (classes [0, 1, 1, 1, 1]); the model's tensor: mean 16.8064, diagonal 16.8063 16.8064 16.8063; residual rms 4.35e-5
+  written to polar-methane.txt

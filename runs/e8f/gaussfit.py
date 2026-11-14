@@ -39,7 +39,32 @@ for j, (k, s) in enumerate(cols):
 rmax = float(a[a.index("--rmax") + 1]) if "--rmax" in a else 1e9
 keep = (rho > 1e-7) & (rho < rmax)   # --rmax: fit only the tail, where molecules meet
 wt = np.sqrt(w[keep] / np.maximum(rho[keep], 1e-7) ** power)
-c = np.linalg.lstsq(G[keep] * wt[:, None], rho[keep] * wt, rcond=None)[0]
+if '--moments' in a:
+    # hold the model to the density's own charge, dipole and second moments (rows of great weight):
+    # a pair's electrostatic energy at range is these, and a least-squares fit of the density alone
+    # leaves them a few hundredths of an electron out
+    f = [np.ones(len(P))] + [xyz[:, i] for i in range(3)] + [xyz[:, i] * xyz[:, j] for i in range(3) for j in range(i, 3)]
+    rows = []; rhs = []
+    for fi in f:
+        row = np.zeros(len(cols))
+        for j, (k, s) in enumerate(cols):
+            for r, kk in sites:
+                if kk == k:
+                    # the moment of a normalised Gaussian at r of width s: 1, r_i, r_i r_j + delta_ij s^2 / 2
+                    row[j] += 0.0
+        rows.append(row); rhs.append(np.sum(w * rho * fi))
+    idx = 0
+    def gm(r, s):
+        out = [1.0] + list(r) + [r[i] * r[j] + (s * s / 2 if i == j else 0.0) for i in range(3) for j in range(i, 3)]
+        return np.array(out)
+    M = np.zeros((10, len(cols)))
+    for j, (k, s) in enumerate(cols):
+        for r, kk in sites:
+            if kk == k: M[:, j] += gm(r, s)
+    big = 1e3
+    c = np.linalg.lstsq(np.vstack([G[keep] * wt[:, None], big * M]), np.concatenate([rho[keep] * wt, big * np.array(rhs)]), rcond=None)[0]
+else:
+    c = np.linalg.lstsq(G[keep] * wt[:, None], rho[keep] * wt, rcond=None)[0]
 fit = G @ c
 amp = {ks: x for ks, x in zip(cols, c)}
 print(f"{name}, {len(classes)} kinds of site x {len(widths)} widths: {np.sum(w*rho):.4f} electrons, model {np.sum(w*fit):.4f}; integral |model - rho| = {np.sum(w*np.abs(fit-rho)):.4f}")
