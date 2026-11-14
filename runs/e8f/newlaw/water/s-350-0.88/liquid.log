@@ -16,3 +16,14 @@ water at 350 K: 64 molecules, 0.88 g/cm3, box 24.49 bohr (12.96 A), cut-off 12.0
   58% after 273 s: U/N -7.40 kcal/mol, P -319 bar
   67% after 301 s: U/N -7.81 kcal/mol, P 50 bar
   75% after 329 s: U/N -7.95 kcal/mol, P -379 bar
+  83% after 356 s: U/N -7.38 kcal/mol, P -473 bar
+  92% after 385 s: U/N -7.47 kcal/mol, P 1819 bar
+  100% after 414 s: U/N -7.39 kcal/mol, P 723 bar
+water at 350 K (96 samples over 10 ps, block standard errors):
+  U/N -7.604 +- 0.047 kcal/mol; heat of vaporisation -U/N + RT = 8.299 kcal/mol
+  pressure 249 +- 61 bar at 0.88 g/cm3 (a liquid at the right density sits near 1 bar; positive says it wants to expand)
+  temperatures: translation 353.4 K, rotation 354.1 K (bath 350 K)
+  mean molecular dipole 2.619 D (permanent charges and induced dipoles); dielectric constant 47.8 (blocks 21.9 +- 5.5; slow to converge)
+  dispersion beyond the cut-off (C6 25.95): -230 bar and -0.113 kcal/mol a molecule, so pressure with it 19 bar, U/N -7.716
+  g(first atoms): first peak 2.42 at 2.95 A, first minimum 0.86 at 3.95 A, second peak 1.05 at 5.35 A, coordination to the minimum 6.83 (bulk-water-350.gOO.txt)
+  snapshot in bulk-water-350.snap
