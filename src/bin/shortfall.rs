@@ -14,6 +14,10 @@
 //! is missing at that geometry. One line per scale: the distance, then
 //! counterpoise HF, MP2 correlation and total, then the same uncorrected, in
 //! kcal/mol.
+//!
+//! `--more Z:l:exponent,...` adds primitives to every atom of element `Z` (in
+//! the dimer and in each monomer alike): what a function the basis lacks is
+//! worth to the bracket, and whether adding functions closes it.
 
 use phys::electrons::functional::Functional;
 use phys::electrons::hf::{frozen_core, hartree_fock, mp2};
@@ -29,7 +33,11 @@ const DIMERS: &[Dimer] = &[
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let (name, z, pos, na, reference) = *DIMERS.iter().find(|d| Some(d.0) == args.first().map(|s| s.as_str())).expect("water, ammonia or methane");
-    let scales: Vec<f64> = if args.len() > 1 { args[1..].iter().map(|s| s.parse().expect("a scale")).collect() } else { vec![1.0] };
+    let more_at = args.iter().position(|a| a == "--more");
+    let more_spec: Vec<(u32, usize, f64)> = more_at.and_then(|i| args.get(i + 1)).map(|v| v.split(',').map(|t| { let w: Vec<&str> = t.split(':').collect(); (w[0].parse().unwrap(), w[1].parse().unwrap(), w[2].parse().unwrap()) }).collect()).unwrap_or_default();
+    let more_for = |zs: &[u32]| -> Vec<Vec<(usize, f64)>> { zs.iter().map(|z| more_spec.iter().filter(|m| m.0 == *z).map(|m| (m.1, m.2)).collect()).collect() };
+    let scale_args: Vec<&String> = args[1..more_at.unwrap_or(args.len())].iter().collect();
+    let scales: Vec<f64> = if scale_args.is_empty() { vec![1.0] } else { scale_args.iter().map(|s| s.parse().expect("a scale")).collect() };
     let a = 1.0 / 0.529177210903;
     let k = 627.509474;
     println!("# {name} dimer (S22; CCSD(T)/CBS {reference:.3} kcal/mol at scale 1): scale, heavy-atom distance (A), counterpoise HF, MP2 correlation, total; uncorrected HF, MP2 correlation, total; seconds");
@@ -49,7 +57,7 @@ fn main() {
             let c = mp2(problem, &hf, frozen_core(zs, keep));
             (hf.energy, c.correlation)
         };
-        let dimer = Molecule { z: z.to_vec(), positions: p.clone(), charge: 0, unpaired: 0 }.problem(Functional::Pbe);
+        let dimer = Molecule { z: z.to_vec(), positions: p.clone(), charge: 0, unpaired: 0 }.problem_plus(Functional::Pbe, None, Some(&more_for(z)));
         let all: Vec<usize> = (0..nat).collect();
         let (ka, kb): (Vec<usize>, Vec<usize>) = ((0..na).collect(), (na..nat).collect());
         let ab = energy(&dimer, z, &all);
@@ -58,12 +66,12 @@ fn main() {
         let alone = |r: std::ops::Range<usize>| -> (f64, f64) {
             let zs = z[r.clone()].to_vec();
             let keep: Vec<usize> = (0..zs.len()).collect();
-            let m = Molecule { z: zs.clone(), positions: p[r].to_vec(), charge: 0, unpaired: 0 }.problem(Functional::Pbe);
+            let m = Molecule { z: zs.clone(), positions: p[r].to_vec(), charge: 0, unpaired: 0 }.problem_plus(Functional::Pbe, None, Some(&more_for(&zs)));
             energy(&m, &zs, &keep)
         };
         let (ma, mb) = (alone(0..na), alone(na..nat));
         let (cp_hf, cp_c) = ((ab.0 - ga.0 - gb.0) * k, (ab.1 - ga.1 - gb.1) * k);
         let (un_hf, un_c) = ((ab.0 - ma.0 - mb.0) * k, (ab.1 - ma.1 - mb.1) * k);
-        println!("{scale:.3} {:.4} {cp_hf:.4} {cp_c:.4} {:.4} {un_hf:.4} {un_c:.4} {:.4} {:.0}", d0 * scale, cp_hf + cp_c, un_hf + un_c, t0.elapsed().as_secs_f64());
+        println!("{scale:.3} {:.4} [{} functions] {cp_hf:.4} {cp_c:.4} {:.4} {un_hf:.4} {un_c:.4} {:.4} {:.0}", d0 * scale, dimer.basis.size, cp_hf + cp_c, un_hf + un_c, t0.elapsed().as_secs_f64());
     }
 }
