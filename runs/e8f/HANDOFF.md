@@ -211,6 +211,12 @@ Along the water dimer's approach the gap is 5.5 to 8% of the binding from 2.9
 to 4.7 A; along methane's it is 39% at the minimum and 58% at 4.6 A. So the
 order of work for D1 is methane first: it is where the reference is worst.
 
+What D1 should deliver, by the scaling identity (an estimate, not a run): the
+re-weighted methane law boils at 98.2 K; scaled by 0.530 / 0.475, the dimer's
+accurate over counterpoise binding, it boils at 108.3 K against methane's
+111.7. The same exercise for water (5% at the dimer) gives 348.7 K against
+373.1, so water has a further shortfall that the dimer minimum does not show.
+
 ## 6. Open, for the owner
 
 - Three tests fail on the base commit and on this branch alike
