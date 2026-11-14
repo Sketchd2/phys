@@ -1,0 +1,29 @@
+induced dipoles on, polarisabilities by site type [9.234316455280853, 0.8544488912439157, 0.0, 0.0, 0.0] bohr^3
+water at 900 K: 64 molecules, 0.88 g/cm3, box 24.49 bohr (12.96 A), cut-off 12.0 bohr
+  Ewald sum on: s' = 4.2 bohr, 871 reciprocal vectors
+  started from /home/user/phys/runs/e8f/newlaw/../ti-water/s-900-0.88/bulk-water-900.snap, centres scaled by 1.0000
+  start: U/N -5.12 kcal/mol
+  easing: U/N -4.69 kcal/mol, T 835/830 K, P 8103 bar
+  settling: U/N -4.77 kcal/mol, T 877/892 K, P 3949 bar
+  warming: U/N -4.69 kcal/mol, T 908/766 K, P 10827 bar
+  0% after 82 s: U/N -4.68 kcal/mol, P 10764 bar
+  8% after 113 s: U/N -4.87 kcal/mol, P 6818 bar
+  17% after 144 s: U/N -4.24 kcal/mol, P 8615 bar
+  25% after 175 s: U/N -4.64 kcal/mol, P 9044 bar
+  33% after 203 s: U/N -4.36 kcal/mol, P 6862 bar
+  42% after 232 s: U/N -4.02 kcal/mol, P 11439 bar
+  50% after 261 s: U/N -3.65 kcal/mol, P 13762 bar
+  58% after 291 s: U/N -4.74 kcal/mol, P 5290 bar
+  67% after 320 s: U/N -3.82 kcal/mol, P 10076 bar
+  75% after 351 s: U/N -4.19 kcal/mol, P 8143 bar
+  83% after 380 s: U/N -4.04 kcal/mol, P 13090 bar
+  92% after 410 s: U/N -4.52 kcal/mol, P 8977 bar
+  100% after 439 s: U/N -4.28 kcal/mol, P 14215 bar
+water at 900 K (96 samples over 10 ps, block standard errors):
+  U/N -4.290 +- 0.059 kcal/mol; heat of vaporisation -U/N + RT = 6.078 kcal/mol
+  pressure 9745 +- 248 bar at 0.88 g/cm3 (a liquid at the right density sits near 1 bar; positive says it wants to expand)
+  temperatures: translation 931.3 K, rotation 912.1 K (bath 900 K)
+  mean molecular dipole 2.337 D (permanent charges and induced dipoles); dielectric constant 11.7 (blocks 10.1 +- 0.6; slow to converge)
+  dispersion beyond the cut-off (C6 25.95): -230 bar and -0.113 kcal/mol a molecule, so pressure with it 9515 bar, U/N -4.402
+  g(first atoms): first peak 1.78 at 2.95 A, first minimum 0.84 at 4.35 A, second peak 1.05 at 5.65 A, coordination to the minimum 9.33 (bulk-water-900.gOO.txt)
+  snapshot in bulk-water-900.snap
