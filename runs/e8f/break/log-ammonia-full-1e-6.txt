@@ -1,1 +1,10 @@
 pair 0: first atoms 3.66 A, electrostatic -0.112 kcal/mol, exchange 1.209, Hartree-Fock beyond both -0.158, overlap 1.9482e-4, electrons 10.00000 10.00000, 538 functions, 138 s
+
+thread 'main' (24459) panicked at src/pairs.rs:2290:13:
+the pair did not converge
+stack backtrace:
+   0: __rustc::rust_begin_unwind
+   1: core::panicking::panic_fmt
+   2: phys::pairs::overlap_main
+   3: phys_overlap::main
+note: Some details are omitted, run with `RUST_BACKTRACE=full` for a verbose backtrace.
