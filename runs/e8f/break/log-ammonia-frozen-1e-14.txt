@@ -21,3 +21,11 @@ pair 49: first atoms 3.21 A, electrostatic 0.577 kcal/mol, exchange 2.657, Hartr
 pair 54: first atoms 4.03 A, electrostatic -0.210 kcal/mol, exchange 0.216, Hartree-Fock beyond both -0.044, overlap 3.8248e-5, electrons 10.00000 10.00000, 538 functions, 38 s
 pair 60: first atoms 3.45 A, electrostatic 0.463 kcal/mol, exchange 1.186, Hartree-Fock beyond both -0.162, overlap 2.0205e-4, electrons 10.00000 10.00000, 538 functions, 37 s
 pair 63: first atoms 3.26 A, electrostatic -1.872 kcal/mol, exchange 3.040, Hartree-Fock beyond both -0.427, overlap 5.6296e-4, electrons 10.00000 10.00000, 538 functions, 38 s
+pair 68: first atoms 4.27 A, electrostatic 0.042 kcal/mol, exchange 0.122, Hartree-Fock beyond both -0.031, overlap 1.9963e-5, electrons 10.00000 10.00000, 538 functions, 39 s
+pair 76: first atoms 3.89 A, electrostatic 0.101 kcal/mol, exchange 0.368, Hartree-Fock beyond both -0.080, overlap 5.9902e-5, electrons 10.00000 10.00000, 538 functions, 38 s
+pair 86: first atoms 3.52 A, electrostatic -2.034 kcal/mol, exchange 1.421, Hartree-Fock beyond both -0.358, overlap 2.4428e-4, electrons 10.00000 10.00000, 538 functions, 37 s
+pair 90: first atoms 2.95 A, electrostatic -4.193 kcal/mol, exchange 9.315, Hartree-Fock beyond both -1.100, overlap 1.7436e-3, electrons 10.00000 10.00000, 538 functions, 38 s
+pair 91: first atoms 3.82 A, electrostatic -0.505 kcal/mol, exchange 0.285, Hartree-Fock beyond both -0.115, overlap 5.1707e-5, electrons 10.00000 10.00000, 538 functions, 38 s
+pair 95: first atoms 4.31 A, electrostatic 0.093 kcal/mol, exchange 0.204, Hartree-Fock beyond both -0.039, overlap 3.1078e-5, electrons 10.00000 10.00000, 538 functions, 38 s
+pair 101: first atoms 3.35 A, electrostatic 0.516 kcal/mol, exchange 1.835, Hartree-Fock beyond both -0.401, overlap 3.3069e-4, electrons 10.00000 10.00000, 538 functions, 39 s
+pair 102: first atoms 3.31 A, electrostatic 1.712 kcal/mol, exchange 1.769, Hartree-Fock beyond both -0.415, overlap 3.3856e-4, electrons 10.00000 10.00000, 538 functions, 38 s
