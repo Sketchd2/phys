@@ -12,7 +12,7 @@
 # from its directory with nohup, its output in fleet/log/<job id>.log. A job must be safe to
 # start again (the run scripts skip what is finished), because a reclaimed machine starts over.
 # Results go to branch claude/e8f-w-W and nowhere else.
-W=$1; MAIN=${MAIN:-claude/laughing-keller-sagqde}; BR=${BR:-claude/e8f-w-$W}
+W=$1; MAIN=${MAIN:-claude/e8f-orchestrator}; BR=${BR:-claude/e8f-w-$W}
 ROOT=$(cd "$(dirname "$0")/../../.." && pwd); F=$ROOT/runs/e8f/fleet; cd "$ROOT"
 mkdir -p $F/log $F/done $F/failed /tmp/fleet; PID=/tmp/fleet/pid; CUR=/tmp/fleet/job
 # This script as the main branch has it now: a worker cannot be told anything once it is running
