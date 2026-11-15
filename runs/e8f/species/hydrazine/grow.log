@@ -208,3 +208,26 @@ round 2: 120 functions, E -111.78219750, 2331 s
   round 3 probe 7/12: 100/192 candidates, 690 s into the round; about 2 min left in it
   round 3 probe 7/12: 150/192 candidates, 690 s into the round; about 2 min left in it
   round 3 probe 7/12: 192/192 candidates, 690 s into the round; about 2 min left in it
+  round 3 probe 8/12: 50/192 candidates, 718 s into the round; about 2 min left in it
+  round 3 probe 8/12: 100/192 candidates, 718 s into the round; about 2 min left in it
+  round 3 probe 8/12: 150/192 candidates, 718 s into the round; about 2 min left in it
+  round 3 probe 8/12: 192/192 candidates, 718 s into the round; about 2 min left in it
+  round 3 probe 9/12: 50/192 candidates, 746 s into the round; about 1 min left in it
+  round 3 probe 9/12: 100/192 candidates, 746 s into the round; about 1 min left in it
+  round 3 probe 9/12: 150/192 candidates, 746 s into the round; about 1 min left in it
+  round 3 probe 9/12: 192/192 candidates, 746 s into the round; about 1 min left in it
+  round 3 probe 10/12: 50/192 candidates, 773 s into the round; under a minute left in it
+  round 3 probe 10/12: 100/192 candidates, 773 s into the round; under a minute left in it
+  round 3 probe 10/12: 150/192 candidates, 773 s into the round; under a minute left in it
+  round 3 probe 10/12: 192/192 candidates, 773 s into the round; under a minute left in it
+  round 3 probe 11/12: 50/192 candidates, 799 s into the round; under a minute left in it
+  round 3 probe 11/12: 100/192 candidates, 799 s into the round; under a minute left in it
+  round 3 probe 11/12: 150/192 candidates, 800 s into the round; under a minute left in it
+  round 3 probe 11/12: 192/192 candidates, 800 s into the round; under a minute left in it
+  round 3 probe 12/12: 50/192 candidates, 826 s into the round; under a minute left in it
+  round 3 probe 12/12: 100/192 candidates, 826 s into the round; under a minute left in it
+  round 3 probe 12/12: 150/192 candidates, 826 s into the round; under a minute left in it
+  round 3 probe 12/12: 192/192 candidates, 826 s into the round; under a minute left in it
+round 3: 150 functions, E -111.78883673, 3157 s
+  shape (A, deg): 1.44019 1.02285 1.02606 1.02285 1.02606 107.242 112.085 107.274 107.242 112.085 107.274
+  added 6, predicted to move: +0.00009 -0.00097 -0.00312 -0.00097 -0.00312 +0.003 -0.039 -0.028 +0.003 -0.039 -0.028; left 41.29
