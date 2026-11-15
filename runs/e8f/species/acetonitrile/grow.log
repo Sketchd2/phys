@@ -25,3 +25,41 @@ acetonitrile: 6 atoms, 5 bonds; starting
   round 0 probe 5/12: 150/229 candidates, 603 s into the round; about 4 min left in it
   round 0 probe 5/12: 200/229 candidates, 603 s into the round; about 4 min left in it
   round 0 probe 5/12: 229/229 candidates, 603 s into the round; about 4 min left in it
+  round 0 probe 6/12: 50/229 candidates, 638 s into the round; about 4 min left in it
+  round 0 probe 6/12: 100/229 candidates, 638 s into the round; about 4 min left in it
+  round 0 probe 6/12: 150/229 candidates, 638 s into the round; about 4 min left in it
+  round 0 probe 6/12: 200/229 candidates, 638 s into the round; about 4 min left in it
+  round 0 probe 6/12: 229/229 candidates, 638 s into the round; about 4 min left in it
+  round 0 probe 7/12: 50/229 candidates, 672 s into the round; about 3 min left in it
+  round 0 probe 7/12: 100/229 candidates, 672 s into the round; about 3 min left in it
+  round 0 probe 7/12: 150/229 candidates, 672 s into the round; about 3 min left in it
+  round 0 probe 7/12: 200/229 candidates, 672 s into the round; about 3 min left in it
+  round 0 probe 7/12: 229/229 candidates, 673 s into the round; about 3 min left in it
+  round 0 probe 8/12: 50/229 candidates, 710 s into the round; about 3 min left in it
+  round 0 probe 8/12: 100/229 candidates, 710 s into the round; about 3 min left in it
+  round 0 probe 8/12: 150/229 candidates, 710 s into the round; about 3 min left in it
+  round 0 probe 8/12: 200/229 candidates, 710 s into the round; about 3 min left in it
+  round 0 probe 8/12: 229/229 candidates, 710 s into the round; about 3 min left in it
+  round 0 probe 9/12: 50/229 candidates, 747 s into the round; about 2 min left in it
+  round 0 probe 9/12: 100/229 candidates, 747 s into the round; about 2 min left in it
+  round 0 probe 9/12: 150/229 candidates, 747 s into the round; about 2 min left in it
+  round 0 probe 9/12: 200/229 candidates, 747 s into the round; about 2 min left in it
+  round 0 probe 9/12: 229/229 candidates, 747 s into the round; about 2 min left in it
+  round 0 probe 10/12: 50/229 candidates, 785 s into the round; about 1 min left in it
+  round 0 probe 10/12: 100/229 candidates, 785 s into the round; about 1 min left in it
+  round 0 probe 10/12: 150/229 candidates, 785 s into the round; about 1 min left in it
+  round 0 probe 10/12: 200/229 candidates, 785 s into the round; about 1 min left in it
+  round 0 probe 10/12: 229/229 candidates, 785 s into the round; about 1 min left in it
+  round 0 probe 11/12: 50/229 candidates, 822 s into the round; under a minute left in it
+  round 0 probe 11/12: 100/229 candidates, 822 s into the round; under a minute left in it
+  round 0 probe 11/12: 150/229 candidates, 822 s into the round; under a minute left in it
+  round 0 probe 11/12: 200/229 candidates, 823 s into the round; under a minute left in it
+  round 0 probe 11/12: 229/229 candidates, 823 s into the round; under a minute left in it
+  round 0 probe 12/12: 50/229 candidates, 860 s into the round; under a minute left in it
+  round 0 probe 12/12: 100/229 candidates, 860 s into the round; under a minute left in it
+  round 0 probe 12/12: 150/229 candidates, 860 s into the round; under a minute left in it
+  round 0 probe 12/12: 200/229 candidates, 860 s into the round; under a minute left in it
+  round 0 probe 12/12: 229/229 candidates, 861 s into the round; under a minute left in it
+round 0: 93 functions, E -132.58907000, 861 s
+  shape (A, deg): 1.45801 1.19104 1.10680 1.10680 1.10680 111.025 111.026 111.026 107.873 107.873 107.873 180.000
+  added 3, predicted to move: -0.00605 -0.01990 +0.00379 +0.00379 +0.00379 -0.879 -0.879 -0.879 +0.988 +0.988 +0.988 +0.000; left 534.87
