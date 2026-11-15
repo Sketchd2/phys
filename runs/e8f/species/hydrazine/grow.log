@@ -423,3 +423,9 @@ round 5: 234 functions, E -111.79208325, 5247 s
 round 6: 296 functions, E -111.79343330, 7166 s
   shape (A, deg): 1.43611 1.01981 1.02359 1.01981 1.02359 107.457 112.260 107.489 107.457 112.260 107.489
   added 6, predicted to move: -0.00004 -0.00061 +0.00001 -0.00061 +0.00001 -0.017 -0.004 -0.013 -0.017 -0.004 -0.013; left 11.44
+  relaxed at 358 functions, 604 s into round 7; 12 probes of 234 candidates to go
+  round 7 probe 1/12: 50/234 candidates, 737 s into the round; about 25 min left in it
+  round 7 probe 1/12: 100/234 candidates, 737 s into the round; about 25 min left in it
+  round 7 probe 1/12: 150/234 candidates, 737 s into the round; about 25 min left in it
+  round 7 probe 1/12: 200/234 candidates, 738 s into the round; about 25 min left in it
+  round 7 probe 1/12: 234/234 candidates, 740 s into the round; about 25 min left in it
