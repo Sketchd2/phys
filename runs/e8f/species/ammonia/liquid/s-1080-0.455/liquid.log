@@ -7,3 +7,12 @@ ammonia at 1080 K: 64 molecules, 0.455 g/cm3, box 29.94 bohr (15.84 A), cut-off 
   warming: U/N -6.49 kcal/mol, T 1022/1074 K, P 2757 bar
   0% after 562 s: U/N -6.52 kcal/mol, P 2660 bar
   8% after 595 s: U/N -6.78 kcal/mol, P 2691 bar
+  17% after 631 s: U/N -6.62 kcal/mol, P 3409 bar
+  25% after 666 s: U/N -7.77 kcal/mol, P 2631 bar
+  33% after 699 s: U/N -7.83 kcal/mol, P 198 bar
+  42% after 732 s: U/N -7.26 kcal/mol, P 1300 bar
+  50% after 764 s: U/N -7.81 kcal/mol, P 1840 bar
+  58% after 797 s: U/N -8.36 kcal/mol, P 819 bar
+  67% after 831 s: U/N -6.59 kcal/mol, P 4376 bar
+  75% after 864 s: U/N -7.39 kcal/mol, P 1962 bar
+  83% after 897 s: U/N -6.08 kcal/mol, P 4890 bar
