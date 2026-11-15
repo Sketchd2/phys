@@ -10,3 +10,19 @@ water at 226 K: 64 molecules, 0.981 g/cm3, box 23.62 bohr (12.50 A), cut-off 11.
   17% after 549 s: U/N -9.28 kcal/mol, P 456 bar
   25% after 576 s: U/N -9.41 kcal/mol, P 941 bar
   33% after 601 s: U/N -9.34 kcal/mol, P 486 bar
+  42% after 627 s: U/N -9.30 kcal/mol, P -198 bar
+  50% after 654 s: U/N -9.51 kcal/mol, P 1974 bar
+  58% after 680 s: U/N -9.34 kcal/mol, P 8 bar
+  67% after 706 s: U/N -9.30 kcal/mol, P -182 bar
+  75% after 730 s: U/N -9.28 kcal/mol, P -394 bar
+  83% after 758 s: U/N -9.36 kcal/mol, P 1791 bar
+  92% after 784 s: U/N -9.32 kcal/mol, P -2068 bar
+  100% after 811 s: U/N -9.59 kcal/mol, P -76 bar
+water at 226 K (96 samples over 10 ps, block standard errors):
+  U/N -9.415 +- 0.011 kcal/mol; heat of vaporisation -U/N + RT = 9.864 kcal/mol
+  pressure 264 +- 363 bar at 0.981 g/cm3 (a liquid at the right density sits near 1 bar; positive says it wants to expand)
+  temperatures: translation 216.1 K, rotation 227.4 K (bath 226 K)
+  mean molecular dipole 2.828 D (permanent charges and induced dipoles); dielectric constant 10.3 (blocks 5.6 +- 0.9; slow to converge)
+  dispersion beyond the cut-off (C6 25.95): -322 bar and -0.141 kcal/mol a molecule, so pressure with it -58 bar, U/N -9.556
+  g(first atoms): first peak 3.05 at 2.85 A, first minimum 0.88 at 3.45 A, second peak 1.10 at 5.05 A, coordination to the minimum 4.90 (bulk-water-226.gOO.txt)
+  snapshot in bulk-water-226.snap
