@@ -1,7 +1,7 @@
 {
- "children": 11,
+ "children": 13,
  "window": "allowed, resets 22:10 UTC",
- "note": "wake 4. Fixed worker.sh clobbering a worker's own files; methane law redone from 12 pairs on 41. Workers 44, 45 created.",
+ "note": "wake 5. Methane law HOLE (stops). Ammonia law built (suspect), 34 liquid states on 46/47. Water dilute rerun done (34/34). Worker 19 resumed.",
  "wakes": [
   {
    "t": "2026-11-15T15:20Z",
@@ -28,6 +28,12 @@
    "status": "allowed",
    "resetsAt": 1794780600,
    "orchestrator_cost_usd": 3.78
+  },
+  {
+   "t": "2026-11-15T19:09Z",
+   "limit_stop": false,
+   "status": "allowed",
+   "resetsAt": 1794780600
   }
  ],
  "burn_usd": null,
@@ -54,6 +60,8 @@
   "42": "session_016vymdw2KeUGhh6HibXvTE5",
   "43": "session_016vymdz85zTZdRMEVx3GS9Z",
   "44": "session_016vymdwyE9H9qYPScmKaY9L",
-  "45": "session_016vymdx4LxpFVW66cvwa6QY"
+  "45": "session_016vymdx4LxpFVW66cvwa6QY",
+  "46": "session_016vymdwFFGWCPM5vpRBNMud",
+  "47": "session_016vymdzkYiz4gUMAni5rz2d"
  }
 }

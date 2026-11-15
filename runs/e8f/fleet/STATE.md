@@ -1,5 +1,14 @@
 # Fleet state (the orchestrator's own notes; newest first)
 
+## 2026-11-15 19:09 UTC, wake 5
+
+- Methane: law from 12 pairs is HOLE -> stops (recorded). Ammonia: law K 7.00 damping 1.0, suspect (see DECISIONS);
+  plan 34 states, spread on 46/47. Queue ammonia-boil once >= 31 of 34 are done (NOT on 41: 41 holds stale ammonia files).
+- Water: 34/34 states done (dilute rerun finished on 30); boil.ok 325.6 K stands (from 33). Re-run boil? not needed.
+- Worker 19 idle since 17:33 -> resume sent 19:08. Check next wake it pushed.
+- 41 now: acetaldehyde grow, butane grow. 45: ethanol, isobutane. Created 46, 47. Count 13.
+- Methanol full 9/12 on 40, then law, plan (on 40), then water stages.
+
 ## 2026-11-15 18:10 UTC, wake 4
 
 - FOUND: worker.sh's job-start checkout overwrote a worker's own newer files with main's (methane full 12 -> 2 pairs,
