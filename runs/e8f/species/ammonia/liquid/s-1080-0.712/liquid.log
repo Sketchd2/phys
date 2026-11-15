@@ -17,3 +17,12 @@ ammonia at 1080 K: 64 molecules, 0.712 g/cm3, box 25.79 bohr (13.65 A), cut-off 
   75% after 831 s: U/N -11.39 kcal/mol, P 10902 bar
   83% after 863 s: U/N -10.65 kcal/mol, P 8497 bar
   92% after 894 s: U/N -11.50 kcal/mol, P 7810 bar
+  100% after 928 s: U/N -11.55 kcal/mol, P 5455 bar
+ammonia at 1080 K (96 samples over 10 ps, block standard errors):
+  U/N -11.367 +- 0.168 kcal/mol; heat of vaporisation -U/N + RT = 13.513 kcal/mol
+  pressure 7646 +- 151 bar at 0.712 g/cm3 (a liquid at the right density sits near 1 bar; positive says it wants to expand)
+  temperatures: translation 1042.4 K, rotation 1057.2 K (bath 1080 K)
+  mean molecular dipole 3.374 D (permanent charges and induced dipoles); dielectric constant 15.6 (blocks 5.0 +- 0.5; slow to converge)
+  dispersion beyond the cut-off (C6 93.67): -513 bar and -0.293 kcal/mol a molecule, so pressure with it 7133 bar, U/N -11.660
+  g(first atoms): first peak 1.74 at 2.35 A, first minimum 0.44 at 2.85 A, second peak 1.30 at 4.55 A, coordination to the minimum 1.54 (bulk-ammonia-1080.gOO.txt)
+  snapshot in bulk-ammonia-1080.snap
