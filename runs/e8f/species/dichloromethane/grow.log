@@ -1,1 +1,32 @@
 dichloromethane: 5 atoms, 4 bonds; starting
+  relaxed at 91 functions, 409 s into round 0; 10 probes of 241 candidates to go
+  round 0 probe 1/10: 50/241 candidates, 438 s into the round; about 4 min left in it
+  round 0 probe 1/10: 100/241 candidates, 438 s into the round; about 4 min left in it
+  round 0 probe 1/10: 150/241 candidates, 438 s into the round; about 4 min left in it
+  round 0 probe 1/10: 200/241 candidates, 438 s into the round; about 4 min left in it
+  round 0 probe 1/10: 241/241 candidates, 438 s into the round; about 4 min left in it
+  round 0 probe 2/10: 50/241 candidates, 467 s into the round; about 4 min left in it
+  round 0 probe 2/10: 100/241 candidates, 467 s into the round; about 4 min left in it
+  round 0 probe 2/10: 150/241 candidates, 467 s into the round; about 4 min left in it
+  round 0 probe 2/10: 200/241 candidates, 467 s into the round; about 4 min left in it
+  round 0 probe 2/10: 241/241 candidates, 467 s into the round; about 4 min left in it
+  round 0 probe 3/10: 50/241 candidates, 495 s into the round; about 3 min left in it
+  round 0 probe 3/10: 100/241 candidates, 495 s into the round; about 3 min left in it
+  round 0 probe 3/10: 150/241 candidates, 495 s into the round; about 3 min left in it
+  round 0 probe 3/10: 200/241 candidates, 495 s into the round; about 3 min left in it
+  round 0 probe 3/10: 241/241 candidates, 495 s into the round; about 3 min left in it
+  round 0 probe 4/10: 50/241 candidates, 525 s into the round; about 3 min left in it
+  round 0 probe 4/10: 100/241 candidates, 525 s into the round; about 3 min left in it
+  round 0 probe 4/10: 150/241 candidates, 525 s into the round; about 3 min left in it
+  round 0 probe 4/10: 200/241 candidates, 525 s into the round; about 3 min left in it
+  round 0 probe 4/10: 241/241 candidates, 525 s into the round; about 3 min left in it
+  round 0 probe 5/10: 50/241 candidates, 555 s into the round; about 2 min left in it
+  round 0 probe 5/10: 100/241 candidates, 555 s into the round; about 2 min left in it
+  round 0 probe 5/10: 150/241 candidates, 555 s into the round; about 2 min left in it
+  round 0 probe 5/10: 200/241 candidates, 555 s into the round; about 2 min left in it
+  round 0 probe 5/10: 241/241 candidates, 555 s into the round; about 2 min left in it
+  round 0 probe 6/10: 50/241 candidates, 582 s into the round; about 2 min left in it
+  round 0 probe 6/10: 100/241 candidates, 582 s into the round; about 2 min left in it
+  round 0 probe 6/10: 150/241 candidates, 582 s into the round; about 2 min left in it
+  round 0 probe 6/10: 200/241 candidates, 582 s into the round; about 2 min left in it
+  round 0 probe 6/10: 241/241 candidates, 583 s into the round; about 2 min left in it
