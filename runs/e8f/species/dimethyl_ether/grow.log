@@ -349,3 +349,11 @@ round 2: 154 functions, E -154.88550150, 8773 s
   added 4, predicted to move: +0.00150 +0.00150 -0.00087 +0.00028 +0.00028 -0.00087 +0.00028 +0.00028 -0.162 +0.094 +0.094 +0.082 +0.082 -0.198 +1.024 -0.162 +0.094 +0.094 +0.082 +0.082 -0.198; left 174.71
   relaxed at 177 functions, 1527 s into round 3; 16 probes of 301 candidates to go
 dimethyl_ether: 9 atoms, 8 bonds; carrying on from round 3
+  relaxed at 177 functions, 1695 s into round 3; 16 probes of 301 candidates to go
+  round 3 probe 1/16: 50/301 candidates, 1804 s into the round; about 28 min left in it
+  round 3 probe 1/16: 100/301 candidates, 1804 s into the round; about 28 min left in it
+  round 3 probe 1/16: 150/301 candidates, 1805 s into the round; about 28 min left in it
+  round 3 probe 1/16: 200/301 candidates, 1805 s into the round; about 28 min left in it
+  round 3 probe 1/16: 250/301 candidates, 1805 s into the round; about 28 min left in it
+  round 3 probe 1/16: 300/301 candidates, 1805 s into the round; about 28 min left in it
+  round 3 probe 1/16: 301/301 candidates, 1805 s into the round; about 28 min left in it
