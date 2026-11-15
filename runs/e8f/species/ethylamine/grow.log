@@ -329,3 +329,13 @@ ethylamine: 10 atoms, 9 bonds; starting
   round 0 probe 47/48: 250/337 candidates, 6669 s into the round; about 1 min left in it
   round 0 probe 47/48: 300/337 candidates, 6670 s into the round; about 1 min left in it
   round 0 probe 47/48: 337/337 candidates, 6670 s into the round; about 1 min left in it
+  round 0 probe 48/48: 50/337 candidates, 6753 s into the round; under a minute left in it
+  round 0 probe 48/48: 100/337 candidates, 6753 s into the round; under a minute left in it
+  round 0 probe 48/48: 150/337 candidates, 6753 s into the round; under a minute left in it
+  round 0 probe 48/48: 200/337 candidates, 6753 s into the round; under a minute left in it
+  round 0 probe 48/48: 250/337 candidates, 6754 s into the round; under a minute left in it
+  round 0 probe 48/48: 300/337 candidates, 6754 s into the round; under a minute left in it
+  round 0 probe 48/48: 337/337 candidates, 6754 s into the round; under a minute left in it
+round 0: 133 functions, E -135.01305009, 6754 s
+  shape (A, deg): 1.52665 1.48427 1.10773 1.10684 1.10896 1.10832 1.11648 1.03777 1.03864 111.523 110.501 111.057 108.531 107.521 107.560 109.970 109.696 109.591 107.229 113.476 106.762 109.001 107.816 104.878
+  added 3, predicted to move: +0.00078 +0.00030 -0.00014 +0.00046 +0.00033 +0.00145 +0.00063 -0.01339 -0.01321 +0.061 +0.033 -0.161 +0.005 -0.041 +0.117 +0.069 +0.060 -0.108 +0.164 -0.071 -0.183 +1.300 +1.675 +0.956; left 597.84
