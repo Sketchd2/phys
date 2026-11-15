@@ -212,3 +212,26 @@ round 1: 95 functions, E -189.61120043, 1553 s
   round 2 probe 12/16: 150/207 candidates, 871 s into the round; about 4 min left in it
   round 2 probe 12/16: 200/207 candidates, 871 s into the round; about 4 min left in it
   round 2 probe 12/16: 207/207 candidates, 871 s into the round; about 4 min left in it
+  round 2 probe 13/16: 50/207 candidates, 935 s into the round; about 3 min left in it
+  round 2 probe 13/16: 100/207 candidates, 935 s into the round; about 3 min left in it
+  round 2 probe 13/16: 150/207 candidates, 935 s into the round; about 3 min left in it
+  round 2 probe 13/16: 200/207 candidates, 936 s into the round; about 3 min left in it
+  round 2 probe 13/16: 207/207 candidates, 936 s into the round; about 3 min left in it
+  round 2 probe 14/16: 50/207 candidates, 997 s into the round; about 2 min left in it
+  round 2 probe 14/16: 100/207 candidates, 997 s into the round; about 2 min left in it
+  round 2 probe 14/16: 150/207 candidates, 997 s into the round; about 2 min left in it
+  round 2 probe 14/16: 200/207 candidates, 997 s into the round; about 2 min left in it
+  round 2 probe 14/16: 207/207 candidates, 997 s into the round; about 2 min left in it
+  round 2 probe 15/16: 50/207 candidates, 1032 s into the round; under a minute left in it
+  round 2 probe 15/16: 100/207 candidates, 1032 s into the round; under a minute left in it
+  round 2 probe 15/16: 150/207 candidates, 1033 s into the round; under a minute left in it
+  round 2 probe 15/16: 200/207 candidates, 1033 s into the round; under a minute left in it
+  round 2 probe 15/16: 207/207 candidates, 1033 s into the round; under a minute left in it
+  round 2 probe 16/16: 50/207 candidates, 1070 s into the round; under a minute left in it
+  round 2 probe 16/16: 100/207 candidates, 1070 s into the round; under a minute left in it
+  round 2 probe 16/16: 150/207 candidates, 1070 s into the round; under a minute left in it
+  round 2 probe 16/16: 200/207 candidates, 1070 s into the round; under a minute left in it
+  round 2 probe 16/16: 207/207 candidates, 1070 s into the round; under a minute left in it
+round 2: 135 functions, E -189.63174934, 2624 s
+  shape (A, deg): 1.20784 1.36859 1.12365 0.98203 122.578 124.158 113.264 108.862
+  added 3, predicted to move: -0.00153 -0.00140 -0.02357 +0.00247 +0.020 -0.095 +0.005 +0.692; left 270.11
