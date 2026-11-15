@@ -17,3 +17,5 @@
 - 2026-11-15 Methanol's 12-pair law begins HOLE too (B2(300 K) -inf): no liquid, recorded.
 - 2026-11-15 Water's D3 hand law, plan, boiling point and 34 liquid states moved to species/water/hand/ (D3's result stands there); water's own stage law and plan queued on 40.
 - 2026-11-15 Worker 19 stopped again at 19:22 after the resume: replaced by a new session with the same number (reads my branch); the old session archived so that two do not push to one branch.
+- 2026-11-15 Hydrogen peroxide's law (8 pairs, old queue) begins HOLE: no liquid, recorded.
+- 2026-11-15 A replacement worker's pushes were refused as non-fast-forward (its branch starts from mine, not the old history): worker.sh's push now records the old history as a parent with `merge -s ours` and retries. Worker 19's methylamine full set to NFULL=12 (job not yet run; 2 heavy atoms).

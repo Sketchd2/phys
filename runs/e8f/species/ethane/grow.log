@@ -314,3 +314,12 @@ round 5: 710 functions, E -79.73978980, 24069 s
 could not spill a 18.5 GB table to /tmp/spill: No space left on device (os error 28); rebuilding it instead
 could not spill a 19.6 GB table to /tmp/spill: No space left on device (os error 28); rebuilding it instead
 could not spill a 18.9 GB table to /tmp/spill: No space left on device (os error 28); rebuilding it instead
+  relaxed at 856 functions, 9518 s into round 6; 8 probes of 334 candidates to go
+  round 6 probe 1/8: 50/334 candidates, 11028 s into the round; about 178 min left in it
+  round 6 probe 1/8: 100/334 candidates, 11031 s into the round; about 178 min left in it
+  round 6 probe 1/8: 150/334 candidates, 11033 s into the round; about 178 min left in it
+  round 6 probe 1/8: 200/334 candidates, 11035 s into the round; about 178 min left in it
+  round 6 probe 1/8: 250/334 candidates, 11042 s into the round; about 179 min left in it
+  round 6 probe 1/8: 300/334 candidates, 11054 s into the round; about 180 min left in it
+  round 6 probe 1/8: 334/334 candidates, 11066 s into the round; about 181 min left in it
+could not spill a 19.5 GB table to /tmp/spill: No space left on device (os error 28); rebuilding it instead
