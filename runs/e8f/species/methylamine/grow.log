@@ -624,3 +624,23 @@ round 5: 180 functions, E -95.77216012, 8103 s
   shape (A, deg): 1.46939 1.09937 1.10714 1.09937 1.02120 1.02120 109.128 115.455 109.131 107.878 107.050 107.878 110.349 110.347 106.207
   added 3, predicted to move: -0.00303 +0.00010 +0.00006 +0.00010 -0.00069 -0.00069 -0.045 -0.012 -0.045 +0.041 +0.057 +0.041 -0.064 -0.064 -0.065; left 38.84
   relaxed at 216 functions, 666 s into round 6; 20 probes of 241 candidates to go
+  round 6 probe 1/20: 50/241 candidates, 744 s into the round; about 25 min left in it
+  round 6 probe 1/20: 100/241 candidates, 745 s into the round; about 25 min left in it
+  round 6 probe 1/20: 150/241 candidates, 745 s into the round; about 25 min left in it
+  round 6 probe 1/20: 200/241 candidates, 745 s into the round; about 25 min left in it
+  round 6 probe 1/20: 241/241 candidates, 745 s into the round; about 25 min left in it
+  round 6 probe 2/20: 50/241 candidates, 829 s into the round; about 25 min left in it
+  round 6 probe 2/20: 100/241 candidates, 829 s into the round; about 25 min left in it
+  round 6 probe 2/20: 150/241 candidates, 830 s into the round; about 25 min left in it
+  round 6 probe 2/20: 200/241 candidates, 830 s into the round; about 25 min left in it
+  round 6 probe 2/20: 241/241 candidates, 830 s into the round; about 26 min left in it
+  round 6 probe 3/20: 50/241 candidates, 915 s into the round; about 24 min left in it
+  round 6 probe 3/20: 100/241 candidates, 915 s into the round; about 24 min left in it
+  round 6 probe 3/20: 150/241 candidates, 915 s into the round; about 24 min left in it
+  round 6 probe 3/20: 200/241 candidates, 916 s into the round; about 24 min left in it
+  round 6 probe 3/20: 241/241 candidates, 916 s into the round; about 24 min left in it
+  round 6 probe 4/20: 50/241 candidates, 1004 s into the round; about 24 min left in it
+  round 6 probe 4/20: 100/241 candidates, 1005 s into the round; about 24 min left in it
+  round 6 probe 4/20: 150/241 candidates, 1005 s into the round; about 24 min left in it
+  round 6 probe 4/20: 200/241 candidates, 1005 s into the round; about 24 min left in it
+  round 6 probe 4/20: 241/241 candidates, 1006 s into the round; about 24 min left in it
