@@ -1,0 +1,3 @@
+../../fleet/stage.sh: line 56: pairs-ammonia-sel.txt: command not found
+../../fleet/stage.sh: line 58: syntax error near unexpected token `;;'
+../../fleet/stage.sh: line 58: `  echo "$(grep -c . full-$NAME.txt) pairs" > full.ok ;;'
