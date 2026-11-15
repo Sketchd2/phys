@@ -469,6 +469,28 @@ pub fn run(args: &[String], tag: &str) {
         }
     }
     println!("{name}: {} atoms, types {:?}, {} basis; {} pairs done, {count} wanted", mono.z.len(), mono.types, if grown { "grown" } else { "per-element" }, done.len());
+    // `--geometry [--from K]`: the draws alone, written to `pairs-<name>-geom.txt` with zero
+    // for both energies, for the tools that take their geometries from a pairs file and work
+    // the energies out themselves (`phys-overlap`). `--from 250` starts where the draws take
+    // the shorter range and the closer contact, which is where a liquid's neighbours are.
+    if args.iter().any(|a| a == "--geometry") {
+        let from: usize = args.iter().position(|a| a == "--from").and_then(|i| args.get(i + 1)).and_then(|v| v.parse().ok()).unwrap_or(0);
+        let out = format!("pairs-{name}-geom.txt");
+        let done = done_indices(&out);
+        let mut file = std::fs::OpenOptions::new().create(true).append(true).open(&out).expect("the output file");
+        if done.is_empty() {
+            writeln!(file, "# geometries only (energies zero): index separation_bohr 0 0 | then x y z type for each atom of the first molecule and of the second (bohr)").ok();
+        }
+        for k in from..from + count {
+            if done.contains(&k) {
+                continue;
+            }
+            let (a, b, sep) = mono.random_pair(k);
+            let atoms: Vec<String> = a.iter().chain(&b).zip(mono.types.iter().chain(&mono.types)).map(|(p, t)| format!("{:.8} {:.8} {:.8} {t}", p.x, p.y, p.z)).collect();
+            writeln!(file, "{k} {sep:.6} 0 0 | {}", atoms.join(" ")).expect("the line written");
+        }
+        return;
+    }
     for k in 0..count {
         if done.contains(&k) {
             continue;
@@ -2291,7 +2313,24 @@ pub fn overlap_main(args: &[String]) {
             let zz: Vec<u32> = mono.z.iter().chain(&mono.z).cloned().collect();
             let all: Vec<usize> = (0..2 * n).collect();
             let corr = crate::electrons::hf::mp2(&base, &hf, crate::electrons::hf::frozen_core(&zz, &all)).correlation;
-            format!(" {:.10e} {:.10e}", hf.energy - alone_hf[0] - alone_hf[1], hf.energy + corr - alone_total[0] - alone_total[1])
+            let mut more = format!(" {:.10e} {:.10e}", hf.energy - alone_hf[0] - alone_hf[1], hf.energy + corr - alone_total[0] - alone_total[1]);
+            // `--cp`: the counterpoise-corrected energies as well (each molecule in the
+            // pair's basis, the partner a ghost: two more solves), as two more columns,
+            // `E_hf_counterpoise E_total_counterpoise`. With the uncorrected pair they
+            // bracket the complete-basis answer for this very geometry.
+            if args.iter().any(|a| a == "--cp") {
+                let (mut ghf, mut gtot) = (0.0, 0.0);
+                for i in 0..2 {
+                    let keep: Vec<usize> = (i * n..(i + 1) * n).collect();
+                    let p = base.with_ghosts(&keep, electrons);
+                    let g = crate::electrons::hf::hartree_fock(&p, 200, 1e-9);
+                    assert!(g.converged, "a monomer in the pair's basis did not converge");
+                    ghf += g.energy;
+                    gtot += g.energy + crate::electrons::hf::mp2(&p, &g, crate::electrons::hf::frozen_core(&zz, &keep)).correlation;
+                }
+                more += &format!(" {:.10e} {:.10e}", hf.energy - ghf, hf.energy + corr - gtot);
+            }
+            more
         } else {
             String::new()
         };

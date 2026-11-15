@@ -119,6 +119,10 @@ fn main() {
     // The atomic numbers in the order of the state's positions, for every tool that reads the
     // state (`phys::pairs::atoms_of`): the state file itself holds positions and no elements.
     std::fs::write(format!("grow-{name}.atoms"), mol.z.iter().map(|z| z.to_string()).collect::<Vec<_>>().join(" ") + "\n").expect("the atoms file written");
+    // `--atoms-only`: write that file for a state grown before it existed, and stop.
+    if args.iter().any(|a| a == "--atoms-only") {
+        return;
+    }
     let resume = std::fs::read_to_string(&state).ok().and_then(|t| Resume::from_text(&t));
     let a = 1.0 / 0.529177210903;
     let mut round = resume.as_ref().map(|r| r.history.len()).unwrap_or(0);
