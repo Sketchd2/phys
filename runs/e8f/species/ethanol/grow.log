@@ -1071,3 +1071,11 @@ round 4: 205 functions, E -154.90731091, 11865 s
   shape (A, deg): 1.51804 1.43799 1.10216 1.10118 1.10118 1.10718 1.10718 0.97034 110.549 110.724 110.724 108.255 108.255 108.243 108.009 110.307 110.307 110.316 110.316 107.598 107.859
   added 3, predicted to move: -0.00270 -0.00151 -0.00199 -0.00006 -0.00006 +0.00016 +0.00016 +0.00032 -0.009 -0.202 -0.202 +0.256 +0.256 -0.015 -0.210 +0.010 +0.010 +0.046 +0.046 +0.223 +0.403; left 158.78
 ethanol: 9 atoms, 8 bonds; carrying on from round 5
+  relaxed at 232 functions, 2547 s into round 5; 30 probes of 317 candidates to go
+  round 5 probe 1/30: 50/317 candidates, 2707 s into the round; about 78 min left in it
+  round 5 probe 1/30: 100/317 candidates, 2707 s into the round; about 78 min left in it
+  round 5 probe 1/30: 150/317 candidates, 2708 s into the round; about 78 min left in it
+  round 5 probe 1/30: 200/317 candidates, 2708 s into the round; about 78 min left in it
+  round 5 probe 1/30: 250/317 candidates, 2708 s into the round; about 78 min left in it
+  round 5 probe 1/30: 300/317 candidates, 2709 s into the round; about 78 min left in it
+  round 5 probe 1/30: 317/317 candidates, 2710 s into the round; about 78 min left in it
