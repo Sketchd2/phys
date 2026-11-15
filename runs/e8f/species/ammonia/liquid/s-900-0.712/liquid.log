@@ -4,3 +4,11 @@ ammonia at 900 K: 64 molecules, 0.712 g/cm3, box 25.79 bohr (13.65 A), cut-off 1
   start: U/N -1.24 kcal/mol
   easing: U/N -5.15 kcal/mol, T 1054/1030 K, P 7428 bar
   settling: U/N -12.10 kcal/mol, T 978/935 K, P 8127 bar
+  warming: U/N -13.42 kcal/mol, T 892/1038 K, P 5542 bar
+  0% after 419 s: U/N -13.48 kcal/mol, P 5349 bar
+  8% after 444 s: U/N -13.49 kcal/mol, P 5981 bar
+  17% after 472 s: U/N -12.97 kcal/mol, P 8764 bar
+  25% after 500 s: U/N -13.10 kcal/mol, P 7685 bar
+  33% after 529 s: U/N -13.61 kcal/mol, P 3483 bar
+  42% after 557 s: U/N -14.46 kcal/mol, P 6542 bar
+  50% after 586 s: U/N -14.63 kcal/mol, P 5176 bar
