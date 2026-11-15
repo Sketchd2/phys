@@ -1,5 +1,7 @@
 # Fleet state (the orchestrator's own notes; newest first)
 
+## WAKE CADENCE: every 62 min, self-scheduled. At the start of each wake call send_later (+62 min) with the same message; backstop task every 6 h re-arms if the chain breaks.
+
 ## 2026-11-15 22:14 UTC, check after the window reset (owner asked)
 
 - No worker stopped at the limit; new window allowed, resets 03:10 UTC. 52, 53 building.
