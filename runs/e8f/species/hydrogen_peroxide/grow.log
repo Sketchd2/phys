@@ -1,0 +1,51 @@
+hydrogen_peroxide: 4 atoms, 3 bonds; starting
+  relaxed at 62 functions, 75 s into round 0; 6 probes of 154 candidates to go
+  round 0 probe 1/6: 50/154 candidates, 85 s into the round; under a minute left in it
+  round 0 probe 1/6: 100/154 candidates, 85 s into the round; under a minute left in it
+  round 0 probe 1/6: 150/154 candidates, 86 s into the round; under a minute left in it
+  round 0 probe 1/6: 154/154 candidates, 86 s into the round; under a minute left in it
+  round 0 probe 2/6: 50/154 candidates, 96 s into the round; under a minute left in it
+  round 0 probe 2/6: 100/154 candidates, 96 s into the round; under a minute left in it
+  round 0 probe 2/6: 150/154 candidates, 96 s into the round; under a minute left in it
+  round 0 probe 2/6: 154/154 candidates, 96 s into the round; under a minute left in it
+  round 0 probe 3/6: 50/154 candidates, 108 s into the round; under a minute left in it
+  round 0 probe 3/6: 100/154 candidates, 108 s into the round; under a minute left in it
+  round 0 probe 3/6: 150/154 candidates, 108 s into the round; under a minute left in it
+  round 0 probe 3/6: 154/154 candidates, 108 s into the round; under a minute left in it
+  round 0 probe 4/6: 50/154 candidates, 118 s into the round; under a minute left in it
+  round 0 probe 4/6: 100/154 candidates, 118 s into the round; under a minute left in it
+  round 0 probe 4/6: 150/154 candidates, 119 s into the round; under a minute left in it
+  round 0 probe 4/6: 154/154 candidates, 119 s into the round; under a minute left in it
+  round 0 probe 5/6: 50/154 candidates, 129 s into the round; under a minute left in it
+  round 0 probe 5/6: 100/154 candidates, 129 s into the round; under a minute left in it
+  round 0 probe 5/6: 150/154 candidates, 129 s into the round; under a minute left in it
+  round 0 probe 5/6: 154/154 candidates, 129 s into the round; under a minute left in it
+  round 0 probe 6/6: 50/154 candidates, 140 s into the round; under a minute left in it
+  round 0 probe 6/6: 100/154 candidates, 140 s into the round; under a minute left in it
+  round 0 probe 6/6: 150/154 candidates, 140 s into the round; under a minute left in it
+  round 0 probe 6/6: 154/154 candidates, 140 s into the round; under a minute left in it
+round 0: 62 functions, E -151.44548547, 140 s
+  shape (A, deg): 1.50503 1.00481 1.00481 96.662 96.662
+  added 6, predicted to move: +0.00388 -0.04081 -0.04081 +2.235 +2.235; left 515.09
+  relaxed at 72 functions, 72 s into round 1; 6 probes of 148 candidates to go
+  round 1 probe 1/6: 50/148 candidates, 82 s into the round; under a minute left in it
+  round 1 probe 1/6: 100/148 candidates, 82 s into the round; under a minute left in it
+  round 1 probe 1/6: 148/148 candidates, 82 s into the round; under a minute left in it
+  round 1 probe 2/6: 50/148 candidates, 92 s into the round; under a minute left in it
+  round 1 probe 2/6: 100/148 candidates, 92 s into the round; under a minute left in it
+  round 1 probe 2/6: 148/148 candidates, 92 s into the round; under a minute left in it
+  round 1 probe 3/6: 50/148 candidates, 102 s into the round; under a minute left in it
+  round 1 probe 3/6: 100/148 candidates, 102 s into the round; under a minute left in it
+  round 1 probe 3/6: 148/148 candidates, 102 s into the round; under a minute left in it
+  round 1 probe 4/6: 50/148 candidates, 112 s into the round; under a minute left in it
+  round 1 probe 4/6: 100/148 candidates, 112 s into the round; under a minute left in it
+  round 1 probe 4/6: 148/148 candidates, 112 s into the round; under a minute left in it
+  round 1 probe 5/6: 50/148 candidates, 122 s into the round; under a minute left in it
+  round 1 probe 5/6: 100/148 candidates, 122 s into the round; under a minute left in it
+  round 1 probe 5/6: 148/148 candidates, 122 s into the round; under a minute left in it
+  round 1 probe 6/6: 50/148 candidates, 131 s into the round; under a minute left in it
+  round 1 probe 6/6: 100/148 candidates, 132 s into the round; under a minute left in it
+  round 1 probe 6/6: 148/148 candidates, 132 s into the round; under a minute left in it
+round 1: 72 functions, E -151.46187682, 271 s
+  shape (A, deg): 1.49569 0.98123 0.98123 97.770 97.770
+  added 6, predicted to move: -0.04061 -0.00141 -0.00141 -0.239 -0.239; left 124.40
