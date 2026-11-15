@@ -1,0 +1,3 @@
+ethanol-grow2 species/ethanol ../../fleet/stage.sh grow ethanol
+acetaldehyde-grow2 species/acetaldehyde ../../fleet/stage.sh grow acetaldehyde
+isobutane-grow species/isobutane ../../fleet/stage.sh grow isobutane
