@@ -32,7 +32,7 @@ push() {  # commit everything under runs/e8f and push to this worker's branch, f
     # first push is not a fast-forward: record the old history as a parent, keeping this tree (which
     # step 0 already filled from it), and try again
     if grep -q 'non-fast-forward\|fetch first\|rejected' /tmp/fleet/push.err; then
-      git fetch -q origin $BR 2>/dev/null && git merge -q -s ours --no-edit FETCH_HEAD >/dev/null 2>&1; fi
+      git fetch -q origin $BR 2>/dev/null && git merge -q -s ours --allow-unrelated-histories --no-edit FETCH_HEAD >/dev/null 2>&1; fi
     sleep $t; done
   PUSHED=" (PUSH FAILED: $(tail -1 /tmp/fleet/push.err | cut -c1-120))"; return 1
 }
