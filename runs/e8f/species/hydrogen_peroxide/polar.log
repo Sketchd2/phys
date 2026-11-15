@@ -1,0 +1,6 @@
+hydrogen_peroxide: 320 functions, field step 0.002, 2 frozen cores
+  19 fields in 398 s (dipole width scale 1)
+  Hartree-Fock: mean 14.8009 bohr^3, diagonal 10.4798 13.2756 20.6472, off-diagonal -1.4e-6 3.7e-7 -1.8e0
+  MP2: mean 15.4151 bohr^3, diagonal 12.5835 14.6544 19.0074, off-diagonal -3.1e-4 2.9e-4 -1.4e0
+  atomic polarisabilities by class [7.035700952793651, 2.2017799649973986] bohr^3 (classes [0, 0, 1, 1]); the model's tensor: mean 15.5417, diagonal 13.5016 15.5901 17.5335; residual rms 6.68e-1
+  written to polar-hydrogen_peroxide.txt

@@ -1,3 +1,2 @@
 dimethyl_ether-grow2 species/dimethyl_ether ../../fleet/stage.sh grow dimethyl_ether
-formic_acid-grow2 species/formic_acid ../../fleet/stage.sh grow formic_acid
 dichloromethane-grow species/dichloromethane ../../fleet/stage.sh grow dichloromethane

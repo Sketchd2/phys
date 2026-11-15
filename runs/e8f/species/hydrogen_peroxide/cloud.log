@@ -1,0 +1,9 @@
+hydrogen_peroxide: dipole Hartree-Fock 0.0000 au (0.000 D), target 0.0000 au (0.000 D)
+  6924 potential points; the target's RMS 3.081e0, its mean -3.015e0 hartree/e
+  localised in 24 sweeps: 3 bond orbitals, 4 lone pairs (2 core orbitals frozen out of the localisation)
+  valence electrons 14, cores [6.0, 1.0]
+  atom class 0: cloud 2.215 electrons, width 0.306 bohr
+  atom class 1: cloud 0.801 electrons, width 0.430 bohr
+  lone-pair cloud of class 0: 2 pair(s) on 2 atom(s), 3.984 electrons, width 1.444 bohr, 0.275 bohr from the nucleus (the orbitals' centre is 0.275)
+  potential RMS 2.467e-2 hartree/e (atom-centred point charges alone: 6.888e-3)
+  written to cloud-hydrogen_peroxide.txt

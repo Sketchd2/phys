@@ -610,3 +610,24 @@ round 7: 363 functions, E -132.64532550, 2602 s
   round 8 probe 9/12: 200/259 candidates, 4011 s into the round; about 14 min left in it
   round 8 probe 9/12: 250/259 candidates, 4013 s into the round; about 14 min left in it
   round 8 probe 9/12: 259/259 candidates, 4015 s into the round; about 14 min left in it
+  round 8 probe 10/12: 50/259 candidates, 4311 s into the round; about 10 min left in it
+  round 8 probe 10/12: 100/259 candidates, 4311 s into the round; about 10 min left in it
+  round 8 probe 10/12: 150/259 candidates, 4312 s into the round; about 10 min left in it
+  round 8 probe 10/12: 200/259 candidates, 4313 s into the round; about 10 min left in it
+  round 8 probe 10/12: 250/259 candidates, 4315 s into the round; about 10 min left in it
+  round 8 probe 10/12: 259/259 candidates, 4316 s into the round; about 10 min left in it
+  round 8 probe 11/12: 50/259 candidates, 4603 s into the round; about 5 min left in it
+  round 8 probe 11/12: 100/259 candidates, 4604 s into the round; about 5 min left in it
+  round 8 probe 11/12: 150/259 candidates, 4604 s into the round; about 5 min left in it
+  round 8 probe 11/12: 200/259 candidates, 4605 s into the round; about 5 min left in it
+  round 8 probe 11/12: 250/259 candidates, 4607 s into the round; about 5 min left in it
+  round 8 probe 11/12: 259/259 candidates, 4609 s into the round; about 5 min left in it
+  round 8 probe 12/12: 50/259 candidates, 4888 s into the round; under a minute left in it
+  round 8 probe 12/12: 100/259 candidates, 4889 s into the round; under a minute left in it
+  round 8 probe 12/12: 150/259 candidates, 4889 s into the round; under a minute left in it
+  round 8 probe 12/12: 200/259 candidates, 4890 s into the round; under a minute left in it
+  round 8 probe 12/12: 250/259 candidates, 4893 s into the round; under a minute left in it
+  round 8 probe 12/12: 259/259 candidates, 4894 s into the round; under a minute left in it
+round 8: 403 functions, E -132.64592967, 7496 s
+  shape (A, deg): 1.45342 1.16157 1.09747 1.09747 1.09747 110.299 110.300 110.300 108.630 108.630 108.630 179.999
+  added 3, predicted to move: +0.00001 +0.00015 +0.00007 +0.00007 +0.00007 -0.001 -0.001 -0.001 +0.001 +0.001 +0.001 +0.000; left 4.27

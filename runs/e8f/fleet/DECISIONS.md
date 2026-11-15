@@ -13,3 +13,4 @@
 - 2026-11-15 Methane's law from its 12 full pairs begins HOLE (B2 at 300 K is -inf; repulsive pairs come out at half the reference): by the brief, no liquid, recorded. A core (newlaw/core.py) is the HANDOFF's remedy and not the pipeline's; left for the owner.
 - 2026-11-15 Ammonia's 12-pair law is not HOLE but is poor (bound rms 0.49, two repulsive pairs come out attractive, B2(300 K) = -9.7e4 cm3/mol): it goes to the liquid as the brief says, flagged as suspect in the results.
 - 2026-11-15 Worker 19 ended its turn at 17:33 with its queue unfinished and was sent the resume message at 19:08.
+- 2026-11-15 Ethylene's grow ended with phys-grow exiting on its own at round 8 before settled.py's rule was met (largest change 8.6e-3 against 0.005); it continues with that basis, noted for the table.
