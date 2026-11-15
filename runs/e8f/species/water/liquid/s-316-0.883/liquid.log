@@ -14,3 +14,15 @@ water at 316 K: 64 molecules, 0.883 g/cm3, box 24.46 bohr (12.94 A), cut-off 12.
   50% after 551 s: U/N -8.06 kcal/mol, P -700 bar
   58% after 575 s: U/N -8.12 kcal/mol, P 1781 bar
   67% after 599 s: U/N -8.09 kcal/mol, P -375 bar
+  75% after 625 s: U/N -8.17 kcal/mol, P -211 bar
+  83% after 649 s: U/N -8.24 kcal/mol, P -241 bar
+  92% after 673 s: U/N -8.12 kcal/mol, P -386 bar
+  100% after 696 s: U/N -7.86 kcal/mol, P 758 bar
+water at 316 K (96 samples over 10 ps, block standard errors):
+  U/N -8.080 +- 0.034 kcal/mol; heat of vaporisation -U/N + RT = 8.708 kcal/mol
+  pressure -533 +- 183 bar at 0.883 g/cm3 (a liquid at the right density sits near 1 bar; positive says it wants to expand)
+  temperatures: translation 304.4 K, rotation 315.2 K (bath 316 K)
+  mean molecular dipole 2.669 D (permanent charges and induced dipoles); dielectric constant 19.7 (blocks 10.4 +- 1.5; slow to converge)
+  dispersion beyond the cut-off (C6 25.95): -232 bar and -0.113 kcal/mol a molecule, so pressure with it -765 bar, U/N -8.193
+  g(first atoms): first peak 2.51 at 2.95 A, first minimum 0.85 at 4.25 A, second peak 1.05 at 5.15 A, coordination to the minimum 8.42 (bulk-water-316.gOO.txt)
+  snapshot in bulk-water-316.snap
