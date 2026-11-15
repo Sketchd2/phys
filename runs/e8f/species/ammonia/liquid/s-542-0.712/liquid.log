@@ -17,3 +17,12 @@ ammonia at 542 K: 64 molecules, 0.712 g/cm3, box 25.79 bohr (13.65 A), cut-off 1
   75% after 825 s: U/N -18.61 kcal/mol, P 4202 bar
   83% after 857 s: U/N -18.48 kcal/mol, P -1423 bar
   92% after 889 s: U/N -18.99 kcal/mol, P 4217 bar
+  100% after 921 s: U/N -18.67 kcal/mol, P 2824 bar
+ammonia at 542 K (96 samples over 10 ps, block standard errors):
+  U/N -18.317 +- 0.119 kcal/mol; heat of vaporisation -U/N + RT = 19.394 kcal/mol
+  pressure 2706 +- 328 bar at 0.712 g/cm3 (a liquid at the right density sits near 1 bar; positive says it wants to expand)
+  temperatures: translation 537.5 K, rotation 555.2 K (bath 542 K)
+  mean molecular dipole 4.077 D (permanent charges and induced dipoles); dielectric constant 1.3 (blocks 1.3 +- 0.0; slow to converge)
+  dispersion beyond the cut-off (C6 93.67): -513 bar and -0.293 kcal/mol a molecule, so pressure with it 2193 bar, U/N -18.610
+  g(first atoms): first peak 4.10 at 2.25 A, first minimum 0.03 at 2.85 A, second peak 1.77 at 4.55 A, coordination to the minimum 2.00 (bulk-ammonia-542.gOO.txt)
+  snapshot in bulk-ammonia-542.snap
