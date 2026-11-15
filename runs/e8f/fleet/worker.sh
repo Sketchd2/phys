@@ -54,10 +54,11 @@ if [ -f $PID ] && [ -f $CUR ]; then
   J=$(cat $CUR)
   if wait_for $(cat $PID); then
     rm -f $PID $CUR
-    if [ -f /tmp/fleet/ok-$J ]; then touch $F/done/$J; push "$J done"; echo "FINISHED $J$PUSHED"
-    else tail -30 $F/log/$J.log > $F/failed/$J; push "$J failed"; echo "FAILED $J$PUSHED"; fi
-  else push "$J in progress"; echo "RUNNING $J$PUSHED"; fi
-  exit 0
+    if [ "$(cat /tmp/fleet/rc-$J 2>/dev/null)" = 0 ]; then touch $F/done/$J; push "$J done"; echo "FINISHED $J$PUSHED"; exit 0
+    elif [ -f /tmp/fleet/rc-$J ]; then tail -30 $F/log/$J.log > $F/failed/$J; push "$J failed"; echo "FAILED $J$PUSHED"; exit 0; fi
+    # no exit status at all: the job was killed from outside (a session stopped at its limit takes
+    # its processes with it), which is not the job failing. It is started again below.
+  else push "$J in progress"; echo "RUNNING $J$PUSHED"; exit 0; fi
 fi
 # 3. the next job of this worker's queue (the queue is read fresh from the main branch)
 git fetch -q origin $MAIN 2>/dev/null; Q=$(git show FETCH_HEAD:runs/e8f/fleet/queue/$W.txt 2>/dev/null)
@@ -67,13 +68,14 @@ while read -r J D CMD; do
   [ -f $F/done/$J ] || [ -f $F/failed/$J ] && continue
   # inputs the job needs come from the main branch as it is now
   git checkout -q FETCH_HEAD -- runs/e8f/$D 2>/dev/null; mkdir -p runs/e8f/$D
-  echo $J > $CUR; rm -f /tmp/fleet/ok-$J
-  ( cd runs/e8f/$D && nohup bash -c "$CMD && touch /tmp/fleet/ok-$J" > $F/log/$J.log 2>&1 & echo $! > $PID )
+  echo $J > $CUR; rm -f /tmp/fleet/rc-$J
+  ( cd runs/e8f/$D && nohup bash -c "( $CMD ); echo \$? > /tmp/fleet/rc-$J" > $F/log/$J.log 2>&1 & echo $! > $PID )
   sleep 2
   if wait_for $(cat $PID); then
     rm -f $PID $CUR
-    if [ -f /tmp/fleet/ok-$J ]; then touch $F/done/$J; push "$J done"; echo "FINISHED $J$PUSHED"
-    else tail -30 $F/log/$J.log > $F/failed/$J; push "$J failed"; echo "FAILED $J$PUSHED"; fi
+    if [ "$(cat /tmp/fleet/rc-$J 2>/dev/null)" = 0 ]; then touch $F/done/$J; push "$J done"; echo "FINISHED $J$PUSHED"
+    elif [ -f /tmp/fleet/rc-$J ]; then tail -30 $F/log/$J.log > $F/failed/$J; push "$J failed"; echo "FAILED $J$PUSHED"
+    else echo "RUNNING $J (restarting)"; fi
   else push "$J started"; echo "RUNNING $J$PUSHED"; fi
   exit 0
 done <<< "$Q"
