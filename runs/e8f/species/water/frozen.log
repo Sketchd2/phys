@@ -14,3 +14,11 @@ pair 377: first atoms 3.93 A, electrostatic -0.184 kcal/mol, exchange 0.047, Har
 pair 830: first atoms 4.14 A, electrostatic 0.439 kcal/mol, exchange 0.026, Hartree-Fock beyond both -0.465, overlap 4.8711e-6, electrons 10.00000 10.00000, 428 functions, 18 s
 pair 408: first atoms 4.50 A, electrostatic 0.602 kcal/mol, exchange 0.009, Hartree-Fock beyond both -0.611, overlap 1.6560e-6, electrons 10.00000 10.00000, 428 functions, 18 s
 pair 456: first atoms 5.25 A, electrostatic 0.289 kcal/mol, exchange 0.002, Hartree-Fock beyond both -0.291, overlap 2.7950e-7, electrons 10.00000 10.00000, 428 functions, 19 s
+pair 712: first atoms 4.16 A, electrostatic -0.774 kcal/mol, exchange 0.053, Hartree-Fock beyond both 0.721, overlap 9.6069e-6, electrons 10.00000 10.00000, 428 functions, 18 s
+pair 262: first atoms 4.10 A, electrostatic -0.903 kcal/mol, exchange 0.040, Hartree-Fock beyond both 0.863, overlap 7.7163e-6, electrons 10.00000 10.00000, 428 functions, 17 s
+pair 297: first atoms 4.42 A, electrostatic -1.041 kcal/mol, exchange 0.014, Hartree-Fock beyond both 1.027, overlap 2.5216e-6, electrons 10.00000 10.00000, 428 functions, 18 s
+pair 564: first atoms 5.24 A, electrostatic 0.120 kcal/mol, exchange 0.000, Hartree-Fock beyond both -0.121, overlap 8.0391e-8, electrons 10.00000 10.00000, 428 functions, 18 s
+pair 441: first atoms 4.26 A, electrostatic 0.946 kcal/mol, exchange 0.009, Hartree-Fock beyond both -0.955, overlap 1.7724e-6, electrons 10.00000 10.00000, 428 functions, 18 s
+pair 330: first atoms 4.27 A, electrostatic 0.902 kcal/mol, exchange 0.010, Hartree-Fock beyond both -0.912, overlap 2.0858e-6, electrons 10.00000 10.00000, 428 functions, 18 s
+pair 739: first atoms 5.56 A, electrostatic 0.061 kcal/mol, exchange 0.000, Hartree-Fock beyond both -0.062, overlap 8.9074e-8, electrons 10.00000 10.00000, 428 functions, 18 s
+pair 778: first atoms 5.36 A, electrostatic -0.552 kcal/mol, exchange 0.000, Hartree-Fock beyond both 0.552, overlap 7.5678e-8, electrons 10.00000 10.00000, 428 functions, 17 s
