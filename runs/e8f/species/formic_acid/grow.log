@@ -1,1 +1,35 @@
 formic_acid: 5 atoms, 4 bonds; starting
+  relaxed at 83 functions, 465 s into round 0; 16 probes of 203 candidates to go
+  round 0 probe 1/16: 50/203 candidates, 485 s into the round; about 5 min left in it
+  round 0 probe 1/16: 100/203 candidates, 485 s into the round; about 5 min left in it
+  round 0 probe 1/16: 150/203 candidates, 485 s into the round; about 5 min left in it
+  round 0 probe 1/16: 200/203 candidates, 485 s into the round; about 5 min left in it
+  round 0 probe 1/16: 203/203 candidates, 485 s into the round; about 5 min left in it
+  round 0 probe 2/16: 50/203 candidates, 506 s into the round; about 5 min left in it
+  round 0 probe 2/16: 100/203 candidates, 506 s into the round; about 5 min left in it
+  round 0 probe 2/16: 150/203 candidates, 506 s into the round; about 5 min left in it
+  round 0 probe 2/16: 200/203 candidates, 506 s into the round; about 5 min left in it
+  round 0 probe 2/16: 203/203 candidates, 506 s into the round; about 5 min left in it
+  round 0 probe 3/16: 50/203 candidates, 525 s into the round; about 4 min left in it
+  round 0 probe 3/16: 100/203 candidates, 526 s into the round; about 4 min left in it
+  round 0 probe 3/16: 150/203 candidates, 526 s into the round; about 4 min left in it
+  round 0 probe 3/16: 200/203 candidates, 526 s into the round; about 4 min left in it
+  round 0 probe 3/16: 203/203 candidates, 526 s into the round; about 4 min left in it
+  round 0 probe 4/16: 50/203 candidates, 545 s into the round; about 4 min left in it
+  round 0 probe 4/16: 100/203 candidates, 545 s into the round; about 4 min left in it
+  round 0 probe 4/16: 150/203 candidates, 545 s into the round; about 4 min left in it
+  round 0 probe 4/16: 200/203 candidates, 545 s into the round; about 4 min left in it
+  round 0 probe 4/16: 203/203 candidates, 545 s into the round; about 4 min left in it
+  round 0 probe 5/16: 50/203 candidates, 567 s into the round; about 4 min left in it
+  round 0 probe 5/16: 100/203 candidates, 567 s into the round; about 4 min left in it
+  round 0 probe 5/16: 150/203 candidates, 567 s into the round; about 4 min left in it
+  round 0 probe 5/16: 200/203 candidates, 567 s into the round; about 4 min left in it
+  round 0 probe 5/16: 203/203 candidates, 567 s into the round; about 4 min left in it
+  round 0 probe 6/16: 50/203 candidates, 588 s into the round; about 3 min left in it
+  round 0 probe 6/16: 100/203 candidates, 588 s into the round; about 3 min left in it
+  round 0 probe 6/16: 150/203 candidates, 588 s into the round; about 3 min left in it
+  round 0 probe 6/16: 200/203 candidates, 588 s into the round; about 3 min left in it
+  round 0 probe 6/16: 203/203 candidates, 588 s into the round; about 3 min left in it
+  round 0 probe 7/16: 50/203 candidates, 607 s into the round; about 3 min left in it
+  round 0 probe 7/16: 100/203 candidates, 607 s into the round; about 3 min left in it
+  round 0 probe 7/16: 150/203 candidates, 607 s into the round; about 3 min left in it
