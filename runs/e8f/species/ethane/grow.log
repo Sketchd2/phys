@@ -30,3 +30,24 @@ ethane: 8 atoms, 7 bonds; starting
   round 0 probe 5/8: 200/260 candidates, 598 s into the round; about 3 min left in it
   round 0 probe 5/8: 250/260 candidates, 598 s into the round; about 3 min left in it
   round 0 probe 5/8: 260/260 candidates, 599 s into the round; about 3 min left in it
+  round 0 probe 6/8: 50/260 candidates, 655 s into the round; about 2 min left in it
+  round 0 probe 6/8: 100/260 candidates, 655 s into the round; about 2 min left in it
+  round 0 probe 6/8: 150/260 candidates, 655 s into the round; about 2 min left in it
+  round 0 probe 6/8: 200/260 candidates, 655 s into the round; about 2 min left in it
+  round 0 probe 6/8: 250/260 candidates, 655 s into the round; about 2 min left in it
+  round 0 probe 6/8: 260/260 candidates, 655 s into the round; about 2 min left in it
+  round 0 probe 7/8: 50/260 candidates, 705 s into the round; under a minute left in it
+  round 0 probe 7/8: 100/260 candidates, 705 s into the round; under a minute left in it
+  round 0 probe 7/8: 150/260 candidates, 705 s into the round; under a minute left in it
+  round 0 probe 7/8: 200/260 candidates, 705 s into the round; under a minute left in it
+  round 0 probe 7/8: 250/260 candidates, 706 s into the round; under a minute left in it
+  round 0 probe 7/8: 260/260 candidates, 706 s into the round; under a minute left in it
+  round 0 probe 8/8: 50/260 candidates, 755 s into the round; under a minute left in it
+  round 0 probe 8/8: 100/260 candidates, 755 s into the round; under a minute left in it
+  round 0 probe 8/8: 150/260 candidates, 755 s into the round; under a minute left in it
+  round 0 probe 8/8: 200/260 candidates, 756 s into the round; under a minute left in it
+  round 0 probe 8/8: 250/260 candidates, 756 s into the round; under a minute left in it
+  round 0 probe 8/8: 260/260 candidates, 756 s into the round; under a minute left in it
+round 0: 102 functions, E -79.71156082, 756 s
+  shape (A, deg): 1.53281 1.10828 1.10828 1.10828 1.10828 1.10828 1.10828 111.610 111.611 111.611 107.250 107.250 107.249 111.610 111.611 111.611 107.250 107.250 107.249
+  added 18, predicted to move: +0.00710 -0.01536 -0.01536 -0.01536 -0.01536 -0.01536 -0.01536 -0.245 -0.245 -0.245 +0.287 +0.287 +0.287 -0.245 -0.245 -0.245 +0.287 +0.287 +0.287; left 329.69
