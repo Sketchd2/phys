@@ -10,3 +10,4 @@ pair 272: first atoms 5.68 A, electrostatic -8.034 kcal/mol, exchange 23.935, Ha
 pair 613: first atoms 3.74 A, electrostatic -0.279 kcal/mol, exchange 2.847, Hartree-Fock beyond both -2.568, overlap 4.3770e-4, electrons 22.00000 22.00000, 882 functions, 301 s
 pair 680: first atoms 3.90 A, electrostatic 1.367 kcal/mol, exchange 0.625, Hartree-Fock beyond both -1.992, overlap 8.8677e-5, electrons 22.00000 22.00000, 882 functions, 302 s
 pair 531: first atoms 5.56 A, electrostatic -2.643 kcal/mol, exchange 1.314, Hartree-Fock beyond both 1.329, overlap 2.0727e-4, electrons 22.00000 22.00000, 882 functions, 308 s
+pair 251: first atoms 5.30 A, electrostatic -2.050 kcal/mol, exchange 0.981, Hartree-Fock beyond both 1.069, overlap 1.4711e-4, electrons 22.00000 22.00001, 882 functions, 313 s
