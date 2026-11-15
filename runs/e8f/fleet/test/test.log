@@ -1089,3 +1089,152 @@ test every_scenario_refines_and_conserves ... ok
 test descending_and_returning_leaves_no_trace ... ok
 test the_ladder_runs_all_the_way_down ... ok
 test every_scenario_steps ... ok
+test stepping_does_not_heat_a_node has been running for over 60 seconds
+test stepping_does_not_heat_a_node ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 67.89s
+
+     Running tests/settlement.rs (target/debug/deps/settlement-5a367208848df902)
+
+running 5 tests
+test a_town_fills_in_from_its_centre ... ok
+test a_moon_carries_a_town_carries_buildings ... ok
+test generating_a_world_conserves_it ... ok
+test a_plot_becomes_a_building_that_knows_about_floors ... ok
+test terrain_has_relief ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/shape.rs (target/debug/deps/shape-8abfe08d35d14424)
+
+running 18 tests
+test a_hull_of_one_sphere_is_that_sphere ... ok
+test a_hull_of_two_spheres_is_exactly_a_capsule ... ok
+test a_hull_translated_measures_the_same_shape_somewhere_else ... ok
+test a_slab_is_flat_where_a_row_of_capsules_is_not ... ok
+test a_slab_of_panels_presents_a_face_and_not_a_row_of_beads ... ok
+test a_sphere_against_a_capsule_is_the_point_to_segment_distance ... ok
+test an_empty_hull_collides_with_nothing ... ok
+test a_lone_sphere_has_the_solid_spheres_inertia ... ok
+test an_overlap_is_reported_as_a_negative_gap_with_a_measured_normal ... ok
+test mass_properties_refuse_a_list_that_does_not_match ... ok
+test cores_inside_each_other_are_flagged_rather_than_guessed_at ... ok
+test the_bake_drops_a_sphere_swallowed_by_another ... ok
+test the_bake_keeps_two_identical_spheres_once ... ok
+test pieces_out_of_reach_are_not_tested_and_the_gap_is_a_lower_bound ... ok
+test the_narrow_phase_is_symmetric_to_the_bit ... ok
+test two_masses_on_an_axis_obey_the_parallel_axis_theorem ... ok
+test two_parallel_capsules_measure_across_the_shafts ... ok
+test two_spheres_reproduce_the_sphere_path_exactly ... ok
+
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/sheet.rs (target/debug/deps/sheet-4b882ad32bc9d82c)
+
+running 3 tests
+test still_water_over_uneven_ground_stays_still ... ok
+test the_seas_wave_comes_in_through_the_edge ... ok
+test a_dam_breaks_as_ritter_says ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.41s
+
+     Running tests/simultaneity.rs (target/debug/deps/simultaneity-cad82643f8b607dc)
+
+running 11 tests
+test no_node_flings_its_bodies_out_of_itself ... ignored, catches a live bug: Atomic nodes are refined below atomic scale
+test carrying_a_node_forward_is_exact ... ok
+test resolution_sets_the_cadence ... ok
+test nothing_is_starved ... ok
+test rendering_interpolates_to_the_instant ... ok
+test an_unreachable_span_is_crossed_by_ensemble ... ok
+test resolving_something_small_does_not_stop_the_galaxy ... ok
+test what_may_be_redrawn_is_never_left_behind ... ok
+test the_pace_follows_the_subject ... ok
+test the_whole_world_is_at_one_instant ... ok
+test touched_detail_is_not_regenerated ... ok
+
+test result: ok. 10 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 27.84s
+
+     Running tests/solvers.rs (target/debug/deps/solvers-b0403d6fd18c1baf)
+
+running 12 tests
+test fusion_energy_matches_the_binding_curve ... ok
+test cooling_curve_behaves ... ok
+test decay_statistics_match_the_half_life ... ok
+test lennard_jones_minimum ... ok
+test integrator_is_second_order ... ok
+test quantum_limits_hold ... ok
+test sph_viscosity_only_heats ... ok
+test stellar_burning_reproduces_the_sun ... ok
+test the_neighbour_grid_survives_a_body_it_cannot_index ... ok
+test sph_conserves_momentum_exactly ... ok
+test retarded_gravity_keeps_orbits_bound ... ok
+test molecular_dynamics_is_stable ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.28s
+
+     Running tests/split.rs (target/debug/deps/split-d1b4afa5378cf35c)
+
+running 6 tests
+test a_node_whose_contents_become_two_becomes_two_nodes ... ok
+test a_split_settles ... ok
+test two_clumps_that_fall_back_together_become_one_node ... ok
+test the_radius_follows_contents_somebody_has_touched ... ok
+test a_fresh_draw_is_one_region ... ok
+test the_frame_loop_resolves_what_it_advanced ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.34s
+
+     Running tests/spread.rs (target/debug/deps/spread-0f86ca8993063f1a)
+
+running 7 tests
+test contents_with_no_mass_still_have_an_extent ... ok
+test empty_contents_have_no_spread ... ok
+test a_symmetric_shell_measures_its_own_geometry ... ok
+test a_promoted_child_is_counted_once ... ok
+test the_centre_is_mass_weighted ... ok
+test the_centre_is_measured_rather_than_assumed ... ok
+test it_finds_the_two_defects_already_on_the_list ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.76s
+
+     Running tests/statistics.rs (target/debug/deps/statistics-67956b60283507c1)
+
+running 7 tests
+test composition_scatter_preserves_the_mean ... ok
+test counting_noise_is_poisson ... ok
+test uniform_draws_are_uniform ... ok
+test directions_are_isotropic ... ok
+test velocities_are_maxwellian ... ok
+test plummer_profile_is_correct ... ok
+test imf_slope_is_kroupa ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.24s
+
+     Running tests/surface.rs (target/debug/deps/surface-f97527fc835a4769)
+
+running 8 tests
+test a_liquid_presents_no_surface_and_says_so ... ok
+test a_hollow_box_is_its_walls_and_not_one_hull ... ok
+test a_surface_cannot_claim_what_the_node_is_not_made_of ... ok
+test a_surface_is_baked_once_and_kept_until_the_epoch_moves ... ok
+test a_surface_is_stored_in_the_nodes_own_frame ... ok
+test a_thing_nobody_built_presents_a_surface ... ok
+test a_patch_of_ground_has_no_holes_in_it ... ok
+test something_set_down_on_a_coursed_wall_rests_on_top_of_it ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.22s
+
+     Running tests/system.rs (target/debug/deps/system-0c46a33be51849e8)
+
+running 3 tests
+test a_parcel_that_turns_with_its_planet_again_rejoins_it_and_the_system_folds ... ok
+test a_parcel_moving_with_the_frame_stays ... ok
+test a_parcel_at_rest_in_space_leaves_its_turning_planet ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.06s
+
+     Running tests/tidal_beach.rs (target/debug/deps/tidal_beach-a481a2eb656466aa)
+
+running 1 test
+test a_beach_under_a_tide_for_a_year has been running for over 60 seconds
