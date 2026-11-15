@@ -491,3 +491,31 @@ round 3: 124 functions, E -95.76774845, 4704 s
   round 4 probe 15/20: 150/235 candidates, 1075 s into the round; about 4 min left in it
   round 4 probe 15/20: 200/235 candidates, 1075 s into the round; about 4 min left in it
   round 4 probe 15/20: 235/235 candidates, 1075 s into the round; about 4 min left in it
+  round 4 probe 16/20: 50/235 candidates, 1119 s into the round; about 3 min left in it
+  round 4 probe 16/20: 100/235 candidates, 1119 s into the round; about 3 min left in it
+  round 4 probe 16/20: 150/235 candidates, 1119 s into the round; about 3 min left in it
+  round 4 probe 16/20: 200/235 candidates, 1119 s into the round; about 3 min left in it
+  round 4 probe 16/20: 235/235 candidates, 1120 s into the round; about 3 min left in it
+  round 4 probe 17/20: 50/235 candidates, 1163 s into the round; about 2 min left in it
+  round 4 probe 17/20: 100/235 candidates, 1163 s into the round; about 2 min left in it
+  round 4 probe 17/20: 150/235 candidates, 1163 s into the round; about 2 min left in it
+  round 4 probe 17/20: 200/235 candidates, 1163 s into the round; about 2 min left in it
+  round 4 probe 17/20: 235/235 candidates, 1164 s into the round; about 2 min left in it
+  round 4 probe 18/20: 50/235 candidates, 1207 s into the round; about 1 min left in it
+  round 4 probe 18/20: 100/235 candidates, 1207 s into the round; about 1 min left in it
+  round 4 probe 18/20: 150/235 candidates, 1207 s into the round; about 1 min left in it
+  round 4 probe 18/20: 200/235 candidates, 1207 s into the round; about 1 min left in it
+  round 4 probe 18/20: 235/235 candidates, 1208 s into the round; about 1 min left in it
+  round 4 probe 19/20: 50/235 candidates, 1250 s into the round; under a minute left in it
+  round 4 probe 19/20: 100/235 candidates, 1251 s into the round; under a minute left in it
+  round 4 probe 19/20: 150/235 candidates, 1251 s into the round; under a minute left in it
+  round 4 probe 19/20: 200/235 candidates, 1251 s into the round; under a minute left in it
+  round 4 probe 19/20: 235/235 candidates, 1251 s into the round; under a minute left in it
+  round 4 probe 20/20: 50/235 candidates, 1296 s into the round; under a minute left in it
+  round 4 probe 20/20: 100/235 candidates, 1296 s into the round; under a minute left in it
+  round 4 probe 20/20: 150/235 candidates, 1296 s into the round; under a minute left in it
+  round 4 probe 20/20: 200/235 candidates, 1297 s into the round; under a minute left in it
+  round 4 probe 20/20: 235/235 candidates, 1297 s into the round; under a minute left in it
+round 4: 153 functions, E -95.76931952, 6001 s
+  shape (A, deg): 1.46980 1.10159 1.10735 1.10159 1.02109 1.02110 109.065 115.548 109.067 107.931 106.967 107.931 110.483 110.480 106.245
+  added 4, predicted to move: -0.00119 -0.00300 -0.00045 -0.00300 +0.00005 +0.00005 +0.054 -0.143 +0.054 -0.017 +0.093 -0.017 -0.146 -0.146 -0.002; left 69.60
