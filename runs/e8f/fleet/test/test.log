@@ -1238,3 +1238,179 @@ test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
 
 running 1 test
 test a_beach_under_a_tide_for_a_year has been running for over 60 seconds
+test a_beach_under_a_tide_for_a_year ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 231.84s
+
+     Running tests/tide.rs (target/debug/deps/tide-7d085c9072b4dc11)
+
+running 3 tests
+test a_system_node_above_the_planet_keeps_its_tide ... ok
+test a_frozen_seabed_is_rough_with_its_own_grain ... ok
+test the_tide_comes_in_twice_a_lunar_day ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.11s
+
+     Running tests/tier.rs (target/debug/deps/tier-0bd73a78e26f212e)
+
+running 6 tests
+test emplacing_a_structure_retiers_the_node ... ok
+test a_round_trip_through_coarsen_leaves_the_tier_alone ... ok
+test planting_a_seed_retiers_the_node_that_holds_it ... ok
+test the_refinement_policy_moves_with_the_tier ... ok
+test a_child_is_never_coarser_than_its_parent ... ok
+test growth_does_not_make_the_tier_chatter ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/topology.rs (target/debug/deps/topology-3c3a512132ba183f)
+
+running 18 tests
+test a_structure_is_proportioned_for_its_loads_when_it_is_built ... ok
+test a_tree_stands_up ... ok
+test damage_persists_and_conserves ... ok
+test indeterminate_truss_matches_the_analytic_solution ... ok
+test fire_consumes_fine_fuel_first ... ok
+test materials_are_interchangeable_data ... ok
+test mechanisms_are_not_weather_specific ... ok
+test member_geometry_matches_its_mass ... ok
+test lightning_destroys_along_its_path ... ok
+test fire_releases_stored_energy_without_losing_mass ... ok
+test the_design_pass_does_not_overfit_its_own_load_cases ... ok
+test renderer_draws_the_structure ... ok
+test only_wet_snow_breaks_branches ... ok
+test the_two_solvers_agree_on_determinate_structures ... ok
+test topology_is_cheap ... ok
+test the_support_graph_is_a_well_formed_tree ... ok
+test wind_damage_scales_with_speed ... ok
+test bracing_relieves_the_primary_path ... ok
+
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.49s
+
+     Running tests/transport.rs (target/debug/deps/transport-aa71044080798472)
+
+running 5 tests
+test a_wave_coming_ashore_keeps_its_period_and_breaks_at_its_depth ... ok
+test a_sea_is_one_wave_with_the_seas_own_numbers ... ok
+test the_water_under_a_wave_moves_as_its_surface_does ... ok
+test the_sea_lends_a_patch_its_water_and_keeps_the_books ... ok
+test the_seas_wave_arrives_on_a_patch_of_shore ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.52s
+
+     Running tests/turning.rs (target/debug/deps/turning-3d777dbed76df59c)
+
+running 7 tests
+test a_held_thing_moving_over_the_ground_keeps_its_height ... ok
+test a_held_thing_at_rest_goes_round_with_the_ground ... ok
+test a_spinning_planets_faces_move_with_its_ground ... ok
+test an_atmosphere_is_the_gas_a_planet_holds ... ok
+test the_worlds_books_count_a_childs_motion ... ok
+test a_turning_planets_ground_holds_together ... ok
+test a_face_of_a_turning_planet_is_drawn_turning_with_it ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.66s
+
+     Running tests/vdw.rs (target/debug/deps/vdw-681c94d015204718)
+
+running 9 tests
+test a_ghosted_partner_starts_with_its_own_electrons ... ok
+test the_exchange_partners_are_the_published_forms ... ok
+test the_kernel_falls_off_as_the_sixth_power ... ok
+test the_kernel_quadrature_has_converged ... ok
+test a_uniform_gas_gets_no_nonlocal_energy ... ok
+test the_kernel_table_interpolates_to_its_quadrature ... ok
+test c6_coefficients_match_the_published_ones_for_both_z_ab ... ok
+test the_double_sum_approaches_c6_over_r6_as_the_size_of_the_atoms_says has been running for over 60 seconds
+test the_nonlocal_potential_is_the_derivative_of_its_energy has been running for over 60 seconds
+test the_double_sum_approaches_c6_over_r6_as_the_size_of_the_atoms_says ... ok
+test the_nonlocal_potential_is_the_derivative_of_its_energy ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 87.95s
+
+     Running tests/view.rs (target/debug/deps/view-c7b0a239fe020ed0)
+
+running 32 tests
+test a_body_budget_samples_rather_than_truncates ... ok
+test a_client_can_name_things_without_the_engine ... ok
+test a_body_budget_is_shared_across_the_scene ... ok
+test a_client_without_a_sampler_gets_no_recipes ... ok
+test a_client_is_told_what_to_forget ... ok
+test a_corrupt_recipe_is_refused ... ok
+test a_freshly_materialised_node_is_not_extrapolated ... ok
+test a_malformed_scene_does_not_panic ... ok
+test a_new_epoch_forces_a_resend ... ok
+test a_recipe_builds_exactly_what_the_server_would_have_sent ... ok
+test a_scene_is_interpolated_to_one_instant ... ok
+test a_recipe_crosses_the_wire ... ok
+test a_scene_survives_the_wire ... ok
+test a_volume_query_is_capped ... ok
+test a_resolved_node_still_sends ... ok
+test an_unchanged_node_costs_almost_nothing ... ok
+test an_unresolved_node_renders_empty ... ok
+test a_volume_query_returns_the_neighbourhood ... ok
+test detail_follows_angular_size ... ok
+test a_viewpoint_supplies_the_target_size ... ok
+test max_radius_is_the_length_form_of_reaching_a_tier ... ok
+test pinned_detail_is_never_sent_as_a_recipe ... ok
+test a_client_is_told_once_and_then_left_alone ... ok
+test quantisation_is_finer_than_the_physics ... ok
+test rendering_changes_nothing ... ok
+test rendering_is_deterministic ... ok
+test the_wire_cost_per_body_is_what_we_think ... ok
+test unchanged_facts_are_not_resent ... ok
+test velocity_survives_the_wire_well_enough_to_extrapolate ... ok
+test positions_are_node_relative_at_every_scale ... ok
+test drilling_targets_a_size ... ok
+test drilling_to_a_tiers_length_arrives_at_that_tier ... ok
+
+test result: ok. 32 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.56s
+
+     Running tests/viewing.rs (target/debug/deps/viewing-86f221829ab13c6b)
+
+running 6 tests
+test a_paint_reads_a_measurement_off_the_bodies ... ok
+test a_film_is_off_unless_the_environment_asks_for_it ... ok
+test the_depth_cue_scales_with_what_is_being_framed ... ok
+test two_promoted_children_are_placed_in_one_scene ... ok
+test a_node_with_no_topology_draws_its_contents ... ok
+test an_unresolved_node_draws_as_itself ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/water.rs (target/debug/deps/water-e9ffdc8d8c0ca13c)
+
+running 8 tests
+test conductivity_is_a_law_per_phase ... ok
+test a_bucket_of_water_is_not_a_gas ... ok
+test two_touching_things_reach_the_same_temperature ... ok
+test water_is_priced_by_what_holds_it_together ... ok
+test two_solids_in_a_room_do_not_detonate ... ok
+test water_handed_to_sph_is_not_blown_apart ... ok
+test water_lies_level_in_a_bucket_and_stays_there ... ok
+test one_ball_floats_half_under_and_one_sinks_to_the_floor ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 51.49s
+
+     Running tests/waves.rs (target/debug/deps/waves-c9fcd727cde24f3a)
+
+running 5 tests
+test a_breath_of_air_raises_no_sea ... ok
+test swell_travels_at_its_group_speed_and_keeps_its_energy ... ok
+test a_shallow_sea_breaks_at_its_depth ... ok
+test a_stated_wind_raises_the_sea_it_outruns_and_pays_for_it ... ok
+test a_wind_raises_a_sea_until_it_outruns_it ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.76s
+
+     Running tests/zz_basis.rs (target/debug/deps/zz_basis-6725fe9852f3f81a)
+
+running 1 test
+test scan_higher_l has been running for over 60 seconds
+test scan_higher_l ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 128.09s
+
+     Running tests/zz_dimer.rs (target/debug/deps/zz_dimer-ad0ac7245f6ca113)
+
+running 1 test
