@@ -366,3 +366,13 @@ round 6: 550 functions, E -78.50855156, 13537 s
   round 7 probe 7/8: 200/262 candidates, 11743 s into the round; about 17 min left in it
   round 7 probe 7/8: 250/262 candidates, 11752 s into the round; about 17 min left in it
   round 7 probe 7/8: 262/262 candidates, 11756 s into the round; about 17 min left in it
+  round 7 probe 8/8: 50/262 candidates, 12807 s into the round; under a minute left in it
+  round 7 probe 8/8: 100/262 candidates, 12809 s into the round; under a minute left in it
+  round 7 probe 8/8: 150/262 candidates, 12811 s into the round; under a minute left in it
+  round 7 probe 8/8: 200/262 candidates, 12815 s into the round; under a minute left in it
+  round 7 probe 8/8: 250/262 candidates, 12825 s into the round; under a minute left in it
+  round 7 probe 8/8: 262/262 candidates, 12829 s into the round; under a minute left in it
+round 7: 692 functions, E -78.50867252, 26367 s
+  shape (A, deg): 1.33241 1.09087 1.09087 1.09087 1.09087 121.721 121.719 116.561 121.721 121.718 116.561
+  added 0, predicted to move: +0.00000 +0.00000 +0.00000 +0.00000 +0.00000 +0.000 +0.000 +0.000 +0.000 +0.000 +0.000; left 0.80
+ethylene: settled after 8 rounds, 26367 s
