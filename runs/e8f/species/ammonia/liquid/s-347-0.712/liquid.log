@@ -4,3 +4,10 @@ ammonia at 347 K: 64 molecules, 0.712 g/cm3, box 25.79 bohr (13.65 A), cut-off 1
   start: U/N -1.24 kcal/mol
   easing: U/N -6.66 kcal/mol, T 400/371 K, P -239 bar
   settling: U/N -17.26 kcal/mol, T 379/360 K, P 2478 bar
+  warming: U/N -19.52 kcal/mol, T 309/326 K, P 497 bar
+  0% after 440 s: U/N -19.54 kcal/mol, P 436 bar
+  8% after 467 s: U/N -19.45 kcal/mol, P 2298 bar
+  17% after 497 s: U/N -19.73 kcal/mol, P -1620 bar
+  25% after 528 s: U/N -19.18 kcal/mol, P -44 bar
+  33% after 554 s: U/N -19.44 kcal/mol, P 2089 bar
+  42% after 581 s: U/N -19.50 kcal/mol, P 303 bar
