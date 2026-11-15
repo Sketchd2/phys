@@ -605,3 +605,21 @@ round 4: 153 functions, E -95.76931952, 6001 s
   round 5 probe 17/20: 150/237 candidates, 1883 s into the round; about 4 min left in it
   round 5 probe 17/20: 200/237 candidates, 1884 s into the round; about 4 min left in it
   round 5 probe 17/20: 237/237 candidates, 1884 s into the round; about 4 min left in it
+  round 5 probe 18/20: 50/237 candidates, 1958 s into the round; about 2 min left in it
+  round 5 probe 18/20: 100/237 candidates, 1958 s into the round; about 2 min left in it
+  round 5 probe 18/20: 150/237 candidates, 1958 s into the round; about 2 min left in it
+  round 5 probe 18/20: 200/237 candidates, 1958 s into the round; about 2 min left in it
+  round 5 probe 18/20: 237/237 candidates, 1959 s into the round; about 2 min left in it
+  round 5 probe 19/20: 50/237 candidates, 2031 s into the round; about 1 min left in it
+  round 5 probe 19/20: 100/237 candidates, 2031 s into the round; about 1 min left in it
+  round 5 probe 19/20: 150/237 candidates, 2031 s into the round; about 1 min left in it
+  round 5 probe 19/20: 200/237 candidates, 2031 s into the round; about 1 min left in it
+  round 5 probe 19/20: 237/237 candidates, 2032 s into the round; about 1 min left in it
+  round 5 probe 20/20: 50/237 candidates, 2101 s into the round; under a minute left in it
+  round 5 probe 20/20: 100/237 candidates, 2101 s into the round; under a minute left in it
+  round 5 probe 20/20: 150/237 candidates, 2101 s into the round; under a minute left in it
+  round 5 probe 20/20: 200/237 candidates, 2101 s into the round; under a minute left in it
+  round 5 probe 20/20: 237/237 candidates, 2102 s into the round; under a minute left in it
+round 5: 180 functions, E -95.77216012, 8103 s
+  shape (A, deg): 1.46939 1.09937 1.10714 1.09937 1.02120 1.02120 109.128 115.455 109.131 107.878 107.050 107.878 110.349 110.347 106.207
+  added 3, predicted to move: -0.00303 +0.00010 +0.00006 +0.00010 -0.00069 -0.00069 -0.045 -0.012 -0.045 +0.041 +0.057 +0.041 -0.064 -0.064 -0.065; left 38.84
