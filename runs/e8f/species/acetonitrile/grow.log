@@ -546,3 +546,12 @@ acetonitrile: 6 atoms, 5 bonds; carrying on from round 7
   round 7 probe 11/12: 200/257 candidates, 2425 s into the round; about 3 min left in it
   round 7 probe 11/12: 250/257 candidates, 2427 s into the round; about 3 min left in it
   round 7 probe 11/12: 257/257 candidates, 2427 s into the round; about 3 min left in it
+  round 7 probe 12/12: 50/257 candidates, 2599 s into the round; under a minute left in it
+  round 7 probe 12/12: 100/257 candidates, 2600 s into the round; under a minute left in it
+  round 7 probe 12/12: 150/257 candidates, 2600 s into the round; under a minute left in it
+  round 7 probe 12/12: 200/257 candidates, 2600 s into the round; under a minute left in it
+  round 7 probe 12/12: 250/257 candidates, 2602 s into the round; under a minute left in it
+  round 7 probe 12/12: 257/257 candidates, 2602 s into the round; under a minute left in it
+round 7: 363 functions, E -132.64532550, 2602 s
+  shape (A, deg): 1.45297 1.16139 1.09736 1.09737 1.09737 110.278 110.279 110.279 108.652 108.652 108.652 179.999
+  added 3, predicted to move: +0.00048 +0.00018 +0.00011 +0.00011 +0.00011 +0.039 +0.039 +0.039 -0.047 -0.047 -0.047 +0.000; left 9.00
