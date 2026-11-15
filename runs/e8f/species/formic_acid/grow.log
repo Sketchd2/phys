@@ -83,3 +83,20 @@ formic_acid: 5 atoms, 4 bonds; starting
 round 0: 83 functions, E -189.59675661, 885 s
   shape (A, deg): 1.23456 1.37734 1.12368 0.99699 121.367 124.251 114.382 108.382
   added 3, predicted to move: -0.01376 -0.00882 -0.00518 -0.00744 +0.000 +5.501 +1.756 +0.455; left 963.81
+  relaxed at 95 functions, 239 s into round 1; 16 probes of 200 candidates to go
+  round 1 probe 1/16: 50/200 candidates, 259 s into the round; about 5 min left in it
+  round 1 probe 1/16: 100/200 candidates, 259 s into the round; about 5 min left in it
+  round 1 probe 1/16: 150/200 candidates, 259 s into the round; about 5 min left in it
+  round 1 probe 1/16: 200/200 candidates, 259 s into the round; about 5 min left in it
+  round 1 probe 2/16: 50/200 candidates, 278 s into the round; about 5 min left in it
+  round 1 probe 2/16: 100/200 candidates, 278 s into the round; about 5 min left in it
+  round 1 probe 2/16: 150/200 candidates, 279 s into the round; about 5 min left in it
+  round 1 probe 2/16: 200/200 candidates, 279 s into the round; about 5 min left in it
+  round 1 probe 3/16: 50/200 candidates, 299 s into the round; about 4 min left in it
+  round 1 probe 3/16: 100/200 candidates, 299 s into the round; about 4 min left in it
+  round 1 probe 3/16: 150/200 candidates, 299 s into the round; about 4 min left in it
+  round 1 probe 3/16: 200/200 candidates, 299 s into the round; about 4 min left in it
+  round 1 probe 4/16: 50/200 candidates, 318 s into the round; about 4 min left in it
+  round 1 probe 4/16: 100/200 candidates, 318 s into the round; about 4 min left in it
+  round 1 probe 4/16: 150/200 candidates, 318 s into the round; about 4 min left in it
+  round 1 probe 4/16: 200/200 candidates, 319 s into the round; about 4 min left in it
