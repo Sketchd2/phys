@@ -479,3 +479,10 @@ round 6: 287 functions, E -132.64466456, 7961 s
   round 7 probe 5/12: 250/257 candidates, 1888 s into the round; about 24 min left in it
   round 7 probe 5/12: 257/257 candidates, 1889 s into the round; about 24 min left in it
 acetonitrile: 6 atoms, 5 bonds; carrying on from round 7
+  relaxed at 363 functions, 617 s into round 7; 12 probes of 257 candidates to go
+  round 7 probe 1/12: 50/257 candidates, 778 s into the round; about 30 min left in it
+  round 7 probe 1/12: 100/257 candidates, 778 s into the round; about 30 min left in it
+  round 7 probe 1/12: 150/257 candidates, 779 s into the round; about 30 min left in it
+  round 7 probe 1/12: 200/257 candidates, 779 s into the round; about 30 min left in it
+  round 7 probe 1/12: 250/257 candidates, 780 s into the round; about 30 min left in it
+  round 7 probe 1/12: 257/257 candidates, 781 s into the round; about 30 min left in it
