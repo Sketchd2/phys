@@ -544,3 +544,31 @@ round 6: 193 functions, E -189.64857953, 7793 s
   round 7 probe 1/16: 100/195 candidates, 400 s into the round; about 10 min left in it
   round 7 probe 1/16: 150/195 candidates, 400 s into the round; about 10 min left in it
   round 7 probe 1/16: 195/195 candidates, 401 s into the round; about 10 min left in it
+  round 7 probe 2/16: 50/195 candidates, 442 s into the round; about 10 min left in it
+  round 7 probe 2/16: 100/195 candidates, 442 s into the round; about 10 min left in it
+  round 7 probe 2/16: 150/195 candidates, 442 s into the round; about 10 min left in it
+  round 7 probe 2/16: 195/195 candidates, 442 s into the round; about 10 min left in it
+  round 7 probe 3/16: 50/195 candidates, 485 s into the round; about 9 min left in it
+  round 7 probe 3/16: 100/195 candidates, 485 s into the round; about 9 min left in it
+  round 7 probe 3/16: 150/195 candidates, 485 s into the round; about 9 min left in it
+  round 7 probe 3/16: 195/195 candidates, 485 s into the round; about 9 min left in it
+  round 7 probe 4/16: 50/195 candidates, 525 s into the round; about 8 min left in it
+  round 7 probe 4/16: 100/195 candidates, 525 s into the round; about 8 min left in it
+  round 7 probe 4/16: 150/195 candidates, 525 s into the round; about 8 min left in it
+  round 7 probe 4/16: 195/195 candidates, 526 s into the round; about 8 min left in it
+  round 7 probe 5/16: 50/195 candidates, 564 s into the round; about 7 min left in it
+  round 7 probe 5/16: 100/195 candidates, 564 s into the round; about 7 min left in it
+  round 7 probe 5/16: 150/195 candidates, 564 s into the round; about 7 min left in it
+  round 7 probe 5/16: 195/195 candidates, 565 s into the round; about 7 min left in it
+  round 7 probe 6/16: 50/195 candidates, 603 s into the round; about 6 min left in it
+  round 7 probe 6/16: 100/195 candidates, 603 s into the round; about 6 min left in it
+  round 7 probe 6/16: 150/195 candidates, 603 s into the round; about 6 min left in it
+  round 7 probe 6/16: 195/195 candidates, 604 s into the round; about 7 min left in it
+  round 7 probe 7/16: 50/195 candidates, 645 s into the round; about 6 min left in it
+  round 7 probe 7/16: 100/195 candidates, 645 s into the round; about 6 min left in it
+  round 7 probe 7/16: 150/195 candidates, 645 s into the round; about 6 min left in it
+  round 7 probe 7/16: 195/195 candidates, 646 s into the round; about 6 min left in it
+  round 7 probe 8/16: 50/195 candidates, 685 s into the round; about 5 min left in it
+  round 7 probe 8/16: 100/195 candidates, 685 s into the round; about 5 min left in it
+  round 7 probe 8/16: 150/195 candidates, 685 s into the round; about 5 min left in it
+  round 7 probe 8/16: 195/195 candidates, 685 s into the round; about 5 min left in it
