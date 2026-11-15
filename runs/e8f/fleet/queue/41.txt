@@ -8,3 +8,5 @@ methane-pairs species/methane ../../fleet/stage.sh pairs methane
 methane-full12 species/methane NFULL=12 ../../fleet/stage.sh full methane
 methane-law species/methane ../../fleet/stage.sh law methane
 methane-plan2 species/methane [ -f replan.mark ] || { rm -rf plan.ok plan.log liquid; touch replan.mark; }; ../../fleet/stage.sh plan methane
+methane-lawb species/methane [ -f refull.mark ] || { git show 36db96c:runs/e8f/species/methane/full-methane.txt > full-methane.txt && git show 36db96c:runs/e8f/species/methane/full.log > full.log && rm -f law.ok law.log && touch refull.mark; }; ../../fleet/stage.sh law methane
+methane-planb species/methane ../../fleet/stage.sh plan methane
