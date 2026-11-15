@@ -68,6 +68,11 @@ while read -r J D CMD; do
   [ -f $F/done/$J ] || [ -f $F/failed/$J ] && continue
   # inputs the job needs come from the main branch as it is now
   git checkout -q FETCH_HEAD -- runs/e8f/$D 2>/dev/null; mkdir -p runs/e8f/$D
+  # and a file the main branch has since removed (set aside to be redone) goes too, unless this
+  # worker's own commits wrote it: a checkout adds files but never takes one away
+  OWN=$(git log --format= --name-only --grep "^fleet worker $W:" HEAD -- runs/e8f/$D 2>/dev/null | sort -u)
+  git ls-files -co runs/e8f/$D 2>/dev/null | while read -r f; do
+    git cat-file -e FETCH_HEAD:"$f" 2>/dev/null || grep -qxF "$f" <<< "$OWN" || rm -f "$f"; done
   echo $J > $CUR; rm -f /tmp/fleet/rc-$J
   ( cd runs/e8f/$D && nohup bash -c "( $CMD ); echo \$? > /tmp/fleet/rc-$J" > $F/log/$J.log 2>&1 & echo $! > $PID )
   sleep 2
