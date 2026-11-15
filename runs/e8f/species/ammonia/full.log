@@ -1,0 +1,4 @@
+../../fleet/stage.sh: line 51: -full.txt: command not found
+pair 749: first atoms 2.93 A, electrostatic -5.289 kcal/mol, exchange 18.774, Hartree-Fock beyond both -13.485, overlap 3.3217e-3, electrons 10.00000 10.00000, 538 functions, 233 s
+pair 623: first atoms 2.84 A, electrostatic -5.553 kcal/mol, exchange 12.833, Hartree-Fock beyond both -7.280, overlap 2.4851e-3, electrons 10.00000 10.00000, 538 functions, 213 s
+pair 833: first atoms 4.09 A, electrostatic 0.226 kcal/mol, exchange 0.211, Hartree-Fock beyond both -0.437, overlap 3.4508e-5, electrons 10.00000 10.00000, 538 functions, 224 s
