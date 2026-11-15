@@ -1,0 +1,10 @@
+ammonia-pairs24 species/ammonia ../../fleet/stage.sh pairs ammonia
+ammonia-full12 species/ammonia NFULL=12 ../../fleet/stage.sh full ammonia
+ammonia-law12 species/ammonia ../../fleet/stage.sh law ammonia
+ammonia-plan species/ammonia ../../fleet/stage.sh plan ammonia
+methane-grow species/methane ../../fleet/stage.sh grow methane
+methane-mono species/methane ../../fleet/stage.sh mono methane
+methane-pairs species/methane ../../fleet/stage.sh pairs methane
+methane-full12 species/methane NFULL=12 ../../fleet/stage.sh full methane
+methane-law species/methane ../../fleet/stage.sh law methane
+methane-plan species/methane ../../fleet/stage.sh plan methane

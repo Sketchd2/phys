@@ -1,0 +1,12 @@
+methanol: dipole Hartree-Fock 0.7106 au (1.806 D), target 0.7106 au (1.806 D)
+  9525 potential points; the target's RMS 2.896e0, its mean -2.840e0 hartree/e
+  localised in 23 sweeps: 4 bond orbitals, 3 lone pairs (2 core orbitals frozen out of the localisation)
+  valence electrons 14, cores [4.0, 6.0, 1.0, 1.0, 1.0]
+  atom class 0: cloud 2.269 electrons, width 0.556 bohr
+  atom class 1: cloud 0.934 electrons, width 0.250 bohr
+  atom class 2: cloud 1.142 electrons, width 1.309 bohr
+  atom class 3: cloud 1.352 electrons, width 1.484 bohr
+  atom class 4: cloud 0.972 electrons, width 1.323 bohr
+  lone-pair cloud of class 1: 3 pair(s) on 1 atom(s), 5.978 electrons, width 1.584 bohr, 0.270 bohr from the nucleus (the orbitals' centre is 0.270)
+  potential RMS 1.875e-2 hartree/e (atom-centred point charges alone: 6.079e-3)
+  written to cloud-methanol.txt

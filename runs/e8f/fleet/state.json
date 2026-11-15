@@ -1,1 +1,24 @@
-{"children": 6, "window": "allowed", "note": "Test run: six workers on the one-constant water law, and ammonia through the stage scripts."}
+{
+ "children": 5,
+ "window": "allowed, resets 17:10 UTC",
+ "note": "wake 1 (launch). Workers 17-21 (old queues, grow) and 30 (water dilute state, old queue). Queued for creation: 40, 41.",
+ "wakes": [
+  {
+   "t": "2026-11-15T15:20Z",
+   "limit_stop": false,
+   "status": "allowed",
+   "resetsAt": 1794762600
+  }
+ ],
+ "burn_usd": null,
+ "created": [],
+ "pending_grow": [
+  "propane",
+  "dimethyl_ether",
+  "ethanol",
+  "acetaldehyde",
+  "formic_acid",
+  "acetonitrile",
+  "ethylamine"
+ ]
+}

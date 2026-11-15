@@ -1,0 +1,7 @@
+methanol-full12 species/methanol NFULL=12 ../../fleet/stage.sh full methanol
+methanol-law species/methanol ../../fleet/stage.sh law methanol
+methanol-plan species/methanol ../../fleet/stage.sh plan methanol
+water-grow species/water ../../fleet/stage.sh grow water
+water-mono species/water ../../fleet/stage.sh mono water
+water-pairs species/water ../../fleet/stage.sh pairs water
+water-full12 species/water NFULL=12 ../../fleet/stage.sh full water
