@@ -1,0 +1,16 @@
+isotherm 1130 K, 10 states, B2/M = -0.0722 cm3/g at rho = 0:
+  degree 3: F_ex/NkT = +0.8959, residual 0.84 sigma
+  degree 4: F_ex/NkT = +0.8994, residual 0.83 sigma
+  degree 5: F_ex/NkT = +0.9010, residual 0.81 sigma
+  degree 6: F_ex/NkT = +0.8970, residual 0.80 sigma
+  taken (degree 5): F_ex/NkT(1130 K, 0.981) = +0.9010 +- 0.0232
+isochore 0.981 g/cm3, 12 states; U/N fit residuals (kcal/mol): -0.0010 +0.0512 -0.0764 -0.0289 +0.1071 +0.0461 -0.0303 -0.0477 +0.0092 +0.0235 +0.0348 -0.0467
+
+   T    rho_0   F_ex/N    mu_ex    +-     p_sat(atm)  rho_V(g/cm3)   [kcal/mol]
+ 226.0 0.9810 -5.5465 -5.9956 0.0154     0.0016 x/1.035  0.00000 1st order (liquid at -13 bar)
+ 248.0 0.9802 -5.1726 -5.6655 0.0177     0.0113 x/1.037  0.00001
+ 282.0 0.9601 -4.6451 -5.2055 0.0167     0.1145 x/1.030  0.00009
+ 316.0 0.9268 -4.1718 -4.7998 0.0188     0.6486 x/1.030  0.00046
+ 361.0 0.8790 -3.5960 -4.3134 0.0205     3.6938 x/1.029  0.00235
+ 417.0 0.9810 -3.0180 -3.8467 0.0223    20.4609 x/1.027  0.01255 1st order (liquid at +2822 bar)
+ln p against 1/T crosses one atmosphere at 325.6 K
