@@ -5,3 +5,4 @@ water-grow species/water ../../fleet/stage.sh grow water
 water-mono species/water ../../fleet/stage.sh mono water
 water-pairs species/water ../../fleet/stage.sh pairs water
 water-full12 species/water NFULL=12 ../../fleet/stage.sh full water
+d1-more-methane-ammonia shortfall bash more2.sh

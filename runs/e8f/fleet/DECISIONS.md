@@ -6,3 +6,5 @@
 - 2026-11-15 Methane's hand-made law, plan and empty liquid moved to species/methane/hand/ (no state of it had run); methane goes through the stages like any species.
 - 2026-11-15 Water's D3 artefacts (law.ok, plan.ok, boil.ok 325.6 K, liquid/) stay where they are; water's grow/mono/pairs/full run in species/water first, and the hand law is moved to species/water/hand/ before water's own law stage is queued.
 - 2026-11-15 Methanol's full stage rerun with NFULL=12 (2 of 8 pairs done by worker 22; the first eight indices are the same pairs, so they are kept).
+- 2026-11-15 D1 extra (phys-shortfall --more) on methane and ammonia: water's two higher-angular-momentum steps with exponents scaled by heavy atom (shortfall/more2.sh), queued at the end of worker 40.
+- 2026-11-15 Worker 17 unpushed for 51 min while its session is running: a long grow round commits nothing new; not treated as quiet.

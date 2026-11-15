@@ -1,17 +1,32 @@
 {
- "children": 5,
+ "children": 7,
  "window": "allowed, resets 17:10 UTC",
- "note": "wake 1 (launch). Workers 17-21 (old queues, grow) and 30 (water dilute state, old queue). Queued for creation: 40, 41.",
+ "note": "wake 2. Created workers 40 (methanol, water, D1 extra) and 41 (ammonia, methane). 17-21 still growing; 30 on water's dilute state.",
  "wakes": [
   {
    "t": "2026-11-15T15:20Z",
    "limit_stop": false,
    "status": "allowed",
    "resetsAt": 1794762600
+  },
+  {
+   "t": "2026-11-15T16:08Z",
+   "limit_stop": false,
+   "status": "allowed",
+   "resetsAt": 1794762600
   }
  ],
  "burn_usd": null,
- "created": [],
+ "created": [
+  {
+   "n": 40,
+   "session": "session_016vymdzT2myCNHmtdGguZfz"
+  },
+  {
+   "n": 41,
+   "session": "session_016vymdzAnDwJwqm4LUt8M1z"
+  }
+ ],
  "pending_grow": [
   "propane",
   "dimethyl_ether",
@@ -20,5 +35,15 @@
   "formic_acid",
   "acetonitrile",
   "ethylamine"
- ]
+ ],
+ "sessions": {
+  "17": "session_016vyme1XcdtHJE8PoTECBas",
+  "18": "session_016vymdwzgwaBFwSQUMxifoD",
+  "19": "session_016vymdwqcVGC3hnLt8AXrrn",
+  "20": "session_016vymdyz9WRFNwNaHMuGWZr",
+  "21": "session_016vymdyKJerHrQC6iPpQwjH",
+  "30": "session_016vyme14JZxYm78edJDgxpz",
+  "40": "session_016vymdzT2myCNHmtdGguZfz",
+  "41": "session_016vymdzAnDwJwqm4LUt8M1z"
+ }
 }

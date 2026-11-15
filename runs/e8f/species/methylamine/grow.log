@@ -719,3 +719,115 @@ round 5: 180 functions, E -95.77216012, 8103 s
   round 6 probe 19/20: 150/241 candidates, 2220 s into the round; about 2 min left in it
   round 6 probe 19/20: 200/241 candidates, 2221 s into the round; about 2 min left in it
   round 6 probe 19/20: 241/241 candidates, 2221 s into the round; about 2 min left in it
+  round 6 probe 20/20: 50/241 candidates, 2302 s into the round; under a minute left in it
+  round 6 probe 20/20: 100/241 candidates, 2302 s into the round; under a minute left in it
+  round 6 probe 20/20: 150/241 candidates, 2302 s into the round; under a minute left in it
+  round 6 probe 20/20: 200/241 candidates, 2302 s into the round; under a minute left in it
+  round 6 probe 20/20: 241/241 candidates, 2303 s into the round; under a minute left in it
+round 6: 216 functions, E -95.77326883, 10406 s
+  shape (A, deg): 1.46760 1.09954 1.10730 1.09954 1.02073 1.02073 109.125 115.478 109.127 107.859 107.072 107.859 110.359 110.357 106.183
+  added 4, predicted to move: -0.00046 -0.00035 -0.00025 -0.00035 -0.00051 -0.00051 +0.041 +0.031 +0.041 -0.057 -0.041 -0.057 +0.088 +0.088 +0.087; left 30.76
+  relaxed at 259 functions, 1013 s into round 7; 20 probes of 243 candidates to go
+  round 7 probe 1/20: 50/243 candidates, 1136 s into the round; about 39 min left in it
+  round 7 probe 1/20: 100/243 candidates, 1136 s into the round; about 39 min left in it
+  round 7 probe 1/20: 150/243 candidates, 1136 s into the round; about 39 min left in it
+  round 7 probe 1/20: 200/243 candidates, 1137 s into the round; about 39 min left in it
+  round 7 probe 1/20: 243/243 candidates, 1137 s into the round; about 39 min left in it
+  round 7 probe 2/20: 50/243 candidates, 1250 s into the round; about 34 min left in it
+  round 7 probe 2/20: 100/243 candidates, 1250 s into the round; about 34 min left in it
+  round 7 probe 2/20: 150/243 candidates, 1250 s into the round; about 34 min left in it
+  round 7 probe 2/20: 200/243 candidates, 1251 s into the round; about 34 min left in it
+  round 7 probe 2/20: 243/243 candidates, 1252 s into the round; about 34 min left in it
+  round 7 probe 3/20: 50/243 candidates, 1355 s into the round; about 30 min left in it
+  round 7 probe 3/20: 100/243 candidates, 1355 s into the round; about 30 min left in it
+  round 7 probe 3/20: 150/243 candidates, 1356 s into the round; about 30 min left in it
+  round 7 probe 3/20: 200/243 candidates, 1356 s into the round; about 30 min left in it
+  round 7 probe 3/20: 243/243 candidates, 1357 s into the round; about 30 min left in it
+  round 7 probe 4/20: 50/243 candidates, 1468 s into the round; about 30 min left in it
+  round 7 probe 4/20: 100/243 candidates, 1468 s into the round; about 30 min left in it
+  round 7 probe 4/20: 150/243 candidates, 1468 s into the round; about 30 min left in it
+  round 7 probe 4/20: 200/243 candidates, 1468 s into the round; about 30 min left in it
+  round 7 probe 4/20: 243/243 candidates, 1469 s into the round; about 30 min left in it
+  round 7 probe 5/20: 50/243 candidates, 1575 s into the round; about 27 min left in it
+  round 7 probe 5/20: 100/243 candidates, 1576 s into the round; about 27 min left in it
+  round 7 probe 5/20: 150/243 candidates, 1576 s into the round; about 27 min left in it
+  round 7 probe 5/20: 200/243 candidates, 1576 s into the round; about 27 min left in it
+  round 7 probe 5/20: 243/243 candidates, 1577 s into the round; about 27 min left in it
+  round 7 probe 6/20: 50/243 candidates, 1674 s into the round; about 23 min left in it
+  round 7 probe 6/20: 100/243 candidates, 1674 s into the round; about 23 min left in it
+  round 7 probe 6/20: 150/243 candidates, 1674 s into the round; about 23 min left in it
+  round 7 probe 6/20: 200/243 candidates, 1674 s into the round; about 23 min left in it
+  round 7 probe 6/20: 243/243 candidates, 1675 s into the round; about 23 min left in it
+  round 7 probe 7/20: 50/243 candidates, 1782 s into the round; about 23 min left in it
+  round 7 probe 7/20: 100/243 candidates, 1783 s into the round; about 23 min left in it
+  round 7 probe 7/20: 150/243 candidates, 1783 s into the round; about 23 min left in it
+  round 7 probe 7/20: 200/243 candidates, 1783 s into the round; about 23 min left in it
+  round 7 probe 7/20: 243/243 candidates, 1784 s into the round; about 24 min left in it
+  round 7 probe 8/20: 50/243 candidates, 1894 s into the round; about 22 min left in it
+  round 7 probe 8/20: 100/243 candidates, 1894 s into the round; about 22 min left in it
+  round 7 probe 8/20: 150/243 candidates, 1894 s into the round; about 22 min left in it
+  round 7 probe 8/20: 200/243 candidates, 1894 s into the round; about 22 min left in it
+  round 7 probe 8/20: 243/243 candidates, 1895 s into the round; about 22 min left in it
+  round 7 probe 9/20: 50/243 candidates, 2006 s into the round; about 20 min left in it
+  round 7 probe 9/20: 100/243 candidates, 2006 s into the round; about 20 min left in it
+  round 7 probe 9/20: 150/243 candidates, 2006 s into the round; about 20 min left in it
+  round 7 probe 9/20: 200/243 candidates, 2007 s into the round; about 20 min left in it
+  round 7 probe 9/20: 243/243 candidates, 2007 s into the round; about 21 min left in it
+  round 7 probe 10/20: 50/243 candidates, 2106 s into the round; about 17 min left in it
+  round 7 probe 10/20: 100/243 candidates, 2106 s into the round; about 17 min left in it
+  round 7 probe 10/20: 150/243 candidates, 2106 s into the round; about 17 min left in it
+  round 7 probe 10/20: 200/243 candidates, 2106 s into the round; about 17 min left in it
+  round 7 probe 10/20: 243/243 candidates, 2107 s into the round; about 17 min left in it
+  round 7 probe 11/20: 50/243 candidates, 2217 s into the round; about 17 min left in it
+  round 7 probe 11/20: 100/243 candidates, 2217 s into the round; about 17 min left in it
+  round 7 probe 11/20: 150/243 candidates, 2217 s into the round; about 17 min left in it
+  round 7 probe 11/20: 200/243 candidates, 2217 s into the round; about 17 min left in it
+  round 7 probe 11/20: 243/243 candidates, 2218 s into the round; about 17 min left in it
+  round 7 probe 12/20: 50/243 candidates, 2329 s into the round; about 15 min left in it
+  round 7 probe 12/20: 100/243 candidates, 2329 s into the round; about 15 min left in it
+  round 7 probe 12/20: 150/243 candidates, 2329 s into the round; about 15 min left in it
+  round 7 probe 12/20: 200/243 candidates, 2329 s into the round; about 15 min left in it
+  round 7 probe 12/20: 243/243 candidates, 2330 s into the round; about 15 min left in it
+  round 7 probe 13/20: 50/243 candidates, 2429 s into the round; about 12 min left in it
+  round 7 probe 13/20: 100/243 candidates, 2430 s into the round; about 12 min left in it
+  round 7 probe 13/20: 150/243 candidates, 2430 s into the round; about 12 min left in it
+  round 7 probe 13/20: 200/243 candidates, 2430 s into the round; about 12 min left in it
+  round 7 probe 13/20: 243/243 candidates, 2431 s into the round; about 12 min left in it
+  round 7 probe 14/20: 50/243 candidates, 2528 s into the round; about 10 min left in it
+  round 7 probe 14/20: 100/243 candidates, 2528 s into the round; about 10 min left in it
+  round 7 probe 14/20: 150/243 candidates, 2529 s into the round; about 10 min left in it
+  round 7 probe 14/20: 200/243 candidates, 2529 s into the round; about 10 min left in it
+  round 7 probe 14/20: 243/243 candidates, 2529 s into the round; about 10 min left in it
+  round 7 probe 15/20: 50/243 candidates, 2626 s into the round; about 8 min left in it
+  round 7 probe 15/20: 100/243 candidates, 2627 s into the round; about 8 min left in it
+  round 7 probe 15/20: 150/243 candidates, 2627 s into the round; about 8 min left in it
+  round 7 probe 15/20: 200/243 candidates, 2627 s into the round; about 8 min left in it
+  round 7 probe 15/20: 243/243 candidates, 2628 s into the round; about 8 min left in it
+  round 7 probe 16/20: 50/243 candidates, 2725 s into the round; about 7 min left in it
+  round 7 probe 16/20: 100/243 candidates, 2725 s into the round; about 7 min left in it
+  round 7 probe 16/20: 150/243 candidates, 2725 s into the round; about 7 min left in it
+  round 7 probe 16/20: 200/243 candidates, 2726 s into the round; about 7 min left in it
+  round 7 probe 16/20: 243/243 candidates, 2726 s into the round; about 7 min left in it
+  round 7 probe 17/20: 50/243 candidates, 2821 s into the round; about 5 min left in it
+  round 7 probe 17/20: 100/243 candidates, 2821 s into the round; about 5 min left in it
+  round 7 probe 17/20: 150/243 candidates, 2822 s into the round; about 5 min left in it
+  round 7 probe 17/20: 200/243 candidates, 2822 s into the round; about 5 min left in it
+  round 7 probe 17/20: 243/243 candidates, 2822 s into the round; about 5 min left in it
+  round 7 probe 18/20: 50/243 candidates, 2918 s into the round; about 3 min left in it
+  round 7 probe 18/20: 100/243 candidates, 2918 s into the round; about 3 min left in it
+  round 7 probe 18/20: 150/243 candidates, 2918 s into the round; about 3 min left in it
+  round 7 probe 18/20: 200/243 candidates, 2919 s into the round; about 3 min left in it
+  round 7 probe 18/20: 243/243 candidates, 2919 s into the round; about 3 min left in it
+  round 7 probe 19/20: 50/243 candidates, 3017 s into the round; about 2 min left in it
+  round 7 probe 19/20: 100/243 candidates, 3017 s into the round; about 2 min left in it
+  round 7 probe 19/20: 150/243 candidates, 3017 s into the round; about 2 min left in it
+  round 7 probe 19/20: 200/243 candidates, 3017 s into the round; about 2 min left in it
+  round 7 probe 19/20: 243/243 candidates, 3018 s into the round; about 2 min left in it
+  round 7 probe 20/20: 50/243 candidates, 3120 s into the round; under a minute left in it
+  round 7 probe 20/20: 100/243 candidates, 3121 s into the round; under a minute left in it
+  round 7 probe 20/20: 150/243 candidates, 3121 s into the round; under a minute left in it
+  round 7 probe 20/20: 200/243 candidates, 3121 s into the round; under a minute left in it
+  round 7 probe 20/20: 243/243 candidates, 3122 s into the round; under a minute left in it
+round 7: 259 functions, E -95.77434092, 13527 s
+  shape (A, deg): 1.46654 1.09921 1.10711 1.09921 1.01997 1.01997 109.182 115.518 109.184 107.800 107.027 107.800 110.487 110.484 106.310
+  added 4, predicted to move: -0.00052 -0.00114 -0.00112 -0.00114 +0.00003 +0.00003 -0.004 -0.001 -0.004 +0.005 +0.002 +0.005 -0.027 -0.027 +0.001; left 23.97
