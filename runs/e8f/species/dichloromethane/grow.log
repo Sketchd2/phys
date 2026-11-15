@@ -107,3 +107,24 @@ round 0: 91 functions, E -959.32407690, 693 s
 round 1: 108 functions, E -959.33976156, 1302 s
   shape (A, deg): 1.79811 1.79818 1.09604 1.09604 113.042 107.810 107.810 107.806 107.806 112.660
   added 5, predicted to move: -0.00807 -0.00807 -0.01039 -0.01039 -0.454 +0.005 +0.005 +0.005 +0.005 +0.746; left 172.45
+  relaxed at 146 functions, 362 s into round 2; 10 probes of 243 candidates to go
+  round 2 probe 1/10: 50/243 candidates, 400 s into the round; about 6 min left in it
+  round 2 probe 1/10: 100/243 candidates, 400 s into the round; about 6 min left in it
+  round 2 probe 1/10: 150/243 candidates, 400 s into the round; about 6 min left in it
+  round 2 probe 1/10: 200/243 candidates, 400 s into the round; about 6 min left in it
+  round 2 probe 1/10: 243/243 candidates, 400 s into the round; about 6 min left in it
+  round 2 probe 2/10: 50/243 candidates, 439 s into the round; about 5 min left in it
+  round 2 probe 2/10: 100/243 candidates, 439 s into the round; about 5 min left in it
+  round 2 probe 2/10: 150/243 candidates, 439 s into the round; about 5 min left in it
+  round 2 probe 2/10: 200/243 candidates, 439 s into the round; about 5 min left in it
+  round 2 probe 2/10: 243/243 candidates, 439 s into the round; about 5 min left in it
+  round 2 probe 3/10: 50/243 candidates, 477 s into the round; about 4 min left in it
+  round 2 probe 3/10: 100/243 candidates, 478 s into the round; about 4 min left in it
+  round 2 probe 3/10: 150/243 candidates, 478 s into the round; about 4 min left in it
+  round 2 probe 3/10: 200/243 candidates, 478 s into the round; about 4 min left in it
+  round 2 probe 3/10: 243/243 candidates, 478 s into the round; about 5 min left in it
+  round 2 probe 4/10: 50/243 candidates, 516 s into the round; about 4 min left in it
+  round 2 probe 4/10: 100/243 candidates, 517 s into the round; about 4 min left in it
+  round 2 probe 4/10: 150/243 candidates, 517 s into the round; about 4 min left in it
+  round 2 probe 4/10: 200/243 candidates, 517 s into the round; about 4 min left in it
+  round 2 probe 4/10: 243/243 candidates, 517 s into the round; about 4 min left in it
