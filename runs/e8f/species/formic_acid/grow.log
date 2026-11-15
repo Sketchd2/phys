@@ -645,3 +645,4 @@ round 7: 212 functions, E -189.65004926, 9247 s
   round 8 probe 9/16: 150/197 candidates, 1073 s into the round; about 15 min left in it
   round 8 probe 9/16: 197/197 candidates, 1074 s into the round; about 15 min left in it
 formic_acid: 5 atoms, 4 bonds; carrying on from round 8
+  relaxed at 236 functions, 579 s into round 8; 16 probes of 197 candidates to go
