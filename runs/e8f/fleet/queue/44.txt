@@ -1,2 +1,1 @@
 dimethyl_ether-grow2 species/dimethyl_ether ../../fleet/stage.sh grow dimethyl_ether
-dichloromethane-grow species/dichloromethane ../../fleet/stage.sh grow dichloromethane
