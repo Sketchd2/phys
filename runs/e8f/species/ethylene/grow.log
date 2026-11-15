@@ -35,3 +35,12 @@ ethylene: 6 atoms, 5 bonds; starting
   round 0 probe 7/8: 150/206 candidates, 591 s into the round; under a minute left in it
   round 0 probe 7/8: 200/206 candidates, 591 s into the round; under a minute left in it
   round 0 probe 7/8: 206/206 candidates, 591 s into the round; under a minute left in it
+  round 0 probe 8/8: 50/206 candidates, 616 s into the round; under a minute left in it
+  round 0 probe 8/8: 100/206 candidates, 616 s into the round; under a minute left in it
+  round 0 probe 8/8: 150/206 candidates, 616 s into the round; under a minute left in it
+  round 0 probe 8/8: 200/206 candidates, 616 s into the round; under a minute left in it
+  round 0 probe 8/8: 206/206 candidates, 616 s into the round; under a minute left in it
+round 0: 82 functions, E -78.47595401, 616 s
+  shape (A, deg): 1.35095 1.09996 1.09996 1.09996 1.09996 121.372 121.370 117.258 121.372 121.370 117.258
+  added 8, predicted to move: -0.03742 +0.00460 +0.00460 +0.00460 +0.00460 +1.371 +1.371 -3.115 +1.371 +1.371 -3.115; left 423.80
+  relaxed at 148 functions, 255 s into round 1; 8 probes of 222 candidates to go
