@@ -115,3 +115,25 @@ dimethyl_ether: 9 atoms, 8 bonds; starting
 round 0: 123 functions, E -154.86273993, 2435 s
   shape (A, deg): 1.43791 1.43805 1.10528 1.11370 1.11370 1.10525 1.11373 1.11373 106.700 110.883 110.883 109.641 109.641 109.061 110.352 106.710 110.882 110.882 109.643 109.643 109.050
   added 7, predicted to move: -0.00451 -0.00451 -0.00650 -0.00670 -0.00670 -0.00650 -0.00670 -0.00670 +0.120 +0.301 +0.301 -0.297 -0.297 -0.380 +0.802 +0.120 +0.301 +0.301 -0.297 -0.297 -0.380; left 581.24
+  relaxed at 132 functions, 1843 s into round 1; 16 probes of 303 candidates to go
+  round 1 probe 1/16: 50/303 candidates, 1917 s into the round; about 19 min left in it
+  round 1 probe 1/16: 100/303 candidates, 1917 s into the round; about 19 min left in it
+  round 1 probe 1/16: 150/303 candidates, 1917 s into the round; about 19 min left in it
+  round 1 probe 1/16: 200/303 candidates, 1917 s into the round; about 19 min left in it
+  round 1 probe 1/16: 250/303 candidates, 1917 s into the round; about 19 min left in it
+  round 1 probe 1/16: 300/303 candidates, 1918 s into the round; about 19 min left in it
+  round 1 probe 1/16: 303/303 candidates, 1918 s into the round; about 19 min left in it
+  round 1 probe 2/16: 50/303 candidates, 1998 s into the round; about 19 min left in it
+  round 1 probe 2/16: 100/303 candidates, 1998 s into the round; about 19 min left in it
+  round 1 probe 2/16: 150/303 candidates, 1998 s into the round; about 19 min left in it
+  round 1 probe 2/16: 200/303 candidates, 1999 s into the round; about 19 min left in it
+  round 1 probe 2/16: 250/303 candidates, 1999 s into the round; about 19 min left in it
+  round 1 probe 2/16: 300/303 candidates, 1999 s into the round; about 19 min left in it
+  round 1 probe 2/16: 303/303 candidates, 1999 s into the round; about 19 min left in it
+  round 1 probe 3/16: 50/303 candidates, 2074 s into the round; about 17 min left in it
+  round 1 probe 3/16: 100/303 candidates, 2074 s into the round; about 17 min left in it
+  round 1 probe 3/16: 150/303 candidates, 2075 s into the round; about 17 min left in it
+  round 1 probe 3/16: 200/303 candidates, 2075 s into the round; about 17 min left in it
+  round 1 probe 3/16: 250/303 candidates, 2075 s into the round; about 17 min left in it
+  round 1 probe 3/16: 300/303 candidates, 2075 s into the round; about 17 min left in it
+  round 1 probe 3/16: 303/303 candidates, 2075 s into the round; about 17 min left in it
