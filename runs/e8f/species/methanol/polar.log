@@ -1,1 +1,6 @@
 methanol: 408 functions, field step 0.002, 2 frozen cores
+  19 fields in 757 s (dipole width scale 1)
+  Hartree-Fock: mean 20.0611 bohr^3, diagonal 18.6822 19.6094 21.8918, off-diagonal -6.5e-7 9.2e-8 -7.0e-1
+  MP2: mean 21.4764 bohr^3, diagonal 20.1730 20.6927 23.5635, off-diagonal -8.8e-4 1.7e-3 -5.3e-1
+  atomic polarisabilities by class [5.200644239238766, 9.125467766924443, 2.4087736542481615, 3.3030871796542476, 2.748792256303503] bohr^3 (classes [0, 1, 2, 3, 3, 4]); the model's tensor: mean 21.4764, diagonal 20.1730 20.6927 23.5635; residual rms 8.97e-4
+  written to polar-methanol.txt
