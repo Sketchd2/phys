@@ -312,3 +312,4 @@ round 5: 710 functions, E -79.73978980, 24069 s
   shape (A, deg): 1.52797 1.09873 1.09874 1.09874 1.09873 1.09874 1.09874 111.472 111.472 111.472 107.399 107.399 107.398 111.472 111.472 111.472 107.399 107.399 107.398
   added 14, predicted to move: -0.00025 -0.00010 -0.00010 -0.00010 -0.00010 -0.00010 -0.00010 -0.013 -0.013 -0.013 +0.016 +0.016 +0.016 -0.013 -0.013 -0.013 +0.016 +0.016 +0.016; left 3.91
 could not spill a 18.5 GB table to /tmp/spill: No space left on device (os error 28); rebuilding it instead
+could not spill a 19.6 GB table to /tmp/spill: No space left on device (os error 28); rebuilding it instead
