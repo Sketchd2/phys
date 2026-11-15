@@ -1,1 +1,4 @@
 acetonitrile: 441 functions, field step 0.002, 3 frozen cores
+  19 fields in 1158 s (dipole width scale 1)
+  Hartree-Fock: mean 28.7744 bohr^3, diagonal 23.8686 23.8685 38.5861, off-diagonal -7.4e-7 8.1e-7 -3.0e-5
+  MP2: mean 29.1867 bohr^3, diagonal 24.3221 24.3220 38.9159, off-diagonal 1.1e-4 -1.1e-4 7.8e-5
