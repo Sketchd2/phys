@@ -249,3 +249,12 @@ round 7: 612 functions, E -151.47847402, 15655 s
   round 8 probe 5/6: 150/206 candidates, 8678 s into the round; about 16 min left in it
   round 8 probe 5/6: 200/206 candidates, 8692 s into the round; about 16 min left in it
   round 8 probe 5/6: 206/206 candidates, 8694 s into the round; about 16 min left in it
+  round 8 probe 6/6: 50/206 candidates, 9644 s into the round; under a minute left in it
+  round 8 probe 6/6: 100/206 candidates, 9645 s into the round; under a minute left in it
+  round 8 probe 6/6: 150/206 candidates, 9650 s into the round; under a minute left in it
+  round 8 probe 6/6: 200/206 candidates, 9663 s into the round; under a minute left in it
+  round 8 probe 6/6: 206/206 candidates, 9665 s into the round; under a minute left in it
+round 8: 680 functions, E -151.47853509, 25320 s
+  shape (A, deg): 1.47461 0.97353 0.97353 98.313 98.313
+  added 0, predicted to move: +0.00000 +0.00000 +0.00000 +0.000 +0.000; left 0.83
+hydrogen_peroxide: settled after 9 rounds, 25320 s
