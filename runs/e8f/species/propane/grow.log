@@ -360,3 +360,12 @@ round 1: 151 functions, E -118.99018393, 8230 s
   shape (A, deg): 1.53589 1.53600 1.10125 1.10165 1.10165 1.10245 1.10245 1.10123 1.10166 1.10166 111.776 111.222 111.222 107.541 107.541 107.322 112.867 109.444 109.444 109.452 109.452 105.947 111.809 111.208 111.208 107.542 107.542 107.314
   added 4, predicted to move: -0.00893 -0.00893 +0.00016 +0.00164 +0.00164 -0.00077 -0.00077 +0.00016 +0.00164 +0.00164 -0.377 -0.008 -0.008 +0.136 +0.136 +0.182 +0.336 -0.120 -0.120 -0.120 -0.120 +0.044 -0.377 -0.008 -0.008 +0.136 +0.136 +0.182; left 246.86
 propane: 11 atoms, 10 bonds; carrying on from round 2
+  relaxed at 187 functions, 3729 s into round 2; 22 probes of 356 candidates to go
+  round 2 probe 1/22: 50/356 candidates, 3933 s into the round; about 72 min left in it
+  round 2 probe 1/22: 100/356 candidates, 3933 s into the round; about 72 min left in it
+  round 2 probe 1/22: 150/356 candidates, 3933 s into the round; about 72 min left in it
+  round 2 probe 1/22: 200/356 candidates, 3933 s into the round; about 72 min left in it
+  round 2 probe 1/22: 250/356 candidates, 3934 s into the round; about 72 min left in it
+  round 2 probe 1/22: 300/356 candidates, 3934 s into the round; about 72 min left in it
+  round 2 probe 1/22: 350/356 candidates, 3934 s into the round; about 72 min left in it
+  round 2 probe 1/22: 356/356 candidates, 3934 s into the round; about 72 min left in it
