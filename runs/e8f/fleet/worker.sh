@@ -67,10 +67,13 @@ while read -r J D CMD; do
   [ "$J" = STOP ] && { echo "ALL DONE"; exit 0; }
   [ -f $F/done/$J ] || [ -f $F/failed/$J ] && continue
   # inputs the job needs come from the main branch as it is now
-  git checkout -q FETCH_HEAD -- runs/e8f/$D 2>/dev/null; mkdir -p runs/e8f/$D
-  # and a file the main branch has since removed (set aside to be redone) goes too, unless this
-  # worker's own commits wrote it: a checkout adds files but never takes one away
+  # except the files this worker's own commits wrote: the main branch learns of those only at the
+  # orchestrator's next merge, and taking its older copy cut methane's twelve full pairs to two
+  # between one stage and the next. A file the main branch has since removed (set aside to be
+  # redone) goes, unless this worker wrote it: a checkout adds files but never takes one away.
   OWN=$(git log --format= --name-only --grep "^fleet worker $W:" HEAD -- runs/e8f/$D 2>/dev/null | sort -u)
+  git ls-tree -r --name-only FETCH_HEAD -- runs/e8f/$D 2>/dev/null | grep -vxF -f <(echo "$OWN") | while read -r f; do
+    git checkout -q FETCH_HEAD -- "$f" 2>/dev/null; done; mkdir -p runs/e8f/$D
   git ls-files -co runs/e8f/$D 2>/dev/null | while read -r f; do
     git cat-file -e FETCH_HEAD:"$f" 2>/dev/null || grep -qxF "$f" <<< "$OWN" || rm -f "$f"; done
   echo $J > $CUR; rm -f /tmp/fleet/rc-$J
