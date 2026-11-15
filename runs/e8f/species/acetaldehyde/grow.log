@@ -1081,3 +1081,27 @@ round 7: 249 functions, E -153.71420258, 15186 s
   shape (A, deg): 1.50188 1.21369 1.10305 1.10306 1.09709 1.12540 109.282 109.295 111.320 106.246 110.280 110.281 124.974 114.773 120.253
   added 4, predicted to move: +0.00060 +0.00003 -0.00043 -0.00043 -0.00003 -0.00287 +0.088 +0.088 +0.022 -0.140 -0.033 -0.033 +0.000 +0.000 +0.000; left 54.92
   relaxed at 259 functions, 1195 s into round 8; 24 probes of 254 candidates to go
+  round 8 probe 1/24: 50/254 candidates, 1282 s into the round; about 34 min left in it
+  round 8 probe 1/24: 100/254 candidates, 1282 s into the round; about 34 min left in it
+  round 8 probe 1/24: 150/254 candidates, 1282 s into the round; about 34 min left in it
+  round 8 probe 1/24: 200/254 candidates, 1282 s into the round; about 34 min left in it
+  round 8 probe 1/24: 250/254 candidates, 1283 s into the round; about 34 min left in it
+  round 8 probe 1/24: 254/254 candidates, 1283 s into the round; about 34 min left in it
+  round 8 probe 2/24: 50/254 candidates, 1373 s into the round; about 33 min left in it
+  round 8 probe 2/24: 100/254 candidates, 1373 s into the round; about 33 min left in it
+  round 8 probe 2/24: 150/254 candidates, 1373 s into the round; about 33 min left in it
+  round 8 probe 2/24: 200/254 candidates, 1374 s into the round; about 33 min left in it
+  round 8 probe 2/24: 250/254 candidates, 1374 s into the round; about 33 min left in it
+  round 8 probe 2/24: 254/254 candidates, 1374 s into the round; about 33 min left in it
+  round 8 probe 3/24: 50/254 candidates, 1471 s into the round; about 34 min left in it
+  round 8 probe 3/24: 100/254 candidates, 1471 s into the round; about 34 min left in it
+  round 8 probe 3/24: 150/254 candidates, 1471 s into the round; about 34 min left in it
+  round 8 probe 3/24: 200/254 candidates, 1471 s into the round; about 34 min left in it
+  round 8 probe 3/24: 250/254 candidates, 1472 s into the round; about 34 min left in it
+  round 8 probe 3/24: 254/254 candidates, 1472 s into the round; about 34 min left in it
+  round 8 probe 4/24: 50/254 candidates, 1561 s into the round; about 30 min left in it
+  round 8 probe 4/24: 100/254 candidates, 1561 s into the round; about 30 min left in it
+  round 8 probe 4/24: 150/254 candidates, 1561 s into the round; about 30 min left in it
+  round 8 probe 4/24: 200/254 candidates, 1562 s into the round; about 30 min left in it
+  round 8 probe 4/24: 250/254 candidates, 1562 s into the round; about 30 min left in it
+  round 8 probe 4/24: 254/254 candidates, 1562 s into the round; about 30 min left in it
