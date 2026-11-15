@@ -1,1 +1,30 @@
 ethanol: 9 atoms, 8 bonds; starting
+  relaxed at 123 functions, 1834 s into round 0; 30 probes of 310 candidates to go
+  round 0 probe 1/30: 50/310 candidates, 1899 s into the round; about 32 min left in it
+  round 0 probe 1/30: 100/310 candidates, 1899 s into the round; about 32 min left in it
+  round 0 probe 1/30: 150/310 candidates, 1899 s into the round; about 32 min left in it
+  round 0 probe 1/30: 200/310 candidates, 1899 s into the round; about 32 min left in it
+  round 0 probe 1/30: 250/310 candidates, 1899 s into the round; about 32 min left in it
+  round 0 probe 1/30: 300/310 candidates, 1899 s into the round; about 32 min left in it
+  round 0 probe 1/30: 310/310 candidates, 1900 s into the round; about 32 min left in it
+  round 0 probe 2/30: 50/310 candidates, 1964 s into the round; about 30 min left in it
+  round 0 probe 2/30: 100/310 candidates, 1964 s into the round; about 30 min left in it
+  round 0 probe 2/30: 150/310 candidates, 1964 s into the round; about 30 min left in it
+  round 0 probe 2/30: 200/310 candidates, 1965 s into the round; about 30 min left in it
+  round 0 probe 2/30: 250/310 candidates, 1965 s into the round; about 30 min left in it
+  round 0 probe 2/30: 300/310 candidates, 1965 s into the round; about 30 min left in it
+  round 0 probe 2/30: 310/310 candidates, 1965 s into the round; about 31 min left in it
+  round 0 probe 3/30: 50/310 candidates, 2027 s into the round; about 28 min left in it
+  round 0 probe 3/30: 100/310 candidates, 2027 s into the round; about 28 min left in it
+  round 0 probe 3/30: 150/310 candidates, 2027 s into the round; about 28 min left in it
+  round 0 probe 3/30: 200/310 candidates, 2027 s into the round; about 28 min left in it
+  round 0 probe 3/30: 250/310 candidates, 2027 s into the round; about 28 min left in it
+  round 0 probe 3/30: 300/310 candidates, 2028 s into the round; about 28 min left in it
+  round 0 probe 3/30: 310/310 candidates, 2028 s into the round; about 28 min left in it
+  round 0 probe 4/30: 50/310 candidates, 2089 s into the round; about 27 min left in it
+  round 0 probe 4/30: 100/310 candidates, 2089 s into the round; about 27 min left in it
+  round 0 probe 4/30: 150/310 candidates, 2089 s into the round; about 27 min left in it
+  round 0 probe 4/30: 200/310 candidates, 2089 s into the round; about 27 min left in it
+  round 0 probe 4/30: 250/310 candidates, 2090 s into the round; about 27 min left in it
+  round 0 probe 4/30: 300/310 candidates, 2090 s into the round; about 27 min left in it
+  round 0 probe 4/30: 310/310 candidates, 2090 s into the round; about 27 min left in it
