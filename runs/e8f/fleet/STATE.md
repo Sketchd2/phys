@@ -1,5 +1,14 @@
 # Fleet state (the orchestrator's own notes; newest first)
 
+## 2026-11-15 22:08 UTC, wake 8
+
+- Laws so far: methane HOLE, methanol HOLE, hydrogen_peroxide HOLE (8 pairs), ammonia not HOLE but suspect.
+- Replacement 19 had every push refused (non-ff); worker.sh push() now merges -s ours and retries. Check next wake
+  that w-19 pushes again. Methylamine full set to NFULL=12.
+- Formic acid grown (49) -> mono..plan on 49. Hydrazine grown (20, old queue continues). Ammonia liquid 20/34.
+- Water law/plan on 40 after the D1 extra (still running, 46 min).
+- Created 52 (butane grow), 53 (propanol grow). Count 19. Five-hour window passed with no limit stop.
+
 ## 2026-11-15 21:09 UTC, wake 7
 
 - PATTERN FOR THE OWNER: two of three stage laws so far begin HOLE (methane 12 pairs, methanol 12 pairs; B2 -inf),

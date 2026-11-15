@@ -1,7 +1,7 @@
 {
- "children": 17,
- "window": "allowed, resets 22:10 UTC",
- "note": "wake 7. Laws so far: methane HOLE, methanol HOLE, ammonia suspect. Water's stage law queued (D3 kept under water/hand). Worker 19 replaced. Workers 50, 51 created.",
+ "children": 19,
+ "window": "allowed; first window passed with no limit stop (reset 22:10 UTC)",
+ "note": "wake 8. Laws: methane, methanol, H2O2 HOLE; ammonia suspect (liquid 20/34). Formic acid, hydrazine grown. Replacement 19 could not push (fixed). Workers 52, 53.",
  "wakes": [
   {
    "t": "2026-11-15T15:20Z",
@@ -47,6 +47,13 @@
    "limit_stop": false,
    "status": "allowed",
    "resetsAt": 1794780600
+  },
+  {
+   "t": "2026-11-15T22:08Z",
+   "limit_stop": false,
+   "status": "allowed",
+   "resetsAt": 1794780600,
+   "orchestrator_cost_usd": 7.16
   }
  ],
  "burn_usd": null,
@@ -79,6 +86,8 @@
   "48": "session_016vyme13dtHuX7BGoX9S7nX",
   "49": "session_016vymdxfKPv9JYkN4KBUYgN",
   "50": "session_016vymdywXkYfi7Sym566tNM",
-  "51": "session_016vymdxPQSA3S3aJz9YkTKs"
+  "51": "session_016vymdxPQSA3S3aJz9YkTKs",
+  "52": "session_016vyme1XaPcSWQGRqWjiN9z",
+  "53": "session_016vymdy6Pn1Dammqv7yakep"
  }
 }
