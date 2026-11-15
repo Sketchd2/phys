@@ -1,0 +1,3 @@
+toy-a fleet/toy sleep 2; echo hi > a.txt
+toy-b fleet/toy exit 3
+STOP
