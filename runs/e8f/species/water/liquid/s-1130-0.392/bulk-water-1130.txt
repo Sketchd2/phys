@@ -1,2 +1,4 @@
 # water at 1130 K, 64 molecules, 0.392 g/cm3, cut-off 15.710404630830855 bohr, law law.txt
 # ps  U_per_molecule_kcal  pressure_bar  T_translation  T_rotation
+2.491 -1.8398 2675.6 1156.4 1158.2
+2.591 -2.2567 2541.7 1163.8 1263.1
