@@ -3,3 +3,7 @@ water at 1130 K: 64 molecules, 0.51 g/cm3, box 29.37 bohr (15.54 A), cut-off 14.
   Ewald sum on: s' = 4.2 bohr, 1472 reciprocal vectors
   start: U/N -1.04 kcal/mol
   easing: U/N -2.19 kcal/mol, T 1023/1047 K, P 1346 bar
+  settling: U/N -2.74 kcal/mol, T 1262/1213 K, P 3301 bar
+  warming: U/N -2.24 kcal/mol, T 1013/1113 K, P 4130 bar
+  0% after 567 s: U/N -2.23 kcal/mol, P 4136 bar
+  8% after 601 s: U/N -2.89 kcal/mol, P 2489 bar
