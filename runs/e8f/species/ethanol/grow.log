@@ -213,3 +213,18 @@ ethanol: 9 atoms, 8 bonds; starting
 round 0: 123 functions, E -154.88208896, 3782 s
   shape (A, deg): 1.51762 1.45675 1.10794 1.10667 1.10667 1.11298 1.11298 0.99114 110.901 110.554 110.554 108.337 108.337 108.066 107.577 110.670 110.670 109.950 109.950 108.030 106.291
   added 3, predicted to move: +0.00060 +0.00238 -0.00036 +0.00074 +0.00074 +0.00008 +0.00008 -0.03387 +0.012 -0.028 -0.028 +0.009 +0.009 +0.031 +0.074 -0.074 -0.074 +0.102 +0.102 -0.227 +1.135; left 561.77
+  relaxed at 131 functions, 887 s into round 1; 30 probes of 308 candidates to go
+  round 1 probe 1/30: 50/308 candidates, 952 s into the round; about 32 min left in it
+  round 1 probe 1/30: 100/308 candidates, 952 s into the round; about 32 min left in it
+  round 1 probe 1/30: 150/308 candidates, 952 s into the round; about 32 min left in it
+  round 1 probe 1/30: 200/308 candidates, 952 s into the round; about 32 min left in it
+  round 1 probe 1/30: 250/308 candidates, 953 s into the round; about 32 min left in it
+  round 1 probe 1/30: 300/308 candidates, 953 s into the round; about 32 min left in it
+  round 1 probe 1/30: 308/308 candidates, 953 s into the round; about 32 min left in it
+  round 1 probe 2/30: 50/308 candidates, 1015 s into the round; about 29 min left in it
+  round 1 probe 2/30: 100/308 candidates, 1015 s into the round; about 29 min left in it
+  round 1 probe 2/30: 150/308 candidates, 1015 s into the round; about 29 min left in it
+  round 1 probe 2/30: 200/308 candidates, 1015 s into the round; about 29 min left in it
+  round 1 probe 2/30: 250/308 candidates, 1015 s into the round; about 29 min left in it
+  round 1 probe 2/30: 300/308 candidates, 1016 s into the round; about 29 min left in it
+  round 1 probe 2/30: 308/308 candidates, 1016 s into the round; about 29 min left in it
