@@ -13,3 +13,16 @@ ammonia at 466 K: 64 molecules, 0.712 g/cm3, box 25.79 bohr (13.65 A), cut-off 1
   42% after 537 s: U/N -18.47 kcal/mol, P 3900 bar
   50% after 563 s: U/N -18.35 kcal/mol, P 3557 bar
   58% after 589 s: U/N -18.39 kcal/mol, P 2960 bar
+  67% after 615 s: U/N -18.16 kcal/mol, P 3736 bar
+  75% after 643 s: U/N -18.48 kcal/mol, P 409 bar
+  83% after 670 s: U/N -18.48 kcal/mol, P 692 bar
+  92% after 698 s: U/N -18.76 kcal/mol, P 1218 bar
+  100% after 725 s: U/N -18.58 kcal/mol, P 649 bar
+ammonia at 466 K (96 samples over 10 ps, block standard errors):
+  U/N -18.421 +- 0.082 kcal/mol; heat of vaporisation -U/N + RT = 19.347 kcal/mol
+  pressure 2518 +- 184 bar at 0.712 g/cm3 (a liquid at the right density sits near 1 bar; positive says it wants to expand)
+  temperatures: translation 459.9 K, rotation 463.0 K (bath 466 K)
+  mean molecular dipole 4.077 D (permanent charges and induced dipoles); dielectric constant 2.0 (blocks 1.5 +- 0.1; slow to converge)
+  dispersion beyond the cut-off (C6 93.67): -513 bar and -0.293 kcal/mol a molecule, so pressure with it 2005 bar, U/N -18.715
+  g(first atoms): first peak 4.39 at 2.25 A, first minimum 0.02 at 2.75 A, second peak 1.84 at 4.45 A, coordination to the minimum 1.97 (bulk-ammonia-466.gOO.txt)
+  snapshot in bulk-ammonia-466.snap
