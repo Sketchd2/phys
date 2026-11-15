@@ -448,3 +448,20 @@ dimethyl_ether: 9 atoms, 8 bonds; carrying on from round 3
   round 3 probe 14/16: 250/301 candidates, 3278 s into the round; about 4 min left in it
   round 3 probe 14/16: 300/301 candidates, 3279 s into the round; about 4 min left in it
   round 3 probe 14/16: 301/301 candidates, 3279 s into the round; about 4 min left in it
+  round 3 probe 15/16: 50/301 candidates, 3392 s into the round; about 2 min left in it
+  round 3 probe 15/16: 100/301 candidates, 3392 s into the round; about 2 min left in it
+  round 3 probe 15/16: 150/301 candidates, 3392 s into the round; about 2 min left in it
+  round 3 probe 15/16: 200/301 candidates, 3393 s into the round; about 2 min left in it
+  round 3 probe 15/16: 250/301 candidates, 3393 s into the round; about 2 min left in it
+  round 3 probe 15/16: 300/301 candidates, 3393 s into the round; about 2 min left in it
+  round 3 probe 15/16: 301/301 candidates, 3393 s into the round; about 2 min left in it
+  round 3 probe 16/16: 50/301 candidates, 3507 s into the round; under a minute left in it
+  round 3 probe 16/16: 100/301 candidates, 3507 s into the round; under a minute left in it
+  round 3 probe 16/16: 150/301 candidates, 3507 s into the round; under a minute left in it
+  round 3 probe 16/16: 200/301 candidates, 3507 s into the round; under a minute left in it
+  round 3 probe 16/16: 250/301 candidates, 3507 s into the round; under a minute left in it
+  round 3 probe 16/16: 300/301 candidates, 3508 s into the round; under a minute left in it
+  round 3 probe 16/16: 301/301 candidates, 3508 s into the round; under a minute left in it
+round 3: 177 functions, E -154.89137148, 3508 s
+  shape (A, deg): 1.41660 1.41662 1.09864 1.10881 1.10881 1.09863 1.10881 1.10881 107.086 111.500 111.500 109.095 109.095 108.511 112.166 107.086 111.502 111.502 109.093 109.093 108.510
+  added 4, predicted to move: +0.00118 +0.00118 +0.00008 -0.00025 -0.00025 +0.00008 -0.00025 -0.00025 +0.345 +0.084 +0.084 -0.153 -0.153 -0.414 -0.572 +0.345 +0.084 +0.084 -0.153 -0.153 -0.414; left 101.09
