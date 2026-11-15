@@ -615,3 +615,4 @@ round 8: 442 functions, E -111.79396702, 13335 s
 round 9: 466 functions, E -111.79415899, 17376 s
   shape (A, deg): 1.43651 1.01948 1.02350 1.01948 1.02350 107.409 112.228 107.453 107.409 112.228 107.453
   added 6, predicted to move: +0.00004 -0.00000 -0.00002 -0.00000 -0.00002 +0.001 +0.006 +0.008 +0.001 +0.006 +0.008; left 3.47
+  relaxed at 562 functions, 1202 s into round 10; 12 probes of 244 candidates to go
