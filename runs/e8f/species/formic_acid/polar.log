@@ -1,0 +1,6 @@
+formic_acid: 406 functions, field step 0.002, 3 frozen cores
+  19 fields in 1142 s (dipole width scale 1)
+  Hartree-Fock: mean 20.8449 bohr^3, diagonal 17.0709 18.9307 26.5332, off-diagonal 1.8e0 1.9e0 -2.4e0
+  MP2: mean 23.3844 bohr^3, diagonal 18.9174 21.5126 29.7231, off-diagonal 2.3e0 1.9e0 -3.2e0
+  atomic polarisabilities by class [6.445496458297224, 7.870810259329879, 5.082451196704331, 2.216311201334369, 6.951355038845747] bohr^3 (classes [0, 1, 2, 3, 4]); the model's tensor: mean 23.6907, diagonal 20.6642 22.3855 28.0224; residual rms 1.16e0
+  written to polar-formic_acid.txt

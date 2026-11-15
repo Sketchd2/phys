@@ -20,3 +20,6 @@
 - 2026-11-15 Hydrogen peroxide's law (8 pairs, old queue) begins HOLE: no liquid, recorded.
 - 2026-11-15 A replacement worker's pushes were refused as non-fast-forward (its branch starts from mine, not the old history): worker.sh's push now records the old history as a parent with `merge -s ours` and retries. Worker 19's methylamine full set to NFULL=12 (job not yet run; 2 heavy atoms).
 - 2026-11-15 By the owner: wakes every 62 minutes instead of hourly, so that a wake drifts across the hour and lands soon after a limit resets. Each wake first schedules the next with send_later (+62 min); the old hourly task is now a 6-hourly backstop (:37) that re-arms the chain only if no wake is pending. First 62-minute wake 23:08 UTC.
+- 2026-11-15 Water's own stage law (12 pairs) begins HOLE (deepest bound pair comes out +0.48 against -3.62): no stage liquid for water; its D3 boiling point (325.6 K, hand law) stands under species/water/hand/.
+- 2026-11-15 merge.sh now also copies runs/e8f/shortfall (the D1 extra results were not being merged). D1 summary written to shortfall/D1-summary.md.
+- 2026-11-15 Replacement worker 19 still refused after the merge fix: the clone is shallow, so the merge needs --allow-unrelated-histories; added.

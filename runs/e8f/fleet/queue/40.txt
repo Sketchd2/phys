@@ -8,3 +8,4 @@ water-full12 species/water NFULL=12 ../../fleet/stage.sh full water
 d1-more-methane-ammonia shortfall bash more2.sh
 water-law species/water [ -f relaw.mark ] || { mkdir -p hand; mv law.ok law.txt plan.ok boil.ok boil.log liquid hand/ 2>/dev/null; touch relaw.mark; }; ../../fleet/stage.sh law water
 water-plan species/water ../../fleet/stage.sh plan water
+isopropanol-grow species/isopropanol ../../fleet/stage.sh grow isopropanol
