@@ -714,3 +714,27 @@ round 8: 236 functions, E -189.65144480, 2010 s
   shape (A, deg): 1.20113 1.36126 1.11378 0.97704 122.299 124.286 113.415 109.229
   added 3, predicted to move: -0.00000 +0.00002 -0.00000 +0.00001 +4.657 -0.017 +0.000 -0.004; left 287.69
   relaxed at 239 functions, 92 s into round 9; 16 probes of 195 candidates to go
+  round 9 probe 1/16: 50/195 candidates, 145 s into the round; about 13 min left in it
+  round 9 probe 1/16: 100/195 candidates, 145 s into the round; about 13 min left in it
+  round 9 probe 1/16: 150/195 candidates, 145 s into the round; about 13 min left in it
+  round 9 probe 1/16: 195/195 candidates, 146 s into the round; about 14 min left in it
+  round 9 probe 2/16: 50/195 candidates, 199 s into the round; about 13 min left in it
+  round 9 probe 2/16: 100/195 candidates, 200 s into the round; about 13 min left in it
+  round 9 probe 2/16: 150/195 candidates, 200 s into the round; about 13 min left in it
+  round 9 probe 2/16: 195/195 candidates, 200 s into the round; about 13 min left in it
+  round 9 probe 3/16: 50/195 candidates, 252 s into the round; about 11 min left in it
+  round 9 probe 3/16: 100/195 candidates, 252 s into the round; about 11 min left in it
+  round 9 probe 3/16: 150/195 candidates, 252 s into the round; about 11 min left in it
+  round 9 probe 3/16: 195/195 candidates, 252 s into the round; about 11 min left in it
+  round 9 probe 4/16: 50/195 candidates, 307 s into the round; about 11 min left in it
+  round 9 probe 4/16: 100/195 candidates, 307 s into the round; about 11 min left in it
+  round 9 probe 4/16: 150/195 candidates, 307 s into the round; about 11 min left in it
+  round 9 probe 4/16: 195/195 candidates, 307 s into the round; about 11 min left in it
+  round 9 probe 5/16: 50/195 candidates, 362 s into the round; about 10 min left in it
+  round 9 probe 5/16: 100/195 candidates, 362 s into the round; about 10 min left in it
+  round 9 probe 5/16: 150/195 candidates, 362 s into the round; about 10 min left in it
+  round 9 probe 5/16: 195/195 candidates, 362 s into the round; about 10 min left in it
+  round 9 probe 6/16: 50/195 candidates, 415 s into the round; about 9 min left in it
+  round 9 probe 6/16: 100/195 candidates, 415 s into the round; about 9 min left in it
+  round 9 probe 6/16: 150/195 candidates, 415 s into the round; about 9 min left in it
+  round 9 probe 6/16: 195/195 candidates, 415 s into the round; about 9 min left in it
