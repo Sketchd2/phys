@@ -160,3 +160,22 @@ propane: 11 atoms, 10 bonds; starting
   round 0 probe 20/22: 300/363 candidates, 3900 s into the round; about 4 min left in it
   round 0 probe 20/22: 350/363 candidates, 3900 s into the round; about 4 min left in it
   round 0 probe 20/22: 363/363 candidates, 3901 s into the round; about 4 min left in it
+  round 0 probe 21/22: 50/363 candidates, 4011 s into the round; about 2 min left in it
+  round 0 probe 21/22: 100/363 candidates, 4011 s into the round; about 2 min left in it
+  round 0 probe 21/22: 150/363 candidates, 4011 s into the round; about 2 min left in it
+  round 0 probe 21/22: 200/363 candidates, 4011 s into the round; about 2 min left in it
+  round 0 probe 21/22: 250/363 candidates, 4011 s into the round; about 2 min left in it
+  round 0 probe 21/22: 300/363 candidates, 4012 s into the round; about 2 min left in it
+  round 0 probe 21/22: 350/363 candidates, 4012 s into the round; about 2 min left in it
+  round 0 probe 21/22: 363/363 candidates, 4012 s into the round; about 2 min left in it
+  round 0 probe 22/22: 50/363 candidates, 4125 s into the round; under a minute left in it
+  round 0 probe 22/22: 100/363 candidates, 4125 s into the round; under a minute left in it
+  round 0 probe 22/22: 150/363 candidates, 4125 s into the round; under a minute left in it
+  round 0 probe 22/22: 200/363 candidates, 4126 s into the round; under a minute left in it
+  round 0 probe 22/22: 250/363 candidates, 4126 s into the round; under a minute left in it
+  round 0 probe 22/22: 300/363 candidates, 4126 s into the round; under a minute left in it
+  round 0 probe 22/22: 350/363 candidates, 4126 s into the round; under a minute left in it
+  round 0 probe 22/22: 363/363 candidates, 4126 s into the round; under a minute left in it
+round 0: 143 functions, E -118.97773259, 4126 s
+  shape (A, deg): 1.53356 1.53367 1.10798 1.10807 1.10807 1.10961 1.10961 1.10797 1.10808 1.10808 112.046 111.159 111.159 107.552 107.552 107.140 112.840 109.509 109.509 109.515 109.515 105.704 112.080 111.144 111.144 107.553 107.553 107.134
+  added 8, predicted to move: +0.00174 +0.00174 -0.00592 -0.00561 -0.00561 -0.00633 -0.00633 -0.00592 -0.00561 -0.00561 -0.129 +0.073 +0.073 -0.040 -0.040 +0.058 -0.081 +0.002 +0.002 +0.002 +0.002 +0.123 -0.129 +0.073 +0.073 -0.040 -0.040 +0.058; left 436.73
