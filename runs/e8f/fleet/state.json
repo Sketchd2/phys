@@ -1,7 +1,7 @@
 {
- "children": 15,
+ "children": 17,
  "window": "allowed, resets 22:10 UTC",
- "note": "wake 6. Acetonitrile grown -> mono..plan on 43. Ethylene, hydrogen peroxide past grow on their old queues. Ammonia liquid 7/34. Workers 48, 49 created.",
+ "note": "wake 7. Laws so far: methane HOLE, methanol HOLE, ammonia suspect. Water's stage law queued (D3 kept under water/hand). Worker 19 replaced. Workers 50, 51 created.",
  "wakes": [
   {
    "t": "2026-11-15T15:20Z",
@@ -41,6 +41,12 @@
    "status": "allowed",
    "resetsAt": 1794780600,
    "orchestrator_cost_usd": 5.78
+  },
+  {
+   "t": "2026-11-15T21:09Z",
+   "limit_stop": false,
+   "status": "allowed",
+   "resetsAt": 1794780600
   }
  ],
  "burn_usd": null,
@@ -58,7 +64,7 @@
  "sessions": {
   "17": "session_016vyme1XcdtHJE8PoTECBas",
   "18": "session_016vymdwzgwaBFwSQUMxifoD",
-  "19": "session_016vymdwqcVGC3hnLt8AXrrn",
+  "19": "session_016vymdzdU5kbYAceYLwuAt7",
   "20": "session_016vymdyz9WRFNwNaHMuGWZr",
   "21": "session_016vymdyKJerHrQC6iPpQwjH",
   "30": "session_016vyme14JZxYm78edJDgxpz",
@@ -71,6 +77,8 @@
   "46": "session_016vymdwFFGWCPM5vpRBNMud",
   "47": "session_016vymdzkYiz4gUMAni5rz2d",
   "48": "session_016vyme13dtHuX7BGoX9S7nX",
-  "49": "session_016vymdxfKPv9JYkN4KBUYgN"
+  "49": "session_016vymdxfKPv9JYkN4KBUYgN",
+  "50": "session_016vymdywXkYfi7Sym566tNM",
+  "51": "session_016vymdxPQSA3S3aJz9YkTKs"
  }
 }

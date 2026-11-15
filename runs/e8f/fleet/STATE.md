@@ -1,5 +1,16 @@
 # Fleet state (the orchestrator's own notes; newest first)
 
+## 2026-11-15 21:09 UTC, wake 7
+
+- PATTERN FOR THE OWNER: two of three stage laws so far begin HOLE (methane 12 pairs, methanol 12 pairs; B2 -inf),
+  and ammonia's is not HOLE but has attractive "repulsive" pairs. law.py gives laws with an attractive hole at
+  contact; HANDOFF names a core (newlaw/core.py) as the remedy. Not the pipeline's to add (owner decision); by the
+  brief each such species stops at law and is recorded. Data for D1/D2 is unaffected.
+- Water stages grow..full done (40); water law + plan queued on 40 (marker moves hand law aside on the worker).
+  D3 result (325.6 K) kept at species/water/hand/.
+- Ammonia liquid 16/34. Methanol: law HOLE. Acetonitrile at pairs (43). H2O2 at full (21), ethylene at pairs (18).
+- Worker 19 replaced (new session, my branch); old archived. Created 50 (dichloromethane) and 51 (isobutane). Count 17.
+
 ## 2026-11-15 20:08 UTC, wake 6
 
 - Grown: acetonitrile (SETTLED r9) -> 43 runs mono, pairs, full (NFULL 8, 3 heavy), law, plan. Ethylene grow ended
