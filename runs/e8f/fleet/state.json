@@ -1,6 +1,6 @@
 {
  "children": 19,
- "window": "allowed; first window passed with no limit stop (reset 22:10 UTC)",
+ "window": "allowed, new window resets 03:10 UTC",
  "note": "wake 8. Laws: methane, methanol, H2O2 HOLE; ammonia suspect (liquid 20/34). Formic acid, hydrazine grown. Replacement 19 could not push (fixed). Workers 52, 53.",
  "wakes": [
   {
@@ -54,6 +54,13 @@
    "status": "allowed",
    "resetsAt": 1794780600,
    "orchestrator_cost_usd": 7.16
+  },
+  {
+   "t": "2026-11-15T22:14Z",
+   "limit_stop": false,
+   "status": "allowed",
+   "resetsAt": 1794798600,
+   "note": "check asked by the owner after the reset"
   }
  ],
  "burn_usd": null,

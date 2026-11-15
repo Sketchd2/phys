@@ -1,5 +1,12 @@
 # Fleet state (the orchestrator's own notes; newest first)
 
+## 2026-11-15 22:14 UTC, check after the window reset (owner asked)
+
+- No worker stopped at the limit; new window allowed, resets 03:10 UTC. 52, 53 building.
+- Worker 45 had ended its turn at 21:39 (not a limit stop): resume sent.
+- Worker 19 replacement: every push since 21:15 refused (non-ff); the fixed worker.sh reaches it from its next call
+  (its 22:05 call started before the fix). merge -s ours tested here against w-19: works.
+
 ## 2026-11-15 22:08 UTC, wake 8
 
 - Laws so far: methane HOLE, methanol HOLE, hydrogen_peroxide HOLE (8 pairs), ammonia not HOLE but suspect.
