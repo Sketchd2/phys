@@ -643,3 +643,24 @@ round 2: 136 functions, E -154.89644733, 9463 s
   added 3, predicted to move: -0.00431 -0.02216 +0.00221 +0.00151 +0.00151 +0.00181 +0.00181 -0.00032 -0.253 +0.135 +0.135 -0.096 -0.096 +0.154 +0.458 -0.156 -0.156 +0.097 +0.097 -0.680 +0.642; left 266.62
 ethanol: 9 atoms, 8 bonds; carrying on from round 3
   relaxed at 164 functions, 1780 s into round 3; 30 probes of 305 candidates to go
+  round 3 probe 1/30: 50/305 candidates, 1897 s into the round; about 57 min left in it
+  round 3 probe 1/30: 100/305 candidates, 1897 s into the round; about 57 min left in it
+  round 3 probe 1/30: 150/305 candidates, 1897 s into the round; about 57 min left in it
+  round 3 probe 1/30: 200/305 candidates, 1897 s into the round; about 57 min left in it
+  round 3 probe 1/30: 250/305 candidates, 1898 s into the round; about 57 min left in it
+  round 3 probe 1/30: 300/305 candidates, 1898 s into the round; about 57 min left in it
+  round 3 probe 1/30: 305/305 candidates, 1898 s into the round; about 57 min left in it
+  round 3 probe 2/30: 50/305 candidates, 2011 s into the round; about 53 min left in it
+  round 3 probe 2/30: 100/305 candidates, 2012 s into the round; about 53 min left in it
+  round 3 probe 2/30: 150/305 candidates, 2012 s into the round; about 53 min left in it
+  round 3 probe 2/30: 200/305 candidates, 2012 s into the round; about 53 min left in it
+  round 3 probe 2/30: 250/305 candidates, 2012 s into the round; about 53 min left in it
+  round 3 probe 2/30: 300/305 candidates, 2013 s into the round; about 54 min left in it
+  round 3 probe 2/30: 305/305 candidates, 2013 s into the round; about 54 min left in it
+  round 3 probe 3/30: 50/305 candidates, 2120 s into the round; about 48 min left in it
+  round 3 probe 3/30: 100/305 candidates, 2120 s into the round; about 48 min left in it
+  round 3 probe 3/30: 150/305 candidates, 2121 s into the round; about 48 min left in it
+  round 3 probe 3/30: 200/305 candidates, 2121 s into the round; about 48 min left in it
+  round 3 probe 3/30: 250/305 candidates, 2121 s into the round; about 48 min left in it
+  round 3 probe 3/30: 300/305 candidates, 2121 s into the round; about 49 min left in it
+  round 3 probe 3/30: 305/305 candidates, 2122 s into the round; about 49 min left in it
