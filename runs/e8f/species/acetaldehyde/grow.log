@@ -547,3 +547,16 @@ round 2: 124 functions, E -153.70439179, 1873 s
   round 3 probe 22/24: 150/247 candidates, 2025 s into the round; about 3 min left in it
   round 3 probe 22/24: 200/247 candidates, 2026 s into the round; about 3 min left in it
   round 3 probe 22/24: 247/247 candidates, 2026 s into the round; about 3 min left in it
+  round 3 probe 23/24: 50/247 candidates, 2135 s into the round; about 2 min left in it
+  round 3 probe 23/24: 100/247 candidates, 2135 s into the round; about 2 min left in it
+  round 3 probe 23/24: 150/247 candidates, 2135 s into the round; about 2 min left in it
+  round 3 probe 23/24: 200/247 candidates, 2135 s into the round; about 2 min left in it
+  round 3 probe 23/24: 247/247 candidates, 2135 s into the round; about 2 min left in it
+  round 3 probe 24/24: 50/247 candidates, 2244 s into the round; under a minute left in it
+  round 3 probe 24/24: 100/247 candidates, 2244 s into the round; under a minute left in it
+  round 3 probe 24/24: 150/247 candidates, 2244 s into the round; under a minute left in it
+  round 3 probe 24/24: 200/247 candidates, 2245 s into the round; under a minute left in it
+  round 3 probe 24/24: 247/247 candidates, 2245 s into the round; under a minute left in it
+round 3: 143 functions, E -153.70765362, 4118 s
+  shape (A, deg): 1.49796 1.21673 1.10462 1.10463 1.09798 1.12606 109.355 109.368 111.138 106.233 110.309 110.310 124.861 115.079 120.061
+  added 3, predicted to move: +0.00197 -0.00006 -0.00011 -0.00011 +0.00018 -0.00004 -0.044 -0.044 +0.109 -0.049 +0.005 +0.005 +726.288 +0.000 -0.472; left 12083.49
