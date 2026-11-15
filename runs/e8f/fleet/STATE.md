@@ -1,5 +1,16 @@
 # Fleet state (the orchestrator's own notes; newest first)
 
+## 2026-11-15 17:10 UTC, wake 3
+
+- FOUND: wake 2's merge undid the ammonia/methane moves (whole-directory checkout of w-30, an old-main branch).
+  Fixed: merge with `bash runs/e8f/fleet/merge.sh N...` ONLY. worker.sh now prunes files main removed.
+- Ammonia redo on 42 (new ids ...b). Methane on 41: grow/mono/pairs done, full12 running, then law, plan2.
+- Methanol full12: 4 of 12 pairs (40). 17-21 still in grow (rounds 5-9).
+- Created 42 (ammonia, propane, ethylamine, DME, formic acid grows) and 43 (acetonitrile, ethanol, acetaldehyde grows). Count 9.
+- Usage: cost_usd now appears for the orchestrator (2.44); worker costs not yet summed. Window reset 17:10.
+- Next: rebalance unstarted grow lines onto new workers as count grows; when 17-21 finish law, queue their plan
+  (job ids <name>-plan) and liquid states; when methane/methanol plans exist, spread liquid states.
+
 ## 2026-11-15 16:08 UTC, wake 2
 
 - No limit stop at wakes 1-2: created workers 40 and 41 (count 7 with 17-21). Sessions in state.json.
