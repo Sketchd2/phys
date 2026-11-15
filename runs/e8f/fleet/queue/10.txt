@@ -1,3 +1,4 @@
 water-liq-1130-0.0196 species/water ../../fleet/liquid-state.sh water 1130 0.0196 12
 water-liq-1130-0.0196-again species/water ../../fleet/liquid-state.sh water 1130 0.0196 12
+cargo-test2 fleet/test cd ../../../.. && (cargo test --no-fail-fast -- --skip s22_subset > runs/e8f/fleet/test/test.log 2>&1; grep -E '^test result|FAILED|failed' runs/e8f/fleet/test/test.log > runs/e8f/fleet/test/summary.txt; cargo check --target wasm32-unknown-unknown --lib 2>&1 | tail -1 >> runs/e8f/fleet/test/summary.txt; true)
 STOP
