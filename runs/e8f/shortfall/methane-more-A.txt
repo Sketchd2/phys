@@ -1,1 +1,2 @@
 # methane dimer (S22; CCSD(T)/CBS -0.530 kcal/mol at scale 1): scale, heavy-atom distance (A), counterpoise HF, MP2 correlation, total; uncorrected HF, MP2 correlation, total; seconds
+1.000 3.7183 [714 functions] 0.3666 -0.8443 -0.4778 0.3492 -0.9382 -0.5891 1604
