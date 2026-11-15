@@ -1,0 +1,28 @@
+induced dipoles on, polarisabilities by site type [14.4921, 0.0, 0.0, 0.0, 0.0] bohr^3
+ammonia at 304 K: 64 molecules, 0.712 g/cm3, box 25.79 bohr (13.65 A), cut-off 12.6 bohr
+  Ewald sum on: s' = 4.2 bohr, 1003 reciprocal vectors
+  start: U/N -1.24 kcal/mol
+  easing: U/N -6.14 kcal/mol, T 292/361 K, P -2512 bar
+  settling: U/N -17.96 kcal/mol, T 333/382 K, P 2484 bar
+  warming: U/N -18.89 kcal/mol, T 384/284 K, P 2423 bar
+  0% after 522 s: U/N -18.89 kcal/mol, P 2382 bar
+  8% after 555 s: U/N -18.90 kcal/mol, P 2807 bar
+  17% after 588 s: U/N -19.07 kcal/mol, P 4088 bar
+  25% after 621 s: U/N -19.21 kcal/mol, P 4141 bar
+  33% after 655 s: U/N -19.02 kcal/mol, P 4617 bar
+  42% after 688 s: U/N -18.78 kcal/mol, P 5123 bar
+  50% after 721 s: U/N -19.12 kcal/mol, P 909 bar
+  58% after 753 s: U/N -19.17 kcal/mol, P 3124 bar
+  67% after 786 s: U/N -19.14 kcal/mol, P 2928 bar
+  75% after 819 s: U/N -19.53 kcal/mol, P 4118 bar
+  83% after 851 s: U/N -19.44 kcal/mol, P 3594 bar
+  92% after 883 s: U/N -19.59 kcal/mol, P 1293 bar
+  100% after 916 s: U/N -19.59 kcal/mol, P -1026 bar
+ammonia at 304 K (96 samples over 10 ps, block standard errors):
+  U/N -19.218 +- 0.118 kcal/mol; heat of vaporisation -U/N + RT = 19.822 kcal/mol
+  pressure 2540 +- 306 bar at 0.712 g/cm3 (a liquid at the right density sits near 1 bar; positive says it wants to expand)
+  temperatures: translation 307.5 K, rotation 289.0 K (bath 304 K)
+  mean molecular dipole 4.160 D (permanent charges and induced dipoles); dielectric constant 4.4 (blocks 1.6 +- 0.1; slow to converge)
+  dispersion beyond the cut-off (C6 93.67): -513 bar and -0.293 kcal/mol a molecule, so pressure with it 2027 bar, U/N -19.511
+  g(first atoms): first peak 5.85 at 2.25 A, first minimum 0.02 at 2.75 A, second peak 2.03 at 4.45 A, coordination to the minimum 1.99 (bulk-ammonia-304.gOO.txt)
+  snapshot in bulk-ammonia-304.snap

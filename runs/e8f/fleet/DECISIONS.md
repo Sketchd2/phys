@@ -14,3 +14,6 @@
 - 2026-11-15 Ammonia's 12-pair law is not HOLE but is poor (bound rms 0.49, two repulsive pairs come out attractive, B2(300 K) = -9.7e4 cm3/mol): it goes to the liquid as the brief says, flagged as suspect in the results.
 - 2026-11-15 Worker 19 ended its turn at 17:33 with its queue unfinished and was sent the resume message at 19:08.
 - 2026-11-15 Ethylene's grow ended with phys-grow exiting on its own at round 8 before settled.py's rule was met (largest change 8.6e-3 against 0.005); it continues with that basis, noted for the table.
+- 2026-11-15 Methanol's 12-pair law begins HOLE too (B2(300 K) -inf): no liquid, recorded.
+- 2026-11-15 Water's D3 hand law, plan, boiling point and 34 liquid states moved to species/water/hand/ (D3's result stands there); water's own stage law and plan queued on 40.
+- 2026-11-15 Worker 19 stopped again at 19:22 after the resume: replaced by a new session with the same number (reads my branch); the old session archived so that two do not push to one branch.
