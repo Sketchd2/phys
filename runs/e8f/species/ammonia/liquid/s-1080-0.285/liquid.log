@@ -3,3 +3,6 @@ ammonia at 1080 K: 64 molecules, 0.285 g/cm3, box 35.00 bohr (18.52 A), cut-off 
   Ewald sum on: s' = 4.2 bohr, 2520 reciprocal vectors
   start: U/N -0.60 kcal/mol
   easing: U/N -0.90 kcal/mol, T 969/1012 K, P 1102 bar
+  settling: U/N -3.14 kcal/mol, T 1269/998 K, P 1370 bar
+  warming: U/N -4.09 kcal/mol, T 889/1170 K, P 676 bar
+  0% after 583 s: U/N -4.08 kcal/mol, P 640 bar
