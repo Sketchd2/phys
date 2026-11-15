@@ -17,3 +17,12 @@ water at 248 K: 64 molecules, 0.883 g/cm3, box 24.46 bohr (12.94 A), cut-off 12.
   75% after 548 s: U/N -9.04 kcal/mol, P -622 bar
   83% after 568 s: U/N -8.84 kcal/mol, P -1152 bar
   92% after 588 s: U/N -8.83 kcal/mol, P -719 bar
+  100% after 609 s: U/N -9.10 kcal/mol, P 713 bar
+water at 248 K (96 samples over 10 ps, block standard errors):
+  U/N -8.959 +- 0.023 kcal/mol; heat of vaporisation -U/N + RT = 9.452 kcal/mol
+  pressure -1512 +- 188 bar at 0.883 g/cm3 (a liquid at the right density sits near 1 bar; positive says it wants to expand)
+  temperatures: translation 236.2 K, rotation 237.6 K (bath 248 K)
+  mean molecular dipole 2.756 D (permanent charges and induced dipoles); dielectric constant 11.9 (blocks 7.1 +- 1.2; slow to converge)
+  dispersion beyond the cut-off (C6 25.95): -232 bar and -0.113 kcal/mol a molecule, so pressure with it -1744 bar, U/N -9.072
+  g(first atoms): first peak 3.05 at 2.85 A, first minimum 0.83 at 3.95 A, second peak 1.10 at 4.95 A, coordination to the minimum 6.61 (bulk-water-248.gOO.txt)
+  snapshot in bulk-water-248.snap
