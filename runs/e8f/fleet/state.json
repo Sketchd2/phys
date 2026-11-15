@@ -1,7 +1,7 @@
 {
- "children": 9,
- "window": "allowed; the window reset at 17:10 UTC",
- "note": "wake 3. Workers 42 (ammonia redo, then grows) and 43 (grows) created. Merge fixed (merge.sh).",
+ "children": 11,
+ "window": "allowed, resets 22:10 UTC",
+ "note": "wake 4. Fixed worker.sh clobbering a worker's own files; methane law redone from 12 pairs on 41. Workers 44, 45 created.",
  "wakes": [
   {
    "t": "2026-11-15T15:20Z",
@@ -21,6 +21,13 @@
    "status": "allowed",
    "resetsAt": 1794762600,
    "orchestrator_cost_usd": 2.44
+  },
+  {
+   "t": "2026-11-15T18:10Z",
+   "limit_stop": false,
+   "status": "allowed",
+   "resetsAt": 1794780600,
+   "orchestrator_cost_usd": 3.78
   }
  ],
  "burn_usd": null,
@@ -45,6 +52,8 @@
   "40": "session_016vymdzT2myCNHmtdGguZfz",
   "41": "session_016vymdzAnDwJwqm4LUt8M1z",
   "42": "session_016vymdw2KeUGhh6HibXvTE5",
-  "43": "session_016vymdz85zTZdRMEVx3GS9Z"
+  "43": "session_016vymdz85zTZdRMEVx3GS9Z",
+  "44": "session_016vymdwyE9H9qYPScmKaY9L",
+  "45": "session_016vymdx4LxpFVW66cvwa6QY"
  }
 }

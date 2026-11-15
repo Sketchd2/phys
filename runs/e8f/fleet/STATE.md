@@ -1,5 +1,15 @@
 # Fleet state (the orchestrator's own notes; newest first)
 
+## 2026-11-15 18:10 UTC, wake 4
+
+- FOUND: worker.sh's job-start checkout overwrote a worker's own newer files with main's (methane full 12 -> 2 pairs,
+  law HOLE from 2 pairs). Fixed: a worker keeps files its own commits wrote. merge-skip.txt excludes 41's stale ammonia
+  and its truncated methane full files. Methane lawb/planb queued on 41 (restores 12 pairs from its commit 36db96c).
+- Ammonia on 42: 24 pairs done, full 8/12. Methanol full 6/12 on 40. 17-21 still growing.
+- Created 44 (DME, formic acid grows, then dichloromethane) and 45 (ethanol, acetaldehyde, then isobutane). Count 11.
+- Window allowed, resets 22:10 UTC. Orchestrator cost 3.78 USD.
+- Next: check methane law (no HOLE) and plan -> spread its liquid states over idle workers (41 is idle after planb).
+
 ## 2026-11-15 17:10 UTC, wake 3
 
 - FOUND: wake 2's merge undid the ammonia/methane moves (whole-directory checkout of w-30, an old-main branch).
