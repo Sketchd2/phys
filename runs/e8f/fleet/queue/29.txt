@@ -1,0 +1,6 @@
+ethylamine-grow species/ethylamine ../../fleet/stage.sh grow ethylamine
+ethylamine-mono species/ethylamine ../../fleet/stage.sh mono ethylamine
+ethylamine-pairs species/ethylamine ../../fleet/stage.sh pairs ethylamine
+ethylamine-full species/ethylamine ../../fleet/stage.sh full ethylamine
+ethylamine-law species/ethylamine ../../fleet/stage.sh law ethylamine
+STOP

@@ -1,0 +1,6 @@
+propane-grow species/propane ../../fleet/stage.sh grow propane
+propane-mono species/propane ../../fleet/stage.sh mono propane
+propane-pairs species/propane ../../fleet/stage.sh pairs propane
+propane-full species/propane ../../fleet/stage.sh full propane
+propane-law species/propane ../../fleet/stage.sh law propane
+STOP

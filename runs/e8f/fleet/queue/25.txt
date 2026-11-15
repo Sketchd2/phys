@@ -1,0 +1,6 @@
+ethanol-grow species/ethanol ../../fleet/stage.sh grow ethanol
+ethanol-mono species/ethanol ../../fleet/stage.sh mono ethanol
+ethanol-pairs species/ethanol ../../fleet/stage.sh pairs ethanol
+ethanol-full species/ethanol ../../fleet/stage.sh full ethanol
+ethanol-law species/ethanol ../../fleet/stage.sh law ethanol
+STOP

@@ -1,0 +1,6 @@
+ethylene-grow species/ethylene ../../fleet/stage.sh grow ethylene
+ethylene-mono species/ethylene ../../fleet/stage.sh mono ethylene
+ethylene-pairs species/ethylene ../../fleet/stage.sh pairs ethylene
+ethylene-full species/ethylene ../../fleet/stage.sh full ethylene
+ethylene-law species/ethylene ../../fleet/stage.sh law ethylene
+STOP

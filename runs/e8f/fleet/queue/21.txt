@@ -1,0 +1,6 @@
+hydrogen_peroxide-grow species/hydrogen_peroxide ../../fleet/stage.sh grow hydrogen_peroxide
+hydrogen_peroxide-mono species/hydrogen_peroxide ../../fleet/stage.sh mono hydrogen_peroxide
+hydrogen_peroxide-pairs species/hydrogen_peroxide ../../fleet/stage.sh pairs hydrogen_peroxide
+hydrogen_peroxide-full species/hydrogen_peroxide ../../fleet/stage.sh full hydrogen_peroxide
+hydrogen_peroxide-law species/hydrogen_peroxide ../../fleet/stage.sh law hydrogen_peroxide
+STOP

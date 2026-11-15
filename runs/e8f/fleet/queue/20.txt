@@ -1,0 +1,6 @@
+hydrazine-grow species/hydrazine ../../fleet/stage.sh grow hydrazine
+hydrazine-mono species/hydrazine ../../fleet/stage.sh mono hydrazine
+hydrazine-pairs species/hydrazine ../../fleet/stage.sh pairs hydrazine
+hydrazine-full species/hydrazine ../../fleet/stage.sh full hydrazine
+hydrazine-law species/hydrazine ../../fleet/stage.sh law hydrazine
+STOP

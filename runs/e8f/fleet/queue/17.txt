@@ -1,0 +1,6 @@
+ethane-grow species/ethane ../../fleet/stage.sh grow ethane
+ethane-mono species/ethane ../../fleet/stage.sh mono ethane
+ethane-pairs species/ethane ../../fleet/stage.sh pairs ethane
+ethane-full species/ethane ../../fleet/stage.sh full ethane
+ethane-law species/ethane ../../fleet/stage.sh law ethane
+STOP
