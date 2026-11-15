@@ -103,3 +103,34 @@ methylamine: 7 atoms, 6 bonds; starting
 round 0: 92 functions, E -95.74314458, 1468 s
   shape (A, deg): 1.48157 1.10759 1.11752 1.10759 1.03893 1.03894 108.798 115.661 108.803 108.189 106.864 108.184 108.273 108.274 104.583
   added 4, predicted to move: +0.00049 +0.00210 +0.00128 +0.00210 -0.01505 -0.01505 +0.146 -0.208 +0.146 -0.274 +0.476 -0.274 +2.510 +2.510 +1.782; left 498.57
+  relaxed at 107 functions, 426 s into round 1; 20 probes of 230 candidates to go
+  round 1 probe 1/20: 50/230 candidates, 458 s into the round; about 10 min left in it
+  round 1 probe 1/20: 100/230 candidates, 458 s into the round; about 10 min left in it
+  round 1 probe 1/20: 150/230 candidates, 458 s into the round; about 10 min left in it
+  round 1 probe 1/20: 200/230 candidates, 458 s into the round; about 10 min left in it
+  round 1 probe 1/20: 230/230 candidates, 458 s into the round; about 10 min left in it
+  round 1 probe 2/20: 50/230 candidates, 491 s into the round; about 10 min left in it
+  round 1 probe 2/20: 100/230 candidates, 491 s into the round; about 10 min left in it
+  round 1 probe 2/20: 150/230 candidates, 491 s into the round; about 10 min left in it
+  round 1 probe 2/20: 200/230 candidates, 492 s into the round; about 10 min left in it
+  round 1 probe 2/20: 230/230 candidates, 492 s into the round; about 10 min left in it
+  round 1 probe 3/20: 50/230 candidates, 528 s into the round; about 10 min left in it
+  round 1 probe 3/20: 100/230 candidates, 528 s into the round; about 10 min left in it
+  round 1 probe 3/20: 150/230 candidates, 528 s into the round; about 10 min left in it
+  round 1 probe 3/20: 200/230 candidates, 528 s into the round; about 10 min left in it
+  round 1 probe 3/20: 230/230 candidates, 529 s into the round; about 10 min left in it
+  round 1 probe 4/20: 50/230 candidates, 561 s into the round; about 9 min left in it
+  round 1 probe 4/20: 100/230 candidates, 561 s into the round; about 9 min left in it
+  round 1 probe 4/20: 150/230 candidates, 561 s into the round; about 9 min left in it
+  round 1 probe 4/20: 200/230 candidates, 561 s into the round; about 9 min left in it
+  round 1 probe 4/20: 230/230 candidates, 561 s into the round; about 9 min left in it
+  round 1 probe 5/20: 50/230 candidates, 597 s into the round; about 9 min left in it
+  round 1 probe 5/20: 100/230 candidates, 597 s into the round; about 9 min left in it
+  round 1 probe 5/20: 150/230 candidates, 597 s into the round; about 9 min left in it
+  round 1 probe 5/20: 200/230 candidates, 597 s into the round; about 9 min left in it
+  round 1 probe 5/20: 230/230 candidates, 597 s into the round; about 9 min left in it
+  round 1 probe 6/20: 50/230 candidates, 630 s into the round; about 8 min left in it
+  round 1 probe 6/20: 100/230 candidates, 630 s into the round; about 8 min left in it
+  round 1 probe 6/20: 150/230 candidates, 630 s into the round; about 8 min left in it
+  round 1 probe 6/20: 200/230 candidates, 630 s into the round; about 8 min left in it
+  round 1 probe 6/20: 230/230 candidates, 630 s into the round; about 8 min left in it
