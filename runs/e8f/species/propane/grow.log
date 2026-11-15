@@ -721,3 +721,19 @@ round 3: 211 functions, E -119.00376127, 14919 s
   shape (A, deg): 1.52977 1.52990 1.10011 1.10235 1.10235 1.10360 1.10360 1.10009 1.10237 1.10237 111.739 111.053 111.053 107.679 107.679 107.443 112.872 109.471 109.471 109.476 109.476 105.832 111.771 111.040 111.040 107.680 107.680 107.435
   added 5, predicted to move: -0.00136 -0.00136 -0.00112 -0.00037 -0.00037 +0.00017 +0.00017 -0.00112 -0.00037 -0.00037 -0.064 +0.061 +0.061 -0.028 -0.028 -0.016 +0.167 -0.066 -0.066 -0.066 -0.066 +0.047 -0.064 +0.061 +0.061 -0.028 -0.028 -0.016; left 83.74
   relaxed at 253 functions, 3514 s into round 4; 22 probes of 362 candidates to go
+  round 4 probe 1/22: 50/362 candidates, 3711 s into the round; about 70 min left in it
+  round 4 probe 1/22: 100/362 candidates, 3712 s into the round; about 70 min left in it
+  round 4 probe 1/22: 150/362 candidates, 3712 s into the round; about 70 min left in it
+  round 4 probe 1/22: 200/362 candidates, 3712 s into the round; about 70 min left in it
+  round 4 probe 1/22: 250/362 candidates, 3713 s into the round; about 70 min left in it
+  round 4 probe 1/22: 300/362 candidates, 3713 s into the round; about 70 min left in it
+  round 4 probe 1/22: 350/362 candidates, 3714 s into the round; about 70 min left in it
+  round 4 probe 1/22: 362/362 candidates, 3714 s into the round; about 70 min left in it
+  round 4 probe 2/22: 50/362 candidates, 3910 s into the round; about 66 min left in it
+  round 4 probe 2/22: 100/362 candidates, 3911 s into the round; about 66 min left in it
+  round 4 probe 2/22: 150/362 candidates, 3911 s into the round; about 66 min left in it
+  round 4 probe 2/22: 200/362 candidates, 3911 s into the round; about 66 min left in it
+  round 4 probe 2/22: 250/362 candidates, 3912 s into the round; about 66 min left in it
+  round 4 probe 2/22: 300/362 candidates, 3912 s into the round; about 66 min left in it
+  round 4 probe 2/22: 350/362 candidates, 3913 s into the round; about 66 min left in it
+  round 4 probe 2/22: 362/362 candidates, 3913 s into the round; about 66 min left in it
