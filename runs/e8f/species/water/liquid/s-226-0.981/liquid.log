@@ -4,3 +4,9 @@ water at 226 K: 64 molecules, 0.981 g/cm3, box 23.62 bohr (12.50 A), cut-off 11.
   start: U/N -3.60 kcal/mol
   easing: U/N -8.00 kcal/mol, T 217/201 K, P -1905 bar
   settling: U/N -9.08 kcal/mol, T 258/248 K, P 314 bar
+  warming: U/N -9.05 kcal/mol, T 236/206 K, P 855 bar
+  0% after 494 s: U/N -9.05 kcal/mol, P 860 bar
+  8% after 521 s: U/N -9.28 kcal/mol, P -293 bar
+  17% after 549 s: U/N -9.28 kcal/mol, P 456 bar
+  25% after 576 s: U/N -9.41 kcal/mol, P 941 bar
+  33% after 601 s: U/N -9.34 kcal/mol, P 486 bar
