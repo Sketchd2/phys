@@ -1,0 +1,6 @@
+induced dipoles on, polarisabilities by site type [14.4921, 0.0, 0.0, 0.0, 0.0] bohr^3
+ammonia at 217 K: 64 molecules, 0.712 g/cm3, box 25.79 bohr (13.65 A), cut-off 12.6 bohr
+  Ewald sum on: s' = 4.2 bohr, 1003 reciprocal vectors
+  start: U/N -1.24 kcal/mol
+  easing: U/N -6.63 kcal/mol, T 301/290 K, P -3485 bar
+  settling: U/N -18.97 kcal/mol, T 283/213 K, P 2639 bar
