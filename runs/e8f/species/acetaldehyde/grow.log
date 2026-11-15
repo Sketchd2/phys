@@ -428,3 +428,11 @@ acetaldehyde: 7 atoms, 6 bonds; carrying on from round 2
   round 2 probe 23/24: 150/250 candidates, 1776 s into the round; about 2 min left in it
   round 2 probe 23/24: 200/250 candidates, 1776 s into the round; about 2 min left in it
   round 2 probe 23/24: 250/250 candidates, 1776 s into the round; about 2 min left in it
+  round 2 probe 24/24: 50/250 candidates, 1873 s into the round; under a minute left in it
+  round 2 probe 24/24: 100/250 candidates, 1873 s into the round; under a minute left in it
+  round 2 probe 24/24: 150/250 candidates, 1873 s into the round; under a minute left in it
+  round 2 probe 24/24: 200/250 candidates, 1873 s into the round; under a minute left in it
+  round 2 probe 24/24: 250/250 candidates, 1873 s into the round; under a minute left in it
+round 2: 124 functions, E -153.70439179, 1873 s
+  shape (A, deg): 1.49905 1.21752 1.10457 1.10458 1.09805 1.12629 109.388 109.402 110.967 106.208 110.377 110.379 124.788 115.169 120.042
+  added 3, predicted to move: -0.00092 -0.00015 -0.00004 -0.00004 -0.00018 -0.00048 -0.033 -0.033 +0.084 +0.082 -0.055 -0.055 +0.000 +0.000 -4105.085; left 43185.83
