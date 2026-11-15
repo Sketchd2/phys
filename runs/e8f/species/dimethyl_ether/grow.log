@@ -680,3 +680,20 @@ round 4: 238 functions, E -154.89548193, 9586 s
   round 5 probe 14/16: 250/306 candidates, 4490 s into the round; about 7 min left in it
   round 5 probe 14/16: 300/306 candidates, 4491 s into the round; about 7 min left in it
   round 5 probe 14/16: 306/306 candidates, 4491 s into the round; about 7 min left in it
+  round 5 probe 15/16: 50/306 candidates, 4726 s into the round; about 4 min left in it
+  round 5 probe 15/16: 100/306 candidates, 4726 s into the round; about 4 min left in it
+  round 5 probe 15/16: 150/306 candidates, 4727 s into the round; about 4 min left in it
+  round 5 probe 15/16: 200/306 candidates, 4727 s into the round; about 4 min left in it
+  round 5 probe 15/16: 250/306 candidates, 4728 s into the round; about 4 min left in it
+  round 5 probe 15/16: 300/306 candidates, 4729 s into the round; about 4 min left in it
+  round 5 probe 15/16: 306/306 candidates, 4730 s into the round; about 4 min left in it
+  round 5 probe 16/16: 50/306 candidates, 4944 s into the round; under a minute left in it
+  round 5 probe 16/16: 100/306 candidates, 4944 s into the round; under a minute left in it
+  round 5 probe 16/16: 150/306 candidates, 4945 s into the round; under a minute left in it
+  round 5 probe 16/16: 200/306 candidates, 4945 s into the round; under a minute left in it
+  round 5 probe 16/16: 250/306 candidates, 4946 s into the round; under a minute left in it
+  round 5 probe 16/16: 300/306 candidates, 4947 s into the round; under a minute left in it
+  round 5 probe 16/16: 306/306 candidates, 4947 s into the round; under a minute left in it
+round 5: 262 functions, E -154.89885579, 14533 s
+  shape (A, deg): 1.41837 1.41839 1.09729 1.10739 1.10739 1.09728 1.10740 1.10740 107.225 111.526 111.526 109.077 109.077 108.358 111.777 107.225 111.528 111.528 109.076 109.076 108.357
+  added 6, predicted to move: -0.00020 -0.00020 -0.00264 -0.00005 -0.00005 -0.00264 -0.00005 -0.00005 +0.002 +0.006 +0.006 -0.016 -0.016 +0.009 -0.025 +0.002 +0.006 +0.006 -0.016 -0.016 +0.009; left 45.82
