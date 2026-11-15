@@ -1,0 +1,6 @@
+induced dipoles on, polarisabilities by site type [9.234316455280853, 0.8544488912439157, 0.0, 0.0, 0.0] bohr^3
+water at 1130 K: 64 molecules, 0.746 g/cm3, box 25.87 bohr (13.69 A), cut-off 12.7 bohr
+  Ewald sum on: s' = 4.2 bohr, 1003 reciprocal vectors
+  start: U/N -2.12 kcal/mol
+  easing: U/N -3.38 kcal/mol, T 1056/1216 K, P 4951 bar
+  settling: U/N -3.30 kcal/mol, T 1279/1017 K, P 12123 bar
