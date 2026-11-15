@@ -190,3 +190,16 @@ isobutane: 14 atoms, 13 bonds; starting
   round 0 probe 19/20: 400/466 candidates, 7409 s into the round; about 4 min left in it
   round 0 probe 19/20: 450/466 candidates, 7410 s into the round; about 4 min left in it
   round 0 probe 19/20: 466/466 candidates, 7410 s into the round; about 4 min left in it
+  round 0 probe 20/20: 50/466 candidates, 7637 s into the round; under a minute left in it
+  round 0 probe 20/20: 100/466 candidates, 7637 s into the round; under a minute left in it
+  round 0 probe 20/20: 150/466 candidates, 7638 s into the round; under a minute left in it
+  round 0 probe 20/20: 200/466 candidates, 7638 s into the round; under a minute left in it
+  round 0 probe 20/20: 250/466 candidates, 7639 s into the round; under a minute left in it
+  round 0 probe 20/20: 300/466 candidates, 7639 s into the round; under a minute left in it
+  round 0 probe 20/20: 350/466 candidates, 7640 s into the round; under a minute left in it
+  round 0 probe 20/20: 400/466 candidates, 7640 s into the round; under a minute left in it
+  round 0 probe 20/20: 450/466 candidates, 7640 s into the round; under a minute left in it
+  round 0 probe 20/20: 466/466 candidates, 7641 s into the round; under a minute left in it
+round 0: 184 functions, E -158.24478061, 7641 s
+  shape (A, deg): 1.53568 1.53590 1.53601 1.10742 1.10882 1.10741 1.11067 1.10742 1.10743 1.10891 1.10743 1.10888 1.10744 111.681 110.577 111.670 107.469 107.768 107.473 110.922 110.922 107.987 110.913 107.977 107.980 111.689 111.659 110.593 107.763 107.469 107.465 111.682 110.563 111.691 107.463 107.776 107.462
+  added 10, predicted to move: +0.00149 +0.00149 +0.00149 -0.00541 -0.00560 -0.00541 -0.00618 -0.00541 -0.00541 -0.00560 -0.00541 -0.00560 -0.00541 -0.014 +0.236 -0.014 -0.022 -0.194 -0.022 +0.032 +0.032 -0.043 +0.032 -0.043 -0.043 -0.014 -0.014 +0.236 -0.194 -0.022 -0.022 -0.014 +0.236 -0.014 -0.022 -0.194 -0.022; left 548.45
