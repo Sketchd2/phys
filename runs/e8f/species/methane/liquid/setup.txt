@@ -1,5 +1,0 @@
-M 16.043
-Thot 403
-rho_ref 0.436
-ewald off
-molecules 108

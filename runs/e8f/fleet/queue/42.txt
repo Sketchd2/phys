@@ -1,0 +1,8 @@
+ammonia-pairs24b species/ammonia ../../fleet/stage.sh pairs ammonia
+ammonia-full12b species/ammonia NFULL=12 ../../fleet/stage.sh full ammonia
+ammonia-law12b species/ammonia ../../fleet/stage.sh law ammonia
+ammonia-planb species/ammonia ../../fleet/stage.sh plan ammonia
+propane-grow2 species/propane ../../fleet/stage.sh grow propane
+ethylamine-grow2 species/ethylamine ../../fleet/stage.sh grow ethylamine
+dimethyl_ether-grow2 species/dimethyl_ether ../../fleet/stage.sh grow dimethyl_ether
+formic_acid-grow2 species/formic_acid ../../fleet/stage.sh grow formic_acid

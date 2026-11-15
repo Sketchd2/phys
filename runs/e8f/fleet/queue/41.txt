@@ -7,4 +7,4 @@ methane-mono species/methane ../../fleet/stage.sh mono methane
 methane-pairs species/methane ../../fleet/stage.sh pairs methane
 methane-full12 species/methane NFULL=12 ../../fleet/stage.sh full methane
 methane-law species/methane ../../fleet/stage.sh law methane
-methane-plan species/methane ../../fleet/stage.sh plan methane
+methane-plan2 species/methane [ -f replan.mark ] || { rm -rf plan.ok plan.log liquid; touch replan.mark; }; ../../fleet/stage.sh plan methane

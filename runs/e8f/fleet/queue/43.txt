@@ -1,0 +1,3 @@
+acetonitrile-grow2 species/acetonitrile ../../fleet/stage.sh grow acetonitrile
+ethanol-grow2 species/ethanol ../../fleet/stage.sh grow ethanol
+acetaldehyde-grow2 species/acetaldehyde ../../fleet/stage.sh grow acetaldehyde

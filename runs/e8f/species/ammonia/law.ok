@@ -1,4 +1,0 @@
-K 33.8793 damping 1.6 weighted rms 0.144 kcal/mol over 6 pairs (cp); deepest pair -0.492; polarisability: the MP2 mean 14.4921 shared among 1 heavy atoms
-bound pairs 3: mean error +0.075, rms 0.116; deepest: reference -0.492, law -0.515
-repulsive pairs 3: reference 6.5, 3.4, 0.2; law 76.8, 2.3, 0.1
-second virial coefficient (cm3/mol): 300 K: -600.7; 600 K: -25.99
