@@ -63,3 +63,4 @@ acetonitrile: 6 atoms, 5 bonds; starting
 round 0: 93 functions, E -132.58907000, 861 s
   shape (A, deg): 1.45801 1.19104 1.10680 1.10680 1.10680 111.025 111.026 111.026 107.873 107.873 107.873 180.000
   added 3, predicted to move: -0.00605 -0.01990 +0.00379 +0.00379 +0.00379 -0.879 -0.879 -0.879 +0.988 +0.988 +0.988 +0.000; left 534.87
+  relaxed at 109 functions, 346 s into round 1; 12 probes of 226 candidates to go
