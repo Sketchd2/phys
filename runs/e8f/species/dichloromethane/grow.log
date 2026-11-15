@@ -30,3 +30,26 @@ dichloromethane: 5 atoms, 4 bonds; starting
   round 0 probe 6/10: 150/241 candidates, 582 s into the round; about 2 min left in it
   round 0 probe 6/10: 200/241 candidates, 582 s into the round; about 2 min left in it
   round 0 probe 6/10: 241/241 candidates, 583 s into the round; about 2 min left in it
+  round 0 probe 7/10: 50/241 candidates, 611 s into the round; about 1 min left in it
+  round 0 probe 7/10: 100/241 candidates, 611 s into the round; about 1 min left in it
+  round 0 probe 7/10: 150/241 candidates, 611 s into the round; about 1 min left in it
+  round 0 probe 7/10: 200/241 candidates, 611 s into the round; about 1 min left in it
+  round 0 probe 7/10: 241/241 candidates, 611 s into the round; about 1 min left in it
+  round 0 probe 8/10: 50/241 candidates, 639 s into the round; under a minute left in it
+  round 0 probe 8/10: 100/241 candidates, 639 s into the round; under a minute left in it
+  round 0 probe 8/10: 150/241 candidates, 639 s into the round; under a minute left in it
+  round 0 probe 8/10: 200/241 candidates, 639 s into the round; under a minute left in it
+  round 0 probe 8/10: 241/241 candidates, 639 s into the round; under a minute left in it
+  round 0 probe 9/10: 50/241 candidates, 665 s into the round; under a minute left in it
+  round 0 probe 9/10: 100/241 candidates, 665 s into the round; under a minute left in it
+  round 0 probe 9/10: 150/241 candidates, 665 s into the round; under a minute left in it
+  round 0 probe 9/10: 200/241 candidates, 665 s into the round; under a minute left in it
+  round 0 probe 9/10: 241/241 candidates, 665 s into the round; under a minute left in it
+  round 0 probe 10/10: 50/241 candidates, 692 s into the round; under a minute left in it
+  round 0 probe 10/10: 100/241 candidates, 693 s into the round; under a minute left in it
+  round 0 probe 10/10: 150/241 candidates, 693 s into the round; under a minute left in it
+  round 0 probe 10/10: 200/241 candidates, 693 s into the round; under a minute left in it
+  round 0 probe 10/10: 241/241 candidates, 693 s into the round; under a minute left in it
+round 0: 91 functions, E -959.32407690, 693 s
+  shape (A, deg): 1.81326 1.81331 1.10536 1.10536 112.539 107.680 107.680 107.676 107.676 113.694
+  added 5, predicted to move: -0.01376 -0.01376 -0.02017 -0.02017 +0.759 +0.274 +0.274 +0.274 +0.274 -2.638; left 469.67
