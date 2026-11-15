@@ -11,6 +11,8 @@
 #            each one's electrostatics, density overlaps and exchange from frozen orbitals
 #   full     the first NFULL (default 8) chosen pairs again with the pair's own Hartree-Fock and
 #            MP2, uncorrected and counterpoise corrected (only sensible for small molecules)
+#   law      the species' law from its record and the full stage's energies (law.py): law.txt,
+#            and law.ok, which begins HOLE if the law must not be run as a liquid
 STAGE=$1; NAME=$2; ROOT=$(cd "$(dirname "$0")/../../.." && pwd); F=$ROOT/runs/e8f/fleet; B=$ROOT/target/release
 SPEC=$(awk -F'\t' -v n=$NAME '$1==n {print $3}' $F/species.tsv); [ -z "$SPEC" ] && { echo "no species $NAME"; exit 1; }
 export PHYS_SPILL_DIR=${PHYS_SPILL_DIR:-/tmp/spill}; mkdir -p $PHYS_SPILL_DIR
@@ -46,5 +48,8 @@ full)
   head -${NFULL:-8} pairs-$NAME-sel.txt > pairs-$NAME-full.txt
   $B/phys-overlap $NAME pairs-$NAME-full.txt --frozen --full --cp --out full-$NAME.txt >> full.log 2>&1 || exit 1
   echo "$(grep -c . full-$NAME.txt) pairs" > full.ok ;;
+law)
+  need full
+  python3 $F/law.py $NAME ${REF:-cp} > law.log 2>&1 || exit 1 ;;
 *) echo "no stage $STAGE"; exit 1 ;;
 esac

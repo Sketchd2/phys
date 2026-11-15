@@ -1,0 +1,5 @@
+M 18.015
+Thot 1130
+rho_ref 0.981
+ewald 4.2
+molecules 64

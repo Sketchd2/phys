@@ -19,3 +19,6 @@ grow-*.state.tmp
 # Binaries copied into run directories, and spill files from the engine (hundreds of MB).
 runs/**/*.exe
 runs/**/spill/
+
+# a species grown by the fleet keeps its state in its own directory, and the workers must be able to commit it
+!runs/e8f/species/**/grow-*.state
