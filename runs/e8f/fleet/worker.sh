@@ -69,7 +69,7 @@ while read -r J D CMD; do
   # inputs the job needs come from the main branch as it is now
   git checkout -q FETCH_HEAD -- runs/e8f/$D 2>/dev/null; mkdir -p runs/e8f/$D
   echo $J > $CUR; rm -f /tmp/fleet/rc-$J
-  ( cd runs/e8f/$D && nohup bash -c "$CMD; echo \$? > /tmp/fleet/rc-$J" > $F/log/$J.log 2>&1 & echo $! > $PID )
+  ( cd runs/e8f/$D && nohup bash -c "( $CMD ); echo \$? > /tmp/fleet/rc-$J" > $F/log/$J.log 2>&1 & echo $! > $PID )
   sleep 2
   if wait_for $(cat $PID); then
     rm -f $PID $CUR
