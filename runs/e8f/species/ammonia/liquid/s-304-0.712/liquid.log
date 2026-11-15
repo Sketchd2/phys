@@ -17,3 +17,12 @@ ammonia at 304 K: 64 molecules, 0.712 g/cm3, box 25.79 bohr (13.65 A), cut-off 1
   75% after 819 s: U/N -19.53 kcal/mol, P 4118 bar
   83% after 851 s: U/N -19.44 kcal/mol, P 3594 bar
   92% after 883 s: U/N -19.59 kcal/mol, P 1293 bar
+  100% after 916 s: U/N -19.59 kcal/mol, P -1026 bar
+ammonia at 304 K (96 samples over 10 ps, block standard errors):
+  U/N -19.218 +- 0.118 kcal/mol; heat of vaporisation -U/N + RT = 19.822 kcal/mol
+  pressure 2540 +- 306 bar at 0.712 g/cm3 (a liquid at the right density sits near 1 bar; positive says it wants to expand)
+  temperatures: translation 307.5 K, rotation 289.0 K (bath 304 K)
+  mean molecular dipole 4.160 D (permanent charges and induced dipoles); dielectric constant 4.4 (blocks 1.6 +- 0.1; slow to converge)
+  dispersion beyond the cut-off (C6 93.67): -513 bar and -0.293 kcal/mol a molecule, so pressure with it 2027 bar, U/N -19.511
+  g(first atoms): first peak 5.85 at 2.25 A, first minimum 0.02 at 2.75 A, second peak 2.03 at 4.45 A, coordination to the minimum 1.99 (bulk-ammonia-304.gOO.txt)
+  snapshot in bulk-ammonia-304.snap
