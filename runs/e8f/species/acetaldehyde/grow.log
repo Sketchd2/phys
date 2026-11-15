@@ -666,3 +666,21 @@ round 3: 143 functions, E -153.70765362, 4118 s
   round 4 probe 21/24: 150/244 candidates, 1866 s into the round; about 6 min left in it
   round 4 probe 21/24: 200/244 candidates, 1866 s into the round; about 6 min left in it
   round 4 probe 21/24: 244/244 candidates, 1866 s into the round; about 6 min left in it
+  round 4 probe 22/24: 50/244 candidates, 1979 s into the round; about 4 min left in it
+  round 4 probe 22/24: 100/244 candidates, 1979 s into the round; about 4 min left in it
+  round 4 probe 22/24: 150/244 candidates, 1979 s into the round; about 4 min left in it
+  round 4 probe 22/24: 200/244 candidates, 1979 s into the round; about 4 min left in it
+  round 4 probe 22/24: 244/244 candidates, 1980 s into the round; about 4 min left in it
+  round 4 probe 23/24: 50/244 candidates, 2084 s into the round; about 2 min left in it
+  round 4 probe 23/24: 100/244 candidates, 2084 s into the round; about 2 min left in it
+  round 4 probe 23/24: 150/244 candidates, 2084 s into the round; about 2 min left in it
+  round 4 probe 23/24: 200/244 candidates, 2084 s into the round; about 2 min left in it
+  round 4 probe 23/24: 244/244 candidates, 2084 s into the round; about 2 min left in it
+  round 4 probe 24/24: 50/244 candidates, 2192 s into the round; under a minute left in it
+  round 4 probe 24/24: 100/244 candidates, 2192 s into the round; under a minute left in it
+  round 4 probe 24/24: 150/244 candidates, 2192 s into the round; under a minute left in it
+  round 4 probe 24/24: 200/244 candidates, 2192 s into the round; under a minute left in it
+  round 4 probe 24/24: 244/244 candidates, 2192 s into the round; under a minute left in it
+round 4: 159 functions, E -153.71065316, 6310 s
+  shape (A, deg): 1.50120 1.21640 1.10316 1.10317 1.09711 1.12585 109.292 109.305 111.220 106.312 110.291 110.292 124.927 114.952 120.121
+  added 3, predicted to move: -0.00009 -0.00050 +0.00001 +0.00001 -0.00003 -0.00001 -0.012 -0.012 +0.017 -0.006 +0.005 +0.005 -2.260 +0.000 +0.000; left 143.74
