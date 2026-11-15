@@ -1,1 +1,8 @@
-methane: dipole Hartree-Fock 0.0000 au
+methane: dipole Hartree-Fock 0.0000 au (0.000 D), target 0.0000 au (0.000 D)
+  8084 potential points; the target's RMS 1.788e0, its mean -1.754e0 hartree/e
+  localised in 11 sweeps: 4 bond orbitals, 0 lone pairs (1 core orbitals frozen out of the localisation)
+  valence electrons 8, cores [4.0, 1.0]
+  atom class 0: cloud 4.516 electrons, width 1.589 bohr
+  atom class 1: cloud 0.871 electrons, width 1.371 bohr
+  potential RMS 1.457e-3 hartree/e (atom-centred point charges alone: 3.733e-3)
+  written to cloud-methane.txt
