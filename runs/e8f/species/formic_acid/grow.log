@@ -380,3 +380,26 @@ round 3: 152 functions, E -189.63973561, 3805 s
   round 4 probe 12/16: 150/201 candidates, 1024 s into the round; about 5 min left in it
   round 4 probe 12/16: 200/201 candidates, 1024 s into the round; about 5 min left in it
   round 4 probe 12/16: 201/201 candidates, 1024 s into the round; about 5 min left in it
+  round 4 probe 13/16: 50/201 candidates, 1100 s into the round; about 4 min left in it
+  round 4 probe 13/16: 100/201 candidates, 1101 s into the round; about 4 min left in it
+  round 4 probe 13/16: 150/201 candidates, 1101 s into the round; about 4 min left in it
+  round 4 probe 13/16: 200/201 candidates, 1101 s into the round; about 4 min left in it
+  round 4 probe 13/16: 201/201 candidates, 1101 s into the round; about 4 min left in it
+  round 4 probe 14/16: 50/201 candidates, 1177 s into the round; about 3 min left in it
+  round 4 probe 14/16: 100/201 candidates, 1177 s into the round; about 3 min left in it
+  round 4 probe 14/16: 150/201 candidates, 1177 s into the round; about 3 min left in it
+  round 4 probe 14/16: 200/201 candidates, 1177 s into the round; about 3 min left in it
+  round 4 probe 14/16: 201/201 candidates, 1177 s into the round; about 3 min left in it
+  round 4 probe 15/16: 50/201 candidates, 1214 s into the round; under a minute left in it
+  round 4 probe 15/16: 100/201 candidates, 1214 s into the round; under a minute left in it
+  round 4 probe 15/16: 150/201 candidates, 1214 s into the round; under a minute left in it
+  round 4 probe 15/16: 200/201 candidates, 1214 s into the round; under a minute left in it
+  round 4 probe 15/16: 201/201 candidates, 1214 s into the round; under a minute left in it
+  round 4 probe 16/16: 50/201 candidates, 1252 s into the round; under a minute left in it
+  round 4 probe 16/16: 100/201 candidates, 1252 s into the round; under a minute left in it
+  round 4 probe 16/16: 150/201 candidates, 1252 s into the round; under a minute left in it
+  round 4 probe 16/16: 200/201 candidates, 1252 s into the round; under a minute left in it
+  round 4 probe 16/16: 201/201 candidates, 1252 s into the round; under a minute left in it
+round 4: 161 functions, E -189.64576644, 5057 s
+  shape (A, deg): 1.20306 1.36186 1.11269 0.98361 122.331 124.182 113.488 108.756
+  added 3, predicted to move: -0.00017 +0.00063 +0.00006 -0.00274 +6.507 +0.000 +0.000 +0.164; left 338.65
