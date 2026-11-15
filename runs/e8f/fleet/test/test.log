@@ -796,3 +796,296 @@ test a_saved_round_reads_back_exactly ... ok
 test the_estimate_does_not_depend_on_which_way_the_molecule_faces ... ok
 test the_cheap_estimate_tracks_adding_a_function_and_solving ... ok
 test probing_by_symmetry_picks_what_probing_everything_picks has been running for over 60 seconds
+test probing_by_symmetry_picks_what_probing_everything_picks ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 86.42s
+
+     Running tests/growth.rs (target/debug/deps/growth-1e0c0329f6156df9)
+
+running 13 tests
+test construction_completes_and_reports_it ... ok
+test event_log_is_bounded ... ok
+test growth_obeys_both_laws ... ok
+test growth_responds_to_conditions ... ok
+test growth_saturates_from_allometry ... ok
+test impossible_transactions_are_refused ... ok
+test partial_construction_renders_partially ... ok
+test engine_grows_unobserved_structures ... ok
+test developmental_state_is_small ... ok
+test the_same_tree_comes_back ... ok
+test structures_round_trip_through_the_tree ... ok
+test damage_persists_through_regeneration ... ok
+test structures_conserve_like_everything_else ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.18s
+
+     Running tests/hf.rs (target/debug/deps/hf-65edac77a5e950c4)
+
+running 3 tests
+test frozen_core_counts_the_first_shell_of_real_atoms ... ok
+test the_dipole_integrals_move_with_the_origin_as_the_overlap_does ... ok
+test fitted_theory_agrees_with_exact_integrals has been running for over 60 seconds
+test fitted_theory_agrees_with_exact_integrals ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 86.62s
+
+     Running tests/induction.rs (target/debug/deps/induction-3f2190d763ff056e)
+
+running 5 tests
+test far_from_a_charge_the_site_is_a_polarisable_atom ... ok
+test a_molecules_polarisability_comes_from_its_atoms_and_their_coupling ... ok
+test a_warm_start_is_the_same_answer_sooner ... ok
+test forces_are_the_derivative_of_the_energy ... ok
+test the_error_function_matches_known_values ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/interaction.rs (target/debug/deps/interaction-7e021d77c722d905)
+
+running 7 tests
+test measurement_commits_permanently ... ok
+test instruments_disagree_appropriately ... ok
+test interactions_respect_light_delay ... ok
+test authoring_is_audited ... ok
+test measurement_disturbs ... ok
+test touched_detail_is_persisted ... ok
+test repeated_zoom_does_not_drift ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.39s
+
+     Running tests/lake.rs (target/debug/deps/lake-d4c8dc728ad1d67d)
+
+running 1 test
+test rain_on_a_basin_stands_as_a_lake has been running for over 60 seconds
+test rain_on_a_basin_stands_as_a_lake ... FAILED
+
+failures:
+
+---- rain_on_a_basin_stands_as_a_lake stdout ----
+  poured 229 kg: the world's mass moved 229.000 kg
+  after ten minutes: 1269 of 2969 columns wet, surface 0.06620 to 0.06620 m (flat to 3.7e-7 m), lowest bed 0.0472 m, 8.58 kg held of 229 poured, volume 0.00864 m^3 against 0.00864 (0 frames filmed)
+  a year on: surface 0.07380 to 0.08481 m, 2969 columns, 25.814 kg; the patch's mass 1904.926 -> 1904.926
+
+thread 'rain_on_a_basin_stands_as_a_lake' (28315) panicked at tests/lake.rs:164:5:
+the lake gained or lost water: 8.578561184134749 -> 25.814235973832954 kg
+stack backtrace:
+   0: __rustc::rust_begin_unwind
+             at /rustc/2d8144b7880597b6e6d3dfd63a9a9efae3f533d3/library/std/src/panicking.rs:689:5
+   1: core::panicking::panic_fmt
+             at /rustc/2d8144b7880597b6e6d3dfd63a9a9efae3f533d3/library/core/src/panicking.rs:80:14
+   2: lake::rain_on_a_basin_stands_as_a_lake
+   3: lake::rain_on_a_basin_stands_as_a_lake::{closure#0}
+             at ./tests/lake.rs:90:38
+   4: <lake::rain_on_a_basin_stands_as_a_lake::{closure#0} as core::ops::function::FnOnce<()>>::call_once
+             at /rustc/2d8144b7880597b6e6d3dfd63a9a9efae3f533d3/library/core/src/ops/function.rs:250:5
+   5: <fn() -> core::result::Result<(), alloc::string::String> as core::ops::function::FnOnce<()>>::call_once
+             at /rustc/2d8144b7880597b6e6d3dfd63a9a9efae3f533d3/library/core/src/ops/function.rs:250:5
+note: Some details are omitted, run with `RUST_BACKTRACE=full` for a verbose backtrace.
+
+
+failures:
+    rain_on_a_basin_stands_as_a_lake
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 72.19s
+
+error: test failed, to rerun pass `--test lake`
+     Running tests/layout.rs (target/debug/deps/layout-f40fed1447d94aa6)
+
+running 3 tests
+test the_engine_derives_a_program_for_molten_rock_cooling ... ok
+test a_faster_freeze_lays_down_a_finer_grain ... ok
+test rock_that_was_never_molten_gets_no_layout ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/liquid.rs (target/debug/deps/liquid-1edb5e9c0ed459cf)
+
+running 21 tests
+test a_density_profile_counts_every_molecule ... ok
+test a_kind_sits_on_its_principal_axes ... ok
+test a_law_reads_back_exactly ... ok
+test a_law_with_a_bisector_line_still_reads ... ok
+test a_laws_bisector_line_is_read ... ok
+test a_laws_polarisabilities_are_read_from_its_text ... ok
+test a_free_rotor_keeps_its_energy_and_angular_momentum ... ok
+test a_massless_site_rides_along ... ok
+test a_polarisable_liquid_keeps_its_energy ... ok
+test a_slab_is_built_at_its_density ... ok
+test a_smeared_charge_is_a_point_charge_far_away_and_softer_near ... ok
+test induced_forces_and_torques_are_the_derivative_of_the_energy ... ok
+test a_fit_holds_what_it_is_told_to_hold ... ok
+test the_site_site_law_is_consistent ... ok
+test the_switch_is_smooth ... ok
+test the_threaded_induction_solve_is_repeatable_and_correct ... ok
+test the_virial_is_minus_the_energy_slope_under_scaling ... ok
+test the_virial_with_induction_is_minus_the_energy_slope_under_scaling ... ok
+test a_liquid_without_a_bath_keeps_its_energy_and_momentum ... ok
+test the_fitter_recovers_a_law_from_its_own_energies ... ok
+test a_bath_brings_translation_and_rotation_to_its_temperature ... ok
+
+test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.37s
+
+     Running tests/liquids.rs (target/debug/deps/liquids-7f11e5f79980dc75)
+
+running 7 tests
+test a_crystal_expands_by_the_gruneisen_relation ... ok
+test a_density_follows_the_temperature ... ok
+test the_equation_of_state_follows_the_temperature ... ok
+test water_is_about_as_dense_as_water ... ok
+test a_boiling_point_is_derived_from_the_arrangement ... ok
+test a_ring_is_closed_in_its_conformer ... ok
+test a_density_is_derived_from_geometry_and_the_boiling_point ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+     Running tests/localise.rs (target/debug/deps/localise-13bae8eb318c8072)
+
+running 1 test
+test water_localises_to_two_bonds_and_two_lone_pairs ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 12.04s
+
+     Running tests/material.rs (target/debug/deps/material-4fa59cd3aa7c1823)
+
+running 7 tests
+test a_small_piece_cannot_hold_a_large_flaw ... ok
+test matter_that_nothing_generated_still_has_a_material ... ok
+test a_boulder_and_a_cliff_face_of_the_same_rock_differ_by_size ... ok
+test one_substance_and_two_histories_make_two_materials ... ok
+test the_densities_are_derived_and_land ... ok
+test the_ordering_survives_without_the_table ... ok
+test the_derived_strengths_are_the_right_size ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/pace.rs (target/debug/deps/pace-acebed188841b3c8)
+
+running 4 tests
+test a_fresh_world_runs_at_one_second_per_second ... ok
+test pacing_to_a_subject_is_available_on_request ... ok
+test refining_what_is_watched_does_not_change_the_clock ... ok
+test a_starved_world_keeps_its_clock_and_falls_behind_instead ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.57s
+
+     Running tests/partition.rs (target/debug/deps/partition-0b78969d4545c5b8)
+
+running 2 tests
+test a_free_atom_holds_its_electrons ... ok
+test water_is_shared_among_its_atoms ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 25.36s
+
+     Running tests/persistence.rs (target/debug/deps/persistence-4c90ea3fdc58c358)
+
+running 11 tests
+test committed_facts_survive ... ok
+test an_unpinned_reload_comes_back_coarse ... ok
+test malformed_input_errors_rather_than_panicking ... ok
+test regenerated_detail_matches_what_was_discarded ... ok
+test reloading_does_not_change_the_future ... ok
+test a_world_survives_a_round_trip_through_a_file ... ok
+test the_format_stamp_tracks_the_format ... ok
+test the_memory_store_is_the_same_format ... ok
+test saving_is_deterministic ... ok
+test pinned_detail_returns_byte_identical ... ok
+test every_field_round_trips ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.15s
+
+     Running tests/postgres.rs (target/debug/deps/postgres-c9d75900e1bdfe5a)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/probes.rs (target/debug/deps/probes-41f3d9f19e656d04)
+
+running 11 tests
+test every_building_program_books_its_embodied_energy ... ok
+test every_habit_honours_a_severance ... ok
+test growth_is_not_markovian_in_the_light_integral ... ok
+test shape_is_blind_to_the_conditions_it_grew_in ... ok
+test the_embodied_energy_check_has_the_digits ... ok
+test the_resolution_floor_is_what_the_plan_says ... ok
+test the_sixty_fifth_severance_resurrects_the_first_thirty_two ... ok
+test a_limb_ruptures_long_before_it_leaves_the_linear_regime ... ok
+test an_undesigned_genome_renders_something_finite ... ok
+test a_pinned_body_costs_about_241_bytes_to_checkpoint ... ok
+test the_trajectory_path_runs_out_inside_continuum ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.21s
+
+     Running tests/profile_guard.rs (target/debug/deps/profile_guard-170dfa39124ff5ef)
+
+running 2 tests
+test debug_assertions_are_on ... ok
+test overflow_checks_are_on - should panic ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+
+     Running tests/promoted.rs (target/debug/deps/promoted-e2ada5e17f2fc312)
+
+running 9 tests
+test a_node_without_children_is_unaffected ... ok
+test a_reloaded_node_keeps_what_was_promoted_out_of_it ... ok
+test a_childs_binding_survives_being_folded_back_in ... ok
+test a_structure_that_sheds_a_limb_leaves_no_unreachable_node ... ok
+test coarsening_still_recovers_the_child ... ok
+test a_child_and_its_stand_in_agree_whenever_they_are_synced ... ok
+test a_promoted_child_feels_a_force ... ok
+test two_promoted_siblings_perturb_each_other ... ok
+test the_drift_between_syncs_stays_bounded ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.77s
+
+     Running tests/queue.rs (target/debug/deps/queue-1928f99d071c8b94)
+
+running 11 tests
+test a_plan_can_state_weight_and_memory ... ok
+test a_plan_leaves_out_what_is_done_and_refuses_overlaps ... ok
+test a_result_for_another_index_is_refused ... ok
+test a_task_goes_only_to_a_machine_it_fits_in ... ok
+test a_lost_lease_is_handed_on_and_a_late_result_is_dropped ... ok
+test a_slow_machine_is_given_a_longer_lease ... ok
+test a_task_that_keeps_failing_is_left_alone ... ok
+test a_worker_too_small_for_what_is_left_stops ... ok
+test every_task_is_done_once_by_a_machine_of_its_class ... ok
+test heavy_tasks_go_to_fast_machines_and_light_ones_to_slow ... ok
+test a_worker_stops_at_its_limit_and_gives_up_on_a_missing_server ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 22.08s
+
+     Running tests/reparent.rs (target/debug/deps/reparent-1aab879a0b603b19)
+
+running 9 tests
+test a_move_does_not_touch_the_tables_keyed_by_identity ... ok
+test a_move_carries_what_the_node_is_made_of ... ok
+test a_move_does_not_teleport ... ok
+test identities_are_issued_once_and_never_reused ... ok
+test a_move_conserves_everything ... ok
+test a_moved_node_keeps_its_name_while_its_address_changes ... ok
+test a_move_rekeys_the_subtree ... ok
+test impossible_moves_are_refused ... ok
+test identity_does_not_depend_on_how_fast_the_machine_is ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 24.64s
+
+     Running tests/sand.rs (target/debug/deps/sand-0e3704284c0ab44c)
+
+running 4 tests
+test a_loose_grain_sits_in_a_pocket_its_packing_sets ... ok
+test a_squiggle_in_drowned_sand_goes_and_one_in_granite_stays ... ok
+test what_holds_a_grain_of_sand_is_not_a_bond ... ok
+test a_cut_in_dry_or_drowned_sand_slumps_and_one_in_damp_sand_stands ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/scenarios.rs (target/debug/deps/scenarios-d2d7b2f7cd99e939)
+
+running 6 tests
+test every_scenario_samples_its_contents_inside_itself ... ok
+test every_scenario_refines_and_conserves ... ok
+test descending_and_returning_leaves_no_trace ... ok
+test the_ladder_runs_all_the_way_down ... ok
+test every_scenario_steps ... ok
