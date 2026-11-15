@@ -1,5 +1,13 @@
 # Fleet state (the orchestrator's own notes; newest first)
 
+## 2026-11-15 20:08 UTC, wake 6
+
+- Grown: acetonitrile (SETTLED r9) -> 43 runs mono, pairs, full (NFULL 8, 3 heavy), law, plan. Ethylene grow ended
+  unsettled (phys-grow exited, r8); 18 on pairs. H2O2 grown, pairs done (21). Both on old queues -> full (8), law.
+- Ammonia liquid 7/34 (46, 47). Methanol full on 40 still. 19 resumed (pushed 54 min ago).
+- Created 48 (ethylamine grow) and 49 (formic acid grow). Count 15. Window allowed, resets 22:10. Orchestrator 5.78 USD.
+- When 17-21 reach law (STOP on old queue): queue their plan + liquid on new workers (not on 17-21, old main).
+
 ## 2026-11-15 19:09 UTC, wake 5
 
 - Methane: law from 12 pairs is HOLE -> stops (recorded). Ammonia: law K 7.00 damping 1.0, suspect (see DECISIONS);
