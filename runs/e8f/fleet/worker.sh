@@ -27,7 +27,13 @@ git checkout -q -B $BR 2>/dev/null
 PUSHED=""
 push() {  # commit everything under runs/e8f and push to this worker's branch, four tries
   git add -A runs/e8f >/dev/null 2>&1; git commit -qm "fleet worker $W: $1" >/dev/null 2>&1
-  for t in 2 4 8 16; do git push -q -u origin $BR 2>/tmp/fleet/push.err && return 0; sleep $t; done
+  for t in 2 4 8 16; do git push -q -u origin $BR 2>/tmp/fleet/push.err && return 0
+    # a replacement worker starts from the main branch, not from the history it replaces, so its
+    # first push is not a fast-forward: record the old history as a parent, keeping this tree (which
+    # step 0 already filled from it), and try again
+    if grep -q 'non-fast-forward\|fetch first\|rejected' /tmp/fleet/push.err; then
+      git fetch -q origin $BR 2>/dev/null && git merge -q -s ours --no-edit FETCH_HEAD >/dev/null 2>&1; fi
+    sleep $t; done
   PUSHED=" (PUSH FAILED: $(tail -1 /tmp/fleet/push.err | cut -c1-120))"; return 1
 }
 wait_for() {  # wait up to 5 minutes for process $1 to end; 0 if it ended
