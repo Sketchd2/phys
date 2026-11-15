@@ -1429,3 +1429,94 @@ test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; fini
 
 running 1 test
 test profile_trimer has been running for over 60 seconds
+test profile_trimer ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 280.85s
+
+     Running tests/zz_scan.rs (target/debug/deps/zz_scan-dd6018c6edbe6239)
+
+running 1 test
+test scan ... FAILED
+
+failures:
+
+---- scan stdout ----
+
+thread 'scan' (18830) panicked at tests/zz_scan.rs:34:57:
+called `Result::unwrap()` on an `Err` value: NotPresent
+stack backtrace:
+   0: __rustc::rust_begin_unwind
+             at /rustc/2d8144b7880597b6e6d3dfd63a9a9efae3f533d3/library/std/src/panicking.rs:689:5
+   1: core::panicking::panic_fmt
+             at /rustc/2d8144b7880597b6e6d3dfd63a9a9efae3f533d3/library/core/src/panicking.rs:80:14
+   2: core::result::unwrap_failed
+             at /rustc/2d8144b7880597b6e6d3dfd63a9a9efae3f533d3/library/core/src/result.rs:1867:5
+   3: <core::result::Result<alloc::string::String, std::env::VarError>>::unwrap
+             at /rustc/2d8144b7880597b6e6d3dfd63a9a9efae3f533d3/library/core/src/result.rs:1233:23
+   4: zz_scan::scan
+             at ./tests/zz_scan.rs:34:57
+   5: zz_scan::scan::{closure#0}
+             at ./tests/zz_scan.rs:33:10
+   6: <zz_scan::scan::{closure#0} as core::ops::function::FnOnce<()>>::call_once
+             at /rustc/2d8144b7880597b6e6d3dfd63a9a9efae3f533d3/library/core/src/ops/function.rs:250:5
+   7: <fn() -> core::result::Result<(), alloc::string::String> as core::ops::function::FnOnce<()>>::call_once
+             at /rustc/2d8144b7880597b6e6d3dfd63a9a9efae3f533d3/library/core/src/ops/function.rs:250:5
+note: Some details are omitted, run with `RUST_BACKTRACE=full` for a verbose backtrace.
+
+
+failures:
+    scan
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s
+
+error: test failed, to rerun pass `--test zz_scan`
+     Running tests/zz_wallcheck.rs (target/debug/deps/zz_wallcheck-42d17d958f551483)
+
+running 1 test
+test wallcheck ... FAILED
+
+failures:
+
+---- wallcheck stdout ----
+
+thread 'wallcheck' (18832) panicked at tests/zz_wallcheck.rs:9:41:
+called `Result::unwrap()` on an `Err` value: NotPresent
+stack backtrace:
+   0: __rustc::rust_begin_unwind
+             at /rustc/2d8144b7880597b6e6d3dfd63a9a9efae3f533d3/library/std/src/panicking.rs:689:5
+   1: core::panicking::panic_fmt
+             at /rustc/2d8144b7880597b6e6d3dfd63a9a9efae3f533d3/library/core/src/panicking.rs:80:14
+   2: core::result::unwrap_failed
+             at /rustc/2d8144b7880597b6e6d3dfd63a9a9efae3f533d3/library/core/src/result.rs:1867:5
+   3: <core::result::Result<alloc::string::String, std::env::VarError>>::unwrap
+             at /rustc/2d8144b7880597b6e6d3dfd63a9a9efae3f533d3/library/core/src/result.rs:1233:23
+   4: zz_wallcheck::wallcheck
+             at ./tests/zz_wallcheck.rs:9:41
+   5: zz_wallcheck::wallcheck::{closure#0}
+             at ./tests/zz_wallcheck.rs:8:15
+   6: <zz_wallcheck::wallcheck::{closure#0} as core::ops::function::FnOnce<()>>::call_once
+             at /rustc/2d8144b7880597b6e6d3dfd63a9a9efae3f533d3/library/core/src/ops/function.rs:250:5
+   7: <fn() -> core::result::Result<(), alloc::string::String> as core::ops::function::FnOnce<()>>::call_once
+             at /rustc/2d8144b7880597b6e6d3dfd63a9a9efae3f533d3/library/core/src/ops/function.rs:250:5
+note: Some details are omitted, run with `RUST_BACKTRACE=full` for a verbose backtrace.
+
+
+failures:
+    wallcheck
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+
+error: test failed, to rerun pass `--test zz_wallcheck`
+   Doc-tests phys
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+error: 6 targets failed:
+    `--test budget`
+    `--test chem`
+    `--test fragments`
+    `--test lake`
+    `--test zz_scan`
+    `--test zz_wallcheck`
