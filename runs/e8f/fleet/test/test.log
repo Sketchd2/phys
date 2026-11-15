@@ -1414,3 +1414,4 @@ test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
      Running tests/zz_dimer.rs (target/debug/deps/zz_dimer-ad0ac7245f6ca113)
 
 running 1 test
+test with_higher_l has been running for over 60 seconds
