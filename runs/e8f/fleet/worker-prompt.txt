@@ -1,0 +1,9 @@
+You are worker N. Your whole job is to run one command over and over.
+
+From the repository root run: `bash runs/e8f/fleet/worker.sh N` with a timeout of 10 minutes (600000 ms). It prints one status line last. Then:
+- If the last line is `ALL DONE`: reply "worker N finished" and stop.
+- Anything else (BUILDING, RUNNING ..., FINISHED ..., FAILED ..., IDLE, or the command timing out): run the same command again at once.
+
+The script commits and pushes results to branch claude/e8f-w-N by itself; that is expected and wanted.
+
+Rules: do nothing else. Do not read or edit files, do not investigate failures, do not change the command, do not open a pull request. Do not end your turn until you see `ALL DONE`. Write at most a few words between runs.

@@ -13,6 +13,10 @@
 #            MP2, uncorrected and counterpoise corrected (only sensible for small molecules)
 #   law      the species' law from its record and the full stage's energies (law.py): law.txt,
 #            and law.ok, which begins HOLE if the law must not be run as a liquid
+#   plan     the liquid states, chosen from the law's own second virial coefficient
+#            (plan-liquid.py): liquid/states.txt, one "T density ps" a line, each of which is
+#            then a job of its own, `../../fleet/liquid-state.sh NAME T DENSITY PS`
+#   boil     the boiling point from the finished states (path.py): boil.ok
 STAGE=$1; NAME=$2; ROOT=$(cd "$(dirname "$0")/../../.." && pwd); F=$ROOT/runs/e8f/fleet; B=$ROOT/target/release
 SPEC=$(awk -F'\t' -v n=$NAME '$1==n {print $3}' $F/species.tsv); [ -z "$SPEC" ] && { echo "no species $NAME"; exit 1; }
 export PHYS_SPILL_DIR=${PHYS_SPILL_DIR:-/tmp/spill}; mkdir -p $PHYS_SPILL_DIR
@@ -51,5 +55,17 @@ full)
 law)
   need full
   python3 $F/law.py $NAME ${REF:-cp} > law.log 2>&1 || exit 1 ;;
+plan)
+  need law
+  grep -q '^HOLE' law.ok && { echo "the law has a hole; no liquid"; exit 1; }
+  python3 $F/plan-liquid.py $NAME > plan.log 2>&1 || exit 1 ;;
+boil)
+  need plan
+  WANT=$(grep -c . liquid/states.txt); HAVE=$(ls liquid/s-*/done 2>/dev/null | wc -l)
+  [ $HAVE -ge $((WANT * 9 / 10)) ] || { echo "$HAVE of $WANT liquid states are finished"; exit 1; }
+  M=$(awk '$1=="M"{print $2}' liquid/setup.txt); TH=$(awk '$1=="Thot"{print $2}' liquid/setup.txt); RR=$(awk '$1=="rho_ref"{print $2}' liquid/setup.txt)
+  python3 $ROOT/runs/e8f/path.py liquid $M $TH $RR "$(cat liquid/b2.arg)" > boil.log 2>&1 || exit 1
+  grep "crosses one atmosphere" boil.log | sed 's/.*atmosphere at //' > boil.ok
+  [ -s boil.ok ] || { echo "no crossing found" > boil.ok; } ;;
 *) echo "no stage $STAGE"; exit 1 ;;
 esac
