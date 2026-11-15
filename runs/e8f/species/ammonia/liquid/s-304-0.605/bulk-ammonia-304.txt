@@ -1,0 +1,2 @@
+# ammonia at 304 K, 64 molecules, 0.605 g/cm3, cut-off 13.342367408779102 bohr, law law.txt
+# ps  U_per_molecule_kcal  pressure_bar  T_translation  T_rotation
