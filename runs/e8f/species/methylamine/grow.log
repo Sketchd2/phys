@@ -55,3 +55,51 @@ methylamine: 7 atoms, 6 bonds; starting
   round 0 probe 11/20: 150/234 candidates, 1188 s into the round; about 5 min left in it
   round 0 probe 11/20: 200/234 candidates, 1188 s into the round; about 5 min left in it
   round 0 probe 11/20: 234/234 candidates, 1189 s into the round; about 5 min left in it
+  round 0 probe 12/20: 50/234 candidates, 1219 s into the round; about 4 min left in it
+  round 0 probe 12/20: 100/234 candidates, 1219 s into the round; about 4 min left in it
+  round 0 probe 12/20: 150/234 candidates, 1219 s into the round; about 4 min left in it
+  round 0 probe 12/20: 200/234 candidates, 1219 s into the round; about 4 min left in it
+  round 0 probe 12/20: 234/234 candidates, 1219 s into the round; about 4 min left in it
+  round 0 probe 13/20: 50/234 candidates, 1247 s into the round; about 3 min left in it
+  round 0 probe 13/20: 100/234 candidates, 1247 s into the round; about 3 min left in it
+  round 0 probe 13/20: 150/234 candidates, 1248 s into the round; about 3 min left in it
+  round 0 probe 13/20: 200/234 candidates, 1248 s into the round; about 3 min left in it
+  round 0 probe 13/20: 234/234 candidates, 1248 s into the round; about 3 min left in it
+  round 0 probe 14/20: 50/234 candidates, 1276 s into the round; about 3 min left in it
+  round 0 probe 14/20: 100/234 candidates, 1276 s into the round; about 3 min left in it
+  round 0 probe 14/20: 150/234 candidates, 1276 s into the round; about 3 min left in it
+  round 0 probe 14/20: 200/234 candidates, 1276 s into the round; about 3 min left in it
+  round 0 probe 14/20: 234/234 candidates, 1276 s into the round; about 3 min left in it
+  round 0 probe 15/20: 50/234 candidates, 1305 s into the round; about 2 min left in it
+  round 0 probe 15/20: 100/234 candidates, 1306 s into the round; about 2 min left in it
+  round 0 probe 15/20: 150/234 candidates, 1306 s into the round; about 2 min left in it
+  round 0 probe 15/20: 200/234 candidates, 1306 s into the round; about 2 min left in it
+  round 0 probe 15/20: 234/234 candidates, 1306 s into the round; about 2 min left in it
+  round 0 probe 16/20: 50/234 candidates, 1336 s into the round; about 2 min left in it
+  round 0 probe 16/20: 100/234 candidates, 1337 s into the round; about 2 min left in it
+  round 0 probe 16/20: 150/234 candidates, 1337 s into the round; about 2 min left in it
+  round 0 probe 16/20: 200/234 candidates, 1337 s into the round; about 2 min left in it
+  round 0 probe 16/20: 234/234 candidates, 1337 s into the round; about 2 min left in it
+  round 0 probe 17/20: 50/234 candidates, 1371 s into the round; about 2 min left in it
+  round 0 probe 17/20: 100/234 candidates, 1371 s into the round; about 2 min left in it
+  round 0 probe 17/20: 150/234 candidates, 1371 s into the round; about 2 min left in it
+  round 0 probe 17/20: 200/234 candidates, 1371 s into the round; about 2 min left in it
+  round 0 probe 17/20: 234/234 candidates, 1371 s into the round; about 2 min left in it
+  round 0 probe 18/20: 50/234 candidates, 1404 s into the round; about 1 min left in it
+  round 0 probe 18/20: 100/234 candidates, 1404 s into the round; about 1 min left in it
+  round 0 probe 18/20: 150/234 candidates, 1404 s into the round; about 1 min left in it
+  round 0 probe 18/20: 200/234 candidates, 1404 s into the round; about 1 min left in it
+  round 0 probe 18/20: 234/234 candidates, 1404 s into the round; about 1 min left in it
+  round 0 probe 19/20: 50/234 candidates, 1435 s into the round; under a minute left in it
+  round 0 probe 19/20: 100/234 candidates, 1435 s into the round; under a minute left in it
+  round 0 probe 19/20: 150/234 candidates, 1435 s into the round; under a minute left in it
+  round 0 probe 19/20: 200/234 candidates, 1435 s into the round; under a minute left in it
+  round 0 probe 19/20: 234/234 candidates, 1435 s into the round; under a minute left in it
+  round 0 probe 20/20: 50/234 candidates, 1467 s into the round; under a minute left in it
+  round 0 probe 20/20: 100/234 candidates, 1467 s into the round; under a minute left in it
+  round 0 probe 20/20: 150/234 candidates, 1467 s into the round; under a minute left in it
+  round 0 probe 20/20: 200/234 candidates, 1467 s into the round; under a minute left in it
+  round 0 probe 20/20: 234/234 candidates, 1468 s into the round; under a minute left in it
+round 0: 92 functions, E -95.74314458, 1468 s
+  shape (A, deg): 1.48157 1.10759 1.11752 1.10759 1.03893 1.03894 108.798 115.661 108.803 108.189 106.864 108.184 108.273 108.274 104.583
+  added 4, predicted to move: +0.00049 +0.00210 +0.00128 +0.00210 -0.01505 -0.01505 +0.146 -0.208 +0.146 -0.274 +0.476 -0.274 +2.510 +2.510 +1.782; left 498.57
