@@ -17,3 +17,12 @@ water at 1130 K: 64 molecules, 0.0491 g/cm3, box 64.08 bohr (33.91 A), cut-off 1
   75% after 4109 s: U/N -0.35 kcal/mol, P 282 bar
   83% after 4280 s: U/N -0.32 kcal/mol, P 208 bar
   92% after 4436 s: U/N -0.25 kcal/mol, P 363 bar
+  100% after 4599 s: U/N -0.18 kcal/mol, P 236 bar
+water at 1130 K (96 samples over 10 ps, block standard errors):
+  U/N -0.256 +- 0.012 kcal/mol; heat of vaporisation -U/N + RT = 2.501 kcal/mol
+  pressure 263 +- 5 bar at 0.0491 g/cm3 (a liquid at the right density sits near 1 bar; positive says it wants to expand)
+  temperatures: translation 1144.3 K, rotation 1082.4 K (bath 1130 K)
+  mean molecular dipole 1.837 D (permanent charges and induced dipoles); dielectric constant 1.2 (blocks 1.2 +- 0.0; slow to converge)
+  dispersion beyond the cut-off (C6 25.95): -0 bar and -0.002 kcal/mol a molecule, so pressure with it 263 bar, U/N -0.258
+  g(first atoms): first peak 1.51 at 3.25 A, first minimum 0.99 at 4.25 A, second peak 1.22 at 4.75 A, coordination to the minimum 0.48 (bulk-water-1130.gOO.txt)
+  snapshot in bulk-water-1130.snap
