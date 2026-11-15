@@ -314,3 +314,4 @@ round 5: 710 functions, E -79.73978980, 24069 s
 could not spill a 18.5 GB table to /tmp/spill: No space left on device (os error 28); rebuilding it instead
 could not spill a 19.6 GB table to /tmp/spill: No space left on device (os error 28); rebuilding it instead
 could not spill a 18.9 GB table to /tmp/spill: No space left on device (os error 28); rebuilding it instead
+  relaxed at 856 functions, 9518 s into round 6; 8 probes of 334 candidates to go
