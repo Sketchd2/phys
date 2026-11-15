@@ -1,2 +1,7 @@
 # ammonia at 1080 K, 64 molecules, 0.0142 g/cm3, cut-off 16 bohr, law law.txt
 # ps  U_per_molecule_kcal  pressure_bar  T_translation  T_rotation
+2.491 -0.2408 66.5 1066.9 1183.9
+2.591 -0.0539 81.0 1163.8 970.7
+2.691 -0.1062 74.7 1118.8 923.7
+2.790 -0.0742 74.0 1089.4 900.0
+2.890 -0.0339 72.5 1067.6 881.9
