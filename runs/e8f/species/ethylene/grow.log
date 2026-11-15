@@ -108,3 +108,26 @@ round 1: 148 functions, E -78.49683613, 1306 s
   round 2 probe 4/8: 150/218 candidates, 514 s into the round; about 4 min left in it
   round 2 probe 4/8: 200/218 candidates, 514 s into the round; about 4 min left in it
   round 2 probe 4/8: 218/218 candidates, 515 s into the round; about 4 min left in it
+  round 2 probe 5/8: 50/218 candidates, 569 s into the round; about 3 min left in it
+  round 2 probe 5/8: 100/218 candidates, 569 s into the round; about 3 min left in it
+  round 2 probe 5/8: 150/218 candidates, 569 s into the round; about 3 min left in it
+  round 2 probe 5/8: 200/218 candidates, 569 s into the round; about 3 min left in it
+  round 2 probe 5/8: 218/218 candidates, 569 s into the round; about 3 min left in it
+  round 2 probe 6/8: 50/218 candidates, 626 s into the round; about 2 min left in it
+  round 2 probe 6/8: 100/218 candidates, 627 s into the round; about 2 min left in it
+  round 2 probe 6/8: 150/218 candidates, 627 s into the round; about 2 min left in it
+  round 2 probe 6/8: 200/218 candidates, 627 s into the round; about 2 min left in it
+  round 2 probe 6/8: 218/218 candidates, 627 s into the round; about 2 min left in it
+  round 2 probe 7/8: 50/218 candidates, 685 s into the round; under a minute left in it
+  round 2 probe 7/8: 100/218 candidates, 685 s into the round; under a minute left in it
+  round 2 probe 7/8: 150/218 candidates, 685 s into the round; under a minute left in it
+  round 2 probe 7/8: 200/218 candidates, 685 s into the round; under a minute left in it
+  round 2 probe 7/8: 218/218 candidates, 686 s into the round; under a minute left in it
+  round 2 probe 8/8: 50/218 candidates, 741 s into the round; under a minute left in it
+  round 2 probe 8/8: 100/218 candidates, 741 s into the round; under a minute left in it
+  round 2 probe 8/8: 150/218 candidates, 741 s into the round; under a minute left in it
+  round 2 probe 8/8: 200/218 candidates, 742 s into the round; under a minute left in it
+  round 2 probe 8/8: 218/218 candidates, 742 s into the round; under a minute left in it
+round 2: 188 functions, E -78.50379866, 2048 s
+  shape (A, deg): 1.33767 1.09142 1.09142 1.09142 1.09142 121.769 121.767 116.464 121.769 121.767 116.463
+  added 8, predicted to move: -0.00911 +0.00166 +0.00166 +0.00166 +0.00166 -0.366 -0.366 +0.814 -0.366 -0.366 +0.814; left 77.98
