@@ -1,0 +1,8 @@
+ethylene: dipole Hartree-Fock 0.0000 au (0.000 D), target 0.0000 au (0.000 D)
+  9582 potential points; the target's RMS 2.402e0, its mean -2.359e0 hartree/e
+  localised in 12 sweeps: 6 bond orbitals, 0 lone pairs (2 core orbitals frozen out of the localisation)
+  valence electrons 12, cores [4.0, 1.0]
+  atom class 0: cloud 4.350 electrons, width 1.733 bohr
+  atom class 1: cloud 0.825 electrons, width 1.361 bohr
+  potential RMS 2.663e-3 hartree/e (atom-centred point charges alone: 5.467e-3)
+  written to cloud-ethylene.txt
