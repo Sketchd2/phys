@@ -1,1 +1,6 @@
 hydrazine: 430 functions, field step 0.002, 2 frozen cores
+  19 fields in 931 s (dipole width scale 1)
+  Hartree-Fock: mean 21.4139 bohr^3, diagonal 19.8476 19.7382 24.6561, off-diagonal -7.1e-7 -5.2e-8 -6.3e-1
+  MP2: mean 23.4129 bohr^3, diagonal 22.0202 21.8705 26.3482, off-diagonal -1.6e-3 -8.0e-4 -3.6e-1
+  atomic polarisabilities by class [6.56341014745502, 2.712590353257944, 5.636044962787202] bohr^3 (classes [0, 0, 1, 2, 1, 2]); the model's tensor: mean 23.4162, diagonal 22.2703 21.6809 26.2973; residual rms 1.12e-1
+  written to polar-hydrazine.txt
