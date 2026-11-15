@@ -4,3 +4,7 @@ ammonia at 304 K: 64 molecules, 0.712 g/cm3, box 25.79 bohr (13.65 A), cut-off 1
   start: U/N -1.24 kcal/mol
   easing: U/N -6.14 kcal/mol, T 292/361 K, P -2512 bar
   settling: U/N -17.96 kcal/mol, T 333/382 K, P 2484 bar
+  warming: U/N -18.89 kcal/mol, T 384/284 K, P 2423 bar
+  0% after 522 s: U/N -18.89 kcal/mol, P 2382 bar
+  8% after 555 s: U/N -18.90 kcal/mol, P 2807 bar
+  17% after 588 s: U/N -19.07 kcal/mol, P 4088 bar
