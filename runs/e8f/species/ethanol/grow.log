@@ -189,3 +189,27 @@ ethanol: 9 atoms, 8 bonds; starting
   round 0 probe 27/30: 250/310 candidates, 3591 s into the round; about 3 min left in it
   round 0 probe 27/30: 300/310 candidates, 3591 s into the round; about 3 min left in it
   round 0 probe 27/30: 310/310 candidates, 3591 s into the round; about 3 min left in it
+  round 0 probe 28/30: 50/310 candidates, 3654 s into the round; about 2 min left in it
+  round 0 probe 28/30: 100/310 candidates, 3654 s into the round; about 2 min left in it
+  round 0 probe 28/30: 150/310 candidates, 3654 s into the round; about 2 min left in it
+  round 0 probe 28/30: 200/310 candidates, 3655 s into the round; about 2 min left in it
+  round 0 probe 28/30: 250/310 candidates, 3655 s into the round; about 2 min left in it
+  round 0 probe 28/30: 300/310 candidates, 3655 s into the round; about 2 min left in it
+  round 0 probe 28/30: 310/310 candidates, 3655 s into the round; about 2 min left in it
+  round 0 probe 29/30: 50/310 candidates, 3718 s into the round; about 1 min left in it
+  round 0 probe 29/30: 100/310 candidates, 3718 s into the round; about 1 min left in it
+  round 0 probe 29/30: 150/310 candidates, 3718 s into the round; about 1 min left in it
+  round 0 probe 29/30: 200/310 candidates, 3718 s into the round; about 1 min left in it
+  round 0 probe 29/30: 250/310 candidates, 3718 s into the round; about 1 min left in it
+  round 0 probe 29/30: 300/310 candidates, 3719 s into the round; about 1 min left in it
+  round 0 probe 29/30: 310/310 candidates, 3719 s into the round; about 1 min left in it
+  round 0 probe 30/30: 50/310 candidates, 3782 s into the round; under a minute left in it
+  round 0 probe 30/30: 100/310 candidates, 3782 s into the round; under a minute left in it
+  round 0 probe 30/30: 150/310 candidates, 3782 s into the round; under a minute left in it
+  round 0 probe 30/30: 200/310 candidates, 3782 s into the round; under a minute left in it
+  round 0 probe 30/30: 250/310 candidates, 3782 s into the round; under a minute left in it
+  round 0 probe 30/30: 300/310 candidates, 3782 s into the round; under a minute left in it
+  round 0 probe 30/30: 310/310 candidates, 3782 s into the round; under a minute left in it
+round 0: 123 functions, E -154.88208896, 3782 s
+  shape (A, deg): 1.51762 1.45675 1.10794 1.10667 1.10667 1.11298 1.11298 0.99114 110.901 110.554 110.554 108.337 108.337 108.066 107.577 110.670 110.670 109.950 109.950 108.030 106.291
+  added 3, predicted to move: +0.00060 +0.00238 -0.00036 +0.00074 +0.00074 +0.00008 +0.00008 -0.03387 +0.012 -0.028 -0.028 +0.009 +0.009 +0.031 +0.074 -0.074 -0.074 +0.102 +0.102 -0.227 +1.135; left 561.77
