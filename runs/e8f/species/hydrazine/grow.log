@@ -1,1 +1,32 @@
 hydrazine: 6 atoms, 5 bonds; starting
+  relaxed at 82 functions, 439 s into round 0; 12 probes of 208 candidates to go
+  round 0 probe 1/12: 50/208 candidates, 466 s into the round; about 5 min left in it
+  round 0 probe 1/12: 100/208 candidates, 466 s into the round; about 5 min left in it
+  round 0 probe 1/12: 150/208 candidates, 466 s into the round; about 5 min left in it
+  round 0 probe 1/12: 200/208 candidates, 467 s into the round; about 5 min left in it
+  round 0 probe 1/12: 208/208 candidates, 467 s into the round; about 5 min left in it
+  round 0 probe 2/12: 50/208 candidates, 494 s into the round; about 5 min left in it
+  round 0 probe 2/12: 100/208 candidates, 494 s into the round; about 5 min left in it
+  round 0 probe 2/12: 150/208 candidates, 494 s into the round; about 5 min left in it
+  round 0 probe 2/12: 200/208 candidates, 494 s into the round; about 5 min left in it
+  round 0 probe 2/12: 208/208 candidates, 494 s into the round; about 5 min left in it
+  round 0 probe 3/12: 50/208 candidates, 518 s into the round; about 4 min left in it
+  round 0 probe 3/12: 100/208 candidates, 518 s into the round; about 4 min left in it
+  round 0 probe 3/12: 150/208 candidates, 519 s into the round; about 4 min left in it
+  round 0 probe 3/12: 200/208 candidates, 519 s into the round; about 4 min left in it
+  round 0 probe 3/12: 208/208 candidates, 519 s into the round; about 4 min left in it
+  round 0 probe 4/12: 50/208 candidates, 544 s into the round; about 3 min left in it
+  round 0 probe 4/12: 100/208 candidates, 544 s into the round; about 3 min left in it
+  round 0 probe 4/12: 150/208 candidates, 544 s into the round; about 3 min left in it
+  round 0 probe 4/12: 200/208 candidates, 544 s into the round; about 3 min left in it
+  round 0 probe 4/12: 208/208 candidates, 544 s into the round; about 3 min left in it
+  round 0 probe 5/12: 50/208 candidates, 570 s into the round; about 3 min left in it
+  round 0 probe 5/12: 100/208 candidates, 570 s into the round; about 3 min left in it
+  round 0 probe 5/12: 150/208 candidates, 570 s into the round; about 3 min left in it
+  round 0 probe 5/12: 200/208 candidates, 570 s into the round; about 3 min left in it
+  round 0 probe 5/12: 208/208 candidates, 570 s into the round; about 3 min left in it
+  round 0 probe 6/12: 50/208 candidates, 596 s into the round; about 3 min left in it
+  round 0 probe 6/12: 100/208 candidates, 596 s into the round; about 3 min left in it
+  round 0 probe 6/12: 150/208 candidates, 596 s into the round; about 3 min left in it
+  round 0 probe 6/12: 200/208 candidates, 596 s into the round; about 3 min left in it
+  round 0 probe 6/12: 208/208 candidates, 596 s into the round; about 3 min left in it
