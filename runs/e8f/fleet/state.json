@@ -1,7 +1,7 @@
 {
- "children": 19,
- "window": "allowed, new window resets 03:10 UTC",
- "note": "wake 8. Laws: methane, methanol, H2O2 HOLE; ammonia suspect (liquid 20/34). Formic acid, hydrazine grown. Replacement 19 could not push (fixed). Workers 52, 53.",
+ "children": 21,
+ "window": "allowed, resets 03:10 UTC",
+ "note": "wake 9 (62-min cycle). Laws: methane, methanol, H2O2, water(stage) HOLE; ammonia suspect, liquid 22/34. D1 extra done. Workers 54, 55.",
  "wakes": [
   {
    "t": "2026-11-15T15:20Z",
@@ -61,6 +61,12 @@
    "status": "allowed",
    "resetsAt": 1794798600,
    "note": "check asked by the owner after the reset"
+  },
+  {
+   "t": "2026-11-15T23:11Z",
+   "limit_stop": false,
+   "status": "allowed",
+   "resetsAt": 1794798600
   }
  ],
  "burn_usd": null,
@@ -95,6 +101,8 @@
   "50": "session_016vymdywXkYfi7Sym566tNM",
   "51": "session_016vymdxPQSA3S3aJz9YkTKs",
   "52": "session_016vyme1XaPcSWQGRqWjiN9z",
-  "53": "session_016vymdy6Pn1Dammqv7yakep"
+  "53": "session_016vymdy6Pn1Dammqv7yakep",
+  "54": "session_016vyme1AdpH1TbtqfjneyYT",
+  "55": "session_016vymdvkMDTT5HRvZ8X2wmg"
  }
 }

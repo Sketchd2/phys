@@ -2,6 +2,16 @@
 
 ## WAKE CADENCE: every 62 min, self-scheduled. At the start of each wake call send_later (+62 min) with the same message; backstop task every 6 h re-arms if the chain breaks.
 
+## 2026-11-15 23:11 UTC, wake 9
+
+- Water stage law HOLE too: 4 of 5 stage laws HOLE (methane, methanol, H2O2, water); ammonia not HOLE, suspect.
+- D1 extra finished (40): shortfall/D1-summary.md. Ammonia's bracket 1.8% wide, middle -1.2%; methane 10% wide,
+  middle -3.7%. merge.sh now merges runs/e8f/shortfall.
+- Replacement 19 still refused: shallow clone needs --allow-unrelated-histories (added). Check w-19 next wake;
+  if still nothing, archive it and requeue methylamine on a new number.
+- Acetonitrile at full (43), formic acid at pairs (49), hydrazine at pairs (20), ethylene at full (18).
+- 40 -> isopropanol grow. Created 54 (acetone), 55 (ethylene glycol). Count 21. Next wake 00:12 UTC.
+
 ## 2026-11-15 22:14 UTC, check after the window reset (owner asked)
 
 - No worker stopped at the limit; new window allowed, resets 03:10 UTC. 52, 53 building.
