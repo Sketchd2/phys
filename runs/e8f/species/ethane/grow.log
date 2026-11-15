@@ -1,1 +1,32 @@
 ethane: 8 atoms, 7 bonds; starting
+  relaxed at 102 functions, 343 s into round 0; 8 probes of 260 candidates to go
+  round 0 probe 1/8: 50/260 candidates, 394 s into the round; about 6 min left in it
+  round 0 probe 1/8: 100/260 candidates, 394 s into the round; about 6 min left in it
+  round 0 probe 1/8: 150/260 candidates, 394 s into the round; about 6 min left in it
+  round 0 probe 1/8: 200/260 candidates, 394 s into the round; about 6 min left in it
+  round 0 probe 1/8: 250/260 candidates, 394 s into the round; about 6 min left in it
+  round 0 probe 1/8: 260/260 candidates, 394 s into the round; about 6 min left in it
+  round 0 probe 2/8: 50/260 candidates, 447 s into the round; about 5 min left in it
+  round 0 probe 2/8: 100/260 candidates, 447 s into the round; about 5 min left in it
+  round 0 probe 2/8: 150/260 candidates, 447 s into the round; about 5 min left in it
+  round 0 probe 2/8: 200/260 candidates, 447 s into the round; about 5 min left in it
+  round 0 probe 2/8: 250/260 candidates, 448 s into the round; about 5 min left in it
+  round 0 probe 2/8: 260/260 candidates, 448 s into the round; about 5 min left in it
+  round 0 probe 3/8: 50/260 candidates, 498 s into the round; about 4 min left in it
+  round 0 probe 3/8: 100/260 candidates, 498 s into the round; about 4 min left in it
+  round 0 probe 3/8: 150/260 candidates, 498 s into the round; about 4 min left in it
+  round 0 probe 3/8: 200/260 candidates, 498 s into the round; about 4 min left in it
+  round 0 probe 3/8: 250/260 candidates, 498 s into the round; about 4 min left in it
+  round 0 probe 3/8: 260/260 candidates, 498 s into the round; about 4 min left in it
+  round 0 probe 4/8: 50/260 candidates, 547 s into the round; about 3 min left in it
+  round 0 probe 4/8: 100/260 candidates, 547 s into the round; about 3 min left in it
+  round 0 probe 4/8: 150/260 candidates, 548 s into the round; about 3 min left in it
+  round 0 probe 4/8: 200/260 candidates, 548 s into the round; about 3 min left in it
+  round 0 probe 4/8: 250/260 candidates, 548 s into the round; about 3 min left in it
+  round 0 probe 4/8: 260/260 candidates, 548 s into the round; about 3 min left in it
+  round 0 probe 5/8: 50/260 candidates, 598 s into the round; about 3 min left in it
+  round 0 probe 5/8: 100/260 candidates, 598 s into the round; about 3 min left in it
+  round 0 probe 5/8: 150/260 candidates, 598 s into the round; about 3 min left in it
+  round 0 probe 5/8: 200/260 candidates, 598 s into the round; about 3 min left in it
+  round 0 probe 5/8: 250/260 candidates, 598 s into the round; about 3 min left in it
+  round 0 probe 5/8: 260/260 candidates, 599 s into the round; about 3 min left in it
