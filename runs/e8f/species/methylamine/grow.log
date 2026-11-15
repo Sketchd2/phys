@@ -415,3 +415,9 @@ round 2: 111 functions, E -95.76091796, 3665 s
 round 3: 124 functions, E -95.76774845, 4704 s
   shape (A, deg): 1.46927 1.10107 1.11006 1.10108 1.02298 1.02299 109.126 115.569 109.129 107.854 106.973 107.854 110.499 110.496 106.140
   added 5, predicted to move: +0.00009 +0.00030 -0.00154 +0.00030 -0.00316 -0.00316 -0.024 +0.012 -0.024 +0.023 +0.001 +0.023 -0.016 -0.016 +0.063; left 81.74
+  relaxed at 153 functions, 382 s into round 4; 20 probes of 235 candidates to go
+  round 4 probe 1/20: 50/235 candidates, 429 s into the round; about 15 min left in it
+  round 4 probe 1/20: 100/235 candidates, 429 s into the round; about 15 min left in it
+  round 4 probe 1/20: 150/235 candidates, 429 s into the round; about 15 min left in it
+  round 4 probe 1/20: 200/235 candidates, 429 s into the round; about 15 min left in it
+  round 4 probe 1/20: 235/235 candidates, 429 s into the round; about 15 min left in it
