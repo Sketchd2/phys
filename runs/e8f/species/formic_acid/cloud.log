@@ -1,0 +1,3 @@
+formic_acid: dipole Hartree-Fock 1.7369 au (4.415 D), target 1.7369 au (4.415 D)
+  8302 potential points; the target's RMS 3.578e0, its mean -3.509e0 hartree/e
+  localised in 79 sweeps: 4 bond orbitals, 5 lone pairs (3 core orbitals frozen out of the localisation)
