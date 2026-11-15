@@ -4,3 +4,7 @@ water at 1130 K: 64 molecules, 0.0981 g/cm3, box 50.88 bohr (26.92 A), cut-off 1
   start: U/N -0.09 kcal/mol
   easing: U/N -0.04 kcal/mol, T 996/1053 K, P 435 bar
   settling: U/N -0.69 kcal/mol, T 1300/1084 K, P 499 bar
+  warming: U/N -0.60 kcal/mol, T 941/1122 K, P 448 bar
+  0% after 1050 s: U/N -0.59 kcal/mol, P 450 bar
+  8% after 1117 s: U/N -0.46 kcal/mol, P 449 bar
+  17% after 1182 s: U/N -0.40 kcal/mol, P 590 bar
