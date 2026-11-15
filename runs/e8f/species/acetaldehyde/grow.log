@@ -126,3 +126,24 @@ acetaldehyde: 7 atoms, 6 bonds; starting
   round 0 probe 21/24: 200/256 candidates, 2407 s into the round; about 3 min left in it
   round 0 probe 21/24: 250/256 candidates, 2407 s into the round; about 3 min left in it
   round 0 probe 21/24: 256/256 candidates, 2407 s into the round; about 3 min left in it
+  round 0 probe 22/24: 50/256 candidates, 2470 s into the round; about 2 min left in it
+  round 0 probe 22/24: 100/256 candidates, 2470 s into the round; about 2 min left in it
+  round 0 probe 22/24: 150/256 candidates, 2470 s into the round; about 2 min left in it
+  round 0 probe 22/24: 200/256 candidates, 2470 s into the round; about 2 min left in it
+  round 0 probe 22/24: 250/256 candidates, 2470 s into the round; about 2 min left in it
+  round 0 probe 22/24: 256/256 candidates, 2470 s into the round; about 2 min left in it
+  round 0 probe 23/24: 50/256 candidates, 2532 s into the round; about 1 min left in it
+  round 0 probe 23/24: 100/256 candidates, 2532 s into the round; about 1 min left in it
+  round 0 probe 23/24: 150/256 candidates, 2533 s into the round; about 1 min left in it
+  round 0 probe 23/24: 200/256 candidates, 2533 s into the round; about 1 min left in it
+  round 0 probe 23/24: 250/256 candidates, 2533 s into the round; about 1 min left in it
+  round 0 probe 23/24: 256/256 candidates, 2533 s into the round; about 1 min left in it
+  round 0 probe 24/24: 50/256 candidates, 2597 s into the round; under a minute left in it
+  round 0 probe 24/24: 100/256 candidates, 2597 s into the round; under a minute left in it
+  round 0 probe 24/24: 150/256 candidates, 2597 s into the round; under a minute left in it
+  round 0 probe 24/24: 200/256 candidates, 2597 s into the round; under a minute left in it
+  round 0 probe 24/24: 250/256 candidates, 2597 s into the round; under a minute left in it
+  round 0 probe 24/24: 256/256 candidates, 2597 s into the round; under a minute left in it
+round 0: 103 functions, E -153.67125441, 2597 s
+  shape (A, deg): 1.49919 1.24923 1.11124 1.11125 1.10367 1.12172 110.711 110.722 109.737 105.585 110.007 110.010 123.538 117.398 119.064
+  added 3, predicted to move: +0.00580 -0.02802 +0.00324 +0.00324 +0.00379 +0.00245 -1.993 -1.993 +1.735 +1.204 +0.391 +0.391 +0.000 +0.000 +154.271; left 2121.91
