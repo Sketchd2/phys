@@ -1,3 +1,4 @@
+STOP
 formic_acid-grow species/formic_acid ../../fleet/stage.sh grow formic_acid
 formic_acid-mono species/formic_acid ../../fleet/stage.sh mono formic_acid
 formic_acid-pairs species/formic_acid ../../fleet/stage.sh pairs formic_acid

@@ -1,3 +1,4 @@
+STOP
 methanol-grow species/methanol ../../fleet/stage.sh grow methanol
 methanol-mono species/methanol ../../fleet/stage.sh mono methanol
 methanol-pairs species/methanol ../../fleet/stage.sh pairs methanol

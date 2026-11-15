@@ -1,3 +1,4 @@
+STOP
 acetaldehyde-grow species/acetaldehyde ../../fleet/stage.sh grow acetaldehyde
 acetaldehyde-mono species/acetaldehyde ../../fleet/stage.sh mono acetaldehyde
 acetaldehyde-pairs species/acetaldehyde ../../fleet/stage.sh pairs acetaldehyde

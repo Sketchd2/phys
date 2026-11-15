@@ -1,3 +1,4 @@
+STOP
 ethanol-grow species/ethanol ../../fleet/stage.sh grow ethanol
 ethanol-mono species/ethanol ../../fleet/stage.sh mono ethanol
 ethanol-pairs species/ethanol ../../fleet/stage.sh pairs ethanol

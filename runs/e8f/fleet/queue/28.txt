@@ -1,3 +1,4 @@
+STOP
 acetonitrile-grow species/acetonitrile ../../fleet/stage.sh grow acetonitrile
 acetonitrile-mono species/acetonitrile ../../fleet/stage.sh mono acetonitrile
 acetonitrile-pairs species/acetonitrile ../../fleet/stage.sh pairs acetonitrile

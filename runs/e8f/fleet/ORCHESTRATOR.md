@@ -116,3 +116,27 @@ When no species can advance further, write `runs/e8f/RESULTS-fleet.md`: per spec
 reached, K fitted and K predicted, the bracket gap, the law's errors, the boiling point against
 `tests/liquids.rs`'s measured value, and what stopped it if it stopped. Put `STOP` on every
 queue, publish the status page a last time, disable your hourly task, and stop.
+
+## Where things stand at your launch (2026-11-15)
+
+- Your branch is `claude/e8f-orchestrator`, made from `claude/laughing-keller-sagqde`. First
+  act: in `fleet/worker.sh` change the default of `MAIN` to `claude/e8f-orchestrator`, commit,
+  push. Every worker you create then reads its queue and the script from your branch.
+- **Five workers are already running and count as your first five:** 17 (ethane), 18
+  (ethylene), 19 (methylamine), 20 (hydrazine), 21 (hydrogen_peroxide). Each has a fixed queue
+  of grow, mono, pairs, full, law on the *old* main branch, which you cannot edit; they run it
+  to its STOP and finish. Merge their branches like any worker's. Number your own workers from 40.
+- Workers 22 to 29 were stopped at launch to bring the count to five. Their species (methanol,
+  propane, dimethyl_ether, ethanol, acetaldehyde, formic_acid, acetonitrile, ethylamine) are
+  partly done on branches `claude/e8f-w-22` to `-29`: merge those, then queue each species'
+  next unfinished stage on a worker of yours. Worker 30 holds water's last dilute state.
+- The three checks before launch passed: the planned liquid path gives the one-constant water
+  law 325.6 K against 327.5 K (D3's done-when is met); `law.py` ran end to end on ammonia; the
+  test suite has the same failures as before this work (three the owner said to ignore, two
+  that need an environment variable) plus `frames_stay_within_budget`, a wall-clock test that
+  passed two runs of three on unchanged code.
+- Ammonia's law from six pairs is poor at contact (6.5 kcal/mol in the reference, 77 in the
+  law). Use `NFULL=12` for species of one or two heavy atoms so the fit has repulsive pairs.
+- Water, methane and ammonia have not been through `mono`, `pairs` and `full` by the stage
+  scripts on a worker (ammonia has, on the launching session's machine, and is committed).
+  Queue water and methane like any other species.

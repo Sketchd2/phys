@@ -1,3 +1,4 @@
+STOP
 dimethyl_ether-grow species/dimethyl_ether ../../fleet/stage.sh grow dimethyl_ether
 dimethyl_ether-mono species/dimethyl_ether ../../fleet/stage.sh mono dimethyl_ether
 dimethyl_ether-pairs species/dimethyl_ether ../../fleet/stage.sh pairs dimethyl_ether
