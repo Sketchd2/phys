@@ -36,3 +36,18 @@ chloroform: 5 atoms, 4 bonds; starting
   round 0 probe 6/8: 200/283 candidates, 1788 s into the round; about 1 min left in it
   round 0 probe 6/8: 250/283 candidates, 1788 s into the round; about 1 min left in it
   round 0 probe 6/8: 283/283 candidates, 1789 s into the round; about 1 min left in it
+  round 0 probe 7/8: 50/283 candidates, 1830 s into the round; under a minute left in it
+  round 0 probe 7/8: 100/283 candidates, 1830 s into the round; under a minute left in it
+  round 0 probe 7/8: 150/283 candidates, 1830 s into the round; under a minute left in it
+  round 0 probe 7/8: 200/283 candidates, 1830 s into the round; under a minute left in it
+  round 0 probe 7/8: 250/283 candidates, 1830 s into the round; under a minute left in it
+  round 0 probe 7/8: 283/283 candidates, 1831 s into the round; under a minute left in it
+  round 0 probe 8/8: 50/283 candidates, 1872 s into the round; under a minute left in it
+  round 0 probe 8/8: 100/283 candidates, 1872 s into the round; under a minute left in it
+  round 0 probe 8/8: 150/283 candidates, 1872 s into the round; under a minute left in it
+  round 0 probe 8/8: 200/283 candidates, 1872 s into the round; under a minute left in it
+  round 0 probe 8/8: 250/283 candidates, 1872 s into the round; under a minute left in it
+  round 0 probe 8/8: 283/283 candidates, 1872 s into the round; under a minute left in it
+round 0: 106 functions, E -1418.75777661, 1872 s
+  shape (A, deg): 1.81075 1.81081 1.81081 1.10755 110.935 110.936 107.969 110.927 107.966 107.966
+  added 5, predicted to move: -0.03010 -0.03010 -0.03010 -0.02055 +0.285 +0.285 -0.433 +0.285 -0.433 -0.433; left 584.93
