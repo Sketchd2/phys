@@ -9,3 +9,7 @@ carbon_tetrachloride-pairs2 species/carbon_tetrachloride ../../fleet/stage.sh pa
 carbon_tetrachloride-full2 species/carbon_tetrachloride ../../fleet/stage.sh full carbon_tetrachloride
 carbon_tetrachloride-law2 species/carbon_tetrachloride ../../fleet/stage.sh law carbon_tetrachloride
 carbon_tetrachloride-plan2 species/carbon_tetrachloride ../../fleet/stage.sh plan carbon_tetrachloride
+carbon_tetrachloride-pairs3 species/carbon_tetrachloride rm -rf /tmp/spill/*; PHYS_SPILL_MAX_GB=0 ../../fleet/stage.sh pairs carbon_tetrachloride
+carbon_tetrachloride-full3 species/carbon_tetrachloride ../../fleet/stage.sh full carbon_tetrachloride
+carbon_tetrachloride-law3 species/carbon_tetrachloride ../../fleet/stage.sh law carbon_tetrachloride
+carbon_tetrachloride-plan3 species/carbon_tetrachloride ../../fleet/stage.sh plan carbon_tetrachloride

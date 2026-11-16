@@ -749,3 +749,46 @@ butane: 14 atoms, 13 bonds; carrying on from round 2
   round 2 probe 22/26: 400/472 candidates, 18442 s into the round; about 35 min left in it
   round 2 probe 22/26: 450/472 candidates, 18443 s into the round; about 35 min left in it
   round 2 probe 22/26: 472/472 candidates, 18445 s into the round; about 35 min left in it
+  round 2 probe 23/26: 50/472 candidates, 18965 s into the round; about 26 min left in it
+  round 2 probe 23/26: 100/472 candidates, 18966 s into the round; about 26 min left in it
+  round 2 probe 23/26: 150/472 candidates, 18967 s into the round; about 26 min left in it
+  round 2 probe 23/26: 200/472 candidates, 18967 s into the round; about 26 min left in it
+  round 2 probe 23/26: 250/472 candidates, 18968 s into the round; about 26 min left in it
+  round 2 probe 23/26: 300/472 candidates, 18969 s into the round; about 26 min left in it
+  round 2 probe 23/26: 350/472 candidates, 18970 s into the round; about 26 min left in it
+  round 2 probe 23/26: 400/472 candidates, 18971 s into the round; about 26 min left in it
+  round 2 probe 23/26: 450/472 candidates, 18973 s into the round; about 26 min left in it
+  round 2 probe 23/26: 472/472 candidates, 18975 s into the round; about 26 min left in it
+  round 2 probe 24/26: 50/472 candidates, 19503 s into the round; about 18 min left in it
+  round 2 probe 24/26: 100/472 candidates, 19504 s into the round; about 18 min left in it
+  round 2 probe 24/26: 150/472 candidates, 19505 s into the round; about 18 min left in it
+  round 2 probe 24/26: 200/472 candidates, 19506 s into the round; about 18 min left in it
+  round 2 probe 24/26: 250/472 candidates, 19507 s into the round; about 18 min left in it
+  round 2 probe 24/26: 300/472 candidates, 19508 s into the round; about 18 min left in it
+  round 2 probe 24/26: 350/472 candidates, 19509 s into the round; about 18 min left in it
+  round 2 probe 24/26: 400/472 candidates, 19510 s into the round; about 18 min left in it
+  round 2 probe 24/26: 450/472 candidates, 19511 s into the round; about 18 min left in it
+  round 2 probe 24/26: 472/472 candidates, 19514 s into the round; about 18 min left in it
+  round 2 probe 25/26: 50/472 candidates, 20067 s into the round; about 9 min left in it
+  round 2 probe 25/26: 100/472 candidates, 20068 s into the round; about 9 min left in it
+  round 2 probe 25/26: 150/472 candidates, 20069 s into the round; about 9 min left in it
+  round 2 probe 25/26: 200/472 candidates, 20070 s into the round; about 9 min left in it
+  round 2 probe 25/26: 250/472 candidates, 20072 s into the round; about 9 min left in it
+  round 2 probe 25/26: 300/472 candidates, 20073 s into the round; about 9 min left in it
+  round 2 probe 25/26: 350/472 candidates, 20074 s into the round; about 9 min left in it
+  round 2 probe 25/26: 400/472 candidates, 20075 s into the round; about 9 min left in it
+  round 2 probe 25/26: 450/472 candidates, 20077 s into the round; about 9 min left in it
+  round 2 probe 25/26: 472/472 candidates, 20079 s into the round; about 9 min left in it
+  round 2 probe 26/26: 50/472 candidates, 20622 s into the round; under a minute left in it
+  round 2 probe 26/26: 100/472 candidates, 20623 s into the round; under a minute left in it
+  round 2 probe 26/26: 150/472 candidates, 20624 s into the round; under a minute left in it
+  round 2 probe 26/26: 200/472 candidates, 20624 s into the round; under a minute left in it
+  round 2 probe 26/26: 250/472 candidates, 20625 s into the round; under a minute left in it
+  round 2 probe 26/26: 300/472 candidates, 20626 s into the round; under a minute left in it
+  round 2 probe 26/26: 350/472 candidates, 20628 s into the round; under a minute left in it
+  round 2 probe 26/26: 400/472 candidates, 20628 s into the round; under a minute left in it
+  round 2 probe 26/26: 450/472 candidates, 20630 s into the round; under a minute left in it
+  round 2 probe 26/26: 472/472 candidates, 20632 s into the round; under a minute left in it
+round 2: 266 functions, E -158.27174671, 20632 s
+  shape (A, deg): 1.53032 1.53323 1.53032 1.09980 1.10116 1.10116 1.10474 1.10474 1.10474 1.10474 1.09980 1.10116 1.10116 111.520 111.194 111.194 107.641 107.641 107.454 113.364 109.537 109.537 109.125 109.125 105.879 113.364 109.125 109.125 109.537 109.537 105.879 111.520 111.194 111.194 107.641 107.641 107.454
+  added 6, predicted to move: -0.00286 -0.00806 -0.00286 +0.00107 +0.00005 +0.00005 -0.00098 -0.00098 -0.00098 -0.00098 +0.00107 +0.00005 +0.00005 +0.364 -0.169 -0.169 -0.004 -0.004 -0.012 -0.175 +0.105 +0.105 -0.083 -0.083 +0.227 -0.175 -0.083 -0.083 +0.105 +0.105 +0.227 +0.364 -0.169 -0.169 -0.004 -0.004 -0.012; left 214.82

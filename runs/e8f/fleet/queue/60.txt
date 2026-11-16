@@ -1,1 +1,1 @@
-butanol-grow species/butanol ../../fleet/stage.sh grow butanol
+STOP

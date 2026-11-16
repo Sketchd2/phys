@@ -1,6 +1,1 @@
-methylamine-grow3 species/methylamine ../../fleet/stage.sh grow methylamine
-methylamine-mono2 species/methylamine ../../fleet/stage.sh mono methylamine
-methylamine-pairs2 species/methylamine ../../fleet/stage.sh pairs methylamine
-methylamine-full12 species/methylamine NFULL=12 ../../fleet/stage.sh full methylamine
-methylamine-law2 species/methylamine ../../fleet/stage.sh law methylamine
-methylamine-plan2 species/methylamine ../../fleet/stage.sh plan methylamine
+STOP

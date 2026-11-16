@@ -1,0 +1,3 @@
+methylamine-full12-w78 species/methylamine NFULL=12 ../../fleet/stage.sh full methylamine
+methylamine-law2-w78 species/methylamine ../../fleet/stage.sh law methylamine
+methylamine-plan2-w78 species/methylamine ../../fleet/stage.sh plan methylamine
