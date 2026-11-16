@@ -4,3 +4,4 @@ dichloromethane-pairs species/dichloromethane ../../fleet/stage.sh pairs dichlor
 dichloromethane-full species/dichloromethane ../../fleet/stage.sh full dichloromethane
 dichloromethane-law species/dichloromethane ../../fleet/stage.sh law dichloromethane
 dichloromethane-plan species/dichloromethane ../../fleet/stage.sh plan dichloromethane
+pyridine-grow-w50 species/pyridine ../../fleet/stage.sh grow pyridine

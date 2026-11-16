@@ -1138,3 +1138,27 @@ dimethyl_ether: 9 atoms, 8 bonds; carrying on from round 9
   round 9 probe 13/16: 250/342 candidates, 14224 s into the round; about 33 min left in it
   round 9 probe 13/16: 300/342 candidates, 14226 s into the round; about 33 min left in it
   round 9 probe 13/16: 342/342 candidates, 14230 s into the round; about 33 min left in it
+  round 9 probe 14/16: 50/342 candidates, 14882 s into the round; about 22 min left in it
+  round 9 probe 14/16: 100/342 candidates, 14883 s into the round; about 22 min left in it
+  round 9 probe 14/16: 150/342 candidates, 14884 s into the round; about 22 min left in it
+  round 9 probe 14/16: 200/342 candidates, 14885 s into the round; about 22 min left in it
+  round 9 probe 14/16: 250/342 candidates, 14886 s into the round; about 22 min left in it
+  round 9 probe 14/16: 300/342 candidates, 14889 s into the round; about 22 min left in it
+  round 9 probe 14/16: 342/342 candidates, 14892 s into the round; about 22 min left in it
+  round 9 probe 15/16: 50/342 candidates, 15563 s into the round; about 11 min left in it
+  round 9 probe 15/16: 100/342 candidates, 15563 s into the round; about 11 min left in it
+  round 9 probe 15/16: 150/342 candidates, 15565 s into the round; about 11 min left in it
+  round 9 probe 15/16: 200/342 candidates, 15566 s into the round; about 11 min left in it
+  round 9 probe 15/16: 250/342 candidates, 15567 s into the round; about 11 min left in it
+  round 9 probe 15/16: 300/342 candidates, 15570 s into the round; about 11 min left in it
+  round 9 probe 15/16: 342/342 candidates, 15574 s into the round; about 11 min left in it
+  round 9 probe 16/16: 50/342 candidates, 16225 s into the round; under a minute left in it
+  round 9 probe 16/16: 100/342 candidates, 16226 s into the round; under a minute left in it
+  round 9 probe 16/16: 150/342 candidates, 16227 s into the round; under a minute left in it
+  round 9 probe 16/16: 200/342 candidates, 16228 s into the round; under a minute left in it
+  round 9 probe 16/16: 250/342 candidates, 16230 s into the round; under a minute left in it
+  round 9 probe 16/16: 300/342 candidates, 16232 s into the round; under a minute left in it
+  round 9 probe 16/16: 342/342 candidates, 16236 s into the round; under a minute left in it
+round 9: 518 functions, E -154.90221170, 16236 s
+  shape (A, deg): 1.41580 1.41582 1.09652 1.10679 1.10679 1.09651 1.10679 1.10679 107.350 111.530 111.530 109.035 109.035 108.309 111.803 107.350 111.531 111.531 109.034 109.034 108.308
+  added 5, predicted to move: +0.00004 +0.00004 -0.00004 -0.00006 -0.00006 -0.00004 -0.00006 -0.00006 +0.040 -0.016 -0.016 +0.002 +0.002 -0.012 -0.055 +0.040 -0.016 -0.016 +0.002 +0.002 -0.012; left 16.98

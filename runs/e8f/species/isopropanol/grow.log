@@ -1593,3 +1593,42 @@ isopropanol: 12 atoms, 11 bonds; carrying on from round 2
   round 2 probe 56/60: 350/408 candidates, 14653 s into the round; about 11 min left in it
   round 2 probe 56/60: 400/408 candidates, 14654 s into the round; about 11 min left in it
   round 2 probe 56/60: 408/408 candidates, 14654 s into the round; about 11 min left in it
+  round 2 probe 57/60: 50/408 candidates, 14821 s into the round; about 8 min left in it
+  round 2 probe 57/60: 100/408 candidates, 14821 s into the round; about 8 min left in it
+  round 2 probe 57/60: 150/408 candidates, 14821 s into the round; about 8 min left in it
+  round 2 probe 57/60: 200/408 candidates, 14821 s into the round; about 8 min left in it
+  round 2 probe 57/60: 250/408 candidates, 14822 s into the round; about 8 min left in it
+  round 2 probe 57/60: 300/408 candidates, 14822 s into the round; about 8 min left in it
+  round 2 probe 57/60: 350/408 candidates, 14822 s into the round; about 8 min left in it
+  round 2 probe 57/60: 400/408 candidates, 14823 s into the round; about 8 min left in it
+  round 2 probe 57/60: 408/408 candidates, 14823 s into the round; about 8 min left in it
+  round 2 probe 58/60: 50/408 candidates, 14987 s into the round; about 6 min left in it
+  round 2 probe 58/60: 100/408 candidates, 14987 s into the round; about 6 min left in it
+  round 2 probe 58/60: 150/408 candidates, 14987 s into the round; about 6 min left in it
+  round 2 probe 58/60: 200/408 candidates, 14988 s into the round; about 6 min left in it
+  round 2 probe 58/60: 250/408 candidates, 14988 s into the round; about 6 min left in it
+  round 2 probe 58/60: 300/408 candidates, 14988 s into the round; about 6 min left in it
+  round 2 probe 58/60: 350/408 candidates, 14988 s into the round; about 6 min left in it
+  round 2 probe 58/60: 400/408 candidates, 14989 s into the round; about 6 min left in it
+  round 2 probe 58/60: 408/408 candidates, 14989 s into the round; about 6 min left in it
+  round 2 probe 59/60: 50/408 candidates, 15157 s into the round; about 3 min left in it
+  round 2 probe 59/60: 100/408 candidates, 15157 s into the round; about 3 min left in it
+  round 2 probe 59/60: 150/408 candidates, 15158 s into the round; about 3 min left in it
+  round 2 probe 59/60: 200/408 candidates, 15158 s into the round; about 3 min left in it
+  round 2 probe 59/60: 250/408 candidates, 15158 s into the round; about 3 min left in it
+  round 2 probe 59/60: 300/408 candidates, 15159 s into the round; about 3 min left in it
+  round 2 probe 59/60: 350/408 candidates, 15159 s into the round; about 3 min left in it
+  round 2 probe 59/60: 400/408 candidates, 15159 s into the round; about 3 min left in it
+  round 2 probe 59/60: 408/408 candidates, 15159 s into the round; about 3 min left in it
+  round 2 probe 60/60: 50/408 candidates, 15330 s into the round; under a minute left in it
+  round 2 probe 60/60: 100/408 candidates, 15330 s into the round; under a minute left in it
+  round 2 probe 60/60: 150/408 candidates, 15330 s into the round; under a minute left in it
+  round 2 probe 60/60: 200/408 candidates, 15331 s into the round; under a minute left in it
+  round 2 probe 60/60: 250/408 candidates, 15331 s into the round; under a minute left in it
+  round 2 probe 60/60: 300/408 candidates, 15331 s into the round; under a minute left in it
+  round 2 probe 60/60: 350/408 candidates, 15332 s into the round; under a minute left in it
+  round 2 probe 60/60: 400/408 candidates, 15332 s into the round; under a minute left in it
+  round 2 probe 60/60: 408/408 candidates, 15332 s into the round; under a minute left in it
+round 2: 175 functions, E -194.16418953, 15332 s
+  shape (A, deg): 1.52305 1.53023 1.46058 1.09889 1.10648 1.10706 1.10510 1.10925 1.09956 1.10772 0.97524 110.646 110.826 110.183 108.447 108.248 108.412 112.909 106.032 109.263 110.653 109.471 108.373 111.186 110.337 111.155 108.175 107.378 108.488 106.811
+  added 3, predicted to move: +0.00045 +0.00021 +0.00011 +0.00029 +0.00015 -0.00577 +0.00039 -0.00562 +0.00062 -0.00540 +0.00005 +0.015 +0.011 +0.074 -0.090 -0.005 -0.019 +0.032 +0.053 +0.017 -0.037 -0.080 -0.001 -0.036 +0.097 +0.039 -0.055 -0.063 +0.007 -0.040; left 404.86

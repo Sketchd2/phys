@@ -1242,3 +1242,47 @@ round 6: 384 functions, E -230.09829975, 7059 s
   round 7 probe 13/18: 300/394 candidates, 7304 s into the round; about 30 min left in it
   round 7 probe 13/18: 350/394 candidates, 7306 s into the round; about 30 min left in it
   round 7 probe 13/18: 394/394 candidates, 7309 s into the round; about 30 min left in it
+  round 7 probe 14/18: 50/394 candidates, 7669 s into the round; about 24 min left in it
+  round 7 probe 14/18: 100/394 candidates, 7670 s into the round; about 24 min left in it
+  round 7 probe 14/18: 150/394 candidates, 7671 s into the round; about 24 min left in it
+  round 7 probe 14/18: 200/394 candidates, 7672 s into the round; about 24 min left in it
+  round 7 probe 14/18: 250/394 candidates, 7673 s into the round; about 24 min left in it
+  round 7 probe 14/18: 300/394 candidates, 7674 s into the round; about 24 min left in it
+  round 7 probe 14/18: 350/394 candidates, 7676 s into the round; about 25 min left in it
+  round 7 probe 14/18: 394/394 candidates, 7679 s into the round; about 25 min left in it
+  round 7 probe 15/18: 50/394 candidates, 8042 s into the round; about 18 min left in it
+  round 7 probe 15/18: 100/394 candidates, 8043 s into the round; about 18 min left in it
+  round 7 probe 15/18: 150/394 candidates, 8044 s into the round; about 18 min left in it
+  round 7 probe 15/18: 200/394 candidates, 8045 s into the round; about 18 min left in it
+  round 7 probe 15/18: 250/394 candidates, 8046 s into the round; about 18 min left in it
+  round 7 probe 15/18: 300/394 candidates, 8047 s into the round; about 18 min left in it
+  round 7 probe 15/18: 350/394 candidates, 8048 s into the round; about 19 min left in it
+  round 7 probe 15/18: 394/394 candidates, 8052 s into the round; about 19 min left in it
+  round 7 probe 16/18: 50/394 candidates, 8389 s into the round; about 12 min left in it
+  round 7 probe 16/18: 100/394 candidates, 8390 s into the round; about 12 min left in it
+  round 7 probe 16/18: 150/394 candidates, 8391 s into the round; about 12 min left in it
+  round 7 probe 16/18: 200/394 candidates, 8392 s into the round; about 12 min left in it
+  round 7 probe 16/18: 250/394 candidates, 8393 s into the round; about 12 min left in it
+  round 7 probe 16/18: 300/394 candidates, 8394 s into the round; about 11 min left in it
+  round 7 probe 16/18: 350/394 candidates, 8395 s into the round; about 11 min left in it
+  round 7 probe 16/18: 394/394 candidates, 8398 s into the round; about 12 min left in it
+  round 7 probe 17/18: 50/394 candidates, 8731 s into the round; about 6 min left in it
+  round 7 probe 17/18: 100/394 candidates, 8731 s into the round; about 6 min left in it
+  round 7 probe 17/18: 150/394 candidates, 8732 s into the round; about 6 min left in it
+  round 7 probe 17/18: 200/394 candidates, 8733 s into the round; about 6 min left in it
+  round 7 probe 17/18: 250/394 candidates, 8735 s into the round; about 6 min left in it
+  round 7 probe 17/18: 300/394 candidates, 8736 s into the round; about 6 min left in it
+  round 7 probe 17/18: 350/394 candidates, 8737 s into the round; about 6 min left in it
+  round 7 probe 17/18: 394/394 candidates, 8740 s into the round; about 6 min left in it
+  round 7 probe 18/18: 50/394 candidates, 9108 s into the round; under a minute left in it
+  round 7 probe 18/18: 100/394 candidates, 9109 s into the round; under a minute left in it
+  round 7 probe 18/18: 150/394 candidates, 9110 s into the round; under a minute left in it
+  round 7 probe 18/18: 200/394 candidates, 9111 s into the round; under a minute left in it
+  round 7 probe 18/18: 250/394 candidates, 9113 s into the round; under a minute left in it
+  round 7 probe 18/18: 300/394 candidates, 9114 s into the round; under a minute left in it
+  round 7 probe 18/18: 350/394 candidates, 9115 s into the round; under a minute left in it
+  round 7 probe 18/18: 394/394 candidates, 9119 s into the round; under a minute left in it
+round 7: 446 functions, E -230.09924551, 16178 s
+  shape (A, deg): 1.43011 1.51885 1.43011 0.96786 1.10406 1.10406 1.10406 1.10406 0.96786 108.161 107.116 111.588 111.588 109.201 109.201 108.108 107.116 109.201 109.201 111.588 111.588 108.108 108.161
+  added 8, predicted to move: +0.00040 +0.00027 +0.00040 -0.00000 +0.00027 +0.00027 +0.00027 +0.00027 -0.00000 -0.014 -0.005 +0.015 +0.015 -0.019 -0.019 +0.008 -0.005 -0.019 -0.019 +0.015 +0.015 +0.008 -0.014; left 15.60
+  relaxed at 530 functions, 2229 s into round 8; 18 probes of 402 candidates to go

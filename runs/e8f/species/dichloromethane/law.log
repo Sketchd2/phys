@@ -1,0 +1,4 @@
+HOLE K 5.6191 damping 2.0 weighted rms 0.109 kcal/mol over 8 pairs (cp); deepest pair 1.491; polarisability: the MP2 mean 43.5249 shared among 3 heavy atoms
+repulsive pairs 8: reference 2.9, 20.6, 59.9, 1.5, 5.6, 37.2, 1.6, 25.1; law -3.0, -29.9, -60.8, 1.5, -1.4, -47.7, 2.0, -11.9
+second virial coefficient (cm3/mol): 300 K: -inf; 600 K: -inf
+
