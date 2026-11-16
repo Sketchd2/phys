@@ -369,3 +369,13 @@ could not spill a 18.9 GB table to /tmp/spill: No space left on device (os error
   round 6 probe 7/8: 334/334 candidates, 23638 s into the round; about 26 min left in it
 could not spill a 18.5 GB table to /tmp/spill: No space left on device (os error 28); rebuilding it instead
   round 6 probe 8/8: 50/334 candidates, 26275 s into the round; under a minute left in it
+  round 6 probe 8/8: 100/334 candidates, 26277 s into the round; under a minute left in it
+  round 6 probe 8/8: 150/334 candidates, 26280 s into the round; under a minute left in it
+  round 6 probe 8/8: 200/334 candidates, 26282 s into the round; under a minute left in it
+  round 6 probe 8/8: 250/334 candidates, 26289 s into the round; under a minute left in it
+  round 6 probe 8/8: 300/334 candidates, 26302 s into the round; under a minute left in it
+  round 6 probe 8/8: 334/334 candidates, 26313 s into the round; under a minute left in it
+round 6: 856 functions, E -79.74002276, 50382 s
+  shape (A, deg): 1.52787 1.09871 1.09872 1.09872 1.09871 1.09872 1.09872 111.469 111.469 111.469 107.402 107.402 107.401 111.469 111.469 111.469 107.402 107.402 107.401
+  added 0, predicted to move: +0.00000 +0.00000 +0.00000 +0.00000 +0.00000 +0.00000 +0.00000 +0.000 +0.000 +0.000 +0.000 +0.000 +0.000 +0.000 +0.000 +0.000 +0.000 +0.000 +0.000; left 0.83
+ethane: settled after 7 rounds, 50382 s
