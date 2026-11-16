@@ -1,1 +1,6 @@
 ethane: 496 functions, field step 0.002, 2 frozen cores
+  19 fields in 1382 s (dipole width scale 1)
+  Hartree-Fock: mean 27.7696 bohr^3, diagonal 26.6654 26.6652 29.9782, off-diagonal 1.9e-7 7.5e-7 -2.6e-5
+  MP2: mean 28.7853 bohr^3, diagonal 27.4583 27.4582 31.4394, off-diagonal -5.0e-7 7.3e-7 -5.4e-5
+  atomic polarisabilities by class [9.225177448271806, 3.11010544919653] bohr^3 (classes [0, 0, 1, 1, 1, 1, 1, 1]); the model's tensor: mean 28.7853, diagonal 27.4582 27.4583 31.4394; residual rms 4.40e-5
+  written to polar-ethane.txt
