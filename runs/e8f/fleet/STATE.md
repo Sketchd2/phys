@@ -4,6 +4,13 @@
 
 ## WAKE CADENCE: every 62 min, self-scheduled. At the start of each wake call send_later (+62 min) with the same message; backstop task every 6 h re-arms if the chain breaks.
 
+## 2026-11-16 18:02 UTC, wake 26
+
+- Quiet hour: no stage finished. DME at pairs2 (44); chloroform, ethylene glycol on mono (4 h polar).
+- 72, 73 (second stop) retired to 87 (hexane), 88 (cyclohexane). 43's queue was done: takes acetonitrile 462/0.627
+  (from 83) and phenol. Resumed 77, 80. Count 35. Unstarted: chlorobenzene, octane.
+- Block ends 18:20 UTC; judge it at the 19:04 wake (full snapshot, then +4 if clean and there is work).
+
 ## 2026-11-16 16:58 UTC, wake 25
 
 - ACETONITRILE BOILING POINT: 414.9 K from 31 of 34 states (run here, stage.sh boil; expt 354.8 K). The other 3 states
