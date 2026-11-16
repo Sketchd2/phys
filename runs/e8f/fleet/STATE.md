@@ -4,6 +4,12 @@
 
 ## WAKE CADENCE: every 62 min, self-scheduled. At the start of each wake call send_later (+62 min) with the same message; backstop task every 6 h re-arms if the chain breaks.
 
+## 2026-11-16 22:16 UTC, wake 30
+
+- DME parts done 1, 4, 6, 8; 2 on 44, 3 moved to 95, 5 on 93, 7 on 94. Chloroform (79), ethylene glycol (55) mono done,
+  now on pairs: if killed like DME, switch to pairs-part.sh parts (selection exists once pairs starts).
+- Resumed 76, 81, 82, 85, 88 (they stopped ~10 min after the last resume). Block ends 23:20. Next 23:18.
+
 ## 2026-11-16 21:12 UTC, wake 29
 
 - Quiet hour. DME parts 4, 6, 8 running (93-95); 2 on 44. Acetonitrile 32/34.
