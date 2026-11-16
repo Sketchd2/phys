@@ -1,8 +1,18 @@
 # Fleet state (the orchestrator's own notes; newest first)
 
-## WORKER COUNT: hold 31 to the end of the block (~13:20 UTC). If clean: move toward the measured target in USAGE.md, at most +4 a wake. Each wake: sample orchestrator + a few workers' cost (get_session) into usage.json; any worker rising >1 USD between wakes is looping: fix the cause. Full snapshot of every session once a block.
+## WORKER COUNT: 35 from 13:50 UTC (block 08:20-13:20 passed clean at 31). Block now ends 18:20 UTC. If this block passes clean: +4 again at most (only with real work for them); if the limit hits: back to 31 and hold. Each wake: sample orchestrator + a few workers' cost (get_session) into usage.json; any worker rising >1 USD between wakes is looping: fix the cause. Full snapshot of every session once a block.
 
 ## WAKE CADENCE: every 62 min, self-scheduled. At the start of each wake call send_later (+62 min) with the same message; backstop task every 6 h re-arms if the chain breaks.
+
+## 2026-11-16 13:48 UTC, wake 22
+
+- Block 08:20-13:20 PASSED CLEAN at 31. Full snapshot (usage.json): orchestrator +7.42 USD over the block; workers'
+  cost_usd only refreshes when a turn ends, so long-turn workers read stale; the ones that refreshed rose ~0.25 each
+  -> workers ~8 USD est. Window ~15 USD vs ceiling est. 40-50. Count 31 -> 35: 72 hexane, 73 cyclohexane,
+  74 ethyl acetate, 75 toluene (grows).
+- Dimethyl ether grown -> mono..plan on 44. Dichloromethane law HOLE (8th). Pyridine grow on 50 (its queue was done).
+- Acetonitrile 23/34. CCl4 pairs2 running on 65 (mono2 passed with the 4 h polar). Resumed 56, 58, 60, 63, 64, 68.
+- Unstarted: glycerol, heptane, aniline, phenol, chlorobenzene, octane. Next wake 14:51.
 
 ## 2026-11-16 12:44 UTC, wake 21
 

@@ -1,6 +1,6 @@
 {
- "children": 31,
- "window": "allowed; resets 08:10 then 13:10 UTC",
+ "children": 35,
+ "window": "allowed; resets 18:20 UTC",
  "note": "Limit hit 07:39 UTC (owner). Count cut to 31: 66, 67, 70, 71 stopped. All others resumed after the 08:10 reset.",
  "wakes": [
   {
@@ -135,6 +135,11 @@
    "at": "2026-11-16T12:44Z",
    "n": 21,
    "note": "AMMONIA BOILS 577.2 K (34/34 states; expt 239.8). Merge-skip 47 ammonia. 6 acetonitrile states moved to 46. Resumed 8 idle."
+  },
+  {
+   "at": "2026-11-16T13:48Z",
+   "n": 22,
+   "note": "block clean at 31 -> 35 (72 hexane, 73 cyclohexane, 74 ethyl acetate, 75 toluene). DME grown -> stages on 44. Dichloromethane HOLE. Pyridine on 50. Acetonitrile 23/34."
   }
  ],
  "burn_usd": null,
@@ -187,16 +192,31 @@
   "68": "session_016vymdyH1Vw2UWbYbHdEZDt",
   "69": "session_016vymdzURcRVBzdiNXELn9n",
   "70": "session_016vymdzL92yjyquVnfMzSF1",
-  "71": "session_016vymdvoZwQHR4x4vWdNSa5"
+  "71": "session_016vymdvoZwQHR4x4vWdNSa5",
+  "72": {
+   "session": "session_016vymdzUkTcpg6f129EkCzV"
+  },
+  "73": {
+   "session": "session_016vymdwpNLdZro6BtJ2ZXzH"
+  },
+  "74": {
+   "session": "session_016vymdy82VKN8Duz7mfg2NC"
+  },
+  "75": {
+   "session": "session_016vymdxkLmdcKHGVnRQiXYz"
+  }
  },
  "ceiling": "31-35 workers + orchestrator for 4.5 h exhausted a five-hour window (limit hit 07:39 UTC)",
  "limit_search": {
   "hit_at": [
    35
   ],
-  "clean_at": [],
-  "current_block_count": 31,
-  "block_ends": "2026-11-16T13:20Z",
-  "operating": null
+  "clean_at": [
+   31
+  ],
+  "current_block_count": 35,
+  "block_ends": "2026-11-16T18:20Z",
+  "operating": null,
+  "note": "block 08:20-13:20 clean at 31; window burn ~15 USD (orch 7.4 + workers ~8 est.); +4 per STATE rule"
  }
 }

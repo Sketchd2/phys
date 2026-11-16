@@ -44,3 +44,4 @@
 2026-11-16 10:36 worker.sh prints a keep-looping reminder each call: 7 Haiku workers ended their turns mid-job; no owner choice involved.
 2026-11-16 11:45 CCl4 mono: phys-polar timed out at 2400 s (510 functions); rerun with 14400 s before the stage (stage.sh unchanged). Ammonia: 4 more truncated-but-done states (pre-lock) set aside and rerun; boil from the 30 complete states gives 578.2 K, recorded provisional; ammonia-boil4 after the reruns.
 2026-11-16 12:50 worker 47's stale ammonia files skipped in merges (they overwrote 46's complete reruns); 6 acetonitrile states moved to 46 so it is not idle.
+2026-11-16 13:50 block 08:20-13:20 clean at 31 -> 35 (+4, WORKER COUNT rule); new workers each have an unstarted species.
