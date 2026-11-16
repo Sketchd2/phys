@@ -259,3 +259,4 @@ round 3: 254 functions, E -1418.79118650, 5561 s
 round 4: 288 functions, E -1418.79263626, 8318 s
   shape (A, deg): 1.77888 1.77889 1.77888 1.08992 111.226 111.226 107.656 111.219 107.656 107.657
   added 5, predicted to move: -0.00159 -0.00159 -0.00159 +0.00177 -0.003 -0.003 +0.004 -0.003 +0.004 +0.004; left 31.35
+chloroform: 5 atoms, 4 bonds; carrying on from round 5
