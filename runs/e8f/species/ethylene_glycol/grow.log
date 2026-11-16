@@ -531,3 +531,27 @@ round 2: 190 functions, E -230.07936746, 10053 s
   round 3 probe 15/18: 250/348 candidates, 2936 s into the round; about 5 min left in it
   round 3 probe 15/18: 300/348 candidates, 2936 s into the round; about 5 min left in it
   round 3 probe 15/18: 348/348 candidates, 2936 s into the round; about 5 min left in it
+  round 3 probe 16/18: 50/348 candidates, 3038 s into the round; about 3 min left in it
+  round 3 probe 16/18: 100/348 candidates, 3038 s into the round; about 3 min left in it
+  round 3 probe 16/18: 150/348 candidates, 3038 s into the round; about 3 min left in it
+  round 3 probe 16/18: 200/348 candidates, 3039 s into the round; about 3 min left in it
+  round 3 probe 16/18: 250/348 candidates, 3039 s into the round; about 3 min left in it
+  round 3 probe 16/18: 300/348 candidates, 3039 s into the round; about 3 min left in it
+  round 3 probe 16/18: 348/348 candidates, 3039 s into the round; about 3 min left in it
+  round 3 probe 17/18: 50/348 candidates, 3143 s into the round; about 2 min left in it
+  round 3 probe 17/18: 100/348 candidates, 3143 s into the round; about 2 min left in it
+  round 3 probe 17/18: 150/348 candidates, 3143 s into the round; about 2 min left in it
+  round 3 probe 17/18: 200/348 candidates, 3144 s into the round; about 2 min left in it
+  round 3 probe 17/18: 250/348 candidates, 3144 s into the round; about 2 min left in it
+  round 3 probe 17/18: 300/348 candidates, 3144 s into the round; about 2 min left in it
+  round 3 probe 17/18: 348/348 candidates, 3144 s into the round; about 2 min left in it
+  round 3 probe 18/18: 50/348 candidates, 3249 s into the round; under a minute left in it
+  round 3 probe 18/18: 100/348 candidates, 3249 s into the round; under a minute left in it
+  round 3 probe 18/18: 150/348 candidates, 3249 s into the round; under a minute left in it
+  round 3 probe 18/18: 200/348 candidates, 3250 s into the round; under a minute left in it
+  round 3 probe 18/18: 250/348 candidates, 3250 s into the round; under a minute left in it
+  round 3 probe 18/18: 300/348 candidates, 3250 s into the round; under a minute left in it
+  round 3 probe 18/18: 348/348 candidates, 3250 s into the round; under a minute left in it
+round 3: 228 functions, E -230.08807721, 13304 s
+  shape (A, deg): 1.43360 1.51817 1.43360 0.97060 1.10658 1.10658 1.10658 1.10658 0.97060 108.003 107.035 111.541 111.541 109.246 109.247 108.192 107.035 109.246 109.247 111.541 111.541 108.192 108.003
+  added 6, predicted to move: -0.00168 -0.00008 -0.00168 -0.00332 -0.00002 -0.00002 -0.00002 -0.00002 -0.00332 -0.156 -0.036 +0.000 +0.000 +0.014 +0.014 +0.028 -0.036 +0.014 +0.014 +0.000 +0.000 +0.028 -0.156; left 116.20
