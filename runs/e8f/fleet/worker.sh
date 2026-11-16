@@ -21,9 +21,6 @@ git fetch -q origin $MAIN 2>/dev/null
 if [ -z "$FLEET_UPDATED" ] && git show FETCH_HEAD:runs/e8f/fleet/worker.sh > /tmp/fleet/worker.new 2>/dev/null && ! cmp -s /tmp/fleet/worker.new "$0"; then
   cp /tmp/fleet/worker.new "$0"; FLEET_UPDATED=1 exec bash "$0" "$@"
 fi
-# One call at a time on a machine: two calls at once each found no job running and started the same
-# job twice, and the second copy's output overwrote the first's after the first had finished.
-exec 8>/tmp/fleet/call.lock; flock -n 8 || { echo "RUNNING (another call of this worker is active)"; exit 0; }
 # The local branch carries the name it is pushed under: a push of HEAD to another name was
 # refused for every worker of the first fleet, silently, because its errors were thrown away.
 git checkout -q -B $BR 2>/dev/null
