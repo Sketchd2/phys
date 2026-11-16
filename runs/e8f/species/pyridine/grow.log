@@ -1,2 +1,30 @@
 pyridine: 11 atoms, 11 bonds; starting
 pyridine: 11 atoms, 11 bonds; starting
+  relaxed at 176 functions, 6095 s into round 0; 30 probes of 430 candidates to go
+  round 0 probe 1/30: 50/430 candidates, 6414 s into the round; about 156 min left in it
+  round 0 probe 1/30: 100/430 candidates, 6415 s into the round; about 156 min left in it
+  round 0 probe 1/30: 150/430 candidates, 6415 s into the round; about 156 min left in it
+  round 0 probe 1/30: 200/430 candidates, 6415 s into the round; about 156 min left in it
+  round 0 probe 1/30: 250/430 candidates, 6415 s into the round; about 156 min left in it
+  round 0 probe 1/30: 300/430 candidates, 6416 s into the round; about 156 min left in it
+  round 0 probe 1/30: 350/430 candidates, 6416 s into the round; about 156 min left in it
+  round 0 probe 1/30: 400/430 candidates, 6416 s into the round; about 156 min left in it
+  round 0 probe 1/30: 430/430 candidates, 6417 s into the round; about 156 min left in it
+  round 0 probe 2/30: 50/430 candidates, 6739 s into the round; about 151 min left in it
+  round 0 probe 2/30: 100/430 candidates, 6739 s into the round; about 151 min left in it
+  round 0 probe 2/30: 150/430 candidates, 6740 s into the round; about 152 min left in it
+  round 0 probe 2/30: 200/430 candidates, 6740 s into the round; about 151 min left in it
+  round 0 probe 2/30: 250/430 candidates, 6740 s into the round; about 151 min left in it
+  round 0 probe 2/30: 300/430 candidates, 6741 s into the round; about 151 min left in it
+  round 0 probe 2/30: 350/430 candidates, 6741 s into the round; about 151 min left in it
+  round 0 probe 2/30: 400/430 candidates, 6741 s into the round; about 151 min left in it
+  round 0 probe 2/30: 430/430 candidates, 6742 s into the round; about 152 min left in it
+  round 0 probe 3/30: 50/430 candidates, 7054 s into the round; about 141 min left in it
+  round 0 probe 3/30: 100/430 candidates, 7054 s into the round; about 142 min left in it
+  round 0 probe 3/30: 150/430 candidates, 7054 s into the round; about 142 min left in it
+  round 0 probe 3/30: 200/430 candidates, 7055 s into the round; about 142 min left in it
+  round 0 probe 3/30: 250/430 candidates, 7055 s into the round; about 142 min left in it
+  round 0 probe 3/30: 300/430 candidates, 7055 s into the round; about 142 min left in it
+  round 0 probe 3/30: 350/430 candidates, 7056 s into the round; about 142 min left in it
+  round 0 probe 3/30: 400/430 candidates, 7056 s into the round; about 142 min left in it
+  round 0 probe 3/30: 430/430 candidates, 7056 s into the round; about 142 min left in it

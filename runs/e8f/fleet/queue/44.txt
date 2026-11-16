@@ -4,3 +4,8 @@ dimethyl_ether-pairs species/dimethyl_ether ../../fleet/stage.sh pairs dimethyl_
 dimethyl_ether-full species/dimethyl_ether ../../fleet/stage.sh full dimethyl_ether
 dimethyl_ether-law species/dimethyl_ether ../../fleet/stage.sh law dimethyl_ether
 dimethyl_ether-plan species/dimethyl_ether ../../fleet/stage.sh plan dimethyl_ether
+dimethyl_ether-mono2 species/dimethyl_ether grep -q 'MP2: mean' polar.log 2>/dev/null || timeout 14400 $(git rev-parse --show-toplevel)/target/release/phys-polar dimethyl_ether > polar.log 2>&1; ../../fleet/stage.sh mono dimethyl_ether
+dimethyl_ether-pairs2 species/dimethyl_ether ../../fleet/stage.sh pairs dimethyl_ether
+dimethyl_ether-full2 species/dimethyl_ether ../../fleet/stage.sh full dimethyl_ether
+dimethyl_ether-law2 species/dimethyl_ether ../../fleet/stage.sh law dimethyl_ether
+dimethyl_ether-plan2 species/dimethyl_ether ../../fleet/stage.sh plan dimethyl_ether

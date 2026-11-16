@@ -47,3 +47,4 @@
 2026-11-16 13:50 block 08:20-13:20 clean at 31 -> 35 (+4, WORKER COUNT rule); new workers each have an unstarted species.
 2026-11-16 14:55 CCl4 pairs killed (18.1 GB fit table, spill disk full, 15 GB machine): retried once with spilling off (PHYS_SPILL_MAX_GB=0); if killed again CCl4 stops at pairs as a machine-size limit, for the owner.
 2026-11-16 14:58 repeat stoppers 51,54,56,58,60,63,64,68 (idle every wake, job restarting each time) retired to new numbers 76-83 with their remaining jobs; count stays 35.
+2026-11-16 15:58 CCl4 stopped at pairs (killed twice, 18 GB table vs 15 GB worker): owner's decision, not retried. DME polar timed out -> mono2 with 4 h polar on 44. Acetonitrile boil queued on 46 at 31/34.

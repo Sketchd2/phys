@@ -1,0 +1,1 @@
+CARBON TETRACHLORIDE STOPS AT PAIRS: phys-overlap killed twice (18.1-18.7 GB fit table on a 15 GB worker; spill disk full; no-spill rebuild also killed). Needs a bigger machine or a smaller basis: owner's decision.

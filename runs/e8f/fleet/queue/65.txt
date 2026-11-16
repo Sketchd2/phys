@@ -13,3 +13,4 @@ carbon_tetrachloride-pairs3 species/carbon_tetrachloride rm -rf /tmp/spill/*; PH
 carbon_tetrachloride-full3 species/carbon_tetrachloride ../../fleet/stage.sh full carbon_tetrachloride
 carbon_tetrachloride-law3 species/carbon_tetrachloride ../../fleet/stage.sh law carbon_tetrachloride
 carbon_tetrachloride-plan3 species/carbon_tetrachloride ../../fleet/stage.sh plan carbon_tetrachloride
+heptane-grow-w65 species/heptane ../../fleet/stage.sh grow heptane

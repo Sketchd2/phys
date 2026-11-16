@@ -33,3 +33,4 @@ acetonitrile-liq-518-0.627-w46 species/acetonitrile ../../fleet/liquid-state.sh 
 acetonitrile-liq-592-0.627-w46 species/acetonitrile ../../fleet/liquid-state.sh acetonitrile 592 0.627 12
 acetonitrile-liq-518-0.701-w46 species/acetonitrile ../../fleet/liquid-state.sh acetonitrile 518 0.701 12
 acetonitrile-liq-592-0.701-w46 species/acetonitrile ../../fleet/liquid-state.sh acetonitrile 592 0.701 12
+acetonitrile-boil species/acetonitrile ../../fleet/stage.sh boil acetonitrile

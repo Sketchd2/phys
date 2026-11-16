@@ -1,1 +1,2 @@
 could not spill a 18.1 GB table to /tmp/spill: No space left on device (os error 28); rebuilding it instead
+a 18.7 GB table is over the 0.0 GB spill cap; rebuilding it instead

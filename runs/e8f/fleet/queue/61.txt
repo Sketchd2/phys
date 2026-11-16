@@ -1,1 +1,1 @@
-ethanol-grow3 species/ethanol ../../fleet/stage.sh grow ethanol
+STOP
