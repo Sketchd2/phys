@@ -1,0 +1,18 @@
+induced dipoles on, polarisabilities by site type [9.7289, 9.7289, 9.7289, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0] bohr^3
+acetonitrile at 1850 K: 64 molecules, 0.133 g/cm3, box 60.49 bohr (32.01 A), cut-off 16.0 bohr
+  Ewald sum on: s' = 4.2 bohr, 13000 reciprocal vectors
+  start: U/N -0.06 kcal/mol
+  easing: U/N -0.19 kcal/mol, T 1696/1827 K, P 396 bar
+  settling: U/N -1.28 kcal/mol, T 1962/1987 K, P 483 bar
+  warming: U/N -1.57 kcal/mol, T 1898/1556 K, P 675 bar
+  0% after 2764 s: U/N -1.58 kcal/mol, P 673 bar
+  8% after 2934 s: U/N -1.05 kcal/mol, P 516 bar
+  17% after 3106 s: U/N -1.49 kcal/mol, P 475 bar
+  25% after 3280 s: U/N -1.13 kcal/mol, P 597 bar
+  33% after 3453 s: U/N -1.34 kcal/mol, P 537 bar
+  42% after 3623 s: U/N -1.31 kcal/mol, P 509 bar
+  50% after 3790 s: U/N -1.31 kcal/mol, P 592 bar
+  58% after 3953 s: U/N -1.51 kcal/mol, P 586 bar
+  67% after 4125 s: U/N -1.17 kcal/mol, P 450 bar
+  75% after 4301 s: U/N -1.48 kcal/mol, P 442 bar
+  83% after 4479 s: U/N -0.83 kcal/mol, P 678 bar
