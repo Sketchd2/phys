@@ -128,3 +128,22 @@ ethylene_glycol: 10 atoms, 9 bonds; starting
   round 0 probe 16/18: 300/360 candidates, 3905 s into the round; about 3 min left in it
   round 0 probe 16/18: 350/360 candidates, 3905 s into the round; about 3 min left in it
   round 0 probe 16/18: 360/360 candidates, 3905 s into the round; about 3 min left in it
+  round 0 probe 17/18: 50/360 candidates, 3997 s into the round; about 2 min left in it
+  round 0 probe 17/18: 100/360 candidates, 3997 s into the round; about 2 min left in it
+  round 0 probe 17/18: 150/360 candidates, 3998 s into the round; about 2 min left in it
+  round 0 probe 17/18: 200/360 candidates, 3998 s into the round; about 2 min left in it
+  round 0 probe 17/18: 250/360 candidates, 3998 s into the round; about 2 min left in it
+  round 0 probe 17/18: 300/360 candidates, 3998 s into the round; about 2 min left in it
+  round 0 probe 17/18: 350/360 candidates, 3999 s into the round; about 2 min left in it
+  round 0 probe 17/18: 360/360 candidates, 3999 s into the round; about 2 min left in it
+  round 0 probe 18/18: 50/360 candidates, 4093 s into the round; under a minute left in it
+  round 0 probe 18/18: 100/360 candidates, 4093 s into the round; under a minute left in it
+  round 0 probe 18/18: 150/360 candidates, 4093 s into the round; under a minute left in it
+  round 0 probe 18/18: 200/360 candidates, 4094 s into the round; under a minute left in it
+  round 0 probe 18/18: 250/360 candidates, 4094 s into the round; under a minute left in it
+  round 0 probe 18/18: 300/360 candidates, 4094 s into the round; under a minute left in it
+  round 0 probe 18/18: 350/360 candidates, 4094 s into the round; under a minute left in it
+  round 0 probe 18/18: 360/360 candidates, 4094 s into the round; under a minute left in it
+round 0: 144 functions, E -230.04925507, 4094 s
+  shape (A, deg): 1.45308 1.51679 1.45308 0.98987 1.11115 1.11115 1.11116 1.11115 0.98987 106.079 106.802 111.122 111.122 109.608 109.609 108.558 106.802 109.608 109.609 111.122 111.122 108.558 106.079
+  added 6, predicted to move: +0.00263 +0.00137 +0.00263 -0.03315 +0.00062 +0.00062 +0.00062 +0.00062 -0.03315 +1.089 +0.092 +0.036 +0.036 -0.014 -0.014 -0.209 +0.092 -0.014 -0.014 +0.036 +0.036 -0.209 +1.089; left 771.10
