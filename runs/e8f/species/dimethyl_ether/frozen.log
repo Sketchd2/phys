@@ -5,3 +5,4 @@ pair 465: first atoms 4.26 A, electrostatic -4.690 kcal/mol, exchange 14.696, Ha
 could not spill a 28.7 GB table to /tmp/spill: No space left on device (os error 28); rebuilding it instead
 pair 301: first atoms 5.19 A, electrostatic -3.129 kcal/mol, exchange 8.794, Hartree-Fock beyond both -5.664, overlap 1.6176e-3, electrons 25.99998 26.00001, 1204 functions, 2088 s
 could not spill a 29.6 GB table to /tmp/spill: No space left on device (os error 28); rebuilding it instead
+pair 398: first atoms 4.77 A, electrostatic -6.961 kcal/mol, exchange 19.046, Hartree-Fock beyond both -12.085, overlap 3.8879e-3, electrons 25.99998 25.99997, 1204 functions, 2126 s
