@@ -16,3 +16,6 @@ ammonia-liq-304-0.64 species/ammonia ../../fleet/liquid-state.sh ammonia 304 0.6
 ammonia-liq-347-0.676 species/ammonia ../../fleet/liquid-state.sh ammonia 347 0.676 12
 ammonia-liq-347-0.605 species/ammonia ../../fleet/liquid-state.sh ammonia 347 0.605 12
 ammonia-boil species/ammonia ../../fleet/stage.sh boil ammonia
+ammonia-liq-271-0.712-again species/ammonia [ -f liquid/redo-271-0.712.mark ] || { rm -rf liquid/s-271-0.712; touch liquid/redo-271-0.712.mark; }; ../../fleet/liquid-state.sh ammonia 271 0.712 12
+ammonia-liq-1080-0.0142-again species/ammonia [ -f liquid/redo-1080-0.0142.mark ] || { rm -rf liquid/s-1080-0.0142; touch liquid/redo-1080-0.0142.mark; }; ../../fleet/liquid-state.sh ammonia 1080 0.0142 12
+ammonia-boil2 species/ammonia ../../fleet/stage.sh boil ammonia

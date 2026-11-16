@@ -25,3 +25,4 @@
 - 2026-11-15 Replacement worker 19 still refused after the merge fix: the clone is shallow, so the merge needs --allow-unrelated-histories; added.
 - 2026-11-16 Replacement worker 19 never pushed (5 h; the shallow-clone fix did not reach it either): archived, queue 19 stopped, methylamine requeued on new worker 56 from the grow state the first worker 19 pushed (round 9), with NFULL=12.
 - 2026-11-16 Ammonia's boiling point queued at the end of worker 46 (29 of 34 states done; the stage needs 31).
+- 2026-11-16 Ammonia's boil failed: two states (271 K 0.712, 1080 K 0.0142) hold a "done" with a log that stops after settling and a two-line sample file. Both rerun on 46 (the old directory removed once, by a marker), then ammonia-boil2. Ethylene's law (8 pairs) begins HOLE.
