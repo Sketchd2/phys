@@ -4,6 +4,15 @@
 
 ## WAKE CADENCE: every 62 min, self-scheduled. At the start of each wake call send_later (+62 min) with the same message; backstop task every 6 h re-arms if the chain breaks.
 
+## 2026-11-16 05:36 UTC, wake 15
+
+- The per-machine call lock (wake 14) was held indefinitely; workers looped on "another call active" and 8 stopped
+  (41, 46, 51, 56, 58, 60, 66, 67). Lock removed; all 8 resumed. Two workers committed by hand while stuck (41, 46);
+  harmless (their own files). The per-state lock in liquid-state.sh stays.
+- Laws: hydrazine HOLE (8 pairs). Acetonitrile NOT HOLE (K 7.74) -> 34 states on 43/68/69; queue acetonitrile-boil
+  once >= 31 done. Ammonia: -third reruns on 46, then boil3.
+- Created 68, 69 (acetonitrile states). Count 33. Next wake 06:34.
+
 ## 2026-11-16 04:30 UTC, wake 14
 
 - ammonia-boil2 failed: the reruns of 271/0.712 and 1080/0.0142 again "done" with a 5-6 line log. Probable double

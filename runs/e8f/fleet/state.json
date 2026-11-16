@@ -1,7 +1,7 @@
 {
- "children": 31,
+ "children": 33,
  "window": "allowed, resets 08:10 UTC",
- "note": "wake 15. Per-machine call lock was held indefinitely and stalled workers; removed. 8 stopped workers resumed. Hydrazine law, acetonitrile plan done. No new workers this wake.",
+ "note": "wake 15. Call lock removed (it stalled workers); 8 resumed. Acetonitrile law OK -> 34 liquid states on 43/68/69. Hydrazine law HOLE. Workers 68, 69.",
  "wakes": [
   {
    "t": "2026-11-15T15:20Z",
@@ -152,6 +152,8 @@
   "64": "session_016vymdx2owSdvogjEV2iZWP",
   "65": "session_016vymdxrqw4kZvyiJD6uhbj",
   "66": "session_016vymdyAV65ftAAkv5oMQDr",
-  "67": "session_016vymdwuTRi73DoHDM7TuHU"
+  "67": "session_016vymdwuTRi73DoHDM7TuHU",
+  "68": "session_016vymdyH1Vw2UWbYbHdEZDt",
+  "69": "session_016vymdzURcRVBzdiNXELn9n"
  }
 }
