@@ -1,1 +1,6 @@
 carbon_tetrachloride: 510 functions, field step 0.002, 21 frozen cores
+  19 fields in 6610 s (dipole width scale 1)
+  Hartree-Fock: mean 67.1802 bohr^3, diagonal 67.1775 67.1806 67.1824, off-diagonal -4.2e-6 -5.3e-6 5.4e-4
+  MP2: mean 70.5190 bohr^3, diagonal 70.5163 70.5188 70.5219, off-diagonal -8.1e-6 6.7e-5 1.0e-3
+  atomic polarisabilities by class [23.75827271133991, 15.745390329224415] bohr^3 (classes [0, 1, 1, 1, 1]); the model's tensor: mean 70.5190, diagonal 70.5173 70.5193 70.5205; residual rms 6.63e-4
+  written to polar-carbon_tetrachloride.txt
