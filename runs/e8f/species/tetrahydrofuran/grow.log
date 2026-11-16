@@ -405,3 +405,23 @@ round 0: 185 functions, E -232.20852070, 15524 s
   added 6, predicted to move: -0.00254 -0.00742 -0.00911 -0.00742 -0.00254 +0.00335 -0.00619 +0.00238 +0.00345 +0.00345 +0.00238 -0.00619 +0.00335 +0.047 +0.017 +0.394 +0.022 +0.063 -0.425 -0.154 +0.156 +0.139 +0.288 -0.043 -0.034 -0.684 +0.156 -0.034 -0.043 +0.288 +0.139 -0.684 +0.017 -0.425 +0.063 +0.022 +0.394 -0.154; left 704.21
 tetrahydrofuran: 13 atoms, 13 bonds; carrying on from round 1
   relaxed at 205 functions, 8861 s into round 1; 76 probes of 456 candidates to go
+  round 1 probe 1/76: 50/456 candidates, 9117 s into the round; about 325 min left in it
+  round 1 probe 1/76: 100/456 candidates, 9118 s into the round; about 325 min left in it
+  round 1 probe 1/76: 150/456 candidates, 9118 s into the round; about 325 min left in it
+  round 1 probe 1/76: 200/456 candidates, 9119 s into the round; about 325 min left in it
+  round 1 probe 1/76: 250/456 candidates, 9119 s into the round; about 325 min left in it
+  round 1 probe 1/76: 300/456 candidates, 9120 s into the round; about 325 min left in it
+  round 1 probe 1/76: 350/456 candidates, 9120 s into the round; about 325 min left in it
+  round 1 probe 1/76: 400/456 candidates, 9121 s into the round; about 325 min left in it
+  round 1 probe 1/76: 450/456 candidates, 9121 s into the round; about 325 min left in it
+  round 1 probe 1/76: 456/456 candidates, 9121 s into the round; about 325 min left in it
+  round 1 probe 2/76: 50/456 candidates, 9378 s into the round; about 322 min left in it
+  round 1 probe 2/76: 100/456 candidates, 9379 s into the round; about 321 min left in it
+  round 1 probe 2/76: 150/456 candidates, 9379 s into the round; about 321 min left in it
+  round 1 probe 2/76: 200/456 candidates, 9379 s into the round; about 321 min left in it
+  round 1 probe 2/76: 250/456 candidates, 9380 s into the round; about 321 min left in it
+  round 1 probe 2/76: 300/456 candidates, 9380 s into the round; about 321 min left in it
+  round 1 probe 2/76: 350/456 candidates, 9381 s into the round; about 321 min left in it
+  round 1 probe 2/76: 400/456 candidates, 9381 s into the round; about 321 min left in it
+  round 1 probe 2/76: 450/456 candidates, 9382 s into the round; about 321 min left in it
+  round 1 probe 2/76: 456/456 candidates, 9382 s into the round; about 322 min left in it
