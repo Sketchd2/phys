@@ -1,2 +1,3 @@
 pair 564: first atoms 4.76 A, electrostatic -3.398 kcal/mol, exchange 12.342, Hartree-Fock beyond both -8.945, overlap 2.0142e-3, electrons 18.00000 18.00001, 992 functions, 3363 s
 could not spill a 12.6 GB table to /tmp/spill: No space left on device (os error 28); rebuilding it instead
+pair 371: first atoms 3.55 A, electrostatic -12.632 kcal/mol, exchange 40.628, Hartree-Fock beyond both -27.996, overlap 7.2015e-3, electrons 18.00000 18.00000, 992 functions, 9624 s
