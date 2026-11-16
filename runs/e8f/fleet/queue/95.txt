@@ -1,1 +1,2 @@
 dme-pairs-p8-w95 species/dimethyl_ether ../../fleet/pairs-part.sh dimethyl_ether 8 3
+dme-pairs-p3-w95 species/dimethyl_ether ../../fleet/pairs-part.sh dimethyl_ether 3 3

@@ -10,4 +10,3 @@ dimethyl_ether-full2 species/dimethyl_ether ../../fleet/stage.sh full dimethyl_e
 dimethyl_ether-law2 species/dimethyl_ether ../../fleet/stage.sh law dimethyl_ether
 dimethyl_ether-plan2 species/dimethyl_ether ../../fleet/stage.sh plan dimethyl_ether
 dme-pairs-p2-w44 species/dimethyl_ether ../../fleet/pairs-part.sh dimethyl_ether 2 3
-dme-pairs-p3-w44 species/dimethyl_ether ../../fleet/pairs-part.sh dimethyl_ether 3 3
