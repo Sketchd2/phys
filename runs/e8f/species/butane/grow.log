@@ -793,3 +793,13 @@ round 2: 266 functions, E -158.27174671, 20632 s
   shape (A, deg): 1.53032 1.53323 1.53032 1.09980 1.10116 1.10116 1.10474 1.10474 1.10474 1.10474 1.09980 1.10116 1.10116 111.520 111.194 111.194 107.641 107.641 107.454 113.364 109.537 109.537 109.125 109.125 105.879 113.364 109.125 109.125 109.537 109.537 105.879 111.520 111.194 111.194 107.641 107.641 107.454
   added 6, predicted to move: -0.00286 -0.00806 -0.00286 +0.00107 +0.00005 +0.00005 -0.00098 -0.00098 -0.00098 -0.00098 +0.00107 +0.00005 +0.00005 +0.364 -0.169 -0.169 -0.004 -0.004 -0.012 -0.175 +0.105 +0.105 -0.083 -0.083 +0.227 -0.175 -0.083 -0.083 +0.105 +0.105 +0.227 +0.364 -0.169 -0.169 -0.004 -0.004 -0.012; left 214.82
   relaxed at 368 functions, 8862 s into round 3; 26 probes of 476 candidates to go
+  round 3 probe 1/26: 50/476 candidates, 9641 s into the round; about 329 min left in it
+  round 3 probe 1/26: 100/476 candidates, 9642 s into the round; about 329 min left in it
+  round 3 probe 1/26: 150/476 candidates, 9643 s into the round; about 328 min left in it
+  round 3 probe 1/26: 200/476 candidates, 9644 s into the round; about 328 min left in it
+  round 3 probe 1/26: 250/476 candidates, 9645 s into the round; about 329 min left in it
+  round 3 probe 1/26: 300/476 candidates, 9646 s into the round; about 329 min left in it
+  round 3 probe 1/26: 350/476 candidates, 9648 s into the round; about 329 min left in it
+  round 3 probe 1/26: 400/476 candidates, 9649 s into the round; about 329 min left in it
+  round 3 probe 1/26: 450/476 candidates, 9651 s into the round; about 329 min left in it
+  round 3 probe 1/26: 476/476 candidates, 9654 s into the round; about 330 min left in it
