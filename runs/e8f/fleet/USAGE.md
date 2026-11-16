@@ -23,3 +23,15 @@ Rules from this:
 - The orchestrator is the largest single consumer: keep wakes short (few tool calls, little output).
 - Child count from measurement: target = (0.85 x ceiling - orchestrator's window burn) / per-worker window burn,
   approached at most +4 a wake, once a window has passed clean at the current count (owner's limit search).
+
+## Full snapshot, 2026-11-16 09:02 UTC (every session; usage.json)
+
+All sessions together: 79.29 USD to date. Orchestrator 37.39 (47%); the two stuck-lock workers 46 and 66 25.64 (32%);
+the other 27 live workers 16.12 together (20%); stopped workers 67/70/71 0.14.
+
+Lifetime rate of each live worker (cost / hours since created): median 0.043 USD/h (~0.22 USD a five-hour window),
+range 0.015 (68) to 0.17 (41, which was in the lock loop too). No worker other than 46 and 66 is out of line.
+
+Forecast for this window at 31 workers: 31 x 0.22 = ~7 USD + orchestrator ~15-17 USD = ~23 USD. If the ceiling is
+~40-50 USD a window (the last window: orchestrator ~15 + lock loop ~20-25 + workers ~6), the workers themselves are
+a small part of the burn and the count could be several times larger; the orchestrator is the term to keep down.
