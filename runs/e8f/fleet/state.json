@@ -180,6 +180,11 @@
    "at": "2026-11-16T22:16Z",
    "n": 30,
    "note": "DME parts 1,4,6,8 done; p3 -> 95. Chloroform, ethylene glycol mono done -> pairs. Resumed 76,81,82,85,88."
+  },
+  {
+   "at": "2026-11-16T23:19Z",
+   "n": 31,
+   "note": "benzene grown -> stages on 86. DME parts 1,4,6,7,8 done. Measurement: 9.1 GB RSS on pair 1. Resumed 75,76,81,82,84,85,88,92."
   }
  ],
  "burn_usd": null,

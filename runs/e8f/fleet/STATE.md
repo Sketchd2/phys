@@ -4,6 +4,12 @@
 
 ## WAKE CADENCE: every 62 min, self-scheduled. At the start of each wake call send_later (+62 min) with the same message; backstop task every 6 h re-arms if the chain breaks.
 
+## 2026-11-16 23:19 UTC, wake 31
+
+- Benzene grown -> mono (4 h polar)..plan on 86. DME parts done 1, 4, 6, 7, 8 (left 2 on 44, 3 on 95, 5 on 93).
+- Measurement (96) first samples: 9.1 GB resident, peak 9.24, 6.0 GB available, no spill, 29 GB disk free, on pair 1.
+- Resumed 75, 76, 81, 82, 84, 85, 88, 92. Block 18:20-23:20 ends now: judge at 00:22 (rate_limit status).
+
 ## 2026-11-16 23:01 UTC, owner request
 
 - Owner asked whether memory-killed runs spill to disk: they try, but the 18-30 GB tables do not fit the ~19 GB free
