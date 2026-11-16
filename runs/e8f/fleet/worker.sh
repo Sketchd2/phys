@@ -36,8 +36,8 @@ push() {  # commit everything under runs/e8f and push to this worker's branch, f
     sleep $t; done
   PUSHED=" (PUSH FAILED: $(tail -1 /tmp/fleet/push.err | cut -c1-120))"; return 1
 }
-wait_for() {  # wait up to 9 minutes for process $1 to end; 0 if it ended (each call of a worker re-reads its whole context, so fewer, longer calls cost less)
-  for i in $(seq 1 108); do kill -0 $1 2>/dev/null || return 0; sleep 5; done; return 1
+wait_for() {  # wait up to 8.5 minutes (inside the 10-minute timeout of a worker call, with room for git) for process $1 to end; 0 if it ended (each call of a worker re-reads its whole context, so fewer, longer calls cost less)
+  for i in $(seq 1 102); do kill -0 $1 2>/dev/null || return 0; sleep 5; done; return 1
 }
 # 0. on a fresh machine, take back what this worker had already pushed (finished jobs, partial runs)
 if [ ! -f /tmp/fleet/synced ]; then
