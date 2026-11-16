@@ -240,3 +240,26 @@ butane: 14 atoms, 13 bonds; starting
   round 0 probe 24/26: 400/466 candidates, 14818 s into the round; about 11 min left in it
   round 0 probe 24/26: 450/466 candidates, 14819 s into the round; about 11 min left in it
   round 0 probe 24/26: 466/466 candidates, 14819 s into the round; about 11 min left in it
+  round 0 probe 25/26: 50/466 candidates, 15112 s into the round; about 5 min left in it
+  round 0 probe 25/26: 100/466 candidates, 15113 s into the round; about 5 min left in it
+  round 0 probe 25/26: 150/466 candidates, 15113 s into the round; about 5 min left in it
+  round 0 probe 25/26: 200/466 candidates, 15114 s into the round; about 5 min left in it
+  round 0 probe 25/26: 250/466 candidates, 15114 s into the round; about 5 min left in it
+  round 0 probe 25/26: 300/466 candidates, 15115 s into the round; about 5 min left in it
+  round 0 probe 25/26: 350/466 candidates, 15115 s into the round; about 5 min left in it
+  round 0 probe 25/26: 400/466 candidates, 15115 s into the round; about 5 min left in it
+  round 0 probe 25/26: 450/466 candidates, 15116 s into the round; about 5 min left in it
+  round 0 probe 25/26: 466/466 candidates, 15116 s into the round; about 5 min left in it
+  round 0 probe 26/26: 50/466 candidates, 15401 s into the round; under a minute left in it
+  round 0 probe 26/26: 100/466 candidates, 15402 s into the round; under a minute left in it
+  round 0 probe 26/26: 150/466 candidates, 15402 s into the round; under a minute left in it
+  round 0 probe 26/26: 200/466 candidates, 15403 s into the round; under a minute left in it
+  round 0 probe 26/26: 250/466 candidates, 15403 s into the round; under a minute left in it
+  round 0 probe 26/26: 300/466 candidates, 15404 s into the round; under a minute left in it
+  round 0 probe 26/26: 350/466 candidates, 15404 s into the round; under a minute left in it
+  round 0 probe 26/26: 400/466 candidates, 15405 s into the round; under a minute left in it
+  round 0 probe 26/26: 450/466 candidates, 15405 s into the round; under a minute left in it
+  round 0 probe 26/26: 466/466 candidates, 15406 s into the round; under a minute left in it
+round 0: 184 functions, E -158.24380508, 15406 s
+  shape (A, deg): 1.53367 1.53415 1.53367 1.10755 1.10761 1.10761 1.10987 1.10987 1.10986 1.10987 1.10755 1.10761 1.10760 111.946 111.131 111.130 107.565 107.565 107.284 113.308 109.778 109.780 109.029 109.027 105.628 113.308 109.027 109.029 109.778 109.780 105.628 111.946 111.131 111.131 107.565 107.565 107.284
+  added 8, predicted to move: -0.00518 -0.00315 -0.00518 -0.00761 +0.00002 +0.00002 -0.00464 -0.00464 -0.00464 -0.00464 -0.00761 +0.00002 +0.00002 -0.708 +0.016 +0.016 +0.192 +0.192 +0.388 +0.058 -0.026 -0.026 -0.034 -0.034 +0.050 +0.058 -0.034 -0.034 -0.026 -0.026 +0.050 -0.708 +0.016 +0.016 +0.192 +0.192 +0.388; left 545.42

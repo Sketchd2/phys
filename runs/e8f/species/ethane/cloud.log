@@ -1,1 +1,8 @@
 ethane: dipole Hartree-Fock 0.0000 au (0.000 D), target 0.0000 au (0.000 D)
+  12050 potential points; the target's RMS 2.757e0, its mean -2.710e0 hartree/e
+  localised in 12 sweeps: 7 bond orbitals, 0 lone pairs (2 core orbitals frozen out of the localisation)
+  valence electrons 14, cores [4.0, 1.0]
+  atom class 0: cloud 4.029 electrons, width 0.571 bohr
+  atom class 1: cloud 0.990 electrons, width 1.396 bohr
+  potential RMS 2.982e-3 hartree/e (atom-centred point charges alone: 4.524e-3)
+  written to cloud-ethane.txt

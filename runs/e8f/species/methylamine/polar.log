@@ -1,0 +1,6 @@
+methylamine: 463 functions, field step 0.002, 2 frozen cores
+  19 fields in 1127 s (dipole width scale 1)
+  Hartree-Fock: mean 24.4575 bohr^3, diagonal 23.2301 23.3245 26.8180, off-diagonal -7.8e-2 -1.1e-1 -8.9e-2
+  MP2: mean 26.0897 bohr^3, diagonal 24.9554 24.5839 28.7297, off-diagonal 3.1e-1 2.0e-1 8.0e-2
+  atomic polarisabilities by class [16.03477924244616, 7.967161547251124, 1.616718461126496, 4.007634617082304, 0.8238478288595725] bohr^3 (classes [0, 1, 2, 3, 2, 4, 4]); the model's tensor: mean 26.0907, diagonal 24.8912 24.6776 28.7034; residual rms 9.07e-2
+  written to polar-methylamine.txt
