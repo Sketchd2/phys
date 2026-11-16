@@ -1,2 +1,6 @@
 # ammonia at 347 K, 64 molecules, 0.64 g/cm3, cut-off 13.094573645959677 bohr, law law.txt
 # ps  U_per_molecule_kcal  pressure_bar  T_translation  T_rotation
+2.491 -18.8535 1973.2 333.7 327.8
+2.591 -19.0191 1627.6 348.1 397.1
+2.691 -18.8508 1037.6 353.6 338.7
+2.790 -18.7897 1154.7 337.9 337.2
