@@ -21,6 +21,9 @@ git fetch -q origin $MAIN 2>/dev/null
 if [ -z "$FLEET_UPDATED" ] && git show FETCH_HEAD:runs/e8f/fleet/worker.sh > /tmp/fleet/worker.new 2>/dev/null && ! cmp -s /tmp/fleet/worker.new "$0"; then
   cp /tmp/fleet/worker.new "$0"; FLEET_UPDATED=1 exec bash "$0" "$@"
 fi
+# One call at a time on a machine: two calls at once each found no job running and started the same
+# job twice, and the second copy's output overwrote the first's after the first had finished.
+exec 8>/tmp/fleet/call.lock; flock -n 8 || { echo "RUNNING (another call of this worker is active)"; exit 0; }
 # The local branch carries the name it is pushed under: a push of HEAD to another name was
 # refused for every worker of the first fleet, silently, because its errors were thrown away.
 git checkout -q -B $BR 2>/dev/null
@@ -48,7 +51,7 @@ fi
 if [ ! -x target/release/phys-bulk ] || [ ! -f /tmp/fleet/built ]; then
   if [ ! -f /tmp/fleet/build.pid ] || ! kill -0 $(cat /tmp/fleet/build.pid) 2>/dev/null; then
     if [ -f /tmp/fleet/build.ok ]; then touch /tmp/fleet/built; else
-      nohup bash -c 'cargo build --release > /tmp/fleet/build.log 2>&1 && touch /tmp/fleet/build.ok' > /dev/null 2>&1 &
+      nohup bash -c 'cargo build --release > /tmp/fleet/build.log 2>&1 && touch /tmp/fleet/build.ok' > /dev/null 2>&1 8>&- &
       echo $! > /tmp/fleet/build.pid
     fi
   fi
@@ -83,7 +86,7 @@ while read -r J D CMD; do
   git ls-files -co runs/e8f/$D 2>/dev/null | while read -r f; do
     git cat-file -e FETCH_HEAD:"$f" 2>/dev/null || grep -qxF "$f" <<< "$OWN" || rm -f "$f"; done
   echo $J > $CUR; rm -f /tmp/fleet/rc-$J
-  ( cd runs/e8f/$D && nohup bash -c "( $CMD ); echo \$? > /tmp/fleet/rc-$J" > $F/log/$J.log 2>&1 & echo $! > $PID )
+  ( cd runs/e8f/$D && nohup bash -c "( $CMD ); echo \$? > /tmp/fleet/rc-$J" > $F/log/$J.log 2>&1 8>&- & echo $! > $PID )
   sleep 2
   if wait_for $(cat $PID); then
     rm -f $PID $CUR
