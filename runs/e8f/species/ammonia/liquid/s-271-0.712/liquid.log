@@ -14,3 +14,15 @@ ammonia at 271 K: 64 molecules, 0.712 g/cm3, box 25.79 bohr (13.65 A), cut-off 1
   50% after 554 s: U/N -19.74 kcal/mol, P -818 bar
   58% after 579 s: U/N -19.85 kcal/mol, P 3163 bar
   67% after 603 s: U/N -20.04 kcal/mol, P -1127 bar
+  75% after 627 s: U/N -19.87 kcal/mol, P -1901 bar
+  83% after 651 s: U/N -19.98 kcal/mol, P -1539 bar
+  92% after 676 s: U/N -19.64 kcal/mol, P -3879 bar
+  100% after 701 s: U/N -19.59 kcal/mol, P -297 bar
+ammonia at 271 K (96 samples over 10 ps, block standard errors):
+  U/N -19.638 +- 0.147 kcal/mol; heat of vaporisation -U/N + RT = 20.176 kcal/mol
+  pressure 20 +- 726 bar at 0.712 g/cm3 (a liquid at the right density sits near 1 bar; positive says it wants to expand)
+  temperatures: translation 269.2 K, rotation 272.3 K (bath 271 K)
+  mean molecular dipole 4.147 D (permanent charges and induced dipoles); dielectric constant 2.5 (blocks 1.5 +- 0.2; slow to converge)
+  dispersion beyond the cut-off (C6 93.67): -513 bar and -0.293 kcal/mol a molecule, so pressure with it -493 bar, U/N -19.931
+  g(first atoms): first peak 5.71 at 2.25 A, first minimum 0.02 at 2.85 A, second peak 1.96 at 4.45 A, coordination to the minimum 1.99 (bulk-ammonia-271.gOO.txt)
+  snapshot in bulk-ammonia-271.snap
