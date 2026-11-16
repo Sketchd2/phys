@@ -4,6 +4,15 @@
 
 ## WAKE CADENCE: every 62 min, self-scheduled. At the start of each wake call send_later (+62 min) with the same message; backstop task every 6 h re-arms if the chain breaks.
 
+## 2026-11-16 11:40 UTC, wake 20
+
+- ammonia-boil3 failed: path.py found 4 more states marked done with truncated logs (1080/0.455, 238/0.605, 347/0.64,
+  401/0.712; from before the liquid-state lock). Run here on the 30 complete states it gives 578.2 K (provisional,
+  species/ammonia/boil-provisional.txt). The 4 set aside and rerun on 46 (-fourth, clear-once markers), then ammonia-boil4.
+- CCl4 mono failed: phys-polar hit the 40-min timeout (510 functions). mono2 runs it with 4 h first; pairs2..plan2 follow on 65.
+- Acetonitrile liquid 18/34. Acetaldehyde at full (41). Resumed 58, 60, 64 (3 idle, down from 7: reminder helps).
+- Orchestrator 41.87 USD (+1.04). Holding 31 to ~13:20. Next wake 12:42.
+
 ## 2026-11-16 10:36 UTC, wake 19
 
 - Merged. Seven workers (51, 54, 56, 58, 60, 64, 68) had ended their turns with jobs still running (Haiku stops after a long

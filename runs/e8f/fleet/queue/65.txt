@@ -4,3 +4,8 @@ carbon_tetrachloride-pairs species/carbon_tetrachloride ../../fleet/stage.sh pai
 carbon_tetrachloride-full species/carbon_tetrachloride ../../fleet/stage.sh full carbon_tetrachloride
 carbon_tetrachloride-law species/carbon_tetrachloride ../../fleet/stage.sh law carbon_tetrachloride
 carbon_tetrachloride-plan species/carbon_tetrachloride ../../fleet/stage.sh plan carbon_tetrachloride
+carbon_tetrachloride-mono2 species/carbon_tetrachloride grep -q 'MP2: mean' polar.log 2>/dev/null || timeout 14400 $(git rev-parse --show-toplevel)/target/release/phys-polar carbon_tetrachloride > polar.log 2>&1; ../../fleet/stage.sh mono carbon_tetrachloride
+carbon_tetrachloride-pairs2 species/carbon_tetrachloride ../../fleet/stage.sh pairs carbon_tetrachloride
+carbon_tetrachloride-full2 species/carbon_tetrachloride ../../fleet/stage.sh full carbon_tetrachloride
+carbon_tetrachloride-law2 species/carbon_tetrachloride ../../fleet/stage.sh law carbon_tetrachloride
+carbon_tetrachloride-plan2 species/carbon_tetrachloride ../../fleet/stage.sh plan carbon_tetrachloride

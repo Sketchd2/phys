@@ -22,3 +22,8 @@ ammonia-boil2 species/ammonia ../../fleet/stage.sh boil ammonia
 ammonia-liq-271-0.712-third species/ammonia [ -f liquid/redo3-271-0.712.mark ] || { rm -rf liquid/s-271-0.712; touch liquid/redo3-271-0.712.mark; }; ../../fleet/liquid-state.sh ammonia 271 0.712 12
 ammonia-liq-1080-0.0142-third species/ammonia [ -f liquid/redo3-1080-0.0142.mark ] || { rm -rf liquid/s-1080-0.0142; touch liquid/redo3-1080-0.0142.mark; }; ../../fleet/liquid-state.sh ammonia 1080 0.0142 12
 ammonia-boil3 species/ammonia ../../fleet/stage.sh boil ammonia
+ammonia-liq-1080-0.455-fourth species/ammonia [ -f liquid/redo4-1080-0.455.mark ] || { rm -rf liquid/s-1080-0.455; touch liquid/redo4-1080-0.455.mark; }; ../../fleet/liquid-state.sh ammonia 1080 0.455 12
+ammonia-liq-238-0.605-fourth species/ammonia [ -f liquid/redo4-238-0.605.mark ] || { rm -rf liquid/s-238-0.605; touch liquid/redo4-238-0.605.mark; }; ../../fleet/liquid-state.sh ammonia 238 0.605 12
+ammonia-liq-347-0.64-fourth species/ammonia [ -f liquid/redo4-347-0.64.mark ] || { rm -rf liquid/s-347-0.64; touch liquid/redo4-347-0.64.mark; }; ../../fleet/liquid-state.sh ammonia 347 0.64 12
+ammonia-liq-401-0.712-fourth species/ammonia [ -f liquid/redo4-401-0.712.mark ] || { rm -rf liquid/s-401-0.712; touch liquid/redo4-401-0.712.mark; }; ../../fleet/liquid-state.sh ammonia 401 0.712 12
+ammonia-boil4 species/ammonia ../../fleet/stage.sh boil ammonia

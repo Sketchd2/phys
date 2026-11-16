@@ -125,6 +125,11 @@
    "at": "2026-11-16T10:36Z",
    "n": 19,
    "note": "merged; resumed 51,54,56,58,60,64,68; worker.sh prints keep-looping reminder; acetonitrile 18/34"
+  },
+  {
+   "at": "2026-11-16T11:40Z",
+   "n": 20,
+   "note": "ammonia-boil3 failed (4 truncated states); provisional 578.2 K from 30; reruns + boil4 on 46. CCl4 polar timed out; mono2..plan2 on 65 with 4 h polar. Resumed 58,60,64."
   }
  ],
  "burn_usd": null,

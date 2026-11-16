@@ -1126,3 +1126,47 @@ ethylene_glycol: 10 atoms, 9 bonds; carrying on from round 6
   round 6 probe 17/18: 300/386 candidates, 6806 s into the round; about 4 min left in it
   round 6 probe 17/18: 350/386 candidates, 6807 s into the round; about 4 min left in it
   round 6 probe 17/18: 386/386 candidates, 6809 s into the round; about 4 min left in it
+  round 6 probe 18/18: 50/386 candidates, 7053 s into the round; under a minute left in it
+  round 6 probe 18/18: 100/386 candidates, 7054 s into the round; under a minute left in it
+  round 6 probe 18/18: 150/386 candidates, 7054 s into the round; under a minute left in it
+  round 6 probe 18/18: 200/386 candidates, 7055 s into the round; under a minute left in it
+  round 6 probe 18/18: 250/386 candidates, 7055 s into the round; under a minute left in it
+  round 6 probe 18/18: 300/386 candidates, 7056 s into the round; under a minute left in it
+  round 6 probe 18/18: 350/386 candidates, 7057 s into the round; under a minute left in it
+  round 6 probe 18/18: 386/386 candidates, 7059 s into the round; under a minute left in it
+round 6: 384 functions, E -230.09829975, 7059 s
+  shape (A, deg): 1.43070 1.51917 1.43070 0.96823 1.10404 1.10404 1.10404 1.10404 0.96823 108.086 107.111 111.582 111.582 109.210 109.210 108.106 107.111 109.210 109.210 111.582 111.582 108.106 108.086
+  added 6, predicted to move: -0.00040 -0.00040 -0.00040 -0.00028 -0.00001 -0.00001 -0.00001 -0.00001 -0.00028 +0.036 -0.002 -0.003 -0.003 -0.005 -0.005 +0.021 -0.002 -0.005 -0.005 -0.003 -0.003 +0.021 +0.036; left 24.50
+  relaxed at 446 functions, 2468 s into round 7; 18 probes of 394 candidates to go
+  round 7 probe 1/18: 50/394 candidates, 2861 s into the round; about 113 min left in it
+  round 7 probe 1/18: 100/394 candidates, 2862 s into the round; about 113 min left in it
+  round 7 probe 1/18: 150/394 candidates, 2863 s into the round; about 113 min left in it
+  round 7 probe 1/18: 200/394 candidates, 2864 s into the round; about 113 min left in it
+  round 7 probe 1/18: 250/394 candidates, 2865 s into the round; about 113 min left in it
+  round 7 probe 1/18: 300/394 candidates, 2866 s into the round; about 113 min left in it
+  round 7 probe 1/18: 350/394 candidates, 2868 s into the round; about 114 min left in it
+  round 7 probe 1/18: 394/394 candidates, 2873 s into the round; about 115 min left in it
+  round 7 probe 2/18: 50/394 candidates, 3262 s into the round; about 106 min left in it
+  round 7 probe 2/18: 100/394 candidates, 3263 s into the round; about 106 min left in it
+  round 7 probe 2/18: 150/394 candidates, 3264 s into the round; about 106 min left in it
+  round 7 probe 2/18: 200/394 candidates, 3265 s into the round; about 106 min left in it
+  round 7 probe 2/18: 250/394 candidates, 3266 s into the round; about 106 min left in it
+  round 7 probe 2/18: 300/394 candidates, 3267 s into the round; about 106 min left in it
+  round 7 probe 2/18: 350/394 candidates, 3269 s into the round; about 106 min left in it
+  round 7 probe 2/18: 394/394 candidates, 3272 s into the round; about 106 min left in it
+  round 7 probe 3/18: 50/394 candidates, 3614 s into the round; about 87 min left in it
+  round 7 probe 3/18: 100/394 candidates, 3615 s into the round; about 87 min left in it
+  round 7 probe 3/18: 150/394 candidates, 3615 s into the round; about 87 min left in it
+  round 7 probe 3/18: 200/394 candidates, 3616 s into the round; about 87 min left in it
+  round 7 probe 3/18: 250/394 candidates, 3617 s into the round; about 87 min left in it
+  round 7 probe 3/18: 300/394 candidates, 3618 s into the round; about 87 min left in it
+  round 7 probe 3/18: 350/394 candidates, 3619 s into the round; about 87 min left in it
+  round 7 probe 3/18: 394/394 candidates, 3622 s into the round; about 88 min left in it
+  round 7 probe 4/18: 50/394 candidates, 3964 s into the round; about 81 min left in it
+  round 7 probe 4/18: 100/394 candidates, 3964 s into the round; about 81 min left in it
+  round 7 probe 4/18: 150/394 candidates, 3965 s into the round; about 81 min left in it
+  round 7 probe 4/18: 200/394 candidates, 3966 s into the round; about 81 min left in it
+  round 7 probe 4/18: 250/394 candidates, 3967 s into the round; about 81 min left in it
+  round 7 probe 4/18: 300/394 candidates, 3967 s into the round; about 81 min left in it
+  round 7 probe 4/18: 350/394 candidates, 3969 s into the round; about 81 min left in it
+  round 7 probe 4/18: 394/394 candidates, 3971 s into the round; about 81 min left in it

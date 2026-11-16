@@ -51,3 +51,55 @@ benzene: 12 atoms, 12 bonds; starting
   round 0 probe 5/8: 400/456 candidates, 6546 s into the round; about 24 min left in it
   round 0 probe 5/8: 450/456 candidates, 6547 s into the round; about 24 min left in it
   round 0 probe 5/8: 456/456 candidates, 6547 s into the round; about 24 min left in it
+  round 0 probe 6/8: 50/456 candidates, 6991 s into the round; about 15 min left in it
+  round 0 probe 6/8: 100/456 candidates, 6992 s into the round; about 15 min left in it
+  round 0 probe 6/8: 150/456 candidates, 6992 s into the round; about 15 min left in it
+  round 0 probe 6/8: 200/456 candidates, 6993 s into the round; about 15 min left in it
+  round 0 probe 6/8: 250/456 candidates, 6993 s into the round; about 15 min left in it
+  round 0 probe 6/8: 300/456 candidates, 6994 s into the round; about 15 min left in it
+  round 0 probe 6/8: 350/456 candidates, 6994 s into the round; about 15 min left in it
+  round 0 probe 6/8: 400/456 candidates, 6994 s into the round; about 15 min left in it
+  round 0 probe 6/8: 450/456 candidates, 6995 s into the round; about 15 min left in it
+  round 0 probe 6/8: 456/456 candidates, 6995 s into the round; about 15 min left in it
+  round 0 probe 7/8: 50/456 candidates, 7534 s into the round; about 9 min left in it
+  round 0 probe 7/8: 100/456 candidates, 7534 s into the round; about 9 min left in it
+  round 0 probe 7/8: 150/456 candidates, 7535 s into the round; about 9 min left in it
+  round 0 probe 7/8: 200/456 candidates, 7535 s into the round; about 9 min left in it
+  round 0 probe 7/8: 250/456 candidates, 7535 s into the round; about 9 min left in it
+  round 0 probe 7/8: 300/456 candidates, 7536 s into the round; about 9 min left in it
+  round 0 probe 7/8: 350/456 candidates, 7536 s into the round; about 9 min left in it
+  round 0 probe 7/8: 400/456 candidates, 7537 s into the round; about 9 min left in it
+  round 0 probe 7/8: 450/456 candidates, 7538 s into the round; about 9 min left in it
+  round 0 probe 7/8: 456/456 candidates, 7538 s into the round; about 9 min left in it
+  round 0 probe 8/8: 50/456 candidates, 8074 s into the round; under a minute left in it
+  round 0 probe 8/8: 100/456 candidates, 8074 s into the round; under a minute left in it
+  round 0 probe 8/8: 150/456 candidates, 8075 s into the round; under a minute left in it
+  round 0 probe 8/8: 200/456 candidates, 8075 s into the round; under a minute left in it
+  round 0 probe 8/8: 250/456 candidates, 8076 s into the round; under a minute left in it
+  round 0 probe 8/8: 300/456 candidates, 8076 s into the round; under a minute left in it
+  round 0 probe 8/8: 350/456 candidates, 8077 s into the round; under a minute left in it
+  round 0 probe 8/8: 400/456 candidates, 8077 s into the round; under a minute left in it
+  round 0 probe 8/8: 450/456 candidates, 8078 s into the round; under a minute left in it
+  round 0 probe 8/8: 456/456 candidates, 8078 s into the round; under a minute left in it
+round 0: 186 functions, E -231.96840677, 8078 s
+  shape (A, deg): 1.40794 1.40795 1.40793 1.40795 1.40795 1.40794 1.09717 1.09717 1.09717 1.09717 1.09717 1.09717 120.002 119.998 120.000 119.997 120.004 119.999 120.001 120.002 119.997 120.002 120.001 119.997 119.997 120.003 120.000 120.001 120.003 119.996
+  added 18, predicted to move: +0.05063 +0.05063 +0.05063 +0.05063 +0.05063 +0.05063 +0.01401 +0.01401 +0.01401 +0.01401 +0.01401 +0.01401 +0.000 +0.000 +0.000 +0.000 +0.000 +0.000 +0.000 +0.000 +0.000 +0.000 +0.000 +0.000 +0.000 +0.000 +0.000 +0.000 +0.000 +0.000; left 834.01
+  relaxed at 282 functions, 1369 s into round 1; 8 probes of 438 candidates to go
+  round 1 probe 1/8: 50/438 candidates, 2174 s into the round; about 95 min left in it
+  round 1 probe 1/8: 100/438 candidates, 2175 s into the round; about 95 min left in it
+  round 1 probe 1/8: 150/438 candidates, 2175 s into the round; about 95 min left in it
+  round 1 probe 1/8: 200/438 candidates, 2176 s into the round; about 95 min left in it
+  round 1 probe 1/8: 250/438 candidates, 2176 s into the round; about 95 min left in it
+  round 1 probe 1/8: 300/438 candidates, 2177 s into the round; about 95 min left in it
+  round 1 probe 1/8: 350/438 candidates, 2178 s into the round; about 95 min left in it
+  round 1 probe 1/8: 400/438 candidates, 2178 s into the round; about 95 min left in it
+  round 1 probe 1/8: 438/438 candidates, 2179 s into the round; about 95 min left in it
+  round 1 probe 2/8: 50/438 candidates, 2989 s into the round; about 81 min left in it
+  round 1 probe 2/8: 100/438 candidates, 2989 s into the round; about 81 min left in it
+  round 1 probe 2/8: 150/438 candidates, 2990 s into the round; about 81 min left in it
+  round 1 probe 2/8: 200/438 candidates, 2990 s into the round; about 81 min left in it
+  round 1 probe 2/8: 250/438 candidates, 2991 s into the round; about 81 min left in it
+  round 1 probe 2/8: 300/438 candidates, 2991 s into the round; about 81 min left in it
+  round 1 probe 2/8: 350/438 candidates, 2992 s into the round; about 81 min left in it
+  round 1 probe 2/8: 400/438 candidates, 2992 s into the round; about 81 min left in it
+  round 1 probe 2/8: 438/438 candidates, 2993 s into the round; about 81 min left in it
