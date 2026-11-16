@@ -161,3 +161,12 @@ round 1: 282 functions, E -232.02166763, 13485 s
   shape (A, deg): 1.39887 1.39888 1.39885 1.39887 1.39888 1.39885 1.09392 1.09392 1.09392 1.09393 1.09391 1.09392 120.003 119.996 120.001 119.996 120.006 119.998 120.001 120.003 119.996 120.003 120.002 119.996 119.996 120.005 119.999 120.001 120.003 119.995
   added 18, predicted to move: +0.00000 +0.00000 +0.00000 +0.00000 +0.00000 +0.00000 -0.00004 -0.00004 -0.00004 -0.00004 -0.00004 -0.00004 +0.000 -52648.980 -52648.980 +0.000 -52648.980 -52648.980 +0.000 -52648.980 -52648.980 +0.000 -52648.980 -52648.980 +0.000 -52648.980 -52648.980 +0.000 -52648.980 -52648.980; left 4387112.80
   relaxed at 330 functions, 1021 s into round 2; 8 probes of 420 candidates to go
+  round 2 probe 1/8: 50/420 candidates, 1998 s into the round; about 115 min left in it
+  round 2 probe 1/8: 100/420 candidates, 1999 s into the round; about 115 min left in it
+  round 2 probe 1/8: 150/420 candidates, 2000 s into the round; about 115 min left in it
+  round 2 probe 1/8: 200/420 candidates, 2000 s into the round; about 115 min left in it
+  round 2 probe 1/8: 250/420 candidates, 2001 s into the round; about 115 min left in it
+  round 2 probe 1/8: 300/420 candidates, 2002 s into the round; about 115 min left in it
+  round 2 probe 1/8: 350/420 candidates, 2002 s into the round; about 115 min left in it
+  round 2 probe 1/8: 400/420 candidates, 2003 s into the round; about 115 min left in it
+  round 2 probe 1/8: 420/420 candidates, 2003 s into the round; about 115 min left in it
