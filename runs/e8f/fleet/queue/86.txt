@@ -1,1 +1,6 @@
 benzene-grow-w86 species/benzene ../../fleet/stage.sh grow benzene
+benzene-mono-w86 species/benzene grep -q 'MP2: mean' polar.log 2>/dev/null || timeout 14400 $(git rev-parse --show-toplevel)/target/release/phys-polar benzene > polar.log 2>&1; ../../fleet/stage.sh mono benzene
+benzene-pairs-w86 species/benzene ../../fleet/stage.sh pairs benzene
+benzene-full-w86 species/benzene ../../fleet/stage.sh full benzene
+benzene-law-w86 species/benzene ../../fleet/stage.sh law benzene
+benzene-plan-w86 species/benzene ../../fleet/stage.sh plan benzene
