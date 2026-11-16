@@ -1,0 +1,11 @@
+acetonitrile: dipole Hartree-Fock 1.6781 au (4.265 D), target 1.6781 au (4.265 D)
+  9622 potential points; the target's RMS 3.015e0, its mean -2.961e0 hartree/e
+  localised in 200 sweeps: 7 bond orbitals, 1 lone pairs (3 core orbitals frozen out of the localisation)
+  valence electrons 16, cores [4.0, 4.0, 5.0, 1.0]
+  atom class 0: cloud 3.833 electrons, width 0.369 bohr
+  atom class 1: cloud 4.572 electrons, width 0.802 bohr
+  atom class 2: cloud 2.828 electrons, width 0.642 bohr
+  atom class 3: cloud 0.937 electrons, width 1.326 bohr
+  lone-pair cloud of class 2: 1 pair(s) on 1 atom(s), 1.957 electrons, width 1.821 bohr, 0.691 bohr from the nucleus (the orbitals' centre is 0.691)
+  potential RMS 1.157e-2 hartree/e (atom-centred point charges alone: 4.244e-3)
+  written to cloud-acetonitrile.txt
