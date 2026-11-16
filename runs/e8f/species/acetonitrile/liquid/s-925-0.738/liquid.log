@@ -1,0 +1,28 @@
+induced dipoles on, polarisabilities by site type [9.7289, 9.7289, 9.7289, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0] bohr^3
+acetonitrile at 925 K: 64 molecules, 0.738 g/cm3, box 34.17 bohr (18.08 A), cut-off 16.0 bohr
+  Ewald sum on: s' = 4.2 bohr, 2364 reciprocal vectors
+  start: U/N -1.37 kcal/mol
+  easing: U/N -4.71 kcal/mol, T 920/804 K, P 4710 bar
+  settling: U/N -6.08 kcal/mol, T 1014/1040 K, P 2204 bar
+  warming: U/N -5.84 kcal/mol, T 974/827 K, P 3940 bar
+  0% after 1083 s: U/N -5.84 kcal/mol, P 3951 bar
+  8% after 1146 s: U/N -6.25 kcal/mol, P 2944 bar
+  17% after 1208 s: U/N -6.10 kcal/mol, P 2723 bar
+  25% after 1270 s: U/N -6.37 kcal/mol, P 2422 bar
+  33% after 1335 s: U/N -5.74 kcal/mol, P 4449 bar
+  42% after 1400 s: U/N -6.25 kcal/mol, P 3238 bar
+  50% after 1462 s: U/N -5.59 kcal/mol, P 3791 bar
+  58% after 1525 s: U/N -5.52 kcal/mol, P 5158 bar
+  67% after 1587 s: U/N -5.94 kcal/mol, P 3417 bar
+  75% after 1647 s: U/N -6.15 kcal/mol, P 2913 bar
+  83% after 1705 s: U/N -6.21 kcal/mol, P 3275 bar
+  92% after 1765 s: U/N -6.05 kcal/mol, P 3414 bar
+  100% after 1823 s: U/N -5.60 kcal/mol, P 5267 bar
+acetonitrile at 925 K (96 samples over 10 ps, block standard errors):
+  U/N -5.998 +- 0.053 kcal/mol; heat of vaporisation -U/N + RT = 7.836 kcal/mol
+  pressure 3579 +- 154 bar at 0.738 g/cm3 (a liquid at the right density sits near 1 bar; positive says it wants to expand)
+  temperatures: translation 938.3 K, rotation 938.3 K (bath 925 K)
+  mean molecular dipole 5.751 D (permanent charges and induced dipoles); dielectric constant 19.3 (blocks 8.5 +- 1.0; slow to converge)
+  dispersion beyond the cut-off (C6 346.72): -164 bar and -0.217 kcal/mol a molecule, so pressure with it 3415 bar, U/N -6.215
+  g(first atoms): first peak 0.74 at 3.35 A, first minimum 0.95 at 3.55 A, second peak 1.16 at 5.65 A, coordination to the minimum 0.57 (bulk-acetonitrile-925.gOO.txt)
+  snapshot in bulk-acetonitrile-925.snap

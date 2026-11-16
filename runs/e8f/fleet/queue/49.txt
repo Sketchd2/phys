@@ -4,3 +4,4 @@ formic_acid-pairs species/formic_acid ../../fleet/stage.sh pairs formic_acid
 formic_acid-full species/formic_acid ../../fleet/stage.sh full formic_acid
 formic_acid-law species/formic_acid ../../fleet/stage.sh law formic_acid
 formic_acid-plan species/formic_acid ../../fleet/stage.sh plan formic_acid
+benzene-grow species/benzene ../../fleet/stage.sh grow benzene
