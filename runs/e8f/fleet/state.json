@@ -170,6 +170,11 @@
    "at": "2026-11-16T20:08Z",
    "n": 28,
    "note": "acetic acid grown -> stages on 57. DME pairs OOM -> 8 parts (pairs-part.sh) on 44, 93-95. Resumed 42,76,82,88. Count 40."
+  },
+  {
+   "at": "2026-11-16T21:12Z",
+   "n": 29,
+   "note": "quiet; DME parts 4,6,8 running; resumed 69,76,81,82,84,85,88; policy: resume, no more retirements"
   }
  ],
  "burn_usd": null,

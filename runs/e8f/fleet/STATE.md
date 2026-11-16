@@ -4,6 +4,12 @@
 
 ## WAKE CADENCE: every 62 min, self-scheduled. At the start of each wake call send_later (+62 min) with the same message; backstop task every 6 h re-arms if the chain breaks.
 
+## 2026-11-16 21:12 UTC, wake 29
+
+- Quiet hour. DME parts 4, 6, 8 running (93-95); 2 on 44. Acetonitrile 32/34.
+- 7 idle (69, 76, 81, 82, 84, 85, 88), resumed. POLICY CHANGE: fresh workers stop too (1-3 h), so retiring to a new
+  number gains nothing and costs a rebuild: just resume every idle worker each wake. Next 22:14.
+
 ## 2026-11-16 20:08 UTC, wake 28
 
 - Acetic acid grown -> mono (4 h polar)..plan on 57.
