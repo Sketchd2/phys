@@ -1,13 +1,5 @@
-isotherm 1850 K, 10 states, B2/M = -0.3727 cm3/g at rho = 0:
-  degree 3: F_ex/NkT = +0.7764, residual 0.92 sigma
-  degree 4: F_ex/NkT = +0.7762, residual 0.92 sigma
-  degree 5: F_ex/NkT = +0.7765, residual 0.90 sigma
-  degree 6: F_ex/NkT = +0.8014, residual 0.50 sigma
-  taken (degree 5): F_ex/NkT(1850 K, 0.738) = +0.7765 +- 0.0199
-isochore 0.738 g/cm3, 12 states; U/N fit residuals (kcal/mol): -0.0029 +0.0444 -0.0705 +0.0077 +0.0418 +0.0559 -0.0796 -0.0107 +0.0072 +0.0991 -0.1346 +0.0393
-
-   T    rho_0   F_ex/N    mu_ex    +-     p_sat(atm)  rho_V(g/cm3)   [kcal/mol]
- 370.0 0.7380 -4.9266 -5.6618 0.0179     0.2610 x/1.025  0.00037 1st order (liquid at -426 bar)
- 407.0 0.7539 -4.6385 -5.4473 0.0332     0.8031 x/1.042  0.00110
- 462.0 0.7194 -4.1654 -5.0835 0.0229     3.2357 x/1.025  0.00467
-ln p against 1/T crosses one atmosphere at 414.9 K
+Traceback (most recent call last):
+  File "/home/user/phys/runs/e8f/path.py", line 47, in <module>
+    tp, tu = (0.0, 0.0) if notail else (float(tail.group(1)), float(tail.group(2)))
+                                              ^^^^^^^^^^
+AttributeError: 'NoneType' object has no attribute 'group'

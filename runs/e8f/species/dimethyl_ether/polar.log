@@ -1,1 +1,6 @@
 dimethyl_ether: 602 functions, field step 0.002, 3 frozen cores
+  19 fields in 4072 s (dipole width scale 1)
+  Hartree-Fock: mean 31.8730 bohr^3, diagonal 29.3744 32.4540 33.7907, off-diagonal 1.1e-6 -3.7e-7 -3.2e0
+  MP2: mean 33.9607 bohr^3, diagonal 31.1820 34.6746 36.0255, off-diagonal 1.1e-3 1.7e-3 -3.3e0
+  atomic polarisabilities by class [5.081201895212723, 5.967951935727972, 5.209545228345542, 3.710429522563113] bohr^3 (classes [0, 1, 0, 2, 3, 3, 2, 3, 3]); the model's tensor: mean 33.9607, diagonal 31.1820 34.6669 36.0333; residual rms 3.85e-3
+  written to polar-dimethyl_ether.txt
