@@ -28,7 +28,11 @@ git checkout -q -B $BR 2>/dev/null
 echo "Reminder: call bash runs/e8f/fleet/worker.sh $W again straight away; do not end your turn until the last line is ALL DONE."
 PUSHED=""
 push() {  # commit everything under runs/e8f and push to this worker's branch, four tries
-  git add -A runs/e8f >/dev/null 2>&1; git commit -qm "fleet worker $W: $1" >/dev/null 2>&1
+  # only what this machine wrote since its job started: adding the whole tree committed other workers' half-finished
+  # copies taken from the main branch at job start, and the merge then laid those over their finished ones
+  if [ -f /tmp/fleet/stamp ]; then find runs/e8f -type f -newer /tmp/fleet/stamp -print0 | xargs -0 -r git add -f -- >/dev/null 2>&1
+  else git add -A runs/e8f >/dev/null 2>&1; fi
+  git commit -qm "fleet worker $W: $1" >/dev/null 2>&1
   for t in 2 4 8 16; do git push -q -u origin $BR 2>/tmp/fleet/push.err && return 0
     # a replacement worker starts from the main branch, not from the history it replaces, so its
     # first push is not a fast-forward: record the old history as a parent, keeping this tree (which
@@ -84,7 +88,7 @@ while read -r J D CMD; do
     git checkout -q FETCH_HEAD -- "$f" 2>/dev/null; done; mkdir -p runs/e8f/$D
   git ls-files -co runs/e8f/$D 2>/dev/null | while read -r f; do
     git cat-file -e FETCH_HEAD:"$f" 2>/dev/null || grep -qxF "$f" <<< "$OWN" || rm -f "$f"; done
-  echo $J > $CUR; rm -f /tmp/fleet/rc-$J
+  echo $J > $CUR; rm -f /tmp/fleet/rc-$J; sleep 1; touch /tmp/fleet/stamp
   ( cd runs/e8f/$D && nohup bash -c "( $CMD ); echo \$? > /tmp/fleet/rc-$J" > $F/log/$J.log 2>&1 8>&- & echo $! > $PID )
   sleep 2
   if wait_for $(cat $PID); then
