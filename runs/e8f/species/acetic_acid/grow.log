@@ -199,3 +199,32 @@ acetic_acid: 8 atoms, 7 bonds; starting
 round 0: 124 functions, E -228.88563472, 3791 s
   shape (A, deg): 1.49769 1.24533 1.38371 1.10652 1.10655 1.10208 0.99940 110.396 110.402 109.228 106.925 109.936 109.932 126.026 112.461 121.513 102.458
   added 3, predicted to move: +0.00626 -0.00761 -0.01190 +0.00138 +0.00138 +0.00083 -0.01124 -0.047 -0.047 -0.277 +0.218 +0.100 +0.100 +0.000 -151559743388.007 -365839459728468.812 +3.149; left 4790665116120695.00
+  relaxed at 140 functions, 1083 s into round 1; 28 probes of 303 candidates to go
+  round 1 probe 1/28: 50/303 candidates, 1143 s into the round; about 28 min left in it
+  round 1 probe 1/28: 100/303 candidates, 1143 s into the round; about 28 min left in it
+  round 1 probe 1/28: 150/303 candidates, 1143 s into the round; about 28 min left in it
+  round 1 probe 1/28: 200/303 candidates, 1144 s into the round; about 28 min left in it
+  round 1 probe 1/28: 250/303 candidates, 1144 s into the round; about 28 min left in it
+  round 1 probe 1/28: 300/303 candidates, 1144 s into the round; about 28 min left in it
+  round 1 probe 1/28: 303/303 candidates, 1144 s into the round; about 28 min left in it
+  round 1 probe 2/28: 50/303 candidates, 1206 s into the round; about 27 min left in it
+  round 1 probe 2/28: 100/303 candidates, 1206 s into the round; about 27 min left in it
+  round 1 probe 2/28: 150/303 candidates, 1206 s into the round; about 27 min left in it
+  round 1 probe 2/28: 200/303 candidates, 1206 s into the round; about 27 min left in it
+  round 1 probe 2/28: 250/303 candidates, 1206 s into the round; about 27 min left in it
+  round 1 probe 2/28: 300/303 candidates, 1207 s into the round; about 27 min left in it
+  round 1 probe 2/28: 303/303 candidates, 1207 s into the round; about 27 min left in it
+  round 1 probe 3/28: 50/303 candidates, 1267 s into the round; about 26 min left in it
+  round 1 probe 3/28: 100/303 candidates, 1267 s into the round; about 26 min left in it
+  round 1 probe 3/28: 150/303 candidates, 1268 s into the round; about 26 min left in it
+  round 1 probe 3/28: 200/303 candidates, 1268 s into the round; about 26 min left in it
+  round 1 probe 3/28: 250/303 candidates, 1268 s into the round; about 26 min left in it
+  round 1 probe 3/28: 300/303 candidates, 1268 s into the round; about 26 min left in it
+  round 1 probe 3/28: 303/303 candidates, 1268 s into the round; about 26 min left in it
+  round 1 probe 4/28: 50/303 candidates, 1329 s into the round; about 25 min left in it
+  round 1 probe 4/28: 100/303 candidates, 1329 s into the round; about 25 min left in it
+  round 1 probe 4/28: 150/303 candidates, 1329 s into the round; about 25 min left in it
+  round 1 probe 4/28: 200/303 candidates, 1329 s into the round; about 25 min left in it
+  round 1 probe 4/28: 250/303 candidates, 1329 s into the round; about 25 min left in it
+  round 1 probe 4/28: 300/303 candidates, 1329 s into the round; about 25 min left in it
+  round 1 probe 4/28: 303/303 candidates, 1329 s into the round; about 25 min left in it
