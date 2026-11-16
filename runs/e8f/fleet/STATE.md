@@ -4,6 +4,17 @@
 
 ## WAKE CADENCE: every 62 min, self-scheduled. At the start of each wake call send_later (+62 min) with the same message; backstop task every 6 h re-arms if the chain breaks.
 
+## 2026-11-16 15:55 UTC, wake 24
+
+- Merge list: see state.json merge_workers (61 retired -> 84, ethanol grow).
+- CARBON TETRACHLORIDE STOPS AT PAIRS: phys-overlap killed twice (18 GB fit table, 15 GB worker; no-spill also killed).
+  species/carbon_tetrachloride/STOPPED.txt. Owner's decision (bigger machine or smaller basis); not retried.
+- DME mono failed the same way CCl4's first did (polar timeout): mono2 with 4 h polar + pairs2..plan2 on 44.
+- ACETONITRILE 31/34 -> acetonitrile-boil queued on 46. Expect a boiling point next wake.
+- 65 -> heptane grow; 69 -> glycerol grow (its states were done). Resumed 72, 74, 49 (first time). 69 had been blocked
+  once by the auto-mode classifier; resumed.
+- Unstarted: aniline, phenol, chlorobenzene, octane. Orchestrator 50.83 USD (+6.0; heavy wakes). Count 35. Next 16:57.
+
 ## 2026-11-16 14:52 UTC, wake 23
 
 - Merge list now (retired workers dropped after their final merge): 17 40 41 42 43 44 46 47 48 49 50 52 53 55 57 59 61 62

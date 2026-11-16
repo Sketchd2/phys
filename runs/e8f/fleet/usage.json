@@ -138,6 +138,11 @@
    "at": "2026-11-16T12:55Z",
    "orchestrator": 43.9,
    "note": "orchestrator +2.03 since 11:50 (ammonia diagnosis)"
+  },
+  {
+   "at": "2026-11-16T15:57Z",
+   "orchestrator": 50.83,
+   "note": "+6.0 since 13:48 (full snapshot + retirements were heavy wakes)"
   }
  ]
 }

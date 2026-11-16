@@ -145,6 +145,11 @@
    "at": "2026-11-16T14:52Z",
    "n": 23,
    "note": "8 repeat stoppers retired to 76-83; CCl4 pairs killed (18 GB table) -> retry no-spill; acetonitrile 27/34; count 35"
+  },
+  {
+   "at": "2026-11-16T15:55Z",
+   "n": 24,
+   "note": "CCl4 STOPPED at pairs (machine size). DME polar rerun. Acetonitrile boil queued (31/34). 65 heptane, 69 glycerol, 61->84. Orch 50.83."
   }
  ],
  "burn_usd": null,
@@ -233,6 +238,9 @@
   },
   "83": {
    "session": "session_016vymdzLKCfb4t2Eg9fYXcf"
+  },
+  "84": {
+   "session": "session_016vymdyRFadep9qrGbpbiYU"
   }
  },
  "ceiling": "31-35 workers + orchestrator for 4.5 h exhausted a five-hour window (limit hit 07:39 UTC)",
@@ -254,9 +262,10 @@
   56,
   58,
   60,
+  61,
   63,
   64,
   68
  ],
- "merge_workers": "17 40 41 42 43 44 46 47 48 49 50 52 53 55 57 59 61 62 65 69 72 73 74 75 76 77 78 79 80 81 82 83"
+ "merge_workers": "17 40 41 42 43 44 46 47 48 49 50 52 53 55 57 59 62 65 69 72 73 74 75 76 77 78 79 80 81 82 83 84"
 }
