@@ -12,3 +12,17 @@ acetonitrile at 1850 K: 64 molecules, 0.649 g/cm3, box 35.66 bohr (18.87 A), cut
   33% after 1178 s: U/N -3.38 kcal/mol, P 7495 bar
   42% after 1238 s: U/N -3.71 kcal/mol, P 7161 bar
   50% after 1294 s: U/N -3.40 kcal/mol, P 7583 bar
+  58% after 1349 s: U/N -4.27 kcal/mol, P 4605 bar
+  67% after 1406 s: U/N -3.69 kcal/mol, P 7303 bar
+  75% after 1463 s: U/N -4.08 kcal/mol, P 7244 bar
+  83% after 1525 s: U/N -3.83 kcal/mol, P 5703 bar
+  92% after 1586 s: U/N -3.59 kcal/mol, P 7787 bar
+  100% after 1651 s: U/N -4.57 kcal/mol, P 4972 bar
+acetonitrile at 1850 K (96 samples over 10 ps, block standard errors):
+  U/N -4.000 +- 0.055 kcal/mol; heat of vaporisation -U/N + RT = 7.677 kcal/mol
+  pressure 6240 +- 173 bar at 0.649 g/cm3 (a liquid at the right density sits near 1 bar; positive says it wants to expand)
+  temperatures: translation 1827.9 K, rotation 1832.4 K (bath 1850 K)
+  mean molecular dipole 5.622 D (permanent charges and induced dipoles); dielectric constant 7.4 (blocks 5.7 +- 0.7; slow to converge)
+  dispersion beyond the cut-off (C6 346.72): -126 bar and -0.191 kcal/mol a molecule, so pressure with it 6114 bar, U/N -4.192
+  g(first atoms): first peak 0.79 at 3.35 A, first minimum 0.93 at 3.55 A, second peak 1.18 at 5.65 A, coordination to the minimum 0.56 (bulk-acetonitrile-1850.gOO.txt)
+  snapshot in bulk-acetonitrile-1850.snap
