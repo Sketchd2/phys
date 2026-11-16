@@ -27,3 +27,9 @@ ammonia-liq-238-0.605-fourth species/ammonia [ -f liquid/redo4-238-0.605.mark ] 
 ammonia-liq-347-0.64-fourth species/ammonia [ -f liquid/redo4-347-0.64.mark ] || { rm -rf liquid/s-347-0.64; touch liquid/redo4-347-0.64.mark; }; ../../fleet/liquid-state.sh ammonia 347 0.64 12
 ammonia-liq-401-0.712-fourth species/ammonia [ -f liquid/redo4-401-0.712.mark ] || { rm -rf liquid/s-401-0.712; touch liquid/redo4-401-0.712.mark; }; ../../fleet/liquid-state.sh ammonia 401 0.712 12
 ammonia-boil4 species/ammonia ../../fleet/stage.sh boil ammonia
+acetonitrile-liq-518-0.664-w46 species/acetonitrile ../../fleet/liquid-state.sh acetonitrile 518 0.664 12
+acetonitrile-liq-592-0.664-w46 species/acetonitrile ../../fleet/liquid-state.sh acetonitrile 592 0.664 12
+acetonitrile-liq-518-0.627-w46 species/acetonitrile ../../fleet/liquid-state.sh acetonitrile 518 0.627 12
+acetonitrile-liq-592-0.627-w46 species/acetonitrile ../../fleet/liquid-state.sh acetonitrile 592 0.627 12
+acetonitrile-liq-518-0.701-w46 species/acetonitrile ../../fleet/liquid-state.sh acetonitrile 518 0.701 12
+acetonitrile-liq-592-0.701-w46 species/acetonitrile ../../fleet/liquid-state.sh acetonitrile 592 0.701 12

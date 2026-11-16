@@ -130,6 +130,11 @@
    "at": "2026-11-16T11:40Z",
    "n": 20,
    "note": "ammonia-boil3 failed (4 truncated states); provisional 578.2 K from 30; reruns + boil4 on 46. CCl4 polar timed out; mono2..plan2 on 65 with 4 h polar. Resumed 58,60,64."
+  },
+  {
+   "at": "2026-11-16T12:44Z",
+   "n": 21,
+   "note": "AMMONIA BOILS 577.2 K (34/34 states; expt 239.8). Merge-skip 47 ammonia. 6 acetonitrile states moved to 46. Resumed 8 idle."
   }
  ],
  "burn_usd": null,

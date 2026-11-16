@@ -4,6 +4,16 @@
 
 ## WAKE CADENCE: every 62 min, self-scheduled. At the start of each wake call send_later (+62 min) with the same message; backstop task every 6 h re-arms if the chain breaks.
 
+## 2026-11-16 12:44 UTC, wake 21
+
+- AMMONIA BOILING POINT: 577.2 K from all 34 liquid states (ammonia-boil4 on 46; reruns complete). Experiment 239.8 K.
+  First species through the whole pipeline. (Provisional 578.2 K from 30 states removed.)
+- My merged copy had two truncated ammonia states again: worker 47 committed stale copies 16 h ago and merged after 46.
+  merge-skip.txt: "47 runs/e8f/species/ammonia/". Merged tree now 34/34 complete.
+- 46's queue was empty: 6 unstarted acetonitrile states moved to it from 43/68/69 (ids -w46). Acetonitrile 18/34.
+- 8 idle again (51, 54, 56, 58, 60, 63, 64, 68): resumed. The reminder line is not enough; if it continues, retire repeat stoppers to new numbers.
+- CCl4 mono2 (4 h polar) running on 65. Orchestrator 43.90 USD. Block ends ~13:20; next wake 13:46 judges it.
+
 ## 2026-11-16 11:40 UTC, wake 20
 
 - ammonia-boil3 failed: path.py found 4 more states marked done with truncated logs (1080/0.455, 238/0.605, 347/0.64,

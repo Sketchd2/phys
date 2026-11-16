@@ -1,5 +1,19 @@
-Traceback (most recent call last):
-  File "/home/user/phys/runs/e8f/path.py", line 47, in <module>
-    tp, tu = (0.0, 0.0) if notail else (float(tail.group(1)), float(tail.group(2)))
-                                              ^^^^^^^^^^
-AttributeError: 'NoneType' object has no attribute 'group'
+isotherm 1080 K, 11 states, B2/M = 0.0587 cm3/g at rho = 0:
+  degree 3: F_ex/NkT = -0.0305, residual 1.25 sigma
+  degree 4: F_ex/NkT = -0.0071, residual 0.93 sigma
+  degree 5: F_ex/NkT = -0.0071, residual 0.93 sigma
+  degree 6: F_ex/NkT = +0.0034, residual 0.67 sigma
+  taken (degree 5): F_ex/NkT(1080 K, 0.712) = -0.0071 +- 0.0299
+isochore 0.712 g/cm3, 12 states; U/N fit residuals (kcal/mol): +0.0774 -0.0069 +0.2131 +0.0222 +0.2524 -0.0961 -0.4807 -0.0568 +0.1479 +0.9241 +0.8177 -0.5666
+
+   T    rho_0   F_ex/N    mu_ex    +-     p_sat(atm)  rho_V(g/cm3)   [kcal/mol]
+ 217.0 0.7120 -15.0051 -15.4363 0.0200     0.0000 x/1.047  0.00000 1st order (liquid at +359 bar)
+ 238.0 0.7149 -14.4937 -14.9667 0.0218     0.0000 x/1.047  0.00000
+ 304.0 0.6812 -13.0261 -13.6302 0.0270     0.0000 x/1.046  0.00000
+ 401.0 0.7120 -10.9798 -11.7767 0.0319     0.0005 x/1.041  0.00000 1st order (liquid at -373 bar)
+ 466.0 0.7120 -9.6278 -10.5538 0.0378     0.0180 x/1.042  0.00001 1st order (liquid at +2026 bar)
+ 542.0 0.7120 -8.1045 -9.1815 0.0396     0.3699 x/1.037  0.00014 1st order (liquid at +2209 bar)
+ 640.0 0.7120 -6.2772 -7.5490 0.0443     5.8620 x/1.035  0.00192 1st order (liquid at +4127 bar)
+ 759.0 0.7120 -4.2889 -5.7972 0.0497    57.6793 x/1.034  0.01633 1st order (liquid at +4617 bar)
+ 900.0 0.7120 -2.2378 -4.0263 0.0556   345.0317 x/1.032  0.08480 1st order (liquid at +4327 bar)
+ln p against 1/T crosses one atmosphere at 577.2 K
