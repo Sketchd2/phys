@@ -1,1 +1,6 @@
 dichloromethane-grow species/dichloromethane ../../fleet/stage.sh grow dichloromethane
+dichloromethane-mono species/dichloromethane ../../fleet/stage.sh mono dichloromethane
+dichloromethane-pairs species/dichloromethane ../../fleet/stage.sh pairs dichloromethane
+dichloromethane-full species/dichloromethane ../../fleet/stage.sh full dichloromethane
+dichloromethane-law species/dichloromethane ../../fleet/stage.sh law dichloromethane
+dichloromethane-plan species/dichloromethane ../../fleet/stage.sh plan dichloromethane
