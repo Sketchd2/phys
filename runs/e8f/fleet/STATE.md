@@ -4,6 +4,14 @@
 
 ## WAKE CADENCE: every 62 min, self-scheduled. At the start of each wake call send_later (+62 min) with the same message; backstop task every 6 h re-arms if the chain breaks.
 
+## 2026-11-16 23:01 UTC, owner request
+
+- Owner asked whether memory-killed runs spill to disk: they try, but the 18-30 GB tables do not fit the ~19 GB free
+  disk ("No space left"); the engine then rebuilds instead, and is still killed (DME after 4 pairs: growth across pairs).
+  /tmp is on disk (ext4), not RAM. MEASURING: worker 96 runs fleet/measure-part.sh on DME part 1 (known results):
+  species/dimethyl_ether/measure-part-1.mem has RSS/peak/available/spill/disk every 30 s, ~1.75 h. Report the peak and
+  where it grows (per pair? during the rebuild?) to the owner; an engine fix is the owner's call.
+
 ## 2026-11-16 22:16 UTC, wake 30
 
 - DME parts done 1, 4, 6, 8; 2 on 44, 3 moved to 95, 5 on 93, 7 on 94. Chloroform (79), ethylene glycol (55) mono done,
