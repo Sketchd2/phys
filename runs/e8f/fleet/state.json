@@ -1,7 +1,7 @@
 {
- "children": 29,
+ "children": 31,
  "window": "allowed, resets 08:10 UTC",
- "note": "wake 13. Second five-hour window passed with no limit stop. Workers 64 (butanone), 65 (CCl4). 29 of 30.",
+ "note": "wake 14. Ammonia boil2 failed again (two states truncated): liquid-state lock + completeness check, worker.sh call lock; reruns + boil3 on 46. Acetaldehyde grown. Workers 66, 67 (no cap now).",
  "wakes": [
   {
    "t": "2026-11-15T15:20Z",
@@ -92,6 +92,12 @@
    "status": "allowed",
    "resetsAt": 1794816600,
    "orchestrator_cost_usd": 17.77
+  },
+  {
+   "t": "2026-11-16T04:30Z",
+   "limit_stop": false,
+   "status": "allowed",
+   "resetsAt": 1794816600
   }
  ],
  "burn_usd": null,
@@ -138,6 +144,8 @@
   "62": "session_016vymdzEu1oBJRiX2M1AyJj",
   "63": "session_016vymdxJynWiSFreUM1MnD6",
   "64": "session_016vymdx2owSdvogjEV2iZWP",
-  "65": "session_016vymdxrqw4kZvyiJD6uhbj"
+  "65": "session_016vymdxrqw4kZvyiJD6uhbj",
+  "66": "session_016vymdyAV65ftAAkv5oMQDr",
+  "67": "session_016vymdwuTRi73DoHDM7TuHU"
  }
 }

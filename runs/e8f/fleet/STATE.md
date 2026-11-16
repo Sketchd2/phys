@@ -4,6 +4,15 @@
 
 ## WAKE CADENCE: every 62 min, self-scheduled. At the start of each wake call send_later (+62 min) with the same message; backstop task every 6 h re-arms if the chain breaks.
 
+## 2026-11-16 04:30 UTC, wake 14
+
+- ammonia-boil2 failed: the reruns of 271/0.712 and 1080/0.0142 again "done" with a 5-6 line log. Probable double
+  run. liquid-state.sh: per-state flock + done only if log has "  snapshot in". worker.sh: per-machine call lock
+  (fd 8 closed for children; tested). -third reruns + ammonia-boil3 on 46. If -third truncates again, the cause is
+  phys-bulk itself at those states: then boil without them (path.py needs every done state complete) - owner note.
+- Acetaldehyde grown (settled r11) -> mono..plan on 41. Others progressing.
+- Created 66 (hexane), 67 (cyclohexane). Count 31 (cap lifted). Next wake 05:30.
+
 ## 2026-11-16 03:26 UTC, wake 13
 
 - Second window passed, no limit stop; new window resets 08:10. Orchestrator cost 17.77 USD.
