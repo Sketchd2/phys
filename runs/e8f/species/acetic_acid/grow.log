@@ -1415,3 +1415,11 @@ acetic_acid: 8 atoms, 7 bonds; carrying on from round 6
 round 6: 238 functions, E -228.93651117, 5721 s
   shape (A, deg): 1.50380 1.21495 1.37048 1.10031 1.10032 1.09509 0.98046 109.885 109.893 109.609 107.236 110.096 110.093 126.342 111.283 122.375 105.930
   added 3, predicted to move: +0.00112 -0.00032 -0.00172 +0.00017 +0.00017 +0.00013 +0.00034 +0.023 +0.023 -0.032 +0.011 -0.012 -0.012 +217144.996 -17.337 -243.763 -0.187; left 2185968.65
+  relaxed at 254 functions, 1589 s into round 7; 28 probes of 306 candidates to go
+  round 7 probe 1/28: 50/306 candidates, 1729 s into the round; about 64 min left in it
+  round 7 probe 1/28: 100/306 candidates, 1729 s into the round; about 64 min left in it
+  round 7 probe 1/28: 150/306 candidates, 1729 s into the round; about 64 min left in it
+  round 7 probe 1/28: 200/306 candidates, 1730 s into the round; about 64 min left in it
+  round 7 probe 1/28: 250/306 candidates, 1730 s into the round; about 64 min left in it
+  round 7 probe 1/28: 300/306 candidates, 1731 s into the round; about 64 min left in it
+  round 7 probe 1/28: 306/306 candidates, 1731 s into the round; about 64 min left in it
