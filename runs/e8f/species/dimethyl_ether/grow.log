@@ -1047,3 +1047,10 @@ round 8: 454 functions, E -154.90157780, 44451 s
   added 7, predicted to move: +0.00002 +0.00002 +0.00005 +0.00004 +0.00004 +0.00005 +0.00004 +0.00004 -0.042 -0.011 -0.011 +0.030 +0.030 +0.030 +0.006 -0.042 -0.011 -0.011 +0.030 +0.030 +0.030; left 18.56
 dimethyl_ether: 9 atoms, 8 bonds; carrying on from round 9
   relaxed at 518 functions, 4879 s into round 9; 16 probes of 342 candidates to go
+  round 9 probe 1/16: 50/342 candidates, 5607 s into the round; about 184 min left in it
+  round 9 probe 1/16: 100/342 candidates, 5608 s into the round; about 183 min left in it
+  round 9 probe 1/16: 150/342 candidates, 5609 s into the round; about 184 min left in it
+  round 9 probe 1/16: 200/342 candidates, 5610 s into the round; about 184 min left in it
+  round 9 probe 1/16: 250/342 candidates, 5611 s into the round; about 184 min left in it
+  round 9 probe 1/16: 300/342 candidates, 5614 s into the round; about 184 min left in it
+  round 9 probe 1/16: 342/342 candidates, 5618 s into the round; about 185 min left in it
