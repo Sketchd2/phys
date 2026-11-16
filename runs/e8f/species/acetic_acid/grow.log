@@ -1215,3 +1215,11 @@ round 5: 229 functions, E -228.93447426, 25080 s
   round 6 probe 2/28: 300/309 candidates, 1890 s into the round; about 61 min left in it
   round 6 probe 2/28: 309/309 candidates, 1890 s into the round; about 61 min left in it
 acetic_acid: 8 atoms, 7 bonds; carrying on from round 6
+  relaxed at 238 functions, 1598 s into round 6; 28 probes of 309 candidates to go
+  round 6 probe 1/28: 50/309 candidates, 1726 s into the round; about 58 min left in it
+  round 6 probe 1/28: 100/309 candidates, 1726 s into the round; about 58 min left in it
+  round 6 probe 1/28: 150/309 candidates, 1726 s into the round; about 58 min left in it
+  round 6 probe 1/28: 200/309 candidates, 1727 s into the round; about 58 min left in it
+  round 6 probe 1/28: 250/309 candidates, 1727 s into the round; about 58 min left in it
+  round 6 probe 1/28: 300/309 candidates, 1727 s into the round; about 58 min left in it
+  round 6 probe 1/28: 309/309 candidates, 1728 s into the round; about 58 min left in it
