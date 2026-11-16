@@ -175,3 +175,27 @@ acetic_acid: 8 atoms, 7 bonds; starting
   round 0 probe 25/28: 250/306 candidates, 3621 s into the round; about 3 min left in it
   round 0 probe 25/28: 300/306 candidates, 3621 s into the round; about 3 min left in it
   round 0 probe 25/28: 306/306 candidates, 3621 s into the round; about 3 min left in it
+  round 0 probe 26/28: 50/306 candidates, 3670 s into the round; about 2 min left in it
+  round 0 probe 26/28: 100/306 candidates, 3670 s into the round; about 2 min left in it
+  round 0 probe 26/28: 150/306 candidates, 3671 s into the round; about 2 min left in it
+  round 0 probe 26/28: 200/306 candidates, 3671 s into the round; about 2 min left in it
+  round 0 probe 26/28: 250/306 candidates, 3671 s into the round; about 2 min left in it
+  round 0 probe 26/28: 300/306 candidates, 3671 s into the round; about 2 min left in it
+  round 0 probe 26/28: 306/306 candidates, 3671 s into the round; about 2 min left in it
+  round 0 probe 27/28: 50/306 candidates, 3731 s into the round; about 1 min left in it
+  round 0 probe 27/28: 100/306 candidates, 3731 s into the round; about 1 min left in it
+  round 0 probe 27/28: 150/306 candidates, 3731 s into the round; about 1 min left in it
+  round 0 probe 27/28: 200/306 candidates, 3731 s into the round; about 1 min left in it
+  round 0 probe 27/28: 250/306 candidates, 3731 s into the round; about 1 min left in it
+  round 0 probe 27/28: 300/306 candidates, 3731 s into the round; about 1 min left in it
+  round 0 probe 27/28: 306/306 candidates, 3731 s into the round; about 1 min left in it
+  round 0 probe 28/28: 50/306 candidates, 3790 s into the round; under a minute left in it
+  round 0 probe 28/28: 100/306 candidates, 3790 s into the round; under a minute left in it
+  round 0 probe 28/28: 150/306 candidates, 3791 s into the round; under a minute left in it
+  round 0 probe 28/28: 200/306 candidates, 3791 s into the round; under a minute left in it
+  round 0 probe 28/28: 250/306 candidates, 3791 s into the round; under a minute left in it
+  round 0 probe 28/28: 300/306 candidates, 3791 s into the round; under a minute left in it
+  round 0 probe 28/28: 306/306 candidates, 3791 s into the round; under a minute left in it
+round 0: 124 functions, E -228.88563472, 3791 s
+  shape (A, deg): 1.49769 1.24533 1.38371 1.10652 1.10655 1.10208 0.99940 110.396 110.402 109.228 106.925 109.936 109.932 126.026 112.461 121.513 102.458
+  added 3, predicted to move: +0.00626 -0.00761 -0.01190 +0.00138 +0.00138 +0.00083 -0.01124 -0.047 -0.047 -0.277 +0.218 +0.100 +0.100 +0.000 -151559743388.007 -365839459728468.812 +3.149; left 4790665116120695.00
