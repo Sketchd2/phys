@@ -1398,3 +1398,20 @@ acetic_acid: 8 atoms, 7 bonds; carrying on from round 6
   round 6 probe 26/28: 250/309 candidates, 5431 s into the round; about 6 min left in it
   round 6 probe 26/28: 300/309 candidates, 5431 s into the round; about 6 min left in it
   round 6 probe 26/28: 309/309 candidates, 5432 s into the round; about 6 min left in it
+  round 6 probe 27/28: 50/309 candidates, 5569 s into the round; about 2 min left in it
+  round 6 probe 27/28: 100/309 candidates, 5569 s into the round; about 2 min left in it
+  round 6 probe 27/28: 150/309 candidates, 5570 s into the round; about 2 min left in it
+  round 6 probe 27/28: 200/309 candidates, 5570 s into the round; about 2 min left in it
+  round 6 probe 27/28: 250/309 candidates, 5570 s into the round; about 2 min left in it
+  round 6 probe 27/28: 300/309 candidates, 5571 s into the round; about 2 min left in it
+  round 6 probe 27/28: 309/309 candidates, 5571 s into the round; about 2 min left in it
+  round 6 probe 28/28: 50/309 candidates, 5719 s into the round; under a minute left in it
+  round 6 probe 28/28: 100/309 candidates, 5719 s into the round; under a minute left in it
+  round 6 probe 28/28: 150/309 candidates, 5719 s into the round; under a minute left in it
+  round 6 probe 28/28: 200/309 candidates, 5720 s into the round; under a minute left in it
+  round 6 probe 28/28: 250/309 candidates, 5720 s into the round; under a minute left in it
+  round 6 probe 28/28: 300/309 candidates, 5721 s into the round; under a minute left in it
+  round 6 probe 28/28: 309/309 candidates, 5721 s into the round; under a minute left in it
+round 6: 238 functions, E -228.93651117, 5721 s
+  shape (A, deg): 1.50380 1.21495 1.37048 1.10031 1.10032 1.09509 0.98046 109.885 109.893 109.609 107.236 110.096 110.093 126.342 111.283 122.375 105.930
+  added 3, predicted to move: +0.00112 -0.00032 -0.00172 +0.00017 +0.00017 +0.00013 +0.00034 +0.023 +0.023 -0.032 +0.011 -0.012 -0.012 +217144.996 -17.337 -243.763 -0.187; left 2185968.65
