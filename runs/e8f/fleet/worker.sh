@@ -24,6 +24,8 @@ fi
 # The local branch carries the name it is pushed under: a push of HEAD to another name was
 # refused for every worker of the first fleet, silently, because its errors were thrown away.
 git checkout -q -B $BR 2>/dev/null
+# Haiku workers ended their turns while a job ran ("continuing the loop" and then stopping): say it every call
+echo "Reminder: call bash runs/e8f/fleet/worker.sh $W again straight away; do not end your turn until the last line is ALL DONE."
 PUSHED=""
 push() {  # commit everything under runs/e8f and push to this worker's branch, four tries
   git add -A runs/e8f >/dev/null 2>&1; git commit -qm "fleet worker $W: $1" >/dev/null 2>&1
