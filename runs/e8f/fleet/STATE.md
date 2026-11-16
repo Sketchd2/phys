@@ -2,6 +2,13 @@
 
 ## WAKE CADENCE: every 62 min, self-scheduled. At the start of each wake call send_later (+62 min) with the same message; backstop task every 6 h re-arms if the chain breaks.
 
+## 2026-11-16 02:21 UTC, wake 12
+
+- 45 stopped a third time: archived, ethanol on new 61. Policy now: retire a twice-resumed stopper to a NEW number.
+- Grown: dichloromethane (-> mono..plan on 50), methylamine (56 continues), ethane (unsettled r7; 17 continues).
+- Ammonia: 271/0.712 rerun done? 1080/0.0142 rerunning on 46, then boil2.
+- Created 61 (ethanol), 62 (diethyl ether), 63 (THF). Count 27 of 30 max. Next wake 03:23 (window resets 03:10).
+
 ## 2026-11-16 01:19 UTC, wake 11
 
 - Ethylene law HOLE (8 pairs, old queue). Five HOLE of six stage laws; ammonia the exception.

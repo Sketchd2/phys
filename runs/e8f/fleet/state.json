@@ -1,7 +1,7 @@
 {
- "children": 25,
+ "children": 27,
  "window": "allowed, resets 03:10 UTC",
- "note": "wake 11. Laws: methane, methanol, H2O2, water(stage), ethylene HOLE; ammonia 34/34 states, two truncated ones rerun, boil2 queued. Workers 59, 60.",
+ "note": "wake 12. 45 retired (ethanol to 61). Dichloromethane, methylamine, ethane grown. Ammonia reruns on 46. Workers 61-63.",
  "wakes": [
   {
    "t": "2026-11-15T15:20Z",
@@ -79,6 +79,12 @@
    "limit_stop": false,
    "status": "allowed",
    "resetsAt": 1794798600
+  },
+  {
+   "t": "2026-11-16T02:21Z",
+   "limit_stop": false,
+   "status": "allowed",
+   "resetsAt": 1794798600
   }
  ],
  "burn_usd": null,
@@ -105,7 +111,7 @@
   "42": "session_016vymdw2KeUGhh6HibXvTE5",
   "43": "session_016vymdz85zTZdRMEVx3GS9Z",
   "44": "session_016vymdwyE9H9qYPScmKaY9L",
-  "45": "session_016vymdx4LxpFVW66cvwa6QY",
+  "45": null,
   "46": "session_016vymdwFFGWCPM5vpRBNMud",
   "47": "session_016vymdzkYiz4gUMAni5rz2d",
   "48": "session_016vyme13dtHuX7BGoX9S7nX",
@@ -120,6 +126,9 @@
   "57": "session_016vymdxYuSKF2nGy8ocCfeV",
   "58": "session_016vymdwZDWJandi7eEqmPcK",
   "59": "session_016vymdwwxjJ1k7bccqjZqKJ",
-  "60": "session_016vymdy3KE91JBWNc5JuPTF"
+  "60": "session_016vymdy3KE91JBWNc5JuPTF",
+  "61": "session_016vymdxebEruMjF5zRtxtED",
+  "62": "session_016vymdzEu1oBJRiX2M1AyJj",
+  "63": "session_016vymdxJynWiSFreUM1MnD6"
  }
 }
