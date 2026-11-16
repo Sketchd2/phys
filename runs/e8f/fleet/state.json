@@ -150,6 +150,11 @@
    "at": "2026-11-16T15:55Z",
    "n": 24,
    "note": "CCl4 STOPPED at pairs (machine size). DME polar rerun. Acetonitrile boil queued (31/34). 65 heptane, 69 glycerol, 61->84. Orch 50.83."
+  },
+  {
+   "at": "2026-11-16T16:58Z",
+   "n": 25,
+   "note": "ACETONITRILE BOILS 414.9 K (31/34; expt 354.8). Stale-copy merge bug fixed at source (commit only files newer than job start). Chloroform, ethylene glycol -> stages. 49,74 -> 86,85; aniline on 46."
   }
  ],
  "burn_usd": null,
@@ -241,6 +246,12 @@
   },
   "84": {
    "session": "session_016vymdyRFadep9qrGbpbiYU"
+  },
+  "85": {
+   "session": "session_016vymdzDyxSb3cNJ2dsqAnP"
+  },
+  "86": {
+   "session": "session_016vymdwAMLhqs3dvhy44gMV"
   }
  },
  "ceiling": "31-35 workers + orchestrator for 4.5 h exhausted a five-hour window (limit hit 07:39 UTC)",

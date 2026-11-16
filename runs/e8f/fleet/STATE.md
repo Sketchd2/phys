@@ -4,6 +4,18 @@
 
 ## WAKE CADENCE: every 62 min, self-scheduled. At the start of each wake call send_later (+62 min) with the same message; backstop task every 6 h re-arms if the chain breaks.
 
+## 2026-11-16 16:58 UTC, wake 25
+
+- ACETONITRILE BOILING POINT: 414.9 K from 31 of 34 states (run here, stage.sh boil; expt 354.8 K). The other 3 states
+  (43, 83) are running: when 34/34, rerun the boil HERE (worker copies may be stale), compare.
+- Cause of both ammonia's and acetonitrile's truncated states: a worker committed the whole runs/e8f tree, including
+  other workers' half-finished copies it took from main at job start; merging later workers laid those over finished
+  ones. worker.sh now commits only files written since its job started (stamp; tested). merge-skip lines added for
+  the 7 acetonitrile states. A boil should be run here, not on a worker.
+- Chloroform (79) and ethylene glycol (55) grown -> mono (4 h polar) .. plan queued. DME mono2 running (44).
+- 46 -> aniline grow. 49, 74 (second stop) retired to 86 (benzene), 85 (ethyl acetate). Resumed 73. Count 35.
+- Unstarted: phenol, chlorobenzene, octane. Block ends 18:20 UTC: next wake (18:01) is before it; judge at 19:0x.
+
 ## 2026-11-16 15:55 UTC, wake 24
 
 - Merge list: see state.json merge_workers (61 retired -> 84, ethanol grow).
