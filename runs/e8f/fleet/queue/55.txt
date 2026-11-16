@@ -1,1 +1,6 @@
 ethylene_glycol-grow species/ethylene_glycol ../../fleet/stage.sh grow ethylene_glycol
+ethylene_glycol-mono-w55 species/ethylene_glycol grep -q 'MP2: mean' polar.log 2>/dev/null || timeout 14400 $(git rev-parse --show-toplevel)/target/release/phys-polar ethylene_glycol > polar.log 2>&1; ../../fleet/stage.sh mono ethylene_glycol
+ethylene_glycol-pairs-w55 species/ethylene_glycol ../../fleet/stage.sh pairs ethylene_glycol
+ethylene_glycol-full-w55 species/ethylene_glycol ../../fleet/stage.sh full ethylene_glycol
+ethylene_glycol-law-w55 species/ethylene_glycol ../../fleet/stage.sh law ethylene_glycol
+ethylene_glycol-plan-w55 species/ethylene_glycol ../../fleet/stage.sh plan ethylene_glycol

@@ -4,3 +4,25 @@ acetonitrile at 1850 K: 64 molecules, 0.0369 g/cm3, box 92.75 bohr (49.08 A), cu
   start: U/N 0.00 kcal/mol
   easing: U/N 0.03 kcal/mol, T 1695/1819 K, P 127 bar
   settling: U/N -0.15 kcal/mol, T 1819/2112 K, P 136 bar
+  warming: U/N -0.28 kcal/mol, T 1634/1669 K, P 113 bar
+  0% after 10364 s: U/N -0.28 kcal/mol, P 113 bar
+  8% after 11006 s: U/N -0.40 kcal/mol, P 126 bar
+  17% after 11655 s: U/N -0.22 kcal/mol, P 131 bar
+  25% after 12354 s: U/N -0.78 kcal/mol, P 126 bar
+  33% after 12970 s: U/N -0.25 kcal/mol, P 146 bar
+  42% after 13553 s: U/N -0.35 kcal/mol, P 130 bar
+  50% after 14136 s: U/N -0.57 kcal/mol, P 138 bar
+  58% after 14708 s: U/N -0.45 kcal/mol, P 151 bar
+  67% after 15291 s: U/N -0.72 kcal/mol, P 136 bar
+  75% after 15861 s: U/N -0.18 kcal/mol, P 157 bar
+  83% after 16454 s: U/N -0.64 kcal/mol, P 133 bar
+  92% after 17047 s: U/N -0.20 kcal/mol, P 148 bar
+  100% after 17603 s: U/N -0.54 kcal/mol, P 122 bar
+acetonitrile at 1850 K (96 samples over 10 ps, block standard errors):
+  U/N -0.424 +- 0.018 kcal/mol; heat of vaporisation -U/N + RT = 4.100 kcal/mol
+  pressure 138 +- 3 bar at 0.0369 g/cm3 (a liquid at the right density sits near 1 bar; positive says it wants to expand)
+  temperatures: translation 1859.8 K, rotation 1868.1 K (bath 1850 K)
+  mean molecular dipole 5.127 D (permanent charges and induced dipoles); dielectric constant 1.2 (blocks 1.2 +- 0.0; slow to converge)
+  dispersion beyond the cut-off (C6 346.72): -0 bar and -0.011 kcal/mol a molecule, so pressure with it 138 bar, U/N -0.435
+  g(first atoms): first peak 0.63 at 3.25 A, first minimum 0.38 at 3.55 A, second peak 1.36 at 5.65 A, coordination to the minimum 0.02 (bulk-acetonitrile-1850.gOO.txt)
+  snapshot in bulk-acetonitrile-1850.snap

@@ -48,3 +48,4 @@
 2026-11-16 14:55 CCl4 pairs killed (18.1 GB fit table, spill disk full, 15 GB machine): retried once with spilling off (PHYS_SPILL_MAX_GB=0); if killed again CCl4 stops at pairs as a machine-size limit, for the owner.
 2026-11-16 14:58 repeat stoppers 51,54,56,58,60,63,64,68 (idle every wake, job restarting each time) retired to new numbers 76-83 with their remaining jobs; count stays 35.
 2026-11-16 15:58 CCl4 stopped at pairs (killed twice, 18 GB table vs 15 GB worker): owner's decision, not retried. DME polar timed out -> mono2 with 4 h polar on 44. Acetonitrile boil queued on 46 at 31/34.
+2026-11-16 17:05 workers commit only files written since job start (stale copies of other workers' states had overwritten acetonitrile's finished ones in merges); merge-skip lines for those. Acetonitrile boil run by the orchestrator from 31 complete states: 414.9 K. 49, 74 retired to 86, 85.
