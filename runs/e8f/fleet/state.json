@@ -1,7 +1,7 @@
 {
- "children": 27,
- "window": "allowed, resets 03:10 UTC",
- "note": "wake 12. 45 retired (ethanol to 61). Dichloromethane, methylamine, ethane grown. Ammonia reruns on 46. Workers 61-63.",
+ "children": 29,
+ "window": "allowed, resets 08:10 UTC",
+ "note": "wake 13. Second five-hour window passed with no limit stop. Workers 64 (butanone), 65 (CCl4). 29 of 30.",
  "wakes": [
   {
    "t": "2026-11-15T15:20Z",
@@ -85,6 +85,13 @@
    "limit_stop": false,
    "status": "allowed",
    "resetsAt": 1794798600
+  },
+  {
+   "t": "2026-11-16T03:26Z",
+   "limit_stop": false,
+   "status": "allowed",
+   "resetsAt": 1794816600,
+   "orchestrator_cost_usd": 17.77
   }
  ],
  "burn_usd": null,
@@ -129,6 +136,8 @@
   "60": "session_016vymdy3KE91JBWNc5JuPTF",
   "61": "session_016vymdxebEruMjF5zRtxtED",
   "62": "session_016vymdzEu1oBJRiX2M1AyJj",
-  "63": "session_016vymdxJynWiSFreUM1MnD6"
+  "63": "session_016vymdxJynWiSFreUM1MnD6",
+  "64": "session_016vymdx2owSdvogjEV2iZWP",
+  "65": "session_016vymdxrqw4kZvyiJD6uhbj"
  }
 }

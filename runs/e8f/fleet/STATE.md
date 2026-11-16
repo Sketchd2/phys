@@ -2,6 +2,15 @@
 
 ## WAKE CADENCE: every 62 min, self-scheduled. At the start of each wake call send_later (+62 min) with the same message; backstop task every 6 h re-arms if the chain breaks.
 
+## 2026-11-16 03:26 UTC, wake 13
+
+- Second window passed, no limit stop; new window resets 08:10. Orchestrator cost 17.77 USD.
+- 5-heavy grows (47 pentane, 59 cyclopentane, 60 butanol, 62, 63) show no push for 1-2 h: checked 59, it is
+  RUNNING; round 0 of a large basis commits nothing until it ends. Not quiet.
+- Progress: ethane pairs (17), methylamine pairs (56), dichloromethane pairs (50), formic acid full (49),
+  acetonitrile full (43), hydrazine full (20). Ammonia 1080/0.0142 rerun still going (46).
+- Created 64 (butanone), 65 (CCl4). Count 29 (max 30). Next wake 04:27.
+
 ## 2026-11-16 02:21 UTC, wake 12
 
 - 45 stopped a third time: archived, ethanol on new 61. Policy now: retire a twice-resumed stopper to a NEW number.
