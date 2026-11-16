@@ -1,0 +1,9 @@
+carbon_tetrachloride: dipole Hartree-Fock 0.0002 au (0.000 D), target 0.0002 au (0.000 D)
+  7922 potential points; the target's RMS 5.146e0, its mean -5.040e0 hartree/e
+  localised in 200 sweeps: 0 bond orbitals, 16 lone pairs (21 core orbitals frozen out of the localisation)
+  valence electrons 32, cores [4.0, 7.0]
+  atom class 0: cloud 0.000 electrons, width 0.855 bohr
+  atom class 1: cloud 0.008 electrons, width 0.657 bohr
+  lone-pair cloud of class 1: 4 pair(s) on 4 atom(s), 7.992 electrons, width 2.117 bohr, 0.300 bohr from the nucleus (the orbitals' centre is 0.300)
+  potential RMS 2.170e-2 hartree/e (atom-centred point charges alone: 8.544e-3)
+  written to cloud-carbon_tetrachloride.txt

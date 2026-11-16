@@ -87,6 +87,11 @@
    "46": 15.41,
    "41": 2.88,
    "note": "workers unchanged since 09:02 snapshot; no looper"
+  },
+  {
+   "at": "2026-11-16T10:37Z",
+   "orchestrator": 40.83,
+   "note": "orchestrator +0.68 since 09:35"
   }
  ]
 }

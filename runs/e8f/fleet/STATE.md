@@ -4,6 +4,13 @@
 
 ## WAKE CADENCE: every 62 min, self-scheduled. At the start of each wake call send_later (+62 min) with the same message; backstop task every 6 h re-arms if the chain breaks.
 
+## 2026-11-16 10:36 UTC, wake 19
+
+- Merged. Seven workers (51, 54, 56, 58, 60, 64, 68) had ended their turns with jobs still running (Haiku stops after a long
+  call). Resumed all seven; worker.sh now prints a keep-looping reminder each call (reaches them by self-update).
+- Acetonitrile liquid 18/34. Ammonia 1080/0.0142-third still running (46). CCl4 mono running (65).
+- Orchestrator 40.83 USD (+0.68). Holding 31 to ~13:20. Next wake 11:38.
+
 ## 2026-11-16 09:33 UTC, wake 18
 
 - Merged. Haiku workers 51, 54, 58, 60 had ended their turns while their grows were still running ("continuing the loop"); resumed.

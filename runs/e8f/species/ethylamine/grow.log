@@ -1765,3 +1765,39 @@ round 4: 198 functions, E -135.03971542, 40866 s
   shape (A, deg): 1.52348 1.46950 1.10102 1.10097 1.10351 1.10175 1.10961 1.02307 1.02452 110.909 110.701 110.953 108.684 107.547 107.927 110.631 109.620 109.200 107.290 113.551 106.400 110.660 110.257 106.588
   added 3, predicted to move: +0.00086 +0.00008 -0.00099 -0.00010 -0.00003 +0.00041 +0.00048 -0.00062 -0.00084 +0.208 -0.063 -0.045 -0.029 -0.011 -0.070 -0.035 -0.021 +0.022 -0.012 +0.018 +0.051 -0.202 -0.169 -0.424; left 138.54
 ethylamine: 10 atoms, 9 bonds; carrying on from round 5
+  relaxed at 210 functions, 6627 s into round 5; 48 probes of 334 candidates to go
+  round 5 probe 1/48: 50/334 candidates, 6787 s into the round; about 126 min left in it
+  round 5 probe 1/48: 100/334 candidates, 6787 s into the round; about 126 min left in it
+  round 5 probe 1/48: 150/334 candidates, 6787 s into the round; about 126 min left in it
+  round 5 probe 1/48: 200/334 candidates, 6788 s into the round; about 126 min left in it
+  round 5 probe 1/48: 250/334 candidates, 6788 s into the round; about 126 min left in it
+  round 5 probe 1/48: 300/334 candidates, 6788 s into the round; about 126 min left in it
+  round 5 probe 1/48: 334/334 candidates, 6789 s into the round; about 126 min left in it
+  round 5 probe 2/48: 50/334 candidates, 6950 s into the round; about 125 min left in it
+  round 5 probe 2/48: 100/334 candidates, 6950 s into the round; about 125 min left in it
+  round 5 probe 2/48: 150/334 candidates, 6950 s into the round; about 125 min left in it
+  round 5 probe 2/48: 200/334 candidates, 6951 s into the round; about 125 min left in it
+  round 5 probe 2/48: 250/334 candidates, 6951 s into the round; about 125 min left in it
+  round 5 probe 2/48: 300/334 candidates, 6951 s into the round; about 125 min left in it
+  round 5 probe 2/48: 334/334 candidates, 6952 s into the round; about 125 min left in it
+  round 5 probe 3/48: 50/334 candidates, 7122 s into the round; about 129 min left in it
+  round 5 probe 3/48: 100/334 candidates, 7123 s into the round; about 129 min left in it
+  round 5 probe 3/48: 150/334 candidates, 7123 s into the round; about 129 min left in it
+  round 5 probe 3/48: 200/334 candidates, 7123 s into the round; about 129 min left in it
+  round 5 probe 3/48: 250/334 candidates, 7123 s into the round; about 129 min left in it
+  round 5 probe 3/48: 300/334 candidates, 7124 s into the round; about 129 min left in it
+  round 5 probe 3/48: 334/334 candidates, 7124 s into the round; about 129 min left in it
+  round 5 probe 4/48: 50/334 candidates, 7282 s into the round; about 117 min left in it
+  round 5 probe 4/48: 100/334 candidates, 7282 s into the round; about 117 min left in it
+  round 5 probe 4/48: 150/334 candidates, 7282 s into the round; about 117 min left in it
+  round 5 probe 4/48: 200/334 candidates, 7283 s into the round; about 117 min left in it
+  round 5 probe 4/48: 250/334 candidates, 7283 s into the round; about 117 min left in it
+  round 5 probe 4/48: 300/334 candidates, 7283 s into the round; about 117 min left in it
+  round 5 probe 4/48: 334/334 candidates, 7284 s into the round; about 117 min left in it
+  round 5 probe 5/48: 50/334 candidates, 7437 s into the round; about 111 min left in it
+  round 5 probe 5/48: 100/334 candidates, 7438 s into the round; about 111 min left in it
+  round 5 probe 5/48: 150/334 candidates, 7438 s into the round; about 111 min left in it
+  round 5 probe 5/48: 200/334 candidates, 7438 s into the round; about 111 min left in it
+  round 5 probe 5/48: 250/334 candidates, 7439 s into the round; about 111 min left in it
+  round 5 probe 5/48: 300/334 candidates, 7439 s into the round; about 111 min left in it
+  round 5 probe 5/48: 334/334 candidates, 7439 s into the round; about 112 min left in it
