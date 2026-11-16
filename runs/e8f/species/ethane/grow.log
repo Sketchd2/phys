@@ -345,3 +345,11 @@ could not spill a 19.1 GB table to /tmp/spill: No space left on device (os error
   round 6 probe 4/8: 250/334 candidates, 17912 s into the round; about 174 min left in it
   round 6 probe 4/8: 300/334 candidates, 17925 s into the round; about 174 min left in it
   round 6 probe 4/8: 334/334 candidates, 17937 s into the round; about 175 min left in it
+  round 6 probe 5/8: 50/334 candidates, 19366 s into the round; about 72 min left in it
+  round 6 probe 5/8: 100/334 candidates, 19369 s into the round; about 72 min left in it
+  round 6 probe 5/8: 150/334 candidates, 19371 s into the round; about 72 min left in it
+  round 6 probe 5/8: 200/334 candidates, 19373 s into the round; about 72 min left in it
+  round 6 probe 5/8: 250/334 candidates, 19380 s into the round; about 72 min left in it
+  round 6 probe 5/8: 300/334 candidates, 19392 s into the round; about 73 min left in it
+  round 6 probe 5/8: 334/334 candidates, 19402 s into the round; about 73 min left in it
+could not spill a 18.9 GB table to /tmp/spill: No space left on device (os error 28); rebuilding it instead
