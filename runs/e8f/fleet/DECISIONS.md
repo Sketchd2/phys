@@ -34,3 +34,4 @@
 - 2026-11-16 The per-machine call lock in worker.sh was itself held indefinitely (inherited by some detached process; worker 46 printed 'another call active' for an hour and stopped its turn): removed. The per-state lock in liquid-state.sh stays.
 - 2026-11-16 Hydrazine's law (8 pairs) begins HOLE. Acetonitrile's law is not HOLE (K 7.74, damping 1.8, rms 0.61 over 8 pairs); its 34 liquid states are spread over 43, 68 and 69.
 - 2026-11-16 Formic acid's law (8 pairs) begins HOLE: no liquid. Worker 49 refilled with benzene's grow.
+- 2026-11-16 About 07:33-07:42 UTC every worker stopped: their Bash calls failed with the auto-mode permission check giving no verdict (a platform outage, not the usage limit, which read allowed). My own 07:39 wake was cut off by a restart. At 08:30 all 32 live workers were sent the resume message; no workers added this wake.

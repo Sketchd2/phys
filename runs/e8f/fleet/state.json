@@ -1,7 +1,7 @@
 {
  "children": 35,
- "window": "allowed, resets 08:10 UTC",
- "note": "wake 16. Formic acid law HOLE (7 HOLE, 2 not). Acetonitrile liquid 6/34. Ammonia third reruns going. Workers 70, 71.",
+ "window": "allowed; resets 08:10 then 13:10 UTC",
+ "note": "wake 17 (08:30). Fleet-wide stop 07:33-07:42 (permission-check outage, not the limit); all 32 workers resumed. Acetonitrile liquid 11/34.",
  "wakes": [
   {
    "t": "2026-11-15T15:20Z",
@@ -110,6 +110,11 @@
    "limit_stop": false,
    "status": "allowed",
    "resetsAt": 1794816600
+  },
+  {
+   "t": "2026-11-16T08:33Z",
+   "limit_stop": false,
+   "other_stop": "permission-check outage 07:33-07:42"
   }
  ],
  "burn_usd": null,
