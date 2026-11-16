@@ -274,3 +274,13 @@ pyridine: 11 atoms, 11 bonds; starting
 round 0: 176 functions, E -248.00493405, 13532 s
   shape (A, deg): 1.35920 1.40831 1.40298 1.40307 1.40823 1.35920 1.10049 1.09667 1.09709 1.09674 1.10045 116.847 123.614 115.716 120.670 118.528 120.264 121.207 118.866 120.574 120.560 118.529 121.244 120.227 123.615 120.679 115.706
   added 5, predicted to move: +0.00000 +0.00000 -12.61594 -12.61594 +0.00000 +0.00000 +0.00504 -0.00489 +0.00658 -0.00489 +0.00504 +0.367 -845.996 +0.000 +0.000 +0.000 +0.000 +0.000 +0.000 +0.000 +0.000 +0.000 +0.000 +0.000 -845.996 +0.000 +0.000; left 28271.70
+  relaxed at 191 functions, 6249 s into round 1; 30 probes of 425 candidates to go
+  round 1 probe 1/30: 50/425 candidates, 6484 s into the round; about 115 min left in it
+  round 1 probe 1/30: 100/425 candidates, 6484 s into the round; about 115 min left in it
+  round 1 probe 1/30: 150/425 candidates, 6485 s into the round; about 115 min left in it
+  round 1 probe 1/30: 200/425 candidates, 6485 s into the round; about 115 min left in it
+  round 1 probe 1/30: 250/425 candidates, 6485 s into the round; about 115 min left in it
+  round 1 probe 1/30: 300/425 candidates, 6485 s into the round; about 115 min left in it
+  round 1 probe 1/30: 350/425 candidates, 6486 s into the round; about 115 min left in it
+  round 1 probe 1/30: 400/425 candidates, 6486 s into the round; about 115 min left in it
+  round 1 probe 1/30: 425/425 candidates, 6486 s into the round; about 115 min left in it
