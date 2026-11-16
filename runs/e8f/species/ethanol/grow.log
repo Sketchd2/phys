@@ -1858,3 +1858,4 @@ round 7: 350 functions, E -154.91693209, 13198 s
   round 8 probe 12/30: 352/352 candidates, 8885 s into the round; about 126 min left in it
 ethanol: 9 atoms, 8 bonds; carrying on from round 8
 ethanol: 9 atoms, 8 bonds; carrying on from round 8
+  relaxed at 395 functions, 4663 s into round 8; 30 probes of 352 candidates to go
