@@ -297,3 +297,17 @@ diethyl_ether: 15 atoms, 14 bonds; starting
   round 0 probe 27/28: 450/516 candidates, 18014 s into the round; about 6 min left in it
   round 0 probe 27/28: 500/516 candidates, 18015 s into the round; about 6 min left in it
   round 0 probe 27/28: 516/516 candidates, 18015 s into the round; about 6 min left in it
+  round 0 probe 28/28: 50/516 candidates, 18394 s into the round; under a minute left in it
+  round 0 probe 28/28: 100/516 candidates, 18394 s into the round; under a minute left in it
+  round 0 probe 28/28: 150/516 candidates, 18395 s into the round; under a minute left in it
+  round 0 probe 28/28: 200/516 candidates, 18395 s into the round; under a minute left in it
+  round 0 probe 28/28: 250/516 candidates, 18396 s into the round; under a minute left in it
+  round 0 probe 28/28: 300/516 candidates, 18396 s into the round; under a minute left in it
+  round 0 probe 28/28: 350/516 candidates, 18397 s into the round; under a minute left in it
+  round 0 probe 28/28: 400/516 candidates, 18398 s into the round; under a minute left in it
+  round 0 probe 28/28: 450/516 candidates, 18398 s into the round; under a minute left in it
+  round 0 probe 28/28: 500/516 candidates, 18399 s into the round; under a minute left in it
+  round 0 probe 28/28: 516/516 candidates, 18399 s into the round; under a minute left in it
+round 0: 205 functions, E -233.40677536, 18399 s
+  shape (A, deg): 1.51955 1.44172 1.44188 1.51944 1.10731 1.10608 1.10608 1.11414 1.11414 1.11416 1.11416 1.10728 1.10611 1.10611 110.517 110.652 110.652 108.370 108.370 108.196 108.605 111.263 111.263 109.132 109.132 107.403 110.848 108.631 109.118 109.118 111.262 111.262 107.406 110.499 110.668 110.668 108.366 108.366 108.190
+  added 3, predicted to move: -0.00242 -0.01485 -0.01485 -0.00242 +0.00057 +0.00122 +0.00122 +0.00090 +0.00090 +0.00090 +0.00090 +0.00057 +0.00122 +0.00122 -0.141 +0.069 +0.069 -0.040 -0.040 +0.074 -0.117 -0.108 -0.108 +0.327 +0.327 -0.422 +2.112 -0.117 +0.327 +0.327 -0.108 -0.108 -0.422 -0.141 +0.069 +0.069 -0.040 -0.040 +0.074; left 680.70
