@@ -1126,3 +1126,14 @@ ethylene_glycol: 10 atoms, 9 bonds; carrying on from round 6
   round 6 probe 17/18: 300/386 candidates, 6806 s into the round; about 4 min left in it
   round 6 probe 17/18: 350/386 candidates, 6807 s into the round; about 4 min left in it
   round 6 probe 17/18: 386/386 candidates, 6809 s into the round; about 4 min left in it
+  round 6 probe 18/18: 50/386 candidates, 7053 s into the round; under a minute left in it
+  round 6 probe 18/18: 100/386 candidates, 7054 s into the round; under a minute left in it
+  round 6 probe 18/18: 150/386 candidates, 7054 s into the round; under a minute left in it
+  round 6 probe 18/18: 200/386 candidates, 7055 s into the round; under a minute left in it
+  round 6 probe 18/18: 250/386 candidates, 7055 s into the round; under a minute left in it
+  round 6 probe 18/18: 300/386 candidates, 7056 s into the round; under a minute left in it
+  round 6 probe 18/18: 350/386 candidates, 7057 s into the round; under a minute left in it
+  round 6 probe 18/18: 386/386 candidates, 7059 s into the round; under a minute left in it
+round 6: 384 functions, E -230.09829975, 7059 s
+  shape (A, deg): 1.43070 1.51917 1.43070 0.96823 1.10404 1.10404 1.10404 1.10404 0.96823 108.086 107.111 111.582 111.582 109.210 109.210 108.106 107.111 109.210 109.210 111.582 111.582 108.106 108.086
+  added 6, predicted to move: -0.00040 -0.00040 -0.00040 -0.00028 -0.00001 -0.00001 -0.00001 -0.00001 -0.00028 +0.036 -0.002 -0.003 -0.003 -0.005 -0.005 +0.021 -0.002 -0.005 -0.005 -0.003 -0.003 +0.021 +0.036; left 24.50
