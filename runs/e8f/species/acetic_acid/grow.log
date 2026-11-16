@@ -1816,3 +1816,24 @@ round 8: 262 functions, E -228.93942384, 16522 s
   shape (A, deg): 1.50433 1.21476 1.36740 1.10046 1.10048 1.09502 0.98060 109.930 109.939 109.606 107.194 110.073 110.070 126.233 111.343 122.424 105.910
   added 3, predicted to move: +0.00003 -0.00121 +0.00028 -0.00004 -0.00004 -0.00018 -0.00004 -0.007 -0.007 +0.036 -0.009 -0.010 -0.010 -5.966 +0.000 +0.000 -0.000; left 238.79
   relaxed at 296 functions, 716 s into round 9; 28 probes of 307 candidates to go
+  round 9 probe 1/28: 50/307 candidates, 881 s into the round; about 75 min left in it
+  round 9 probe 1/28: 100/307 candidates, 881 s into the round; about 75 min left in it
+  round 9 probe 1/28: 150/307 candidates, 881 s into the round; about 75 min left in it
+  round 9 probe 1/28: 200/307 candidates, 881 s into the round; about 75 min left in it
+  round 9 probe 1/28: 250/307 candidates, 882 s into the round; about 75 min left in it
+  round 9 probe 1/28: 300/307 candidates, 883 s into the round; about 75 min left in it
+  round 9 probe 1/28: 307/307 candidates, 883 s into the round; about 75 min left in it
+  round 9 probe 2/28: 50/307 candidates, 1057 s into the round; about 76 min left in it
+  round 9 probe 2/28: 100/307 candidates, 1057 s into the round; about 76 min left in it
+  round 9 probe 2/28: 150/307 candidates, 1058 s into the round; about 76 min left in it
+  round 9 probe 2/28: 200/307 candidates, 1058 s into the round; about 76 min left in it
+  round 9 probe 2/28: 250/307 candidates, 1058 s into the round; about 76 min left in it
+  round 9 probe 2/28: 300/307 candidates, 1059 s into the round; about 76 min left in it
+  round 9 probe 2/28: 307/307 candidates, 1059 s into the round; about 76 min left in it
+  round 9 probe 3/28: 50/307 candidates, 1224 s into the round; about 69 min left in it
+  round 9 probe 3/28: 100/307 candidates, 1224 s into the round; about 69 min left in it
+  round 9 probe 3/28: 150/307 candidates, 1224 s into the round; about 69 min left in it
+  round 9 probe 3/28: 200/307 candidates, 1224 s into the round; about 69 min left in it
+  round 9 probe 3/28: 250/307 candidates, 1225 s into the round; about 69 min left in it
+  round 9 probe 3/28: 300/307 candidates, 1226 s into the round; about 69 min left in it
+  round 9 probe 3/28: 307/307 candidates, 1226 s into the round; about 69 min left in it
