@@ -957,3 +957,4 @@ round 8: 317 functions, E -95.77498319, 18630 s
   added 4, predicted to move: -0.00042 -0.00045 -0.00043 -0.00045 +0.00005 +0.00005 +0.058 +0.032 +0.058 -0.056 -0.093 -0.056 -0.008 -0.008 -0.026; left 23.04
 methylamine: 7 atoms, 6 bonds; carrying on from round 9
 methylamine: 7 atoms, 6 bonds; carrying on from round 9
+  relaxed at 396 functions, 1690 s into round 9; 20 probes of 282 candidates to go
