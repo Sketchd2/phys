@@ -21,3 +21,13 @@ carbon_tetrachloride: 5 atoms, 4 bonds; starting
   round 0 probe 3/4: 250/325 candidates, 895 s into the round; about 1 min left in it
   round 0 probe 3/4: 300/325 candidates, 895 s into the round; about 1 min left in it
   round 0 probe 3/4: 325/325 candidates, 896 s into the round; about 1 min left in it
+  round 0 probe 4/4: 50/325 candidates, 968 s into the round; under a minute left in it
+  round 0 probe 4/4: 100/325 candidates, 968 s into the round; under a minute left in it
+  round 0 probe 4/4: 150/325 candidates, 968 s into the round; under a minute left in it
+  round 0 probe 4/4: 200/325 candidates, 969 s into the round; under a minute left in it
+  round 0 probe 4/4: 250/325 candidates, 969 s into the round; under a minute left in it
+  round 0 probe 4/4: 300/325 candidates, 969 s into the round; under a minute left in it
+  round 0 probe 4/4: 325/325 candidates, 969 s into the round; under a minute left in it
+round 0: 121 functions, E -1878.18711195, 969 s
+  shape (A, deg): 1.81407 1.81417 1.81427 1.81427 109.484 109.478 109.478 109.467 109.467 109.452
+  added 12, predicted to move: -0.08758 -0.08758 -0.08758 -0.08758 +0.001 +0.001 +0.001 +0.001 +0.001 +0.001; left 612.21
