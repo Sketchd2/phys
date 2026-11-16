@@ -4,3 +4,9 @@ acetonitrile at 1850 K: 64 molecules, 0.207 g/cm3, box 52.20 bohr (27.62 A), cut
   start: U/N -0.32 kcal/mol
   easing: U/N -0.69 kcal/mol, T 1712/1840 K, P 538 bar
   settling: U/N -1.54 kcal/mol, T 1829/1850 K, P 959 bar
+  warming: U/N -1.89 kcal/mol, T 1966/1735 K, P 978 bar
+  0% after 1586 s: U/N -1.88 kcal/mol, P 984 bar
+  8% after 1687 s: U/N -1.45 kcal/mol, P 999 bar
+  17% after 1785 s: U/N -2.15 kcal/mol, P 505 bar
+  25% after 1887 s: U/N -2.04 kcal/mol, P 716 bar
+  33% after 1994 s: U/N -2.26 kcal/mol, P 620 bar
