@@ -31,3 +31,4 @@ carbon_tetrachloride: 5 atoms, 4 bonds; starting
 round 0: 121 functions, E -1878.18711195, 969 s
   shape (A, deg): 1.81407 1.81417 1.81427 1.81427 109.484 109.478 109.478 109.467 109.467 109.452
   added 12, predicted to move: -0.08758 -0.08758 -0.08758 -0.08758 +0.001 +0.001 +0.001 +0.001 +0.001 +0.001; left 612.21
+  relaxed at 217 functions, 813 s into round 1; 4 probes of 333 candidates to go
