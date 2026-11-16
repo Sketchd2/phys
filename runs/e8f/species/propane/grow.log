@@ -1315,3 +1315,14 @@ propane: 11 atoms, 10 bonds; carrying on from round 6
   round 6 probe 21/22: 300/389 candidates, 20992 s into the round; about 7 min left in it
   round 6 probe 21/22: 350/389 candidates, 20993 s into the round; about 7 min left in it
   round 6 probe 21/22: 389/389 candidates, 20996 s into the round; about 7 min left in it
+  round 6 probe 22/22: 50/389 candidates, 21390 s into the round; under a minute left in it
+  round 6 probe 22/22: 100/389 candidates, 21390 s into the round; under a minute left in it
+  round 6 probe 22/22: 150/389 candidates, 21391 s into the round; under a minute left in it
+  round 6 probe 22/22: 200/389 candidates, 21392 s into the round; under a minute left in it
+  round 6 probe 22/22: 250/389 candidates, 21392 s into the round; under a minute left in it
+  round 6 probe 22/22: 300/389 candidates, 21393 s into the round; under a minute left in it
+  round 6 probe 22/22: 350/389 candidates, 21394 s into the round; under a minute left in it
+  round 6 probe 22/22: 389/389 candidates, 21397 s into the round; under a minute left in it
+round 6: 347 functions, E -119.01017674, 21397 s
+  shape (A, deg): 1.52891 1.52895 1.09917 1.09990 1.09990 1.10315 1.10315 1.09918 1.09991 1.09991 111.779 111.065 111.065 107.679 107.679 107.375 112.804 109.447 109.447 109.445 109.445 106.028 111.781 111.067 111.067 107.676 107.676 107.375
+  added 4, predicted to move: +0.00048 +0.00048 -0.00014 +0.00002 +0.00002 -0.00125 -0.00125 -0.00014 +0.00002 +0.00002 +0.011 +0.013 +0.013 -0.011 -0.011 -0.019 +0.101 +0.032 +0.032 +0.032 +0.032 -0.323 +0.011 +0.013 +0.013 -0.011 -0.011 -0.019; left 42.91
