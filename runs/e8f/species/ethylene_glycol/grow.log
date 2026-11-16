@@ -684,3 +684,22 @@ round 3: 228 functions, E -230.08807721, 13304 s
   round 4 probe 16/18: 300/358 candidates, 3075 s into the round; about 4 min left in it
   round 4 probe 16/18: 350/358 candidates, 3075 s into the round; about 4 min left in it
   round 4 probe 16/18: 358/358 candidates, 3076 s into the round; about 4 min left in it
+  round 4 probe 17/18: 50/358 candidates, 3196 s into the round; about 2 min left in it
+  round 4 probe 17/18: 100/358 candidates, 3197 s into the round; about 2 min left in it
+  round 4 probe 17/18: 150/358 candidates, 3197 s into the round; about 2 min left in it
+  round 4 probe 17/18: 200/358 candidates, 3197 s into the round; about 2 min left in it
+  round 4 probe 17/18: 250/358 candidates, 3197 s into the round; about 2 min left in it
+  round 4 probe 17/18: 300/358 candidates, 3198 s into the round; about 2 min left in it
+  round 4 probe 17/18: 350/358 candidates, 3198 s into the round; about 2 min left in it
+  round 4 probe 17/18: 358/358 candidates, 3199 s into the round; about 2 min left in it
+  round 4 probe 18/18: 50/358 candidates, 3323 s into the round; under a minute left in it
+  round 4 probe 18/18: 100/358 candidates, 3323 s into the round; under a minute left in it
+  round 4 probe 18/18: 150/358 candidates, 3323 s into the round; under a minute left in it
+  round 4 probe 18/18: 200/358 candidates, 3323 s into the round; under a minute left in it
+  round 4 probe 18/18: 250/358 candidates, 3324 s into the round; under a minute left in it
+  round 4 probe 18/18: 300/358 candidates, 3324 s into the round; under a minute left in it
+  round 4 probe 18/18: 350/358 candidates, 3325 s into the round; under a minute left in it
+  round 4 probe 18/18: 358/358 candidates, 3325 s into the round; under a minute left in it
+round 4: 266 functions, E -230.09070884, 16629 s
+  shape (A, deg): 1.43152 1.51844 1.43152 0.96873 1.10666 1.10666 1.10666 1.10666 0.96873 107.930 107.059 111.567 111.567 109.212 109.212 108.182 107.059 109.212 109.212 111.567 111.567 108.182 107.930
+  added 8, predicted to move: -0.00155 +0.00085 -0.00155 +0.00026 -0.00196 -0.00196 -0.00196 -0.00196 +0.00026 +0.324 +0.105 -0.018 -0.018 +0.069 +0.069 -0.270 +0.105 +0.069 +0.069 -0.018 -0.018 -0.270 +0.324; left 92.60
