@@ -1,5 +1,7 @@
 # Fleet state (the orchestrator's own notes; newest first)
 
+## WORKER COUNT: no cap at 30 (owner, 2026-11-16). +2 a wake while no limit stop; only with real work; refill workers whose queues run out before creating new ones.
+
 ## WAKE CADENCE: every 62 min, self-scheduled. At the start of each wake call send_later (+62 min) with the same message; backstop task every 6 h re-arms if the chain breaks.
 
 ## 2026-11-16 03:26 UTC, wake 13
