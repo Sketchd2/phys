@@ -2699,3 +2699,24 @@ round 3: 178 functions, E -194.16872829, 31030 s
   round 4 probe 58/60: 350/407 candidates, 20099 s into the round; about 8 min left in it
   round 4 probe 58/60: 400/407 candidates, 20100 s into the round; about 8 min left in it
   round 4 probe 58/60: 407/407 candidates, 20100 s into the round; about 8 min left in it
+  round 4 probe 59/60: 50/407 candidates, 20328 s into the round; about 4 min left in it
+  round 4 probe 59/60: 100/407 candidates, 20329 s into the round; about 4 min left in it
+  round 4 probe 59/60: 150/407 candidates, 20329 s into the round; about 4 min left in it
+  round 4 probe 59/60: 200/407 candidates, 20329 s into the round; about 4 min left in it
+  round 4 probe 59/60: 250/407 candidates, 20330 s into the round; about 4 min left in it
+  round 4 probe 59/60: 300/407 candidates, 20330 s into the round; about 4 min left in it
+  round 4 probe 59/60: 350/407 candidates, 20331 s into the round; about 4 min left in it
+  round 4 probe 59/60: 400/407 candidates, 20331 s into the round; about 4 min left in it
+  round 4 probe 59/60: 407/407 candidates, 20332 s into the round; about 4 min left in it
+  round 4 probe 60/60: 50/407 candidates, 20569 s into the round; under a minute left in it
+  round 4 probe 60/60: 100/407 candidates, 20570 s into the round; under a minute left in it
+  round 4 probe 60/60: 150/407 candidates, 20570 s into the round; under a minute left in it
+  round 4 probe 60/60: 200/407 candidates, 20570 s into the round; under a minute left in it
+  round 4 probe 60/60: 250/407 candidates, 20571 s into the round; under a minute left in it
+  round 4 probe 60/60: 300/407 candidates, 20571 s into the round; under a minute left in it
+  round 4 probe 60/60: 350/407 candidates, 20572 s into the round; under a minute left in it
+  round 4 probe 60/60: 400/407 candidates, 20572 s into the round; under a minute left in it
+  round 4 probe 60/60: 407/407 candidates, 20573 s into the round; under a minute left in it
+round 4: 197 functions, E -194.17907960, 51602 s
+  shape (A, deg): 1.52018 1.52600 1.44723 1.10040 1.10076 1.10188 1.10749 1.10330 1.10206 1.10253 0.97484 110.263 110.584 110.335 108.512 108.346 108.739 112.963 106.248 108.757 111.162 108.897 108.698 110.929 110.486 110.983 108.319 107.331 108.683 107.446
+  added 3, predicted to move: -0.00397 -0.00418 -0.00694 -0.00015 +0.00008 +0.00016 +0.00068 +0.00003 +0.00007 -0.00008 -0.00050 +0.005 -0.148 -0.117 +0.127 +0.123 +0.049 -0.274 -0.033 +0.246 -0.163 +0.196 +0.200 -0.112 -0.156 -0.098 +0.141 +0.236 +0.045 -0.026; left 183.14
