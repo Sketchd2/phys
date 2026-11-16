@@ -9,3 +9,20 @@ ammonia at 401 K: 64 molecules, 0.712 g/cm3, box 25.79 bohr (13.65 A), cut-off 1
   8% after 442 s: U/N -18.30 kcal/mol, P 1662 bar
   17% after 466 s: U/N -18.32 kcal/mol, P 31 bar
   25% after 491 s: U/N -18.72 kcal/mol, P -1347 bar
+  33% after 514 s: U/N -18.76 kcal/mol, P 38 bar
+  42% after 538 s: U/N -18.78 kcal/mol, P 329 bar
+  50% after 561 s: U/N -18.93 kcal/mol, P -459 bar
+  58% after 583 s: U/N -19.29 kcal/mol, P 926 bar
+  67% after 606 s: U/N -18.96 kcal/mol, P 2626 bar
+  75% after 630 s: U/N -19.17 kcal/mol, P 2058 bar
+  83% after 654 s: U/N -19.26 kcal/mol, P 840 bar
+  92% after 677 s: U/N -19.15 kcal/mol, P -1748 bar
+  100% after 702 s: U/N -19.14 kcal/mol, P 1822 bar
+ammonia at 401 K (96 samples over 10 ps, block standard errors):
+  U/N -19.007 +- 0.102 kcal/mol; heat of vaporisation -U/N + RT = 19.804 kcal/mol
+  pressure 153 +- 313 bar at 0.712 g/cm3 (a liquid at the right density sits near 1 bar; positive says it wants to expand)
+  temperatures: translation 404.8 K, rotation 385.9 K (bath 401 K)
+  mean molecular dipole 4.095 D (permanent charges and induced dipoles); dielectric constant 2.1 (blocks 1.4 +- 0.1; slow to converge)
+  dispersion beyond the cut-off (C6 93.67): -513 bar and -0.293 kcal/mol a molecule, so pressure with it -360 bar, U/N -19.300
+  g(first atoms): first peak 4.45 at 2.25 A, first minimum 0.03 at 2.85 A, second peak 1.77 at 4.45 A, coordination to the minimum 1.99 (bulk-ammonia-401.gOO.txt)
+  snapshot in bulk-ammonia-401.snap
