@@ -1,1 +1,4 @@
 chloroform: 458 functions, field step 0.002, 16 frozen cores
+  19 fields in 3897 s (dipole width scale 1)
+  Hartree-Fock: mean 54.5705 bohr^3, diagonal 48.2823 56.8223 58.6071, off-diagonal 6.3e0 4.4e0 -2.3e0
+  MP2: mean 57.1647 bohr^3, diagonal 50.5779 59.5257 61.3906, off-diagonal 6.6e0 4.6e0 -2.4e0
