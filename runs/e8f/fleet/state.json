@@ -1,7 +1,7 @@
 {
- "children": 23,
+ "children": 25,
  "window": "allowed, resets 03:10 UTC",
- "note": "wake 10. Worker 19 retired, methylamine on 56. Ammonia liquid 29/34, boil queued on 46. Workers 57, 58.",
+ "note": "wake 11. Laws: methane, methanol, H2O2, water(stage), ethylene HOLE; ammonia 34/34 states, two truncated ones rerun, boil2 queued. Workers 59, 60.",
  "wakes": [
   {
    "t": "2026-11-15T15:20Z",
@@ -73,6 +73,12 @@
    "limit_stop": false,
    "status": "allowed",
    "resetsAt": 1794798600
+  },
+  {
+   "t": "2026-11-16T01:19Z",
+   "limit_stop": false,
+   "status": "allowed",
+   "resetsAt": 1794798600
   }
  ],
  "burn_usd": null,
@@ -112,6 +118,8 @@
   "55": "session_016vymdvkMDTT5HRvZ8X2wmg",
   "56": "session_016vymdxUynmdNbzwwkgzP6Q",
   "57": "session_016vymdxYuSKF2nGy8ocCfeV",
-  "58": "session_016vymdwZDWJandi7eEqmPcK"
+  "58": "session_016vymdwZDWJandi7eEqmPcK",
+  "59": "session_016vymdwwxjJ1k7bccqjZqKJ",
+  "60": "session_016vymdy3KE91JBWNc5JuPTF"
  }
 }

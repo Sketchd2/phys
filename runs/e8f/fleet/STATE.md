@@ -2,6 +2,13 @@
 
 ## WAKE CADENCE: every 62 min, self-scheduled. At the start of each wake call send_later (+62 min) with the same message; backstop task every 6 h re-arms if the chain breaks.
 
+## 2026-11-16 01:19 UTC, wake 11
+
+- Ethylene law HOLE (8 pairs, old queue). Five HOLE of six stage laws; ammonia the exception.
+- ammonia-boil failed: two states truncated but marked done; rerun on 46 (…-again), then ammonia-boil2.
+- 47 finished its states -> pentane grow. 18 and 21 finished their old queues. 20: hydrazine full.
+- Formic acid at full (49), acetonitrile full (43). Created 59 (cyclopentane), 60 (butanol). Count 25. Next wake 02:19.
+
 ## 2026-11-16 00:15 UTC, wake 10
 
 - Worker 19 (replacement) never pushed: archived, queue 19 STOP. Methylamine on new worker 56 (grow3..plan2, NFULL 12).
