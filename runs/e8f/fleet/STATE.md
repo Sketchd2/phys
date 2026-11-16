@@ -4,6 +4,17 @@
 
 ## WAKE CADENCE: every 62 min, self-scheduled. At the start of each wake call send_later (+62 min) with the same message; backstop task every 6 h re-arms if the chain breaks.
 
+## 2026-11-16 14:52 UTC, wake 23
+
+- Merge list now (retired workers dropped after their final merge): 17 40 41 42 43 44 46 47 48 49 50 52 53 55 57 59 61 62
+  65 69 72 73 74 75 76 77 78 79 80 81 82 83.
+- Retired 51, 54, 56, 58, 60, 63, 64, 68: idle at every wake, and each resume restarted the job on a fresh machine.
+  Their remaining jobs moved to new workers 76-83 (ids -wNN); old queues STOP, sessions archived. Fresh workers
+  (72-75) loop fine. Count stays 35. Resumed 61 (first time idle).
+- CCl4 pairs killed: 18.1 GB fit table, spill disk full, 15 GB machine. Retry pairs3 with PHYS_SPILL_MAX_GB=0 (rebuild,
+  no spill). If killed again, CCl4 stops at pairs (machine-size limit) for the owner.
+- Acetonitrile 27/34 (boil at >=31). DME mono running (44). Next wake 15:54.
+
 ## 2026-11-16 13:48 UTC, wake 22
 
 - Block 08:20-13:20 PASSED CLEAN at 31. Full snapshot (usage.json): orchestrator +7.42 USD over the block; workers'

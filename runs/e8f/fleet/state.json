@@ -140,6 +140,11 @@
    "at": "2026-11-16T13:48Z",
    "n": 22,
    "note": "block clean at 31 -> 35 (72 hexane, 73 cyclohexane, 74 ethyl acetate, 75 toluene). DME grown -> stages on 44. Dichloromethane HOLE. Pyridine on 50. Acetonitrile 23/34."
+  },
+  {
+   "at": "2026-11-16T14:52Z",
+   "n": 23,
+   "note": "8 repeat stoppers retired to 76-83; CCl4 pairs killed (18 GB table) -> retry no-spill; acetonitrile 27/34; count 35"
   }
  ],
  "burn_usd": null,
@@ -204,6 +209,30 @@
   },
   "75": {
    "session": "session_016vymdxkLmdcKHGVnRQiXYz"
+  },
+  "76": {
+   "session": "session_016vymdx1ihcMU5xQn77xg1T"
+  },
+  "77": {
+   "session": "session_016vymdyDEmn3YZjTV9bXjUc"
+  },
+  "78": {
+   "session": "session_016vymdvoXhbc3CQiDStyk9W"
+  },
+  "79": {
+   "session": "session_016vymdyrmkVJ8PomEbiioaz"
+  },
+  "80": {
+   "session": "session_016vymdwiKhBHvgRv28iWcxk"
+  },
+  "81": {
+   "session": "session_016vymdy13JEp8ieWWRcjgF2"
+  },
+  "82": {
+   "session": "session_016vyme1Sc1RGtzPoXEfzHfv"
+  },
+  "83": {
+   "session": "session_016vymdzLKCfb4t2Eg9fYXcf"
   }
  },
  "ceiling": "31-35 workers + orchestrator for 4.5 h exhausted a five-hour window (limit hit 07:39 UTC)",
@@ -218,5 +247,16 @@
   "block_ends": "2026-11-16T18:20Z",
   "operating": null,
   "note": "block 08:20-13:20 clean at 31; window burn ~15 USD (orch 7.4 + workers ~8 est.); +4 per STATE rule"
- }
+ },
+ "retired": [
+  51,
+  54,
+  56,
+  58,
+  60,
+  63,
+  64,
+  68
+ ],
+ "merge_workers": "17 40 41 42 43 44 46 47 48 49 50 52 53 55 57 59 61 62 65 69 72 73 74 75 76 77 78 79 80 81 82 83"
 }
