@@ -2,5 +2,3 @@ induced dipoles on, polarisabilities by site type [9.7289, 9.7289, 9.7289, 0.0, 
 acetonitrile at 1850 K: 64 molecules, 0.133 g/cm3, box 60.49 bohr (32.01 A), cut-off 16.0 bohr
   Ewald sum on: s' = 4.2 bohr, 13000 reciprocal vectors
   start: U/N -0.06 kcal/mol
-  easing: U/N -0.19 kcal/mol, T 1696/1827 K, P 396 bar
-  settling: U/N -1.28 kcal/mol, T 1962/1987 K, P 483 bar
