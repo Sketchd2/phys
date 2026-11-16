@@ -1,8 +1,15 @@
 # Fleet state (the orchestrator's own notes; newest first)
 
-## WORKER COUNT: 35 from 13:50 UTC (block 08:20-13:20 passed clean at 31). Block now ends 18:20 UTC. If this block passes clean: +4 again at most (only with real work for them); if the limit hits: back to 31 and hold. Each wake: sample orchestrator + a few workers' cost (get_session) into usage.json; any worker rising >1 USD between wakes is looping: fix the cause. Full snapshot of every session once a block.
+## WORKER COUNT: 37 from 19:05 UTC (blocks to 13:20 and 18:20 clean at 31, 35). Block ends 23:20 UTC. Every species is now started: add workers only to split real work (e.g. liquid states); if the limit hits: back to 31 and hold. The orchestrator's own context (409k) is the main cost: keep wakes minimal. Each wake: sample orchestrator + a few workers' cost (get_session) into usage.json; any worker rising >1 USD between wakes is looping: fix the cause. Full snapshot of every session once a block.
 
 ## WAKE CADENCE: every 62 min, self-scheduled. At the start of each wake call send_later (+62 min) with the same message; backstop task every 6 h re-arms if the chain breaks.
+
+## 2026-11-16 19:05 UTC, wake 27
+
+- Block 13:20-18:20 PASSED CLEAN at 35. Orchestrator +16.66 USD over it (vs 7.42 the block before): my context is 409k
+  tokens and every call re-reads it. Full worker snapshot skipped (stale mid-turn; ~70k tokens), logged.
+- 35 -> 37: 89 chlorobenzene, 90 octane (the last unstarted species). 77, 80 (second stop) -> 91 acetone, 92 butanol.
+- Acetonitrile 32/34. Next 20:07.
 
 ## 2026-11-16 18:02 UTC, wake 26
 

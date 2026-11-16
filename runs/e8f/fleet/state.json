@@ -160,6 +160,11 @@
    "at": "2026-11-16T18:02Z",
    "n": 26,
    "note": "no completions; 72,73 -> 87,88; 43 takes acn 462/0.627 + phenol; resumed 77,80. Count 35."
+  },
+  {
+   "at": "2026-11-16T19:05Z",
+   "n": 27,
+   "note": "block 13:20-18:20 clean at 35 -> 37 (89 chlorobenzene, 90 octane). 77,80 -> 91,92. Orch 61.47 (+16.66/block)."
   }
  ],
  "burn_usd": null,
@@ -269,6 +274,12 @@
   },
   "90": {
    "session": "session_016vymdzWTA35qeeXtMNZ2Pd"
+  },
+  "91": {
+   "session": "session_016vyme1NEaQK9K79SDeGHVr"
+  },
+  "92": {
+   "session": "session_016vymdzMFWusW2foJPsCP6J"
   }
  },
  "ceiling": "31-35 workers + orchestrator for 4.5 h exhausted a five-hour window (limit hit 07:39 UTC)",
