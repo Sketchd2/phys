@@ -17,3 +17,12 @@ acetonitrile at 518 K: 64 molecules, 0.738 g/cm3, box 34.17 bohr (18.08 A), cut-
   75% after 1394 s: U/N -7.48 kcal/mol, P 561 bar
   83% after 1448 s: U/N -7.20 kcal/mol, P 549 bar
   92% after 1504 s: U/N -7.16 kcal/mol, P 831 bar
+  100% after 1562 s: U/N -7.17 kcal/mol, P 1309 bar
+acetonitrile at 518 K (96 samples over 10 ps, block standard errors):
+  U/N -7.269 +- 0.047 kcal/mol; heat of vaporisation -U/N + RT = 8.298 kcal/mol
+  pressure 663 +- 88 bar at 0.738 g/cm3 (a liquid at the right density sits near 1 bar; positive says it wants to expand)
+  temperatures: translation 524.1 K, rotation 516.5 K (bath 518 K)
+  mean molecular dipole 5.815 D (permanent charges and induced dipoles); dielectric constant 24.8 (blocks 10.9 +- 2.8; slow to converge)
+  dispersion beyond the cut-off (C6 346.72): -164 bar and -0.217 kcal/mol a molecule, so pressure with it 500 bar, U/N -7.486
+  g(first atoms): first peak 0.73 at 3.35 A, first minimum 0.89 at 3.55 A, second peak 1.25 at 5.65 A, coordination to the minimum 0.50 (bulk-acetonitrile-518.gOO.txt)
+  snapshot in bulk-acetonitrile-518.snap
