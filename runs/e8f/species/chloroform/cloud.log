@@ -1,1 +1,10 @@
 chloroform: dipole Hartree-Fock 0.4713 au (1.198 D), target 0.4713 au (1.198 D)
+  7967 potential points; the target's RMS 4.417e0, its mean -4.328e0 hartree/e
+  localised in 200 sweeps: 1 bond orbitals, 12 lone pairs (16 core orbitals frozen out of the localisation)
+  valence electrons 26, cores [4.0, 7.0, 1.0]
+  atom class 0: cloud 0.000 electrons, width 0.446 bohr
+  atom class 1: cloud 0.168 electrons, width 0.442 bohr
+  atom class 2: cloud 1.515 electrons, width 1.488 bohr
+  lone-pair cloud of class 1: 4 pair(s) on 3 atom(s), 7.994 electrons, width 1.964 bohr, 0.284 bohr from the nucleus (the orbitals' centre is 0.284)
+  potential RMS 1.758e-2 hartree/e (atom-centred point charges alone: 7.883e-3)
+  written to cloud-chloroform.txt
