@@ -840,3 +840,14 @@ round 4: 266 functions, E -230.09070884, 16629 s
   round 5 probe 17/18: 300/354 candidates, 3360 s into the round; about 2 min left in it
   round 5 probe 17/18: 350/354 candidates, 3361 s into the round; about 2 min left in it
   round 5 probe 17/18: 354/354 candidates, 3361 s into the round; about 2 min left in it
+  round 5 probe 18/18: 50/354 candidates, 3489 s into the round; under a minute left in it
+  round 5 probe 18/18: 100/354 candidates, 3490 s into the round; under a minute left in it
+  round 5 probe 18/18: 150/354 candidates, 3490 s into the round; under a minute left in it
+  round 5 probe 18/18: 200/354 candidates, 3490 s into the round; under a minute left in it
+  round 5 probe 18/18: 250/354 candidates, 3491 s into the round; under a minute left in it
+  round 5 probe 18/18: 300/354 candidates, 3491 s into the round; under a minute left in it
+  round 5 probe 18/18: 350/354 candidates, 3492 s into the round; under a minute left in it
+  round 5 probe 18/18: 354/354 candidates, 3492 s into the round; under a minute left in it
+round 5: 302 functions, E -230.09696390, 20121 s
+  shape (A, deg): 1.43049 1.51908 1.43049 0.96827 1.10480 1.10480 1.10480 1.10480 0.96827 108.130 107.118 111.595 111.595 109.200 109.200 108.091 107.118 109.200 109.200 111.595 111.595 108.091 108.130
+  added 10, predicted to move: -0.00001 -0.00001 -0.00001 -0.00006 -0.00145 -0.00145 -0.00145 -0.00145 -0.00006 -0.050 -0.001 +0.009 +0.009 -0.001 -0.001 -0.021 -0.001 -0.001 -0.001 +0.009 +0.009 -0.021 -0.050; left 32.05
