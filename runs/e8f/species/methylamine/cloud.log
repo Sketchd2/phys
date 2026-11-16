@@ -1,1 +1,12 @@
 methylamine: dipole Hartree-Fock 0.5462 au (1.388 D), target 0.5462 au (1.388 D)
+  10871 potential points; the target's RMS 2.853e0, its mean -2.800e0 hartree/e
+  localised in 14 sweeps: 6 bond orbitals, 1 lone pairs (2 core orbitals frozen out of the localisation)
+  valence electrons 14, cores [4.0, 5.0, 1.0, 1.0, 1.0]
+  atom class 0: cloud 4.943 electrons, width 1.330 bohr
+  atom class 1: cloud 2.402 electrons, width 0.250 bohr
+  atom class 2: cloud 0.714 electrons, width 0.250 bohr
+  atom class 3: cloud 0.931 electrons, width 1.572 bohr
+  atom class 4: cloud 1.165 electrons, width 1.236 bohr
+  lone-pair cloud of class 1: 1 pair(s) on 1 atom(s), 1.966 electrons, width 1.620 bohr, 0.655 bohr from the nucleus (the orbitals' centre is 0.655)
+  potential RMS 1.189e-2 hartree/e (atom-centred point charges alone: 7.436e-3)
+  written to cloud-methylamine.txt
