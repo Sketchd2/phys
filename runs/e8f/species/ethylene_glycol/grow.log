@@ -147,3 +147,28 @@ ethylene_glycol: 10 atoms, 9 bonds; starting
 round 0: 144 functions, E -230.04925507, 4094 s
   shape (A, deg): 1.45308 1.51679 1.45308 0.98987 1.11115 1.11115 1.11116 1.11115 0.98987 106.079 106.802 111.122 111.122 109.608 109.609 108.558 106.802 109.608 109.609 111.122 111.122 108.558 106.079
   added 6, predicted to move: +0.00263 +0.00137 +0.00263 -0.03315 +0.00062 +0.00062 +0.00062 +0.00062 -0.03315 +1.089 +0.092 +0.036 +0.036 -0.014 -0.014 -0.209 +0.092 -0.014 -0.014 +0.036 +0.036 -0.209 +1.089; left 771.10
+  relaxed at 160 functions, 1080 s into round 1; 18 probes of 356 candidates to go
+  round 1 probe 1/18: 50/356 candidates, 1178 s into the round; about 28 min left in it
+  round 1 probe 1/18: 100/356 candidates, 1178 s into the round; about 28 min left in it
+  round 1 probe 1/18: 150/356 candidates, 1178 s into the round; about 28 min left in it
+  round 1 probe 1/18: 200/356 candidates, 1179 s into the round; about 28 min left in it
+  round 1 probe 1/18: 250/356 candidates, 1179 s into the round; about 28 min left in it
+  round 1 probe 1/18: 300/356 candidates, 1179 s into the round; about 28 min left in it
+  round 1 probe 1/18: 350/356 candidates, 1179 s into the round; about 28 min left in it
+  round 1 probe 1/18: 356/356 candidates, 1180 s into the round; about 28 min left in it
+  round 1 probe 2/18: 50/356 candidates, 1271 s into the round; about 25 min left in it
+  round 1 probe 2/18: 100/356 candidates, 1271 s into the round; about 25 min left in it
+  round 1 probe 2/18: 150/356 candidates, 1272 s into the round; about 25 min left in it
+  round 1 probe 2/18: 200/356 candidates, 1272 s into the round; about 25 min left in it
+  round 1 probe 2/18: 250/356 candidates, 1272 s into the round; about 25 min left in it
+  round 1 probe 2/18: 300/356 candidates, 1272 s into the round; about 25 min left in it
+  round 1 probe 2/18: 350/356 candidates, 1272 s into the round; about 25 min left in it
+  round 1 probe 2/18: 356/356 candidates, 1273 s into the round; about 25 min left in it
+  round 1 probe 3/18: 50/356 candidates, 1372 s into the round; about 25 min left in it
+  round 1 probe 3/18: 100/356 candidates, 1372 s into the round; about 25 min left in it
+  round 1 probe 3/18: 150/356 candidates, 1372 s into the round; about 25 min left in it
+  round 1 probe 3/18: 200/356 candidates, 1373 s into the round; about 25 min left in it
+  round 1 probe 3/18: 250/356 candidates, 1373 s into the round; about 25 min left in it
+  round 1 probe 3/18: 300/356 candidates, 1373 s into the round; about 25 min left in it
+  round 1 probe 3/18: 350/356 candidates, 1374 s into the round; about 25 min left in it
+  round 1 probe 3/18: 356/356 candidates, 1374 s into the round; about 25 min left in it
