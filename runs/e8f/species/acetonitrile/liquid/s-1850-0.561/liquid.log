@@ -3,3 +3,4 @@ acetonitrile at 1850 K: 64 molecules, 0.561 g/cm3, box 37.44 bohr (19.81 A), cut
   Ewald sum on: s' = 4.2 bohr, 3093 reciprocal vectors
   start: U/N -1.28 kcal/mol
   easing: U/N -3.13 kcal/mol, T 1626/1771 K, P 3349 bar
+  settling: U/N -3.06 kcal/mol, T 1838/1907 K, P 5112 bar
