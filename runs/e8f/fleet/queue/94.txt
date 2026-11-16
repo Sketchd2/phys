@@ -1,0 +1,2 @@
+dme-pairs-p6-w94 species/dimethyl_ether ../../fleet/pairs-part.sh dimethyl_ether 6 3
+dme-pairs-p7-w94 species/dimethyl_ether ../../fleet/pairs-part.sh dimethyl_ether 7 3
