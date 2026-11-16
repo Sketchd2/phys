@@ -1,0 +1,5 @@
+induced dipoles on, polarisabilities by site type [9.7289, 9.7289, 9.7289, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0] bohr^3
+acetonitrile at 592 K: 64 molecules, 0.664 g/cm3, box 35.39 bohr (18.73 A), cut-off 16.0 bohr
+  Ewald sum on: s' = 4.2 bohr, 2592 reciprocal vectors
+  start: U/N -0.52 kcal/mol
+  easing: U/N -4.98 kcal/mol, T 670/612 K, P 1067 bar
