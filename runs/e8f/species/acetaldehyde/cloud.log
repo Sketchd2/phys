@@ -1,0 +1,13 @@
+acetaldehyde: dipole Hartree-Fock 1.2951 au (3.292 D), target 1.2951 au (3.292 D)
+  10852 potential points; the target's RMS 3.404e0, its mean -3.342e0 hartree/e
+  localised in 24 sweeps: 7 bond orbitals, 2 lone pairs (3 core orbitals frozen out of the localisation)
+  valence electrons 18, cores [4.0, 4.0, 6.0, 1.0, 1.0, 1.0]
+  atom class 0: cloud 4.069 electrons, width 1.220 bohr
+  atom class 1: cloud 4.165 electrons, width 0.264 bohr
+  atom class 2: cloud 2.054 electrons, width 1.014 bohr
+  atom class 3: cloud 0.919 electrons, width 1.278 bohr
+  atom class 4: cloud 0.972 electrons, width 1.404 bohr
+  atom class 5: cloud 0.910 electrons, width 1.364 bohr
+  lone-pair cloud of class 2: 2 pair(s) on 1 atom(s), 3.992 electrons, width 1.426 bohr, 0.224 bohr from the nucleus (the orbitals' centre is 0.224)
+  potential RMS 7.659e-3 hartree/e (atom-centred point charges alone: 3.957e-3)
+  written to cloud-acetaldehyde.txt
