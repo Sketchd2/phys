@@ -1432,3 +1432,22 @@ acetone: 10 atoms, 9 bonds; carrying on from round 2
   round 2 probe 46/48: 300/358 candidates, 10688 s into the round; about 4 min left in it
   round 2 probe 46/48: 350/358 candidates, 10689 s into the round; about 4 min left in it
   round 2 probe 46/48: 358/358 candidates, 10689 s into the round; about 4 min left in it
+  round 2 probe 47/48: 50/358 candidates, 10823 s into the round; about 2 min left in it
+  round 2 probe 47/48: 100/358 candidates, 10823 s into the round; about 2 min left in it
+  round 2 probe 47/48: 150/358 candidates, 10823 s into the round; about 2 min left in it
+  round 2 probe 47/48: 200/358 candidates, 10823 s into the round; about 2 min left in it
+  round 2 probe 47/48: 250/358 candidates, 10824 s into the round; about 2 min left in it
+  round 2 probe 47/48: 300/358 candidates, 10824 s into the round; about 2 min left in it
+  round 2 probe 47/48: 350/358 candidates, 10824 s into the round; about 2 min left in it
+  round 2 probe 47/48: 358/358 candidates, 10824 s into the round; about 2 min left in it
+  round 2 probe 48/48: 50/358 candidates, 10954 s into the round; under a minute left in it
+  round 2 probe 48/48: 100/358 candidates, 10954 s into the round; under a minute left in it
+  round 2 probe 48/48: 150/358 candidates, 10954 s into the round; under a minute left in it
+  round 2 probe 48/48: 200/358 candidates, 10954 s into the round; under a minute left in it
+  round 2 probe 48/48: 250/358 candidates, 10955 s into the round; under a minute left in it
+  round 2 probe 48/48: 300/358 candidates, 10955 s into the round; under a minute left in it
+  round 2 probe 48/48: 350/358 candidates, 10955 s into the round; under a minute left in it
+  round 2 probe 48/48: 358/358 candidates, 10955 s into the round; under a minute left in it
+round 2: 188 functions, E -192.97500162, 10955 s
+  shape (A, deg): 1.51199 1.51182 1.22604 1.10506 1.10855 1.11087 1.10506 1.10863 1.11084 110.326 111.677 109.491 110.189 108.688 106.350 116.807 121.590 121.603 110.333 111.650 109.505 110.164 108.740 106.330
+  added 3, predicted to move: -0.00351 -0.00351 -0.00103 -0.00970 -0.00167 -0.00092 -0.00970 -0.00166 -0.00092 -0.706 -0.009 -0.082 +0.324 +0.275 +0.315 +0.000 +0.000 +0.000 -0.704 -0.014 -0.081 +0.324 +0.279 +0.314; left 402.17
