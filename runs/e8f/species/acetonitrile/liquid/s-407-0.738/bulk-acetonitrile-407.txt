@@ -1,2 +1,6 @@
 # acetonitrile at 407 K, 64 molecules, 0.738 g/cm3, cut-off 16 bohr, law law.txt
 # ps  U_per_molecule_kcal  pressure_bar  T_translation  T_rotation
+2.491 -7.6134 -349.1 327.2 334.6
+2.591 -7.7637 -793.3 384.7 380.9
+2.691 -7.9256 -819.7 366.5 464.5
+2.790 -7.5759 152.0 337.1 364.7
