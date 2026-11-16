@@ -3,3 +3,7 @@ acetonitrile at 592 K: 64 molecules, 0.627 g/cm3, box 36.08 bohr (19.09 A), cut-
   Ewald sum on: s' = 4.2 bohr, 2748 reciprocal vectors
   start: U/N -1.46 kcal/mol
   easing: U/N -4.58 kcal/mol, T 649/571 K, P 82 bar
+  settling: U/N -6.36 kcal/mol, T 559/578 K, P 352 bar
+  warming: U/N -6.21 kcal/mol, T 598/590 K, P 1068 bar
+  0% after 959 s: U/N -6.21 kcal/mol, P 1077 bar
+  8% after 1011 s: U/N -6.28 kcal/mol, P 527 bar
