@@ -531,3 +531,15 @@ isopropanol: 12 atoms, 11 bonds; starting
   round 0 probe 59/60: 350/413 candidates, 14519 s into the round; about 3 min left in it
   round 0 probe 59/60: 400/413 candidates, 14520 s into the round; about 3 min left in it
   round 0 probe 59/60: 413/413 candidates, 14520 s into the round; about 3 min left in it
+  round 0 probe 60/60: 50/413 candidates, 14674 s into the round; under a minute left in it
+  round 0 probe 60/60: 100/413 candidates, 14674 s into the round; under a minute left in it
+  round 0 probe 60/60: 150/413 candidates, 14675 s into the round; under a minute left in it
+  round 0 probe 60/60: 200/413 candidates, 14675 s into the round; under a minute left in it
+  round 0 probe 60/60: 250/413 candidates, 14675 s into the round; under a minute left in it
+  round 0 probe 60/60: 300/413 candidates, 14675 s into the round; under a minute left in it
+  round 0 probe 60/60: 350/413 candidates, 14676 s into the round; under a minute left in it
+  round 0 probe 60/60: 400/413 candidates, 14676 s into the round; under a minute left in it
+  round 0 probe 60/60: 413/413 candidates, 14676 s into the round; under a minute left in it
+round 0: 164 functions, E -194.15373450, 14676 s
+  shape (A, deg): 1.52213 1.52914 1.45944 1.10622 1.10634 1.10669 1.11366 1.10930 1.10685 1.10728 0.99095 110.666 111.019 110.143 108.329 108.162 108.435 112.994 106.103 109.196 110.622 109.358 108.433 111.190 110.251 111.291 108.087 107.487 108.410 106.032
+  added 3, predicted to move: +0.00038 -0.00009 +0.00271 +0.00057 -0.00022 +0.00052 +0.00025 -0.00037 -0.00008 +0.00005 -0.03178 -0.007 -0.018 -0.065 +0.051 +0.036 +0.013 -0.071 -0.140 +0.023 +0.095 +0.013 +0.117 +0.094 -0.106 +0.046 +0.024 -0.143 +0.080 +1.339; left 647.83
