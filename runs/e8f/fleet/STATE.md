@@ -4,6 +4,15 @@
 
 ## WAKE CADENCE: every 62 min, self-scheduled. At the start of each wake call send_later (+62 min) with the same message; backstop task every 6 h re-arms if the chain breaks.
 
+## 2026-11-16 20:08 UTC, wake 28
+
+- Acetic acid grown -> mono (4 h polar)..plan on 57.
+- DME pairs killed after 4 of 24 pairs (memory grows over one process; no resume). Now 8 parts of 3 via
+  fleet/pairs-part.sh: part 1 seeded from the 4 done; 2-3 on 44, 4-5 on 93, 6-7 on 94, 8 on 95 (new; count 40).
+  WHEN ALL frozen-part-K.done EXIST: run here `../../fleet/pairs-part.sh dimethyl_ether all 3` in species/dimethyl_ether
+  (writes frozen + pairs.ok), commit, then queue full..plan (watch full for the same memory kill).
+- Resumed 42, 76, 82, 88 (first stops). Acetonitrile 32/34. Next 21:11.
+
 ## 2026-11-16 19:05 UTC, wake 27
 
 - Block 13:20-18:20 PASSED CLEAN at 35. Orchestrator +16.66 USD over it (vs 7.42 the block before): my context is 409k

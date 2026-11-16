@@ -1,5 +1,5 @@
 {
- "children": 37,
+ "children": 40,
  "window": "allowed; resets 23:20 UTC",
  "note": "Limit hit 07:39 UTC (owner). Count cut to 31: 66, 67, 70, 71 stopped. All others resumed after the 08:10 reset.",
  "wakes": [
@@ -165,6 +165,11 @@
    "at": "2026-11-16T19:05Z",
    "n": 27,
    "note": "block 13:20-18:20 clean at 35 -> 37 (89 chlorobenzene, 90 octane). 77,80 -> 91,92. Orch 61.47 (+16.66/block)."
+  },
+  {
+   "at": "2026-11-16T20:08Z",
+   "n": 28,
+   "note": "acetic acid grown -> stages on 57. DME pairs OOM -> 8 parts (pairs-part.sh) on 44, 93-95. Resumed 42,76,82,88. Count 40."
   }
  ],
  "burn_usd": null,
@@ -280,6 +285,15 @@
   },
   "92": {
    "session": "session_016vymdzMFWusW2foJPsCP6J"
+  },
+  "93": {
+   "session": "session_016vymdzR3ifcrboLvomieTy"
+  },
+  "94": {
+   "session": "session_016vymdwRJztffFt12BGqW3m"
+  },
+  "95": {
+   "session": "session_016vymdxeGtjmBMAUcB7rByp"
   }
  },
  "ceiling": "31-35 workers + orchestrator for 4.5 h exhausted a five-hour window (limit hit 07:39 UTC)",
@@ -291,7 +305,7 @@
    31,
    35
   ],
-  "current_block_count": 37,
+  "current_block_count": 40,
   "block_ends": "2026-11-16T23:20Z",
   "operating": null,
   "note": "block 08:20-13:20 clean at 31; window burn ~15 USD (orch 7.4 + workers ~8 est.); +4 per STATE rule"
@@ -313,5 +327,5 @@
   77,
   80
  ],
- "merge_workers": "17 40 41 42 43 44 46 47 48 50 52 53 55 57 59 62 65 69 75 76 78 79 81 82 83 84 85 86 87 88 89 90 91 92"
+ "merge_workers": "17 40 41 42 43 44 46 47 48 50 52 53 55 57 59 62 65 69 75 76 78 79 81 82 83 84 85 86 87 88 89 90 91 92 93 94 95"
 }
