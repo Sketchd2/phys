@@ -1,6 +1,6 @@
 # Fleet state (the orchestrator's own notes; newest first)
 
-## WORKER COUNT (owner, 2026-11-16): limit search. Hit at 35 -> 31 for the block ending ~13:20 UTC. Each further hit: -4 for the next block. First clean block ends the search: operate at floor(0.9 x lowest count that hit), never above the clean count, and HOLD (no more growth). Replace stopped workers 1-for-1 only.
+## WORKER COUNT: hold 31 to the end of the block (~13:20 UTC). If clean: move toward the measured target in USAGE.md, at most +4 a wake. Each wake: sample orchestrator + a few workers' cost (get_session) into usage.json; any worker rising >1 USD between wakes is looping: fix the cause. Full snapshot of every session once a block.
 
 ## WAKE CADENCE: every 62 min, self-scheduled. At the start of each wake call send_later (+62 min) with the same message; backstop task every 6 h re-arms if the chain breaks.
 

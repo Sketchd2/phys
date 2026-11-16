@@ -1,0 +1,5 @@
+{"note": "Cumulative usage per session (cost_usd as reported in session metadata), snapshot 2026-11-16 09:02 UTC. Diff two snapshots to get a window's burn.",
+ "snapshots": [{"t": "2026-11-16T09:02Z", "cost_usd": {
+  "orchestrator": 37.39, "17": 1.40, "40": 1.12, "41": 2.88, "42": 0.99, "43": 1.02, "44": 0.89, "46": 15.41,
+  "66": 10.23, "67": 0.09, "70": 0.02, "71": 0.03}}],
+ "earlier": {"orchestrator": {"2026-11-15T17:07Z": 2.44, "2026-11-15T18:07Z": 3.78, "2026-11-15T20:07Z": 5.78, "2026-11-15T22:07Z": 7.16, "2026-11-16T03:24Z": 17.77}}}
