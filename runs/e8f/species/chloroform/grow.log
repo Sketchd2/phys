@@ -502,3 +502,10 @@ chloroform: 5 atoms, 4 bonds; carrying on from round 6
 round 6: 363 functions, E -1418.79441000, 2444 s
   shape (A, deg): 1.77727 1.77728 1.77728 1.09071 111.220 111.221 107.662 111.213 107.662 107.663
   added 7, predicted to move: -0.00081 -0.00081 -0.00081 +0.00031 -0.002 -0.002 +0.004 -0.002 +0.004 +0.004; left 5.33
+  relaxed at 447 functions, 1333 s into round 7; 8 probes of 295 candidates to go
+  round 7 probe 1/8: 50/295 candidates, 1581 s into the round; about 29 min left in it
+  round 7 probe 1/8: 100/295 candidates, 1582 s into the round; about 29 min left in it
+  round 7 probe 1/8: 150/295 candidates, 1582 s into the round; about 29 min left in it
+  round 7 probe 1/8: 200/295 candidates, 1582 s into the round; about 29 min left in it
+  round 7 probe 1/8: 250/295 candidates, 1582 s into the round; about 29 min left in it
+  round 7 probe 1/8: 295/295 candidates, 1584 s into the round; about 29 min left in it
