@@ -2,6 +2,14 @@
 
 ## WAKE CADENCE: every 62 min, self-scheduled. At the start of each wake call send_later (+62 min) with the same message; backstop task every 6 h re-arms if the chain breaks.
 
+## 2026-11-16 00:15 UTC, wake 10
+
+- Worker 19 (replacement) never pushed: archived, queue 19 STOP. Methylamine on new worker 56 (grow3..plan2, NFULL 12).
+- Worker 45 idle again at 23:08 -> second resume. If it stops a third time, replace it (same number 45).
+- Ammonia liquid 29/34; ammonia-boil at end of 46 (if it fails for want of states, requeue as ammonia-boil2).
+- Hydrazine pairs done (20; old queue -> full 8, law). Acetonitrile full (43), formic acid pairs (49), ethylene full (18).
+- Created 56 (methylamine), 57 (acetic acid), 58 (chloroform). Count 23 (19 retired). Next wake 01:16 UTC.
+
 ## 2026-11-15 23:11 UTC, wake 9
 
 - Water stage law HOLE too: 4 of 5 stage laws HOLE (methane, methanol, H2O2, water); ammonia not HOLE, suspect.

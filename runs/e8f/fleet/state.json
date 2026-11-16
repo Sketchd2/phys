@@ -1,7 +1,7 @@
 {
- "children": 21,
+ "children": 23,
  "window": "allowed, resets 03:10 UTC",
- "note": "wake 9 (62-min cycle). Laws: methane, methanol, H2O2, water(stage) HOLE; ammonia suspect, liquid 22/34. D1 extra done. Workers 54, 55.",
+ "note": "wake 10. Worker 19 retired, methylamine on 56. Ammonia liquid 29/34, boil queued on 46. Workers 57, 58.",
  "wakes": [
   {
    "t": "2026-11-15T15:20Z",
@@ -67,6 +67,12 @@
    "limit_stop": false,
    "status": "allowed",
    "resetsAt": 1794798600
+  },
+  {
+   "t": "2026-11-16T00:15Z",
+   "limit_stop": false,
+   "status": "allowed",
+   "resetsAt": 1794798600
   }
  ],
  "burn_usd": null,
@@ -84,7 +90,7 @@
  "sessions": {
   "17": "session_016vyme1XcdtHJE8PoTECBas",
   "18": "session_016vymdwzgwaBFwSQUMxifoD",
-  "19": "session_016vymdzdU5kbYAceYLwuAt7",
+  "19": null,
   "20": "session_016vymdyz9WRFNwNaHMuGWZr",
   "21": "session_016vymdyKJerHrQC6iPpQwjH",
   "30": "session_016vyme14JZxYm78edJDgxpz",
@@ -103,6 +109,9 @@
   "52": "session_016vyme1XaPcSWQGRqWjiN9z",
   "53": "session_016vymdy6Pn1Dammqv7yakep",
   "54": "session_016vyme1AdpH1TbtqfjneyYT",
-  "55": "session_016vymdvkMDTT5HRvZ8X2wmg"
+  "55": "session_016vymdvkMDTT5HRvZ8X2wmg",
+  "56": "session_016vymdxUynmdNbzwwkgzP6Q",
+  "57": "session_016vymdxYuSKF2nGy8ocCfeV",
+  "58": "session_016vymdwZDWJandi7eEqmPcK"
  }
 }
