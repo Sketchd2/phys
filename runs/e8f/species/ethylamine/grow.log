@@ -1747,3 +1747,20 @@ round 3: 165 functions, E -135.03376483, 27840 s
   round 4 probe 46/48: 250/335 candidates, 12710 s into the round; about 5 min left in it
   round 4 probe 46/48: 300/335 candidates, 12710 s into the round; about 5 min left in it
   round 4 probe 46/48: 335/335 candidates, 12711 s into the round; about 5 min left in it
+  round 4 probe 47/48: 50/335 candidates, 12864 s into the round; about 3 min left in it
+  round 4 probe 47/48: 100/335 candidates, 12864 s into the round; about 3 min left in it
+  round 4 probe 47/48: 150/335 candidates, 12864 s into the round; about 3 min left in it
+  round 4 probe 47/48: 200/335 candidates, 12864 s into the round; about 3 min left in it
+  round 4 probe 47/48: 250/335 candidates, 12865 s into the round; about 3 min left in it
+  round 4 probe 47/48: 300/335 candidates, 12865 s into the round; about 3 min left in it
+  round 4 probe 47/48: 335/335 candidates, 12866 s into the round; about 3 min left in it
+  round 4 probe 48/48: 50/335 candidates, 13023 s into the round; under a minute left in it
+  round 4 probe 48/48: 100/335 candidates, 13024 s into the round; under a minute left in it
+  round 4 probe 48/48: 150/335 candidates, 13024 s into the round; under a minute left in it
+  round 4 probe 48/48: 200/335 candidates, 13024 s into the round; under a minute left in it
+  round 4 probe 48/48: 250/335 candidates, 13024 s into the round; under a minute left in it
+  round 4 probe 48/48: 300/335 candidates, 13025 s into the round; under a minute left in it
+  round 4 probe 48/48: 335/335 candidates, 13025 s into the round; under a minute left in it
+round 4: 198 functions, E -135.03971542, 40866 s
+  shape (A, deg): 1.52348 1.46950 1.10102 1.10097 1.10351 1.10175 1.10961 1.02307 1.02452 110.909 110.701 110.953 108.684 107.547 107.927 110.631 109.620 109.200 107.290 113.551 106.400 110.660 110.257 106.588
+  added 3, predicted to move: +0.00086 +0.00008 -0.00099 -0.00010 -0.00003 +0.00041 +0.00048 -0.00062 -0.00084 +0.208 -0.063 -0.045 -0.029 -0.011 -0.070 -0.035 -0.021 +0.022 -0.012 +0.018 +0.051 -0.202 -0.169 -0.424; left 138.54
