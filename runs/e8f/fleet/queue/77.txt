@@ -1,1 +1,1 @@
-acetone-grow-w77 species/acetone ../../fleet/stage.sh grow acetone
+STOP

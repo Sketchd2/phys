@@ -1,6 +1,6 @@
 {
- "children": 35,
- "window": "allowed; resets 18:20 UTC",
+ "children": 37,
+ "window": "allowed; resets 23:20 UTC",
  "note": "Limit hit 07:39 UTC (owner). Count cut to 31: 66, 67, 70, 71 stopped. All others resumed after the 08:10 reset.",
  "wakes": [
   {
@@ -263,6 +263,12 @@
   },
   "88": {
    "session": "session_016vyme1LyAW947thoAZGiXg"
+  },
+  "89": {
+   "session": "session_016vyme1XMViy3qGwHzSyeWL"
+  },
+  "90": {
+   "session": "session_016vymdzWTA35qeeXtMNZ2Pd"
   }
  },
  "ceiling": "31-35 workers + orchestrator for 4.5 h exhausted a five-hour window (limit hit 07:39 UTC)",
@@ -271,10 +277,11 @@
    35
   ],
   "clean_at": [
-   31
+   31,
+   35
   ],
-  "current_block_count": 35,
-  "block_ends": "2026-11-16T18:20Z",
+  "current_block_count": 37,
+  "block_ends": "2026-11-16T23:20Z",
   "operating": null,
   "note": "block 08:20-13:20 clean at 31; window burn ~15 USD (orch 7.4 + workers ~8 est.); +4 per STATE rule"
  },
@@ -291,7 +298,9 @@
   68,
   72,
   73,
-  74
+  74,
+  77,
+  80
  ],
- "merge_workers": "17 40 41 42 43 44 46 47 48 50 52 53 55 57 59 62 65 69 75 76 77 78 79 80 81 82 83 84 85 86 87 88"
+ "merge_workers": "17 40 41 42 43 44 46 47 48 50 52 53 55 57 59 62 65 69 75 76 78 79 81 82 83 84 85 86 87 88 89 90 91 92"
 }
