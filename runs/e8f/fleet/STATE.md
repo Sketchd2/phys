@@ -6,9 +6,9 @@
 
 ## 2026-11-16 08:33 UTC, wake 17
 
-- Fleet-wide stop ~07:33-07:42: auto-mode permission check gave no verdict on workers' Bash (outage). Not a limit
-  stop. My 07:39 wake was cut by a restart; chain re-armed at 08:30 (next 09:32). All 32 workers resumed at 08:30.
-- Next wake: check they all pushed again; resume any still idle. Then resume the +2 cadence.
+- Fleet-wide stop ~07:33-07:42 WAS THE FIVE-HOUR LIMIT (owner: 17:39 AEST = 07:39 UTC); workers misreported it
+  as a permission-check failure. Count cut 35 -> 31 (66, 67, 70, 71 archived, queues STOP). My 07:39 wake was cut by a restart; chain re-armed at 08:30 (next 09:32). All 32 workers resumed at 08:30.
+- Next wake: check they all pushed again; resume any still idle. +2 only after two clean wakes; hold at 31 until a window passes clean.
 - Acetonitrile liquid 11/34. Ammonia 1080/0.0142-third still unfinished (46).
 
 ## 2026-11-16 06:37 UTC, wake 16

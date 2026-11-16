@@ -1,7 +1,7 @@
 {
- "children": 35,
+ "children": 31,
  "window": "allowed; resets 08:10 then 13:10 UTC",
- "note": "wake 17 (08:30). Fleet-wide stop 07:33-07:42 (permission-check outage, not the limit); all 32 workers resumed. Acetonitrile liquid 11/34.",
+ "note": "Limit hit 07:39 UTC (owner). Count cut to 31: 66, 67, 70, 71 stopped. All others resumed after the 08:10 reset.",
  "wakes": [
   {
    "t": "2026-11-15T15:20Z",
@@ -113,8 +113,8 @@
   },
   {
    "t": "2026-11-16T08:33Z",
-   "limit_stop": false,
-   "other_stop": "permission-check outage 07:33-07:42"
+   "limit_stop": true,
+   "other_stop": null
   }
  ],
  "burn_usd": null,
@@ -168,5 +168,6 @@
   "69": "session_016vymdzURcRVBzdiNXELn9n",
   "70": "session_016vymdzL92yjyquVnfMzSF1",
   "71": "session_016vymdvoZwQHR4x4vWdNSa5"
- }
+ },
+ "ceiling": "31-35 workers + orchestrator for 4.5 h exhausted a five-hour window (limit hit 07:39 UTC)"
 }
