@@ -1060,3 +1060,27 @@ round 1: 145 functions, E -135.02289603, 8183 s
   round 2 probe 45/48: 250/331 candidates, 7589 s into the round; about 5 min left in it
   round 2 probe 45/48: 300/331 candidates, 7589 s into the round; about 5 min left in it
   round 2 probe 45/48: 331/331 candidates, 7589 s into the round; about 5 min left in it
+  round 2 probe 46/48: 50/331 candidates, 7685 s into the round; about 3 min left in it
+  round 2 probe 46/48: 100/331 candidates, 7685 s into the round; about 3 min left in it
+  round 2 probe 46/48: 150/331 candidates, 7686 s into the round; about 3 min left in it
+  round 2 probe 46/48: 200/331 candidates, 7686 s into the round; about 3 min left in it
+  round 2 probe 46/48: 250/331 candidates, 7686 s into the round; about 3 min left in it
+  round 2 probe 46/48: 300/331 candidates, 7686 s into the round; about 3 min left in it
+  round 2 probe 46/48: 331/331 candidates, 7687 s into the round; about 3 min left in it
+  round 2 probe 47/48: 50/331 candidates, 7783 s into the round; about 2 min left in it
+  round 2 probe 47/48: 100/331 candidates, 7783 s into the round; about 2 min left in it
+  round 2 probe 47/48: 150/331 candidates, 7783 s into the round; about 2 min left in it
+  round 2 probe 47/48: 200/331 candidates, 7783 s into the round; about 2 min left in it
+  round 2 probe 47/48: 250/331 candidates, 7783 s into the round; about 2 min left in it
+  round 2 probe 47/48: 300/331 candidates, 7784 s into the round; about 2 min left in it
+  round 2 probe 47/48: 331/331 candidates, 7784 s into the round; about 2 min left in it
+  round 2 probe 48/48: 50/331 candidates, 7875 s into the round; under a minute left in it
+  round 2 probe 48/48: 100/331 candidates, 7875 s into the round; under a minute left in it
+  round 2 probe 48/48: 150/331 candidates, 7876 s into the round; under a minute left in it
+  round 2 probe 48/48: 200/331 candidates, 7876 s into the round; under a minute left in it
+  round 2 probe 48/48: 250/331 candidates, 7876 s into the round; under a minute left in it
+  round 2 probe 48/48: 300/331 candidates, 7876 s into the round; under a minute left in it
+  round 2 probe 48/48: 331/331 candidates, 7876 s into the round; under a minute left in it
+round 2: 148 functions, E -135.02806552, 16059 s
+  shape (A, deg): 1.52925 1.47712 1.10821 1.09963 1.10961 1.10157 1.10997 1.02431 1.02509 111.281 110.603 110.860 108.719 107.537 107.711 110.141 109.641 109.361 107.357 113.474 106.748 110.541 109.888 106.180
+  added 3, predicted to move: -0.00180 -0.00043 -0.00793 +0.00112 -0.00626 +0.00068 +0.00015 +0.00018 +0.00030 -0.499 +0.090 +0.033 +0.086 +0.107 +0.226 +0.069 -0.055 -0.084 -0.019 +0.045 +0.004 -0.019 +0.028 +0.075; left 289.05
