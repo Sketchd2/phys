@@ -11,3 +11,8 @@ methane-plan2 species/methane [ -f replan.mark ] || { rm -rf plan.ok plan.log li
 methane-lawb species/methane [ -f refull.mark ] || { git show 36db96c:runs/e8f/species/methane/full-methane.txt > full-methane.txt && git show 36db96c:runs/e8f/species/methane/full.log > full.log && rm -f law.ok law.log && touch refull.mark; }; ../../fleet/stage.sh law methane
 methane-planb species/methane ../../fleet/stage.sh plan methane
 acetaldehyde-grow2 species/acetaldehyde ../../fleet/stage.sh grow acetaldehyde
+acetaldehyde-mono species/acetaldehyde ../../fleet/stage.sh mono acetaldehyde
+acetaldehyde-pairs species/acetaldehyde ../../fleet/stage.sh pairs acetaldehyde
+acetaldehyde-full species/acetaldehyde ../../fleet/stage.sh full acetaldehyde
+acetaldehyde-law species/acetaldehyde ../../fleet/stage.sh law acetaldehyde
+acetaldehyde-plan species/acetaldehyde ../../fleet/stage.sh plan acetaldehyde
