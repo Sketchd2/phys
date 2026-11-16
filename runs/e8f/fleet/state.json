@@ -169,5 +169,14 @@
   "70": "session_016vymdzL92yjyquVnfMzSF1",
   "71": "session_016vymdvoZwQHR4x4vWdNSa5"
  },
- "ceiling": "31-35 workers + orchestrator for 4.5 h exhausted a five-hour window (limit hit 07:39 UTC)"
+ "ceiling": "31-35 workers + orchestrator for 4.5 h exhausted a five-hour window (limit hit 07:39 UTC)",
+ "limit_search": {
+  "hit_at": [
+   35
+  ],
+  "clean_at": [],
+  "current_block_count": 31,
+  "block_ends": "2026-11-16T13:20Z",
+  "operating": null
+ }
 }

@@ -1,6 +1,6 @@
 # Fleet state (the orchestrator's own notes; newest first)
 
-## WORKER COUNT: held at 31 after the 07:39 UTC limit stop. Owner: if the window ending ~13:20 UTC passes with no limit stop, resume +2 a wake from the first wake after it (no cap; only with real work).
+## WORKER COUNT (owner, 2026-11-16): limit search. Hit at 35 -> 31 for the block ending ~13:20 UTC. Each further hit: -4 for the next block. First clean block ends the search: operate at floor(0.9 x lowest count that hit), never above the clean count, and HOLD (no more growth). Replace stopped workers 1-for-1 only.
 
 ## WAKE CADENCE: every 62 min, self-scheduled. At the start of each wake call send_later (+62 min) with the same message; backstop task every 6 h re-arms if the chain breaks.
 
