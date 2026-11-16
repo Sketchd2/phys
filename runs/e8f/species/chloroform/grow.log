@@ -412,3 +412,4 @@ round 5: 312 functions, E -1418.79392945, 3472 s
   shape (A, deg): 1.77775 1.77776 1.77775 1.09111 111.219 111.220 107.663 111.212 107.663 107.664
   added 5, predicted to move: -0.00052 -0.00052 -0.00052 -0.00049 -0.000 -0.000 +0.001 -0.000 +0.001 +0.001; left 9.89
 chloroform: 5 atoms, 4 bonds; carrying on from round 6
+  relaxed at 363 functions, 1004 s into round 6; 8 probes of 299 candidates to go
