@@ -1,1 +1,4 @@
 dichloromethane: 406 functions, field step 0.002, 11 frozen cores
+  19 fields in 1848 s (dipole width scale 1)
+  Hartree-Fock: mean 41.7613 bohr^3, diagonal 34.1325 42.9310 48.2205, off-diagonal -1.3e-6 7.9e-6 -6.9e0
+  MP2: mean 43.5249 bohr^3, diagonal 35.6862 44.6890 50.1995, off-diagonal -7.3e-4 2.9e-3 -7.2e0
