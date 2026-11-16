@@ -253,3 +253,24 @@ pyridine: 11 atoms, 11 bonds; starting
   round 0 probe 28/30: 350/430 candidates, 13275 s into the round; about 7 min left in it
   round 0 probe 28/30: 400/430 candidates, 13275 s into the round; about 7 min left in it
   round 0 probe 28/30: 430/430 candidates, 13275 s into the round; about 7 min left in it
+  round 0 probe 29/30: 50/430 candidates, 13399 s into the round; about 2 min left in it
+  round 0 probe 29/30: 100/430 candidates, 13400 s into the round; about 2 min left in it
+  round 0 probe 29/30: 150/430 candidates, 13400 s into the round; about 2 min left in it
+  round 0 probe 29/30: 200/430 candidates, 13401 s into the round; about 2 min left in it
+  round 0 probe 29/30: 250/430 candidates, 13401 s into the round; about 2 min left in it
+  round 0 probe 29/30: 300/430 candidates, 13401 s into the round; about 2 min left in it
+  round 0 probe 29/30: 350/430 candidates, 13401 s into the round; about 2 min left in it
+  round 0 probe 29/30: 400/430 candidates, 13402 s into the round; about 2 min left in it
+  round 0 probe 29/30: 430/430 candidates, 13402 s into the round; about 2 min left in it
+  round 0 probe 30/30: 50/430 candidates, 13529 s into the round; under a minute left in it
+  round 0 probe 30/30: 100/430 candidates, 13529 s into the round; under a minute left in it
+  round 0 probe 30/30: 150/430 candidates, 13530 s into the round; under a minute left in it
+  round 0 probe 30/30: 200/430 candidates, 13530 s into the round; under a minute left in it
+  round 0 probe 30/30: 250/430 candidates, 13530 s into the round; under a minute left in it
+  round 0 probe 30/30: 300/430 candidates, 13531 s into the round; under a minute left in it
+  round 0 probe 30/30: 350/430 candidates, 13531 s into the round; under a minute left in it
+  round 0 probe 30/30: 400/430 candidates, 13531 s into the round; under a minute left in it
+  round 0 probe 30/30: 430/430 candidates, 13532 s into the round; under a minute left in it
+round 0: 176 functions, E -248.00493405, 13532 s
+  shape (A, deg): 1.35920 1.40831 1.40298 1.40307 1.40823 1.35920 1.10049 1.09667 1.09709 1.09674 1.10045 116.847 123.614 115.716 120.670 118.528 120.264 121.207 118.866 120.574 120.560 118.529 121.244 120.227 123.615 120.679 115.706
+  added 5, predicted to move: +0.00000 +0.00000 -12.61594 -12.61594 +0.00000 +0.00000 +0.00504 -0.00489 +0.00658 -0.00489 +0.00504 +0.367 -845.996 +0.000 +0.000 +0.000 +0.000 +0.000 +0.000 +0.000 +0.000 +0.000 +0.000 +0.000 -845.996 +0.000 +0.000; left 28271.70
