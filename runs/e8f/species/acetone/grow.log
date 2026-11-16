@@ -777,3 +777,12 @@ round 1: 172 functions, E -192.97237160, 22074 s
   added 3, predicted to move: +0.00108 +0.00103 -0.00185 +0.00035 -0.00001 -0.00023 +0.00034 -0.00002 -0.00021 +0.085 -0.048 -0.012 -0.039 +0.046 -0.042 +0.000 +388.874 +0.000 +0.075 -0.043 -0.015 -0.034 +0.035 -0.028; left 16257.69
 acetone: 10 atoms, 9 bonds; carrying on from round 2
 acetone: 10 atoms, 9 bonds; carrying on from round 2
+  relaxed at 188 functions, 5617 s into round 2; 48 probes of 358 candidates to go
+  round 2 probe 1/48: 50/358 candidates, 5761 s into the round; about 114 min left in it
+  round 2 probe 1/48: 100/358 candidates, 5761 s into the round; about 114 min left in it
+  round 2 probe 1/48: 150/358 candidates, 5761 s into the round; about 114 min left in it
+  round 2 probe 1/48: 200/358 candidates, 5761 s into the round; about 114 min left in it
+  round 2 probe 1/48: 250/358 candidates, 5762 s into the round; about 114 min left in it
+  round 2 probe 1/48: 300/358 candidates, 5762 s into the round; about 114 min left in it
+  round 2 probe 1/48: 350/358 candidates, 5762 s into the round; about 114 min left in it
+  round 2 probe 1/48: 358/358 candidates, 5762 s into the round; about 114 min left in it
