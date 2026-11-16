@@ -1,0 +1,1 @@
+/home/user/phys/runs/e8f/fleet/grow.sh: line 15:   281 Killed                  $ROOT/target/release/phys-grow "$SPEC" $NAME >> grow.log 2>&1
