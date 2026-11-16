@@ -15,3 +15,4 @@ ammonia-liq-271-0.605 species/ammonia ../../fleet/liquid-state.sh ammonia 271 0.
 ammonia-liq-304-0.64 species/ammonia ../../fleet/liquid-state.sh ammonia 304 0.64 12
 ammonia-liq-347-0.676 species/ammonia ../../fleet/liquid-state.sh ammonia 347 0.676 12
 ammonia-liq-347-0.605 species/ammonia ../../fleet/liquid-state.sh ammonia 347 0.605 12
+ammonia-boil species/ammonia ../../fleet/stage.sh boil ammonia

@@ -23,3 +23,5 @@
 - 2026-11-15 Water's own stage law (12 pairs) begins HOLE (deepest bound pair comes out +0.48 against -3.62): no stage liquid for water; its D3 boiling point (325.6 K, hand law) stands under species/water/hand/.
 - 2026-11-15 merge.sh now also copies runs/e8f/shortfall (the D1 extra results were not being merged). D1 summary written to shortfall/D1-summary.md.
 - 2026-11-15 Replacement worker 19 still refused after the merge fix: the clone is shallow, so the merge needs --allow-unrelated-histories; added.
+- 2026-11-16 Replacement worker 19 never pushed (5 h; the shallow-clone fix did not reach it either): archived, queue 19 stopped, methylamine requeued on new worker 56 from the grow state the first worker 19 pushed (round 9), with NFULL=12.
+- 2026-11-16 Ammonia's boiling point queued at the end of worker 46 (29 of 34 states done; the stage needs 31).
