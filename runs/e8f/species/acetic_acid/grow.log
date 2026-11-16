@@ -1200,3 +1200,18 @@ round 5: 229 functions, E -228.93447426, 25080 s
   shape (A, deg): 1.50551 1.21458 1.37035 1.10002 1.10004 1.09489 0.98022 109.868 109.876 109.642 107.284 110.072 110.069 126.411 111.213 122.376 105.958
   added 3, predicted to move: -0.00049 +0.00023 +0.00017 +0.00044 +0.00044 +0.00033 +0.00018 +0.003 +0.003 -0.021 -0.044 +0.031 +0.031 +0.000 +2.859 +0.000 -0.001; left 222.47
   relaxed at 238 functions, 1623 s into round 6; 28 probes of 309 candidates to go
+  round 6 probe 1/28: 50/309 candidates, 1749 s into the round; about 57 min left in it
+  round 6 probe 1/28: 100/309 candidates, 1749 s into the round; about 57 min left in it
+  round 6 probe 1/28: 150/309 candidates, 1749 s into the round; about 57 min left in it
+  round 6 probe 1/28: 200/309 candidates, 1749 s into the round; about 57 min left in it
+  round 6 probe 1/28: 250/309 candidates, 1750 s into the round; about 57 min left in it
+  round 6 probe 1/28: 300/309 candidates, 1750 s into the round; about 57 min left in it
+  round 6 probe 1/28: 309/309 candidates, 1750 s into the round; about 58 min left in it
+  round 6 probe 2/28: 50/309 candidates, 1889 s into the round; about 60 min left in it
+  round 6 probe 2/28: 100/309 candidates, 1889 s into the round; about 60 min left in it
+  round 6 probe 2/28: 150/309 candidates, 1889 s into the round; about 60 min left in it
+  round 6 probe 2/28: 200/309 candidates, 1889 s into the round; about 60 min left in it
+  round 6 probe 2/28: 250/309 candidates, 1890 s into the round; about 60 min left in it
+  round 6 probe 2/28: 300/309 candidates, 1890 s into the round; about 61 min left in it
+  round 6 probe 2/28: 309/309 candidates, 1890 s into the round; about 61 min left in it
+acetic_acid: 8 atoms, 7 bonds; carrying on from round 6
