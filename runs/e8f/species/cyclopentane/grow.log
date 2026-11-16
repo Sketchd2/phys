@@ -364,3 +364,4 @@ cyclopentane: 15 atoms, 15 bonds; starting
   round 0 probe 33/90: 500/515 candidates, 22410 s into the round; about 356 min left in it
   round 0 probe 33/90: 515/515 candidates, 22411 s into the round; about 356 min left in it
 cyclopentane: 15 atoms, 15 bonds; starting
+  relaxed at 205 functions, 11493 s into round 0; 90 probes of 515 candidates to go
