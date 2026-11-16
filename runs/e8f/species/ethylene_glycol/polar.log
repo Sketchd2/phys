@@ -1,1 +1,4 @@
 ethylene_glycol: 708 functions, field step 0.002, 4 frozen cores
+  19 fields in 7317 s (dipole width scale 1)
+  Hartree-Fock: mean 35.4915 bohr^3, diagonal 31.3033 37.0061 38.1652, off-diagonal 1.9e-6 3.0e-6 -3.1e0
+  MP2: mean 38.3116 bohr^3, diagonal 33.9093 40.1757 40.8498, off-diagonal -8.0e-4 1.4e-4 -3.3e0

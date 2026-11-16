@@ -1,1 +1,6 @@
 acetic_acid-grow species/acetic_acid ../../fleet/stage.sh grow acetic_acid
+acetic_acid-mono species/acetic_acid grep -q 'MP2: mean' polar.log 2>/dev/null || timeout 14400 $(git rev-parse --show-toplevel)/target/release/phys-polar acetic_acid > polar.log 2>&1; ../../fleet/stage.sh mono acetic_acid
+acetic_acid-pairs species/acetic_acid ../../fleet/stage.sh pairs acetic_acid
+acetic_acid-full species/acetic_acid ../../fleet/stage.sh full acetic_acid
+acetic_acid-law species/acetic_acid ../../fleet/stage.sh law acetic_acid
+acetic_acid-plan species/acetic_acid ../../fleet/stage.sh plan acetic_acid
