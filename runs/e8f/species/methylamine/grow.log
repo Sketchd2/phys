@@ -1072,3 +1072,12 @@ methylamine: 7 atoms, 6 bonds; carrying on from round 9
   round 9 probe 19/20: 200/282 candidates, 6962 s into the round; about 5 min left in it
   round 9 probe 19/20: 250/282 candidates, 6964 s into the round; about 5 min left in it
   round 9 probe 19/20: 282/282 candidates, 6966 s into the round; about 5 min left in it
+  round 9 probe 20/20: 50/282 candidates, 7246 s into the round; under a minute left in it
+  round 9 probe 20/20: 100/282 candidates, 7247 s into the round; under a minute left in it
+  round 9 probe 20/20: 150/282 candidates, 7248 s into the round; under a minute left in it
+  round 9 probe 20/20: 200/282 candidates, 7248 s into the round; under a minute left in it
+  round 9 probe 20/20: 250/282 candidates, 7250 s into the round; under a minute left in it
+  round 9 probe 20/20: 282/282 candidates, 7253 s into the round; under a minute left in it
+round 9: 396 functions, E -95.77564527, 7253 s
+  shape (A, deg): 1.46521 1.09790 1.10591 1.09791 1.02007 1.02008 109.268 115.558 109.271 107.731 106.939 107.731 110.478 110.476 106.281
+  added 4, predicted to move: +0.00117 +0.00019 +0.00017 +0.00019 -0.00003 -0.00003 -0.061 -0.031 -0.061 +0.062 +0.088 +0.062 +0.010 +0.010 +0.007; left 23.42
