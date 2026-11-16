@@ -4,6 +4,13 @@
 
 ## WAKE CADENCE: every 62 min, self-scheduled. At the start of each wake call send_later (+62 min) with the same message; backstop task every 6 h re-arms if the chain breaks.
 
+## 2026-11-16 06:37 UTC, wake 16
+
+- Formic acid law HOLE. Tally: HOLE 7 (methane, methanol, H2O2, water, ethylene, hydrazine, formic acid); not 2
+  (ammonia, acetonitrile). Acetonitrile liquid 6/34 (43, 68, 69). Ammonia 1080/0.0142-third running on 46.
+- All resumed workers pushing again. 49 -> benzene. Created 70 (pyridine), 71 (ethyl acetate). Count 35.
+- Unstarted: glycerol, heptane, toluene, aniline, phenol, chlorobenzene, octane. Next wake 07:38.
+
 ## 2026-11-16 05:36 UTC, wake 15
 
 - The per-machine call lock (wake 14) was held indefinitely; workers looped on "another call active" and 8 stopped

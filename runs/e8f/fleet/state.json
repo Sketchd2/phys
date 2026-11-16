@@ -1,7 +1,7 @@
 {
- "children": 33,
+ "children": 35,
  "window": "allowed, resets 08:10 UTC",
- "note": "wake 15. Call lock removed (it stalled workers); 8 resumed. Acetonitrile law OK -> 34 liquid states on 43/68/69. Hydrazine law HOLE. Workers 68, 69.",
+ "note": "wake 16. Formic acid law HOLE (7 HOLE, 2 not). Acetonitrile liquid 6/34. Ammonia third reruns going. Workers 70, 71.",
  "wakes": [
   {
    "t": "2026-11-15T15:20Z",
@@ -104,6 +104,12 @@
    "limit_stop": false,
    "status": "allowed",
    "resetsAt": 1794816600
+  },
+  {
+   "t": "2026-11-16T06:37Z",
+   "limit_stop": false,
+   "status": "allowed",
+   "resetsAt": 1794816600
   }
  ],
  "burn_usd": null,
@@ -154,6 +160,8 @@
   "66": "session_016vymdyAV65ftAAkv5oMQDr",
   "67": "session_016vymdwuTRi73DoHDM7TuHU",
   "68": "session_016vymdyH1Vw2UWbYbHdEZDt",
-  "69": "session_016vymdzURcRVBzdiNXELn9n"
+  "69": "session_016vymdzURcRVBzdiNXELn9n",
+  "70": "session_016vymdzL92yjyquVnfMzSF1",
+  "71": "session_016vymdvoZwQHR4x4vWdNSa5"
  }
 }
