@@ -128,3 +128,4 @@ round 3: 549 functions, E -1878.22741158, 8792 s
   shape (A, deg): 1.78200 1.78202 1.78203 1.78203 109.479 109.478 109.478 109.468 109.468 109.456
   added 12, predicted to move: -0.00189 -0.00189 -0.00189 -0.00189 -0.000 -0.000 -0.000 -0.000 -0.000 -0.000; left 13.15
 could not spill a 28.7 GB table to /tmp/spill: No space left on device (os error 28); rebuilding it instead
+carbon_tetrachloride: 5 atoms, 4 bonds; carrying on from round 4

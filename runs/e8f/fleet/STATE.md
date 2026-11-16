@@ -4,6 +4,12 @@
 
 ## WAKE CADENCE: every 62 min, self-scheduled. At the start of each wake call send_later (+62 min) with the same message; backstop task every 6 h re-arms if the chain breaks.
 
+## 2026-11-16 09:33 UTC, wake 18
+
+- Merged. Haiku workers 51, 54, 58, 60 had ended their turns while their grows were still running ("continuing the loop"); resumed.
+- Carbon tetrachloride grown -> mono..plan queued on 65. Acetonitrile liquid 15/34. Ammonia 1080/0.0142-third still running (46).
+- Usage sample: orchestrator 40.15 USD (+2.8 since 09:02); 46 and 41 unchanged; no looper. Holding 31. Next wake 10:35.
+
 ## 2026-11-16 08:33 UTC, wake 17
 
 - Fleet-wide stop ~07:33-07:42 WAS THE FIVE-HOUR LIMIT (owner: 17:39 AEST = 07:39 UTC); workers misreported it

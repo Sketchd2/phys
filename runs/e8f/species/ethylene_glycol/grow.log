@@ -980,3 +980,45 @@ round 5: 302 functions, E -230.09696390, 20121 s
   round 6 probe 16/18: 300/386 candidates, 6435 s into the round; about 9 min left in it
   round 6 probe 16/18: 350/386 candidates, 6436 s into the round; about 9 min left in it
   round 6 probe 16/18: 386/386 candidates, 6438 s into the round; about 9 min left in it
+  round 6 probe 17/18: 50/386 candidates, 6735 s into the round; about 5 min left in it
+  round 6 probe 17/18: 100/386 candidates, 6736 s into the round; about 5 min left in it
+  round 6 probe 17/18: 150/386 candidates, 6737 s into the round; about 5 min left in it
+  round 6 probe 17/18: 200/386 candidates, 6738 s into the round; about 5 min left in it
+  round 6 probe 17/18: 250/386 candidates, 6739 s into the round; about 5 min left in it
+  round 6 probe 17/18: 300/386 candidates, 6740 s into the round; about 5 min left in it
+  round 6 probe 17/18: 350/386 candidates, 6741 s into the round; about 5 min left in it
+  round 6 probe 17/18: 386/386 candidates, 6745 s into the round; about 5 min left in it
+ethylene_glycol: 10 atoms, 9 bonds; carrying on from round 6
+  relaxed at 384 functions, 2065 s into round 6; 18 probes of 386 candidates to go
+  round 6 probe 1/18: 50/386 candidates, 2328 s into the round; about 76 min left in it
+  round 6 probe 1/18: 100/386 candidates, 2328 s into the round; about 76 min left in it
+  round 6 probe 1/18: 150/386 candidates, 2329 s into the round; about 76 min left in it
+  round 6 probe 1/18: 200/386 candidates, 2330 s into the round; about 76 min left in it
+  round 6 probe 1/18: 250/386 candidates, 2330 s into the round; about 76 min left in it
+  round 6 probe 1/18: 300/386 candidates, 2331 s into the round; about 76 min left in it
+  round 6 probe 1/18: 350/386 candidates, 2332 s into the round; about 76 min left in it
+  round 6 probe 1/18: 386/386 candidates, 2334 s into the round; about 76 min left in it
+  round 6 probe 2/18: 50/386 candidates, 2606 s into the round; about 74 min left in it
+  round 6 probe 2/18: 100/386 candidates, 2606 s into the round; about 74 min left in it
+  round 6 probe 2/18: 150/386 candidates, 2607 s into the round; about 74 min left in it
+  round 6 probe 2/18: 200/386 candidates, 2608 s into the round; about 74 min left in it
+  round 6 probe 2/18: 250/386 candidates, 2608 s into the round; about 74 min left in it
+  round 6 probe 2/18: 300/386 candidates, 2609 s into the round; about 74 min left in it
+  round 6 probe 2/18: 350/386 candidates, 2610 s into the round; about 74 min left in it
+  round 6 probe 2/18: 386/386 candidates, 2612 s into the round; about 74 min left in it
+  round 6 probe 3/18: 50/386 candidates, 2883 s into the round; about 69 min left in it
+  round 6 probe 3/18: 100/386 candidates, 2883 s into the round; about 69 min left in it
+  round 6 probe 3/18: 150/386 candidates, 2884 s into the round; about 69 min left in it
+  round 6 probe 3/18: 200/386 candidates, 2884 s into the round; about 69 min left in it
+  round 6 probe 3/18: 250/386 candidates, 2885 s into the round; about 69 min left in it
+  round 6 probe 3/18: 300/386 candidates, 2886 s into the round; about 69 min left in it
+  round 6 probe 3/18: 350/386 candidates, 2887 s into the round; about 69 min left in it
+  round 6 probe 3/18: 386/386 candidates, 2889 s into the round; about 69 min left in it
+  round 6 probe 4/18: 50/386 candidates, 3166 s into the round; about 66 min left in it
+  round 6 probe 4/18: 100/386 candidates, 3166 s into the round; about 66 min left in it
+  round 6 probe 4/18: 150/386 candidates, 3167 s into the round; about 66 min left in it
+  round 6 probe 4/18: 200/386 candidates, 3168 s into the round; about 66 min left in it
+  round 6 probe 4/18: 250/386 candidates, 3169 s into the round; about 66 min left in it
+  round 6 probe 4/18: 300/386 candidates, 3170 s into the round; about 66 min left in it
+  round 6 probe 4/18: 350/386 candidates, 3171 s into the round; about 66 min left in it
+  round 6 probe 4/18: 386/386 candidates, 3174 s into the round; about 66 min left in it

@@ -115,6 +115,11 @@
    "t": "2026-11-16T08:33Z",
    "limit_stop": true,
    "other_stop": null
+  },
+  {
+   "at": "2026-11-16T09:33Z",
+   "n": 18,
+   "note": "merged; resumed 51,54,58,60; CCl4 grown -> mono..plan on 65; acetonitrile states 15/34"
   }
  ],
  "burn_usd": null,

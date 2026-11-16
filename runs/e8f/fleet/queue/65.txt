@@ -1,1 +1,6 @@
 carbon_tetrachloride-grow species/carbon_tetrachloride ../../fleet/stage.sh grow carbon_tetrachloride
+carbon_tetrachloride-mono species/carbon_tetrachloride ../../fleet/stage.sh mono carbon_tetrachloride
+carbon_tetrachloride-pairs species/carbon_tetrachloride ../../fleet/stage.sh pairs carbon_tetrachloride
+carbon_tetrachloride-full species/carbon_tetrachloride ../../fleet/stage.sh full carbon_tetrachloride
+carbon_tetrachloride-law species/carbon_tetrachloride ../../fleet/stage.sh law carbon_tetrachloride
+carbon_tetrachloride-plan species/carbon_tetrachloride ../../fleet/stage.sh plan carbon_tetrachloride

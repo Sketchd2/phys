@@ -79,5 +79,14 @@
   "65": 0.034,
   "68": 0.014,
   "69": 0.02
- }
+ },
+ "samples": [
+  {
+   "at": "2026-11-16T09:35Z",
+   "orchestrator": 40.15,
+   "46": 15.41,
+   "41": 2.88,
+   "note": "workers unchanged since 09:02 snapshot; no looper"
+  }
+ ]
 }
