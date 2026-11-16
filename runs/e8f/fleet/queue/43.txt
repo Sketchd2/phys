@@ -4,3 +4,14 @@ acetonitrile-pairs species/acetonitrile ../../fleet/stage.sh pairs acetonitrile
 acetonitrile-full species/acetonitrile ../../fleet/stage.sh full acetonitrile
 acetonitrile-law species/acetonitrile ../../fleet/stage.sh law acetonitrile
 acetonitrile-plan species/acetonitrile ../../fleet/stage.sh plan acetonitrile
+acetonitrile-liq-1290-0.738 species/acetonitrile ../../fleet/liquid-state.sh acetonitrile 1290 0.738 12
+acetonitrile-liq-795-0.738 species/acetonitrile ../../fleet/liquid-state.sh acetonitrile 795 0.738 12
+acetonitrile-liq-518-0.738 species/acetonitrile ../../fleet/liquid-state.sh acetonitrile 518 0.738 12
+acetonitrile-liq-370-0.738 species/acetonitrile ../../fleet/liquid-state.sh acetonitrile 370 0.738 12
+acetonitrile-liq-1850-0.472 species/acetonitrile ../../fleet/liquid-state.sh acetonitrile 1850 0.472 12
+acetonitrile-liq-1850-0.207 species/acetonitrile ../../fleet/liquid-state.sh acetonitrile 1850 0.207 12
+acetonitrile-liq-1850-0.0369 species/acetonitrile ../../fleet/liquid-state.sh acetonitrile 1850 0.0369 12
+acetonitrile-liq-407-0.664 species/acetonitrile ../../fleet/liquid-state.sh acetonitrile 407 0.664 12
+acetonitrile-liq-462-0.664 species/acetonitrile ../../fleet/liquid-state.sh acetonitrile 462 0.664 12
+acetonitrile-liq-518-0.664 species/acetonitrile ../../fleet/liquid-state.sh acetonitrile 518 0.664 12
+acetonitrile-liq-592-0.664 species/acetonitrile ../../fleet/liquid-state.sh acetonitrile 592 0.664 12

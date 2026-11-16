@@ -1,7 +1,7 @@
 {
  "children": 31,
  "window": "allowed, resets 08:10 UTC",
- "note": "wake 14. Ammonia boil2 failed again (two states truncated): liquid-state lock + completeness check, worker.sh call lock; reruns + boil3 on 46. Acetaldehyde grown. Workers 66, 67 (no cap now).",
+ "note": "wake 15. Per-machine call lock was held indefinitely and stalled workers; removed. 8 stopped workers resumed. Hydrazine law, acetonitrile plan done. No new workers this wake.",
  "wakes": [
   {
    "t": "2026-11-15T15:20Z",
@@ -95,6 +95,12 @@
   },
   {
    "t": "2026-11-16T04:30Z",
+   "limit_stop": false,
+   "status": "allowed",
+   "resetsAt": 1794816600
+  },
+  {
+   "t": "2026-11-16T05:36Z",
    "limit_stop": false,
    "status": "allowed",
    "resetsAt": 1794816600

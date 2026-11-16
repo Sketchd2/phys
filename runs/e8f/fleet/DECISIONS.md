@@ -32,3 +32,4 @@
 - 2026-11-16 ammonia-boil2 failed the same way: the two reruns again ended "done" with a log that stops after settling. Most likely two copies of a state ran at once (two worker calls together). liquid-state.sh now holds a lock per state and marks done only when the log reaches phys-bulk's last line; worker.sh holds a lock per machine. Both states rerun as ...-third, then ammonia-boil3.
 - 2026-11-16 Acetaldehyde grown (settled, 11 rounds): mono..plan queued on 41 (3 heavy atoms, NFULL 8).
 - 2026-11-16 The per-machine call lock in worker.sh was itself held indefinitely (inherited by some detached process; worker 46 printed 'another call active' for an hour and stopped its turn): removed. The per-state lock in liquid-state.sh stays.
+- 2026-11-16 Hydrazine's law (8 pairs) begins HOLE. Acetonitrile's law is not HOLE (K 7.74, damping 1.8, rms 0.61 over 8 pairs); its 34 liquid states are spread over 43, 68 and 69.
