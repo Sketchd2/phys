@@ -1313,3 +1313,20 @@ ethanol: 9 atoms, 8 bonds; carrying on from round 5
   round 5 probe 28/30: 250/317 candidates, 6043 s into the round; about 4 min left in it
   round 5 probe 28/30: 300/317 candidates, 6043 s into the round; about 4 min left in it
   round 5 probe 28/30: 317/317 candidates, 6044 s into the round; about 5 min left in it
+  round 5 probe 29/30: 50/317 candidates, 6178 s into the round; about 2 min left in it
+  round 5 probe 29/30: 100/317 candidates, 6178 s into the round; about 2 min left in it
+  round 5 probe 29/30: 150/317 candidates, 6178 s into the round; about 2 min left in it
+  round 5 probe 29/30: 200/317 candidates, 6178 s into the round; about 2 min left in it
+  round 5 probe 29/30: 250/317 candidates, 6179 s into the round; about 2 min left in it
+  round 5 probe 29/30: 300/317 candidates, 6179 s into the round; about 2 min left in it
+  round 5 probe 29/30: 317/317 candidates, 6180 s into the round; about 2 min left in it
+  round 5 probe 30/30: 50/317 candidates, 6324 s into the round; under a minute left in it
+  round 5 probe 30/30: 100/317 candidates, 6325 s into the round; under a minute left in it
+  round 5 probe 30/30: 150/317 candidates, 6325 s into the round; under a minute left in it
+  round 5 probe 30/30: 200/317 candidates, 6325 s into the round; under a minute left in it
+  round 5 probe 30/30: 250/317 candidates, 6325 s into the round; under a minute left in it
+  round 5 probe 30/30: 300/317 candidates, 6326 s into the round; under a minute left in it
+  round 5 probe 30/30: 317/317 candidates, 6326 s into the round; under a minute left in it
+round 5: 232 functions, E -154.91212933, 6326 s
+  shape (A, deg): 1.51573 1.43555 1.10023 1.10116 1.10116 1.10724 1.10724 0.97073 110.573 110.517 110.517 108.480 108.480 108.198 107.965 110.275 110.275 110.353 110.353 107.632 108.117
+  added 3, predicted to move: -0.00083 -0.00048 -0.00142 -0.00015 -0.00015 -0.00013 -0.00013 -0.00128 -0.268 +0.092 +0.092 -0.021 -0.021 +0.125 +0.067 -0.089 -0.089 +0.081 +0.081 -0.133 +0.012; left 101.68
