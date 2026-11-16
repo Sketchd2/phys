@@ -1,1 +1,10 @@
 dichloromethane: dipole Hartree-Fock 0.7187 au (1.827 D), target 0.7187 au (1.827 D)
+  8060 potential points; the target's RMS 3.612e0, its mean -3.543e0 hartree/e
+  localised in 200 sweeps: 2 bond orbitals, 8 lone pairs (11 core orbitals frozen out of the localisation)
+  valence electrons 20, cores [4.0, 7.0, 1.0]
+  atom class 0: cloud 0.645 electrons, width 0.311 bohr
+  atom class 1: cloud 0.111 electrons, width 0.762 bohr
+  atom class 2: cloud 1.575 electrons, width 1.624 bohr
+  lone-pair cloud of class 1: 4 pair(s) on 2 atom(s), 7.992 electrons, width 1.873 bohr, 0.265 bohr from the nucleus (the orbitals' centre is 0.265)
+  potential RMS 2.040e-2 hartree/e (atom-centred point charges alone: 7.194e-3)
+  written to cloud-dichloromethane.txt
