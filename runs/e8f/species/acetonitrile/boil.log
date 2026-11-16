@@ -1,0 +1,5 @@
+Traceback (most recent call last):
+  File "/home/user/phys/runs/e8f/path.py", line 47, in <module>
+    tp, tu = (0.0, 0.0) if notail else (float(tail.group(1)), float(tail.group(2)))
+                                              ^^^^^^^^^^
+AttributeError: 'NoneType' object has no attribute 'group'
