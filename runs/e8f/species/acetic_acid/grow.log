@@ -1000,3 +1000,24 @@ round 4: 202 functions, E -228.93120811, 19575 s
   shape (A, deg): 1.50544 1.21461 1.36941 1.10077 1.10078 1.09554 0.98006 109.903 109.910 109.534 107.432 110.021 110.017 126.267 111.382 122.350 105.802
   added 3, predicted to move: +0.00032 +0.00013 +0.00037 -0.00006 -0.00006 -0.00026 +0.00018 +0.016 +0.016 +0.040 -0.213 +0.062 +0.062 +0.000 +0.000 +4.394 +0.011; left 234.73
   relaxed at 229 functions, 1581 s into round 5; 28 probes of 312 candidates to go
+  round 5 probe 1/28: 50/312 candidates, 1708 s into the round; about 58 min left in it
+  round 5 probe 1/28: 100/312 candidates, 1708 s into the round; about 58 min left in it
+  round 5 probe 1/28: 150/312 candidates, 1709 s into the round; about 58 min left in it
+  round 5 probe 1/28: 200/312 candidates, 1709 s into the round; about 58 min left in it
+  round 5 probe 1/28: 250/312 candidates, 1709 s into the round; about 58 min left in it
+  round 5 probe 1/28: 300/312 candidates, 1710 s into the round; about 58 min left in it
+  round 5 probe 1/28: 312/312 candidates, 1710 s into the round; about 58 min left in it
+  round 5 probe 2/28: 50/312 candidates, 1837 s into the round; about 55 min left in it
+  round 5 probe 2/28: 100/312 candidates, 1837 s into the round; about 55 min left in it
+  round 5 probe 2/28: 150/312 candidates, 1837 s into the round; about 55 min left in it
+  round 5 probe 2/28: 200/312 candidates, 1837 s into the round; about 55 min left in it
+  round 5 probe 2/28: 250/312 candidates, 1837 s into the round; about 55 min left in it
+  round 5 probe 2/28: 300/312 candidates, 1838 s into the round; about 55 min left in it
+  round 5 probe 2/28: 312/312 candidates, 1838 s into the round; about 56 min left in it
+  round 5 probe 3/28: 50/312 candidates, 1965 s into the round; about 53 min left in it
+  round 5 probe 3/28: 100/312 candidates, 1965 s into the round; about 53 min left in it
+  round 5 probe 3/28: 150/312 candidates, 1965 s into the round; about 53 min left in it
+  round 5 probe 3/28: 200/312 candidates, 1965 s into the round; about 53 min left in it
+  round 5 probe 3/28: 250/312 candidates, 1966 s into the round; about 53 min left in it
+  round 5 probe 3/28: 300/312 candidates, 1966 s into the round; about 53 min left in it
+  round 5 probe 3/28: 312/312 candidates, 1966 s into the round; about 53 min left in it
