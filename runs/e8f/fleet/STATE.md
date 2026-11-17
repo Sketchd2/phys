@@ -6,6 +6,12 @@
 
 ## WAKE CADENCE: every 62 min, self-scheduled. At the start of each wake call send_later (+62 min) with the same message; backstop task every 6 h re-arms if the chain breaks.
 
+## 2026-11-17 20:38 UTC, wake 51
+
+- Butane polarisability timed out at 4 h (884 functions; spill disk full): retry with 12 h, spill off, on 52 (as benzene
+  on 86). Polar jobs for larger molecules get 12 h from now on (ethylamine's on 48 changed to match).
+- Otherwise running: acetic acid full parts, chloroform full p2-4, DME full, 20 grows. Next 21:41.
+
 ## 2026-11-17 19:34 UTC, wake 50
 
 - ETHANE BOILS AT 316.5 K (34 states; experiment 184.6 K). 11 of its 34 state logs had been laid over by stale

@@ -2479,3 +2479,52 @@ ethanol: 9 atoms, 8 bonds; carrying on from round 8
   round 8 probe 16/30: 350/352 candidates, 12057 s into the round; about 98 min left in it
   round 8 probe 16/30: 352/352 candidates, 12057 s into the round; about 98 min left in it
 ethanol: 9 atoms, 8 bonds; carrying on from round 8
+  relaxed at 395 functions, 3710 s into round 8; 30 probes of 352 candidates to go
+  round 8 probe 1/30: 50/352 candidates, 4108 s into the round; about 194 min left in it
+  round 8 probe 1/30: 100/352 candidates, 4108 s into the round; about 194 min left in it
+  round 8 probe 1/30: 150/352 candidates, 4109 s into the round; about 194 min left in it
+  round 8 probe 1/30: 200/352 candidates, 4110 s into the round; about 194 min left in it
+  round 8 probe 1/30: 250/352 candidates, 4110 s into the round; about 194 min left in it
+  round 8 probe 1/30: 300/352 candidates, 4111 s into the round; about 195 min left in it
+  round 8 probe 1/30: 350/352 candidates, 4115 s into the round; about 196 min left in it
+  round 8 probe 1/30: 352/352 candidates, 4116 s into the round; about 196 min left in it
+  round 8 probe 2/30: 50/352 candidates, 4539 s into the round; about 200 min left in it
+  round 8 probe 2/30: 100/352 candidates, 4540 s into the round; about 199 min left in it
+  round 8 probe 2/30: 150/352 candidates, 4540 s into the round; about 199 min left in it
+  round 8 probe 2/30: 200/352 candidates, 4541 s into the round; about 200 min left in it
+  round 8 probe 2/30: 250/352 candidates, 4542 s into the round; about 200 min left in it
+  round 8 probe 2/30: 300/352 candidates, 4543 s into the round; about 200 min left in it
+  round 8 probe 2/30: 350/352 candidates, 4547 s into the round; about 201 min left in it
+  round 8 probe 2/30: 352/352 candidates, 4547 s into the round; about 201 min left in it
+  round 8 probe 3/30: 50/352 candidates, 4964 s into the round; about 189 min left in it
+  round 8 probe 3/30: 100/352 candidates, 4965 s into the round; about 189 min left in it
+  round 8 probe 3/30: 150/352 candidates, 4965 s into the round; about 189 min left in it
+  round 8 probe 3/30: 200/352 candidates, 4966 s into the round; about 189 min left in it
+  round 8 probe 3/30: 250/352 candidates, 4967 s into the round; about 189 min left in it
+  round 8 probe 3/30: 300/352 candidates, 4968 s into the round; about 190 min left in it
+  round 8 probe 3/30: 350/352 candidates, 4972 s into the round; about 191 min left in it
+  round 8 probe 3/30: 352/352 candidates, 4972 s into the round; about 191 min left in it
+  round 8 probe 4/30: 50/352 candidates, 5398 s into the round; about 186 min left in it
+  round 8 probe 4/30: 100/352 candidates, 5398 s into the round; about 186 min left in it
+  round 8 probe 4/30: 150/352 candidates, 5399 s into the round; about 186 min left in it
+  round 8 probe 4/30: 200/352 candidates, 5400 s into the round; about 186 min left in it
+  round 8 probe 4/30: 250/352 candidates, 5401 s into the round; about 186 min left in it
+  round 8 probe 4/30: 300/352 candidates, 5402 s into the round; about 186 min left in it
+  round 8 probe 4/30: 350/352 candidates, 5405 s into the round; about 188 min left in it
+  round 8 probe 4/30: 352/352 candidates, 5406 s into the round; about 188 min left in it
+  round 8 probe 5/30: 50/352 candidates, 5824 s into the round; about 176 min left in it
+  round 8 probe 5/30: 100/352 candidates, 5824 s into the round; about 176 min left in it
+  round 8 probe 5/30: 150/352 candidates, 5825 s into the round; about 176 min left in it
+  round 8 probe 5/30: 200/352 candidates, 5826 s into the round; about 176 min left in it
+  round 8 probe 5/30: 250/352 candidates, 5826 s into the round; about 176 min left in it
+  round 8 probe 5/30: 300/352 candidates, 5827 s into the round; about 176 min left in it
+  round 8 probe 5/30: 350/352 candidates, 5831 s into the round; about 177 min left in it
+  round 8 probe 5/30: 352/352 candidates, 5831 s into the round; about 177 min left in it
+  round 8 probe 6/30: 50/352 candidates, 6273 s into the round; about 178 min left in it
+  round 8 probe 6/30: 100/352 candidates, 6274 s into the round; about 178 min left in it
+  round 8 probe 6/30: 150/352 candidates, 6274 s into the round; about 178 min left in it
+  round 8 probe 6/30: 200/352 candidates, 6275 s into the round; about 178 min left in it
+  round 8 probe 6/30: 250/352 candidates, 6276 s into the round; about 178 min left in it
+  round 8 probe 6/30: 300/352 candidates, 6277 s into the round; about 179 min left in it
+  round 8 probe 6/30: 350/352 candidates, 6281 s into the round; about 180 min left in it
+  round 8 probe 6/30: 352/352 candidates, 6281 s into the round; about 180 min left in it
