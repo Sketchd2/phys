@@ -7,3 +7,6 @@ ethane at 202 K: 108 molecules, 0.667 g/cm3, box 37.93 bohr (20.07 A), cut-off 1
   warming: U/N -3.32 kcal/mol, T 221/206 K, P 286 bar
   0% after 1853 s: U/N -3.32 kcal/mol, P 332 bar
   8% after 2026 s: U/N -3.41 kcal/mol, P 2144 bar
+  17% after 2205 s: U/N -3.44 kcal/mol, P 1345 bar
+  25% after 2381 s: U/N -3.31 kcal/mol, P 992 bar
+  33% after 2559 s: U/N -3.39 kcal/mol, P 975 bar
