@@ -1549,3 +1549,17 @@ round 3: 283 functions, E -233.44134561, 19973 s
   round 4 probe 27/28: 450/518 candidates, 26171 s into the round; about 10 min left in it
   round 4 probe 27/28: 500/518 candidates, 26172 s into the round; about 10 min left in it
   round 4 probe 27/28: 518/518 candidates, 26174 s into the round; about 10 min left in it
+  round 4 probe 28/28: 50/518 candidates, 26829 s into the round; under a minute left in it
+  round 4 probe 28/28: 100/518 candidates, 26830 s into the round; under a minute left in it
+  round 4 probe 28/28: 150/518 candidates, 26831 s into the round; under a minute left in it
+  round 4 probe 28/28: 200/518 candidates, 26832 s into the round; under a minute left in it
+  round 4 probe 28/28: 250/518 candidates, 26834 s into the round; under a minute left in it
+  round 4 probe 28/28: 300/518 candidates, 26835 s into the round; under a minute left in it
+  round 4 probe 28/28: 350/518 candidates, 26837 s into the round; under a minute left in it
+  round 4 probe 28/28: 400/518 candidates, 26838 s into the round; under a minute left in it
+  round 4 probe 28/28: 450/518 candidates, 26839 s into the round; under a minute left in it
+  round 4 probe 28/28: 500/518 candidates, 26841 s into the round; under a minute left in it
+  round 4 probe 28/28: 518/518 candidates, 26844 s into the round; under a minute left in it
+round 4: 346 functions, E -233.44935697, 46818 s
+  shape (A, deg): 1.51662 1.42500 1.42513 1.51650 1.10135 1.09908 1.09908 1.10976 1.10976 1.10979 1.10979 1.10134 1.09911 1.09911 110.296 110.666 110.666 108.400 108.400 108.335 108.625 110.800 110.800 109.747 109.747 107.110 112.613 108.650 109.737 109.737 110.799 110.799 107.108 110.286 110.682 110.682 108.393 108.393 108.328
+  added 8, predicted to move: -0.00026 -0.00077 -0.00077 -0.00026 -0.00030 -0.00114 -0.00114 -0.00002 -0.00002 -0.00002 -0.00002 -0.00030 -0.00114 -0.00114 +0.081 -0.005 -0.005 -0.031 -0.031 -0.018 +0.221 -0.060 -0.060 -0.037 -0.037 -0.150 -0.357 +0.221 -0.037 -0.037 -0.060 -0.060 -0.150 +0.081 -0.005 -0.005 -0.031 -0.031 -0.018; left 120.99
