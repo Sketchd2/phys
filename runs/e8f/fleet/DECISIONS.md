@@ -57,3 +57,4 @@
 2026-11-17 02:35 chloroform pairs killed after 21 of 24 (4.5 h, whole run): first 21 kept as parts 1-7, part 8 on 79.
 2026-11-17 03:40 ethylene glycol stopped at pairs (a single pair killed, 15 GB worker); its parts cancelled; acetic acid p7/p8 moved to 93/94; 55 STOP.
 2026-11-17 03:45 75, 76, 81, 85, 88, 90, 92 run only ~10 min after any resume (short or full instructions); fresh sessions run for hours: archived, their jobs moved to fresh workers 97-103.
+2026-11-17 05:50 worker.sh refreshes runs/e8f/fleet/*.sh|*.py from main at each job start (44 lacked pairs-part.sh; 4 parts failed). DME p2 requeued on 95.
