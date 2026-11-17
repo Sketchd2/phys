@@ -6,7 +6,7 @@
 
 ## 2026-11-17 07:50 UTC, wake 39
 
-- ETHANE LAW HAS NO HOLE (K 6.59, 8 pairs): third species with a liquid. Plan needs phys-b2 (not built here): on 93
+- ETHANE LAW HAS NO HOLE (K 6.59, 8 pairs; computed by worker 17 on the OLD branch claude/laughing-keller-sagqde, so its law.py may predate main): third species with a liquid. Plan needs phys-b2 (not built here): on 93
   after acetic acid p7. Then queue its liquid states over several workers; boil HERE.
 - DME: 95 assembled only 17 pairs: it (and 94) had committed stale partial part files before the commit fix. Each part
   is now taken only from the worker that ran it (merge-skip), restored, and assembled HERE: 24 pairs, pairs.ok.
