@@ -1,0 +1,3 @@
+acetic_acid-pairs-p1-w115 species/acetic_acid ../../fleet/pairs-part.sh acetic_acid 1 3
+acetic_acid-pairs-p2-w115 species/acetic_acid ../../fleet/pairs-part.sh acetic_acid 2 3
+acetic_acid-pairs-p3-w115 species/acetic_acid ../../fleet/pairs-part.sh acetic_acid 3 3

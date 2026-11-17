@@ -77,3 +77,15 @@
 93 runs/e8f/species/acetic_acid/frozen-part-1.txt
 94 runs/e8f/species/acetic_acid/frozen-part-1.txt
 95 runs/e8f/species/acetic_acid/frozen-part-1.txt
+57 runs/e8f/species/acetic_acid/frozen-part-1.txt
+57 runs/e8f/species/acetic_acid/frozen-part-2.txt
+57 runs/e8f/species/acetic_acid/frozen-part-3.txt
+93 runs/e8f/species/acetic_acid/frozen-part-1.txt
+93 runs/e8f/species/acetic_acid/frozen-part-2.txt
+93 runs/e8f/species/acetic_acid/frozen-part-3.txt
+94 runs/e8f/species/acetic_acid/frozen-part-1.txt
+94 runs/e8f/species/acetic_acid/frozen-part-2.txt
+94 runs/e8f/species/acetic_acid/frozen-part-3.txt
+95 runs/e8f/species/acetic_acid/frozen-part-1.txt
+95 runs/e8f/species/acetic_acid/frozen-part-2.txt
+95 runs/e8f/species/acetic_acid/frozen-part-3.txt
