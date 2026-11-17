@@ -4,6 +4,16 @@
 
 ## WAKE CADENCE: every 62 min, self-scheduled. At the start of each wake call send_later (+62 min) with the same message; backstop task every 6 h re-arms if the chain breaks.
 
+## 2026-11-17 03:34 UTC, wake 35
+
+- ETHYLENE GLYCOL STOPS AT PAIRS: parts 3 and 6 killed before their first pair (50.6 GB table): one pair does not fit
+  a 15 GB worker. STOPPED.txt; owner's decision (with CCl4). Its other parts cancelled; 55 archived.
+- Acetic acid part 4 done (parts fit): p1-3 on 57, p5-6 on 95, p7 on 93, p8 on 94. Chloroform 7/8 (p8 on 79). DME 7/8.
+- Full instructions kept 82 and 84 going; 75, 76, 81, 85, 88, 90, 92 still stopped within ~10 min -> archived, jobs to
+  FRESH workers 97 toluene, 98 isobutane, 99 THF, 100 ethyl acetate, 101 cyclohexane, 102 octane, 103 butanol.
+  Rule now: a worker that stops within minutes of two resumes is archived and its job goes to a fresh session.
+- Count 37. Block ends 04:20; judge at 04:37.
+
 ## 2026-11-17 02:30 UTC, wake 34
 
 - Chloroform pairs killed after 21 of 24 (4.5 h, whole run) with NO spill attempt in its log: so a failed spill is not

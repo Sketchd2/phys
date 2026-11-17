@@ -1,5 +1,5 @@
 {
- "children": 38,
+ "children": 37,
  "window": "allowed; resets 04:20 UTC",
  "note": "Limit hit 07:39 UTC (owner). Count cut to 31: 66, 67, 70, 71 stopped. All others resumed after the 08:10 reset.",
  "wakes": [
@@ -200,6 +200,11 @@
    "at": "2026-11-17T02:30Z",
    "n": 34,
    "note": "chloroform pairs killed after 21/24 with NO spill attempt -> 21 kept as parts 1-7, part 8 on 79. 8 repeat stoppers got the full instructions instead of the short resume."
+  },
+  {
+   "at": "2026-11-17T03:34Z",
+   "n": 35,
+   "note": "EG STOPPED at pairs (single pair killed). Acetic acid p4 done. 55 archived; 75,76,81,85,88,90,92 -> fresh 97-103. Count 37."
   }
  ],
  "burn_usd": null,
@@ -327,6 +332,27 @@
   },
   "96": {
    "session": "session_016vymdx345df5uo8gPu3b22"
+  },
+  "97": {
+   "session": "session_016vymdyQSj9xym2RGJL1zh2"
+  },
+  "98": {
+   "session": "session_016vymdwUxmWe4Vppp7WDgmn"
+  },
+  "99": {
+   "session": "session_016vymdwW1nLKpmu2w9jna7c"
+  },
+  "100": {
+   "session": "session_016vymdw7iM2pzY9fusCKPoB"
+  },
+  "101": {
+   "session": "session_016vymdwgaGipMC58tKHGLwL"
+  },
+  "102": {
+   "session": "session_016vymdxHw2un9A3YBaggSb3"
+  },
+  "103": {
+   "session": "session_016vymdxxmdtMm7Wx9qZkxbk"
   }
  },
  "ceiling": "31-35 workers + orchestrator for 4.5 h exhausted a five-hour window (limit hit 07:39 UTC)",
