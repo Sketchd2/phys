@@ -1,0 +1,4 @@
+could not spill a 4.0 GB table to /tmp/spill: No space left on device (os error 28); rebuilding it instead
+benzene: atom classes [0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1]
+--c6 0-0=18.8017,0-1=7.6204,1-1=3.1584
+molecule-molecule C6 1339.177 hartree bohr^6

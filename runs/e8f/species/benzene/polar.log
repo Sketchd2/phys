@@ -1,1 +1,2 @@
 benzene: 840 functions, field step 0.002, 6 frozen cores
+could not spill a 3.9 GB table to /tmp/spill: No space left on device (os error 28); rebuilding it instead

@@ -4,6 +4,16 @@
 
 ## WAKE CADENCE: every 62 min, self-scheduled. At the start of each wake call send_later (+62 min) with the same message; backstop task every 6 h re-arms if the chain breaks.
 
+## 2026-11-17 07:50 UTC, wake 39
+
+- ETHANE LAW HAS NO HOLE (K 6.59, 8 pairs): third species with a liquid. Plan needs phys-b2 (not built here): on 93
+  after acetic acid p7. Then queue its liquid states over several workers; boil HERE.
+- DME: 95 assembled only 17 pairs: it (and 94) had committed stale partial part files before the commit fix. Each part
+  is now taken only from the worker that ran it (merge-skip), restored, and assembled HERE: 24 pairs, pairs.ok.
+  95 runs full; DME law and plan removed from 95 -> run law here (python) when full.ok arrives, plan on a worker.
+  Same owner-only skips set for acetic acid's parts.
+- Next 08:53.
+
 ## 2026-11-17 06:46 UTC, wake 38
 
 - Chloroform p8 had failed on 79 for the same missing pairs-part.sh: requeued (p8b); worker.sh now refreshes scripts.
