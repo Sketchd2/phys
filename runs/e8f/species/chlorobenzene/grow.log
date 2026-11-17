@@ -563,3 +563,26 @@ chlorobenzene: 12 atoms, 12 bonds; starting
   round 0 probe 32/34: 400/498 candidates, 17773 s into the round; about 8 min left in it
   round 0 probe 32/34: 450/498 candidates, 17773 s into the round; about 8 min left in it
   round 0 probe 32/34: 498/498 candidates, 17774 s into the round; about 8 min left in it
+  round 0 probe 33/34: 50/498 candidates, 18122 s into the round; about 6 min left in it
+  round 0 probe 33/34: 100/498 candidates, 18122 s into the round; about 6 min left in it
+  round 0 probe 33/34: 150/498 candidates, 18123 s into the round; about 6 min left in it
+  round 0 probe 33/34: 200/498 candidates, 18123 s into the round; about 6 min left in it
+  round 0 probe 33/34: 250/498 candidates, 18124 s into the round; about 6 min left in it
+  round 0 probe 33/34: 300/498 candidates, 18124 s into the round; about 6 min left in it
+  round 0 probe 33/34: 350/498 candidates, 18124 s into the round; about 6 min left in it
+  round 0 probe 33/34: 400/498 candidates, 18125 s into the round; about 6 min left in it
+  round 0 probe 33/34: 450/498 candidates, 18125 s into the round; about 6 min left in it
+  round 0 probe 33/34: 498/498 candidates, 18126 s into the round; about 6 min left in it
+  round 0 probe 34/34: 50/498 candidates, 18474 s into the round; under a minute left in it
+  round 0 probe 34/34: 100/498 candidates, 18474 s into the round; under a minute left in it
+  round 0 probe 34/34: 150/498 candidates, 18475 s into the round; under a minute left in it
+  round 0 probe 34/34: 200/498 candidates, 18475 s into the round; under a minute left in it
+  round 0 probe 34/34: 250/498 candidates, 18476 s into the round; under a minute left in it
+  round 0 probe 34/34: 300/498 candidates, 18476 s into the round; under a minute left in it
+  round 0 probe 34/34: 350/498 candidates, 18476 s into the round; under a minute left in it
+  round 0 probe 34/34: 400/498 candidates, 18477 s into the round; under a minute left in it
+  round 0 probe 34/34: 450/498 candidates, 18477 s into the round; under a minute left in it
+  round 0 probe 34/34: 498/498 candidates, 18478 s into the round; under a minute left in it
+round 0: 201 functions, E -691.41412621, 18478 s
+  shape (A, deg): 1.40610 1.40640 1.40694 1.40695 1.40639 1.40609 1.76882 1.09504 1.09648 1.09620 1.09646 1.09503 121.535 119.231 119.234 118.838 119.797 121.364 120.480 119.309 120.211 119.829 120.084 120.088 120.476 120.215 119.309 118.842 121.368 119.790
+  added 3, predicted to move: +0.00000 +0.00000 +0.00000 +0.00000 +0.00000 +0.00000 -0.01733 +0.00082 +0.00003 +0.00051 +0.00003 +0.00082 -106.561 +0.000 +0.000 -82866.367 +0.000 +0.001 +0.000 +0.000 +0.000 +0.007 +0.000 +0.000 +0.000 +0.000 +0.000 -82866.367 +0.001 +0.000; left 988706.72
