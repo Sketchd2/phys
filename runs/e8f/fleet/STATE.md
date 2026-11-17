@@ -4,6 +4,12 @@
 
 ## WAKE CADENCE: every 62 min, self-scheduled. At the start of each wake call send_later (+62 min) with the same message; backstop task every 6 h re-arms if the chain breaks.
 
+## 2026-11-17 10:59 UTC, wake 42
+
+- Ethane 6/34 states. Acetic acid p4-8 done; p1-3 had failed on 57 9 h ago (old machine, no pairs-part.sh) ->
+  fresh 115 (owner-only skips set); 57 archived. When 8/8: assemble HERE, then full..plan on a worker.
+- Idle check skipped (context ~740k). Next 12:02.
+
 ## 2026-11-17 09:57 UTC, wake 41
 
 - Block 04:20-09:20 PASSED CLEAN at 35-39. Orchestrator +26.84 USD (context 734k; auto-compaction at 784k is near:

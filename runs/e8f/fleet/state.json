@@ -235,6 +235,11 @@
    "at": "2026-11-17T09:57Z",
    "n": 41,
    "note": "block 04:20-09:20 clean at 35-39; orch +26.84 (context 734k). 95/98/103 -> 112-114 (DME full on 112). Resumed 100."
+  },
+  {
+   "at": "2026-11-17T10:59Z",
+   "n": 42,
+   "note": "ethane 6/34. Acetic acid p1-3 had failed on 57 (no script) -> fresh 115; 57 archived. Count 39."
   }
  ],
  "burn_usd": null,
@@ -416,6 +421,9 @@
   },
   "114": {
    "session": "session_016vyme1MrW4mxMPBHmgZoxZ"
+  },
+  "115": {
+   "session": "session_016vyme1UCFG5LksKxbj1LDh"
   }
  },
  "ceiling": "31-35 workers + orchestrator for 4.5 h exhausted a five-hour window (limit hit 07:39 UTC)",
