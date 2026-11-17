@@ -58,3 +58,4 @@
 2026-11-17 03:40 ethylene glycol stopped at pairs (a single pair killed, 15 GB worker); its parts cancelled; acetic acid p7/p8 moved to 93/94; 55 STOP.
 2026-11-17 03:45 75, 76, 81, 85, 88, 90, 92 run only ~10 min after any resume (short or full instructions); fresh sessions run for hours: archived, their jobs moved to fresh workers 97-103.
 2026-11-17 05:50 worker.sh refreshes runs/e8f/fleet/*.sh|*.py from main at each job start (44 lacked pairs-part.sh; 4 parts failed). DME p2 requeued on 95.
+2026-11-17 06:55 chloroform p8 requeued (79 lacked the script); 69/82/84/99 repeat stoppers -> fresh 104-107; 83 stopped (acetonitrile boil done, last states not needed). Count 35.
