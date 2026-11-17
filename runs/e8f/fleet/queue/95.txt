@@ -4,3 +4,7 @@ acetic_acid-pairs-p4-w95 species/acetic_acid ../../fleet/pairs-part.sh acetic_ac
 acetic_acid-pairs-p5-w95 species/acetic_acid ../../fleet/pairs-part.sh acetic_acid 5 3
 acetic_acid-pairs-p6-w95 species/acetic_acid ../../fleet/pairs-part.sh acetic_acid 6 3
 dme-pairs-p2-w95 species/dimethyl_ether ../../fleet/pairs-part.sh dimethyl_ether 2 3
+dme-assemble-w95 species/dimethyl_ether ../../fleet/pairs-part.sh dimethyl_ether all 3
+dimethyl_ether-full-w95 species/dimethyl_ether ../../fleet/stage.sh full dimethyl_ether
+dimethyl_ether-law-w95 species/dimethyl_ether ../../fleet/stage.sh law dimethyl_ether
+dimethyl_ether-plan-w95 species/dimethyl_ether ../../fleet/stage.sh plan dimethyl_ether

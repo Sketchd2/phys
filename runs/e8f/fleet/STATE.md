@@ -4,6 +4,14 @@
 
 ## WAKE CADENCE: every 62 min, self-scheduled. At the start of each wake call send_later (+62 min) with the same message; backstop task every 6 h re-arms if the chain breaks.
 
+## 2026-11-17 05:42 UTC, wake 37
+
+- Worker 44 had no pairs-part.sh (an old machine keeps the fleet scripts it started with): DME p2/p3 and acetic acid
+  p7/p8 failed there. worker.sh now refreshes runs/e8f/fleet/*.sh and *.py from main at every job start.
+  DME p2, then assemble (pairs-part.sh dimethyl_ether all 3), full, law, plan, all on 95. 44 archived: count 36.
+- Acetic acid parts 3/8 (p1-3 on 57, p7 on 93, p8 on 94). Chloroform 7/8 (p8 on 79): assemble here when done.
+- Acetonitrile 1850/0.0148 (lowest density, 117k Ewald vectors) slow on 83; boil already done from 31. Next 06:45.
+
 ## 2026-11-17 04:38 UTC, wake 36
 
 - Block 23:20-04:20 PASSED CLEAN at 37-40. Orchestrator +17.84 USD (context 647k; auto-compaction at 784k). Holding 37.
