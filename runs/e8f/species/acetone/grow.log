@@ -2054,3 +2054,19 @@ round 3: 205 functions, E -192.98421062, 11829 s
   shape (A, deg): 1.51096 1.51080 1.22481 1.09658 1.10641 1.10899 1.09658 1.10650 1.10893 110.153 111.208 109.465 110.313 109.149 106.465 116.951 121.518 121.531 110.165 111.178 109.476 110.285 109.203 106.446
   added 3, predicted to move: +0.00046 +0.00044 -0.00076 +0.00079 -0.00301 -0.00365 +0.00078 -0.00301 -0.00364 +0.092 -0.234 -0.401 +0.077 +0.122 +0.339 +0.005 +0.000 +0.007 +0.092 -0.243 -0.391 +0.078 +0.119 +0.342; left 258.74
   relaxed at 238 functions, 7066 s into round 4; 48 probes of 357 candidates to go
+  round 4 probe 1/48: 50/357 candidates, 7278 s into the round; about 168 min left in it
+  round 4 probe 1/48: 100/357 candidates, 7279 s into the round; about 168 min left in it
+  round 4 probe 1/48: 150/357 candidates, 7279 s into the round; about 168 min left in it
+  round 4 probe 1/48: 200/357 candidates, 7279 s into the round; about 168 min left in it
+  round 4 probe 1/48: 250/357 candidates, 7280 s into the round; about 168 min left in it
+  round 4 probe 1/48: 300/357 candidates, 7280 s into the round; about 168 min left in it
+  round 4 probe 1/48: 350/357 candidates, 7280 s into the round; about 168 min left in it
+  round 4 probe 1/48: 357/357 candidates, 7281 s into the round; about 168 min left in it
+  round 4 probe 2/48: 50/357 candidates, 7497 s into the round; about 167 min left in it
+  round 4 probe 2/48: 100/357 candidates, 7498 s into the round; about 167 min left in it
+  round 4 probe 2/48: 150/357 candidates, 7498 s into the round; about 168 min left in it
+  round 4 probe 2/48: 200/357 candidates, 7498 s into the round; about 168 min left in it
+  round 4 probe 2/48: 250/357 candidates, 7499 s into the round; about 168 min left in it
+  round 4 probe 2/48: 300/357 candidates, 7499 s into the round; about 168 min left in it
+  round 4 probe 2/48: 350/357 candidates, 7500 s into the round; about 168 min left in it
+  round 4 probe 2/48: 357/357 candidates, 7500 s into the round; about 168 min left in it
