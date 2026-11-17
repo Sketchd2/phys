@@ -4,6 +4,15 @@
 
 ## WAKE CADENCE: every 62 min, self-scheduled. At the start of each wake call send_later (+62 min) with the same message; backstop task every 6 h re-arms if the chain breaks.
 
+## 2026-11-17 14:15 UTC, wake 45
+
+- Ethane 18 complete states. Acetic acid part 2 KILLED even at 3 pairs (a 29.9 GB table): new fleet/pair-one.sh runs
+  one pair alone; p2 pairs 1/2/3 on 93/94/109 (owner-only skips). Join HERE with `pair-one.sh acetic_acid 2 all`
+  (in species/acetic_acid), then `pairs-part.sh acetic_acid all 3`. p3 on 115 may fail the same way.
+- DME full on 112 has 1 pair in its log after 4 h (alive). Chloroform full parts 2-4 running.
+- Resumed 41 46 48 86 104 117 (quiet >1 h; long full/polar jobs push nothing while running). Block 09:20-14:20 ends
+  as this wake runs: judge at 15:18. Count 38.
+
 ## 2026-11-17 13:09 UTC, wake 44
 
 - Ethane 13 complete states. CHLOROFORM FULL KILLED on memory after 2 of 8 pairs (like pairs): new fleet/full-part.sh
