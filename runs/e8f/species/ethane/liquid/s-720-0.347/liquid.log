@@ -6,3 +6,9 @@ ethane at 720 K: 108 molecules, 0.347 g/cm3, box 47.16 bohr (24.96 A), cut-off 1
   settling: U/N -0.97 kcal/mol, T 791/790 K, P 951 bar
   warming: U/N -0.96 kcal/mol, T 687/728 K, P 1264 bar
   0% after 966 s: U/N -0.95 kcal/mol, P 1251 bar
+  8% after 1059 s: U/N -1.10 kcal/mol, P 870 bar
+  17% after 1156 s: U/N -0.88 kcal/mol, P 911 bar
+  25% after 1249 s: U/N -0.92 kcal/mol, P 1487 bar
+  33% after 1341 s: U/N -1.19 kcal/mol, P 1170 bar
+  42% after 1432 s: U/N -1.27 kcal/mol, P 2133 bar
+  50% after 1524 s: U/N -1.44 kcal/mol, P 1368 bar
