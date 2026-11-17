@@ -4,3 +4,6 @@ ethane at 144 K: 108 molecules, 0.667 g/cm3, box 37.93 bohr (20.07 A), cut-off 1
   start: U/N 420.32 kcal/mol
   easing: U/N -2.54 kcal/mol, T 148/132 K, P 3686 bar
   settling: U/N -3.39 kcal/mol, T 165/133 K, P 2007 bar
+  warming: U/N -3.42 kcal/mol, T 136/147 K, P 341 bar
+  0% after 1734 s: U/N -3.42 kcal/mol, P 324 bar
+  8% after 1901 s: U/N -3.35 kcal/mol, P 636 bar
