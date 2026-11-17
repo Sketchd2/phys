@@ -938,3 +938,4 @@ round 2: 254 functions, E -233.43314563, 53343 s
   added 6, predicted to move: -0.00011 -0.00255 -0.00255 -0.00011 +0.00012 +0.00029 +0.00029 -0.00405 -0.00405 -0.00405 -0.00405 +0.00012 +0.00029 +0.00029 +0.064 -0.069 -0.069 +0.011 +0.011 +0.069 -0.206 -0.091 -0.091 +0.159 +0.159 +0.131 +0.263 -0.206 +0.159 +0.159 -0.091 -0.091 +0.131 +0.064 -0.069 -0.069 +0.011 +0.011 +0.069; left 306.68
 diethyl_ether: 15 atoms, 14 bonds; carrying on from round 3
 diethyl_ether: 15 atoms, 14 bonds; carrying on from round 3
+diethyl_ether: 15 atoms, 14 bonds; carrying on from round 3
