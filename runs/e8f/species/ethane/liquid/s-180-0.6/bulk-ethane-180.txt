@@ -1,2 +1,7 @@
 # ethane at 180 K, 108 molecules, 0.6 g/cm3, cut-off 16 bohr, law law.txt
 # ps  U_per_molecule_kcal  pressure_bar  T_translation  T_rotation
+4.086 -2.8960 666.1 170.6 198.5
+4.186 -2.9287 127.2 179.1 209.6
+4.285 -2.8783 284.5 174.4 182.1
+4.385 -2.9047 -224.5 159.0 187.4
+4.485 -2.9236 20.1 176.3 197.5

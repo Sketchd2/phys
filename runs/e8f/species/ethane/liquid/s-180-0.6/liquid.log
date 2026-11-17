@@ -4,3 +4,7 @@ ethane at 180 K: 108 molecules, 0.6 g/cm3, box 39.29 bohr (20.79 A), cut-off 16.
   start: U/N 247.84 kcal/mol
   easing: U/N -2.44 kcal/mol, T 191/185 K, P 2438 bar
   settling: U/N -2.89 kcal/mol, T 199/173 K, P 166 bar
+  warming: U/N -2.93 kcal/mol, T 180/183 K, P -475 bar
+  0% after 1629 s: U/N -2.92 kcal/mol, P -535 bar
+  8% after 1786 s: U/N -2.95 kcal/mol, P 92 bar
+  17% after 1941 s: U/N -2.97 kcal/mol, P 85 bar
