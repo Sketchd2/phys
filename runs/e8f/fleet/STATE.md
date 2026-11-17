@@ -6,6 +6,15 @@
 
 ## WAKE CADENCE: every 62 min, self-scheduled. At the start of each wake call send_later (+62 min) with the same message; backstop task every 6 h re-arms if the chain breaks.
 
+## 2026-11-17 20:50 UTC (owner asked: full check of workers 1-127)
+
+- Every session checked by status. Active 35 + 4 new (124-127): all RUNNING. Every retired worker is archived and
+  every unfinished job of a retired worker has been moved (42..117 -> 118..127); 1-10 hold only pre-fleet test jobs
+  for species already settled.
+- Watch: 120 octane grow (log only "starting", 7 h), 87 hexane (no log change 6 h after "added 8"), 86 benzene
+  polarisability (8 h; prints only at the end; 12 h limit ends ~00:10). Whether these are long silent steps or
+  dead processes cannot be seen from here: if still silent at 00:10, replace.
+
 ## 2026-11-17 20:41 UTC (owner asked about propane)
 
 - Propane grow: 42 stalled (16 h) -> 116 at 12:05; 116 carried on from its saved round 8, stopped 13:50, resumed
