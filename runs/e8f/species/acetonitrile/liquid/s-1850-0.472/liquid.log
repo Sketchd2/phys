@@ -5,9 +5,24 @@ acetonitrile at 1850 K: 64 molecules, 0.472 g/cm3, box 39.66 bohr (20.99 A), cut
   easing: U/N -3.43 kcal/mol, T 1755/1741 K, P 1927 bar
   settling: U/N -2.85 kcal/mol, T 1523/2021 K, P 2756 bar
   warming: U/N -3.69 kcal/mol, T 1458/2181 K, P 2366 bar
-  0% after 969 s: U/N -3.71 kcal/mol, P 2376 bar
-  8% after 1017 s: U/N -3.61 kcal/mol, P 2662 bar
-  17% after 1066 s: U/N -3.86 kcal/mol, P 2618 bar
-  25% after 1114 s: U/N -3.27 kcal/mol, P 3809 bar
-  33% after 1164 s: U/N -3.23 kcal/mol, P 2501 bar
-  42% after 1213 s: U/N -3.38 kcal/mol, P 3363 bar
+  0% after 902 s: U/N -3.71 kcal/mol, P 2376 bar
+  8% after 956 s: U/N -3.61 kcal/mol, P 2662 bar
+  17% after 1008 s: U/N -3.86 kcal/mol, P 2618 bar
+  25% after 1063 s: U/N -3.27 kcal/mol, P 3809 bar
+  33% after 1117 s: U/N -3.23 kcal/mol, P 2501 bar
+  42% after 1169 s: U/N -3.38 kcal/mol, P 3363 bar
+  50% after 1222 s: U/N -3.34 kcal/mol, P 3792 bar
+  58% after 1276 s: U/N -3.48 kcal/mol, P 2967 bar
+  67% after 1334 s: U/N -3.00 kcal/mol, P 4169 bar
+  75% after 1391 s: U/N -3.27 kcal/mol, P 3533 bar
+  83% after 1446 s: U/N -2.73 kcal/mol, P 4530 bar
+  92% after 1500 s: U/N -3.31 kcal/mol, P 2823 bar
+  100% after 1551 s: U/N -3.11 kcal/mol, P 3621 bar
+acetonitrile at 1850 K (96 samples over 10 ps, block standard errors):
+  U/N -3.267 +- 0.018 kcal/mol; heat of vaporisation -U/N + RT = 6.943 kcal/mol
+  pressure 3032 +- 54 bar at 0.472 g/cm3 (a liquid at the right density sits near 1 bar; positive says it wants to expand)
+  temperatures: translation 1834.5 K, rotation 1826.9 K (bath 1850 K)
+  mean molecular dipole 5.496 D (permanent charges and induced dipoles); dielectric constant 4.8 (blocks 4.2 +- 0.6; slow to converge)
+  dispersion beyond the cut-off (C6 346.72): -67 bar and -0.139 kcal/mol a molecule, so pressure with it 2965 bar, U/N -3.406
+  g(first atoms): first peak 0.63 at 3.35 A, first minimum 0.75 at 3.55 A, second peak 1.14 at 5.25 A, coordination to the minimum 0.32 (bulk-acetonitrile-1850.gOO.txt)
+  snapshot in bulk-acetonitrile-1850.snap
