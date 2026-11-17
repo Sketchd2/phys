@@ -4,6 +4,16 @@
 
 ## WAKE CADENCE: every 62 min, self-scheduled. At the start of each wake call send_later (+62 min) with the same message; backstop task every 6 h re-arms if the chain breaks.
 
+## 2026-11-17 00:22 UTC, wake 32
+
+- Block 18:20-23:20 PASSED CLEAN at 37-40. Orchestrator +15.62 USD (context 537k). Holding 40 (no unstarted work).
+- MEMORY MEASUREMENT (DME part 1, spill off; measure-part-1.mem): one pair at a time rises to 9-11.6 GB and falls back;
+  peak 11.62 GB, 4.1 GB still available at the peak; NO growth from pair 1 to 3; spill 0, disk 29 GB free. So the
+  killed whole runs were not a per-pair leak. They ran with spill ON, and each tried to write an 18-30 GB table onto
+  ~29 GB of disk and failed; all 7 parts run with spill OFF survived. Likely trigger: the spill attempt (or a pair whose
+  peak passes ~15 GB); not proven. Pair 3 still running; final line at the next wake.
+- DME parts: all but 2 (on 44). Resumed 69, 76, 81, 82, 83, 85, 88, 90, 92. Next 01:25.
+
 ## 2026-11-16 23:19 UTC, wake 31
 
 - Benzene grown -> mono (4 h polar)..plan on 86. DME parts done 1, 4, 6, 7, 8 (left 2 on 44, 3 on 95, 5 on 93).

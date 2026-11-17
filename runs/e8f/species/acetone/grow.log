@@ -1451,3 +1451,37 @@ acetone: 10 atoms, 9 bonds; carrying on from round 2
 round 2: 188 functions, E -192.97500162, 10955 s
   shape (A, deg): 1.51199 1.51182 1.22604 1.10506 1.10855 1.11087 1.10506 1.10863 1.11084 110.326 111.677 109.491 110.189 108.688 106.350 116.807 121.590 121.603 110.333 111.650 109.505 110.164 108.740 106.330
   added 3, predicted to move: -0.00351 -0.00351 -0.00103 -0.00970 -0.00167 -0.00092 -0.00970 -0.00166 -0.00092 -0.706 -0.009 -0.082 +0.324 +0.275 +0.315 +0.000 +0.000 +0.000 -0.704 -0.014 -0.081 +0.324 +0.279 +0.314; left 402.17
+  relaxed at 205 functions, 4129 s into round 3; 48 probes of 355 candidates to go
+  round 3 probe 1/48: 50/355 candidates, 4256 s into the round; about 100 min left in it
+  round 3 probe 1/48: 100/355 candidates, 4256 s into the round; about 100 min left in it
+  round 3 probe 1/48: 150/355 candidates, 4256 s into the round; about 100 min left in it
+  round 3 probe 1/48: 200/355 candidates, 4256 s into the round; about 100 min left in it
+  round 3 probe 1/48: 250/355 candidates, 4257 s into the round; about 100 min left in it
+  round 3 probe 1/48: 300/355 candidates, 4257 s into the round; about 100 min left in it
+  round 3 probe 1/48: 350/355 candidates, 4257 s into the round; about 101 min left in it
+  round 3 probe 1/48: 355/355 candidates, 4257 s into the round; about 101 min left in it
+  round 3 probe 2/48: 50/355 candidates, 4383 s into the round; about 97 min left in it
+  round 3 probe 2/48: 100/355 candidates, 4383 s into the round; about 97 min left in it
+  round 3 probe 2/48: 150/355 candidates, 4383 s into the round; about 97 min left in it
+  round 3 probe 2/48: 200/355 candidates, 4384 s into the round; about 97 min left in it
+  round 3 probe 2/48: 250/355 candidates, 4384 s into the round; about 97 min left in it
+  round 3 probe 2/48: 300/355 candidates, 4384 s into the round; about 97 min left in it
+  round 3 probe 2/48: 350/355 candidates, 4384 s into the round; about 97 min left in it
+  round 3 probe 2/48: 355/355 candidates, 4385 s into the round; about 97 min left in it
+  round 3 probe 3/48: 50/355 candidates, 4509 s into the round; about 94 min left in it
+  round 3 probe 3/48: 100/355 candidates, 4509 s into the round; about 94 min left in it
+  round 3 probe 3/48: 150/355 candidates, 4509 s into the round; about 94 min left in it
+  round 3 probe 3/48: 200/355 candidates, 4509 s into the round; about 94 min left in it
+  round 3 probe 3/48: 250/355 candidates, 4509 s into the round; about 94 min left in it
+  round 3 probe 3/48: 300/355 candidates, 4510 s into the round; about 94 min left in it
+  round 3 probe 3/48: 350/355 candidates, 4510 s into the round; about 94 min left in it
+  round 3 probe 3/48: 355/355 candidates, 4510 s into the round; about 94 min left in it
+  round 3 probe 4/48: 50/355 candidates, 4627 s into the round; about 87 min left in it
+  round 3 probe 4/48: 100/355 candidates, 4627 s into the round; about 87 min left in it
+  round 3 probe 4/48: 150/355 candidates, 4627 s into the round; about 87 min left in it
+  round 3 probe 4/48: 200/355 candidates, 4627 s into the round; about 87 min left in it
+  round 3 probe 4/48: 250/355 candidates, 4628 s into the round; about 87 min left in it
+  round 3 probe 4/48: 300/355 candidates, 4628 s into the round; about 87 min left in it
+  round 3 probe 4/48: 350/355 candidates, 4628 s into the round; about 87 min left in it
+  round 3 probe 4/48: 355/355 candidates, 4628 s into the round; about 87 min left in it
+acetone: 10 atoms, 9 bonds; carrying on from round 3

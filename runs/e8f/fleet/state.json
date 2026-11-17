@@ -1,6 +1,6 @@
 {
  "children": 40,
- "window": "allowed; resets 23:20 UTC",
+ "window": "allowed; resets 04:20 UTC",
  "note": "Limit hit 07:39 UTC (owner). Count cut to 31: 66, 67, 70, 71 stopped. All others resumed after the 08:10 reset.",
  "wakes": [
   {
@@ -185,6 +185,11 @@
    "at": "2026-11-16T23:19Z",
    "n": 31,
    "note": "benzene grown -> stages on 86. DME parts 1,4,6,7,8 done. Measurement: 9.1 GB RSS on pair 1. Resumed 75,76,81,82,84,85,88,92."
+  },
+  {
+   "at": "2026-11-17T00:22Z",
+   "n": 32,
+   "note": "block 18:20-23:20 clean at 37-40; orch +15.62. DME parts all but 2 done. Measurement: peak 11.62 GB, no growth across pairs 1-3. Resumed 9."
   }
  ],
  "burn_usd": null,
@@ -321,10 +326,11 @@
   ],
   "clean_at": [
    31,
-   35
+   35,
+   37
   ],
   "current_block_count": 40,
-  "block_ends": "2026-11-16T23:20Z",
+  "block_ends": "2026-11-17T04:20Z",
   "operating": null,
   "note": "block 08:20-13:20 clean at 31; window burn ~15 USD (orch 7.4 + workers ~8 est.); +4 per STATE rule"
  },
