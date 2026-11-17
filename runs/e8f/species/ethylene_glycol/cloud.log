@@ -1,0 +1,11 @@
+ethylene_glycol: dipole Hartree-Fock 0.0000 au (0.000 D), target 0.0000 au (0.000 D)
+  14653 potential points; the target's RMS 4.641e0, its mean -4.566e0 hartree/e
+  localised in 25 sweeps: 7 bond orbitals, 6 lone pairs (4 core orbitals frozen out of the localisation)
+  valence electrons 26, cores [6.0, 4.0, 1.0, 1.0]
+  atom class 0: cloud 1.296 electrons, width 0.538 bohr
+  atom class 1: cloud 2.486 electrons, width 0.413 bohr
+  atom class 2: cloud 0.848 electrons, width 1.398 bohr
+  atom class 3: cloud 1.186 electrons, width 1.051 bohr
+  lone-pair cloud of class 0: 3 pair(s) on 2 atom(s), 5.997 electrons, width 1.661 bohr, 0.270 bohr from the nucleus (the orbitals' centre is 0.270)
+  potential RMS 1.135e-2 hartree/e (atom-centred point charges alone: 4.797e-3)
+  written to cloud-ethylene_glycol.txt
