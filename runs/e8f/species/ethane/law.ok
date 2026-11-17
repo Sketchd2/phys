@@ -1,0 +1,4 @@
+K 6.5921 damping 1.6 weighted rms 0.129 kcal/mol over 8 pairs (cp); deepest pair -0.181; polarisability: split among atoms by phys-polar
+bound pairs 1: mean error +0.100, rms 0.000; deepest: reference -0.181, law -0.082
+repulsive pairs 7: reference 3.1, 14.9, 1.5, 3.9, 0.6, 0.2, 0.7; law 1.2, 5.3, 0.9, 1.7, 0.7, 0.0, 0.4
+second virial coefficient (cm3/mol): 300 K: -132.4; 600 K: -13.66
