@@ -1361,3 +1361,15 @@ round 0: 205 functions, E -196.30957781, 43492 s
 cyclopentane: 15 atoms, 15 bonds; carrying on from round 1
 cyclopentane: 15 atoms, 15 bonds; carrying on from round 1
   relaxed at 208 functions, 11200 s into round 1; 90 probes of 512 candidates to go
+  round 1 probe 1/90: 50/512 candidates, 11542 s into the round; about 514 min left in it
+  round 1 probe 1/90: 100/512 candidates, 11542 s into the round; about 514 min left in it
+  round 1 probe 1/90: 150/512 candidates, 11543 s into the round; about 514 min left in it
+  round 1 probe 1/90: 200/512 candidates, 11544 s into the round; about 514 min left in it
+  round 1 probe 1/90: 250/512 candidates, 11544 s into the round; about 514 min left in it
+  round 1 probe 1/90: 300/512 candidates, 11545 s into the round; about 514 min left in it
+  round 1 probe 1/90: 350/512 candidates, 11545 s into the round; about 514 min left in it
+  round 1 probe 1/90: 400/512 candidates, 11546 s into the round; about 514 min left in it
+  round 1 probe 1/90: 450/512 candidates, 11546 s into the round; about 514 min left in it
+  round 1 probe 1/90: 500/512 candidates, 11547 s into the round; about 514 min left in it
+  round 1 probe 1/90: 512/512 candidates, 11547 s into the round; about 514 min left in it
+cyclopentane: 15 atoms, 15 bonds; carrying on from round 1
