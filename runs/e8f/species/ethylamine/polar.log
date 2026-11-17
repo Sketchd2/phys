@@ -1,1 +1,6 @@
 ethylamine: 657 functions, field step 0.002, 3 frozen cores
+  19 fields in 5661 s (dipole width scale 1)
+  Hartree-Fock: mean 36.1273 bohr^3, diagonal 33.4852 36.9877 37.9090, off-diagonal 3.2e-1 -6.2e-2 -1.9e0
+  MP2: mean 38.4270 bohr^3, diagonal 35.4535 39.4614 40.3660, off-diagonal -5.8e-2 -3.8e-1 -2.1e0
+  atomic polarisabilities by class [4.7522085016864075, 4.414897156044064, 5.97388744974187, 5.607726775413818, 1.8638609412440574, 2.642784883671286, 3.3538682021683557, 12.187009971734415, 3.70497749038682, 2.4676731790403754] bohr^3 (classes [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]); the model's tensor: mean 38.4270, diagonal 35.4535 39.4614 40.3660; residual rms 2.38e-15
+  written to polar-ethylamine.txt

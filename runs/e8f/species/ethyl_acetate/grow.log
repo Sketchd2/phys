@@ -300,3 +300,5 @@ ethyl_acetate: 14 atoms, 13 bonds; starting
   round 0 probe 19/70: 500/512 candidates, 15770 s into the round; about 248 min left in it
   round 0 probe 19/70: 512/512 candidates, 15771 s into the round; about 249 min left in it
 ethyl_acetate: 14 atoms, 13 bonds; starting
+  relaxed at 206 functions, 13961 s into round 0; 70 probes of 512 candidates to go
+ethyl_acetate: 14 atoms, 13 bonds; starting

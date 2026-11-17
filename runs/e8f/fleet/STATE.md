@@ -6,6 +6,11 @@
 
 ## WAKE CADENCE: every 62 min, self-scheduled. At the start of each wake call send_later (+62 min) with the same message; backstop task every 6 h re-arms if the chain breaks.
 
+## 2026-11-17 21:42 UTC, wake 52
+
+- Grown: propanol (53), hexane (87: it was alive), chlorobenzene (89). mono (12 h polar) + pairs queued on each.
+  24 of 44 grown. Others unchanged. Next 22:45.
+
 ## 2026-11-17 20:50 UTC (owner asked: full check of workers 1-127)
 
 - Every session checked by status. Active 35 + 4 new (124-127): all RUNNING. Every retired worker is archived and
