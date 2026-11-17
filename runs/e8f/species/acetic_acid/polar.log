@@ -1,0 +1,4 @@
+acetic_acid: 600 functions, field step 0.002, 4 frozen cores
+  19 fields in 4256 s (dipole width scale 1)
+  Hartree-Fock: mean 31.6757 bohr^3, diagonal 30.2711 29.2821 35.4738, off-diagonal -4.3e0 -2.3e-1 -1.7e0
+  MP2: mean 34.6657 bohr^3, diagonal 33.1971 31.8049 38.9949, off-diagonal -5.2e0 -7.0e-1 -1.6e0
