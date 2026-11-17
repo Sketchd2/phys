@@ -1,3 +1,52 @@
 heptane: 23 atoms, 22 bonds; starting
 heptane: 23 atoms, 22 bonds; starting
 heptane: 23 atoms, 22 bonds; starting
+  relaxed at 307 functions, 37872 s into round 0; 86 probes of 775 candidates to go
+  round 0 probe 1/86: 50/775 candidates, 39025 s into the round; about 1676 min left in it
+  round 0 probe 1/86: 100/775 candidates, 39027 s into the round; about 1675 min left in it
+  round 0 probe 1/86: 150/775 candidates, 39029 s into the round; about 1676 min left in it
+  round 0 probe 1/86: 200/775 candidates, 39031 s into the round; about 1677 min left in it
+  round 0 probe 1/86: 250/775 candidates, 39033 s into the round; about 1676 min left in it
+  round 0 probe 1/86: 300/775 candidates, 39035 s into the round; about 1676 min left in it
+  round 0 probe 1/86: 350/775 candidates, 39037 s into the round; about 1676 min left in it
+  round 0 probe 1/86: 400/775 candidates, 39039 s into the round; about 1677 min left in it
+  round 0 probe 1/86: 450/775 candidates, 39041 s into the round; about 1677 min left in it
+  round 0 probe 1/86: 500/775 candidates, 39044 s into the round; about 1677 min left in it
+  round 0 probe 1/86: 550/775 candidates, 39046 s into the round; about 1677 min left in it
+  round 0 probe 1/86: 600/775 candidates, 39048 s into the round; about 1676 min left in it
+  round 0 probe 1/86: 650/775 candidates, 39050 s into the round; about 1676 min left in it
+  round 0 probe 1/86: 700/775 candidates, 39052 s into the round; about 1677 min left in it
+  round 0 probe 1/86: 750/775 candidates, 39054 s into the round; about 1677 min left in it
+  round 0 probe 1/86: 775/775 candidates, 39056 s into the round; about 1677 min left in it
+  round 0 probe 2/86: 50/775 candidates, 40194 s into the round; about 1638 min left in it
+  round 0 probe 2/86: 100/775 candidates, 40196 s into the round; about 1640 min left in it
+  round 0 probe 2/86: 150/775 candidates, 40198 s into the round; about 1639 min left in it
+  round 0 probe 2/86: 200/775 candidates, 40201 s into the round; about 1640 min left in it
+  round 0 probe 2/86: 250/775 candidates, 40203 s into the round; about 1640 min left in it
+  round 0 probe 2/86: 300/775 candidates, 40205 s into the round; about 1640 min left in it
+  round 0 probe 2/86: 350/775 candidates, 40208 s into the round; about 1640 min left in it
+  round 0 probe 2/86: 400/775 candidates, 40210 s into the round; about 1640 min left in it
+  round 0 probe 2/86: 450/775 candidates, 40212 s into the round; about 1640 min left in it
+  round 0 probe 2/86: 500/775 candidates, 40215 s into the round; about 1640 min left in it
+  round 0 probe 2/86: 550/775 candidates, 40217 s into the round; about 1641 min left in it
+  round 0 probe 2/86: 600/775 candidates, 40220 s into the round; about 1641 min left in it
+  round 0 probe 2/86: 650/775 candidates, 40222 s into the round; about 1640 min left in it
+  round 0 probe 2/86: 700/775 candidates, 40224 s into the round; about 1640 min left in it
+  round 0 probe 2/86: 750/775 candidates, 40226 s into the round; about 1639 min left in it
+  round 0 probe 2/86: 775/775 candidates, 40228 s into the round; about 1640 min left in it
+  round 0 probe 3/86: 50/775 candidates, 41365 s into the round; about 1610 min left in it
+  round 0 probe 3/86: 100/775 candidates, 41367 s into the round; about 1610 min left in it
+  round 0 probe 3/86: 150/775 candidates, 41369 s into the round; about 1612 min left in it
+  round 0 probe 3/86: 200/775 candidates, 41371 s into the round; about 1613 min left in it
+  round 0 probe 3/86: 250/775 candidates, 41373 s into the round; about 1614 min left in it
+  round 0 probe 3/86: 300/775 candidates, 41375 s into the round; about 1614 min left in it
+  round 0 probe 3/86: 350/775 candidates, 41377 s into the round; about 1615 min left in it
+  round 0 probe 3/86: 400/775 candidates, 41379 s into the round; about 1615 min left in it
+  round 0 probe 3/86: 450/775 candidates, 41381 s into the round; about 1615 min left in it
+  round 0 probe 3/86: 500/775 candidates, 41383 s into the round; about 1614 min left in it
+  round 0 probe 3/86: 550/775 candidates, 41385 s into the round; about 1614 min left in it
+  round 0 probe 3/86: 600/775 candidates, 41387 s into the round; about 1614 min left in it
+  round 0 probe 3/86: 650/775 candidates, 41390 s into the round; about 1614 min left in it
+  round 0 probe 3/86: 700/775 candidates, 41391 s into the round; about 1614 min left in it
+  round 0 probe 3/86: 750/775 candidates, 41394 s into the round; about 1614 min left in it
+  round 0 probe 3/86: 775/775 candidates, 41395 s into the round; about 1615 min left in it

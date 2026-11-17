@@ -1508,3 +1508,28 @@ round 7: 395 functions, E -119.01145828, 36583 s
   added 6, predicted to move: -0.00006 -0.00006 -0.00000 -0.00000 -0.00000 -0.00134 -0.00134 -0.00000 -0.00000 -0.00000 -0.050 +0.015 +0.015 +0.007 +0.007 +0.008 +0.034 -0.003 -0.003 -0.003 -0.003 -0.040 -0.050 +0.015 +0.015 +0.007 +0.007 +0.008; left 27.53
 propane: 11 atoms, 10 bonds; carrying on from round 8
 propane: 11 atoms, 10 bonds; carrying on from round 8
+  relaxed at 441 functions, 4542 s into round 8; 22 probes of 397 candidates to go
+  round 8 probe 1/22: 50/397 candidates, 4943 s into the round; about 142 min left in it
+  round 8 probe 1/22: 100/397 candidates, 4943 s into the round; about 142 min left in it
+  round 8 probe 1/22: 150/397 candidates, 4944 s into the round; about 142 min left in it
+  round 8 probe 1/22: 200/397 candidates, 4945 s into the round; about 142 min left in it
+  round 8 probe 1/22: 250/397 candidates, 4946 s into the round; about 142 min left in it
+  round 8 probe 1/22: 300/397 candidates, 4947 s into the round; about 143 min left in it
+  round 8 probe 1/22: 350/397 candidates, 4948 s into the round; about 143 min left in it
+  round 8 probe 1/22: 397/397 candidates, 4951 s into the round; about 143 min left in it
+  round 8 probe 2/22: 50/397 candidates, 5379 s into the round; about 145 min left in it
+  round 8 probe 2/22: 100/397 candidates, 5379 s into the round; about 144 min left in it
+  round 8 probe 2/22: 150/397 candidates, 5381 s into the round; about 145 min left in it
+  round 8 probe 2/22: 200/397 candidates, 5381 s into the round; about 145 min left in it
+  round 8 probe 2/22: 250/397 candidates, 5382 s into the round; about 145 min left in it
+  round 8 probe 2/22: 300/397 candidates, 5383 s into the round; about 145 min left in it
+  round 8 probe 2/22: 350/397 candidates, 5385 s into the round; about 145 min left in it
+  round 8 probe 2/22: 397/397 candidates, 5388 s into the round; about 146 min left in it
+  round 8 probe 3/22: 50/397 candidates, 5777 s into the round; about 125 min left in it
+  round 8 probe 3/22: 100/397 candidates, 5777 s into the round; about 125 min left in it
+  round 8 probe 3/22: 150/397 candidates, 5778 s into the round; about 125 min left in it
+  round 8 probe 3/22: 200/397 candidates, 5779 s into the round; about 125 min left in it
+  round 8 probe 3/22: 250/397 candidates, 5780 s into the round; about 125 min left in it
+  round 8 probe 3/22: 300/397 candidates, 5781 s into the round; about 125 min left in it
+  round 8 probe 3/22: 350/397 candidates, 5782 s into the round; about 125 min left in it
+  round 8 probe 3/22: 397/397 candidates, 5785 s into the round; about 126 min left in it
