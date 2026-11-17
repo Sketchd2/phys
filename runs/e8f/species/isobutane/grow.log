@@ -921,3 +921,36 @@ isobutane: 14 atoms, 13 bonds; carrying on from round 3
   round 3 probe 17/20: 400/485 candidates, 14781 s into the round; about 28 min left in it
   round 3 probe 17/20: 450/485 candidates, 14782 s into the round; about 28 min left in it
   round 3 probe 17/20: 485/485 candidates, 14785 s into the round; about 28 min left in it
+  round 3 probe 18/20: 50/485 candidates, 15288 s into the round; about 17 min left in it
+  round 3 probe 18/20: 100/485 candidates, 15288 s into the round; about 17 min left in it
+  round 3 probe 18/20: 150/485 candidates, 15289 s into the round; about 17 min left in it
+  round 3 probe 18/20: 200/485 candidates, 15290 s into the round; about 17 min left in it
+  round 3 probe 18/20: 250/485 candidates, 15291 s into the round; about 17 min left in it
+  round 3 probe 18/20: 300/485 candidates, 15292 s into the round; about 17 min left in it
+  round 3 probe 18/20: 350/485 candidates, 15293 s into the round; about 17 min left in it
+  round 3 probe 18/20: 400/485 candidates, 15294 s into the round; about 17 min left in it
+  round 3 probe 18/20: 450/485 candidates, 15295 s into the round; about 17 min left in it
+  round 3 probe 18/20: 485/485 candidates, 15298 s into the round; about 17 min left in it
+  round 3 probe 19/20: 50/485 candidates, 15867 s into the round; about 10 min left in it
+  round 3 probe 19/20: 100/485 candidates, 15868 s into the round; about 10 min left in it
+  round 3 probe 19/20: 150/485 candidates, 15868 s into the round; about 10 min left in it
+  round 3 probe 19/20: 200/485 candidates, 15869 s into the round; about 10 min left in it
+  round 3 probe 19/20: 250/485 candidates, 15870 s into the round; about 10 min left in it
+  round 3 probe 19/20: 300/485 candidates, 15871 s into the round; about 10 min left in it
+  round 3 probe 19/20: 350/485 candidates, 15872 s into the round; about 10 min left in it
+  round 3 probe 19/20: 400/485 candidates, 15872 s into the round; about 10 min left in it
+  round 3 probe 19/20: 450/485 candidates, 15874 s into the round; about 10 min left in it
+  round 3 probe 19/20: 485/485 candidates, 15876 s into the round; about 10 min left in it
+  round 3 probe 20/20: 50/485 candidates, 16448 s into the round; under a minute left in it
+  round 3 probe 20/20: 100/485 candidates, 16449 s into the round; under a minute left in it
+  round 3 probe 20/20: 150/485 candidates, 16450 s into the round; under a minute left in it
+  round 3 probe 20/20: 200/485 candidates, 16451 s into the round; under a minute left in it
+  round 3 probe 20/20: 250/485 candidates, 16452 s into the round; under a minute left in it
+  round 3 probe 20/20: 300/485 candidates, 16453 s into the round; under a minute left in it
+  round 3 probe 20/20: 350/485 candidates, 16454 s into the round; under a minute left in it
+  round 3 probe 20/20: 400/485 candidates, 16455 s into the round; under a minute left in it
+  round 3 probe 20/20: 450/485 candidates, 16456 s into the round; under a minute left in it
+  round 3 probe 20/20: 485/485 candidates, 16459 s into the round; under a minute left in it
+round 3: 312 functions, E -158.28001229, 16459 s
+  shape (A, deg): 1.53206 1.53231 1.53244 1.10044 1.10306 1.10044 1.10618 1.10044 1.10045 1.10312 1.10045 1.10310 1.10046 111.382 110.829 111.393 107.592 107.867 107.600 111.156 111.129 107.753 111.120 107.746 107.755 111.393 111.380 110.837 107.863 107.594 107.595 111.400 110.798 111.406 107.591 107.878 107.590
+  added 15, predicted to move: -0.00003 -0.00003 -0.00003 -0.00193 -0.00075 -0.00193 -0.00001 -0.00193 -0.00193 -0.00075 -0.00193 -0.00075 -0.00193 +0.012 +0.017 +0.012 -0.009 -0.029 -0.009 -0.011 -0.011 +0.015 -0.011 +0.015 +0.015 +0.012 +0.012 +0.017 -0.029 -0.009 -0.009 +0.012 +0.017 +0.012 -0.009 -0.029 -0.009; left 95.61
