@@ -4,3 +4,4 @@ ethane-liq-720-0.427-w108 species/ethane ../../fleet/liquid-state.sh ethane 720 
 ethane-liq-720-0.0333-w108 species/ethane ../../fleet/liquid-state.sh ethane 720 0.0333 20
 ethane-liq-180-0.6-w108 species/ethane ../../fleet/liquid-state.sh ethane 180 0.6 20
 ethane-liq-231-0.6-w108 species/ethane ../../fleet/liquid-state.sh ethane 231 0.6 20
+STOP

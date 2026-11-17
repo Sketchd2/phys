@@ -89,3 +89,9 @@
 95 runs/e8f/species/acetic_acid/frozen-part-1.txt
 95 runs/e8f/species/acetic_acid/frozen-part-2.txt
 95 runs/e8f/species/acetic_acid/frozen-part-3.txt
+110 runs/e8f/species/chloroform/full-part-2
+110 runs/e8f/species/chloroform/full-part-3
+111 runs/e8f/species/chloroform/full-part-2
+111 runs/e8f/species/chloroform/full-part-4
+79 runs/e8f/species/chloroform/full-part-3
+79 runs/e8f/species/chloroform/full-part-4

@@ -3,3 +3,4 @@ ethane-liq-144-0.667-w111 species/ethane ../../fleet/liquid-state.sh ethane 144 
 ethane-liq-720-0.187-w111 species/ethane ../../fleet/liquid-state.sh ethane 720 0.187 20
 ethane-liq-159-0.6-w111 species/ethane ../../fleet/liquid-state.sh ethane 159 0.6 20
 ethane-liq-202-0.6-w111 species/ethane ../../fleet/liquid-state.sh ethane 202 0.6 20
+chloroform-fullp3-w111 species/chloroform ../../fleet/full-part.sh chloroform 3 2
