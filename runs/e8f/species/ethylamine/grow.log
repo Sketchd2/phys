@@ -2835,3 +2835,19 @@ round 7: 259 functions, E -135.04471945, 46794 s
   added 3, predicted to move: -0.00020 -0.00000 +0.00090 -0.00073 -0.00109 +0.00016 +0.00025 +0.00016 +0.00012 -0.030 +0.157 -0.156 +0.119 -0.048 -0.034 -0.053 +0.020 -0.027 +0.060 -0.008 +0.038 +0.121 +0.044 +0.002; left 93.35
 ethylamine: 10 atoms, 9 bonds; carrying on from round 8
   relaxed at 290 functions, 6095 s into round 8; 48 probes of 361 candidates to go
+  round 8 probe 1/48: 50/361 candidates, 6332 s into the round; about 188 min left in it
+  round 8 probe 1/48: 100/361 candidates, 6333 s into the round; about 188 min left in it
+  round 8 probe 1/48: 150/361 candidates, 6333 s into the round; about 188 min left in it
+  round 8 probe 1/48: 200/361 candidates, 6334 s into the round; about 188 min left in it
+  round 8 probe 1/48: 250/361 candidates, 6334 s into the round; about 188 min left in it
+  round 8 probe 1/48: 300/361 candidates, 6335 s into the round; about 188 min left in it
+  round 8 probe 1/48: 350/361 candidates, 6336 s into the round; about 189 min left in it
+  round 8 probe 1/48: 361/361 candidates, 6337 s into the round; about 189 min left in it
+  round 8 probe 2/48: 50/361 candidates, 6571 s into the round; about 182 min left in it
+  round 8 probe 2/48: 100/361 candidates, 6571 s into the round; about 182 min left in it
+  round 8 probe 2/48: 150/361 candidates, 6571 s into the round; about 182 min left in it
+  round 8 probe 2/48: 200/361 candidates, 6572 s into the round; about 182 min left in it
+  round 8 probe 2/48: 250/361 candidates, 6573 s into the round; about 182 min left in it
+  round 8 probe 2/48: 300/361 candidates, 6573 s into the round; about 182 min left in it
+  round 8 probe 2/48: 350/361 candidates, 6574 s into the round; about 183 min left in it
+  round 8 probe 2/48: 361/361 candidates, 6575 s into the round; about 183 min left in it
