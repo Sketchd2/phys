@@ -924,3 +924,4 @@ pyridine: 11 atoms, 11 bonds; carrying on from round 3
   round 3 probe 11/30: 400/416 candidates, 6965 s into the round; about 57 min left in it
   round 3 probe 11/30: 416/416 candidates, 6965 s into the round; about 57 min left in it
 pyridine: 11 atoms, 11 bonds; carrying on from round 3
+  relaxed at 239 functions, 2744 s into round 3; 30 probes of 416 candidates to go
