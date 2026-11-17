@@ -1,3 +1,9 @@
 dme-pairs-p6-w94 species/dimethyl_ether ../../fleet/pairs-part.sh dimethyl_ether 6 3
 dme-pairs-p7-w94 species/dimethyl_ether ../../fleet/pairs-part.sh dimethyl_ether 7 3
 acetic_acid-pairs-p8-w94 species/acetic_acid ../../fleet/pairs-part.sh acetic_acid 8 3
+ethane-liq-598-0.667-w94 species/ethane ../../fleet/liquid-state.sh ethane 598 0.667 20
+ethane-liq-231-0.667-w94 species/ethane ../../fleet/liquid-state.sh ethane 231 0.667 20
+ethane-liq-720-0.507-w94 species/ethane ../../fleet/liquid-state.sh ethane 720 0.507 20
+ethane-liq-720-0.0667-w94 species/ethane ../../fleet/liquid-state.sh ethane 720 0.0667 20
+ethane-liq-180-0.634-w94 species/ethane ../../fleet/liquid-state.sh ethane 180 0.634 20
+ethane-liq-231-0.634-w94 species/ethane ../../fleet/liquid-state.sh ethane 231 0.634 20

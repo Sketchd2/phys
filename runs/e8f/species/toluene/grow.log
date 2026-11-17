@@ -386,3 +386,41 @@ toluene: 15 atoms, 15 bonds; starting
   round 0 probe 32/78: 559/559 candidates, 31422 s into the round; about 610 min left in it
 toluene: 15 atoms, 15 bonds; starting
 toluene: 15 atoms, 15 bonds; starting
+toluene: 15 atoms, 15 bonds; starting
+  relaxed at 227 functions, 15232 s into round 0; 78 probes of 559 candidates to go
+  round 0 probe 1/78: 50/559 candidates, 16216 s into the round; about 1273 min left in it
+  round 0 probe 1/78: 100/559 candidates, 16216 s into the round; about 1272 min left in it
+  round 0 probe 1/78: 150/559 candidates, 16217 s into the round; about 1273 min left in it
+  round 0 probe 1/78: 200/559 candidates, 16218 s into the round; about 1273 min left in it
+  round 0 probe 1/78: 250/559 candidates, 16219 s into the round; about 1273 min left in it
+  round 0 probe 1/78: 300/559 candidates, 16219 s into the round; about 1273 min left in it
+  round 0 probe 1/78: 350/559 candidates, 16220 s into the round; about 1273 min left in it
+  round 0 probe 1/78: 400/559 candidates, 16221 s into the round; about 1273 min left in it
+  round 0 probe 1/78: 450/559 candidates, 16222 s into the round; about 1273 min left in it
+  round 0 probe 1/78: 500/559 candidates, 16222 s into the round; about 1273 min left in it
+  round 0 probe 1/78: 550/559 candidates, 16223 s into the round; about 1273 min left in it
+  round 0 probe 1/78: 559/559 candidates, 16224 s into the round; about 1273 min left in it
+  round 0 probe 2/78: 50/559 candidates, 17174 s into the round; about 1211 min left in it
+  round 0 probe 2/78: 100/559 candidates, 17175 s into the round; about 1211 min left in it
+  round 0 probe 2/78: 150/559 candidates, 17175 s into the round; about 1212 min left in it
+  round 0 probe 2/78: 200/559 candidates, 17176 s into the round; about 1212 min left in it
+  round 0 probe 2/78: 250/559 candidates, 17177 s into the round; about 1212 min left in it
+  round 0 probe 2/78: 300/559 candidates, 17177 s into the round; about 1212 min left in it
+  round 0 probe 2/78: 350/559 candidates, 17178 s into the round; about 1212 min left in it
+  round 0 probe 2/78: 400/559 candidates, 17179 s into the round; about 1212 min left in it
+  round 0 probe 2/78: 450/559 candidates, 17179 s into the round; about 1212 min left in it
+  round 0 probe 2/78: 500/559 candidates, 17180 s into the round; about 1212 min left in it
+  round 0 probe 2/78: 550/559 candidates, 17181 s into the round; about 1212 min left in it
+  round 0 probe 2/78: 559/559 candidates, 17181 s into the round; about 1213 min left in it
+  round 0 probe 3/78: 50/559 candidates, 18154 s into the round; about 1226 min left in it
+  round 0 probe 3/78: 100/559 candidates, 18154 s into the round; about 1225 min left in it
+  round 0 probe 3/78: 150/559 candidates, 18155 s into the round; about 1225 min left in it
+  round 0 probe 3/78: 200/559 candidates, 18156 s into the round; about 1225 min left in it
+  round 0 probe 3/78: 250/559 candidates, 18157 s into the round; about 1225 min left in it
+  round 0 probe 3/78: 300/559 candidates, 18157 s into the round; about 1225 min left in it
+  round 0 probe 3/78: 350/559 candidates, 18158 s into the round; about 1225 min left in it
+  round 0 probe 3/78: 400/559 candidates, 18159 s into the round; about 1225 min left in it
+  round 0 probe 3/78: 450/559 candidates, 18159 s into the round; about 1225 min left in it
+  round 0 probe 3/78: 500/559 candidates, 18160 s into the round; about 1225 min left in it
+  round 0 probe 3/78: 550/559 candidates, 18161 s into the round; about 1225 min left in it
+  round 0 probe 3/78: 559/559 candidates, 18162 s into the round; about 1226 min left in it

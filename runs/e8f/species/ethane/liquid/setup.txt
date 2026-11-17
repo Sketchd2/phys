@@ -1,0 +1,5 @@
+M 30.070
+Thot 720
+rho_ref 0.667
+ewald off
+molecules 108
