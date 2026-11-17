@@ -430,6 +430,15 @@
   },
   "117": {
    "session": "session_016vymdwBPbLJFKtCf5G27fZ"
+  },
+  "118": {
+   "session": "session_016vymdyenvn63ZqzJ7kBivh"
+  },
+  "119": {
+   "session": "session_016vymdxeneagojG7fiasSe8"
+  },
+  "120": {
+   "session": "session_016vymdvusCTWMYM1oMtjYux"
   }
  },
  "ceiling": "31-35 workers + orchestrator for 4.5 h exhausted a five-hour window (limit hit 07:39 UTC)",
@@ -483,7 +492,10 @@
   103,
   17,
   42,
-  47
+  47,
+  102,
+  108,
+  114
  ],
- "merge_workers": "40 41 43 46 48 50 52 53 59 62 65 79 86 87 89 91 93 94 97 100 101 102 104 105 106 107 108 109 110 111 112 113 114 115 116 117"
+ "merge_workers": "40 41 43 46 48 50 52 53 59 62 65 79 86 87 89 91 93 94 97 100 101 104 105 106 107 109 110 111 112 113 115 116 117 118 119 120"
 }

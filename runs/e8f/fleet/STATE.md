@@ -4,6 +4,15 @@
 
 ## WAKE CADENCE: every 62 min, self-scheduled. At the start of each wake call send_later (+62 min) with the same message; backstop task every 6 h re-arms if the chain breaks.
 
+## 2026-11-17 13:09 UTC, wake 44
+
+- Ethane 13 complete states. CHLOROFORM FULL KILLED on memory after 2 of 8 pairs (like pairs): new fleet/full-part.sh
+  (2-pair parts, spill off; `full-part.sh NAME all 2` assembles HERE). Part 1 = the 2 pairs already done; p2 on 79,
+  p3 on 111, p4 on 110 (owner-only skips set). Then law HERE, plan on a worker. DME full still whole on 112 (3 h, no
+  output yet): if it is killed, same parts (4 x 2).
+- Butane grown: mono, pairs on 52. 102 (octane), 108 (ethane states), 114 (butanol) stopped again -> fresh 120, 119, 118.
+  Resumed 52, 106, 107. Rate limit status allowed. Count 38. Block ends 14:20: judge at the 14:12 wake.
+
 ## 2026-11-17 12:03 UTC, wake 43
 
 - Ethane 9 complete liquid states (21 logs of 34). Acetaldehyde pairs done (24): full..plan on 41. Acetic acid p1-3 on 115.
