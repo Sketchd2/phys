@@ -6,6 +6,14 @@
 
 ## WAKE CADENCE: every 62 min, self-scheduled. At the start of each wake call send_later (+62 min) with the same message; backstop task every 6 h re-arms if the chain breaks.
 
+## 2026-11-17 17:27 UTC, wake 48
+
+- Acetic acid frozen-part-2.txt came back at 2 pairs AGAIN: 109 had committed a stale copy. Every worker that ran an
+  acetic acid single pair (93 94 109 115) is now skipped for frozen-part-1/2/3, frozen-acetic_acid and pairs.ok.
+  Reassembled HERE: 24 pairs. Full parts (1 pair each) on 93/94/109/115 still running.
+- Ethane 23 complete states. 119 finished its ethane states: archived (count 37, weekly hold).
+- Quiet workers are all on long single jobs (full parts, polarisability, fresh grows): no resumes this wake.
+
 ## 2026-11-17 16:23 UTC, wake 47
 
 - ACETIC ACID PAIRS ASSEMBLED HERE: 24. (A merge had laid 115's killed 2-pair frozen-part-2.txt over the single-pair
