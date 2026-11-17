@@ -1,8 +1,19 @@
 # Fleet state (the orchestrator's own notes; newest first)
 
+## WEEKLY LIMIT WARNING (15:19 UTC 11-17): seven_day status allowed_warning, resets 2026-11-18 02:00 UTC. Hold at 38, add NO workers (replacements only) until it resets; if it hits, everything pauses until 02:00 and the backstop re-arms.
+
 ## WORKER COUNT: 37 from 19:05 UTC (blocks to 13:20 and 18:20 clean at 31, 35). Block ends 23:20 UTC. Every species is now started: add workers only to split real work (e.g. liquid states); if the limit hits: back to 31 and hold. The orchestrator's own context (409k) is the main cost: keep wakes minimal. Each wake: sample orchestrator + a few workers' cost (get_session) into usage.json; any worker rising >1 USD between wakes is looping: fix the cause. Full snapshot of every session once a block.
 
 ## WAKE CADENCE: every 62 min, self-scheduled. At the start of each wake call send_later (+62 min) with the same message; backstop task every 6 h re-arms if the chain breaks.
+
+## 2026-11-17 15:19 UTC, wake 46
+
+- Block 09:20-14:20 clean (five_hour allowed). But the SEVEN-DAY limit shows allowed_warning (resets 02:00 UTC):
+  hold at 38, replacements only. Orchestrator 139.79 USD total (+18 since 09:57), context 189k after compaction.
+- Ethane 21 complete states. Acetic acid part 2 joined HERE from single pairs (3, each ~1 h on its own): pair-one.sh
+  works where 3-pair parts are killed. Part 3 as single pairs on 93/94/109 too (115's 3-pair try still running; the
+  first to finish wins: `pair-one.sh acetic_acid 3 all` or 115's frozen-part-3.done). Then pairs-part.sh ... all 3.
+- 100 (ethyl acetate), 106 (glycerol), 107 (ethanol) stopped after a resume -> fresh 121, 122, 123. Resumed 105, 116.
 
 ## 2026-11-17 14:15 UTC, wake 45
 
