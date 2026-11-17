@@ -1,1 +1,2 @@
 glycerol-grow-w106 species/glycerol ../../fleet/stage.sh grow glycerol
+STOP
