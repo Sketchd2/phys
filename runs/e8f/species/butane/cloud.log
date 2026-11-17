@@ -1,1 +1,11 @@
 butane: dipole Hartree-Fock 0.0000 au (0.000 D), target 0.0000 au (0.000 D)
+  19332 potential points; the target's RMS 4.372e0, its mean -4.302e0 hartree/e
+  localised in 13 sweeps: 13 bond orbitals, 0 lone pairs (4 core orbitals frozen out of the localisation)
+  valence electrons 26, cores [4.0, 4.0, 1.0, 1.0, 1.0]
+  atom class 0: cloud 4.208 electrons, width 0.602 bohr
+  atom class 1: cloud 3.929 electrons, width 0.388 bohr
+  atom class 2: cloud 0.953 electrons, width 1.454 bohr
+  atom class 3: cloud 0.964 electrons, width 1.482 bohr
+  atom class 4: cloud 0.990 electrons, width 0.410 bohr
+  potential RMS 3.005e-3 hartree/e (atom-centred point charges alone: 4.365e-3)
+  written to cloud-butane.txt
