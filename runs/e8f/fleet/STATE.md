@@ -6,6 +6,15 @@
 
 ## WAKE CADENCE: every 62 min, self-scheduled. At the start of each wake call send_later (+62 min) with the same message; backstop task every 6 h re-arms if the chain breaks.
 
+## 2026-11-17 23:50 UTC, wake 54
+
+- HEPTANE, TOLUENE, CYCLOHEXANE: grow.sh's 20 h limit fell inside round 0, so no grow state exists, yet grow.ok was
+  written (heptane's mono panicked: "a growth state: NotFound"). grow.ok removed; regrow from scratch with MAXH=48 on
+  65, 97, 101. Their old grow.ok is merge-skipped: REMOVE those three skip lines (merge-skip.txt, last grow.ok
+  entries) once the regrow's grow.status says SETTLED or STOPPED with rounds, else the new grow.ok never arrives.
+- Grown with a state (time limit, as planned): acetone (91), cyclopentane (59), isopropanol (40) -> mono + pairs.
+- Chloroform full part 2 done (79): 79 archived (count 41 incl. 124-127). Parts 3, 4 on 111, 110.
+
 ## 2026-11-17 22:46 UTC, wake 53
 
 - Grown: phenol (43), aniline (46), pyridine (50), diethyl ether (62), heptane (65): mono + pairs queued on each.

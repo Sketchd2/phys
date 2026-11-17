@@ -1,0 +1,9 @@
+
+thread 'main' (12715) panicked at src/bin/polar.rs:30:90:
+a growth state: Os { code: 2, kind: NotFound, message: "No such file or directory" }
+stack backtrace:
+   0: __rustc::rust_begin_unwind
+   1: core::panicking::panic_fmt
+   2: core::result::unwrap_failed
+   3: phys_polar::main
+note: Some details are omitted, run with `RUST_BACKTRACE=full` for a verbose backtrace.

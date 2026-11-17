@@ -1,1 +1,3 @@
 cyclopentane-grow species/cyclopentane ../../fleet/stage.sh grow cyclopentane
+cyclopentane-mono-w59 species/cyclopentane rm -rf /tmp/spill/*; grep -q "MP2: mean" polar.log 2>/dev/null || PHYS_SPILL_MAX_GB=0 timeout 43200 $(git rev-parse --show-toplevel)/target/release/phys-polar cyclopentane > polar.log 2>&1; ../../fleet/stage.sh mono cyclopentane
+cyclopentane-pairs-w59 species/cyclopentane ../../fleet/stage.sh pairs cyclopentane

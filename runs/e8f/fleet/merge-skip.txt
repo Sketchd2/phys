@@ -195,3 +195,6 @@
 127 runs/e8f/species/acetic_acid/frozen-acetic_acid
 127 runs/e8f/species/acetic_acid/pairs.ok
 127 runs/e8f/species/acetic_acid/frozen-part-
+65 runs/e8f/species/heptane/grow.ok
+97 runs/e8f/species/toluene/grow.ok
+101 runs/e8f/species/cyclohexane/grow.ok

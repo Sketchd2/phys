@@ -1,1 +1,3 @@
 acetone-grow-w91 species/acetone ../../fleet/stage.sh grow acetone
+acetone-mono-w91 species/acetone rm -rf /tmp/spill/*; grep -q "MP2: mean" polar.log 2>/dev/null || PHYS_SPILL_MAX_GB=0 timeout 43200 $(git rev-parse --show-toplevel)/target/release/phys-polar acetone > polar.log 2>&1; ../../fleet/stage.sh mono acetone
+acetone-pairs-w91 species/acetone ../../fleet/stage.sh pairs acetone

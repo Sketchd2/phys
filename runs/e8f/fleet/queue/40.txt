@@ -9,3 +9,5 @@ d1-more-methane-ammonia shortfall bash more2.sh
 water-law species/water [ -f relaw.mark ] || { mkdir -p hand; mv law.ok law.txt plan.ok boil.ok boil.log liquid hand/ 2>/dev/null; touch relaw.mark; }; ../../fleet/stage.sh law water
 water-plan species/water ../../fleet/stage.sh plan water
 isopropanol-grow species/isopropanol ../../fleet/stage.sh grow isopropanol
+isopropanol-mono-w40 species/isopropanol rm -rf /tmp/spill/*; grep -q "MP2: mean" polar.log 2>/dev/null || PHYS_SPILL_MAX_GB=0 timeout 43200 $(git rev-parse --show-toplevel)/target/release/phys-polar isopropanol > polar.log 2>&1; ../../fleet/stage.sh mono isopropanol
+isopropanol-pairs-w40 species/isopropanol ../../fleet/stage.sh pairs isopropanol

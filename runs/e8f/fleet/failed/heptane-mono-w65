@@ -1,0 +1,2 @@
+bash: line 1: 12714 Aborted                 PHYS_SPILL_MAX_GB=0 timeout 43200 $(git rev-parse --show-toplevel)/target/release/phys-polar heptane > polar.log 2>&1
+../../fleet/stage.sh: line 25: 12720 Aborted                 $B/phys-density $NAME > density-$NAME.txt 2> density.log
