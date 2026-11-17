@@ -4,6 +4,12 @@
 
 ## WAKE CADENCE: every 62 min, self-scheduled. At the start of each wake call send_later (+62 min) with the same message; backstop task every 6 h re-arms if the chain breaks.
 
+## 2026-11-17 04:38 UTC, wake 36
+
+- Block 23:20-04:20 PASSED CLEAN at 37-40. Orchestrator +17.84 USD (context 647k; auto-compaction at 784k). Holding 37.
+- Quiet: acetic acid parts 2/8, chloroform 7/8 (p8 on 79), DME 7/8 (p2 on 44). Fresh 97-103 running (99 stopped once).
+- Resumed 69, 82, 99. Next 05:41.
+
 ## 2026-11-17 03:34 UTC, wake 35
 
 - ETHYLENE GLYCOL STOPS AT PAIRS: parts 3 and 6 killed before their first pair (50.6 GB table): one pair does not fit

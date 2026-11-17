@@ -939,3 +939,4 @@ round 2: 254 functions, E -233.43314563, 53343 s
 diethyl_ether: 15 atoms, 14 bonds; carrying on from round 3
 diethyl_ether: 15 atoms, 14 bonds; carrying on from round 3
 diethyl_ether: 15 atoms, 14 bonds; carrying on from round 3
+  relaxed at 283 functions, 8889 s into round 3; 28 probes of 506 candidates to go
