@@ -1,0 +1,15 @@
+induced dipoles on, polarisabilities by site type [9.225177448271806, 3.11010544919653, 0.0, 0.0] bohr^3
+ethane at 598 K: 108 molecules, 0.667 g/cm3, box 37.93 bohr (20.07 A), cut-off 16.0 bohr
+  8 molecules could not be turned clear of their neighbours
+  start: U/N 420.32 kcal/mol
+  easing: U/N -1.44 kcal/mol, T 607/600 K, P 6793 bar
+  settling: U/N -2.39 kcal/mol, T 572/593 K, P 5673 bar
+  warming: U/N -4.25 kcal/mol, T 545/675 K, P 2881 bar
+  0% after 1770 s: U/N -4.25 kcal/mol, P 2865 bar
+  8% after 1949 s: U/N -4.81 kcal/mol, P 2140 bar
+  17% after 2129 s: U/N -5.42 kcal/mol, P 3890 bar
+  25% after 2298 s: U/N -5.77 kcal/mol, P 5822 bar
+  33% after 2468 s: U/N -6.37 kcal/mol, P 5416 bar
+  42% after 2634 s: U/N -7.40 kcal/mol, P 1205 bar
+  50% after 2800 s: U/N -8.04 kcal/mol, P 3280 bar
+  58% after 2966 s: U/N -7.99 kcal/mol, P 2486 bar

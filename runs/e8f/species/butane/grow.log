@@ -1269,3 +1269,56 @@ butane: 14 atoms, 13 bonds; carrying on from round 4
   round 4 probe 21/26: 400/496 candidates, 25320 s into the round; about 77 min left in it
   round 4 probe 21/26: 450/496 candidates, 25323 s into the round; about 77 min left in it
   round 4 probe 21/26: 496/496 candidates, 25330 s into the round; about 78 min left in it
+  round 4 probe 22/26: 50/496 candidates, 26208 s into the round; about 59 min left in it
+  round 4 probe 22/26: 100/496 candidates, 26209 s into the round; about 59 min left in it
+  round 4 probe 22/26: 150/496 candidates, 26210 s into the round; about 59 min left in it
+  round 4 probe 22/26: 200/496 candidates, 26211 s into the round; about 59 min left in it
+  round 4 probe 22/26: 250/496 candidates, 26212 s into the round; about 59 min left in it
+  round 4 probe 22/26: 300/496 candidates, 26213 s into the round; about 59 min left in it
+  round 4 probe 22/26: 350/496 candidates, 26214 s into the round; about 59 min left in it
+  round 4 probe 22/26: 400/496 candidates, 26215 s into the round; about 59 min left in it
+  round 4 probe 22/26: 450/496 candidates, 26217 s into the round; about 59 min left in it
+  round 4 probe 22/26: 496/496 candidates, 26221 s into the round; about 59 min left in it
+  round 4 probe 23/26: 50/496 candidates, 27047 s into the round; about 42 min left in it
+  round 4 probe 23/26: 100/496 candidates, 27047 s into the round; about 42 min left in it
+  round 4 probe 23/26: 150/496 candidates, 27048 s into the round; about 42 min left in it
+  round 4 probe 23/26: 200/496 candidates, 27049 s into the round; about 42 min left in it
+  round 4 probe 23/26: 250/496 candidates, 27050 s into the round; about 42 min left in it
+  round 4 probe 23/26: 300/496 candidates, 27051 s into the round; about 42 min left in it
+  round 4 probe 23/26: 350/496 candidates, 27052 s into the round; about 42 min left in it
+  round 4 probe 23/26: 400/496 candidates, 27054 s into the round; about 42 min left in it
+  round 4 probe 23/26: 450/496 candidates, 27055 s into the round; about 42 min left in it
+  round 4 probe 23/26: 496/496 candidates, 27060 s into the round; about 42 min left in it
+  round 4 probe 24/26: 50/496 candidates, 27891 s into the round; about 28 min left in it
+  round 4 probe 24/26: 100/496 candidates, 27891 s into the round; about 28 min left in it
+  round 4 probe 24/26: 150/496 candidates, 27892 s into the round; about 28 min left in it
+  round 4 probe 24/26: 200/496 candidates, 27893 s into the round; about 28 min left in it
+  round 4 probe 24/26: 250/496 candidates, 27894 s into the round; about 28 min left in it
+  round 4 probe 24/26: 300/496 candidates, 27895 s into the round; about 28 min left in it
+  round 4 probe 24/26: 350/496 candidates, 27896 s into the round; about 28 min left in it
+  round 4 probe 24/26: 400/496 candidates, 27897 s into the round; about 28 min left in it
+  round 4 probe 24/26: 450/496 candidates, 27899 s into the round; about 28 min left in it
+  round 4 probe 24/26: 496/496 candidates, 27904 s into the round; about 28 min left in it
+  round 4 probe 25/26: 50/496 candidates, 28724 s into the round; about 14 min left in it
+  round 4 probe 25/26: 100/496 candidates, 28725 s into the round; about 14 min left in it
+  round 4 probe 25/26: 150/496 candidates, 28726 s into the round; about 14 min left in it
+  round 4 probe 25/26: 200/496 candidates, 28727 s into the round; about 14 min left in it
+  round 4 probe 25/26: 250/496 candidates, 28728 s into the round; about 14 min left in it
+  round 4 probe 25/26: 300/496 candidates, 28729 s into the round; about 14 min left in it
+  round 4 probe 25/26: 350/496 candidates, 28730 s into the round; about 14 min left in it
+  round 4 probe 25/26: 400/496 candidates, 28731 s into the round; about 14 min left in it
+  round 4 probe 25/26: 450/496 candidates, 28732 s into the round; about 14 min left in it
+  round 4 probe 25/26: 496/496 candidates, 28737 s into the round; about 14 min left in it
+  round 4 probe 26/26: 50/496 candidates, 29553 s into the round; under a minute left in it
+  round 4 probe 26/26: 100/496 candidates, 29554 s into the round; under a minute left in it
+  round 4 probe 26/26: 150/496 candidates, 29555 s into the round; under a minute left in it
+  round 4 probe 26/26: 200/496 candidates, 29555 s into the round; under a minute left in it
+  round 4 probe 26/26: 250/496 candidates, 29556 s into the round; under a minute left in it
+  round 4 probe 26/26: 300/496 candidates, 29557 s into the round; under a minute left in it
+  round 4 probe 26/26: 350/496 candidates, 29558 s into the round; under a minute left in it
+  round 4 probe 26/26: 400/496 candidates, 29559 s into the round; under a minute left in it
+  round 4 probe 26/26: 450/496 candidates, 29561 s into the round; under a minute left in it
+  round 4 probe 26/26: 496/496 candidates, 29565 s into the round; under a minute left in it
+round 4: 426 functions, E -158.28221331, 29565 s
+  shape (A, deg): 1.52833 1.52957 1.52833 1.10029 1.10023 1.10023 1.10463 1.10463 1.10463 1.10463 1.10029 1.10023 1.10023 111.785 111.113 111.113 107.604 107.604 107.418 113.298 109.644 109.644 109.079 109.079 105.822 113.298 109.079 109.079 109.644 109.644 105.822 111.785 111.113 111.113 107.604 107.604 107.418
+  added 8, predicted to move: -0.00021 -0.00035 -0.00021 -0.00102 -0.00003 -0.00003 -0.00173 -0.00173 -0.00173 -0.00173 -0.00102 -0.00003 -0.00003 +0.003 +0.012 +0.012 -0.023 -0.023 +0.015 +0.009 +0.001 +0.001 -0.006 -0.006 -0.002 +0.009 -0.006 -0.006 +0.001 +0.001 -0.002 +0.003 +0.012 +0.012 -0.023 -0.023 +0.015; left 74.50
