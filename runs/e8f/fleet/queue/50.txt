@@ -5,3 +5,5 @@ dichloromethane-full species/dichloromethane ../../fleet/stage.sh full dichlorom
 dichloromethane-law species/dichloromethane ../../fleet/stage.sh law dichloromethane
 dichloromethane-plan species/dichloromethane ../../fleet/stage.sh plan dichloromethane
 pyridine-grow-w50 species/pyridine ../../fleet/stage.sh grow pyridine
+pyridine-mono-w50 species/pyridine rm -rf /tmp/spill/*; grep -q "MP2: mean" polar.log 2>/dev/null || PHYS_SPILL_MAX_GB=0 timeout 43200 $(git rev-parse --show-toplevel)/target/release/phys-polar pyridine > polar.log 2>&1; ../../fleet/stage.sh mono pyridine
+pyridine-pairs-w50 species/pyridine ../../fleet/stage.sh pairs pyridine

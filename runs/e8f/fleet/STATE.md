@@ -6,6 +6,11 @@
 
 ## WAKE CADENCE: every 62 min, self-scheduled. At the start of each wake call send_later (+62 min) with the same message; backstop task every 6 h re-arms if the chain breaks.
 
+## 2026-11-17 22:46 UTC, wake 53
+
+- Grown: phenol (43), aniline (46), pyridine (50), diethyl ether (62), heptane (65): mono + pairs queued on each.
+  29 of 44 grown. Ethylamine mono done (pairs next on 48). Next 23:49; benzene polar 12 h limit ~00:10.
+
 ## 2026-11-17 21:42 UTC, wake 52
 
 - Grown: propanol (53), hexane (87: it was alive), chlorobenzene (89). mono (12 h polar) + pairs queued on each.

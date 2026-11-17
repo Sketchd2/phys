@@ -15,3 +15,5 @@ acetonitrile-liq-407-0.664 species/acetonitrile ../../fleet/liquid-state.sh acet
 acetonitrile-liq-462-0.664 species/acetonitrile ../../fleet/liquid-state.sh acetonitrile 462 0.664 12
 acetonitrile-liq-462-0.627-w43 species/acetonitrile ../../fleet/liquid-state.sh acetonitrile 462 0.627 12
 phenol-grow-w43 species/phenol ../../fleet/stage.sh grow phenol
+phenol-mono-w43 species/phenol rm -rf /tmp/spill/*; grep -q "MP2: mean" polar.log 2>/dev/null || PHYS_SPILL_MAX_GB=0 timeout 43200 $(git rev-parse --show-toplevel)/target/release/phys-polar phenol > polar.log 2>&1; ../../fleet/stage.sh mono phenol
+phenol-pairs-w43 species/phenol ../../fleet/stage.sh pairs phenol

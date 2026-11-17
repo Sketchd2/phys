@@ -14,3 +14,5 @@ carbon_tetrachloride-full3 species/carbon_tetrachloride ../../fleet/stage.sh ful
 carbon_tetrachloride-law3 species/carbon_tetrachloride ../../fleet/stage.sh law carbon_tetrachloride
 carbon_tetrachloride-plan3 species/carbon_tetrachloride ../../fleet/stage.sh plan carbon_tetrachloride
 heptane-grow-w65 species/heptane ../../fleet/stage.sh grow heptane
+heptane-mono-w65 species/heptane rm -rf /tmp/spill/*; grep -q "MP2: mean" polar.log 2>/dev/null || PHYS_SPILL_MAX_GB=0 timeout 43200 $(git rev-parse --show-toplevel)/target/release/phys-polar heptane > polar.log 2>&1; ../../fleet/stage.sh mono heptane
+heptane-pairs-w65 species/heptane ../../fleet/stage.sh pairs heptane
