@@ -13,3 +13,6 @@ ethane at 720 K: 108 molecules, 0.587 g/cm3, box 39.58 bohr (20.94 A), cut-off 1
   42% after 2262 s: U/N -5.02 kcal/mol, P 3905 bar
   50% after 2408 s: U/N -5.12 kcal/mol, P 1866 bar
   58% after 2548 s: U/N -5.13 kcal/mol, P 1291 bar
+  67% after 2689 s: U/N -5.45 kcal/mol, P 3900 bar
+  75% after 2830 s: U/N -5.94 kcal/mol, P 4411 bar
+  83% after 2971 s: U/N -6.71 kcal/mol, P 993 bar
