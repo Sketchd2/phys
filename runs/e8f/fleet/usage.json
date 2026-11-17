@@ -158,6 +158,11 @@
    "at": "2026-11-17T04:38Z",
    "orchestrator": 94.93,
    "note": "block 23:20-04:20 +17.84; context 647k (autocompact at 784k)"
+  },
+  {
+   "at": "2026-11-17T09:57Z",
+   "orchestrator": 121.77,
+   "note": "block 04:20-09:20 +26.84; context 734k"
   }
  ]
 }

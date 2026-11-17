@@ -1,6 +1,6 @@
 {
  "children": 39,
- "window": "allowed; resets 09:20 UTC",
+ "window": "allowed; resets 14:20 UTC",
  "note": "Limit hit 07:39 UTC (owner). Count cut to 31: 66, 67, 70, 71 stopped. All others resumed after the 08:10 reset.",
  "wakes": [
   {
@@ -230,6 +230,11 @@
    "at": "2026-11-17T08:54Z",
    "n": 40,
    "note": "ethane planned: 34 states over 93,94,108-111. chloroform pairs assembled (24) -> full..plan on 79. Count 39."
+  },
+  {
+   "at": "2026-11-17T09:57Z",
+   "n": 41,
+   "note": "block 04:20-09:20 clean at 35-39; orch +26.84 (context 734k). 95/98/103 -> 112-114 (DME full on 112). Resumed 100."
   }
  ],
  "burn_usd": null,
@@ -402,6 +407,15 @@
   },
   "111": {
    "session": "session_016vymdx8VFLQEG6XGkLeBMn"
+  },
+  "112": {
+   "session": "session_016vymdwLXXNGktqQLMsuNR5"
+  },
+  "113": {
+   "session": "session_016vyme1HLdiGRWeZ859AmMH"
+  },
+  "114": {
+   "session": "session_016vyme1MrW4mxMPBHmgZoxZ"
   }
  },
  "ceiling": "31-35 workers + orchestrator for 4.5 h exhausted a five-hour window (limit hit 07:39 UTC)",
@@ -413,10 +427,11 @@
    31,
    35,
    37,
-   37
+   37,
+   39
   ],
   "current_block_count": 40,
-  "block_ends": "2026-11-17T09:20Z",
+  "block_ends": "2026-11-17T14:20Z",
   "operating": null,
   "note": "block 08:20-13:20 clean at 31; window burn ~15 USD (orch 7.4 + workers ~8 est.); +4 per STATE rule"
  },

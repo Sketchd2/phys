@@ -4,6 +4,14 @@
 
 ## WAKE CADENCE: every 62 min, self-scheduled. At the start of each wake call send_later (+62 min) with the same message; backstop task every 6 h re-arms if the chain breaks.
 
+## 2026-11-17 09:57 UTC, wake 41
+
+- Block 04:20-09:20 PASSED CLEAN at 35-39. Orchestrator +26.84 USD (context 734k; auto-compaction at 784k is near:
+  after it, this file is the whole memory). Holding 39.
+- 95 (DME full), 98 (isobutane), 103 (butanol) stopped twice -> fresh 112, 113, 114. Resumed 100.
+- Ethane 0/34 states yet; acetic acid 5/8 parts; chloroform full on 79. DME: when full.ok arrives, run law HERE
+  (python3 ../../fleet/law.py dimethyl_ether cp via stage.sh law), then plan on a worker. Next 10:59.
+
 ## 2026-11-17 08:54 UTC, wake 40
 
 - ETHANE planned: 34 liquid states, round-robin over 93, 94, 108, 109, 110, 111 (new). Boil HERE at >=31 complete
