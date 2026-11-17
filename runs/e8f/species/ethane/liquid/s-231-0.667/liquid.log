@@ -16,3 +16,13 @@ ethane at 231 K: 108 molecules, 0.667 g/cm3, box 37.93 bohr (20.07 A), cut-off 1
   67% after 3160 s: U/N -3.40 kcal/mol, P 1061 bar
   75% after 3336 s: U/N -3.30 kcal/mol, P 1831 bar
   83% after 3506 s: U/N -3.44 kcal/mol, P 1770 bar
+  92% after 3672 s: U/N -3.70 kcal/mol, P 2484 bar
+  100% after 3834 s: U/N -3.74 kcal/mol, P 2367 bar
+ethane at 231 K (160 samples over 16 ps, block standard errors):
+  U/N -3.404 +- 0.085 kcal/mol; heat of vaporisation -U/N + RT = 3.863 kcal/mol
+  pressure 1308 +- 59 bar at 0.667 g/cm3 (a liquid at the right density sits near 1 bar; positive says it wants to expand)
+  temperatures: translation 233.5 K, rotation 235.1 K (bath 231 K)
+  mean molecular dipole 0.465 D (permanent charges and induced dipoles); dielectric constant 1.0 (blocks 1.0 +- 0.0; slow to converge)
+  dispersion beyond the cut-off (C6 354.21): -254 bar and -0.274 kcal/mol a molecule, so pressure with it 1053 bar, U/N -3.678
+  g(first atoms): first peak 0.56 at 3.35 A, first minimum 1.00 at 3.55 A, second peak 1.52 at 3.95 A, coordination to the minimum 0.54 (bulk-ethane-231.gOO.txt)
+  snapshot in bulk-ethane-231.snap
