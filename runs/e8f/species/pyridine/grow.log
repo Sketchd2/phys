@@ -824,3 +824,12 @@ round 2: 207 functions, E -248.04375901, 35889 s
   added 6, predicted to move: +0.00000 +0.00000 +0.00005 +0.00005 +0.00000 +0.00000 -0.00402 +0.00244 +0.00035 +0.00244 -0.00402 +0.000 -20650.436 -2697822450416.703 +0.000 +0.075 +0.049 +1.091 +5.195 +0.000 +0.000 +0.075 +1.091 +0.049 -20650.436 +0.000 -2697822450416.703; left 53956451128067.16
 pyridine: 11 atoms, 11 bonds; carrying on from round 3
   relaxed at 239 functions, 3040 s into round 3; 30 probes of 416 candidates to go
+  round 3 probe 1/30: 50/416 candidates, 3511 s into the round; about 229 min left in it
+  round 3 probe 1/30: 100/416 candidates, 3512 s into the round; about 229 min left in it
+  round 3 probe 1/30: 150/416 candidates, 3512 s into the round; about 229 min left in it
+  round 3 probe 1/30: 200/416 candidates, 3512 s into the round; about 229 min left in it
+  round 3 probe 1/30: 250/416 candidates, 3513 s into the round; about 229 min left in it
+  round 3 probe 1/30: 300/416 candidates, 3513 s into the round; about 229 min left in it
+  round 3 probe 1/30: 350/416 candidates, 3513 s into the round; about 229 min left in it
+  round 3 probe 1/30: 400/416 candidates, 3514 s into the round; about 229 min left in it
+  round 3 probe 1/30: 416/416 candidates, 3514 s into the round; about 229 min left in it
