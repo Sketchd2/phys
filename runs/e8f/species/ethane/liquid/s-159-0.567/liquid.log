@@ -3,3 +3,4 @@ ethane at 159 K: 108 molecules, 0.567 g/cm3, box 40.04 bohr (21.19 A), cut-off 1
   8 molecules could not be turned clear of their neighbours
   start: U/N 486.62 kcal/mol
   easing: U/N -2.44 kcal/mol, T 162/168 K, P 971 bar
+  settling: U/N -2.85 kcal/mol, T 150/135 K, P 156 bar
