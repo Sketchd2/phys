@@ -2042,3 +2042,14 @@ acetone: 10 atoms, 9 bonds; carrying on from round 3
   round 3 probe 47/48: 300/355 candidates, 11678 s into the round; about 2 min left in it
   round 3 probe 47/48: 350/355 candidates, 11679 s into the round; about 2 min left in it
   round 3 probe 47/48: 355/355 candidates, 11679 s into the round; about 2 min left in it
+  round 3 probe 48/48: 50/355 candidates, 11827 s into the round; under a minute left in it
+  round 3 probe 48/48: 100/355 candidates, 11827 s into the round; under a minute left in it
+  round 3 probe 48/48: 150/355 candidates, 11827 s into the round; under a minute left in it
+  round 3 probe 48/48: 200/355 candidates, 11828 s into the round; under a minute left in it
+  round 3 probe 48/48: 250/355 candidates, 11828 s into the round; under a minute left in it
+  round 3 probe 48/48: 300/355 candidates, 11828 s into the round; under a minute left in it
+  round 3 probe 48/48: 350/355 candidates, 11829 s into the round; under a minute left in it
+  round 3 probe 48/48: 355/355 candidates, 11829 s into the round; under a minute left in it
+round 3: 205 functions, E -192.98421062, 11829 s
+  shape (A, deg): 1.51096 1.51080 1.22481 1.09658 1.10641 1.10899 1.09658 1.10650 1.10893 110.153 111.208 109.465 110.313 109.149 106.465 116.951 121.518 121.531 110.165 111.178 109.476 110.285 109.203 106.446
+  added 3, predicted to move: +0.00046 +0.00044 -0.00076 +0.00079 -0.00301 -0.00365 +0.00078 -0.00301 -0.00364 +0.092 -0.234 -0.401 +0.077 +0.122 +0.339 +0.005 +0.000 +0.007 +0.092 -0.243 -0.391 +0.078 +0.119 +0.342; left 258.74
