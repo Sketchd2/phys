@@ -4,3 +4,4 @@ chloroform-pairs-w79 species/chloroform ../../fleet/stage.sh pairs chloroform
 chloroform-full-w79 species/chloroform ../../fleet/stage.sh full chloroform
 chloroform-law-w79 species/chloroform ../../fleet/stage.sh law chloroform
 chloroform-plan-w79 species/chloroform ../../fleet/stage.sh plan chloroform
+chloroform-pairs-p8-w79 species/chloroform ../../fleet/pairs-part.sh chloroform 8 3
