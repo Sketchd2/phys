@@ -1508,3 +1508,4 @@ round 7: 395 functions, E -119.01145828, 36583 s
   added 6, predicted to move: -0.00006 -0.00006 -0.00000 -0.00000 -0.00000 -0.00134 -0.00134 -0.00000 -0.00000 -0.00000 -0.050 +0.015 +0.015 +0.007 +0.007 +0.008 +0.034 -0.003 -0.003 -0.003 -0.003 -0.040 -0.050 +0.015 +0.015 +0.007 +0.007 +0.008; left 27.53
 propane: 11 atoms, 10 bonds; carrying on from round 8
 propane: 11 atoms, 10 bonds; carrying on from round 8
+  relaxed at 441 functions, 4542 s into round 8; 22 probes of 397 candidates to go
