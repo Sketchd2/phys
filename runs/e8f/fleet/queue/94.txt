@@ -9,3 +9,5 @@ ethane-liq-180-0.634-w94 species/ethane ../../fleet/liquid-state.sh ethane 180 0
 ethane-liq-231-0.634-w94 species/ethane ../../fleet/liquid-state.sh ethane 231 0.634 20
 acetic_acid-p2-2-w94 species/acetic_acid ../../fleet/pair-one.sh acetic_acid 2 2
 acetic_acid-p3-2-w94 species/acetic_acid ../../fleet/pair-one.sh acetic_acid 3 2
+acetic_acid-fullp2-w94 species/acetic_acid ../../fleet/full-part.sh acetic_acid 2 1
+acetic_acid-fullp6-w94 species/acetic_acid ../../fleet/full-part.sh acetic_acid 6 1

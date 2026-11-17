@@ -954,3 +954,15 @@ isobutane: 14 atoms, 13 bonds; carrying on from round 3
 round 3: 312 functions, E -158.28001229, 16459 s
   shape (A, deg): 1.53206 1.53231 1.53244 1.10044 1.10306 1.10044 1.10618 1.10044 1.10045 1.10312 1.10045 1.10310 1.10046 111.382 110.829 111.393 107.592 107.867 107.600 111.156 111.129 107.753 111.120 107.746 107.755 111.393 111.380 110.837 107.863 107.594 107.595 111.400 110.798 111.406 107.591 107.878 107.590
   added 15, predicted to move: -0.00003 -0.00003 -0.00003 -0.00193 -0.00075 -0.00193 -0.00001 -0.00193 -0.00193 -0.00075 -0.00193 -0.00075 -0.00193 +0.012 +0.017 +0.012 -0.009 -0.029 -0.009 -0.011 -0.011 +0.015 -0.011 +0.015 +0.015 +0.012 +0.012 +0.017 -0.029 -0.009 -0.009 +0.012 +0.017 +0.012 -0.009 -0.029 -0.009; left 95.61
+  relaxed at 420 functions, 5289 s into round 4; 20 probes of 503 candidates to go
+  round 4 probe 1/20: 50/503 candidates, 6028 s into the round; about 238 min left in it
+  round 4 probe 1/20: 100/503 candidates, 6029 s into the round; about 238 min left in it
+  round 4 probe 1/20: 150/503 candidates, 6031 s into the round; about 238 min left in it
+  round 4 probe 1/20: 200/503 candidates, 6032 s into the round; about 238 min left in it
+  round 4 probe 1/20: 250/503 candidates, 6034 s into the round; about 238 min left in it
+  round 4 probe 1/20: 300/503 candidates, 6035 s into the round; about 238 min left in it
+  round 4 probe 1/20: 350/503 candidates, 6037 s into the round; about 238 min left in it
+  round 4 probe 1/20: 400/503 candidates, 6038 s into the round; about 238 min left in it
+  round 4 probe 1/20: 450/503 candidates, 6041 s into the round; about 239 min left in it
+  round 4 probe 1/20: 500/503 candidates, 6045 s into the round; about 240 min left in it
+  round 4 probe 1/20: 503/503 candidates, 6045 s into the round; about 240 min left in it
