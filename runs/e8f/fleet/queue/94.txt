@@ -1,5 +1,3 @@
 dme-pairs-p6-w94 species/dimethyl_ether ../../fleet/pairs-part.sh dimethyl_ether 6 3
 dme-pairs-p7-w94 species/dimethyl_ether ../../fleet/pairs-part.sh dimethyl_ether 7 3
-ethylene_glycol-pairs-p6-w94 species/ethylene_glycol ../../fleet/pairs-part.sh ethylene_glycol 6 3
-ethylene_glycol-pairs-p7-w94 species/ethylene_glycol ../../fleet/pairs-part.sh ethylene_glycol 7 3
-ethylene_glycol-pairs-p8-w94 species/ethylene_glycol ../../fleet/pairs-part.sh ethylene_glycol 8 3
+acetic_acid-pairs-p8-w94 species/acetic_acid ../../fleet/pairs-part.sh acetic_acid 8 3

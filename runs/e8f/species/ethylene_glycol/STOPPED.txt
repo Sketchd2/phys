@@ -1,0 +1,1 @@
+ETHYLENE GLYCOL STOPS AT PAIRS: one frozen pair (50.6 GB fit table) is killed on a 15 GB worker before it finishes, even as a 3-pair process with spill off. Bigger machine or smaller basis: owner's decision.

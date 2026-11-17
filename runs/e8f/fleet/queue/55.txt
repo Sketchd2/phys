@@ -4,5 +4,4 @@ ethylene_glycol-pairs-w55 species/ethylene_glycol ../../fleet/stage.sh pairs eth
 ethylene_glycol-full-w55 species/ethylene_glycol ../../fleet/stage.sh full ethylene_glycol
 ethylene_glycol-law-w55 species/ethylene_glycol ../../fleet/stage.sh law ethylene_glycol
 ethylene_glycol-plan-w55 species/ethylene_glycol ../../fleet/stage.sh plan ethylene_glycol
-ethylene_glycol-pairs-p1-w55 species/ethylene_glycol ../../fleet/pairs-part.sh ethylene_glycol 1 3
-ethylene_glycol-pairs-p2-w55 species/ethylene_glycol ../../fleet/pairs-part.sh ethylene_glycol 2 3
+STOP

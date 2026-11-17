@@ -10,5 +10,3 @@ dimethyl_ether-full2 species/dimethyl_ether ../../fleet/stage.sh full dimethyl_e
 dimethyl_ether-law2 species/dimethyl_ether ../../fleet/stage.sh law dimethyl_ether
 dimethyl_ether-plan2 species/dimethyl_ether ../../fleet/stage.sh plan dimethyl_ether
 dme-pairs-p2-w44 species/dimethyl_ether ../../fleet/pairs-part.sh dimethyl_ether 2 3
-acetic_acid-pairs-p7-w44 species/acetic_acid ../../fleet/pairs-part.sh acetic_acid 7 3
-acetic_acid-pairs-p8-w44 species/acetic_acid ../../fleet/pairs-part.sh acetic_acid 8 3
