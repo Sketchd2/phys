@@ -14,3 +14,6 @@ ethane at 504 K: 108 molecules, 0.667 g/cm3, box 37.93 bohr (20.07 A), cut-off 1
   50% after 2653 s: U/N -7.44 kcal/mol, P 2366 bar
   58% after 2816 s: U/N -7.43 kcal/mol, P 3098 bar
   67% after 2980 s: U/N -8.33 kcal/mol, P 4504 bar
+  75% after 3147 s: U/N -9.23 kcal/mol, P 3618 bar
+  83% after 3317 s: U/N -9.10 kcal/mol, P 5961 bar
+  92% after 3487 s: U/N -9.55 kcal/mol, P 2824 bar
