@@ -2049,3 +2049,13 @@ round 4: 219 functions, E -194.17515476, 49974 s
 propanol: 12 atoms, 11 bonds; carrying on from round 5
 propanol: 12 atoms, 11 bonds; carrying on from round 5
 propanol: 12 atoms, 11 bonds; carrying on from round 5
+  relaxed at 258 functions, 6731 s into round 5; 42 probes of 412 candidates to go
+  round 5 probe 1/42: 50/412 candidates, 7074 s into the round; about 237 min left in it
+  round 5 probe 1/42: 100/412 candidates, 7074 s into the round; about 237 min left in it
+  round 5 probe 1/42: 150/412 candidates, 7075 s into the round; about 237 min left in it
+  round 5 probe 1/42: 200/412 candidates, 7075 s into the round; about 237 min left in it
+  round 5 probe 1/42: 250/412 candidates, 7076 s into the round; about 237 min left in it
+  round 5 probe 1/42: 300/412 candidates, 7076 s into the round; about 237 min left in it
+  round 5 probe 1/42: 350/412 candidates, 7077 s into the round; about 237 min left in it
+  round 5 probe 1/42: 400/412 candidates, 7078 s into the round; about 237 min left in it
+  round 5 probe 1/42: 412/412 candidates, 7078 s into the round; about 238 min left in it
