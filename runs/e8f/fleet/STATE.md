@@ -6,6 +6,14 @@
 
 ## WAKE CADENCE: every 62 min, self-scheduled. At the start of each wake call send_later (+62 min) with the same message; backstop task every 6 h re-arms if the chain breaks.
 
+## 2026-11-17 18:30 UTC, wake 49
+
+- Quiet hour: ethane 23 states; acetic acid full parts 1-4 running (93/94/109/115); chloroform full p2-4, DME full,
+  benzene polarisability still running. Nothing to advance.
+- Noted: octane's grow.log holds only "starting" lines across 102 and 120 (grow writes no state before its first step
+  ends, so a worker whose machine is reclaimed starts over). If 120 stops again, keep the replacement alive rather
+  than splitting: there is nothing to split.
+
 ## 2026-11-17 17:27 UTC, wake 48
 
 - Acetic acid frozen-part-2.txt came back at 2 pairs AGAIN: 109 had committed a stale copy. Every worker that ran an
