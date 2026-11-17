@@ -1567,3 +1567,16 @@ butanone: 13 atoms, 12 bonds; starting
   round 0 probe 65/66: 400/462 candidates, 21433 s into the round; about 4 min left in it
   round 0 probe 65/66: 450/462 candidates, 21434 s into the round; about 4 min left in it
   round 0 probe 65/66: 462/462 candidates, 21434 s into the round; about 4 min left in it
+  round 0 probe 66/66: 50/462 candidates, 21676 s into the round; under a minute left in it
+  round 0 probe 66/66: 100/462 candidates, 21677 s into the round; under a minute left in it
+  round 0 probe 66/66: 150/462 candidates, 21677 s into the round; under a minute left in it
+  round 0 probe 66/66: 200/462 candidates, 21678 s into the round; under a minute left in it
+  round 0 probe 66/66: 250/462 candidates, 21678 s into the round; under a minute left in it
+  round 0 probe 66/66: 300/462 candidates, 21679 s into the round; under a minute left in it
+  round 0 probe 66/66: 350/462 candidates, 21679 s into the round; under a minute left in it
+  round 0 probe 66/66: 400/462 candidates, 21680 s into the round; under a minute left in it
+  round 0 probe 66/66: 450/462 candidates, 21680 s into the round; under a minute left in it
+  round 0 probe 66/66: 462/462 candidates, 21681 s into the round; under a minute left in it
+round 0: 185 functions, E -232.21945193, 21681 s
+  shape (A, deg): 1.51824 1.51929 1.52623 1.25079 1.10376 1.10482 1.10831 1.10871 1.11294 1.10574 1.10484 1.10513 109.418 111.656 110.757 109.511 109.435 105.997 117.850 120.729 121.416 114.614 107.901 106.844 111.385 111.207 104.267 110.875 110.576 111.511 108.258 108.430 107.048
+  added 3, predicted to move: -0.00762 +0.00003 +0.00358 -0.03511 +0.00125 +0.00370 +0.00336 +0.00370 +0.00335 +0.00070 +0.00055 +0.00063 +0.889 -0.431 -0.700 +0.070 -0.084 +0.119 +0.000 +0.000 +0.000 +0.281 -0.451 -0.528 +0.057 +0.113 +0.289 -0.155 +0.080 +0.121 -0.062 -0.102 +0.108; left 691.26
