@@ -1,1 +1,2 @@
 a 10.9 GB table is over the 0.0 GB spill cap; rebuilding it instead
+pair 764: first atoms 4.79 A, electrostatic -2.163 kcal/mol, exchange 8.323, Hartree-Fock beyond both -6.160, overlap 1.4343e-3, electrons 58.00000 58.00000, 916 functions, 18134 s
