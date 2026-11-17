@@ -1164,3 +1164,17 @@ round 3: 312 functions, E -158.28001229, 16459 s
   round 4 probe 19/20: 450/503 candidates, 20535 s into the round; about 13 min left in it
   round 4 probe 19/20: 500/503 candidates, 20539 s into the round; about 13 min left in it
   round 4 probe 19/20: 503/503 candidates, 20540 s into the round; about 13 min left in it
+  round 4 probe 20/20: 50/503 candidates, 21267 s into the round; under a minute left in it
+  round 4 probe 20/20: 100/503 candidates, 21268 s into the round; under a minute left in it
+  round 4 probe 20/20: 150/503 candidates, 21269 s into the round; under a minute left in it
+  round 4 probe 20/20: 200/503 candidates, 21271 s into the round; under a minute left in it
+  round 4 probe 20/20: 250/503 candidates, 21272 s into the round; under a minute left in it
+  round 4 probe 20/20: 300/503 candidates, 21273 s into the round; under a minute left in it
+  round 4 probe 20/20: 350/503 candidates, 21274 s into the round; under a minute left in it
+  round 4 probe 20/20: 400/503 candidates, 21276 s into the round; under a minute left in it
+  round 4 probe 20/20: 450/503 candidates, 21278 s into the round; under a minute left in it
+  round 4 probe 20/20: 500/503 candidates, 21281 s into the round; under a minute left in it
+  round 4 probe 20/20: 503/503 candidates, 21282 s into the round; under a minute left in it
+round 4: 420 functions, E -158.28162431, 37741 s
+  shape (A, deg): 1.53212 1.53236 1.53249 1.09924 1.10222 1.09924 1.10615 1.09925 1.09925 1.10229 1.09925 1.10226 1.09926 111.399 110.808 111.410 107.591 107.854 107.600 111.138 111.110 107.773 111.100 107.766 107.775 111.410 111.398 110.816 107.850 107.593 107.594 111.417 110.775 111.424 107.591 107.865 107.589
+  added 7, predicted to move: +0.00038 +0.00038 +0.00038 +0.00014 -0.00154 +0.00014 -0.00072 +0.00014 +0.00014 -0.00154 +0.00014 -0.00154 +0.00014 +0.041 -0.086 +0.041 -0.007 +0.016 -0.007 -0.007 -0.007 +0.011 -0.007 +0.011 +0.011 +0.041 +0.041 -0.086 +0.016 -0.007 -0.007 +0.041 -0.086 +0.041 -0.007 +0.016 -0.007; left 84.29
