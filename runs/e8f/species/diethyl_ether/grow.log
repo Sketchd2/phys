@@ -1226,3 +1226,28 @@ diethyl_ether: 15 atoms, 14 bonds; carrying on from round 3
   round 3 probe 26/28: 450/506 candidates, 19130 s into the round; about 14 min left in it
   round 3 probe 26/28: 500/506 candidates, 19131 s into the round; about 14 min left in it
   round 3 probe 26/28: 506/506 candidates, 19131 s into the round; about 14 min left in it
+  round 3 probe 27/28: 50/506 candidates, 19533 s into the round; about 7 min left in it
+  round 3 probe 27/28: 100/506 candidates, 19534 s into the round; about 7 min left in it
+  round 3 probe 27/28: 150/506 candidates, 19535 s into the round; about 7 min left in it
+  round 3 probe 27/28: 200/506 candidates, 19535 s into the round; about 7 min left in it
+  round 3 probe 27/28: 250/506 candidates, 19536 s into the round; about 7 min left in it
+  round 3 probe 27/28: 300/506 candidates, 19537 s into the round; about 7 min left in it
+  round 3 probe 27/28: 350/506 candidates, 19537 s into the round; about 7 min left in it
+  round 3 probe 27/28: 400/506 candidates, 19538 s into the round; about 7 min left in it
+  round 3 probe 27/28: 450/506 candidates, 19539 s into the round; about 7 min left in it
+  round 3 probe 27/28: 500/506 candidates, 19540 s into the round; about 7 min left in it
+  round 3 probe 27/28: 506/506 candidates, 19540 s into the round; about 7 min left in it
+  round 3 probe 28/28: 50/506 candidates, 19966 s into the round; under a minute left in it
+  round 3 probe 28/28: 100/506 candidates, 19967 s into the round; under a minute left in it
+  round 3 probe 28/28: 150/506 candidates, 19967 s into the round; under a minute left in it
+  round 3 probe 28/28: 200/506 candidates, 19968 s into the round; under a minute left in it
+  round 3 probe 28/28: 250/506 candidates, 19969 s into the round; under a minute left in it
+  round 3 probe 28/28: 300/506 candidates, 19969 s into the round; under a minute left in it
+  round 3 probe 28/28: 350/506 candidates, 19970 s into the round; under a minute left in it
+  round 3 probe 28/28: 400/506 candidates, 19971 s into the round; under a minute left in it
+  round 3 probe 28/28: 450/506 candidates, 19971 s into the round; under a minute left in it
+  round 3 probe 28/28: 500/506 candidates, 19972 s into the round; under a minute left in it
+  round 3 probe 28/28: 506/506 candidates, 19973 s into the round; under a minute left in it
+round 3: 283 functions, E -233.44134561, 19973 s
+  shape (A, deg): 1.51770 1.42410 1.42423 1.51758 1.10148 1.10044 1.10044 1.11028 1.11028 1.11031 1.11031 1.10147 1.10046 1.10046 110.195 110.637 110.637 108.399 108.399 108.502 108.616 110.746 110.746 109.841 109.841 107.043 112.630 108.641 109.832 109.832 110.744 110.744 107.040 110.185 110.653 110.653 108.392 108.392 108.495
+  added 7, predicted to move: -0.00088 +0.00110 +0.00110 -0.00088 +0.00010 -0.00156 -0.00156 -0.00035 -0.00035 -0.00035 -0.00035 +0.00010 -0.00156 -0.00156 +0.216 +0.009 +0.009 +0.064 +0.064 -0.385 -0.002 +0.009 +0.009 -0.033 -0.033 +0.075 +0.106 -0.002 -0.033 -0.033 +0.009 +0.009 +0.075 +0.216 +0.009 +0.009 +0.064 +0.064 -0.385; left 193.46
