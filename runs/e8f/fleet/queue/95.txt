@@ -1,2 +1,5 @@
 dme-pairs-p8-w95 species/dimethyl_ether ../../fleet/pairs-part.sh dimethyl_ether 8 3
 dme-pairs-p3-w95 species/dimethyl_ether ../../fleet/pairs-part.sh dimethyl_ether 3 3
+acetic_acid-pairs-p4-w95 species/acetic_acid ../../fleet/pairs-part.sh acetic_acid 4 3
+acetic_acid-pairs-p5-w95 species/acetic_acid ../../fleet/pairs-part.sh acetic_acid 5 3
+acetic_acid-pairs-p6-w95 species/acetic_acid ../../fleet/pairs-part.sh acetic_acid 6 3

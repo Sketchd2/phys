@@ -1,2 +1,5 @@
 dme-pairs-p4-w93 species/dimethyl_ether ../../fleet/pairs-part.sh dimethyl_ether 4 3
 dme-pairs-p5-w93 species/dimethyl_ether ../../fleet/pairs-part.sh dimethyl_ether 5 3
+ethylene_glycol-pairs-p3-w93 species/ethylene_glycol ../../fleet/pairs-part.sh ethylene_glycol 3 3
+ethylene_glycol-pairs-p4-w93 species/ethylene_glycol ../../fleet/pairs-part.sh ethylene_glycol 4 3
+ethylene_glycol-pairs-p5-w93 species/ethylene_glycol ../../fleet/pairs-part.sh ethylene_glycol 5 3

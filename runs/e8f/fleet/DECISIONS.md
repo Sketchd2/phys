@@ -53,3 +53,4 @@
 2026-11-16 20:20 DME pairs killed 4 pairs in (memory grows over a run, no resume): split into 8 parts of 3 (fleet/pairs-part.sh, one process a part), part 1 seeded from the 4 finished; parts on 44 + new workers 93-95 (37 -> 40, splitting real work). Orchestrator assembles.
 2026-11-16 21:14 stopped retiring repeat stoppers: fresh workers also end their turns within 1-3 h; resume every idle worker each wake instead.
 2026-11-16 22:35 owner asked to measure a pairs part's peak memory: measure-part.sh reruns DME part 1 (known results) with 30 s samples of RSS/peak/available/spill/disk, on new worker 96 (stops after).
+2026-11-17 01:35 ethylene glycol (50.6 GB table) and acetic acid pairs killed like DME: split into 8 parts of 3 on 55/93/94 and 57/95/44 (spill off). Memory measurement (DME part 1): peak 11.62 GB, no growth across pairs, result reproduced exactly.
