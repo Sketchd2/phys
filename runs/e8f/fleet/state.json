@@ -225,6 +225,11 @@
    "at": "2026-11-17T07:50Z",
    "n": 39,
    "note": "DME pairs assembled here (24) after stale-part fix; full on 95, law/plan here later. ETHANE law not HOLE -> plan on 93. Acetic acid 5/8."
+  },
+  {
+   "at": "2026-11-17T08:54Z",
+   "n": 40,
+   "note": "ethane planned: 34 states over 93,94,108-111. chloroform pairs assembled (24) -> full..plan on 79. Count 39."
   }
  ],
  "burn_usd": null,
@@ -385,6 +390,18 @@
   },
   "107": {
    "session": "session_016vymdynMMJXxGqrBupdDbq"
+  },
+  "108": {
+   "session": "session_016vymdzVtvDf32hiWRMSz5R"
+  },
+  "109": {
+   "session": "session_016vymdxbQzQqcJb7iJZ532y"
+  },
+  "110": {
+   "session": "session_016vymdztKJacDTxYXFCC4PY"
+  },
+  "111": {
+   "session": "session_016vymdx8VFLQEG6XGkLeBMn"
   }
  },
  "ceiling": "31-35 workers + orchestrator for 4.5 h exhausted a five-hour window (limit hit 07:39 UTC)",

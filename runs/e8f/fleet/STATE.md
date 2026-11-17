@@ -4,6 +4,13 @@
 
 ## WAKE CADENCE: every 62 min, self-scheduled. At the start of each wake call send_later (+62 min) with the same message; backstop task every 6 h re-arms if the chain breaks.
 
+## 2026-11-17 08:54 UTC, wake 40
+
+- ETHANE planned: 34 liquid states, round-robin over 93, 94, 108, 109, 110, 111 (new). Boil HERE at >=31 complete
+  (check every state's log has the tail line first).
+- Chloroform pairs assembled here (24) -> full, law, plan on 79. DME full running on 95 (law here when full.ok).
+- Acetic acid 5/8 parts. Count 39. Block ends 09:20; judge at 09:56.
+
 ## 2026-11-17 07:50 UTC, wake 39
 
 - ETHANE LAW HAS NO HOLE (K 6.59, 8 pairs; computed by worker 17 on the OLD branch claude/laughing-keller-sagqde, so its law.py may predate main): third species with a liquid. Plan needs phys-b2 (not built here): on 93
