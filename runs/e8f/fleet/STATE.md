@@ -4,6 +4,13 @@
 
 ## WAKE CADENCE: every 62 min, self-scheduled. At the start of each wake call send_later (+62 min) with the same message; backstop task every 6 h re-arms if the chain breaks.
 
+## 2026-11-17 06:46 UTC, wake 38
+
+- Chloroform p8 had failed on 79 for the same missing pairs-part.sh: requeued (p8b); worker.sh now refreshes scripts.
+- 69 glycerol, 82 butanone, 84 ethanol, 99 THF (repeat stoppers) -> fresh 104 THF, 105 butanone, 106 glycerol,
+  107 ethanol. 83 stopped (acetonitrile boil done; its last states not needed). Count 35.
+- Acetic acid 5/8 parts. Resumed 95 (DME p2 + assemble + full..plan), 98, 103. Next 07:49.
+
 ## 2026-11-17 05:42 UTC, wake 37
 
 - Worker 44 had no pairs-part.sh (an old machine keeps the fleet scripts it started with): DME p2/p3 and acetic acid
