@@ -2422,3 +2422,22 @@ round 3: 205 functions, E -192.98421062, 11829 s
   round 4 probe 46/48: 300/357 candidates, 16407 s into the round; about 7 min left in it
   round 4 probe 46/48: 350/357 candidates, 16408 s into the round; about 7 min left in it
   round 4 probe 46/48: 357/357 candidates, 16408 s into the round; about 7 min left in it
+  round 4 probe 47/48: 50/357 candidates, 16631 s into the round; about 4 min left in it
+  round 4 probe 47/48: 100/357 candidates, 16631 s into the round; about 4 min left in it
+  round 4 probe 47/48: 150/357 candidates, 16632 s into the round; about 4 min left in it
+  round 4 probe 47/48: 200/357 candidates, 16632 s into the round; about 4 min left in it
+  round 4 probe 47/48: 250/357 candidates, 16632 s into the round; about 4 min left in it
+  round 4 probe 47/48: 300/357 candidates, 16633 s into the round; about 4 min left in it
+  round 4 probe 47/48: 350/357 candidates, 16633 s into the round; about 4 min left in it
+  round 4 probe 47/48: 357/357 candidates, 16634 s into the round; about 4 min left in it
+  round 4 probe 48/48: 50/357 candidates, 16842 s into the round; under a minute left in it
+  round 4 probe 48/48: 100/357 candidates, 16842 s into the round; under a minute left in it
+  round 4 probe 48/48: 150/357 candidates, 16842 s into the round; under a minute left in it
+  round 4 probe 48/48: 200/357 candidates, 16843 s into the round; under a minute left in it
+  round 4 probe 48/48: 250/357 candidates, 16843 s into the round; under a minute left in it
+  round 4 probe 48/48: 300/357 candidates, 16843 s into the round; under a minute left in it
+  round 4 probe 48/48: 350/357 candidates, 16844 s into the round; under a minute left in it
+  round 4 probe 48/48: 357/357 candidates, 16844 s into the round; under a minute left in it
+round 4: 238 functions, E -192.99220543, 28673 s
+  shape (A, deg): 1.51550 1.51535 1.22288 1.09763 1.10287 1.10479 1.09764 1.10289 1.10478 110.114 111.218 109.229 110.357 109.108 106.730 116.669 121.661 121.670 110.117 111.200 109.233 110.343 109.140 106.725
+  added 3, predicted to move: -0.00002 -0.00018 -0.00001 -0.00001 -0.00281 -0.00013 -0.00003 -0.00142 -0.00023 +0.077 +0.010 -0.018 +0.011 +0.004 -0.094 +0.024 -0.012 -0.008 +0.077 +0.015 -0.029 +0.007 +0.007 -0.083; left 128.97
