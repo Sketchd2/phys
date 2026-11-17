@@ -4,6 +4,14 @@
 
 ## WAKE CADENCE: every 62 min, self-scheduled. At the start of each wake call send_later (+62 min) with the same message; backstop task every 6 h re-arms if the chain breaks.
 
+## 2026-11-17 01:26 UTC, wake 33
+
+- Measurement finished: exit 0, 85 min, peak 11.62 GB, lowest available 3.55 GB, results identical to part 1. Done.
+- Methylamine law HOLE (12 pairs; 9th HOLE). 78 (queue done) and 96 (measurement) archived: count 38.
+- Ethylene glycol (50.6 GB table) and acetic acid pairs killed -> 8 parts of 3 each: EG on 55 (1-2), 93 (3-5), 94 (6-8);
+  acetic acid on 57 (1-3), 95 (4-6), 44 (7-8, after DME p2). Assemble here with pairs-part.sh NAME all 3, then full..plan.
+- Chloroform pairs running whole (916 functions, ~13 min a pair). Resumed 48, 76, 81, 82, 84, 85, 88, 90, 92. Next 02:29.
+
 ## 2026-11-17 00:22 UTC, wake 32
 
 - Block 18:20-23:20 PASSED CLEAN at 37-40. Orchestrator +15.62 USD (context 537k). Holding 40 (no unstarted work).
