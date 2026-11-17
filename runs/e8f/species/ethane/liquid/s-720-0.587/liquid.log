@@ -1,0 +1,28 @@
+induced dipoles on, polarisabilities by site type [9.225177448271806, 3.11010544919653, 0.0, 0.0] bohr^3
+ethane at 720 K: 108 molecules, 0.587 g/cm3, box 39.58 bohr (20.94 A), cut-off 16.0 bohr
+  8 molecules could not be turned clear of their neighbours
+  start: U/N 194.13 kcal/mol
+  easing: U/N -1.17 kcal/mol, T 729/727 K, P 4698 bar
+  settling: U/N -1.21 kcal/mol, T 768/747 K, P 6613 bar
+  warming: U/N -3.14 kcal/mol, T 791/780 K, P 2295 bar
+  0% after 1516 s: U/N -3.15 kcal/mol, P 2183 bar
+  8% after 1664 s: U/N -3.50 kcal/mol, P 5122 bar
+  17% after 1815 s: U/N -3.76 kcal/mol, P 3714 bar
+  25% after 1964 s: U/N -3.77 kcal/mol, P 5343 bar
+  33% after 2114 s: U/N -4.63 kcal/mol, P 5107 bar
+  42% after 2262 s: U/N -5.02 kcal/mol, P 3905 bar
+  50% after 2408 s: U/N -5.12 kcal/mol, P 1866 bar
+  58% after 2548 s: U/N -5.13 kcal/mol, P 1291 bar
+  67% after 2689 s: U/N -5.45 kcal/mol, P 3900 bar
+  75% after 2830 s: U/N -5.94 kcal/mol, P 4411 bar
+  83% after 2971 s: U/N -6.71 kcal/mol, P 993 bar
+  92% after 3116 s: U/N -7.13 kcal/mol, P 4603 bar
+  100% after 3268 s: U/N -8.37 kcal/mol, P 3387 bar
+ethane at 720 K (160 samples over 16 ps, block standard errors):
+  U/N -5.680 +- 0.554 kcal/mol; heat of vaporisation -U/N + RT = 7.111 kcal/mol
+  pressure 3142 +- 193 bar at 0.587 g/cm3 (a liquid at the right density sits near 1 bar; positive says it wants to expand)
+  temperatures: translation 752.4 K, rotation 744.3 K (bath 720 K)
+  mean molecular dipole 0.707 D (permanent charges and induced dipoles); dielectric constant 1.0 (blocks 1.0 +- 0.0; slow to converge)
+  dispersion beyond the cut-off (C6 354.21): -197 bar and -0.241 kcal/mol a molecule, so pressure with it 2945 bar, U/N -5.922
+  g(first atoms): first peak 0.76 at 2.85 A, first minimum 0.62 at 3.05 A, second peak 1.29 at 4.05 A, coordination to the minimum 0.36 (bulk-ethane-720.gOO.txt)
+  snapshot in bulk-ethane-720.snap
