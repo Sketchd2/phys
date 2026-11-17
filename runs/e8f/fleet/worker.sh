@@ -88,6 +88,9 @@ while read -r J D CMD; do
     git checkout -q FETCH_HEAD -- "$f" 2>/dev/null; done; mkdir -p runs/e8f/$D
   git ls-files -co runs/e8f/$D 2>/dev/null | while read -r f; do
     git cat-file -e FETCH_HEAD:"$f" 2>/dev/null || grep -qxF "$f" <<< "$OWN" || rm -f "$f"; done
+  # the fleet scripts a job calls, as the main branch has them now (a long-lived machine otherwise keeps the set it
+  # started with: worker 44 had no pairs-part.sh and failed four parts)
+  for f in $(git ls-tree --name-only FETCH_HEAD runs/e8f/fleet/ | grep -E "\.(sh|py)$" | grep -v "/worker.sh$"); do git checkout -q FETCH_HEAD -- "$f" 2>/dev/null; done
   echo $J > $CUR; rm -f /tmp/fleet/rc-$J; sleep 1; touch /tmp/fleet/stamp
   ( cd runs/e8f/$D && nohup bash -c "( $CMD ); echo \$? > /tmp/fleet/rc-$J" > $F/log/$J.log 2>&1 8>&- & echo $! > $PID )
   sleep 2
