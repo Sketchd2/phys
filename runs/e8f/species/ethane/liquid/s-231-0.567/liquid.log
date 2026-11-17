@@ -4,3 +4,25 @@ ethane at 231 K: 108 molecules, 0.567 g/cm3, box 40.04 bohr (21.19 A), cut-off 1
   start: U/N 486.62 kcal/mol
   easing: U/N -2.21 kcal/mol, T 244/281 K, P 2032 bar
   settling: U/N -2.50 kcal/mol, T 239/215 K, P 708 bar
+  warming: U/N -2.58 kcal/mol, T 227/241 K, P 772 bar
+  0% after 1561 s: U/N -2.58 kcal/mol, P 752 bar
+  8% after 1700 s: U/N -2.55 kcal/mol, P 325 bar
+  17% after 1847 s: U/N -2.58 kcal/mol, P 602 bar
+  25% after 1991 s: U/N -2.59 kcal/mol, P 319 bar
+  33% after 2129 s: U/N -2.57 kcal/mol, P 329 bar
+  42% after 2269 s: U/N -2.52 kcal/mol, P 872 bar
+  50% after 2412 s: U/N -2.58 kcal/mol, P 136 bar
+  58% after 2564 s: U/N -2.57 kcal/mol, P -82 bar
+  67% after 2718 s: U/N -2.54 kcal/mol, P 449 bar
+  75% after 2865 s: U/N -2.71 kcal/mol, P 212 bar
+  83% after 3009 s: U/N -2.66 kcal/mol, P 348 bar
+  92% after 3152 s: U/N -2.73 kcal/mol, P 416 bar
+  100% after 3297 s: U/N -2.67 kcal/mol, P 285 bar
+ethane at 231 K (160 samples over 16 ps, block standard errors):
+  U/N -2.616 +- 0.017 kcal/mol; heat of vaporisation -U/N + RT = 3.075 kcal/mol
+  pressure 311 +- 41 bar at 0.567 g/cm3 (a liquid at the right density sits near 1 bar; positive says it wants to expand)
+  temperatures: translation 230.9 K, rotation 233.3 K (bath 231 K)
+  mean molecular dipole 0.291 D (permanent charges and induced dipoles); dielectric constant 1.0 (blocks 1.0 +- 0.0; slow to converge)
+  dispersion beyond the cut-off (C6 354.21): -184 bar and -0.233 kcal/mol a molecule, so pressure with it 128 bar, U/N -2.849
+  g(first atoms): first peak 0.57 at 3.05 A, first minimum 0.26 at 3.25 A, second peak 1.40 at 4.05 A, coordination to the minimum 0.20 (bulk-ethane-231.gOO.txt)
+  snapshot in bulk-ethane-231.snap
