@@ -10,3 +10,19 @@ ethane at 720 K: 108 molecules, 0.12 g/cm3, box 67.19 bohr (35.55 A), cut-off 16
   17% after 433 s: U/N -0.41 kcal/mol, P 134 bar
   25% after 470 s: U/N -0.31 kcal/mol, P 356 bar
   33% after 504 s: U/N -0.34 kcal/mol, P 235 bar
+  42% after 539 s: U/N -0.40 kcal/mol, P 261 bar
+  50% after 573 s: U/N -0.27 kcal/mol, P 318 bar
+  58% after 609 s: U/N -0.34 kcal/mol, P 282 bar
+  67% after 645 s: U/N -0.38 kcal/mol, P 209 bar
+  75% after 680 s: U/N -0.28 kcal/mol, P 333 bar
+  83% after 716 s: U/N -0.30 kcal/mol, P 261 bar
+  92% after 754 s: U/N -0.36 kcal/mol, P 196 bar
+  100% after 790 s: U/N -0.36 kcal/mol, P 275 bar
+ethane at 720 K (160 samples over 16 ps, block standard errors):
+  U/N -0.334 +- 0.007 kcal/mol; heat of vaporisation -U/N + RT = 1.765 kcal/mol
+  pressure 256 +- 10 bar at 0.12 g/cm3 (a liquid at the right density sits near 1 bar; positive says it wants to expand)
+  temperatures: translation 707.9 K, rotation 709.5 K (bath 720 K)
+  mean molecular dipole 0.035 D (permanent charges and induced dipoles); dielectric constant 1.0 (blocks 1.0 +- 0.0; slow to converge)
+  dispersion beyond the cut-off (C6 354.21): -8 bar and -0.049 kcal/mol a molecule, so pressure with it 248 bar, U/N -0.383
+  g(first atoms): first peak 0.38 at 3.35 A, first minimum 0.54 at 3.55 A, second peak 1.23 at 5.25 A, coordination to the minimum 0.06 (bulk-ethane-720.gOO.txt)
+  snapshot in bulk-ethane-720.snap
