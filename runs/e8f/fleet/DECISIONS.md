@@ -56,3 +56,4 @@
 2026-11-17 01:35 ethylene glycol (50.6 GB table) and acetic acid pairs killed like DME: split into 8 parts of 3 on 55/93/94 and 57/95/44 (spill off). Memory measurement (DME part 1): peak 11.62 GB, no growth across pairs, result reproduced exactly.
 2026-11-17 02:35 chloroform pairs killed after 21 of 24 (4.5 h, whole run): first 21 kept as parts 1-7, part 8 on 79.
 2026-11-17 03:40 ethylene glycol stopped at pairs (a single pair killed, 15 GB worker); its parts cancelled; acetic acid p7/p8 moved to 93/94; 55 STOP.
+2026-11-17 03:45 75, 76, 81, 85, 88, 90, 92 run only ~10 min after any resume (short or full instructions); fresh sessions run for hours: archived, their jobs moved to fresh workers 97-103.

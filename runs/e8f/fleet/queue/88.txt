@@ -1,1 +1,1 @@
-cyclohexane-grow-w88 species/cyclohexane ../../fleet/stage.sh grow cyclohexane
+STOP
