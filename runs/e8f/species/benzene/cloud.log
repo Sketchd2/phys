@@ -1,1 +1,8 @@
 benzene: dipole Hartree-Fock 0.0000 au (0.000 D), target 0.0000 au (0.000 D)
+  16984 potential points; the target's RMS 4.828e0, its mean -4.755e0 hartree/e
+  localised in 39 sweeps: 15 bond orbitals, 0 lone pairs (6 core orbitals frozen out of the localisation)
+  valence electrons 30, cores [4.0, 1.0]
+  atom class 0: cloud 4.119 electrons, width 1.718 bohr
+  atom class 1: cloud 0.881 electrons, width 1.383 bohr
+  potential RMS 3.208e-3 hartree/e (atom-centred point charges alone: 6.125e-3)
+  written to cloud-benzene.txt
