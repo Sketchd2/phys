@@ -1,1 +1,2 @@
 butanone-grow-w105 species/butanone ../../fleet/stage.sh grow butanone
+STOP

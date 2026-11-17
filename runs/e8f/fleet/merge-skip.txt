@@ -186,3 +186,12 @@
 121 runs/e8f/species/ethane/liquid/
 122 runs/e8f/species/ethane/liquid/
 123 runs/e8f/species/ethane/liquid/
+127 runs/e8f/species/acetic_acid/full-part-1.
+127 runs/e8f/species/acetic_acid/full-part-2.
+127 runs/e8f/species/acetic_acid/full-part-3.
+127 runs/e8f/species/acetic_acid/full-part-5.
+127 runs/e8f/species/acetic_acid/full-part-6.
+127 runs/e8f/species/acetic_acid/full-part-7.
+127 runs/e8f/species/acetic_acid/frozen-acetic_acid
+127 runs/e8f/species/acetic_acid/pairs.ok
+127 runs/e8f/species/acetic_acid/frozen-part-
