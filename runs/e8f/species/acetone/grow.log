@@ -1485,3 +1485,4 @@ round 2: 188 functions, E -192.97500162, 10955 s
   round 3 probe 4/48: 350/355 candidates, 4628 s into the round; about 87 min left in it
   round 3 probe 4/48: 355/355 candidates, 4628 s into the round; about 87 min left in it
 acetone: 10 atoms, 9 bonds; carrying on from round 3
+  relaxed at 205 functions, 4001 s into round 3; 48 probes of 355 candidates to go
