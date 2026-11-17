@@ -4,6 +4,13 @@
 
 ## WAKE CADENCE: every 62 min, self-scheduled. At the start of each wake call send_later (+62 min) with the same message; backstop task every 6 h re-arms if the chain breaks.
 
+## 2026-11-17 12:03 UTC, wake 43
+
+- Ethane 9 complete liquid states (21 logs of 34). Acetaldehyde pairs done (24): full..plan on 41. Acetic acid p1-3 on 115.
+- Benzene polarisability killed on 86 (2-line log; its spill disk was full): retry queued on 86 (12 h, spill cleared and off).
+- 42 (propane grow, 16 h quiet) and 47 (pentane, 12 h) -> fresh 116, 117; 17 idle (ALL DONE): archived. Count 38.
+- Resumed 40 41 52 65 79 86 91 100 102 108 112 114 (quiet >1 h). Block ends 14:20: judge at the 14:09 wake. Next 13:06.
+
 ## 2026-11-17 10:59 UTC, wake 42
 
 - Ethane 6/34 states. Acetic acid p4-8 done; p1-3 had failed on 57 9 h ago (old machine, no pairs-part.sh) ->
