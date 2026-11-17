@@ -6,6 +6,14 @@
 
 ## WAKE CADENCE: every 62 min, self-scheduled. At the start of each wake call send_later (+62 min) with the same message; backstop task every 6 h re-arms if the chain breaks.
 
+## 2026-11-17 20:41 UTC (owner asked about propane)
+
+- Propane grow: 42 stalled (16 h) -> 116 at 12:05; 116 carried on from its saved round 8, stopped 13:50, resumed
+  15:19, restarted round 8 at 15:29 and went idle at 15:38. Missed for 5 h because wakes 47-51 read a quiet branch
+  as a long job. -> fresh 124 (round 8 again; rounds 1-7 are kept in grow-propane.state).
+- IDLE CHECK FROM NOW: every wake, list_sessions(children) and resume/replace any worker whose session is IDLE with
+  an unfinished queue; do not infer a long job from a quiet branch.
+
 ## 2026-11-17 20:38 UTC, wake 51
 
 - Butane polarisability timed out at 4 h (884 functions; spill disk full): retry with 12 h, spill off, on 52 (as benzene
