@@ -1,1 +1,15 @@
 acetic_acid: dipole Hartree-Fock 0.7898 au (2.008 D), target 0.7898 au (2.008 D)
+  12145 potential points; the target's RMS 4.373e0, its mean -4.292e0 hartree/e
+  localised in 64 sweeps: 7 bond orbitals, 5 lone pairs (4 core orbitals frozen out of the localisation)
+  valence electrons 24, cores [4.0, 4.0, 6.0, 6.0, 1.0, 1.0, 1.0]
+  atom class 0: cloud 4.523 electrons, width 1.462 bohr
+  atom class 1: cloud 2.937 electrons, width 0.250 bohr
+  atom class 2: cloud 2.243 electrons, width 0.899 bohr
+  atom class 3: cloud 0.968 electrons, width 0.393 bohr
+  atom class 4: cloud 0.689 electrons, width 0.250 bohr
+  atom class 5: cloud 1.065 electrons, width 1.777 bohr
+  atom class 6: cloud 0.913 electrons, width 1.144 bohr
+  lone-pair cloud of class 2: 2 pair(s) on 1 atom(s), 3.990 electrons, width 1.246 bohr, 0.212 bohr from the nucleus (the orbitals' centre is 0.212)
+  lone-pair cloud of class 3: 3 pair(s) on 1 atom(s), 5.983 electrons, width 1.844 bohr, 0.298 bohr from the nucleus (the orbitals' centre is 0.298)
+  potential RMS 1.612e-2 hartree/e (atom-centred point charges alone: 3.940e-3)
+  written to cloud-acetic_acid.txt
