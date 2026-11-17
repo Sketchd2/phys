@@ -1509,3 +1509,11 @@ round 7: 395 functions, E -119.01145828, 36583 s
 propane: 11 atoms, 10 bonds; carrying on from round 8
 propane: 11 atoms, 10 bonds; carrying on from round 8
   relaxed at 441 functions, 4542 s into round 8; 22 probes of 397 candidates to go
+  round 8 probe 1/22: 50/397 candidates, 4943 s into the round; about 142 min left in it
+  round 8 probe 1/22: 100/397 candidates, 4943 s into the round; about 142 min left in it
+  round 8 probe 1/22: 150/397 candidates, 4944 s into the round; about 142 min left in it
+  round 8 probe 1/22: 200/397 candidates, 4945 s into the round; about 142 min left in it
+  round 8 probe 1/22: 250/397 candidates, 4946 s into the round; about 142 min left in it
+  round 8 probe 1/22: 300/397 candidates, 4947 s into the round; about 143 min left in it
+  round 8 probe 1/22: 350/397 candidates, 4948 s into the round; about 143 min left in it
+  round 8 probe 1/22: 397/397 candidates, 4951 s into the round; about 143 min left in it
