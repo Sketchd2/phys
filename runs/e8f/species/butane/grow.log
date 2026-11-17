@@ -1058,3 +1058,4 @@ round 3: 368 functions, E -158.27982715, 49513 s
   added 8, predicted to move: +0.00027 -0.00007 +0.00027 +0.00000 -0.00093 -0.00093 +0.00018 +0.00018 +0.00018 +0.00018 +0.00000 -0.00093 -0.00093 -0.002 -0.022 -0.022 +0.044 +0.044 -0.034 -0.078 +0.030 +0.030 +0.057 +0.057 -0.087 -0.078 +0.057 +0.057 +0.030 +0.030 -0.087 -0.002 -0.022 -0.022 +0.044 +0.044 -0.034; left 102.66
 butane: 14 atoms, 13 bonds; carrying on from round 4
 butane: 14 atoms, 13 bonds; carrying on from round 4
+  relaxed at 426 functions, 8002 s into round 4; 26 probes of 496 candidates to go
