@@ -4,6 +4,15 @@
 
 ## WAKE CADENCE: every 62 min, self-scheduled. At the start of each wake call send_later (+62 min) with the same message; backstop task every 6 h re-arms if the chain breaks.
 
+## 2026-11-17 02:30 UTC, wake 34
+
+- Chloroform pairs killed after 21 of 24 (4.5 h, whole run) with NO spill attempt in its log: so a failed spill is not
+  the only trigger; something builds up over many pairs (3-pair measurement saw none) or a heavy pair. Owner told.
+  21 kept as parts 1-7; part 8 (pairs 22-24) on 79; then assemble here.
+- 76, 81, 82, 84, 85, 88, 90, 92 stop ~10 min after each short resume. Sent the FULL worker instructions instead
+  ("a long RUNNING is normal ... do not end your turn"). If they still stop, archive them and requeue their grows.
+- EG and acetic acid parts started (0 done). DME 7/8 (p2 on 44). Next 03:33.
+
 ## 2026-11-17 01:26 UTC, wake 33
 
 - Measurement finished: exit 0, 85 min, peak 11.62 GB, lowest available 3.55 GB, results identical to part 1. Done.
