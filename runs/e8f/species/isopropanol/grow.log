@@ -2723,3 +2723,12 @@ round 4: 197 functions, E -194.17907960, 51602 s
 isopropanol: 12 atoms, 11 bonds; carrying on from round 5
 isopropanol: 12 atoms, 11 bonds; carrying on from round 5
   relaxed at 239 functions, 9234 s into round 5; 60 probes of 410 candidates to go
+  round 5 probe 1/60: 50/410 candidates, 9525 s into the round; about 289 min left in it
+  round 5 probe 1/60: 100/410 candidates, 9525 s into the round; about 289 min left in it
+  round 5 probe 1/60: 150/410 candidates, 9526 s into the round; about 289 min left in it
+  round 5 probe 1/60: 200/410 candidates, 9526 s into the round; about 289 min left in it
+  round 5 probe 1/60: 250/410 candidates, 9526 s into the round; about 289 min left in it
+  round 5 probe 1/60: 300/410 candidates, 9527 s into the round; about 289 min left in it
+  round 5 probe 1/60: 350/410 candidates, 9527 s into the round; about 289 min left in it
+  round 5 probe 1/60: 400/410 candidates, 9528 s into the round; about 289 min left in it
+  round 5 probe 1/60: 410/410 candidates, 9528 s into the round; about 290 min left in it
