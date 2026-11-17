@@ -11,6 +11,8 @@
 - Propane grow: 42 stalled (16 h) -> 116 at 12:05; 116 carried on from its saved round 8, stopped 13:50, resumed
   15:19, restarted round 8 at 15:29 and went idle at 15:38. Missed for 5 h because wakes 47-51 read a quiet branch
   as a long job. -> fresh 124 (round 8 again; rounds 1-7 are kept in grow-propane.state).
+- Session check found 3 more idle with unfinished queues: 117 pentane, 105 butanone, 115 (acetic acid full p4, p8)
+  -> fresh 125, 126, 127; 121 resumed. Workers 40-91 not yet checked by status (next wake).
 - IDLE CHECK FROM NOW: every wake, list_sessions(children) and resume/replace any worker whose session is IDLE with
   an unfinished queue; do not infer a long job from a quiet branch.
 
