@@ -17,3 +17,12 @@ ethane at 180 K: 108 molecules, 0.634 g/cm3, box 38.57 bohr (20.41 A), cut-off 1
   75% after 3117 s: U/N -3.20 kcal/mol, P 512 bar
   83% after 3283 s: U/N -3.37 kcal/mol, P 275 bar
   92% after 3448 s: U/N -3.27 kcal/mol, P 709 bar
+  100% after 3612 s: U/N -3.37 kcal/mol, P 276 bar
+ethane at 180 K (160 samples over 16 ps, block standard errors):
+  U/N -3.311 +- 0.006 kcal/mol; heat of vaporisation -U/N + RT = 3.669 kcal/mol
+  pressure 427 +- 16 bar at 0.634 g/cm3 (a liquid at the right density sits near 1 bar; positive says it wants to expand)
+  temperatures: translation 176.6 K, rotation 180.0 K (bath 180 K)
+  mean molecular dipole 0.297 D (permanent charges and induced dipoles); dielectric constant 1.0 (blocks 1.0 +- 0.0; slow to converge)
+  dispersion beyond the cut-off (C6 354.21): -230 bar and -0.261 kcal/mol a molecule, so pressure with it 197 bar, U/N -3.572
+  g(first atoms): first peak 0.34 at 3.35 A, first minimum 0.85 at 3.55 A, second peak 1.53 at 3.95 A, coordination to the minimum 0.40 (bulk-ethane-180.gOO.txt)
+  snapshot in bulk-ethane-180.snap
