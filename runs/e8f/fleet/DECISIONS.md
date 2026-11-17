@@ -60,3 +60,4 @@
 2026-11-17 05:50 worker.sh refreshes runs/e8f/fleet/*.sh|*.py from main at each job start (44 lacked pairs-part.sh; 4 parts failed). DME p2 requeued on 95.
 2026-11-17 06:55 chloroform p8 requeued (79 lacked the script); 69/82/84/99 repeat stoppers -> fresh 104-107; 83 stopped (acetonitrile boil done, last states not needed). Count 35.
 2026-11-17 09:00 chloroform pairs assembled here (24) -> full..plan on 79. Ethane plan: 34 states over 93, 94 and new 108-111 (count 39, splitting real work).
+2026-11-17 19:34 Ethane boil HERE: 316.5 K from 34 complete states (experiment 184.6 K). 11 state logs had been overwritten in merges by other workers' stale truncated copies; restored from each state's own worker (a complete copy existed for all 11), and all ethane liquid/ paths are now merge-skipped.

@@ -974,3 +974,26 @@ phenol: 13 atoms, 13 bonds; starting
 round 0: 207 functions, E -307.15018278, 50719 s
   shape (A, deg): 1.40622 1.40526 1.40791 1.40667 1.40562 1.40869 1.39368 1.09714 1.09702 1.09617 1.09682 1.09926 0.99030 120.699 117.221 122.080 119.235 118.903 121.861 120.653 119.206 120.141 119.568 120.288 120.144 120.356 120.248 119.397 119.487 121.061 119.452 107.094
   added 3, predicted to move: +0.00000 +0.00000 +0.00000 +0.00000 +0.00000 +0.00000 +0.00010 -0.00830 +0.00147 +0.00135 -0.00858 +0.00138 -0.00037 -5.656 +0.000 -0.279 +0.015 +0.000 +0.000 -219.438 -0.176 +0.000 -0.003 +0.552 +0.000 -8.621 -0.357 +15.722 +0.000 -3.283 -0.784 -0.234; left 10697.48
+  relaxed at 216 functions, 10860 s into round 1; 64 probes of 504 candidates to go
+  round 1 probe 1/64: 50/504 candidates, 11437 s into the round; about 611 min left in it
+  round 1 probe 1/64: 100/504 candidates, 11438 s into the round; about 611 min left in it
+  round 1 probe 1/64: 150/504 candidates, 11438 s into the round; about 611 min left in it
+  round 1 probe 1/64: 200/504 candidates, 11439 s into the round; about 611 min left in it
+  round 1 probe 1/64: 250/504 candidates, 11439 s into the round; about 611 min left in it
+  round 1 probe 1/64: 300/504 candidates, 11440 s into the round; about 611 min left in it
+  round 1 probe 1/64: 350/504 candidates, 11440 s into the round; about 611 min left in it
+  round 1 probe 1/64: 400/504 candidates, 11441 s into the round; about 611 min left in it
+  round 1 probe 1/64: 450/504 candidates, 11441 s into the round; about 611 min left in it
+  round 1 probe 1/64: 500/504 candidates, 11442 s into the round; about 611 min left in it
+  round 1 probe 1/64: 504/504 candidates, 11442 s into the round; about 611 min left in it
+  round 1 probe 2/64: 50/504 candidates, 12019 s into the round; about 601 min left in it
+  round 1 probe 2/64: 100/504 candidates, 12020 s into the round; about 601 min left in it
+  round 1 probe 2/64: 150/504 candidates, 12020 s into the round; about 601 min left in it
+  round 1 probe 2/64: 200/504 candidates, 12021 s into the round; about 601 min left in it
+  round 1 probe 2/64: 250/504 candidates, 12021 s into the round; about 601 min left in it
+  round 1 probe 2/64: 300/504 candidates, 12022 s into the round; about 601 min left in it
+  round 1 probe 2/64: 350/504 candidates, 12022 s into the round; about 601 min left in it
+  round 1 probe 2/64: 400/504 candidates, 12023 s into the round; about 601 min left in it
+  round 1 probe 2/64: 450/504 candidates, 12023 s into the round; about 601 min left in it
+  round 1 probe 2/64: 500/504 candidates, 12024 s into the round; about 601 min left in it
+  round 1 probe 2/64: 504/504 candidates, 12024 s into the round; about 602 min left in it

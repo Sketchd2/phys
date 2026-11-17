@@ -6,6 +6,14 @@
 
 ## WAKE CADENCE: every 62 min, self-scheduled. At the start of each wake call send_later (+62 min) with the same message; backstop task every 6 h re-arms if the chain breaks.
 
+## 2026-11-17 19:34 UTC, wake 50
+
+- ETHANE BOILS AT 316.5 K (34 states; experiment 184.6 K). 11 of its 34 state logs had been laid over by stale
+  truncated copies (108/109/110 committing other states' early logs): each restored from the worker that ran it,
+  then the boil run HERE. All ethane liquid/ merges now skipped. Expect the same on any later species' states:
+  restore by owner (fleet/done/<job> names the worker) before boiling.
+- Ethylamine grown (48): mono, pairs on 48. Acetic acid full parts, chloroform full p2-4, DME full still running.
+
 ## 2026-11-17 18:30 UTC, wake 49
 
 - Quiet hour: ethane 23 states; acetic acid full parts 1-4 running (93/94/109/115); chloroform full p2-4, DME full,
