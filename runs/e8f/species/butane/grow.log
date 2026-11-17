@@ -1309,3 +1309,16 @@ butane: 14 atoms, 13 bonds; carrying on from round 4
   round 4 probe 25/26: 400/496 candidates, 28731 s into the round; about 14 min left in it
   round 4 probe 25/26: 450/496 candidates, 28732 s into the round; about 14 min left in it
   round 4 probe 25/26: 496/496 candidates, 28737 s into the round; about 14 min left in it
+  round 4 probe 26/26: 50/496 candidates, 29553 s into the round; under a minute left in it
+  round 4 probe 26/26: 100/496 candidates, 29554 s into the round; under a minute left in it
+  round 4 probe 26/26: 150/496 candidates, 29555 s into the round; under a minute left in it
+  round 4 probe 26/26: 200/496 candidates, 29555 s into the round; under a minute left in it
+  round 4 probe 26/26: 250/496 candidates, 29556 s into the round; under a minute left in it
+  round 4 probe 26/26: 300/496 candidates, 29557 s into the round; under a minute left in it
+  round 4 probe 26/26: 350/496 candidates, 29558 s into the round; under a minute left in it
+  round 4 probe 26/26: 400/496 candidates, 29559 s into the round; under a minute left in it
+  round 4 probe 26/26: 450/496 candidates, 29561 s into the round; under a minute left in it
+  round 4 probe 26/26: 496/496 candidates, 29565 s into the round; under a minute left in it
+round 4: 426 functions, E -158.28221331, 29565 s
+  shape (A, deg): 1.52833 1.52957 1.52833 1.10029 1.10023 1.10023 1.10463 1.10463 1.10463 1.10463 1.10029 1.10023 1.10023 111.785 111.113 111.113 107.604 107.604 107.418 113.298 109.644 109.644 109.079 109.079 105.822 113.298 109.079 109.079 109.644 109.644 105.822 111.785 111.113 111.113 107.604 107.604 107.418
+  added 8, predicted to move: -0.00021 -0.00035 -0.00021 -0.00102 -0.00003 -0.00003 -0.00173 -0.00173 -0.00173 -0.00173 -0.00102 -0.00003 -0.00003 +0.003 +0.012 +0.012 -0.023 -0.023 +0.015 +0.009 +0.001 +0.001 -0.006 -0.006 -0.002 +0.009 -0.006 -0.006 +0.001 +0.001 -0.002 +0.003 +0.012 +0.012 -0.023 -0.023 +0.015; left 74.50
