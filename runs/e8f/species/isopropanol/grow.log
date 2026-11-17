@@ -2722,3 +2722,4 @@ round 4: 197 functions, E -194.17907960, 51602 s
   added 3, predicted to move: -0.00397 -0.00418 -0.00694 -0.00015 +0.00008 +0.00016 +0.00068 +0.00003 +0.00007 -0.00008 -0.00050 +0.005 -0.148 -0.117 +0.127 +0.123 +0.049 -0.274 -0.033 +0.246 -0.163 +0.196 +0.200 -0.112 -0.156 -0.098 +0.141 +0.236 +0.045 -0.026; left 183.14
 isopropanol: 12 atoms, 11 bonds; carrying on from round 5
 isopropanol: 12 atoms, 11 bonds; carrying on from round 5
+  relaxed at 239 functions, 9234 s into round 5; 60 probes of 410 candidates to go
