@@ -6,6 +6,15 @@
 
 ## WAKE CADENCE: every 62 min, self-scheduled. At the start of each wake call send_later (+62 min) with the same message; backstop task every 6 h re-arms if the chain breaks.
 
+## 2026-11-17 16:23 UTC, wake 47
+
+- ACETIC ACID PAIRS ASSEMBLED HERE: 24. (A merge had laid 115's killed 2-pair frozen-part-2.txt over the single-pair
+  join: rejoined, and 115 is now skipped for part 2 and the assembled files.) Full as 8 single-pair parts
+  (full-part.sh acetic_acid K 1) on 93/94/109/115, two each; assemble HERE with `full-part.sh acetic_acid all 1`,
+  then law HERE, plan on a worker.
+- Ethane 22 complete states. Chloroform full p2-4 and DME full still running (no pushes while they run).
+- Resumed 93 94 109 115 (new jobs), 117, 120. Weekly-limit hold at 38 stands (resets 02:00).
+
 ## 2026-11-17 15:19 UTC, wake 46
 
 - Block 09:20-14:20 clean (five_hour allowed). But the SEVEN-DAY limit shows allowed_warning (resets 02:00 UTC):
