@@ -1400,3 +1400,28 @@ toluene: 15 atoms, 15 bonds; starting
   round 0 probe 8/78: 550/559 candidates, 22589 s into the round; about 1036 min left in it
   round 0 probe 8/78: 559/559 candidates, 22590 s into the round; about 1036 min left in it
 toluene: 15 atoms, 15 bonds; starting
+  relaxed at 227 functions, 14167 s into round 0; 78 probes of 559 candidates to go
+  round 0 probe 1/78: 50/559 candidates, 15097 s into the round; about 1200 min left in it
+  round 0 probe 1/78: 100/559 candidates, 15097 s into the round; about 1200 min left in it
+  round 0 probe 1/78: 150/559 candidates, 15098 s into the round; about 1200 min left in it
+  round 0 probe 1/78: 200/559 candidates, 15099 s into the round; about 1200 min left in it
+  round 0 probe 1/78: 250/559 candidates, 15099 s into the round; about 1200 min left in it
+  round 0 probe 1/78: 300/559 candidates, 15100 s into the round; about 1200 min left in it
+  round 0 probe 1/78: 350/559 candidates, 15100 s into the round; about 1200 min left in it
+  round 0 probe 1/78: 400/559 candidates, 15101 s into the round; about 1200 min left in it
+  round 0 probe 1/78: 450/559 candidates, 15102 s into the round; about 1201 min left in it
+  round 0 probe 1/78: 500/559 candidates, 15102 s into the round; about 1201 min left in it
+  round 0 probe 1/78: 550/559 candidates, 15103 s into the round; about 1201 min left in it
+  round 0 probe 1/78: 559/559 candidates, 15103 s into the round; about 1201 min left in it
+  round 0 probe 2/78: 50/559 candidates, 16021 s into the round; about 1170 min left in it
+  round 0 probe 2/78: 100/559 candidates, 16022 s into the round; about 1171 min left in it
+  round 0 probe 2/78: 150/559 candidates, 16022 s into the round; about 1171 min left in it
+  round 0 probe 2/78: 200/559 candidates, 16023 s into the round; about 1171 min left in it
+  round 0 probe 2/78: 250/559 candidates, 16024 s into the round; about 1171 min left in it
+  round 0 probe 2/78: 300/559 candidates, 16024 s into the round; about 1171 min left in it
+  round 0 probe 2/78: 350/559 candidates, 16025 s into the round; about 1171 min left in it
+  round 0 probe 2/78: 400/559 candidates, 16026 s into the round; about 1171 min left in it
+  round 0 probe 2/78: 450/559 candidates, 16026 s into the round; about 1171 min left in it
+  round 0 probe 2/78: 500/559 candidates, 16027 s into the round; about 1171 min left in it
+  round 0 probe 2/78: 550/559 candidates, 16028 s into the round; about 1171 min left in it
+  round 0 probe 2/78: 559/559 candidates, 16029 s into the round; about 1172 min left in it
