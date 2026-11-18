@@ -6,6 +6,13 @@
 
 ## WAKE CADENCE: every 62 min, self-scheduled. At the start of each wake call send_later (+62 min) with the same message; backstop task every 6 h re-arms if the chain breaks.
 
+## 2026-11-18 07:17 UTC, wake 61
+
+- Acetone, isopropanol mono done; their whole pairs runs were killed (47 GB table). Each split into 8 three-pair
+  parts over 4 workers: acetone 91 + new 132-134, isopropanol 40 + new 135-137 (owner-only part skips set).
+  Assemble HERE with `pairs-part.sh NAME all 3`; a part killed at 3 pairs -> pair-one.sh. Count +6 (real work).
+- Session check: 128 (ethyl acetate) idle -> resumed (first). All others RUNNING. Next 08:19.
+
 ## 2026-11-18 06:13 UTC, wake 60
 
 - Session check: every active worker RUNNING. No job finished this hour.
