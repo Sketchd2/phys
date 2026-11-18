@@ -5,3 +5,6 @@ acetone-p2-3-w132 species/acetone ../../fleet/pair-one.sh acetone 2 3
 acetone-p5-1-w132 species/acetone ../../fleet/pair-one.sh acetone 5 1
 chloroform-law-w132 species/chloroform ../../fleet/stage.sh law chloroform
 chloroform-plan-w132 species/chloroform ../../fleet/stage.sh plan chloroform
+ethylamine-p5-1-w132 species/ethylamine ../../fleet/pair-one.sh ethylamine 5 1
+ethylamine-p5-2-w132 species/ethylamine ../../fleet/pair-one.sh ethylamine 5 2
+ethylamine-p5-3-w132 species/ethylamine ../../fleet/pair-one.sh ethylamine 5 3

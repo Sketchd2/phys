@@ -3,3 +3,5 @@ butane-mono-w52 species/butane grep -q 'MP2: mean' polar.log 2>/dev/null || time
 butane-pairs-w52 species/butane ../../fleet/stage.sh pairs butane
 butane-mono-w52b species/butane rm -rf /tmp/spill/*; grep -q 'MP2: mean' polar.log 2>/dev/null || PHYS_SPILL_MAX_GB=0 timeout 43200 $(git rev-parse --show-toplevel)/target/release/phys-polar butane > polar.log 2>&1; ../../fleet/stage.sh mono butane
 butane-pairs-w52b species/butane ../../fleet/stage.sh pairs butane
+butane-mono-w52c species/butane rm -rf /tmp/spill/*; grep -q 'MP2: mean' polar.log 2>/dev/null || PHYS_SPILL_MAX_GB=0 timeout 86400 $(git rev-parse --show-toplevel)/target/release/phys-polar butane > polar.log 2>&1; ../../fleet/stage.sh mono butane
+butane-pairs-w52c species/butane ../../fleet/stage.sh pairs butane

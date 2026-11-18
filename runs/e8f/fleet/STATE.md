@@ -594,3 +594,10 @@
   as the count grows (42..), smallest first. When 17-21 finish (law), queue their plan stage.
 - Later: once water's full is done, move water's hand law/plan/boil/liquid to species/water/hand/ and queue water law+plan.
   D1 extra: phys-shortfall --more on methane and ammonia dimers still to queue.
+
+### Wake 68 (14:41 UTC)
+- Chloroform: law HOLE K 4.7059 over 8 pairs. Recorded as no liquid (the eleventh HOLE).
+- Butane: polarisability timed out at 12 h. A 24 h retry is queued on 52.
+- Ethylamine: pp2 is done. pp1, pp4 and pp5 were killed and have been split into single pairs on 48, 133 and 132. pp3, pp6, pp7 and pp8 are still running.
+- Acetone: p2-1 is done. p4-2 and p5-2 were killed. Acetone stays blocked.
+- Worker 143 (ethyl acetate grow) went idle for the first time and has been resumed.

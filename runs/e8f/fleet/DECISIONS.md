@@ -65,3 +65,8 @@
 2026-11-18 08:20 Acetaldehyde: law has a hole (K 3.57 over 8 cp pairs): no liquid, like the nine before it.
 2026-11-18 11:31 Acetone, isopropanol, propanol: pairs killed on memory even one pair at a time (46.5 GB table). Stopped further splitting; queued parts run out. Owner's call, as for CCl4 and ethylene glycol.
 2026-11-18 13:40 Chloroform law on 110 used a stale 2-pair full-chloroform.txt that 110 itself had committed at its part-4 start (a worker keeps its OWN copy over main's). Result HOLE over 2 pairs: invalid, set aside. Full reassembled HERE (8), 110 merge-skipped for chloroform/, law and plan on 132 (never touched chloroform). Rule: run law/plan on a worker that never wrote the species' files.
+
+## 2026-11-18 wake 68
+- Chloroform law rerun on 132 over the full 8 pairs (cp): HOLE K 4.7059, damping 2.4, rms 0.172. That is valid, so chloroform is the eleventh HOLE (no liquid). Its plan failing is expected.
+- Butane polarisability timed out a second time with no output after the header (4 h, then 12 h). Benzene needed two 12 h tries, so butane gets one more at 24 h on 52 (w52c), with pairs after it.
+- Ethylamine pair parts 1, 4 and 5 were killed on memory. As the rule says, they are split into single pairs with pair-one.sh: part 1 goes to 48, part 4 to 133 and part 5 to 132. The acetone work on 132 and 133 is finished or blocked, so those workers are reused rather than archived.
