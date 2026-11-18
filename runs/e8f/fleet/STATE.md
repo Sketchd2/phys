@@ -6,6 +6,14 @@
 
 ## WAKE CADENCE: every 62 min, self-scheduled. At the start of each wake call send_later (+62 min) with the same message; backstop task every 6 h re-arms if the chain breaks.
 
+## 2026-11-18 09:23 UTC, wake 63
+
+- Isopropanol parts 1 and 4 killed even at 3 pairs: single pairs (pair-one.sh, which now cuts its own sel-part file)
+  over 40, 135, 136, 137; join each HERE with `pair-one.sh isopropanol K all` then `pairs-part.sh isopropanol all 3`.
+  Killed partial frozen-part-1/4 removed and skipped.
+- Propanol whole pairs killed: 8 three-pair parts over 53 + new 139-141. Count +3 (real work).
+- Session check: 135 idle (first) -> resumed with new jobs; 53 resumed. All others RUNNING. Next 10:26.
+
 ## 2026-11-18 08:20 UTC, wake 62
 
 - ACETALDEHYDE LAW HAS A HOLE (K 3.57, 8 pairs): no liquid. Tenth HOLE species. Its plan correctly refused.
