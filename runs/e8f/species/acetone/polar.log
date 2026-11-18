@@ -1,1 +1,4 @@
 acetone: 688 functions, field step 0.002, 4 frozen cores
+  19 fields in 8592 s (dipole width scale 1)
+  Hartree-Fock: mean 39.8858 bohr^3, diagonal 33.7803 43.5305 42.3466, off-diagonal -2.4e0 -1.2e0 5.2e-1
+  MP2: mean 42.4583 bohr^3, diagonal 35.1775 46.1610 46.0364, off-diagonal -2.6e0 -1.3e0 -1.9e-2
