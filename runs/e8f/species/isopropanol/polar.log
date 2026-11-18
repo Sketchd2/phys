@@ -1,1 +1,6 @@
 isopropanol: 796 functions, field step 0.002, 4 frozen cores
+  19 fields in 17138 s (dipole width scale 1)
+  Hartree-Fock: mean 43.1907 bohr^3, diagonal 41.2373 44.5151 43.8196, off-diagonal -1.6e0 -9.7e-1 -1.7e0
+  MP2: mean 45.9751 bohr^3, diagonal 43.7146 47.1837 47.0271, off-diagonal -1.8e0 -1.1e0 -1.8e0
+  atomic polarisabilities by class [4.88223785239614, 4.475757262012384, 5.401310290037302, 4.865302649660501, 5.394472798453023, 4.998696741696599, 4.132405437148454, 4.00199424368731, 5.048063836076597, 3.945505073851092, 5.7720504572003035, 3.580926106797616] bohr^3 (classes [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]); the model's tensor: mean 45.9751, diagonal 43.7146 47.1837 47.0271; residual rms 1.96e-16
+  written to polar-isopropanol.txt
