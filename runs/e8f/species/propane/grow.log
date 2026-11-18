@@ -1672,3 +1672,54 @@ propane: 11 atoms, 10 bonds; carrying on from round 8
   round 8 probe 16/22: 300/397 candidates, 13237 s into the round; about 43 min left in it
   round 8 probe 16/22: 350/397 candidates, 13239 s into the round; about 43 min left in it
   round 8 probe 16/22: 397/397 candidates, 13242 s into the round; about 43 min left in it
+  round 8 probe 17/22: 50/397 candidates, 13676 s into the round; about 37 min left in it
+  round 8 probe 17/22: 100/397 candidates, 13677 s into the round; about 37 min left in it
+  round 8 probe 17/22: 150/397 candidates, 13677 s into the round; about 37 min left in it
+  round 8 probe 17/22: 200/397 candidates, 13678 s into the round; about 37 min left in it
+  round 8 probe 17/22: 250/397 candidates, 13679 s into the round; about 37 min left in it
+  round 8 probe 17/22: 300/397 candidates, 13679 s into the round; about 37 min left in it
+  round 8 probe 17/22: 350/397 candidates, 13681 s into the round; about 37 min left in it
+  round 8 probe 17/22: 397/397 candidates, 13683 s into the round; about 37 min left in it
+  round 8 probe 18/22: 50/397 candidates, 14162 s into the round; about 32 min left in it
+  round 8 probe 18/22: 100/397 candidates, 14163 s into the round; about 32 min left in it
+  round 8 probe 18/22: 150/397 candidates, 14164 s into the round; about 32 min left in it
+  round 8 probe 18/22: 200/397 candidates, 14165 s into the round; about 32 min left in it
+  round 8 probe 18/22: 250/397 candidates, 14165 s into the round; about 32 min left in it
+  round 8 probe 18/22: 300/397 candidates, 14166 s into the round; about 32 min left in it
+  round 8 probe 18/22: 350/397 candidates, 14168 s into the round; about 32 min left in it
+  round 8 probe 18/22: 397/397 candidates, 14171 s into the round; about 32 min left in it
+  round 8 probe 19/22: 50/397 candidates, 14680 s into the round; about 26 min left in it
+  round 8 probe 19/22: 100/397 candidates, 14681 s into the round; about 26 min left in it
+  round 8 probe 19/22: 150/397 candidates, 14682 s into the round; about 26 min left in it
+  round 8 probe 19/22: 200/397 candidates, 14683 s into the round; about 26 min left in it
+  round 8 probe 19/22: 250/397 candidates, 14684 s into the round; about 26 min left in it
+  round 8 probe 19/22: 300/397 candidates, 14685 s into the round; about 26 min left in it
+  round 8 probe 19/22: 350/397 candidates, 14686 s into the round; about 26 min left in it
+  round 8 probe 19/22: 397/397 candidates, 14690 s into the round; about 26 min left in it
+  round 8 probe 20/22: 50/397 candidates, 15215 s into the round; about 18 min left in it
+  round 8 probe 20/22: 100/397 candidates, 15216 s into the round; about 18 min left in it
+  round 8 probe 20/22: 150/397 candidates, 15217 s into the round; about 18 min left in it
+  round 8 probe 20/22: 200/397 candidates, 15218 s into the round; about 18 min left in it
+  round 8 probe 20/22: 250/397 candidates, 15219 s into the round; about 18 min left in it
+  round 8 probe 20/22: 300/397 candidates, 15220 s into the round; about 18 min left in it
+  round 8 probe 20/22: 350/397 candidates, 15221 s into the round; about 18 min left in it
+  round 8 probe 20/22: 397/397 candidates, 15226 s into the round; about 18 min left in it
+  round 8 probe 21/22: 50/397 candidates, 15786 s into the round; about 10 min left in it
+  round 8 probe 21/22: 100/397 candidates, 15787 s into the round; about 9 min left in it
+  round 8 probe 21/22: 150/397 candidates, 15788 s into the round; about 10 min left in it
+  round 8 probe 21/22: 200/397 candidates, 15789 s into the round; about 9 min left in it
+  round 8 probe 21/22: 250/397 candidates, 15790 s into the round; about 9 min left in it
+  round 8 probe 21/22: 300/397 candidates, 15791 s into the round; about 9 min left in it
+  round 8 probe 21/22: 350/397 candidates, 15792 s into the round; about 9 min left in it
+  round 8 probe 21/22: 397/397 candidates, 15796 s into the round; about 10 min left in it
+  round 8 probe 22/22: 50/397 candidates, 16286 s into the round; under a minute left in it
+  round 8 probe 22/22: 100/397 candidates, 16287 s into the round; under a minute left in it
+  round 8 probe 22/22: 150/397 candidates, 16288 s into the round; under a minute left in it
+  round 8 probe 22/22: 200/397 candidates, 16289 s into the round; under a minute left in it
+  round 8 probe 22/22: 250/397 candidates, 16289 s into the round; under a minute left in it
+  round 8 probe 22/22: 300/397 candidates, 16290 s into the round; under a minute left in it
+  round 8 probe 22/22: 350/397 candidates, 16292 s into the round; under a minute left in it
+  round 8 probe 22/22: 397/397 candidates, 16294 s into the round; under a minute left in it
+round 8: 441 functions, E -119.01204130, 16294 s
+  shape (A, deg): 1.52899 1.52905 1.09909 1.09991 1.09991 1.10183 1.10183 1.09909 1.09992 1.09992 111.720 111.100 111.100 107.670 107.670 107.384 112.884 109.455 109.455 109.451 109.451 105.907 111.719 111.103 111.103 107.666 107.666 107.385
+  added 5, predicted to move: +0.00013 +0.00013 -0.00021 +0.00007 +0.00007 -0.00001 -0.00001 -0.00021 +0.00007 +0.00007 +0.060 -0.013 -0.013 -0.001 -0.001 -0.035 -0.008 +0.001 +0.001 +0.001 +0.001 +0.008 +0.060 -0.013 -0.013 -0.001 -0.001 -0.035; left 20.00
