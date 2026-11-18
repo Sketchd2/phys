@@ -8,3 +8,6 @@ ethylamine-p4-2-w133 species/ethylamine ../../fleet/pair-one.sh ethylamine 4 2
 ethylamine-p4-3-w133 species/ethylamine ../../fleet/pair-one.sh ethylamine 4 3
 propane-pp4-w133 species/propane ../../fleet/pairs-part.sh propane 4 3
 propane-pp8-w133 species/propane ../../fleet/pairs-part.sh propane 8 3
+propane-p4-1-w133 species/propane ../../fleet/pair-one.sh propane 4 1
+propane-p4-2-w133 species/propane ../../fleet/pair-one.sh propane 4 2
+propane-p4-3-w133 species/propane ../../fleet/pair-one.sh propane 4 3

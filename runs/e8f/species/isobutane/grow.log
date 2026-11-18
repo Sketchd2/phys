@@ -1573,3 +1573,37 @@ round 5: 469 functions, E -158.28371047, 22086 s
   round 6 probe 6/20: 500/509 candidates, 18239 s into the round; about 230 min left in it
   round 6 probe 6/20: 509/509 candidates, 18241 s into the round; about 230 min left in it
 isobutane: 14 atoms, 13 bonds; carrying on from round 6
+  relaxed at 499 functions, 11504 s into round 6; 20 probes of 509 candidates to go
+  round 6 probe 1/20: 50/509 candidates, 12442 s into the round; about 301 min left in it
+  round 6 probe 1/20: 100/509 candidates, 12443 s into the round; about 301 min left in it
+  round 6 probe 1/20: 150/509 candidates, 12445 s into the round; about 301 min left in it
+  round 6 probe 1/20: 200/509 candidates, 12447 s into the round; about 302 min left in it
+  round 6 probe 1/20: 250/509 candidates, 12448 s into the round; about 302 min left in it
+  round 6 probe 1/20: 300/509 candidates, 12450 s into the round; about 302 min left in it
+  round 6 probe 1/20: 350/509 candidates, 12451 s into the round; about 302 min left in it
+  round 6 probe 1/20: 400/509 candidates, 12453 s into the round; about 302 min left in it
+  round 6 probe 1/20: 450/509 candidates, 12456 s into the round; about 302 min left in it
+  round 6 probe 1/20: 500/509 candidates, 12461 s into the round; about 303 min left in it
+  round 6 probe 1/20: 509/509 candidates, 12463 s into the round; about 304 min left in it
+  round 6 probe 2/20: 50/509 candidates, 13379 s into the round; about 278 min left in it
+  round 6 probe 2/20: 100/509 candidates, 13380 s into the round; about 278 min left in it
+  round 6 probe 2/20: 150/509 candidates, 13382 s into the round; about 279 min left in it
+  round 6 probe 2/20: 200/509 candidates, 13383 s into the round; about 279 min left in it
+  round 6 probe 2/20: 250/509 candidates, 13385 s into the round; about 279 min left in it
+  round 6 probe 2/20: 300/509 candidates, 13386 s into the round; about 279 min left in it
+  round 6 probe 2/20: 350/509 candidates, 13388 s into the round; about 279 min left in it
+  round 6 probe 2/20: 400/509 candidates, 13389 s into the round; about 279 min left in it
+  round 6 probe 2/20: 450/509 candidates, 13392 s into the round; about 279 min left in it
+  round 6 probe 2/20: 500/509 candidates, 13396 s into the round; about 280 min left in it
+  round 6 probe 2/20: 509/509 candidates, 13398 s into the round; about 280 min left in it
+  round 6 probe 3/20: 50/509 candidates, 14333 s into the round; about 270 min left in it
+  round 6 probe 3/20: 100/509 candidates, 14334 s into the round; about 269 min left in it
+  round 6 probe 3/20: 150/509 candidates, 14336 s into the round; about 269 min left in it
+  round 6 probe 3/20: 200/509 candidates, 14338 s into the round; about 269 min left in it
+  round 6 probe 3/20: 250/509 candidates, 14339 s into the round; about 269 min left in it
+  round 6 probe 3/20: 300/509 candidates, 14341 s into the round; about 269 min left in it
+  round 6 probe 3/20: 350/509 candidates, 14343 s into the round; about 269 min left in it
+  round 6 probe 3/20: 400/509 candidates, 14344 s into the round; about 269 min left in it
+  round 6 probe 3/20: 450/509 candidates, 14347 s into the round; about 270 min left in it
+  round 6 probe 3/20: 500/509 candidates, 14353 s into the round; about 271 min left in it
+  round 6 probe 3/20: 509/509 candidates, 14354 s into the round; about 271 min left in it

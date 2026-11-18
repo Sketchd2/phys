@@ -623,3 +623,8 @@
 - Ethylamine: part 7 is done (3 pairs). Worker 48, which owns part 1, committed an empty copy of the joined part-1 file when its 3-pair job was killed, and the merge laid it over the join done here. It is restored, and every owner's joined-part file (frozen-part-K.) is now merge-skipped. The single-pair files stay with their owners. Done so far: parts 1, 2, 6, 7 and 8 (15 pairs) and 2 of 3 in each of parts 4 and 5. Part 3's single pairs are running on 140.
 - Propane: pair parts 1 to 4 are running.
 - 145 went idle a second time (18:01, ten minutes after its resume). The butanol grow moves to 147 under the two-strike rule.
+
+### Wake 73 (19:58 UTC)
+- Ethylamine: single pairs p3-1 and p3-2 are done; p3-3 is still on 140.
+- Phenol and chlorobenzene: the polarisability run timed out at 12 h, as butane's did. Each gets a 24 h retry on its own worker (43, 89), with pairs after it.
+- Propane: pp4 was killed on memory and is split into single pairs on 133.
