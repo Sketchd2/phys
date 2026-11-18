@@ -1658,3 +1658,10 @@ glycerol: 14 atoms, 13 bonds; starting
   round 0 probe 68/68: 250/513 candidates, 32401 s into the round; under a minute left in it
   round 0 probe 68/68: 300/513 candidates, 32402 s into the round; under a minute left in it
   round 0 probe 68/68: 350/513 candidates, 32402 s into the round; under a minute left in it
+  round 0 probe 68/68: 400/513 candidates, 32403 s into the round; under a minute left in it
+  round 0 probe 68/68: 450/513 candidates, 32403 s into the round; under a minute left in it
+  round 0 probe 68/68: 500/513 candidates, 32404 s into the round; under a minute left in it
+  round 0 probe 68/68: 513/513 candidates, 32404 s into the round; under a minute left in it
+round 0: 206 functions, E -344.49294019, 32404 s
+  shape (A, deg): 1.44847 1.51688 1.52568 1.45312 1.44390 0.98973 1.11394 1.11011 1.11387 1.11027 1.10985 0.98893 0.99496 106.679 108.188 110.405 111.087 109.565 108.705 108.862 112.096 108.827 108.168 109.723 108.483 109.503 105.780 110.132 110.529 110.471 110.507 109.380 107.645 103.545
+  added 3, predicted to move: +0.00078 +0.00038 +0.00036 +0.00085 +0.00104 -0.01295 -0.00016 +0.00023 +0.00058 -0.00024 +0.00012 -0.01335 -0.01253 +0.294 +0.135 -0.065 +0.040 -0.071 -0.011 -0.105 -0.110 -0.042 -0.003 +0.074 -0.015 +0.083 +0.123 -0.031 +0.003 -0.016 -0.056 -0.107 +0.334 +0.473; left 1008.89
