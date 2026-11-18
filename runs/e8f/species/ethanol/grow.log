@@ -3453,3 +3453,38 @@ ethanol: 9 atoms, 8 bonds; carrying on from round 9
   round 9 probe 26/30: 300/354 candidates, 22143 s into the round; about 40 min left in it
   round 9 probe 26/30: 350/354 candidates, 22150 s into the round; about 41 min left in it
   round 9 probe 26/30: 354/354 candidates, 22152 s into the round; about 41 min left in it
+  round 9 probe 27/30: 50/354 candidates, 22731 s into the round; about 30 min left in it
+  round 9 probe 27/30: 100/354 candidates, 22732 s into the round; about 29 min left in it
+  round 9 probe 27/30: 150/354 candidates, 22734 s into the round; about 29 min left in it
+  round 9 probe 27/30: 200/354 candidates, 22735 s into the round; about 29 min left in it
+  round 9 probe 27/30: 250/354 candidates, 22737 s into the round; about 29 min left in it
+  round 9 probe 27/30: 300/354 candidates, 22739 s into the round; about 29 min left in it
+  round 9 probe 27/30: 350/354 candidates, 22747 s into the round; about 30 min left in it
+  round 9 probe 27/30: 354/354 candidates, 22748 s into the round; about 30 min left in it
+  round 9 probe 28/30: 50/354 candidates, 23343 s into the round; about 20 min left in it
+  round 9 probe 28/30: 100/354 candidates, 23344 s into the round; about 20 min left in it
+  round 9 probe 28/30: 150/354 candidates, 23346 s into the round; about 20 min left in it
+  round 9 probe 28/30: 200/354 candidates, 23347 s into the round; about 20 min left in it
+  round 9 probe 28/30: 250/354 candidates, 23348 s into the round; about 20 min left in it
+  round 9 probe 28/30: 300/354 candidates, 23350 s into the round; about 20 min left in it
+  round 9 probe 28/30: 350/354 candidates, 23357 s into the round; about 20 min left in it
+  round 9 probe 28/30: 354/354 candidates, 23358 s into the round; about 20 min left in it
+  round 9 probe 29/30: 50/354 candidates, 23983 s into the round; about 11 min left in it
+  round 9 probe 29/30: 100/354 candidates, 23984 s into the round; about 11 min left in it
+  round 9 probe 29/30: 150/354 candidates, 23985 s into the round; about 11 min left in it
+  round 9 probe 29/30: 200/354 candidates, 23986 s into the round; about 11 min left in it
+  round 9 probe 29/30: 250/354 candidates, 23987 s into the round; about 11 min left in it
+  round 9 probe 29/30: 300/354 candidates, 23990 s into the round; about 11 min left in it
+  round 9 probe 29/30: 350/354 candidates, 23996 s into the round; about 11 min left in it
+  round 9 probe 29/30: 354/354 candidates, 23998 s into the round; about 11 min left in it
+  round 9 probe 30/30: 50/354 candidates, 24604 s into the round; under a minute left in it
+  round 9 probe 30/30: 100/354 candidates, 24605 s into the round; under a minute left in it
+  round 9 probe 30/30: 150/354 candidates, 24607 s into the round; under a minute left in it
+  round 9 probe 30/30: 200/354 candidates, 24608 s into the round; under a minute left in it
+  round 9 probe 30/30: 250/354 candidates, 24609 s into the round; under a minute left in it
+  round 9 probe 30/30: 300/354 candidates, 24611 s into the round; under a minute left in it
+  round 9 probe 30/30: 350/354 candidates, 24617 s into the round; under a minute left in it
+  round 9 probe 30/30: 354/354 candidates, 24618 s into the round; under a minute left in it
+round 9: 442 functions, E -154.91952385, 24618 s
+  shape (A, deg): 1.51521 1.43398 1.09835 1.09824 1.09824 1.10562 1.10562 0.96927 110.463 110.614 110.614 108.417 108.417 108.236 108.008 110.148 110.148 110.460 110.460 107.625 108.272
+  added 4, predicted to move: -0.00014 +0.00024 -0.00002 -0.00003 -0.00003 -0.00068 -0.00068 -0.00006 +0.010 -0.000 -0.000 -0.000 -0.000 -0.010 +0.023 +0.008 +0.008 +0.008 +0.008 -0.079 -0.054; left 29.08

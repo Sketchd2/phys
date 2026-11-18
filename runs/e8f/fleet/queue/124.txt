@@ -3,3 +3,6 @@ propane-mono-w124 species/propane rm -rf /tmp/spill/*; grep -q "MP2: mean" polar
 propane-pairs-w124 species/propane ../../fleet/stage.sh pairs propane
 propane-pp2-w124 species/propane ../../fleet/pairs-part.sh propane 2 3
 propane-pp6-w124 species/propane ../../fleet/pairs-part.sh propane 6 3
+propane-p6-1-w124 species/propane ../../fleet/pair-one.sh propane 6 1
+propane-p6-2-w124 species/propane ../../fleet/pair-one.sh propane 6 2
+propane-p8-3-w124 species/propane ../../fleet/pair-one.sh propane 8 3

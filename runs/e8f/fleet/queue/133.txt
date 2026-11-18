@@ -12,5 +12,3 @@ propane-p4-1-w133 species/propane ../../fleet/pair-one.sh propane 4 1
 propane-p4-2-w133 species/propane ../../fleet/pair-one.sh propane 4 2
 propane-p4-3-w133 species/propane ../../fleet/pair-one.sh propane 4 3
 propane-p8-1-w133 species/propane ../../fleet/pair-one.sh propane 8 1
-propane-p8-2-w133 species/propane ../../fleet/pair-one.sh propane 8 2
-propane-p8-3-w133 species/propane ../../fleet/pair-one.sh propane 8 3

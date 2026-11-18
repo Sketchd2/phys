@@ -639,3 +639,8 @@
 ### Wake 75 (22:05 UTC)
 - Propane: pp2 is done (parts 1 to 3 are done). pp8 was killed on memory and is split into single pairs on 133, after p4's singles. pp5, pp6 and pp7 are still running.
 - Cyclopentane: the polarisability run timed out at 12 h (the fourth such timeout). It gets a 24 h retry on 59.
+
+### Wake 76 (23:09 UTC)
+- Propane: pp7 is done. pp6 was killed on memory. The single pair p4-1 was killed too, so it is the first propane pair that cannot run at 15 GB.
+  - Stale empty copies had replaced parts 1, 2, 3 and 7. Each was restored from its owner (48, 124, 132 and 132), and propane's merge is fenced like ethylamine's: each part file comes only from its owner, the split parts 4, 6 and 8 are joined here, and each single pair comes only from its assigned worker.
+  - Part 6's singles go to 124 (p6-1, p6-2) and 132 (p6-3). Part 8's singles are spread: p8-1 on 133, p8-2 on 132, p8-3 on 124. pp5 is still on 48.
