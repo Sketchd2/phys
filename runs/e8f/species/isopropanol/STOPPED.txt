@@ -1,0 +1,3 @@
+2026-11-18 11:30 UTC: pairs do not fit a worker. The whole run, 3-pair parts and now single pairs (pair-one.sh) are
+killed on memory (acetone and isopropanol single pairs rebuild a 46.5 GB table; workers have ~15 GB RAM, ~29 GB disk).
+Parts already queued run to the end; no further splitting. Needs a bigger machine or a smaller basis: owner's call.
