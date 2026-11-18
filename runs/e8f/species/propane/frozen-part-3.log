@@ -4,3 +4,5 @@ pair 830: first atoms 6.40 A, electrostatic -4.007 kcal/mol, exchange 12.828, Ha
 a 3.0 GB table is over the 0.0 GB spill cap; rebuilding it instead
 a 2.7 GB table is over the 0.0 GB spill cap; rebuilding it instead
 a 46.1 GB table is over the 0.0 GB spill cap; rebuilding it instead
+pair 565: first atoms 5.21 A, electrostatic -1.483 kcal/mol, exchange 4.888, Hartree-Fock beyond both -3.405, overlap 8.1358e-4, electrons 25.99999 26.00002, 1380 functions, 3324 s
+a 3.1 GB table is over the 0.0 GB spill cap; rebuilding it instead
