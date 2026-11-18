@@ -6,6 +6,13 @@
 
 ## WAKE CADENCE: every 62 min, self-scheduled. At the start of each wake call send_later (+62 min) with the same message; backstop task every 6 h re-arms if the chain breaks.
 
+## 2026-11-18 03:00 UTC, wake 57
+
+- SESSION CHECK (skipped at wakes 52-56, against the 20:41 rule): 127 (acetic acid full p4/p8) idle since 21:27,
+  118 (butanol) since 21:49, 113 (isobutane) since 01:29: resumed. 121 (ethyl acetate) idle again after its resume
+  -> fresh 128. All of 40-112, 120, 122-126 RUNNING. Do the session check EVERY wake (list_sessions children, 2 pages).
+- No job finished this hour. Next 04:02.
+
 ## 2026-11-18 01:57 UTC, wake 56
 
 - Quiet: no job finished since 00:53, no worker idle. Weekly limit resets 02:00: check rate_limit_info next wake
