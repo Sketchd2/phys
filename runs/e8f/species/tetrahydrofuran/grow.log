@@ -2838,3 +2838,4 @@ round 2: 210 functions, E -232.23004822, 45881 s
   round 3 probe 26/76: 450/461 candidates, 18422 s into the round; about 239 min left in it
   round 3 probe 26/76: 461/461 candidates, 18423 s into the round; about 239 min left in it
 tetrahydrofuran: 13 atoms, 13 bonds; carrying on from round 3
+  relaxed at 246 functions, 10722 s into round 3; 76 probes of 461 candidates to go
