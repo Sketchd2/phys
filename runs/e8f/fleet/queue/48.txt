@@ -6,3 +6,5 @@ ethylamine-pp5-w48 species/ethylamine ../../fleet/pairs-part.sh ethylamine 5 3
 ethylamine-p1-1-w48 species/ethylamine ../../fleet/pair-one.sh ethylamine 1 1
 ethylamine-p1-2-w48 species/ethylamine ../../fleet/pair-one.sh ethylamine 1 2
 ethylamine-p1-3-w48 species/ethylamine ../../fleet/pair-one.sh ethylamine 1 3
+propane-pp1-w48 species/propane ../../fleet/pairs-part.sh propane 1 3
+propane-pp5-w48 species/propane ../../fleet/pairs-part.sh propane 5 3

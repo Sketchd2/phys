@@ -1,3 +1,5 @@
 propane-grow-w124 species/propane ../../fleet/stage.sh grow propane
 propane-mono-w124 species/propane rm -rf /tmp/spill/*; grep -q "MP2: mean" polar.log 2>/dev/null || PHYS_SPILL_MAX_GB=0 timeout 43200 $(git rev-parse --show-toplevel)/target/release/phys-polar propane > polar.log 2>&1; ../../fleet/stage.sh mono propane
 propane-pairs-w124 species/propane ../../fleet/stage.sh pairs propane
+propane-pp2-w124 species/propane ../../fleet/pairs-part.sh propane 2 3
+propane-pp6-w124 species/propane ../../fleet/pairs-part.sh propane 6 3

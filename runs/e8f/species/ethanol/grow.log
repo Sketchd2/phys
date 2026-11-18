@@ -3244,3 +3244,12 @@ ethanol: 9 atoms, 8 bonds; carrying on from round 9
   round 9 probe 10/30: 350/354 candidates, 13514 s into the round; about 228 min left in it
   round 9 probe 10/30: 354/354 candidates, 13515 s into the round; about 228 min left in it
 ethanol: 9 atoms, 8 bonds; carrying on from round 9
+  relaxed at 442 functions, 6128 s into round 9; 30 probes of 354 candidates to go
+  round 9 probe 1/30: 50/354 candidates, 6736 s into the round; about 297 min left in it
+  round 9 probe 1/30: 100/354 candidates, 6737 s into the round; about 297 min left in it
+  round 9 probe 1/30: 150/354 candidates, 6738 s into the round; about 297 min left in it
+  round 9 probe 1/30: 200/354 candidates, 6739 s into the round; about 297 min left in it
+  round 9 probe 1/30: 250/354 candidates, 6741 s into the round; about 297 min left in it
+  round 9 probe 1/30: 300/354 candidates, 6743 s into the round; about 298 min left in it
+  round 9 probe 1/30: 350/354 candidates, 6750 s into the round; about 301 min left in it
+  round 9 probe 1/30: 354/354 candidates, 6752 s into the round; about 301 min left in it

@@ -8,3 +8,5 @@ chloroform-plan-w132 species/chloroform ../../fleet/stage.sh plan chloroform
 ethylamine-p5-1-w132 species/ethylamine ../../fleet/pair-one.sh ethylamine 5 1
 ethylamine-p5-2-w132 species/ethylamine ../../fleet/pair-one.sh ethylamine 5 2
 ethylamine-p5-3-w132 species/ethylamine ../../fleet/pair-one.sh ethylamine 5 3
+propane-pp3-w132 species/propane ../../fleet/pairs-part.sh propane 3 3
+propane-pp7-w132 species/propane ../../fleet/pairs-part.sh propane 7 3

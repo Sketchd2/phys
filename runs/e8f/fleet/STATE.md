@@ -613,3 +613,8 @@
 - Propane: mono is done, and the pairs stage is next on 124.
 - Ethylamine: pp6 and pp8 are done, and so are the single pairs p1-1, p1-2 and p5-2. The single pair p4-1 was killed on memory. So far two single pairs (p4-1 and p5-1) cannot run on a 15 GB machine. If ethylamine finishes 22 of 24 pairs, whether to go on is the owner's call.
 - Workers 53 and 141 have nothing left in their queues, so they are archived. The fleet is down to 31.
+
+### Wake 71 (17:51 UTC)
+- Propane: the pairs stage was killed on memory. It is split into 3-pair parts pp1 to pp8 across 48, 124, 132 and 133, two parts each.
+- Ethylamine: the single pairs p1-3, p4-2, p4-3 and p5-3 are done. Workers 132 and 133 had committed empty copies of other workers' pair files, and the merge laid those over the real results; parts 6 and 8 were hit the same way. Each part was restored from the worker that ran it, and merge-skip lines now keep every ethylamine part with its owner. I joined part 1 here (3 pairs). Done so far: parts 1, 2, 6 and 8 (12 pairs), plus 2 of 3 in each of parts 4 and 5 (p4-1 and p5-1 cannot run at 15 GB). Part 3 (single pairs) and part 7 are still on 140.
+- Resumed 145 and 104, each idle for the first time since the limit resume.
