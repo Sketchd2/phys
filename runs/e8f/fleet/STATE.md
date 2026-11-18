@@ -629,3 +629,9 @@
 - Phenol and chlorobenzene: the polarisability run timed out at 12 h, as butane's did. Each gets a 24 h retry on its own worker (43, 89), with pairs after it.
 - Propane: pp4 was killed on memory and is split into single pairs on 133.
 - 104 went idle a second time (18:53, after the 17:51 resume). The tetrahydrofuran grow moves to 148.
+
+### Wake 74 (21:02 UTC)
+- Ethylamine: part 3 joined here. It is now 22 of 24 pairs: parts 1, 2, 3, 6, 7 and 8, plus 2 of 3 in each of parts 4 and 5. It waits for the owner's call on the 2 pairs that cannot run.
+- Glycerol: grow is done. Mono (24 h) and pairs are queued on 122.
+- Propane: pp1 and pp3 are done.
+- 140 has nothing left in its queue and is archived. The fleet is down to 29.

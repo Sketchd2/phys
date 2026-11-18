@@ -1,1 +1,21 @@
 cyclopentane: dipole Hartree-Fock 0.0105 au (0.027 D), target 0.0105 au (0.027 D)
+  19937 potential points; the target's RMS 4.976e0, its mean -4.903e0 hartree/e
+  localised in 12 sweeps: 15 bond orbitals, 0 lone pairs (5 core orbitals frozen out of the localisation)
+  valence electrons 30, cores [4.0, 4.0, 4.0, 4.0, 4.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+  atom class 0: cloud 3.979 electrons, width 0.345 bohr
+  atom class 1: cloud 4.017 electrons, width 0.553 bohr
+  atom class 2: cloud 4.010 electrons, width 0.420 bohr
+  atom class 3: cloud 4.008 electrons, width 0.267 bohr
+  atom class 4: cloud 3.952 electrons, width 0.423 bohr
+  atom class 5: cloud 1.042 electrons, width 1.523 bohr
+  atom class 6: cloud 0.971 electrons, width 0.719 bohr
+  atom class 7: cloud 0.977 electrons, width 0.596 bohr
+  atom class 8: cloud 1.011 electrons, width 1.265 bohr
+  atom class 9: cloud 1.004 electrons, width 0.930 bohr
+  atom class 10: cloud 0.985 electrons, width 0.652 bohr
+  atom class 11: cloud 1.004 electrons, width 1.376 bohr
+  atom class 12: cloud 0.997 electrons, width 0.572 bohr
+  atom class 13: cloud 1.056 electrons, width 1.612 bohr
+  atom class 14: cloud 0.987 electrons, width 0.514 bohr
+  potential RMS 3.570e-3 hartree/e (atom-centred point charges alone: 4.482e-3)
+  written to cloud-cyclopentane.txt
