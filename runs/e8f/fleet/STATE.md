@@ -6,6 +6,11 @@
 
 ## WAKE CADENCE: every 62 min, self-scheduled. At the start of each wake call send_later (+62 min) with the same message; backstop task every 6 h re-arms if the chain breaks.
 
+## 2026-11-18 00:53 UTC, wake 55
+
+- Full parts done: acetic acid 2, 3 (of 8); chloroform 3 (of 4; p4 on 110). 111 idle -> archived.
+  Benzene polarisability still running on 86. Weekly limit resets 02:00. Next 01:56.
+
 ## 2026-11-17 23:50 UTC, wake 54
 
 - HEPTANE, TOLUENE, CYCLOHEXANE: grow.sh's 20 h limit fell inside round 0, so no grow state exists, yet grow.ok was
