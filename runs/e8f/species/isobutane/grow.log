@@ -1573,3 +1573,4 @@ round 5: 469 functions, E -158.28371047, 22086 s
   round 6 probe 6/20: 500/509 candidates, 18239 s into the round; about 230 min left in it
   round 6 probe 6/20: 509/509 candidates, 18241 s into the round; about 230 min left in it
 isobutane: 14 atoms, 13 bonds; carrying on from round 6
+  relaxed at 499 functions, 11504 s into round 6; 20 probes of 509 candidates to go
