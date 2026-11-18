@@ -6,6 +6,16 @@
 
 ## WAKE CADENCE: every 62 min, self-scheduled. At the start of each wake call send_later (+62 min) with the same message; backstop task every 6 h re-arms if the chain breaks.
 
+## 2026-11-18 11:31 UTC, wake 65
+
+- BENZENE POLARISABILITY DONE (2nd 12 h try): mono.ok; pairs running on 86 (expect a memory kill).
+- ACETONE / ISOPROPANOL / PROPANOL PAIRS BLOCKED ON MEMORY (STOPPED.txt in each): single pairs now killed too (a 46.5
+  GB table rebuilt). Acetone 3-pair part 3 DID finish (on 133), so it is pair- or machine-dependent. Queued parts run
+  out; no further splitting. Owner's call (bigger machine or smaller basis), with CCl4 and ethylene glycol.
+- Propanol 3-pair parts 1-4 killed; 5-8 still queued.
+- Session check: 138, 123 idle again -> fresh 143 (ethyl acetate), 144 (ethanol); 130 resumed (first). Others RUNNING.
+  Next 12:33.
+
 ## 2026-11-18 10:27 UTC, wake 64
 
 - 3-PAIR PARTS NO LONGER FIT for acetone and isopropanol: acetone parts 1,2,4,5 and isopropanol 2,3,5,8 killed (no
