@@ -644,3 +644,4 @@
 - Propane: pp7 is done. pp6 was killed on memory. The single pair p4-1 was killed too, so it is the first propane pair that cannot run at 15 GB.
   - Stale empty copies had replaced parts 1, 2, 3 and 7. Each was restored from its owner (48, 124, 132 and 132), and propane's merge is fenced like ethylamine's: each part file comes only from its owner, the split parts 4, 6 and 8 are joined here, and each single pair comes only from its assigned worker.
   - Part 6's singles go to 124 (p6-1, p6-2) and 132 (p6-3). Part 8's singles are spread: p8-1 on 133, p8-2 on 132, p8-3 on 124. pp5 is still on 48.
+- Resumed 139 (acetic acid full p1 retry), idle for the first time since the limit resume. Acetic acid full parts 4, 5, 6 and 8 are still running on 129, 93 and 94.
