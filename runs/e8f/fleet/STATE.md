@@ -628,3 +628,4 @@
 - Ethylamine: single pairs p3-1 and p3-2 are done; p3-3 is still on 140.
 - Phenol and chlorobenzene: the polarisability run timed out at 12 h, as butane's did. Each gets a 24 h retry on its own worker (43, 89), with pairs after it.
 - Propane: pp4 was killed on memory and is split into single pairs on 133.
+- 104 went idle a second time (18:53, after the 17:51 resume). The tetrahydrofuran grow moves to 148.
