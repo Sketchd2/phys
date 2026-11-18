@@ -1,0 +1,6 @@
+propane: 690 functions, field step 0.002, 3 frozen cores
+  19 fields in 7574 s (dipole width scale 1)
+  Hartree-Fock: mean 39.3435 bohr^3, diagonal 36.6807 40.2141 41.1358, off-diagonal 5.7e-7 8.9e-9 -2.2e0
+  MP2: mean 41.0017 bohr^3, diagonal 37.8173 42.0672 43.1208, off-diagonal -1.5e-5 -2.1e-4 -2.5e0
+  atomic polarisabilities by class [6.121132745855578, 15.51319596487607, 3.2306800282162134, 2.426999835073974, 4.743832646480039] bohr^3 (classes [0, 1, 0, 2, 3, 3, 4, 4, 2, 3, 3]); the model's tensor: mean 41.0017, diagonal 37.8173 42.0659 43.1221; residual rms 6.30e-4
+  written to polar-propane.txt

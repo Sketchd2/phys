@@ -1,0 +1,11 @@
+propane: dipole Hartree-Fock 0.0322 au (0.082 D), target 0.0322 au (0.082 D)
+  15667 potential points; the target's RMS 3.619e0, its mean -3.560e0 hartree/e
+  localised in 13 sweeps: 10 bond orbitals, 0 lone pairs (3 core orbitals frozen out of the localisation)
+  valence electrons 20, cores [4.0, 4.0, 1.0, 1.0, 1.0]
+  atom class 0: cloud 4.239 electrons, width 0.559 bohr
+  atom class 1: cloud 3.731 electrons, width 0.578 bohr
+  atom class 2: cloud 0.961 electrons, width 1.442 bohr
+  atom class 3: cloud 0.945 electrons, width 1.388 bohr
+  atom class 4: cloud 1.045 electrons, width 1.390 bohr
+  potential RMS 2.561e-3 hartree/e (atom-centred point charges alone: 4.251e-3)
+  written to cloud-propane.txt
