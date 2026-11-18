@@ -1,10 +1,16 @@
 # Fleet state (the orchestrator's own notes; newest first)
 
-## WEEKLY LIMIT WARNING (15:19 UTC 11-17): seven_day status allowed_warning, resets 2026-11-18 02:00 UTC. Hold at 38, add NO workers (replacements only) until it resets; if it hits, everything pauses until 02:00 and the backstop re-arms.
+## (lifted 04:04 UTC 11-18: weekly limit reset; workers now report five_hour allowed) WEEKLY LIMIT WARNING (15:19 UTC 11-17): seven_day status allowed_warning, resets 2026-11-18 02:00 UTC. Hold at 38, add NO workers (replacements only) until it resets; if it hits, everything pauses until 02:00 and the backstop re-arms.
 
 ## WORKER COUNT: 37 from 19:05 UTC (blocks to 13:20 and 18:20 clean at 31, 35). Block ends 23:20 UTC. Every species is now started: add workers only to split real work (e.g. liquid states); if the limit hits: back to 31 and hold. The orchestrator's own context (409k) is the main cost: keep wakes minimal. Each wake: sample orchestrator + a few workers' cost (get_session) into usage.json; any worker rising >1 USD between wakes is looping: fix the cause. Full snapshot of every session once a block.
 
 ## WAKE CADENCE: every 62 min, self-scheduled. At the start of each wake call send_later (+62 min) with the same message; backstop task every 6 h re-arms if the chain breaks.
+
+## 2026-11-18 04:04 UTC, wake 58
+
+- Session check, both pages: 127, 118, 113 stopped again within 30 min of the 03:00 resume -> fresh 129 (acetic acid
+  full p4, p8), 130 (butanol), 131 (isobutane). Everything else RUNNING. No job finished this hour.
+- Weekly limit has reset (five_hour allowed): hold lifted; add workers only to split real work. Next 05:06.
 
 ## 2026-11-18 03:00 UTC, wake 57
 
