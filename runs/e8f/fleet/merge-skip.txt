@@ -198,3 +198,12 @@
 65 runs/e8f/species/heptane/grow.ok
 97 runs/e8f/species/toluene/grow.ok
 101 runs/e8f/species/cyclohexane/grow.ok
+129 runs/e8f/species/acetic_acid/full-part-1.
+129 runs/e8f/species/acetic_acid/full-part-2.
+129 runs/e8f/species/acetic_acid/full-part-3.
+129 runs/e8f/species/acetic_acid/full-part-5.
+129 runs/e8f/species/acetic_acid/full-part-6.
+129 runs/e8f/species/acetic_acid/full-part-7.
+129 runs/e8f/species/acetic_acid/frozen-acetic_acid
+129 runs/e8f/species/acetic_acid/pairs.ok
+129 runs/e8f/species/acetic_acid/frozen-part-

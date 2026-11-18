@@ -1,2 +1,3 @@
 acetic_acid-fullp4-w127 species/acetic_acid ../../fleet/full-part.sh acetic_acid 4 1
 acetic_acid-fullp8-w127 species/acetic_acid ../../fleet/full-part.sh acetic_acid 8 1
+STOP
