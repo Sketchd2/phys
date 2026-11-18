@@ -601,3 +601,9 @@
 - Ethylamine: pp2 is done. pp1, pp4 and pp5 were killed and have been split into single pairs on 48, 133 and 132. pp3, pp6, pp7 and pp8 are still running.
 - Acetone: p2-1 is done. p4-2 and p5-2 were killed. Acetone stays blocked.
 - Worker 143 (ethyl acetate grow) went idle for the first time and has been resumed.
+
+### Wake 69 (15:44 UTC)
+- Merge: the worker branches had not been fetched since the last wake, so the merge brought nothing in until I fetched them. merge.sh does not fetch.
+- Ethylamine: pp7 is done. pp3 was killed and has been split into single pairs on 140. The single pair p5-1 was killed too. A single pair cannot be split further, so if p5-1 stays killed, ethylamine will be one pair short.
+- Propane: the polarisability step is printing results. The mono stage is still running on 124.
+- Acetone p5-3 and isopropanol p5-1 and p5-2 were killed. Both species stay blocked.

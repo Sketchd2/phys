@@ -1,1 +1,18 @@
 aniline: dipole Hartree-Fock 0.5651 au (1.436 D), target 0.5651 au (1.436 D)
+  19375 potential points; the target's RMS 5.569e0, its mean -5.485e0 hartree/e
+  localised in 64 sweeps: 11 bond orbitals, 7 lone pairs (7 core orbitals frozen out of the localisation)
+  valence electrons 36, cores [4.0, 4.0, 4.0, 4.0, 5.0, 1.0, 1.0, 1.0, 1.0]
+  atom class 0: cloud 2.929 electrons, width 0.770 bohr
+  atom class 1: cloud 1.242 electrons, width 0.712 bohr
+  atom class 2: cloud 2.153 electrons, width 0.763 bohr
+  atom class 3: cloud 1.416 electrons, width 0.732 bohr
+  atom class 4: cloud 2.405 electrons, width 0.719 bohr
+  atom class 5: cloud 1.236 electrons, width 0.562 bohr
+  atom class 6: cloud 1.215 electrons, width 0.504 bohr
+  atom class 7: cloud 1.269 electrons, width 0.554 bohr
+  atom class 8: cloud 1.226 electrons, width 0.524 bohr
+  lone-pair cloud of class 1: 2 pair(s) on 2 atom(s), 3.977 electrons, width 2.440 bohr, 1.115 bohr from the nucleus (the orbitals' centre is 1.115)
+  lone-pair cloud of class 3: 2 pair(s) on 1 atom(s), 3.950 electrons, width 2.388 bohr, 1.150 bohr from the nucleus (the orbitals' centre is 1.150)
+  lone-pair cloud of class 4: 1 pair(s) on 1 atom(s), 1.931 electrons, width 0.652 bohr, 0.587 bohr from the nucleus (the orbitals' centre is 0.587)
+  potential RMS 2.949e-2 hartree/e (atom-centred point charges alone: 7.141e-3)
+  written to cloud-aniline.txt
