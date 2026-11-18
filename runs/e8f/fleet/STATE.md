@@ -618,3 +618,8 @@
 - Propane: the pairs stage was killed on memory. It is split into 3-pair parts pp1 to pp8 across 48, 124, 132 and 133, two parts each.
 - Ethylamine: the single pairs p1-3, p4-2, p4-3 and p5-3 are done. Workers 132 and 133 had committed empty copies of other workers' pair files, and the merge laid those over the real results; parts 6 and 8 were hit the same way. Each part was restored from the worker that ran it, and merge-skip lines now keep every ethylamine part with its owner. I joined part 1 here (3 pairs). Done so far: parts 1, 2, 6 and 8 (12 pairs), plus 2 of 3 in each of parts 4 and 5 (p4-1 and p5-1 cannot run at 15 GB). Part 3 (single pairs) and part 7 are still on 140.
 - Resumed 145 and 104, each idle for the first time since the limit resume.
+
+### Wake 72 (18:54 UTC)
+- Ethylamine: part 7 is done (3 pairs). Worker 48, which owns part 1, committed an empty copy of the joined part-1 file when its 3-pair job was killed, and the merge laid it over the join done here. It is restored, and every owner's joined-part file (frozen-part-K.) is now merge-skipped. The single-pair files stay with their owners. Done so far: parts 1, 2, 6, 7 and 8 (15 pairs) and 2 of 3 in each of parts 4 and 5. Part 3's single pairs are running on 140.
+- Propane: pair parts 1 to 4 are running.
+- 145 went idle a second time (18:01, ten minutes after its resume). The butanol grow moves to 147 under the two-strike rule.
