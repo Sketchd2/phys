@@ -635,3 +635,7 @@
 - Glycerol: grow is done. Mono (24 h) and pairs are queued on 122.
 - Propane: pp1 and pp3 are done.
 - 140 has nothing left in its queue and is archived. The fleet is down to 29.
+
+### Wake 75 (22:05 UTC)
+- Propane: pp2 is done (parts 1 to 3 are done). pp8 was killed on memory and is split into single pairs on 133, after p4's singles. pp5, pp6 and pp7 are still running.
+- Cyclopentane: the polarisability run timed out at 12 h (the fourth such timeout). It gets a 24 h retry on 59.
