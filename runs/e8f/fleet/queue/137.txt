@@ -1,0 +1,2 @@
+isopropanol-pp4-w137 species/isopropanol ../../fleet/pairs-part.sh isopropanol 4 3
+isopropanol-pp8-w137 species/isopropanol ../../fleet/pairs-part.sh isopropanol 8 3

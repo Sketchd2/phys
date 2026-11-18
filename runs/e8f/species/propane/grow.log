@@ -1797,3 +1797,28 @@ round 8: 441 functions, E -119.01204130, 16294 s
   round 9 probe 9/22: 350/397 candidates, 9823 s into the round; about 128 min left in it
   round 9 probe 9/22: 397/397 candidates, 9826 s into the round; about 129 min left in it
 propane: 11 atoms, 10 bonds; carrying on from round 9
+  relaxed at 509 functions, 3627 s into round 9; 22 probes of 397 candidates to go
+  round 9 probe 1/22: 50/397 candidates, 4418 s into the round; about 279 min left in it
+  round 9 probe 1/22: 100/397 candidates, 4419 s into the round; about 279 min left in it
+  round 9 probe 1/22: 150/397 candidates, 4420 s into the round; about 279 min left in it
+  round 9 probe 1/22: 200/397 candidates, 4421 s into the round; about 279 min left in it
+  round 9 probe 1/22: 250/397 candidates, 4422 s into the round; about 279 min left in it
+  round 9 probe 1/22: 300/397 candidates, 4423 s into the round; about 279 min left in it
+  round 9 probe 1/22: 350/397 candidates, 4425 s into the round; about 280 min left in it
+  round 9 probe 1/22: 397/397 candidates, 4429 s into the round; about 281 min left in it
+  round 9 probe 2/22: 50/397 candidates, 5218 s into the round; about 266 min left in it
+  round 9 probe 2/22: 100/397 candidates, 5219 s into the round; about 266 min left in it
+  round 9 probe 2/22: 150/397 candidates, 5221 s into the round; about 266 min left in it
+  round 9 probe 2/22: 200/397 candidates, 5222 s into the round; about 266 min left in it
+  round 9 probe 2/22: 250/397 candidates, 5223 s into the round; about 266 min left in it
+  round 9 probe 2/22: 300/397 candidates, 5224 s into the round; about 266 min left in it
+  round 9 probe 2/22: 350/397 candidates, 5226 s into the round; about 266 min left in it
+  round 9 probe 2/22: 397/397 candidates, 5231 s into the round; about 267 min left in it
+  round 9 probe 3/22: 50/397 candidates, 6053 s into the round; about 263 min left in it
+  round 9 probe 3/22: 100/397 candidates, 6054 s into the round; about 263 min left in it
+  round 9 probe 3/22: 150/397 candidates, 6055 s into the round; about 263 min left in it
+  round 9 probe 3/22: 200/397 candidates, 6056 s into the round; about 263 min left in it
+  round 9 probe 3/22: 250/397 candidates, 6058 s into the round; about 263 min left in it
+  round 9 probe 3/22: 300/397 candidates, 6059 s into the round; about 263 min left in it
+  round 9 probe 3/22: 350/397 candidates, 6062 s into the round; about 264 min left in it
+  round 9 probe 3/22: 397/397 candidates, 6067 s into the round; about 265 min left in it

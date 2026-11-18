@@ -671,3 +671,5 @@ round 0: 205 functions, E -233.41364361, 30450 s
   added 3, predicted to move: +0.00018 -0.00015 +0.00077 -0.00023 +0.00003 +0.00002 +0.00002 +0.00007 +0.00007 +0.00049 +0.00049 -0.00023 -0.00023 -0.03185 -0.038 -0.006 -0.006 +0.006 +0.006 +0.047 +0.068 +0.007 +0.007 -0.038 -0.038 -0.031 -0.158 +0.048 +0.048 +0.018 +0.018 +0.070 +0.231 -0.066 -0.066 +0.036 +0.036 -0.337 +0.861; left 768.07
 butanol: 15 atoms, 14 bonds; carrying on from round 1
 butanol: 15 atoms, 14 bonds; carrying on from round 1
+  relaxed at 213 functions, 10564 s into round 1; 54 probes of 513 candidates to go
+butanol: 15 atoms, 14 bonds; carrying on from round 1
