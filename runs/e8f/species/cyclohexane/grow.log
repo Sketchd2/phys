@@ -952,3 +952,30 @@ cyclohexane: 18 atoms, 18 bonds; starting
   round 0 probe 3/108: 600/618 candidates, 21389 s into the round; about 1095 min left in it
   round 0 probe 3/108: 618/618 candidates, 21389 s into the round; about 1095 min left in it
 cyclohexane: 18 atoms, 18 bonds; starting
+  relaxed at 246 functions, 16260 s into round 0; 108 probes of 618 candidates to go
+  round 0 probe 1/108: 50/618 candidates, 17322 s into the round; about 1914 min left in it
+  round 0 probe 1/108: 100/618 candidates, 17323 s into the round; about 1914 min left in it
+  round 0 probe 1/108: 150/618 candidates, 17324 s into the round; about 1914 min left in it
+  round 0 probe 1/108: 200/618 candidates, 17325 s into the round; about 1915 min left in it
+  round 0 probe 1/108: 250/618 candidates, 17327 s into the round; about 1915 min left in it
+  round 0 probe 1/108: 300/618 candidates, 17328 s into the round; about 1916 min left in it
+  round 0 probe 1/108: 350/618 candidates, 17329 s into the round; about 1916 min left in it
+  round 0 probe 1/108: 400/618 candidates, 17330 s into the round; about 1916 min left in it
+  round 0 probe 1/108: 450/618 candidates, 17331 s into the round; about 1916 min left in it
+  round 0 probe 1/108: 500/618 candidates, 17332 s into the round; about 1916 min left in it
+  round 0 probe 1/108: 550/618 candidates, 17333 s into the round; about 1916 min left in it
+  round 0 probe 1/108: 600/618 candidates, 17335 s into the round; about 1916 min left in it
+  round 0 probe 1/108: 618/618 candidates, 17335 s into the round; about 1917 min left in it
+  round 0 probe 2/108: 50/618 candidates, 18420 s into the round; about 1940 min left in it
+  round 0 probe 2/108: 100/618 candidates, 18421 s into the round; about 1939 min left in it
+  round 0 probe 2/108: 150/618 candidates, 18422 s into the round; about 1939 min left in it
+  round 0 probe 2/108: 200/618 candidates, 18423 s into the round; about 1939 min left in it
+  round 0 probe 2/108: 250/618 candidates, 18425 s into the round; about 1939 min left in it
+  round 0 probe 2/108: 300/618 candidates, 18426 s into the round; about 1940 min left in it
+  round 0 probe 2/108: 350/618 candidates, 18427 s into the round; about 1940 min left in it
+  round 0 probe 2/108: 400/618 candidates, 18428 s into the round; about 1940 min left in it
+  round 0 probe 2/108: 450/618 candidates, 18429 s into the round; about 1939 min left in it
+  round 0 probe 2/108: 500/618 candidates, 18431 s into the round; about 1940 min left in it
+  round 0 probe 2/108: 550/618 candidates, 18432 s into the round; about 1940 min left in it
+  round 0 probe 2/108: 600/618 candidates, 18433 s into the round; about 1940 min left in it
+  round 0 probe 2/108: 618/618 candidates, 18434 s into the round; about 1940 min left in it

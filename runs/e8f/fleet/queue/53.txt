@@ -3,3 +3,5 @@ propanol-mono-w53 species/propanol rm -rf /tmp/spill/*; grep -q "MP2: mean" pola
 propanol-pairs-w53 species/propanol ../../fleet/stage.sh pairs propanol
 propanol-pp1-w53 species/propanol ../../fleet/pairs-part.sh propanol 1 3
 propanol-pp5-w53 species/propanol ../../fleet/pairs-part.sh propanol 5 3
+ethylamine-pp2-w53 species/ethylamine ../../fleet/pairs-part.sh ethylamine 2 3
+ethylamine-pp6-w53 species/ethylamine ../../fleet/pairs-part.sh ethylamine 6 3

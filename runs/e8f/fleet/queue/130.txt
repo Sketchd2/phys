@@ -1,1 +1,2 @@
 butanol-grow-w130 species/butanol ../../fleet/stage.sh grow butanol
+STOP

@@ -1,2 +1,4 @@
 propanol-pp3-w140 species/propanol ../../fleet/pairs-part.sh propanol 3 3
 propanol-pp7-w140 species/propanol ../../fleet/pairs-part.sh propanol 7 3
+ethylamine-pp3-w140 species/ethylamine ../../fleet/pairs-part.sh ethylamine 3 3
+ethylamine-pp7-w140 species/ethylamine ../../fleet/pairs-part.sh ethylamine 7 3

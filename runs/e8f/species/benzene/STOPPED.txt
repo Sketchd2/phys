@@ -1,0 +1,2 @@
+2026-11-18 12:35 UTC: pairs killed on memory (whole run, 86). Benzene (840 functions) is larger than acetone, whose
+single pairs are already killed (46.5 GB table). Not split further. Needs a bigger machine or a smaller basis: owner's call.
