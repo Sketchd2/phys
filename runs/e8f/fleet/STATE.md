@@ -6,6 +6,17 @@
 
 ## WAKE CADENCE: every 62 min, self-scheduled. At the start of each wake call send_later (+62 min) with the same message; backstop task every 6 h re-arms if the chain breaks.
 
+## 2026-11-18 13:39 UTC, wake 67
+
+- CHLOROFORM LAW ON 110 WAS INVALID: it used a stale 2-pair full-chloroform.txt that 110 had itself committed at its
+  part-4 start, and a worker keeps its OWN copy over main's. Set aside (law.*.2pairs-invalid); full reassembled HERE
+  (8 pairs); 110 merge-skipped for chloroform/; law + plan on 132, which never touched chloroform.
+  RULE: run law/plan on a worker that never wrote that species' files.
+- Propane mono running (124); ethylamine parts 1 and 4 killed at 3 pairs (2,3,5-8 running).
+- Acetone single pairs p4-1, p4-3, p5-1 and part 8 killed; isopropanol p3-1, p4-3 killed. Blocked species: no new work.
+- Session check: 142 idle again: its queue was only isopropanol (blocked), so NOT replaced (STOP). 104 (THF) resumed
+  (first). 91, 110 archived. Next 14:41.
+
 ## 2026-11-18 12:35 UTC, wake 66
 
 - CHLOROFORM FULL ASSEMBLED HERE (4 parts x 2 = 8 pairs, full.ok). Law needs phys-lawenergy (not built here): law,

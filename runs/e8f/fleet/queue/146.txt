@@ -1,6 +1,1 @@
-isopropanol-pp6-w146 species/isopropanol ../../fleet/pairs-part.sh isopropanol 6 3
-isopropanol-p1-1-w146 species/isopropanol ../../fleet/pair-one.sh isopropanol 1 1
-isopropanol-p4-2-w146 species/isopropanol ../../fleet/pair-one.sh isopropanol 4 2
-isopropanol-p2-1-w146 species/isopropanol ../../fleet/pair-one.sh isopropanol 2 1
-isopropanol-p3-2-w146 species/isopropanol ../../fleet/pair-one.sh isopropanol 3 2
-isopropanol-p5-3-w146 species/isopropanol ../../fleet/pair-one.sh isopropanol 5 3
+STOP
