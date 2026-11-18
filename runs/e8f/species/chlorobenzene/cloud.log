@@ -1,1 +1,15 @@
 chlorobenzene: dipole Hartree-Fock 0.7662 au (1.948 D), target 0.7662 au (1.948 D)
+  16858 potential points; the target's RMS 5.531e0, its mean -5.444e0 hartree/e
+  localised in 200 sweeps: 14 bond orbitals, 4 lone pairs (11 core orbitals frozen out of the localisation)
+  valence electrons 36, cores [4.0, 4.0, 4.0, 4.0, 7.0, 1.0, 1.0, 1.0]
+  atom class 0: cloud 2.058 electrons, width 0.712 bohr
+  atom class 1: cloud 4.948 electrons, width 1.757 bohr
+  atom class 2: cloud 3.827 electrons, width 0.666 bohr
+  atom class 3: cloud 4.553 electrons, width 1.950 bohr
+  atom class 4: cloud 0.111 electrons, width 0.490 bohr
+  atom class 5: cloud 0.618 electrons, width 0.482 bohr
+  atom class 6: cloud 0.864 electrons, width 0.450 bohr
+  atom class 7: cloud 0.771 electrons, width 0.560 bohr
+  lone-pair cloud of class 4: 4 pair(s) on 1 atom(s), 7.994 electrons, width 2.074 bohr, 0.257 bohr from the nucleus (the orbitals' centre is 0.257)
+  potential RMS 6.670e-3 hartree/e (atom-centred point charges alone: 5.844e-3)
+  written to cloud-chlorobenzene.txt
