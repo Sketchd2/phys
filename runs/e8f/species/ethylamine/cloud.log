@@ -1,0 +1,17 @@
+ethylamine: dipole Hartree-Fock 0.5287 au (1.344 D), target 0.5287 au (1.344 D)
+  14599 potential points; the target's RMS 3.705e0, its mean -3.641e0 hartree/e
+  localised in 14 sweeps: 9 bond orbitals, 1 lone pairs (3 core orbitals frozen out of the localisation)
+  valence electrons 20, cores [4.0, 4.0, 5.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+  atom class 0: cloud 3.737 electrons, width 1.085 bohr
+  atom class 1: cloud 4.532 electrons, width 1.115 bohr
+  atom class 2: cloud 2.481 electrons, width 1.020 bohr
+  atom class 3: cloud 1.021 electrons, width 0.250 bohr
+  atom class 4: cloud 1.038 electrons, width 1.372 bohr
+  atom class 5: cloud 1.024 electrons, width 1.160 bohr
+  atom class 6: cloud 0.811 electrons, width 0.802 bohr
+  atom class 7: cloud 1.053 electrons, width 1.586 bohr
+  atom class 8: cloud 1.181 electrons, width 0.398 bohr
+  atom class 9: cloud 1.157 electrons, width 0.754 bohr
+  lone-pair cloud of class 2: 1 pair(s) on 1 atom(s), 1.964 electrons, width 1.656 bohr, 0.659 bohr from the nucleus (the orbitals' centre is 0.659)
+  potential RMS 1.163e-2 hartree/e (atom-centred point charges alone: 6.046e-3)
+  written to cloud-ethylamine.txt
