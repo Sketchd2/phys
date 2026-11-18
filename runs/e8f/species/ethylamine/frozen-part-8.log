@@ -3,3 +3,5 @@ pair 823: first atoms 4.97 A, electrostatic 0.133 kcal/mol, exchange 0.060, Hart
 a 2.4 GB table is over the 0.0 GB spill cap; rebuilding it instead
 a 1.4 GB table is over the 0.0 GB spill cap; rebuilding it instead
 a 37.4 GB table is over the 0.0 GB spill cap; rebuilding it instead
+pair 525: first atoms 5.69 A, electrostatic -0.084 kcal/mol, exchange 0.037, Hartree-Fock beyond both 0.047, overlap 5.3694e-6, electrons 26.00000 26.00000, 1314 functions, 3193 s
+a 1.5 GB table is over the 0.0 GB spill cap; rebuilding it instead
