@@ -6,6 +6,19 @@
 
 ## WAKE CADENCE: every 62 min, self-scheduled. At the start of each wake call send_later (+62 min) with the same message; backstop task every 6 h re-arms if the chain breaks.
 
+## 2026-11-18 12:35 UTC, wake 66
+
+- CHLOROFORM FULL ASSEMBLED HERE (4 parts x 2 = 8 pairs, full.ok). Law needs phys-lawenergy (not built here): law,
+  plan on 110 (workers check out main's species dir at job start, so assembling here works).
+- Propane grown (124): mono (12 h polar) + pairs on 124.
+- Ethylamine whole pairs killed: 8 three-pair parts over idle 48, 53, 140, 141 (no new workers).
+- BENZENE pairs killed (whole run): STOPPED for the owner, with CCl4, ethylene glycol, acetone, isopropanol, propanol.
+  86 archived. Propanol parts 5-8 also killed (all 8 parts dead).
+- Acetone single pairs p2-2, p2-3 FINISHED (p1-2, p1-3 killed): single pairs fit sometimes. Isopropanol p1-3, p4-1
+  killed. Keep the queued ones running.
+- Session check: 130 idle again -> fresh 145 (butanol); 142 resumed (first). 40 and 43 not on page 1 (running last
+  wake). Next 13:37.
+
 ## 2026-11-18 11:31 UTC, wake 65
 
 - BENZENE POLARISABILITY DONE (2nd 12 h try): mono.ok; pairs running on 86 (expect a memory kill).
