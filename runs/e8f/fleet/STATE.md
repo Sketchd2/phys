@@ -608,3 +608,8 @@
 - Propane: the polarisability step is printing results. The mono stage is still running on 124.
 - Acetone p5-3 and isopropanol p5-1 and p5-2 were killed. Both species stay blocked.
 - Usage limit hit at 15:13 (reset 15:20). The fleet is cut from 36 to 32: 40, 134, 136 and 137 are retired. 143 went idle twice, so it is replaced by 146 (ethyl acetate grow). The 21 workers that stopped at the limit have been resumed.
+
+### Wake 70 (16:48 UTC)
+- Propane: mono is done, and the pairs stage is next on 124.
+- Ethylamine: pp6 and pp8 are done, and so are the single pairs p1-1, p1-2 and p5-2. The single pair p4-1 was killed on memory. So far two single pairs (p4-1 and p5-1) cannot run on a 15 GB machine. If ethylamine finishes 22 of 24 pairs, whether to go on is the owner's call.
+- Workers 53 and 141 have nothing left in their queues, so they are archived. The fleet is down to 31.
