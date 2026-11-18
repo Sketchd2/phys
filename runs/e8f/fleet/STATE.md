@@ -6,6 +6,13 @@
 
 ## WAKE CADENCE: every 62 min, self-scheduled. At the start of each wake call send_later (+62 min) with the same message; backstop task every 6 h re-arms if the chain breaks.
 
+## 2026-11-18 08:20 UTC, wake 62
+
+- ACETALDEHYDE LAW HAS A HOLE (K 3.57, 8 pairs): no liquid. Tenth HOLE species. Its plan correctly refused.
+- Propanol mono done (pairs next on 53). Acetic acid full parts 2, 3, 7 of 8 done; chloroform 1-3 of 4.
+- Session check: 128 (ethyl acetate) idle again after its resume -> fresh 138. 41 and 109 finished their queues:
+  archived. All others RUNNING. Next 09:22.
+
 ## 2026-11-18 07:17 UTC, wake 61
 
 - Acetone, isopropanol mono done; their whole pairs runs were killed (47 GB table). Each split into 8 three-pair

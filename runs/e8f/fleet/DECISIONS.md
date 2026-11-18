@@ -62,3 +62,4 @@
 2026-11-17 09:00 chloroform pairs assembled here (24) -> full..plan on 79. Ethane plan: 34 states over 93, 94 and new 108-111 (count 39, splitting real work).
 2026-11-17 19:34 Ethane boil HERE: 316.5 K from 34 complete states (experiment 184.6 K). 11 state logs had been overwritten in merges by other workers' stale truncated copies; restored from each state's own worker (a complete copy existed for all 11), and all ethane liquid/ paths are now merge-skipped.
 2026-11-17 23:50 grow.sh's 20 h limit (MAXH) accepts a basis wherever growth stopped, as before. Heptane, toluene and cyclohexane hit it inside round 0, with no grow state at all, and grow.ok was still written, so their mono stages panicked (no growth state). Their grow.ok removed; regrow from scratch with MAXH=48 on the same workers (65, 97, 101); their branches' old grow.ok is merge-skipped.
+2026-11-18 08:20 Acetaldehyde: law has a hole (K 3.57 over 8 cp pairs): no liquid, like the nine before it.
