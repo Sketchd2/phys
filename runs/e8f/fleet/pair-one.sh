@@ -2,6 +2,7 @@
 # pair-one.sh NAME K J : the frozen stage for pair J alone of pairs-part K (sel-part-K.txt), for a part that was
 # killed on memory even at 3 pairs; `pair-one.sh NAME K all` joins frozen-part-K-*.txt into frozen-part-K.txt.
 NAME=$1; K=$2; J=$3; ROOT=$(cd "$(dirname "$0")/../../.." && pwd); B=$ROOT/target/release
+[ -s sel-part-$K.txt ] || sed -n "$(( (K-1)*3 + 1 )),$(( K*3 ))p" pairs-$NAME-sel.txt > sel-part-$K.txt  # 3-pair parts, as pairs-part.sh cuts them
 [ -s sel-part-$K.txt ] || { echo "no sel-part-$K.txt"; exit 1; }; T=$(grep -c . sel-part-$K.txt)
 if [ "$J" = all ]; then
   for j in $(seq 1 $T); do [ -f frozen-part-$K-$j.done ] || { echo "pair $j not done"; exit 1; }; done
