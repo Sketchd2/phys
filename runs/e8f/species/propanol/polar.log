@@ -1,1 +1,4 @@
 propanol: 796 functions, field step 0.002, 4 frozen cores
+  19 fields in 17773 s (dipole width scale 1)
+  Hartree-Fock: mean 43.3261 bohr^3, diagonal 39.0482 45.2223 45.7079, off-diagonal -1.7e-7 5.1e-7 -3.8e0
+  MP2: mean 45.9180 bohr^3, diagonal 41.0791 48.2605 48.4145, off-diagonal 2.7e-4 7.6e-6 -4.3e0

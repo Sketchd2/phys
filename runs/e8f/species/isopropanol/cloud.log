@@ -1,0 +1,19 @@
+isopropanol: dipole Hartree-Fock 0.7049 au (1.792 D), target 0.7049 au (1.792 D)
+  16790 potential points; the target's RMS 4.548e0, its mean -4.472e0 hartree/e
+  localised in 23 sweeps: 10 bond orbitals, 3 lone pairs (4 core orbitals frozen out of the localisation)
+  valence electrons 26, cores [4.0, 4.0, 4.0, 6.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+  atom class 0: cloud 4.416 electrons, width 0.957 bohr
+  atom class 1: cloud 2.102 electrons, width 1.039 bohr
+  atom class 2: cloud 5.212 electrons, width 1.700 bohr
+  atom class 3: cloud 1.204 electrons, width 0.250 bohr
+  atom class 4: cloud 0.805 electrons, width 0.491 bohr
+  atom class 5: cloud 1.108 electrons, width 1.749 bohr
+  atom class 6: cloud 0.811 electrons, width 0.401 bohr
+  atom class 7: cloud 1.273 electrons, width 0.454 bohr
+  atom class 8: cloud 0.710 electrons, width 0.511 bohr
+  atom class 9: cloud 0.709 electrons, width 0.914 bohr
+  atom class 10: cloud 0.781 electrons, width 1.243 bohr
+  atom class 11: cloud 0.880 electrons, width 0.307 bohr
+  lone-pair cloud of class 3: 3 pair(s) on 1 atom(s), 5.990 electrons, width 1.790 bohr, 0.267 bohr from the nucleus (the orbitals' centre is 0.267)
+  potential RMS 1.038e-2 hartree/e (atom-centred point charges alone: 4.553e-3)
+  written to cloud-isopropanol.txt

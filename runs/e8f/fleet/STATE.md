@@ -6,6 +6,13 @@
 
 ## WAKE CADENCE: every 62 min, self-scheduled. At the start of each wake call send_later (+62 min) with the same message; backstop task every 6 h re-arms if the chain breaks.
 
+## 2026-11-18 06:13 UTC, wake 60
+
+- Session check: every active worker RUNNING. No job finished this hour.
+- Benzene polarisability on 86 restarted at 00:54 after 12.5 h with no exit status (killed from outside; the session
+  reports exit 137 = SIGKILL, likely memory). Second attempt 5 h in. If it restarts again, stop benzene for the
+  owner (like CCl4 / ethylene glycol): 840 functions may not fit phys-polar on a 15 GB worker. Next 07:16.
+
 ## 2026-11-18 05:07 UTC, wake 59
 
 - Session check (one call, limit 100): every active worker RUNNING. No job finished this hour. Next 06:10.
