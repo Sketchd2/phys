@@ -1,2 +1,5 @@
 acetone-pp2-w132 species/acetone ../../fleet/pairs-part.sh acetone 2 3
 acetone-pp6-w132 species/acetone ../../fleet/pairs-part.sh acetone 6 3
+acetone-p1-2-w132 species/acetone ../../fleet/pair-one.sh acetone 1 2
+acetone-p2-3-w132 species/acetone ../../fleet/pair-one.sh acetone 2 3
+acetone-p5-1-w132 species/acetone ../../fleet/pair-one.sh acetone 5 1
