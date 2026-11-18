@@ -332,3 +332,37 @@ ethyl_acetate: 14 atoms, 13 bonds; starting
 ethyl_acetate: 14 atoms, 13 bonds; starting
 ethyl_acetate: 14 atoms, 13 bonds; starting
 ethyl_acetate: 14 atoms, 13 bonds; starting
+  relaxed at 206 functions, 9791 s into round 0; 70 probes of 512 candidates to go
+  round 0 probe 1/70: 50/512 candidates, 10065 s into the round; about 320 min left in it
+  round 0 probe 1/70: 100/512 candidates, 10065 s into the round; about 320 min left in it
+  round 0 probe 1/70: 150/512 candidates, 10066 s into the round; about 321 min left in it
+  round 0 probe 1/70: 200/512 candidates, 10066 s into the round; about 321 min left in it
+  round 0 probe 1/70: 250/512 candidates, 10067 s into the round; about 321 min left in it
+  round 0 probe 1/70: 300/512 candidates, 10067 s into the round; about 321 min left in it
+  round 0 probe 1/70: 350/512 candidates, 10068 s into the round; about 321 min left in it
+  round 0 probe 1/70: 400/512 candidates, 10068 s into the round; about 321 min left in it
+  round 0 probe 1/70: 450/512 candidates, 10069 s into the round; about 321 min left in it
+  round 0 probe 1/70: 500/512 candidates, 10070 s into the round; about 321 min left in it
+  round 0 probe 1/70: 512/512 candidates, 10070 s into the round; about 321 min left in it
+  round 0 probe 2/70: 50/512 candidates, 10347 s into the round; about 319 min left in it
+  round 0 probe 2/70: 100/512 candidates, 10347 s into the round; about 319 min left in it
+  round 0 probe 2/70: 150/512 candidates, 10348 s into the round; about 319 min left in it
+  round 0 probe 2/70: 200/512 candidates, 10348 s into the round; about 319 min left in it
+  round 0 probe 2/70: 250/512 candidates, 10349 s into the round; about 319 min left in it
+  round 0 probe 2/70: 300/512 candidates, 10349 s into the round; about 319 min left in it
+  round 0 probe 2/70: 350/512 candidates, 10350 s into the round; about 319 min left in it
+  round 0 probe 2/70: 400/512 candidates, 10351 s into the round; about 319 min left in it
+  round 0 probe 2/70: 450/512 candidates, 10351 s into the round; about 319 min left in it
+  round 0 probe 2/70: 500/512 candidates, 10352 s into the round; about 319 min left in it
+  round 0 probe 2/70: 512/512 candidates, 10353 s into the round; about 320 min left in it
+  round 0 probe 3/70: 50/512 candidates, 10631 s into the round; about 316 min left in it
+  round 0 probe 3/70: 100/512 candidates, 10632 s into the round; about 316 min left in it
+  round 0 probe 3/70: 150/512 candidates, 10632 s into the round; about 316 min left in it
+  round 0 probe 3/70: 200/512 candidates, 10633 s into the round; about 316 min left in it
+  round 0 probe 3/70: 250/512 candidates, 10633 s into the round; about 317 min left in it
+  round 0 probe 3/70: 300/512 candidates, 10634 s into the round; about 317 min left in it
+  round 0 probe 3/70: 350/512 candidates, 10635 s into the round; about 317 min left in it
+  round 0 probe 3/70: 400/512 candidates, 10635 s into the round; about 317 min left in it
+  round 0 probe 3/70: 450/512 candidates, 10636 s into the round; about 317 min left in it
+  round 0 probe 3/70: 500/512 candidates, 10637 s into the round; about 317 min left in it
+  round 0 probe 3/70: 512/512 candidates, 10637 s into the round; about 318 min left in it

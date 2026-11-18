@@ -1,1 +1,22 @@
 phenol: dipole Hartree-Fock 0.5554 au (1.412 D), target 0.5554 au (1.412 D)
+  18215 potential points; the target's RMS 5.618e0, its mean -5.533e0 hartree/e
+  localised in 41 sweeps: 11 bond orbitals, 7 lone pairs (7 core orbitals frozen out of the localisation)
+  valence electrons 36, cores [4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 6.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+  atom class 0: cloud 0.000 electrons, width 0.816 bohr
+  atom class 1: cloud 4.219 electrons, width 0.703 bohr
+  atom class 2: cloud 4.226 electrons, width 0.649 bohr
+  atom class 3: cloud 1.569 electrons, width 0.725 bohr
+  atom class 4: cloud 1.818 electrons, width 0.548 bohr
+  atom class 5: cloud 2.925 electrons, width 0.707 bohr
+  atom class 6: cloud 1.644 electrons, width 0.743 bohr
+  atom class 7: cloud 0.836 electrons, width 0.491 bohr
+  atom class 8: cloud 0.927 electrons, width 0.657 bohr
+  atom class 9: cloud 1.143 electrons, width 0.483 bohr
+  atom class 10: cloud 1.173 electrons, width 0.527 bohr
+  atom class 11: cloud 0.911 electrons, width 1.155 bohr
+  atom class 12: cloud 0.651 electrons, width 0.401 bohr
+  lone-pair cloud of class 3: 2 pair(s) on 1 atom(s), 3.978 electrons, width 2.424 bohr, 1.180 bohr from the nucleus (the orbitals' centre is 1.180)
+  lone-pair cloud of class 5: 2 pair(s) on 1 atom(s), 3.984 electrons, width 2.382 bohr, 1.136 bohr from the nucleus (the orbitals' centre is 1.136)
+  lone-pair cloud of class 6: 3 pair(s) on 1 atom(s), 5.996 electrons, width 1.606 bohr, 0.289 bohr from the nucleus (the orbitals' centre is 0.289)
+  potential RMS 1.463e-2 hartree/e (atom-centred point charges alone: 6.138e-3)
+  written to cloud-phenol.txt
