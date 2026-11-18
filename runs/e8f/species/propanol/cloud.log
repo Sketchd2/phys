@@ -1,1 +1,16 @@
 propanol: dipole Hartree-Fock 0.6438 au (1.636 D), target 0.6438 au (1.636 D)
+  16978 potential points; the target's RMS 4.493e0, its mean -4.419e0 hartree/e
+  localised in 25 sweeps: 10 bond orbitals, 3 lone pairs (4 core orbitals frozen out of the localisation)
+  valence electrons 26, cores [4.0, 4.0, 4.0, 6.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+  atom class 0: cloud 5.472 electrons, width 1.944 bohr
+  atom class 1: cloud 3.955 electrons, width 0.842 bohr
+  atom class 2: cloud 2.306 electrons, width 0.400 bohr
+  atom class 3: cloud 1.245 electrons, width 0.461 bohr
+  atom class 4: cloud 0.607 electrons, width 0.456 bohr
+  atom class 5: cloud 0.666 electrons, width 0.518 bohr
+  atom class 6: cloud 0.851 electrons, width 0.583 bohr
+  atom class 7: cloud 1.274 electrons, width 1.317 bohr
+  atom class 8: cloud 0.842 electrons, width 0.640 bohr
+  lone-pair cloud of class 3: 3 pair(s) on 1 atom(s), 5.991 electrons, width 1.745 bohr, 0.270 bohr from the nucleus (the orbitals' centre is 0.270)
+  potential RMS 9.851e-3 hartree/e (atom-centred point charges alone: 4.517e-3)
+  written to cloud-propanol.txt
