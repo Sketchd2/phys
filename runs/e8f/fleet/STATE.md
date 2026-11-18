@@ -6,6 +6,16 @@
 
 ## WAKE CADENCE: every 62 min, self-scheduled. At the start of each wake call send_later (+62 min) with the same message; backstop task every 6 h re-arms if the chain breaks.
 
+## 2026-11-18 10:27 UTC, wake 64
+
+- 3-PAIR PARTS NO LONGER FIT for acetone and isopropanol: acetone parts 1,2,4,5 and isopropanol 2,3,5,8 killed (no
+  part of either has finished). Those parts now run as single pairs (pair-one.sh) over each species' 4 workers;
+  remaining 3-pair parts (acetone 3,6,7,8; isopropanol 6,7) still running. If they die too: singles. Join each part
+  HERE with `pair-one.sh NAME K all`, then `pairs-part.sh NAME all 3`. Expect the same for propanol (139-141, 53).
+- Acetic acid full part 1 killed even as ONE pair (28.7 GB table rebuilt): one retry on 139 (fresh machine). If it
+  dies again, acetic acid full has 7 of 8 pairs: owner's call whether law may use 7.
+- Session check: 135 idle again -> fresh 142 (its jobs); 91 (new jobs), 138, 123 idle (first) -> resumed. Next 11:29.
+
 ## 2026-11-18 09:23 UTC, wake 63
 
 - Isopropanol parts 1 and 4 killed even at 3 pairs: single pairs (pair-one.sh, which now cuts its own sel-part file)
