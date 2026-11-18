@@ -1,1 +1,1 @@
-STOP
+ethyl_acetate-grow-w74-w146 species/ethyl_acetate ../../fleet/stage.sh grow ethyl_acetate

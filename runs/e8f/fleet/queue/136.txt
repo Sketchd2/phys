@@ -4,3 +4,4 @@ isopropanol-p1-3-w136 species/isopropanol ../../fleet/pair-one.sh isopropanol 1 
 isopropanol-p2-3-w136 species/isopropanol ../../fleet/pair-one.sh isopropanol 2 3
 isopropanol-p5-1-w136 species/isopropanol ../../fleet/pair-one.sh isopropanol 5 1
 isopropanol-p8-2-w136 species/isopropanol ../../fleet/pair-one.sh isopropanol 8 2
+STOP

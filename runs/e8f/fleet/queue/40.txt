@@ -18,3 +18,4 @@ isopropanol-p4-3-w40 species/isopropanol ../../fleet/pair-one.sh isopropanol 4 3
 isopropanol-p2-2-w40 species/isopropanol ../../fleet/pair-one.sh isopropanol 2 2
 isopropanol-p3-3-w40 species/isopropanol ../../fleet/pair-one.sh isopropanol 3 3
 isopropanol-p8-1-w40 species/isopropanol ../../fleet/pair-one.sh isopropanol 8 1
+STOP
