@@ -467,3 +467,16 @@
 141 runs/e8f/species/ethylamine/frozen-ethylamine
 141 runs/e8f/species/ethylamine/pairs.ok
 110 runs/e8f/species/chloroform/
+146 runs/e8f/species/isopropanol/frozen-part-2-2.
+146 runs/e8f/species/isopropanol/frozen-part-2-3.
+146 runs/e8f/species/isopropanol/frozen-part-2.
+146 runs/e8f/species/isopropanol/frozen-part-3-1.
+146 runs/e8f/species/isopropanol/frozen-part-3-3.
+146 runs/e8f/species/isopropanol/frozen-part-3.
+146 runs/e8f/species/isopropanol/frozen-part-5-1.
+146 runs/e8f/species/isopropanol/frozen-part-5-2.
+146 runs/e8f/species/isopropanol/frozen-part-5.
+146 runs/e8f/species/isopropanol/frozen-part-8-1.
+146 runs/e8f/species/isopropanol/frozen-part-8-2.
+146 runs/e8f/species/isopropanol/frozen-part-8-3.
+146 runs/e8f/species/isopropanol/frozen-part-8.

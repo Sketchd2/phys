@@ -6,3 +6,4 @@ acetone-pp5-w91 species/acetone ../../fleet/pairs-part.sh acetone 5 3
 acetone-p1-1-w91 species/acetone ../../fleet/pair-one.sh acetone 1 1
 acetone-p2-2-w91 species/acetone ../../fleet/pair-one.sh acetone 2 2
 acetone-p4-3-w91 species/acetone ../../fleet/pair-one.sh acetone 4 3
+STOP

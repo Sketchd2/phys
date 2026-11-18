@@ -6,3 +6,4 @@ ethane-liq-202-0.634-w110 species/ethane ../../fleet/liquid-state.sh ethane 202 
 chloroform-fullp4-w110 species/chloroform ../../fleet/full-part.sh chloroform 4 2
 chloroform-law-w110 species/chloroform ../../fleet/stage.sh law chloroform
 chloroform-plan-w110 species/chloroform ../../fleet/stage.sh plan chloroform
+STOP
