@@ -1,0 +1,1 @@
+../../fleet/full-part.sh: line 18:   676 Killed                  $B/phys-overlap $NAME full-sel-part-$K.txt --frozen --full --cp --out full-part-$K.txt > full-part-$K.log 2>&1
