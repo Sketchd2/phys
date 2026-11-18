@@ -1302,3 +1302,4 @@ toluene: 15 atoms, 15 bonds; starting
   round 0 probe 76/78: 559/559 candidates, 71661 s into the round; about 15 min left in it
 toluene: 15 atoms, 15 bonds; starting
 toluene: 15 atoms, 15 bonds; starting
+  relaxed at 227 functions, 16011 s into round 0; 78 probes of 559 candidates to go
