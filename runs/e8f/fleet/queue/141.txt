@@ -1,0 +1,2 @@
+propanol-pp4-w141 species/propanol ../../fleet/pairs-part.sh propanol 4 3
+propanol-pp8-w141 species/propanol ../../fleet/pairs-part.sh propanol 8 3

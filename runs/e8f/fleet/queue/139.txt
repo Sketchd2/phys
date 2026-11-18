@@ -1,0 +1,2 @@
+propanol-pp2-w139 species/propanol ../../fleet/pairs-part.sh propanol 2 3
+propanol-pp6-w139 species/propanol ../../fleet/pairs-part.sh propanol 6 3

@@ -2,3 +2,8 @@ a 1.4 GB table is over the 0.0 GB spill cap; rebuilding it instead
 a 47.4 GB table is over the 0.0 GB spill cap; rebuilding it instead
 pair 367: first atoms 3.58 A, electrostatic -3.937 kcal/mol, exchange 18.319, Hartree-Fock beyond both -14.382, overlap 2.8677e-3, electrons 31.99999 32.00001, 1376 functions, 2819 s
 a 2.4 GB table is over the 0.0 GB spill cap; rebuilding it instead
+a 3.1 GB table is over the 0.0 GB spill cap; rebuilding it instead
+a 47.0 GB table is over the 0.0 GB spill cap; rebuilding it instead
+pair 415: first atoms 4.54 A, electrostatic -9.894 kcal/mol, exchange 22.763, Hartree-Fock beyond both -12.869, overlap 4.2604e-3, electrons 31.99999 32.00000, 1376 functions, 3656 s
+a 1.9 GB table is over the 0.0 GB spill cap; rebuilding it instead
+a 2.4 GB table is over the 0.0 GB spill cap; rebuilding it instead

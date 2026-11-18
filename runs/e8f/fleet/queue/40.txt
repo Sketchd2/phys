@@ -13,3 +13,5 @@ isopropanol-mono-w40 species/isopropanol rm -rf /tmp/spill/*; grep -q "MP2: mean
 isopropanol-pairs-w40 species/isopropanol ../../fleet/stage.sh pairs isopropanol
 isopropanol-pp1-w40 species/isopropanol ../../fleet/pairs-part.sh isopropanol 1 3
 isopropanol-pp5-w40 species/isopropanol ../../fleet/pairs-part.sh isopropanol 5 3
+isopropanol-p1-2-w40 species/isopropanol ../../fleet/pair-one.sh isopropanol 1 2
+isopropanol-p4-3-w40 species/isopropanol ../../fleet/pair-one.sh isopropanol 4 3
