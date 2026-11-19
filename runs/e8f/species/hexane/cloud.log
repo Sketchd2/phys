@@ -1,2 +1,14 @@
 could not spill a 31.2 GB table to /tmp/spill: No space left on device (os error 28); rebuilding it instead
 hexane: dipole Hartree-Fock 0.0000 au (0.000 D), target 0.0000 au (0.000 D)
+  26505 potential points; the target's RMS 5.630e0, its mean -5.542e0 hartree/e
+  localised in 13 sweeps: 19 bond orbitals, 0 lone pairs (6 core orbitals frozen out of the localisation)
+  valence electrons 38, cores [4.0, 4.0, 4.0, 1.0, 1.0, 1.0, 1.0]
+  atom class 0: cloud 4.228 electrons, width 0.626 bohr
+  atom class 1: cloud 3.792 electrons, width 0.696 bohr
+  atom class 2: cloud 4.099 electrons, width 0.525 bohr
+  atom class 3: cloud 0.926 electrons, width 0.450 bohr
+  atom class 4: cloud 0.967 electrons, width 1.490 bohr
+  atom class 5: cloud 1.052 electrons, width 1.471 bohr
+  atom class 6: cloud 0.958 electrons, width 0.439 bohr
+  potential RMS 3.205e-3 hartree/e (atom-centred point charges alone: 4.492e-3)
+  written to cloud-hexane.txt
