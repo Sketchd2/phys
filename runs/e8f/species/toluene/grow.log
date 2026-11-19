@@ -3215,3 +3215,18 @@ toluene: 15 atoms, 15 bonds; starting
   round 0 probe 77/78: 500/559 candidates, 67656 s into the round; about 7 min left in it
   round 0 probe 77/78: 550/559 candidates, 67657 s into the round; about 7 min left in it
   round 0 probe 77/78: 559/559 candidates, 67658 s into the round; about 7 min left in it
+  round 0 probe 78/78: 50/559 candidates, 68065 s into the round; under a minute left in it
+  round 0 probe 78/78: 100/559 candidates, 68066 s into the round; under a minute left in it
+  round 0 probe 78/78: 150/559 candidates, 68066 s into the round; under a minute left in it
+  round 0 probe 78/78: 200/559 candidates, 68067 s into the round; under a minute left in it
+  round 0 probe 78/78: 250/559 candidates, 68068 s into the round; under a minute left in it
+  round 0 probe 78/78: 300/559 candidates, 68069 s into the round; under a minute left in it
+  round 0 probe 78/78: 350/559 candidates, 68070 s into the round; under a minute left in it
+  round 0 probe 78/78: 400/559 candidates, 68071 s into the round; under a minute left in it
+  round 0 probe 78/78: 450/559 candidates, 68072 s into the round; under a minute left in it
+  round 0 probe 78/78: 500/559 candidates, 68072 s into the round; under a minute left in it
+  round 0 probe 78/78: 550/559 candidates, 68073 s into the round; under a minute left in it
+  round 0 probe 78/78: 559/559 candidates, 68074 s into the round; under a minute left in it
+round 0: 227 functions, E -271.24152030, 68074 s
+  shape (A, deg): 1.40944 1.40716 1.40569 1.40753 1.40517 1.41176 1.50966 1.09869 1.09821 1.09775 1.09816 1.09935 1.10711 1.10732 1.10470 118.206 120.890 120.904 121.138 118.833 120.029 120.042 119.810 120.148 119.439 120.285 120.276 120.171 120.089 119.740 121.003 119.785 119.212 111.553 111.545 111.126 107.060 107.688 107.654
+  added 3, predicted to move: +0.00007 +0.00007 +0.00000 -0.00017 +0.00000 +0.00000 +0.00441 +0.00166 +0.00193 +0.00178 +0.00274 +0.00165 +0.00062 +0.00061 +0.00029 +0.000 +0.000 +0.149 +0.000 -0.008 +0.000 +0.000 +0.000 +0.000 -0.090 +0.000 +0.000 +0.000 -16183663.337 +0.000 +0.000 +0.000 +0.000 -0.003 -0.000 -0.134 +0.023 +0.077 +0.058; left 357409049.43
