@@ -688,3 +688,6 @@
 - Acetic acid: full part 4 is done (parts 2 to 7 now). Part 8 is on 129 and part 1 on 152.
 - 46 (aniline), 50 (pyridine) and 62 (diethyl ether) were still RUNNING their mono at about 17.8 h, past the 12 h polar limit by more than butane's 17 h. They are replaced, as planned, by 153, 154 and 155: mono with the 24 h limit, then pairs. The old workers are stopped and archived.
 - Worker 46's session had cost 17.66 USD (339 M cache-read tokens) by archive, against 0.9 to 1.3 USD for 50 and 62 over similar lifetimes. A long-lived session's context grows every call; replacing old workers is cheaper than keeping them.
+
+### Wake 87 (10:49 UTC)
+- No new results. 152 to 155 are RUNNING their jobs; their "started" commits have not reached their branches, as with 52 before, which is harmless. Workers 120 to 155 are running; the older ones were running at the last full check.
