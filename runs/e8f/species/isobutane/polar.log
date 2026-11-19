@@ -1,1 +1,10 @@
 isobutane: 884 functions, field step 0.002, 4 frozen cores
+
+thread 'main' (28890) panicked at src/electrons/hf.rs:566:9:
+Hartree-Fock in the field [0.0, 0.0, 0.002] did not converge
+stack backtrace:
+   0: __rustc::rust_begin_unwind
+   1: core::panicking::panic_fmt
+   2: phys::electrons::hf::polarisabilities
+   3: phys_polar::main
+note: Some details are omitted, run with `RUST_BACKTRACE=full` for a verbose backtrace.

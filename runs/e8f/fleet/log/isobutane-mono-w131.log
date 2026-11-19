@@ -1,0 +1,1 @@
+bash: line 1: 28889 Aborted                 PHYS_SPILL_MAX_GB=0 timeout 86400 $(git rev-parse --show-toplevel)/target/release/phys-polar isobutane > polar.log 2>&1
