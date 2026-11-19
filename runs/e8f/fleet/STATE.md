@@ -645,3 +645,8 @@
   - Stale empty copies had replaced parts 1, 2, 3 and 7. Each was restored from its owner (48, 124, 132 and 132), and propane's merge is fenced like ethylamine's: each part file comes only from its owner, the split parts 4, 6 and 8 are joined here, and each single pair comes only from its assigned worker.
   - Part 6's singles go to 124 (p6-1, p6-2) and 132 (p6-3). Part 8's singles are spread: p8-1 on 133, p8-2 on 132, p8-3 on 124. pp5 is still on 48.
 - Resumed 139 (acetic acid full p1 retry), idle for the first time since the limit resume. Acetic acid full parts 4, 5, 6 and 8 are still running on 129, 93 and 94.
+
+### Wake 77 (00:13 UTC)
+- Acetic acid: full part 5 is done (parts 2, 3, 5 and 7 now). Parts 1 (139), 4 and 8 (129) and 6 (94) are still running.
+- Propane: pp5 is done (parts 1, 2, 3, 5 and 7, so 15 pairs) plus the single pairs p4-3 and p6-1. The single pairs p4-2 and p6-3 were killed on memory, as p4-1 was. Three propane pairs cannot run at 15 GB. Still pending: p6-2 and p8-1 to p8-3. If propane ends short of 24 pairs, whether to go on is the owner's call, as with ethylamine.
+- 48 and 93 have nothing left in their queues and are archived. The fleet is down to 27.

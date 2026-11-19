@@ -12,3 +12,4 @@ acetic_acid-p2-1-w93 species/acetic_acid ../../fleet/pair-one.sh acetic_acid 2 1
 acetic_acid-p3-1-w93 species/acetic_acid ../../fleet/pair-one.sh acetic_acid 3 1
 acetic_acid-fullp1-w93 species/acetic_acid ../../fleet/full-part.sh acetic_acid 1 1
 acetic_acid-fullp5-w93 species/acetic_acid ../../fleet/full-part.sh acetic_acid 5 1
+STOP
