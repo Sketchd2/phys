@@ -724,3 +724,4 @@
 - Butanone: grow is done. Mono (24 h) and pairs follow DME on 126.
 - Octane: grow stopped at the 20 h limit inside round 0 with no grow state, as heptane, toluene and cyclohexane did (round 0 had about 26 h left). Its grow.ok is removed and merge-skipped from 120, and it regrows on 120 with MAXH=48.
 - Butane: pp3 was killed on memory and is split into single pairs on 159, fenced as for pp2.
+- 20:30: 157 (acetic acid full p1) went idle for the first time and was resumed. Its job restarts. 112 is archived.
