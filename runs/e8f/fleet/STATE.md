@@ -678,3 +678,4 @@
 
 ### Wake 84 (07:39 UTC)
 - No new results. 46, 50 and 62 are still on their mono stage at about 15.7 h, with nothing pushed past polar.log's header. worker.sh commits only changed files, so phys-polar itself is still running past its 12 h `timeout`. Precedent: butane-mono-w52b (12 h) started 20:51 and was reported failed at 14:11, about 17 h. So the timeout lands hours late, and these three should end around 09:00. If they have not failed or finished by the 08:42 wake plus one (about 09:45), they get replaced by fresh workers with the 24 h limit.
+- 125 went idle a second time (06:11, after the 04:27 resume). The pentane grow moves to 151. Resumed 149 (acetic acid full p1), idle for the first time.
