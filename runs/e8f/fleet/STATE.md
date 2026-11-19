@@ -704,3 +704,6 @@
 ### Wake 91 (15:04 UTC)
 - No new results. 151 and 152 pushed new "started" commits at 14:09 after their resume, so their jobs restarted (see the DECISIONS correction). Resuming saves nothing over replacing; idle time itself loses the job.
 - 151 and 152 went idle again within 20 minutes of their resume (14:09, 14:17). Replaced by 156 (pentane grow) and 157 (acetic acid full p1).
+
+### Wake 92 (16:09 UTC)
+- No new results for the ninth hour. The newest workers (148 to 157) are running. Watch: butane-mono-w52c (24 h limit) has run about 25 h, so the 24 h limit also lands late.
