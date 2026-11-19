@@ -1903,3 +1903,4 @@ cyclohexane: 18 atoms, 18 bonds; starting
   round 0 probe 73/108: 600/618 candidates, 64036 s into the round; about 463 min left in it
   round 0 probe 73/108: 618/618 candidates, 64036 s into the round; about 463 min left in it
 cyclohexane: 18 atoms, 18 bonds; starting
+  relaxed at 246 functions, 20556 s into round 0; 108 probes of 618 candidates to go
