@@ -741,3 +741,4 @@
 ## Wake 99 (23:34 UTC)
 - Pyridine pairs were killed as one run (an 81.6 GB table). Split into 8 three-pair parts: 1-3 on 154, 4-6 on new worker 162, 7-8 on new worker 163. Fenced per owner.
 - Butane: single pairs p2-1 and p2-2 (158) were killed on memory (a 102.2 GB table at spill 0). Those two pairs cannot run on these machines; that is the owner's call, as for ethylamine and propane. Part 8 (160) was killed as a part and goes to single pairs on 160. The other queued singles still run.
+- New workers 162 and 163 (pyridine parts). 159 went idle for the first time and was resumed. 155 went idle a second time (after its 17:41 resume), so it is archived and its diethyl ether mono (24 h) moves to new worker 164 (session_016vymdygFyqyAZ8PY9JGmCb). Diethyl ether files are fenced from 155. The fleet is 26 workers.
