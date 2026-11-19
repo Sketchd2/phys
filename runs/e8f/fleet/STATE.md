@@ -737,3 +737,7 @@
 - Butane pairs parts 5 (52) and 7 (159) were killed on memory. Their pairs now run one at a time on the same workers.
 - 150 (butanol grow) went idle for the first time and was resumed. 157 went idle a second time (21:42, after the 20:30 resume), so it is archived and 161 (session_016vymdwokd2GcDNCGPT3p1s) takes acetic acid full part 1 (job acetic_acid-fullp1c-w161). Part 1 files are fenced from 157.
 - 43, 52 and 59 are running. The fleet is 24 workers.
+
+## Wake 99 (23:34 UTC)
+- Pyridine pairs were killed as one run (an 81.6 GB table). Split into 8 three-pair parts: 1-3 on 154, 4-6 on new worker 162, 7-8 on new worker 163. Fenced per owner.
+- Butane: single pairs p2-1 and p2-2 (158) were killed on memory (a 102.2 GB table at spill 0). Those two pairs cannot run on these machines; that is the owner's call, as for ethylamine and propane. Part 8 (160) was killed as a part and goes to single pairs on 160. The other queued singles still run.

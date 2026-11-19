@@ -1,0 +1,3 @@
+pyridine-pp4-w162 species/pyridine ../../fleet/pairs-part.sh pyridine 4 3
+pyridine-pp5-w162 species/pyridine ../../fleet/pairs-part.sh pyridine 5 3
+pyridine-pp6-w162 species/pyridine ../../fleet/pairs-part.sh pyridine 6 3

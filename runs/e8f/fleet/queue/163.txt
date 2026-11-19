@@ -1,0 +1,2 @@
+pyridine-pp7-w163 species/pyridine ../../fleet/pairs-part.sh pyridine 7 3
+pyridine-pp8-w163 species/pyridine ../../fleet/pairs-part.sh pyridine 8 3
