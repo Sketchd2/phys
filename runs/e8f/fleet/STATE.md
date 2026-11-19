@@ -671,3 +671,7 @@
 
 ### Wake 82 (05:31 UTC)
 - No new results. Workers 122 to 150 are running. The older ones were running at 04:27.
+
+### Wake 83 (06:35 UTC)
+- No new results for a third hour. I checked the last push on every worker branch. 52 is running butane-mono-w52c (its "started" commit never reached the branch).
+- Watch: 46 (aniline), 50 (pyridine) and 62 (diethyl ether) still report RUNNING their mono stage, started 15:56 yesterday. Each has a 12 h limit on phys-polar, and the rest of stage.sh mono has none. Nothing has been pushed past polar.log's header line. If they are still RUNNING at the next wake (about 16 h), look at them as possibly stuck.

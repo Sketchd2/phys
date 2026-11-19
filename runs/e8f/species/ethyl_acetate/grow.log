@@ -1107,3 +1107,15 @@ round 0: 206 functions, E -307.40995337, 30406 s
   shape (A, deg): 1.50462 1.24387 1.37495 1.46714 1.51608 1.10195 1.10840 1.10298 1.10392 1.10687 1.10739 1.10584 1.10632 111.542 109.379 109.266 108.290 110.549 107.727 124.846 111.486 123.663 115.156 107.944 107.856 107.005 113.483 111.918 108.363 110.008 111.189 111.170 108.168 108.073 108.121
   added 3, predicted to move: -0.00030 -0.02195 -0.01175 -0.00484 -0.00367 +0.00324 +0.00211 +0.00153 -0.00234 -0.00184 +0.00079 +0.00134 +0.00227 +0.085 -0.691 +0.162 +0.202 +0.258 -0.024 +0.000 +0.000 +0.000 +0.586 -0.013 -0.614 -0.106 +0.458 +0.290 +0.110 -0.080 -0.019 +0.125 +0.001 +0.035 -0.063; left 836.87
 ethyl_acetate: 14 atoms, 13 bonds; carrying on from round 1
+  relaxed at 234 functions, 18841 s into round 1; 70 probes of 520 candidates to go
+  round 1 probe 1/70: 50/520 candidates, 19377 s into the round; about 624 min left in it
+  round 1 probe 1/70: 100/520 candidates, 19378 s into the round; about 624 min left in it
+  round 1 probe 1/70: 150/520 candidates, 19378 s into the round; about 624 min left in it
+  round 1 probe 1/70: 200/520 candidates, 19379 s into the round; about 624 min left in it
+  round 1 probe 1/70: 250/520 candidates, 19380 s into the round; about 624 min left in it
+  round 1 probe 1/70: 300/520 candidates, 19380 s into the round; about 624 min left in it
+  round 1 probe 1/70: 350/520 candidates, 19381 s into the round; about 624 min left in it
+  round 1 probe 1/70: 400/520 candidates, 19382 s into the round; about 624 min left in it
+  round 1 probe 1/70: 450/520 candidates, 19383 s into the round; about 624 min left in it
+  round 1 probe 1/70: 500/520 candidates, 19383 s into the round; about 624 min left in it
+  round 1 probe 1/70: 520/520 candidates, 19385 s into the round; about 625 min left in it
