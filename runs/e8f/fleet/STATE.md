@@ -735,3 +735,5 @@
 ## Wake 98 (22:31 UTC)
 - Pyridine mono is done (MP2 mean polarisability 64.54 bohr^3). Pairs follow on 154.
 - Butane pairs parts 5 (52) and 7 (159) were killed on memory. Their pairs now run one at a time on the same workers.
+- 150 (butanol grow) went idle for the first time and was resumed. 157 went idle a second time (21:42, after the 20:30 resume), so it is archived and 161 (session_016vymdwokd2GcDNCGPT3p1s) takes acetic acid full part 1 (job acetic_acid-fullp1c-w161). Part 1 files are fenced from 157.
+- 43, 52 and 59 are running. The fleet is 24 workers.
