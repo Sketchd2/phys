@@ -710,3 +710,6 @@
 
 ### Wake 93 (17:12 UTC)
 - No new results. Progress pushes since 16:57 from 65, 87, 97, 101, 126, 146, 148 and 150 (grows, plus hexane's mono). The fleet is working, on long jobs.
+
+### Wake 94 (18:16 UTC)
+- Butane: mono is done after about 27 h. MP2 mean polarisability is 53.4 bohr^3 (experiment about 55), and C6 is 1161 hartree bohr^6. The whole pairs stage (w52c) is already queued on 52. Propane's whole stage was killed on memory and butane is larger, so the 3-pair parts pp1 to pp8 are queued now on 52, 158, 159 and 160 (two each), with propane-style merge fencing so each part's files come only from its owner.

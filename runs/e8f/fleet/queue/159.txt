@@ -1,0 +1,2 @@
+butane-pp3-w159 species/butane ../../fleet/pairs-part.sh butane 3 3
+butane-pp7-w159 species/butane ../../fleet/pairs-part.sh butane 7 3

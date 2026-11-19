@@ -1867,3 +1867,17 @@ ethyl_acetate: 14 atoms, 13 bonds; carrying on from round 1
   round 1 probe 69/70: 450/520 candidates, 57322 s into the round; about 10 min left in it
   round 1 probe 69/70: 500/520 candidates, 57323 s into the round; about 10 min left in it
   round 1 probe 69/70: 520/520 candidates, 57325 s into the round; about 10 min left in it
+  round 1 probe 70/70: 50/520 candidates, 57904 s into the round; under a minute left in it
+  round 1 probe 70/70: 100/520 candidates, 57905 s into the round; under a minute left in it
+  round 1 probe 70/70: 150/520 candidates, 57906 s into the round; under a minute left in it
+  round 1 probe 70/70: 200/520 candidates, 57907 s into the round; under a minute left in it
+  round 1 probe 70/70: 250/520 candidates, 57908 s into the round; under a minute left in it
+  round 1 probe 70/70: 300/520 candidates, 57908 s into the round; under a minute left in it
+  round 1 probe 70/70: 350/520 candidates, 57909 s into the round; under a minute left in it
+  round 1 probe 70/70: 400/520 candidates, 57910 s into the round; under a minute left in it
+  round 1 probe 70/70: 450/520 candidates, 57911 s into the round; under a minute left in it
+  round 1 probe 70/70: 500/520 candidates, 57912 s into the round; under a minute left in it
+  round 1 probe 70/70: 520/520 candidates, 57913 s into the round; under a minute left in it
+round 1: 234 functions, E -307.43413954, 57913 s
+  shape (A, deg): 1.50521 1.22601 1.36686 1.46129 1.51214 1.10358 1.10952 1.10445 1.10219 1.10556 1.10791 1.10746 1.10786 111.395 108.536 109.777 108.443 110.940 107.634 125.512 110.566 123.914 116.282 107.847 108.236 107.307 113.200 112.020 108.010 109.668 111.064 111.138 108.361 108.267 108.254
+  added 3, predicted to move: -0.00127 -0.00772 -0.00552 -0.00342 -0.00126 +0.00056 -0.00637 +0.00052 +0.00090 -0.00064 -0.00016 -0.00021 +0.00014 +0.023 -0.112 -0.125 +0.103 +0.063 +0.075 +0.000 +0.000 +0.000 -0.731 +0.399 -0.496 +0.040 -0.057 -0.043 -0.058 -0.299 +0.051 +0.149 -0.058 +0.019 +0.136; left 547.05

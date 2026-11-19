@@ -1,1 +1,6 @@
 butane: 884 functions, field step 0.002, 4 frozen cores
+  19 fields in 45349 s (dipole width scale 1)
+  Hartree-Fock: mean 51.0939 bohr^3, diagonal 46.5148 50.6430 56.1239, off-diagonal 8.0e-6 1.3e-5 -3.8e0
+  MP2: mean 53.4066 bohr^3, diagonal 47.9722 52.8817 59.3660, off-diagonal 1.1e-4 -8.5e-5 -4.2e0
+  atomic polarisabilities by class [10.737889664157683, 12.411903144837815, 0.1080331060227695, 1.3629212263915456, 4.798295165134071] bohr^3 (classes [0, 1, 1, 0, 2, 3, 3, 4, 4, 4, 4, 2, 3, 3]); the model's tensor: mean 53.4066, diagonal 47.9722 52.8817 59.3660; residual rms 7.93e-5
+  written to polar-butane.txt
