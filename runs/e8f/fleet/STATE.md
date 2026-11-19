@@ -665,3 +665,6 @@
 
 ### Wake 80 (03:23 UTC)
 - No new results. All 23 workers are running.
+
+### Wake 81 (04:27 UTC)
+- No new results. Resumed 125 (pentane grow), idle for the first time since the limit resume.
