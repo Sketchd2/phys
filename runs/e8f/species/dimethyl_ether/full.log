@@ -1,3 +1,20 @@
 pair 682: first atoms 3.41 A, electrostatic -4.111 kcal/mol, exchange 14.847, Hartree-Fock beyond both -10.736, overlap 2.3938e-3, electrons 26.00002 26.00000, 1204 functions, 12000 s
 pair 465: first atoms 4.26 A, electrostatic -4.690 kcal/mol, exchange 14.696, Hartree-Fock beyond both -10.006, overlap 2.4474e-3, electrons 26.00001 26.00003, 1204 functions, 10775 s
 pair 301: first atoms 5.19 A, electrostatic -3.129 kcal/mol, exchange 8.794, Hartree-Fock beyond both -5.664, overlap 1.6176e-3, electrons 25.99998 26.00001, 1204 functions, 11276 s
+pair 398: first atoms 4.77 A, electrostatic -6.961 kcal/mol, exchange 19.046, Hartree-Fock beyond both -12.085, overlap 3.8879e-3, electrons 25.99998 25.99997, 1204 functions, 10294 s
+could not spill a 28.6 GB table to /tmp/spill: No space left on device (os error 28); rebuilding it instead
+could not spill a 28.7 GB table to /tmp/spill: No space left on device (os error 28); rebuilding it instead
+could not spill a 28.6 GB table to /tmp/spill: No space left on device (os error 28); rebuilding it instead
+could not spill a 28.6 GB table to /tmp/spill: No space left on device (os error 28); rebuilding it instead
+could not spill a 28.6 GB table to /tmp/spill: No space left on device (os error 28); rebuilding it instead
+pair 721: first atoms 3.17 A, electrostatic -17.132 kcal/mol, exchange 46.503, Hartree-Fock beyond both -29.372, overlap 1.0153e-2, electrons 25.99996 25.99995, 1204 functions, 27886 s
+could not spill a 1.7 GB table to /tmp/spill: No space left on device (os error 28); rebuilding it instead
+could not spill a 29.7 GB table to /tmp/spill: No space left on device (os error 28); rebuilding it instead
+could not spill a 28.4 GB table to /tmp/spill: No space left on device (os error 28); rebuilding it instead
+could not spill a 28.4 GB table to /tmp/spill: No space left on device (os error 28); rebuilding it instead
+pair 693: first atoms 5.41 A, electrostatic -0.481 kcal/mol, exchange 2.661, Hartree-Fock beyond both -2.180, overlap 3.7855e-4, electrons 25.99997 26.00001, 1204 functions, 21054 s
+could not spill a 29.8 GB table to /tmp/spill: No space left on device (os error 28); rebuilding it instead
+pair 511: first atoms 4.56 A, electrostatic -2.571 kcal/mol, exchange 8.118, Hartree-Fock beyond both -5.546, overlap 1.3795e-3, electrons 25.99999 26.00001, 1204 functions, 22292 s
+could not spill a 1.4 GB table to /tmp/spill: No space left on device (os error 28); rebuilding it instead
+could not spill a 29.7 GB table to /tmp/spill: No space left on device (os error 28); rebuilding it instead
+pair 619: first atoms 4.97 A, electrostatic -1.709 kcal/mol, exchange 6.245, Hartree-Fock beyond both -4.536, overlap 9.8886e-4, electrons 26.00002 26.00003, 1204 functions, 24172 s
