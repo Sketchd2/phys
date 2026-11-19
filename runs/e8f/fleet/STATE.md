@@ -658,3 +658,7 @@
 - Propane: the single pair p8-1 is done. p6-2 and p8-2 were killed on memory, so five propane pairs now cannot run (p4-1, p4-2, p6-2, p6-3 and p8-2). That leaves 18 done and p8-3 pending on 124, so at most 19 of 24. Whether to go on is the owner's call.
 - 94, 132 and 133 have nothing left in their queues and are archived. The fleet is down to 24.
 - 147 went idle a second time (00:33, after the 00:14 resume). The butanol grow moves to 150.
+
+### Wake 79 (02:20 UTC)
+- Propane: the single pair p8-3 is done. Propane stops at 19 of 24 pairs and waits for the owner's call.
+- 124 has nothing left in its queue and is archived. The fleet is down to 23.
