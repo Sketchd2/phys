@@ -1,1 +1,4 @@
 ethanol: 602 functions, field step 0.002, 3 frozen cores
+  19 fields in 3870 s (dipole width scale 1)
+  Hartree-Fock: mean 31.6809 bohr^3, diagonal 29.0643 31.8940 34.0843, off-diagonal 1.3e-6 -2.4e-6 -1.6e0
+  MP2: mean 33.7058 bohr^3, diagonal 30.8383 33.9893 36.2899, off-diagonal -2.2e-5 4.1e-4 -1.7e0

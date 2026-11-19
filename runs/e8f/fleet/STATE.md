@@ -662,3 +662,6 @@
 ### Wake 79 (02:20 UTC)
 - Propane: the single pair p8-3 is done. Propane stops at 19 of 24 pairs and waits for the owner's call.
 - 124 has nothing left in its queue and is archived. The fleet is down to 23.
+
+### Wake 80 (03:23 UTC)
+- No new results. All 23 workers are running.
