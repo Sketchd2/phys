@@ -1,0 +1,2 @@
+pyridine-mono-w154 species/pyridine rm -rf /tmp/spill/*; grep -q 'MP2: mean' polar.log 2>/dev/null || PHYS_SPILL_MAX_GB=0 timeout 86400 $(git rev-parse --show-toplevel)/target/release/phys-polar pyridine > polar.log 2>&1; ../../fleet/stage.sh mono pyridine
+pyridine-pairs-w154 species/pyridine ../../fleet/stage.sh pairs pyridine

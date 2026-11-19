@@ -37,3 +37,4 @@ acetonitrile-boil species/acetonitrile ../../fleet/stage.sh boil acetonitrile
 aniline-grow-w46 species/aniline ../../fleet/stage.sh grow aniline
 aniline-mono-w46 species/aniline rm -rf /tmp/spill/*; grep -q "MP2: mean" polar.log 2>/dev/null || PHYS_SPILL_MAX_GB=0 timeout 43200 $(git rev-parse --show-toplevel)/target/release/phys-polar aniline > polar.log 2>&1; ../../fleet/stage.sh mono aniline
 aniline-pairs-w46 species/aniline ../../fleet/stage.sh pairs aniline
+STOP

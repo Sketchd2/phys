@@ -683,3 +683,7 @@
 ### Wake 85 (08:43 UTC)
 - No new results. 46, 50 and 62 are at about 16.8 h on their monos. They get replaced at the next wake if they are still running.
 - 149 went idle a second time (08:32, after the 07:40 resume). The acetic acid full p1 retry moves to 152.
+
+### Wake 86 (09:46 UTC)
+- Acetic acid: full part 4 is done (parts 2 to 7 now). Part 8 is on 129 and part 1 on 152.
+- 46 (aniline), 50 (pyridine) and 62 (diethyl ether) were still RUNNING their mono at about 17.8 h, past the 12 h polar limit by more than butane's 17 h. They are replaced, as planned, by 153, 154 and 155: mono with the 24 h limit, then pairs. The old workers are stopped and archived.

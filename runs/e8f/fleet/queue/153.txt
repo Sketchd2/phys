@@ -1,0 +1,2 @@
+aniline-mono-w153 species/aniline rm -rf /tmp/spill/*; grep -q 'MP2: mean' polar.log 2>/dev/null || PHYS_SPILL_MAX_GB=0 timeout 86400 $(git rev-parse --show-toplevel)/target/release/phys-polar aniline > polar.log 2>&1; ../../fleet/stage.sh mono aniline
+aniline-pairs-w153 species/aniline ../../fleet/stage.sh pairs aniline
