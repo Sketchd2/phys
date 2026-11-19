@@ -718,3 +718,9 @@
 - Acetic acid: full part 8 is done, so parts 2 to 8 are done (7 of 8). Part 1 is on 157. 129 has nothing left and is archived.
 - Butane: the whole pairs stage (w52c) was killed on memory, as expected. pp2 (3 pairs) was killed too and is split into single pairs on 158. The singles are fenced to 158, and the part-2 joined file to nobody, since it is joined here.
 - 155 (diethyl ether mono) went idle at 17:41 asking whether to commit runs/e8f/fleet/log/. It was resumed and told worker.sh does all committing (first idle). Its polar run will have restarted.
+
+### Wake 96 (20:23 UTC)
+- Dimethyl ether: full is done (8 pairs). Law and plan are queued on 126, which never wrote dimethyl ether files. 112 has nothing left and is archived.
+- Butanone: grow is done. Mono (24 h) and pairs follow DME on 126.
+- Octane: grow stopped at the 20 h limit inside round 0 with no grow state, as heptane, toluene and cyclohexane did (round 0 had about 26 h left). Its grow.ok is removed and merge-skipped from 120, and it regrows on 120 with MAXH=48.
+- Butane: pp3 was killed on memory and is split into single pairs on 159, fenced as for pp2.
