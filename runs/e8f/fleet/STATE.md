@@ -656,4 +656,5 @@
 - Ethanol and isobutane: grow is done. Mono (24 h) and pairs are queued on their own workers (144, 131).
 - Acetic acid: full part 6 is done (parts 2, 3, 5, 6 and 7 now). Parts 4 and 8 are on 129, and part 1 is on 149.
 - Propane: the single pair p8-1 is done. p6-2 and p8-2 were killed on memory, so five propane pairs now cannot run (p4-1, p4-2, p6-2, p6-3 and p8-2). That leaves 18 done and p8-3 pending on 124, so at most 19 of 24. Whether to go on is the owner's call.
-- 94, 132 and 133 have nothing left in their queues and are archived. The fleet is down to 25.
+- 94, 132 and 133 have nothing left in their queues and are archived. The fleet is down to 24.
+- 147 went idle a second time (00:33, after the 00:14 resume). The butanol grow moves to 150.
