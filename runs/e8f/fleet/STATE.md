@@ -675,3 +675,6 @@
 ### Wake 83 (06:35 UTC)
 - No new results for a third hour. I checked the last push on every worker branch. 52 is running butane-mono-w52c (its "started" commit never reached the branch).
 - Watch: 46 (aniline), 50 (pyridine) and 62 (diethyl ether) still report RUNNING their mono stage, started 15:56 yesterday. Each has a 12 h limit on phys-polar, and the rest of stage.sh mono has none. Nothing has been pushed past polar.log's header line. If they are still RUNNING at the next wake (about 16 h), look at them as possibly stuck.
+
+### Wake 84 (07:39 UTC)
+- No new results. 46, 50 and 62 are still on their mono stage at about 15.7 h, with nothing pushed past polar.log's header. worker.sh commits only changed files, so phys-polar itself is still running past its 12 h `timeout`. Precedent: butane-mono-w52b (12 h) started 20:51 and was reported failed at 14:11, about 17 h. So the timeout lands hours late, and these three should end around 09:00. If they have not failed or finished by the 08:42 wake plus one (about 09:45), they get replaced by fresh workers with the 24 h limit.
