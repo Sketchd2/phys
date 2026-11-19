@@ -1,1 +1,3 @@
 isobutane-grow-w131 species/isobutane ../../fleet/stage.sh grow isobutane
+isobutane-mono-w131 species/isobutane rm -rf /tmp/spill/*; grep -q 'MP2: mean' polar.log 2>/dev/null || PHYS_SPILL_MAX_GB=0 timeout 86400 $(git rev-parse --show-toplevel)/target/release/phys-polar isobutane > polar.log 2>&1; ../../fleet/stage.sh mono isobutane
+isobutane-pairs-w131 species/isobutane ../../fleet/stage.sh pairs isobutane

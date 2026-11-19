@@ -1783,3 +1783,18 @@ isobutane: 14 atoms, 13 bonds; carrying on from round 6
   round 6 probe 19/20: 450/509 candidates, 29664 s into the round; about 15 min left in it
   round 6 probe 19/20: 500/509 candidates, 29668 s into the round; about 15 min left in it
   round 6 probe 19/20: 509/509 candidates, 29670 s into the round; about 15 min left in it
+  round 6 probe 20/20: 50/509 candidates, 30574 s into the round; under a minute left in it
+  round 6 probe 20/20: 100/509 candidates, 30576 s into the round; under a minute left in it
+  round 6 probe 20/20: 150/509 candidates, 30577 s into the round; under a minute left in it
+  round 6 probe 20/20: 200/509 candidates, 30579 s into the round; under a minute left in it
+  round 6 probe 20/20: 250/509 candidates, 30580 s into the round; under a minute left in it
+  round 6 probe 20/20: 300/509 candidates, 30581 s into the round; under a minute left in it
+  round 6 probe 20/20: 350/509 candidates, 30583 s into the round; under a minute left in it
+  round 6 probe 20/20: 400/509 candidates, 30584 s into the round; under a minute left in it
+  round 6 probe 20/20: 450/509 candidates, 30587 s into the round; under a minute left in it
+  round 6 probe 20/20: 500/509 candidates, 30591 s into the round; under a minute left in it
+  round 6 probe 20/20: 509/509 candidates, 30592 s into the round; under a minute left in it
+round 6: 499 functions, E -158.28474819, 30592 s
+  shape (A, deg): 1.53246 1.53270 1.53282 1.09947 1.10106 1.09946 1.10341 1.09947 1.09948 1.10114 1.09947 1.10111 1.09948 111.441 110.686 111.451 107.604 107.869 107.612 111.066 111.040 107.848 111.031 107.841 107.850 111.453 111.438 110.697 107.865 107.605 107.605 111.458 110.658 111.465 107.602 107.880 107.600
+  added 5, predicted to move: -0.00133 -0.00133 -0.00133 +0.00027 +0.00013 +0.00027 +0.00112 +0.00027 +0.00027 +0.00013 +0.00027 +0.00013 +0.00027 -0.005 -0.085 -0.005 +0.033 +0.044 +0.033 -0.003 -0.003 +0.004 -0.003 +0.004 +0.004 -0.005 -0.005 -0.085 +0.044 +0.033 +0.033 -0.005 -0.085 -0.005 +0.033 +0.044 +0.033; left 52.08
+isobutane: 14 atoms, 13 bonds; carrying on from round 7
