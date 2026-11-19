@@ -7,3 +7,6 @@ butane-mono-w52c species/butane rm -rf /tmp/spill/*; grep -q 'MP2: mean' polar.l
 butane-pairs-w52c species/butane ../../fleet/stage.sh pairs butane
 butane-pp1-w52 species/butane ../../fleet/pairs-part.sh butane 1 3
 butane-pp5-w52 species/butane ../../fleet/pairs-part.sh butane 5 3
+butane-p1-1-w52 species/butane ../../fleet/pair-one.sh butane 1 1
+butane-p1-2-w52 species/butane ../../fleet/pair-one.sh butane 1 2
+butane-p1-3-w52 species/butane ../../fleet/pair-one.sh butane 1 3

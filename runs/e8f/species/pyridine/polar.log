@@ -1,1 +1,6 @@
 pyridine: 807 functions, field step 0.002, 6 frozen cores
+  19 fields in 40185 s (dipole width scale 1)
+  Hartree-Fock: mean 63.0141 bohr^3, diagonal 57.5019 60.7262 70.8141, off-diagonal -1.5e1 -8.4e0 -4.1e0
+  MP2: mean 64.5360 bohr^3, diagonal 58.5340 62.1547 72.9194, off-diagonal -1.6e1 -8.8e0 -4.6e0
+  atomic polarisabilities by class [8.42980033822509, 8.677900063727586, 9.289799599379192, 9.386275586303492, 6.13880440544721, 6.579018348302614, 6.374448783516229] bohr^3 (classes [0, 1, 2, 3, 2, 1, 4, 5, 6, 5, 4]); the model's tensor: mean 65.1622, diagonal 60.2703 63.0964 72.1198; residual rms 1.62e0
+  written to polar-pyridine.txt

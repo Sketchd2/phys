@@ -725,3 +725,9 @@
 - Octane: grow stopped at the 20 h limit inside round 0 with no grow state, as heptane, toluene and cyclohexane did (round 0 had about 26 h left). Its grow.ok is removed and merge-skipped from 120, and it regrows on 120 with MAXH=48.
 - Butane: pp3 was killed on memory and is split into single pairs on 159, fenced as for pp2.
 - 20:30: 157 (acetic acid full p1) went idle for the first time and was resumed. Its job restarts. 112 is archived.
+
+## Wake 97 (21:27 UTC)
+- DIMETHYL ETHER: law is a HOLE (K 4.3745, rms 0.548 kcal/mol over 8 pairs; B2 -inf at 300 and 600 K). No liquid. Its plan failing is the expected result of that.
+- Hexane mono stopped at its old 12 h limit (queued before the 24 h rule) with no polarisability. Rerun on 87 with the 24 h limit (hexane-mono24-w87, then pairs).
+- Ethyl acetate (146) and THF (148) grows are done. Mono (24 h) and pairs are queued on the same workers.
+- Butane pairs parts 1 (52), 4 (160) and 6 (158) were killed on memory. Their pairs now run one at a time on the same workers, fenced as part 3's are.
