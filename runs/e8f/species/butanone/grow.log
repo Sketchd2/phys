@@ -2993,3 +2993,4 @@ round 1: 213 functions, E -232.23938532, 37340 s
   round 2 probe 24/66: 450/461 candidates, 20552 s into the round; about 218 min left in it
   round 2 probe 24/66: 461/461 candidates, 20553 s into the round; about 218 min left in it
 butanone: 13 atoms, 12 bonds; carrying on from round 2
+  relaxed at 227 functions, 12224 s into round 2; 66 probes of 461 candidates to go
