@@ -1,2 +1,4 @@
 could not spill a 31.2 GB table to /tmp/spill: No space left on device (os error 28); rebuilding it instead
 hexane: dipole Hartree-Fock 0.0000 au (0.000 D), target 0.0000 au (0.000 D)
+  26505 potential points; the target's RMS 5.630e0, its mean -5.542e0 hartree/e
+  localised in 13 sweeps: 19 bond orbitals, 0 lone pairs (6 core orbitals frozen out of the localisation)
