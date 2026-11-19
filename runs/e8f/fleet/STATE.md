@@ -731,3 +731,7 @@
 - Hexane mono stopped at its old 12 h limit (queued before the 24 h rule) with no polarisability. Rerun on 87 with the 24 h limit (hexane-mono24-w87, then pairs).
 - Ethyl acetate (146) and THF (148) grows are done. Mono (24 h) and pairs are queued on the same workers.
 - Butane pairs parts 1 (52), 4 (160) and 6 (158) were killed on memory. Their pairs now run one at a time on the same workers, fenced as part 3's are.
+
+## Wake 98 (22:31 UTC)
+- Pyridine mono is done (MP2 mean polarisability 64.54 bohr^3). Pairs follow on 154.
+- Butane pairs parts 5 (52) and 7 (159) were killed on memory. Their pairs now run one at a time on the same workers.
