@@ -713,3 +713,7 @@
 
 ### Wake 94 (18:16 UTC)
 - Butane: mono is done after about 27 h. MP2 mean polarisability is 53.4 bohr^3 (experiment about 55), and C6 is 1161 hartree bohr^6. The whole pairs stage (w52c) is already queued on 52. Propane's whole stage was killed on memory and butane is larger, so the 3-pair parts pp1 to pp8 are queued now on 52, 158, 159 and 160 (two each), with propane-style merge fencing so each part's files come only from its owner.
+
+### Wake 95 (19:20 UTC)
+- Acetic acid: full part 8 is done, so parts 2 to 8 are done (7 of 8). Part 1 is on 157. 129 has nothing left and is archived.
+- Butane: the whole pairs stage (w52c) was killed on memory, as expected. pp2 (3 pairs) was killed too and is split into single pairs on 158. The singles are fenced to 158, and the part-2 joined file to nobody, since it is joined here.
