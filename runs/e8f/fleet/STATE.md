@@ -697,3 +697,6 @@
 
 ### Wake 89 (12:57 UTC)
 - No new results. Full session check: every live worker from 59 to 155 is running (52 and 43 were running at the last check).
+
+### Wake 90 (14:00 UTC)
+- No new results. 151 (pentane grow) and 152 (acetic acid full p1) went idle and were resumed. Under the new rule in DECISIONS, long-job workers are resumed rather than replaced.
