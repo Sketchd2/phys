@@ -700,3 +700,6 @@
 
 ### Wake 90 (14:00 UTC)
 - No new results. 151 (pentane grow) and 152 (acetic acid full p1) went idle and were resumed. Under the new rule in DECISIONS, long-job workers are resumed rather than replaced.
+
+### Wake 91 (15:04 UTC)
+- No new results. 151 and 152 pushed new "started" commits at 14:09 after their resume, so their jobs restarted (see the DECISIONS correction). Resuming saves nothing over replacing; idle time itself loses the job.
