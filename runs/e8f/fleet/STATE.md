@@ -747,3 +747,7 @@
 - Ethanol mono is done (MP2 mean polarisability 33.71 bohr^3). Pairs follow on 144.
 - Butane single pair p1-1 (52) was killed on memory, at a 102.8 GB table, like p2-1 and p2-2. All three singles killed so far hit about 102 GB. The remaining queued singles still run, because that is the only way to find out which butane pairs fit. A killed single is the owner's call.
 - 161 (acetic acid full p1) went idle for the first time and was resumed. 159 and 150 went idle a second time, so both are archived. 165 (session_016vymdy7ahbzRd5yURUDs4p) takes butane singles p3-1..3 and p7-1..3. 166 (session_016vymdzj8A5Y1QTWd8YAKXA) takes the butanol grow with MAXH=48, resuming from its saved state (round 2). Each is fenced from its predecessor. The fleet stays at 26 workers.
+
+## Wake 101 (01:42 UTC)
+- Butane single p2-3 (158) was killed on memory, so all three pairs of butane part 2 are killed. That makes 4 of 24 butane pairs that cannot run here; the owner's call.
+- Pyridine part 7 (163) was killed (an 80.8 GB table). Its pairs go to single pairs on 163, after part 8.
