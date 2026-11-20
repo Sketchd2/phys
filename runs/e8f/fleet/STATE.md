@@ -779,3 +779,9 @@
 ## Wake 106 (06:59 UTC)
 - Pyridine singles p4-1 (162) and p7-2 (163) were killed on memory: 3 pyridine singles killed, none finished. Butane stands at 15 of 24 killed.
 - No claude/e8f-local branch yet.
+
+## Wake 107 (08:03 UTC)
+- Butane singles p6-3 (158), p7-1 (165) and p8-1 (160) were killed on memory: 18 of 24 butane pairs killed, none finished. Parts 1-4 and 6 are wholly killed.
+- Pyridine single p1-1 (154) was killed: 4 pyridine singles killed, none finished.
+- 158 has nothing left and is archived. The fleet is 25 workers.
+- No claude/e8f-local branch yet.
