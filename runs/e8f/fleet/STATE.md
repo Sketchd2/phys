@@ -817,3 +817,8 @@
 - ACETIC ACID FULL IS DONE. Part 1 finished on 167 (after restarts on 157, 161 and 167), and all 8 parts are joined here: full.ok "8 pairs". Law and plan go to new worker 170, which never wrote acetic acid files. 167 has nothing left and is archived.
 - Pyridine single p2-2 (154) was killed on memory: 15 pyridine singles killed, none finished.
 - 170 is session_016vyme15UG6yXy1kCkTYMCc. The fleet stays at 24 workers.
+
+## Wake 114 (15:32 UTC)
+- ACETIC ACID: the law is a HOLE (K 4.3705, weighted rms 2.680 kcal/mol over 8 pairs; deepest pair -3.438 reference against -0.962 from the law; B2 -3.6e303 at 300 K). No liquid. Its plan failing is the expected result of that.
+- Pyridine singles p2-3 (154), p5-3 (162) and p8-3 (163) were killed on memory: 18 of 24 pyridine pairs killed, none finished. Left: part 3 on 154 and part 6 on 162.
+- 163 and 170 have nothing left and are archived. The fleet is 22 workers.
