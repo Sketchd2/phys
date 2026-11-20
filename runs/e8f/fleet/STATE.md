@@ -816,3 +816,4 @@
 ## Wake 113 (14:28 UTC)
 - ACETIC ACID FULL IS DONE. Part 1 finished on 167 (after restarts on 157, 161 and 167), and all 8 parts are joined here: full.ok "8 pairs". Law and plan go to new worker 170, which never wrote acetic acid files. 167 has nothing left and is archived.
 - Pyridine single p2-2 (154) was killed on memory: 15 pyridine singles killed, none finished.
+- 170 is session_016vyme15UG6yXy1kCkTYMCc. The fleet stays at 24 workers.
