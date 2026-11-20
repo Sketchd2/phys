@@ -1757,3 +1757,19 @@ heptane: 23 atoms, 22 bonds; starting
   round 0 probe 38/86: 100/775 candidates, 86132 s into the round; about 887 min left in it
 heptane: 23 atoms, 22 bonds; starting
   relaxed at 307 functions, 46624 s into round 0; 86 probes of 775 candidates to go
+  round 0 probe 1/86: 50/775 candidates, 48158 s into the round; about 2210 min left in it
+  round 0 probe 1/86: 100/775 candidates, 48159 s into the round; about 2209 min left in it
+  round 0 probe 1/86: 150/775 candidates, 48161 s into the round; about 2211 min left in it
+  round 0 probe 1/86: 200/775 candidates, 48163 s into the round; about 2212 min left in it
+  round 0 probe 1/86: 250/775 candidates, 48165 s into the round; about 2212 min left in it
+  round 0 probe 1/86: 300/775 candidates, 48167 s into the round; about 2212 min left in it
+  round 0 probe 1/86: 350/775 candidates, 48169 s into the round; about 2213 min left in it
+  round 0 probe 1/86: 400/775 candidates, 48171 s into the round; about 2212 min left in it
+  round 0 probe 1/86: 450/775 candidates, 48173 s into the round; about 2213 min left in it
+  round 0 probe 1/86: 500/775 candidates, 48175 s into the round; about 2212 min left in it
+  round 0 probe 1/86: 550/775 candidates, 48177 s into the round; about 2212 min left in it
+  round 0 probe 1/86: 600/775 candidates, 48179 s into the round; about 2212 min left in it
+  round 0 probe 1/86: 650/775 candidates, 48180 s into the round; about 2212 min left in it
+  round 0 probe 1/86: 700/775 candidates, 48182 s into the round; about 2212 min left in it
+  round 0 probe 1/86: 750/775 candidates, 48184 s into the round; about 2212 min left in it
+  round 0 probe 1/86: 775/775 candidates, 48186 s into the round; about 2213 min left in it
