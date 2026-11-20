@@ -825,3 +825,6 @@
 
 ## Wake 115 (16:36 UTC)
 - No new results or failures. Workers 131 to 169 are running; none idle.
+
+## Wake 116 (17:39 UTC)
+- Pyridine singles p3-1 (154) and p6-1 (162) were killed on memory: 20 of 24 pyridine pairs killed, none finished.
