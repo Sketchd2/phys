@@ -769,3 +769,4 @@
 - Pyridine single p7-1 (163) was killed: the first pyridine single pair, so pyridine's singles hit the same wall. The owner's call, with butane's.
 - Pyridine part 2 (154) was killed as a part; its pairs go to single pairs on 154.
 - No claude/e8f-local branch yet. The owner enabled Remote Control, but the phys folder on James_PC11 is listed as not available to cloud sessions, so this session still cannot read the local run.
+- 164 went idle a second time (04:47, after its 02:46 resume), so it is archived and 168 (session_016vymdyge41BcXqmUn1XJdb) takes the diethyl ether mono (24 h). Diethyl ether files are fenced from 164. The fleet stays at 26 workers.
