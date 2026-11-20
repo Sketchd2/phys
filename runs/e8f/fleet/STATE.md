@@ -809,3 +809,6 @@
 - Butane single p7-3 (165) was killed on memory. Butane is finished on the fleet: 1 of 24 pairs done (2-1, on the owner's machine), 23 killed. What happens to the 23 is the owner's call (their machine at about 6.6 h a pair, or rented machines with enough disk to spill).
 - Pyridine singles p2-1 (154) and p5-1 (162) were killed: 12 pyridine singles killed, none finished.
 - 165 has nothing left and is archived. The fleet is 24 workers.
+
+## Wake 112 (13:25 UTC)
+- Pyridine singles p5-2 (162) and p8-2 (163) were killed on memory: 14 pyridine singles killed, none finished.
