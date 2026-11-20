@@ -758,3 +758,8 @@
 - Pyridine parts 1 (154), 4 (162) and 8 (163) were killed (81.6-81.8 GB tables). Their pairs go to single pairs on the same workers, after the parts still queued there.
 - 164 (diethyl ether mono) went idle for the first time and was resumed. Its job restarts.
 - 03:0x: the owner asked about running the out-of-memory pairs on their own Windows machine (large E: drive, GPU). This session cannot attach to it (no Remote Control folder offered). Added fleet/local-pair.ps1: one pair (default butane 2-1, the 102 GB table) with PHYS_SPILL_DIR on E:, timing and peak working set sampled every 30 s. Its result decides local against a rented high-memory machine; that choice is the owner's.
+
+## Wake 103 (03:49 UTC)
+- Butane singles p4-2 (160) and p6-1 (158) were killed on memory: 9 of 24 butane pairs killed, none finished.
+- Pyridine part 5 (162) was killed. Its pairs go to single pairs on 162.
+- The owner's local test (local-pair.ps1, butane 2-1, spill to E:) is running on their machine. No claude/e8f-local branch yet.

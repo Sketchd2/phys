@@ -3412,3 +3412,16 @@ round 0: 227 functions, E -271.24152030, 68074 s
   round 1 probe 15/78: 550/556 candidates, 18360 s into the round; about 431 min left in it
   round 1 probe 15/78: 556/556 candidates, 18361 s into the round; about 432 min left in it
 toluene: 15 atoms, 15 bonds; carrying on from round 1
+  relaxed at 246 functions, 8129 s into round 1; 78 probes of 556 candidates to go
+  round 1 probe 1/78: 50/556 candidates, 8866 s into the round; about 954 min left in it
+  round 1 probe 1/78: 100/556 candidates, 8867 s into the round; about 954 min left in it
+  round 1 probe 1/78: 150/556 candidates, 8867 s into the round; about 954 min left in it
+  round 1 probe 1/78: 200/556 candidates, 8868 s into the round; about 954 min left in it
+  round 1 probe 1/78: 250/556 candidates, 8869 s into the round; about 954 min left in it
+  round 1 probe 1/78: 300/556 candidates, 8869 s into the round; about 954 min left in it
+  round 1 probe 1/78: 350/556 candidates, 8870 s into the round; about 954 min left in it
+  round 1 probe 1/78: 400/556 candidates, 8870 s into the round; about 954 min left in it
+  round 1 probe 1/78: 450/556 candidates, 8871 s into the round; about 954 min left in it
+  round 1 probe 1/78: 500/556 candidates, 8872 s into the round; about 954 min left in it
+  round 1 probe 1/78: 550/556 candidates, 8872 s into the round; about 954 min left in it
+  round 1 probe 1/78: 556/556 candidates, 8872 s into the round; about 954 min left in it
