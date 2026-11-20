@@ -4,3 +4,4 @@ butane-p3-3-w165 species/butane ../../fleet/pair-one.sh butane 3 3
 butane-p7-1-w165 species/butane ../../fleet/pair-one.sh butane 7 1
 butane-p7-2-w165 species/butane ../../fleet/pair-one.sh butane 7 2
 butane-p7-3-w165 species/butane ../../fleet/pair-one.sh butane 7 3
+STOP

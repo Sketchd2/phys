@@ -804,3 +804,8 @@
 - Butane singles p5-3 (52) and p8-3 (160) were killed on the fleet. Butane: 1 of 24 done (locally), 22 killed on the fleet, p7-3 still running on 165.
 - Pyridine single p8-1 (163) was killed: 10 pyridine singles killed, none finished.
 - ETHANOL PAIRS ARE DONE (24 pairs, closest contacts 1.60 to 4.43 A). Its full stage is split one pair a part: 1-3 on 144, 4-6 on 52, 7-8 on 160 (the queues that had emptied). Joined here when all 8 are done, then law and plan on a worker that never wrote ethanol files.
+
+## Wake 111 (12:21 UTC)
+- Butane single p7-3 (165) was killed on memory. Butane is finished on the fleet: 1 of 24 pairs done (2-1, on the owner's machine), 23 killed. What happens to the 23 is the owner's call (their machine at about 6.6 h a pair, or rented machines with enough disk to spill).
+- Pyridine singles p2-1 (154) and p5-1 (162) were killed: 12 pyridine singles killed, none finished.
+- 165 has nothing left and is archived. The fleet is 24 workers.
