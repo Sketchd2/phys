@@ -1,1 +1,11 @@
 isobutane: dipole Hartree-Fock 0.0495 au (0.126 D), target 0.0495 au (0.126 D)
+  19047 potential points; the target's RMS 4.434e0, its mean -4.364e0 hartree/e
+  localised in 12 sweeps: 13 bond orbitals, 0 lone pairs (4 core orbitals frozen out of the localisation)
+  valence electrons 26, cores [4.0, 4.0, 1.0, 1.0, 1.0]
+  atom class 0: cloud 4.346 electrons, width 0.250 bohr
+  atom class 1: cloud 3.513 electrons, width 0.474 bohr
+  atom class 2: cloud 0.934 electrons, width 1.435 bohr
+  atom class 3: cloud 0.924 electrons, width 1.404 bohr
+  atom class 4: cloud 1.073 electrons, width 1.384 bohr
+  potential RMS 1.982e-3 hartree/e (atom-centred point charges alone: 4.083e-3)
+  written to cloud-isobutane.txt
