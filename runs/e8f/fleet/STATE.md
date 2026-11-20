@@ -763,3 +763,9 @@
 - Butane singles p4-2 (160) and p6-1 (158) were killed on memory: 9 of 24 butane pairs killed, none finished.
 - Pyridine part 5 (162) was killed. Its pairs go to single pairs on 162.
 - The owner's local test (local-pair.ps1, butane 2-1, spill to E:) is running on their machine. No claude/e8f-local branch yet.
+
+## Wake 104 (04:53 UTC)
+- Butane singles p1-3 (52) and p3-2 (165) were killed on memory: 11 of 24 butane pairs killed, none finished. Part 1's three pairs are all killed.
+- Pyridine single p7-1 (163) was killed: the first pyridine single pair, so pyridine's singles hit the same wall. The owner's call, with butane's.
+- Pyridine part 2 (154) was killed as a part; its pairs go to single pairs on 154.
+- No claude/e8f-local branch yet. The owner enabled Remote Control, but the phys folder on James_PC11 is listed as not available to cloud sessions, so this session still cannot read the local run.
