@@ -785,3 +785,4 @@
 - Pyridine single p1-1 (154) was killed: 4 pyridine singles killed, none finished.
 - 158 has nothing left and is archived. The fleet is 25 workers.
 - No claude/e8f-local branch yet.
+- 168 (diethyl ether mono) went idle for the first time and was resumed. Its job restarts.
