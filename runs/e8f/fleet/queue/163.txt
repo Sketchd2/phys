@@ -3,3 +3,6 @@ pyridine-pp8-w163 species/pyridine ../../fleet/pairs-part.sh pyridine 8 3
 pyridine-p7-1-w163 species/pyridine ../../fleet/pair-one.sh pyridine 7 1
 pyridine-p7-2-w163 species/pyridine ../../fleet/pair-one.sh pyridine 7 2
 pyridine-p7-3-w163 species/pyridine ../../fleet/pair-one.sh pyridine 7 3
+pyridine-p8-1-w163 species/pyridine ../../fleet/pair-one.sh pyridine 8 1
+pyridine-p8-2-w163 species/pyridine ../../fleet/pair-one.sh pyridine 8 2
+pyridine-p8-3-w163 species/pyridine ../../fleet/pair-one.sh pyridine 8 3

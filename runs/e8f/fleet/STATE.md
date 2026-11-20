@@ -752,3 +752,7 @@
 - Butane single p2-3 (158) was killed on memory, so all three pairs of butane part 2 are killed. That makes 4 of 24 butane pairs that cannot run here; the owner's call.
 - Pyridine part 7 (163) was killed (an 80.8 GB table). Its pairs go to single pairs on 163, after part 8.
 - 161 went idle a second time (00:57, 18 min after its resume), so it is archived and 167 (session_016vymdzkHqojhWroAoH9KgY) takes acetic acid full part 1 (acetic_acid-fullp1d-w167). This part has now restarted four times, on 157, 161 and 167. The fleet stays at 26 workers.
+
+## Wake 102 (02:46 UTC)
+- Butane singles p1-2 (52), p3-1 (165) and p4-1 (160) were killed on memory, at tables of about 102-103 GB. That is 7 of 24 butane pairs killed and none of its single pairs finished. The rest still run; the owner's call.
+- Pyridine parts 1 (154), 4 (162) and 8 (163) were killed (81.6-81.8 GB tables). Their pairs go to single pairs on the same workers, after the parts still queued there.
