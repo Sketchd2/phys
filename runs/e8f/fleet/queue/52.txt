@@ -13,3 +13,6 @@ butane-p1-3-w52 species/butane ../../fleet/pair-one.sh butane 1 3
 butane-p5-1-w52 species/butane ../../fleet/pair-one.sh butane 5 1
 butane-p5-2-w52 species/butane ../../fleet/pair-one.sh butane 5 2
 butane-p5-3-w52 species/butane ../../fleet/pair-one.sh butane 5 3
+ethanol-fullp4-w52 species/ethanol rm -rf /tmp/spill/*; ../../fleet/full-part.sh ethanol 4 1
+ethanol-fullp5-w52 species/ethanol rm -rf /tmp/spill/*; ../../fleet/full-part.sh ethanol 5 1
+ethanol-fullp6-w52 species/ethanol rm -rf /tmp/spill/*; ../../fleet/full-part.sh ethanol 6 1

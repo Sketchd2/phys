@@ -797,3 +797,10 @@
 - Pyridine singles p1-3 (154) and p4-3 (162) were killed: 9 pyridine singles killed, none finished. Parts 1, 4 and 7 are wholly killed.
 - No claude/e8f-local branch yet.
 - 168 went idle a second time (09:13, after its 08:04 resume), so it is archived and 169 (session_016vymdzH1mszcuVNmaNqhSY) takes the diethyl ether mono (24 h). This mono has restarted on 155, 164, 168 and now 169. The fleet stays at 25 workers.
+
+## Wake 110 (11:17 UTC)
+- THE OWNER'S LOCAL TEST WORKED. Butane pair 2-1 (the 102 GB table that killed every fleet attempt) ran on the owner's Windows machine with PHYS_SPILL_DIR on E: and the cap at 300 GB: 6.60 h, peak working set 10.8 GB, spill 101.0 GB, one result line (overlap 1.9122e-3; electrostatic -3.447, exchange 11.533, HF beyond both -8.087 kcal/mol; 1768 functions). Built from a193b78b; nothing under src/ or Cargo.lock differs from the orchestrator branch, so it is the same calculation. Folded in as species/butane/frozen-part-2-1.txt and .done; local-2-1.* copied from claude/e8f-local. Fenced from 52 and 160.
+- So the kills are not the table as such: with the table spilled, peak RAM is 10.8 GB, under a fleet worker's ~15 GB. What a run with spill off does instead (store half, rebuild the rest) is what is killed. Running the rest locally at 6.6 h a pair, or renting, is the owner's call.
+- Butane singles p5-3 (52) and p8-3 (160) were killed on the fleet. Butane: 1 of 24 done (locally), 22 killed on the fleet, p7-3 still running on 165.
+- Pyridine single p8-1 (163) was killed: 10 pyridine singles killed, none finished.
+- ETHANOL PAIRS ARE DONE (24 pairs, closest contacts 1.60 to 4.43 A). Its full stage is split one pair a part: 1-3 on 144, 4-6 on 52, 7-8 on 160 (the queues that had emptied). Joined here when all 8 are done, then law and plan on a worker that never wrote ethanol files.

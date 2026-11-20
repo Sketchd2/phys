@@ -1,3 +1,6 @@
 ethanol-grow3-w144 species/ethanol ../../fleet/stage.sh grow ethanol
 ethanol-mono-w144 species/ethanol rm -rf /tmp/spill/*; grep -q 'MP2: mean' polar.log 2>/dev/null || PHYS_SPILL_MAX_GB=0 timeout 86400 $(git rev-parse --show-toplevel)/target/release/phys-polar ethanol > polar.log 2>&1; ../../fleet/stage.sh mono ethanol
 ethanol-pairs-w144 species/ethanol ../../fleet/stage.sh pairs ethanol
+ethanol-fullp1-w144 species/ethanol rm -rf /tmp/spill/*; ../../fleet/full-part.sh ethanol 1 1
+ethanol-fullp2-w144 species/ethanol rm -rf /tmp/spill/*; ../../fleet/full-part.sh ethanol 2 1
+ethanol-fullp3-w144 species/ethanol rm -rf /tmp/spill/*; ../../fleet/full-part.sh ethanol 3 1
