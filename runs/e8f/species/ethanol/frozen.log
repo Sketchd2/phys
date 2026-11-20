@@ -17,3 +17,4 @@ could not spill a 28.7 GB table to /tmp/spill: No space left on device (os error
 pair 342: first atoms 5.74 A, electrostatic 0.253 kcal/mol, exchange 0.526, Hartree-Fock beyond both -0.779, overlap 8.4733e-5, electrons 26.00000 26.00000, 1204 functions, 1617 s
 could not spill a 28.6 GB table to /tmp/spill: No space left on device (os error 28); rebuilding it instead
 could not spill a 28.6 GB table to /tmp/spill: No space left on device (os error 28); rebuilding it instead
+pair 710: first atoms 4.79 A, electrostatic -0.393 kcal/mol, exchange 1.332, Hartree-Fock beyond both -0.939, overlap 2.1191e-4, electrons 26.00001 26.00000, 1204 functions, 1437 s
