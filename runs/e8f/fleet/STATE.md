@@ -835,3 +835,6 @@
 ## Wake 118 (19:46 UTC)
 - Ethanol full part 4 (52) is done: 3 of 8.
 - Pyridine singles p3-2 (154) and p6-2 (162) were killed on memory: 22 of 24 pyridine pairs killed, none finished. Left: p3-3 and p6-3.
+
+## Wake 119 (20:50 UTC)
+- Pentane grow (156) stopped at the 20 h limit in round 2 with a grow state; accepted as the 2026-11-17 decision says. Mono (24 h) and pairs queued on 156.
