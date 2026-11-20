@@ -796,3 +796,4 @@
 - Butane single p7-2 (165) was killed on memory: 21 of 24 butane pairs killed, none finished.
 - Pyridine singles p1-3 (154) and p4-3 (162) were killed: 9 pyridine singles killed, none finished. Parts 1, 4 and 7 are wholly killed.
 - No claude/e8f-local branch yet.
+- 168 went idle a second time (09:13, after its 08:04 resume), so it is archived and 169 (session_016vymdzH1mszcuVNmaNqhSY) takes the diethyl ether mono (24 h). This mono has restarted on 155, 164, 168 and now 169. The fleet stays at 25 workers.
