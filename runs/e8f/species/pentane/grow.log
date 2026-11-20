@@ -2280,3 +2280,52 @@ pentane: 17 atoms, 16 bonds; carrying on from round 1
   round 1 probe 28/62: 550/571 candidates, 32667 s into the round; about 307 min left in it
   round 1 probe 28/62: 571/571 candidates, 32669 s into the round; about 308 min left in it
 pentane: 17 atoms, 16 bonds; carrying on from round 1
+  relaxed at 242 functions, 20979 s into round 1; 62 probes of 571 candidates to go
+  round 1 probe 1/62: 50/571 candidates, 21582 s into the round; about 623 min left in it
+  round 1 probe 1/62: 100/571 candidates, 21583 s into the round; about 622 min left in it
+  round 1 probe 1/62: 150/571 candidates, 21584 s into the round; about 623 min left in it
+  round 1 probe 1/62: 200/571 candidates, 21585 s into the round; about 624 min left in it
+  round 1 probe 1/62: 250/571 candidates, 21586 s into the round; about 624 min left in it
+  round 1 probe 1/62: 300/571 candidates, 21587 s into the round; about 624 min left in it
+  round 1 probe 1/62: 350/571 candidates, 21588 s into the round; about 624 min left in it
+  round 1 probe 1/62: 400/571 candidates, 21590 s into the round; about 624 min left in it
+  round 1 probe 1/62: 450/571 candidates, 21591 s into the round; about 624 min left in it
+  round 1 probe 1/62: 500/571 candidates, 21592 s into the round; about 624 min left in it
+  round 1 probe 1/62: 550/571 candidates, 21593 s into the round; about 624 min left in it
+  round 1 probe 1/62: 571/571 candidates, 21595 s into the round; about 626 min left in it
+  round 1 probe 2/62: 50/571 candidates, 22202 s into the round; about 617 min left in it
+  round 1 probe 2/62: 100/571 candidates, 22202 s into the round; about 617 min left in it
+  round 1 probe 2/62: 150/571 candidates, 22204 s into the round; about 618 min left in it
+  round 1 probe 2/62: 200/571 candidates, 22205 s into the round; about 618 min left in it
+  round 1 probe 2/62: 250/571 candidates, 22206 s into the round; about 618 min left in it
+  round 1 probe 2/62: 300/571 candidates, 22207 s into the round; about 618 min left in it
+  round 1 probe 2/62: 350/571 candidates, 22208 s into the round; about 618 min left in it
+  round 1 probe 2/62: 400/571 candidates, 22209 s into the round; about 618 min left in it
+  round 1 probe 2/62: 450/571 candidates, 22209 s into the round; about 617 min left in it
+  round 1 probe 2/62: 500/571 candidates, 22211 s into the round; about 617 min left in it
+  round 1 probe 2/62: 550/571 candidates, 22212 s into the round; about 617 min left in it
+  round 1 probe 2/62: 571/571 candidates, 22213 s into the round; about 619 min left in it
+  round 1 probe 3/62: 50/571 candidates, 22816 s into the round; about 601 min left in it
+  round 1 probe 3/62: 100/571 candidates, 22816 s into the round; about 600 min left in it
+  round 1 probe 3/62: 150/571 candidates, 22817 s into the round; about 601 min left in it
+  round 1 probe 3/62: 200/571 candidates, 22818 s into the round; about 601 min left in it
+  round 1 probe 3/62: 250/571 candidates, 22819 s into the round; about 601 min left in it
+  round 1 probe 3/62: 300/571 candidates, 22820 s into the round; about 601 min left in it
+  round 1 probe 3/62: 350/571 candidates, 22821 s into the round; about 602 min left in it
+  round 1 probe 3/62: 400/571 candidates, 22822 s into the round; about 602 min left in it
+  round 1 probe 3/62: 450/571 candidates, 22823 s into the round; about 602 min left in it
+  round 1 probe 3/62: 500/571 candidates, 22824 s into the round; about 602 min left in it
+  round 1 probe 3/62: 550/571 candidates, 22825 s into the round; about 602 min left in it
+  round 1 probe 3/62: 571/571 candidates, 22826 s into the round; about 603 min left in it
+  round 1 probe 4/62: 50/571 candidates, 23442 s into the round; about 607 min left in it
+  round 1 probe 4/62: 100/571 candidates, 23443 s into the round; about 607 min left in it
+  round 1 probe 4/62: 150/571 candidates, 23444 s into the round; about 607 min left in it
+  round 1 probe 4/62: 200/571 candidates, 23445 s into the round; about 607 min left in it
+  round 1 probe 4/62: 250/571 candidates, 23447 s into the round; about 607 min left in it
+  round 1 probe 4/62: 300/571 candidates, 23448 s into the round; about 607 min left in it
+  round 1 probe 4/62: 350/571 candidates, 23449 s into the round; about 607 min left in it
+  round 1 probe 4/62: 400/571 candidates, 23449 s into the round; about 606 min left in it
+  round 1 probe 4/62: 450/571 candidates, 23451 s into the round; about 606 min left in it
+  round 1 probe 4/62: 500/571 candidates, 23452 s into the round; about 606 min left in it
+  round 1 probe 4/62: 550/571 candidates, 23453 s into the round; about 606 min left in it
+  round 1 probe 4/62: 571/571 candidates, 23455 s into the round; about 608 min left in it

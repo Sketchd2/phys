@@ -775,3 +775,7 @@
 - Butane singles p3-3 (165), p4-3 (160), p5-1 (52) and p6-2 (158) were killed on memory: 15 of 24 butane pairs killed, none finished. Parts 1 to 4 are wholly killed.
 - Pyridine parts 3 (154) and 6 (162) were killed, so all 8 pyridine parts failed as parts. Their pairs go to single pairs on the same workers.
 - No claude/e8f-local branch yet.
+
+## Wake 106 (06:59 UTC)
+- Pyridine singles p4-1 (162) and p7-2 (163) were killed on memory: 3 pyridine singles killed, none finished. Butane stands at 15 of 24 killed.
+- No claude/e8f-local branch yet.
