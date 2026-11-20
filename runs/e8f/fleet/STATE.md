@@ -786,3 +786,8 @@
 - 158 has nothing left and is archived. The fleet is 25 workers.
 - No claude/e8f-local branch yet.
 - 168 (diethyl ether mono) went idle for the first time and was resumed. Its job restarts.
+
+## Wake 108 (09:07 UTC)
+- Butane singles p5-2 (52) and p8-2 (160) were killed on memory: 20 of 24 butane pairs killed, none finished. Left: p5-3, p7-2, p7-3, p8-3.
+- Pyridine singles p1-2 (154), p4-2 (162) and p7-3 (163) were killed: 7 pyridine singles killed, none finished. Part 7 is wholly killed.
+- No claude/e8f-local branch yet.
