@@ -3013,3 +3013,18 @@ pentane: 17 atoms, 16 bonds; carrying on from round 1
   round 1 probe 61/62: 500/571 candidates, 62110 s into the round; about 10 min left in it
   round 1 probe 61/62: 550/571 candidates, 62111 s into the round; about 10 min left in it
   round 1 probe 61/62: 571/571 candidates, 62112 s into the round; about 10 min left in it
+  round 1 probe 62/62: 50/571 candidates, 62719 s into the round; under a minute left in it
+  round 1 probe 62/62: 100/571 candidates, 62719 s into the round; under a minute left in it
+  round 1 probe 62/62: 150/571 candidates, 62720 s into the round; under a minute left in it
+  round 1 probe 62/62: 200/571 candidates, 62721 s into the round; under a minute left in it
+  round 1 probe 62/62: 250/571 candidates, 62722 s into the round; under a minute left in it
+  round 1 probe 62/62: 300/571 candidates, 62723 s into the round; under a minute left in it
+  round 1 probe 62/62: 350/571 candidates, 62724 s into the round; under a minute left in it
+  round 1 probe 62/62: 400/571 candidates, 62725 s into the round; under a minute left in it
+  round 1 probe 62/62: 450/571 candidates, 62726 s into the round; under a minute left in it
+  round 1 probe 62/62: 500/571 candidates, 62727 s into the round; under a minute left in it
+  round 1 probe 62/62: 550/571 candidates, 62728 s into the round; under a minute left in it
+  round 1 probe 62/62: 571/571 candidates, 62729 s into the round; under a minute left in it
+round 1: 242 functions, E -197.51703446, 62729 s
+  shape (A, deg): 1.53127 1.53196 1.52986 1.53462 1.09971 1.10663 1.10663 1.11173 1.11173 1.11002 1.11002 1.10971 1.10971 1.10043 1.10787 1.10787 111.251 111.067 111.068 107.843 107.843 107.607 113.911 109.719 109.718 108.934 108.936 105.258 113.189 109.340 109.338 109.518 109.520 105.661 113.495 108.978 108.975 109.695 109.697 105.702 111.893 111.201 111.203 107.577 107.577 107.164
+  added 5, predicted to move: -0.00223 -0.00144 -0.00110 -0.00307 +0.00040 +0.00014 +0.00014 -0.00674 -0.00674 +0.00015 +0.00015 -0.00552 -0.00552 +0.00051 +0.00036 +0.00036 +0.014 -0.043 -0.043 +0.039 +0.039 +0.008 -0.403 -0.050 -0.050 +0.108 +0.108 +0.509 +0.572 -0.123 -0.123 -0.146 -0.146 -0.257 -0.270 +0.051 +0.051 +0.032 +0.032 +0.227 -0.009 -0.038 -0.038 +0.028 +0.028 +0.047; left 544.89

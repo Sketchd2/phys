@@ -828,3 +828,6 @@
 
 ## Wake 116 (17:39 UTC)
 - Pyridine singles p3-1 (154) and p6-1 (162) were killed on memory: 20 of 24 pyridine pairs killed, none finished.
+
+## Wake 117 (18:43 UTC)
+- Ethanol full parts 1 (144) and 7 (160) are done: 2 of 8. Parts 2-3, 4-6 and 8 follow on 144, 52 and 160.
