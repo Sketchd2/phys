@@ -756,3 +756,4 @@
 ## Wake 102 (02:46 UTC)
 - Butane singles p1-2 (52), p3-1 (165) and p4-1 (160) were killed on memory, at tables of about 102-103 GB. That is 7 of 24 butane pairs killed and none of its single pairs finished. The rest still run; the owner's call.
 - Pyridine parts 1 (154), 4 (162) and 8 (163) were killed (81.6-81.8 GB tables). Their pairs go to single pairs on the same workers, after the parts still queued there.
+- 164 (diethyl ether mono) went idle for the first time and was resumed. Its job restarts.
