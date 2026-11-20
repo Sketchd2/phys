@@ -2,3 +2,4 @@ pair 816: first atoms 4.50 A, electrostatic -6.728 kcal/mol, exchange 23.351, Ha
 pair 481: first atoms 3.35 A, electrostatic -3.556 kcal/mol, exchange 12.082, Hartree-Fock beyond both -8.526, overlap 1.9351e-3, electrons 26.00000 26.00000, 1204 functions, 900 s
 pair 605: first atoms 4.56 A, electrostatic -1.499 kcal/mol, exchange 6.476, Hartree-Fock beyond both -4.977, overlap 9.9156e-4, electrons 26.00001 26.00001, 1204 functions, 892 s
 pair 377: first atoms 4.02 A, electrostatic -1.275 kcal/mol, exchange 4.916, Hartree-Fock beyond both -3.641, overlap 7.5013e-4, electrons 26.00000 25.99997, 1204 functions, 869 s
+could not spill a 29.7 GB table to /tmp/spill: No space left on device (os error 28); rebuilding it instead
