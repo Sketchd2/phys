@@ -1,1 +1,6 @@
 isobutane: 884 functions, field step 0.002, 4 frozen cores
+  19 fields in 60550 s (dipole width scale 1)
+  Hartree-Fock: mean 50.8205 bohr^3, diagonal 48.8647 51.4708 52.1259, off-diagonal -2.3e0 -1.6e0 -9.3e-1
+  MP2: mean 53.2788 bohr^3, diagonal 50.9999 54.0374 54.7990, off-diagonal -2.6e0 -1.9e0 -1.1e0
+  atomic polarisabilities by class [5.00386521950378, 6.695162859453093, 4.857518708079149, 4.0319992146782395, 3.418378128446183] bohr^3 (classes [0, 1, 0, 0, 2, 3, 2, 4, 2, 2, 3, 2, 3, 2]); the model's tensor: mean 53.2789, diagonal 50.9994 54.0399 54.7974; residual rms 1.31e-3
+  written to polar-isobutane.txt
