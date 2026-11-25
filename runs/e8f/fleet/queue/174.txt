@@ -1,0 +1,2 @@
+ethanol-law-w174 species/ethanol ../../fleet/stage.sh law ethanol
+ethanol-plan-w174 species/ethanol ../../fleet/stage.sh plan ethanol

@@ -1,1 +1,6 @@
 tetrahydrofuran: 882 functions, field step 0.002, 5 frozen cores
+  19 fields in 57544 s (dipole width scale 1)
+  Hartree-Fock: mean 49.5833 bohr^3, diagonal 54.0775 48.7867 45.8857, off-diagonal -6.0e-1 1.0e0 1.5e0
+  MP2: mean 52.5924 bohr^3, diagonal 57.1373 52.0270 48.6130, off-diagonal -6.4e-1 1.1e0 2.0e0
+  atomic polarisabilities by class [5.404038034594815, 7.57736843074076, 8.498654350281443, 8.413231967206638, 7.2762251457380325, 3.7449832114437642, 4.7107614158547975, 3.425000038852736, 3.3436324982522954, 3.4067020518572377, 3.4927263900048198, 4.850292732708628, 3.6717026988794936] bohr^3 (classes [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]); the model's tensor: mean 52.5924, diagonal 57.1373 52.0270 48.6130; residual rms 8.66e-16
+  written to polar-tetrahydrofuran.txt
