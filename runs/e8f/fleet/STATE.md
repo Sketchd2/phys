@@ -891,3 +891,6 @@
 - Ethanol full part 3 (144) is done: 7 of 8. Part 6 (160) remains; then join here, law and plan on a worker that never wrote ethanol files.
 - 144 has nothing left and is archived. The fleet is 14 workers.
 - Usage: worker 144 reported the seven-day limit at "allowed_warning" again (resets 2026-12-02 02:00 UTC), less than a day after the reset. If it is hit again the fleet stops until Dec 2. Fleet is not grown; finished workers are archived, not replaced.
+
+## Wake 135 (22:31 UTC)
+- No new results or failures. Ethanol full part 6 (160) still running. The workers checked are running.
