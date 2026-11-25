@@ -857,3 +857,6 @@
 
 ## Wake 124 (10:53 UTC)
 - No new results or failures. The workers checked are running.
+
+## Wake 125 (11:57 UTC)
+- No new results or failures. 166 (butanol grow) went idle at 10:59, the first since the restart, and was resumed; the grow restarts from its saved state.
