@@ -8,3 +8,4 @@ butane-p8-2-w160 species/butane ../../fleet/pair-one.sh butane 8 2
 butane-p8-3-w160 species/butane ../../fleet/pair-one.sh butane 8 3
 ethanol-fullp7-w160 species/ethanol rm -rf /tmp/spill/*; ../../fleet/full-part.sh ethanol 7 1
 ethanol-fullp8-w160 species/ethanol rm -rf /tmp/spill/*; ../../fleet/full-part.sh ethanol 8 1
+ethanol-fullp6b-w160 species/ethanol rm -rf /tmp/spill/*; ../../fleet/full-part.sh ethanol 6 1
