@@ -4,3 +4,4 @@ ethanol-pairs-w144 species/ethanol ../../fleet/stage.sh pairs ethanol
 ethanol-fullp1-w144 species/ethanol rm -rf /tmp/spill/*; ../../fleet/full-part.sh ethanol 1 1
 ethanol-fullp2-w144 species/ethanol rm -rf /tmp/spill/*; ../../fleet/full-part.sh ethanol 2 1
 ethanol-fullp3-w144 species/ethanol rm -rf /tmp/spill/*; ../../fleet/full-part.sh ethanol 3 1
+STOP

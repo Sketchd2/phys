@@ -886,3 +886,7 @@
 
 ## Wake 133 (20:25 UTC)
 - No new results or failures. The workers checked are running.
+
+## Wake 134 (21:28 UTC)
+- Ethanol full part 3 (144) is done: 7 of 8. Part 6 (160) remains; then join here, law and plan on a worker that never wrote ethanol files.
+- 144 has nothing left and is archived. The fleet is 14 workers.
