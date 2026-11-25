@@ -851,3 +851,6 @@
 
 ## Wake 122 (08:46 UTC)
 - No new results. 169 went idle again (07:51, 60 min after its second resume): archived, and 171 (session_016vyme1Pm6rk681Sj1sNa7a) takes the diethyl ether mono (24 h) and pairs. Diethyl ether files fenced from 169. The fleet stays at 16 workers.
+
+## Wake 123 (09:50 UTC)
+- No new results or failures. 171 has started; the workers checked are running.
