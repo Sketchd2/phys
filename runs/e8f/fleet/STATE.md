@@ -870,3 +870,7 @@
 
 ## Wake 128 (15:07 UTC)
 - Ethanol full part 8 (160) is done: 5 of 8 (1, 2, 4, 7, 8). Part 6 moved from 52 (where it waited behind part 5) to 160 as ethanol-fullp6b-w160; part-6 files fenced from 52. Part 3 runs on 144, part 5 on 52.
+
+## Wake 129 (16:12 UTC)
+- Ethanol full part 5 (52) is done: 6 of 8. Parts 3 (144) and 6 (160) remain.
+- 52 has nothing left and is archived. The fleet is 15 workers.
