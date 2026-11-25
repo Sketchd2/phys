@@ -2776,3 +2776,4 @@ round 2: 240 functions, E -233.43070315, 42613 s
   round 3 probe 9/54: 500/509 candidates, 22940 s into the round; about 328 min left in it
   round 3 probe 9/54: 509/509 candidates, 22941 s into the round; about 329 min left in it
 butanol: 15 atoms, 14 bonds; carrying on from round 3
+  relaxed at 254 functions, 14522 s into round 3; 54 probes of 509 candidates to go
