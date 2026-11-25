@@ -2801,3 +2801,48 @@ butanol: 15 atoms, 14 bonds; carrying on from round 3
   round 3 probe 2/54: 509/509 candidates, 15356 s into the round; about 360 min left in it
 butanol: 15 atoms, 14 bonds; carrying on from round 3
 butanol: 15 atoms, 14 bonds; carrying on from round 3
+  relaxed at 254 functions, 20248 s into round 3; 54 probes of 509 candidates to go
+  round 3 probe 1/54: 50/509 candidates, 20754 s into the round; about 453 min left in it
+  round 3 probe 1/54: 100/509 candidates, 20755 s into the round; about 453 min left in it
+  round 3 probe 1/54: 150/509 candidates, 20756 s into the round; about 453 min left in it
+  round 3 probe 1/54: 200/509 candidates, 20756 s into the round; about 453 min left in it
+  round 3 probe 1/54: 250/509 candidates, 20757 s into the round; about 453 min left in it
+  round 3 probe 1/54: 300/509 candidates, 20758 s into the round; about 453 min left in it
+  round 3 probe 1/54: 350/509 candidates, 20758 s into the round; about 453 min left in it
+  round 3 probe 1/54: 400/509 candidates, 20759 s into the round; about 453 min left in it
+  round 3 probe 1/54: 450/509 candidates, 20760 s into the round; about 453 min left in it
+  round 3 probe 1/54: 500/509 candidates, 20760 s into the round; about 453 min left in it
+  round 3 probe 1/54: 509/509 candidates, 20761 s into the round; about 454 min left in it
+  round 3 probe 2/54: 50/509 candidates, 21226 s into the round; about 408 min left in it
+  round 3 probe 2/54: 100/509 candidates, 21227 s into the round; about 408 min left in it
+  round 3 probe 2/54: 150/509 candidates, 21227 s into the round; about 408 min left in it
+  round 3 probe 2/54: 200/509 candidates, 21228 s into the round; about 408 min left in it
+  round 3 probe 2/54: 250/509 candidates, 21229 s into the round; about 408 min left in it
+  round 3 probe 2/54: 300/509 candidates, 21229 s into the round; about 408 min left in it
+  round 3 probe 2/54: 350/509 candidates, 21230 s into the round; about 408 min left in it
+  round 3 probe 2/54: 400/509 candidates, 21231 s into the round; about 408 min left in it
+  round 3 probe 2/54: 450/509 candidates, 21231 s into the round; about 408 min left in it
+  round 3 probe 2/54: 500/509 candidates, 21232 s into the round; about 408 min left in it
+  round 3 probe 2/54: 509/509 candidates, 21233 s into the round; about 409 min left in it
+  round 3 probe 3/54: 50/509 candidates, 21755 s into the round; about 449 min left in it
+  round 3 probe 3/54: 100/509 candidates, 21755 s into the round; about 449 min left in it
+  round 3 probe 3/54: 150/509 candidates, 21756 s into the round; about 449 min left in it
+  round 3 probe 3/54: 200/509 candidates, 21757 s into the round; about 449 min left in it
+  round 3 probe 3/54: 250/509 candidates, 21757 s into the round; about 449 min left in it
+  round 3 probe 3/54: 300/509 candidates, 21758 s into the round; about 449 min left in it
+  round 3 probe 3/54: 350/509 candidates, 21759 s into the round; about 449 min left in it
+  round 3 probe 3/54: 400/509 candidates, 21759 s into the round; about 449 min left in it
+  round 3 probe 3/54: 450/509 candidates, 21760 s into the round; about 449 min left in it
+  round 3 probe 3/54: 500/509 candidates, 21761 s into the round; about 449 min left in it
+  round 3 probe 3/54: 509/509 candidates, 21762 s into the round; about 450 min left in it
+  round 3 probe 4/54: 50/509 candidates, 22242 s into the round; about 404 min left in it
+  round 3 probe 4/54: 100/509 candidates, 22242 s into the round; about 404 min left in it
+  round 3 probe 4/54: 150/509 candidates, 22243 s into the round; about 404 min left in it
+  round 3 probe 4/54: 200/509 candidates, 22243 s into the round; about 404 min left in it
+  round 3 probe 4/54: 250/509 candidates, 22244 s into the round; about 404 min left in it
+  round 3 probe 4/54: 300/509 candidates, 22245 s into the round; about 405 min left in it
+  round 3 probe 4/54: 350/509 candidates, 22245 s into the round; about 405 min left in it
+  round 3 probe 4/54: 400/509 candidates, 22246 s into the round; about 405 min left in it
+  round 3 probe 4/54: 450/509 candidates, 22247 s into the round; about 405 min left in it
+  round 3 probe 4/54: 500/509 candidates, 22247 s into the round; about 405 min left in it
+  round 3 probe 4/54: 509/509 candidates, 22248 s into the round; about 405 min left in it
