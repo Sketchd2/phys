@@ -1,2 +1,3 @@
 octane-grow-w120 species/octane ../../fleet/stage.sh grow octane
 octane-grow48-w120 species/octane rm -f grow.ok; MAXH=48 ../../fleet/stage.sh grow octane
+STOP

@@ -1,2 +1,3 @@
 cyclohexane-grow-w101 species/cyclohexane ../../fleet/stage.sh grow cyclohexane
 cyclohexane-grow48-w101 species/cyclohexane rm -f grow.ok; MAXH=48 ../../fleet/stage.sh grow cyclohexane
+STOP

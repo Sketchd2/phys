@@ -838,3 +838,9 @@
 
 ## Wake 119 (20:50 UTC)
 - Pentane grow (156) stopped at the 20 h limit in round 2 with a grow state; accepted as the 2026-11-17 decision says. Mono (24 h) and pairs queued on 156.
+
+## Wake 120 (2026-11-25 06:45 UTC) — restart after the weekly usage limit
+- The weekly usage limit stopped the fleet and this session at about 21:55 UTC on Nov 20; it reset at 02:00 UTC on Nov 25. No wake ran in between; the backstop's 18 checks were all queued behind the stopped session. All running jobs died.
+- Pyridine singles p3-3 (154) and p6-3 (162) had been killed on memory just before: all 24 pyridine pairs killed, none finished.
+- Dropped and archived: 65 (heptane grow), 97 (toluene grow), 101 (cyclohexane grow), 120 (octane grow), 154 and 162 (empty). See DECISIONS.
+- Resumed: 43 52 59 87 89 122 126 131 144 146 148 153 156 160 166 169 (16 workers).
