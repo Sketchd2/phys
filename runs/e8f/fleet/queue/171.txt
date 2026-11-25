@@ -1,0 +1,2 @@
+diethyl_ether-mono-w171 species/diethyl_ether rm -rf /tmp/spill/*; grep -q 'MP2: mean' polar.log 2>/dev/null || PHYS_SPILL_MAX_GB=0 timeout 86400 $(git rev-parse --show-toplevel)/target/release/phys-polar diethyl_ether > polar.log 2>&1; ../../fleet/stage.sh mono diethyl_ether
+diethyl_ether-pairs-w171 species/diethyl_ether ../../fleet/stage.sh pairs diethyl_ether
