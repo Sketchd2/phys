@@ -844,3 +844,7 @@
 - Pyridine singles p3-3 (154) and p6-3 (162) had been killed on memory just before: all 24 pyridine pairs killed, none finished.
 - Dropped and archived: 65 (heptane grow), 97 (toluene grow), 101 (cyclohexane grow), 120 (octane grow), 154 and 162 (empty). See DECISIONS.
 - Resumed: 43 52 59 87 89 122 126 131 144 146 148 153 156 160 166 169 (16 workers).
+
+## Wake 121 (07:42 UTC)
+- All 16 resumed workers are running except 169, which went idle right after its resume (06:51) and was resumed again; the limit stop does not count as its first strike. Several workers skipped the "git pull" in the resume message as unexpected; harmless, worker.sh reads the queue it has.
+- No new results yet (every job restarted at about 06:50).
