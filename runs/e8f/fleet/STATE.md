@@ -874,3 +874,6 @@
 ## Wake 129 (16:12 UTC)
 - Ethanol full part 5 (52) is done: 6 of 8. Parts 3 (144) and 6 (160) remain.
 - 52 has nothing left and is archived. The fleet is 15 workers.
+
+## Wake 130 (17:16 UTC)
+- No new results or failures. 171 went idle a second time (16:39): archived, and 173 (session_016vymdzqKxfLE7DGFnKRiZg) takes the diethyl ether mono and pairs. That mono has now been on 155, 164, 168, 169, 171 and 173; it restarts each time. The fleet stays at 15 workers.
