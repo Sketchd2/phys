@@ -848,3 +848,6 @@
 ## Wake 121 (07:42 UTC)
 - All 16 resumed workers are running except 169, which went idle right after its resume (06:51) and was resumed again; the limit stop does not count as its first strike. Several workers skipped the "git pull" in the resume message as unexpected; harmless, worker.sh reads the queue it has.
 - No new results yet (every job restarted at about 06:50).
+
+## Wake 122 (08:46 UTC)
+- No new results. 169 went idle again (07:51, 60 min after its second resume): archived, and 171 (session_016vyme1Pm6rk681Sj1sNa7a) takes the diethyl ether mono (24 h) and pairs. Diethyl ether files fenced from 169. The fleet stays at 16 workers.
