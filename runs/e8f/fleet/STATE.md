@@ -894,3 +894,6 @@
 
 ## Wake 135 (22:31 UTC)
 - No new results or failures. Ethanol full part 6 (160) still running. The workers checked are running.
+
+## Wake 136 (23:35 UTC)
+- ETHANOL FULL IS DONE. Part 6 finished on 160; all 8 parts joined here: full.ok "8 pairs". Law and plan go to new worker 174 (session_016vymdweQ46XzdvzdqaXraH), which never wrote ethanol files. 160 has nothing left and is archived. The fleet stays at 14 workers.
