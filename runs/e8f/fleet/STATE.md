@@ -863,3 +863,7 @@
 
 ## Wake 126 (13:00 UTC)
 - No new results or failures. 166 went idle again (12:40, 41 min after its resume): archived, and 172 (session_016vymdxFLWSPeC9BqoATptS) takes the butanol grow (MAXH=48), resuming from its saved state (round 3). Butanol files fenced from 166. The fleet stays at 16 workers.
+
+## Wake 127 (14:03 UTC)
+- Ethanol full part 2 (144) is done: 4 of 8 (1, 2, 4, 7). Parts 3 (144), 5-6 (52) and 8 (160) remain.
+- 171 (diethyl ether mono) went idle for the first time (13:33) and was resumed.
