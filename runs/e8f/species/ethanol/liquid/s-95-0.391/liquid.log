@@ -16,3 +16,13 @@ ethanol at 95 K: 64 molecules, 0.391 g/cm3, box 43.88 bohr (23.22 A), cut-off 16
   67% after 2832 s: U/N -3.55 kcal/mol, P -164 bar
   75% after 2942 s: U/N -3.63 kcal/mol, P -207 bar
   83% after 3053 s: U/N -3.59 kcal/mol, P -7 bar
+  92% after 3170 s: U/N -3.52 kcal/mol, P -144 bar
+  100% after 3284 s: U/N -3.56 kcal/mol, P -214 bar
+ethanol at 95 K (96 samples over 10 ps, block standard errors):
+  U/N -3.484 +- 0.057 kcal/mol; heat of vaporisation -U/N + RT = 3.673 kcal/mol
+  pressure -160 +- 8 bar at 0.391 g/cm3 (a liquid at the right density sits near 1 bar; positive says it wants to expand)
+  temperatures: translation 94.8 K, rotation 97.1 K (bath 95 K)
+  mean molecular dipole 1.347 D (permanent charges and induced dipoles); dielectric constant 1.9 (blocks 1.2 +- 0.1; slow to converge)
+  dispersion beyond the cut-off (C6 493.76): -52 bar and -0.146 kcal/mol a molecule, so pressure with it -212 bar, U/N -3.630
+  g(first atoms): first peak 0.61 at 3.35 A, first minimum 0.98 at 4.35 A, second peak 1.53 at 5.55 A, coordination to the minimum 1.14 (bulk-ethanol-95.gOO.txt)
+  snapshot in bulk-ethanol-95.snap
