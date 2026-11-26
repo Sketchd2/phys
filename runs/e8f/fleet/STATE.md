@@ -897,3 +897,8 @@
 
 ## Wake 136 (23:35 UTC)
 - ETHANOL FULL IS DONE. Part 6 finished on 160; all 8 parts joined here: full.ok "8 pairs". Law and plan go to new worker 174 (session_016vymdweQ46XzdvzdqaXraH), which never wrote ethanol files. 160 has nothing left and is archived. The fleet stays at 14 workers.
+
+## Wake 137 (00:39 UTC, Nov 26)
+- ETHANOL HAS A LIQUID. Law: K 9.2981, weighted rms 0.030 kcal/mol over 8 pairs (cp); B2 -97.77 cm3/mol at 300 K, +49.41 at 600 K. Plan: Boyle temperature 432 K, rho_ref 0.435 g/cm3, dipole 0.679 au, 34 states. The 34 liquid states are round-robin over 174 and new workers 175 (session_016vyme14roNGuagCnoeEcUD), 176 (session_016vymdwGZeSygi9BeuQHTDB) and 177 (session_016vymdz1tBYHn7mB65GJwNy), about 8-9 states each at about an hour a state (ethane's took 50 min). Boil HERE once at least 31 of 34 are complete (check every state's log has its last line).
+- Isobutane mono is done (MP2 mean 53.28 bohr^3); pairs follow on 131. THF mono is done (MP2 mean 52.59 bohr^3); pairs follow on 148. Butane, an isomer of isobutane, needed 102 GB tables, so isobutane's pairs will probably be killed the same way.
+- The fleet is 17 workers (3 added for the liquid states only; they are archived when their queues empty).
