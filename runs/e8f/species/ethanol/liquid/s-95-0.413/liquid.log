@@ -4,3 +4,8 @@ ethanol at 95 K: 64 molecules, 0.413 g/cm3, box 43.09 bohr (22.80 A), cut-off 16
   start: U/N -0.31 kcal/mol
   easing: U/N -0.87 kcal/mol, T 93/101 K, P -227 bar
   settling: U/N -2.13 kcal/mol, T 93/116 K, P -516 bar
+  warming: U/N -3.20 kcal/mol, T 85/107 K, P -295 bar
+  0% after 2109 s: U/N -3.20 kcal/mol, P -294 bar
+  8% after 2230 s: U/N -3.18 kcal/mol, P -97 bar
+  17% after 2348 s: U/N -3.26 kcal/mol, P -191 bar
+  25% after 2464 s: U/N -3.37 kcal/mol, P -222 bar
