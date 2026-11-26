@@ -906,3 +906,6 @@
 ## Wake 138 (01:43 UTC)
 - Ethanol liquid states: 4 of 34 done in under an hour each (432, 359, 302, 255 K).
 - Isobutane and THF pairs killed at 102.6 and 102.8 GB tables; not split (see DECISIONS). They wait for a machine that can spill, with butane and pyridine. 131 and 148 archived. The fleet is 15 workers.
+
+## Wake 139 (02:47 UTC)
+- Ethanol liquid states: 8 of 34 done. The workers checked are running.
