@@ -1,1 +1,23 @@
 glycerol: dipole Hartree-Fock 1.5017 au (3.817 D), target 1.5017 au (3.817 D)
+  19130 potential points; the target's RMS 6.168e0, its mean -6.071e0 hartree/e
+  localised in 24 sweeps: 10 bond orbitals, 9 lone pairs (6 core orbitals frozen out of the localisation)
+  valence electrons 38, cores [6.0, 4.0, 4.0, 4.0, 6.0, 6.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+  atom class 0: cloud 1.046 electrons, width 0.250 bohr
+  atom class 1: cloud 2.862 electrons, width 0.399 bohr
+  atom class 2: cloud 2.842 electrons, width 0.718 bohr
+  atom class 3: cloud 3.428 electrons, width 1.243 bohr
+  atom class 4: cloud 1.042 electrons, width 0.843 bohr
+  atom class 5: cloud 1.035 electrons, width 0.434 bohr
+  atom class 6: cloud 0.853 electrons, width 1.289 bohr
+  atom class 7: cloud 1.306 electrons, width 0.250 bohr
+  atom class 8: cloud 1.037 electrons, width 0.277 bohr
+  atom class 9: cloud 0.841 electrons, width 0.575 bohr
+  atom class 10: cloud 1.064 electrons, width 1.369 bohr
+  atom class 11: cloud 1.048 electrons, width 0.638 bohr
+  atom class 12: cloud 0.774 electrons, width 0.250 bohr
+  atom class 13: cloud 0.865 electrons, width 0.836 bohr
+  lone-pair cloud of class 0: 3 pair(s) on 1 atom(s), 5.986 electrons, width 1.826 bohr, 0.276 bohr from the nucleus (the orbitals' centre is 0.276)
+  lone-pair cloud of class 4: 3 pair(s) on 1 atom(s), 5.986 electrons, width 1.864 bohr, 0.274 bohr from the nucleus (the orbitals' centre is 0.274)
+  lone-pair cloud of class 5: 3 pair(s) on 1 atom(s), 5.986 electrons, width 1.838 bohr, 0.277 bohr from the nucleus (the orbitals' centre is 0.277)
+  potential RMS 2.050e-2 hartree/e (atom-centred point charges alone: 5.821e-3)
+  written to cloud-glycerol.txt
