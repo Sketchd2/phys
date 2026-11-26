@@ -913,3 +913,9 @@
 ## Wake 140 (03:51 UTC)
 - Ethanol liquid states: 12 of 34 done.
 - 173 (diethyl ether mono) went idle for the first time (03:01) and was resumed; the mono restarts again.
+
+### Wake 141, 2026-11-26 04:53 UTC
+- Ethanol liquid states: 16 of 34 done (432 K at 0.226, 0.278, 0.331 and 0.383 merged this wake). 174-177 running.
+- 173 (diethyl ether mono) went idle a second time at 04:52, so it was replaced: queue 173 STOP and fenced, archived; 178 created with the same two jobs (mono, then pairs).
+- Why workers go idle: 173's transcript shows the worker writing a status sentence ("still RUNNING ... continuing the loop") and ending its turn (end_turn), usually in a turn opened by a task notification, instead of running worker.sh again. The calculation itself was not failing. worker-prompt.txt now says never to end a turn on a text reply; 178 got that line.
+- Next wake trig_01SzQTGr269QTHFSfnBrq562 at 05:57.
