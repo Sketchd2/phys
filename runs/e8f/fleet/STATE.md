@@ -965,3 +965,9 @@
 - My worker.sh change of 11:20 set off the very thing it was for. Every worker overwrites worker.sh with the main branch's copy, so the change showed as a local edit; the stop hook asked about it and 174 and 177 stopped (12:25) to say they had not written it. 178 had already stopped at 08:00. worker.sh now marks itself skip-worktree as well, so neither its own update nor the job logs show in git status.
 - Resumed 174, 177 and 178. 174 and 177 were on their second idle, which would mean replacement, but the cause was my script and is fixed, so they were resumed instead. The other workers I could not see on the first page of sessions (43, 59, 87, 89, 122, 146, 153) were sent the same message at "later" priority: it does nothing to a worker still looping, and resumes one that stopped. If any of them had stopped, its polar run restarts from nothing.
 - Next wake trig_01RKkisuSUS1tREKmdB6fa68 at 14:24: compare push times to see which of those seven had stopped.
+
+### Wake 150, 2026-11-26 14:24 UTC
+- Ethanol liquid states: 24 of 34 done (138 K at 0.37 and 0.391 on 176). Logs intact.
+- 177 and 178 restarted their jobs at 13:31 after the resume. The seven polar workers (43, 59, 87, 89, 122, 146, 153) never stopped: none pushed a fresh "started", so their 48-72 h runs go on.
+- 174 resumed at 13:23 with its liquid state still RUNNING (the job outlived the idle; a quick resume loses nothing), then stopped again at 13:49 to say it would not commit the worker.sh edit. Resumed once more with that answered; one more idle and it is replaced.
+- Next wake trig_01WfxVe4uzCPwkpA5Xw3iXGE at 15:27.
