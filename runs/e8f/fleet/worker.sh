@@ -24,6 +24,9 @@ fi
 # The local branch carries the name it is pushed under: a push of HEAD to another name was
 # refused for every worker of the first fleet, silently, because its errors were thrown away.
 git checkout -q -B $BR 2>/dev/null
+# the session's stop hook sees untracked job logs, asks the worker to commit them, and the worker
+# answers in words and ends its turn, which kills its job (174 and 177, 2026-11-26): keep them out of sight
+grep -qx 'runs/e8f/fleet/log/' .git/info/exclude 2>/dev/null || echo 'runs/e8f/fleet/log/' >> .git/info/exclude
 # Haiku workers ended their turns while a job ran ("continuing the loop" and then stopping): say it every call
 echo "Reminder: call bash runs/e8f/fleet/worker.sh $W again straight away; do not end your turn until the last line is ALL DONE."
 PUSHED=""
