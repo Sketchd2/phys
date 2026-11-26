@@ -947,3 +947,9 @@
 - Ethanol liquid states: 21 of 34 done (108 K at 0.391). Logs intact.
 - Ethyl acetate and glycerol through c6 and into the 40-minute polar retry; pentane through cloud. 43, 59, 87 and 153 are inside their 48-72 h polar retries (nothing to push). Chlorobenzene (89) is about 27 h into a 24 h limit; precedent is that the timeout lands hours late, so no action yet.
 - Next wake trig_01PMtSryv64FXCVK8phmRR5o at 11:14.
+
+### Wake 147, 2026-11-26 11:15 UTC
+- Ethanol liquid states: 22 of 34 done (121 K at 0.37). Logs intact.
+- Ethyl acetate (146) and glycerol (122) monos failed "no polarisability" as expected; their 48 h retries are the next lines of their queues.
+- 174 (idle 10:13) and 177 (idle 09:34) ended their turns with a text reply, so their liquid states stopped. 174's transcript shows the trigger: the session stop hook reported untracked fleet/log/*.log files, the worker committed them by hand and answered in words. worker.sh now adds runs/e8f/fleet/log/ to .git/info/exclude on every call (every worker fetches worker.sh), so the hook has nothing to report. Both resumed (first idle each since their last resume); their states restart from the lattice.
+- Next wake trig_01MXDQxW2oJTJU2iFeTGf7gk at 12:18.

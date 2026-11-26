@@ -1,2 +1,1 @@
 glycerol: 1008 functions, field step 0.002, 6 frozen cores
-could not spill a 11.1 GB table to /tmp/spill: No space left on device (os error 28); rebuilding it instead

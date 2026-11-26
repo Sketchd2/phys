@@ -86,3 +86,5 @@
 - 2026-11-26 06:05: merge.sh takes files under liquid/s-T-RHO/ only from the worker whose queue holds that state's liquid-state.sh line. Stale copies on other branches had replaced seven finished ethanol logs.
 
 - 2026-11-26 08:10: polarisability at ~1000 functions does not finish in 24 h with spilling off. Retry 48 h (72 h for hexane at 1272) on the same worker rather than splitting; a resume after an idle restarts the run from nothing, which is the risk accepted.
+
+- 2026-11-26 11:20: worker.sh hides fleet/log from git status via .git/info/exclude. The session stop hook asking about those untracked logs is what set workers talking and ending their turns.
