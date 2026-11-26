@@ -3,3 +3,4 @@ ethanol at 121 K: 64 molecules, 0.413 g/cm3, box 43.09 bohr (22.80 A), cut-off 1
   Ewald sum on: s' = 4.2 bohr, 4717 reciprocal vectors
   start: U/N -0.31 kcal/mol
   easing: U/N -0.84 kcal/mol, T 143/114 K, P -103 bar
+  settling: U/N -1.98 kcal/mol, T 117/127 K, P -265 bar
