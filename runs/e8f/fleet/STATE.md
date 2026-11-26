@@ -984,3 +984,8 @@
 - Replaced: 179 takes 174's two remaining states (432 K at 0.0217, 95 K at 0.37), 180 takes 177's (432 K at 0.0435, 95 K at 0.391), 181 takes 178's diethyl ether mono and pairs (its 24 h polar restarts). Old queues STOP, 178 fenced for diethyl ether, sessions archived. worker-prompt.txt carries the extra lines the new three were given (hooks, other sessions' messages, local files).
 - Fleet: 43 59 87 89 122 146 153 156 172 175 176 179 180 181 (14). Weekly limit status still allowed_warning, resetting Dec 2 02:00.
 - Next wake trig_01YFBYsFCcRo7MxJzmQP2EVM at 17:33.
+
+### Wake 153, 2026-11-26 17:34 UTC
+- Ethanol liquid states: 27 of 34 done (121 K at 0.391 on 176, now on 108 K at 0.37). Running: 432 K at 0.0087 (175), 0.0217 (179), 0.0435 (180); waiting: 95 K at 0.37 (179), 95 K at 0.391 (180), 108 K at 0.413 (175), 108 K at 0.37 running and 121 K done on 176. Boil at 31.
+- 179, 180 and 181 all looping from their own prompts since 16:32. 179 and 181 have pushed nothing yet: 181's polar.log is still the header the main branch already has, and 179's low-density state writes rarely (174's did the same). Confirmed RUNNING in their transcripts.
+- Next wake trig_01YXDFKxQqtRvVEF7Dm2fKXm at 18:37.
