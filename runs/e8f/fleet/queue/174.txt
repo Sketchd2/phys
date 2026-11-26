@@ -1,2 +1,11 @@
 ethanol-law-w174 species/ethanol ../../fleet/stage.sh law ethanol
 ethanol-plan-w174 species/ethanol ../../fleet/stage.sh plan ethanol
+ethanol-liq-432-0.435-w174 species/ethanol ../../fleet/liquid-state.sh ethanol 432 0.435 12
+ethanol-liq-216-0.435-w174 species/ethanol ../../fleet/liquid-state.sh ethanol 216 0.435 12
+ethanol-liq-121-0.435-w174 species/ethanol ../../fleet/liquid-state.sh ethanol 121 0.435 12
+ethanol-liq-432-0.383-w174 species/ethanol ../../fleet/liquid-state.sh ethanol 432 0.383 12
+ethanol-liq-432-0.174-w174 species/ethanol ../../fleet/liquid-state.sh ethanol 432 0.174 12
+ethanol-liq-432-0.0217-w174 species/ethanol ../../fleet/liquid-state.sh ethanol 432 0.0217 12
+ethanol-liq-95-0.37-w174 species/ethanol ../../fleet/liquid-state.sh ethanol 95 0.37 12
+ethanol-liq-121-0.413-w174 species/ethanol ../../fleet/liquid-state.sh ethanol 121 0.413 12
+ethanol-liq-138-0.391-w174 species/ethanol ../../fleet/liquid-state.sh ethanol 138 0.391 12

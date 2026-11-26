@@ -1,0 +1,8 @@
+ethanol-liq-302-0.435-w176 species/ethanol ../../fleet/liquid-state.sh ethanol 302 0.435 12
+ethanol-liq-160-0.435-w176 species/ethanol ../../fleet/liquid-state.sh ethanol 160 0.435 12
+ethanol-liq-95-0.435-w176 species/ethanol ../../fleet/liquid-state.sh ethanol 95 0.435 12
+ethanol-liq-432-0.278-w176 species/ethanol ../../fleet/liquid-state.sh ethanol 432 0.278 12
+ethanol-liq-432-0.0783-w176 species/ethanol ../../fleet/liquid-state.sh ethanol 432 0.0783 12
+ethanol-liq-95-0.413-w176 species/ethanol ../../fleet/liquid-state.sh ethanol 95 0.413 12
+ethanol-liq-108-0.391-w176 species/ethanol ../../fleet/liquid-state.sh ethanol 108 0.391 12
+ethanol-liq-121-0.37-w176 species/ethanol ../../fleet/liquid-state.sh ethanol 121 0.37 12

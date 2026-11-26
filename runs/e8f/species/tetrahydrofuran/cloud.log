@@ -1,1 +1,20 @@
 tetrahydrofuran: dipole Hartree-Fock 0.7329 au (1.863 D), target 0.7329 au (1.863 D)
+  17728 potential points; the target's RMS 5.087e0, its mean -5.008e0 hartree/e
+  localised in 22 sweeps: 11 bond orbitals, 4 lone pairs (5 core orbitals frozen out of the localisation)
+  valence electrons 30, cores [6.0, 4.0, 4.0, 4.0, 4.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+  atom class 0: cloud 0.000 electrons, width 3.500 bohr
+  atom class 1: cloud 2.285 electrons, width 0.436 bohr
+  atom class 2: cloud 4.286 electrons, width 0.899 bohr
+  atom class 3: cloud 4.255 electrons, width 0.804 bohr
+  atom class 4: cloud 2.348 electrons, width 0.652 bohr
+  atom class 5: cloud 1.218 electrons, width 0.505 bohr
+  atom class 6: cloud 1.341 electrons, width 1.461 bohr
+  atom class 7: cloud 1.025 electrons, width 0.492 bohr
+  atom class 8: cloud 0.903 electrons, width 0.285 bohr
+  atom class 9: cloud 0.893 electrons, width 0.310 bohr
+  atom class 10: cloud 1.032 electrons, width 0.354 bohr
+  atom class 11: cloud 1.325 electrons, width 1.472 bohr
+  atom class 12: cloud 1.202 electrons, width 0.575 bohr
+  lone-pair cloud of class 0: 4 pair(s) on 1 atom(s), 7.887 electrons, width 1.812 bohr, 0.195 bohr from the nucleus (the orbitals' centre is 0.195)
+  potential RMS 1.600e-2 hartree/e (atom-centred point charges alone: 5.729e-3)
+  written to cloud-tetrahydrofuran.txt
