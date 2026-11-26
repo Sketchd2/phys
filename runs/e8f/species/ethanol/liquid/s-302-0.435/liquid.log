@@ -17,3 +17,12 @@ ethanol at 302 K: 64 molecules, 0.435 g/cm3, box 42.35 bohr (22.41 A), cut-off 1
   75% after 2825 s: U/N -1.73 kcal/mol, P 226 bar
   83% after 2931 s: U/N -1.64 kcal/mol, P 709 bar
   92% after 3035 s: U/N -1.46 kcal/mol, P 797 bar
+  100% after 3141 s: U/N -1.72 kcal/mol, P 546 bar
+ethanol at 302 K (96 samples over 10 ps, block standard errors):
+  U/N -1.669 +- 0.035 kcal/mol; heat of vaporisation -U/N + RT = 2.269 kcal/mol
+  pressure 542 +- 43 bar at 0.435 g/cm3 (a liquid at the right density sits near 1 bar; positive says it wants to expand)
+  temperatures: translation 304.3 K, rotation 306.5 K (bath 302 K)
+  mean molecular dipole 1.217 D (permanent charges and induced dipoles); dielectric constant 2.1 (blocks 1.6 +- 0.1; slow to converge)
+  dispersion beyond the cut-off (C6 493.76): -64 bar and -0.163 kcal/mol a molecule, so pressure with it 478 bar, U/N -1.831
+  g(first atoms): first peak 0.27 at 3.35 A, first minimum 0.51 at 3.65 A, second peak 1.19 at 5.45 A, coordination to the minimum 0.14 (bulk-ethanol-302.gOO.txt)
+  snapshot in bulk-ethanol-302.snap
