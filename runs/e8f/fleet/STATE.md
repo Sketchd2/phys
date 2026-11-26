@@ -909,3 +909,7 @@
 
 ## Wake 139 (02:47 UTC)
 - Ethanol liquid states: 8 of 34 done. The workers checked are running.
+
+## Wake 140 (03:51 UTC)
+- Ethanol liquid states: 12 of 34 done.
+- 173 (diethyl ether mono) went idle for the first time (03:01) and was resumed; the mono restarts again.
