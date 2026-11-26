@@ -1,0 +1,15 @@
+induced dipoles on, polarisabilities by site type [11.235266666666668, 11.235266666666668, 11.235266666666668, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0] bohr^3
+ethanol at 432 K: 64 molecules, 0.174 g/cm3, box 57.48 bohr (30.42 A), cut-off 16.0 bohr
+  Ewald sum on: s' = 4.2 bohr, 11167 reciprocal vectors
+  start: U/N -0.16 kcal/mol
+  easing: U/N -0.16 kcal/mol, T 421/579 K, P 41 bar
+  settling: U/N -0.34 kcal/mol, T 467/447 K, P 166 bar
+  warming: U/N -0.43 kcal/mol, T 428/445 K, P 166 bar
+  0% after 3619 s: U/N -0.43 kcal/mol, P 165 bar
+  8% after 3822 s: U/N -0.46 kcal/mol, P 152 bar
+  17% after 4028 s: U/N -0.47 kcal/mol, P 149 bar
+  25% after 4239 s: U/N -0.45 kcal/mol, P 106 bar
+  33% after 4448 s: U/N -0.39 kcal/mol, P 226 bar
+  42% after 4657 s: U/N -0.32 kcal/mol, P 178 bar
+  50% after 4883 s: U/N -0.58 kcal/mol, P 214 bar
+  58% after 5112 s: U/N -0.56 kcal/mol, P 129 bar
