@@ -2,3 +2,4 @@ induced dipoles on, polarisabilities by site type [11.235266666666668, 11.235266
 ethanol at 432 K: 64 molecules, 0.383 g/cm3, box 44.19 bohr (23.38 A), cut-off 16.0 bohr
   Ewald sum on: s' = 4.2 bohr, 5065 reciprocal vectors
   start: U/N -0.38 kcal/mol
+  easing: U/N -0.66 kcal/mol, T 420/590 K, P 335 bar
