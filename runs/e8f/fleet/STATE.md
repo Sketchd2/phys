@@ -936,3 +936,9 @@
 - Pentane (1078, 156), ethyl acetate (988, 146) and glycerol (1008, 122) already ran out their 24 h the same way and are now on density and cloud; their mono will fail at the 40-minute polar retry, so 48 h retries are queued behind them now. Butanone passed (its tensor is in). Chlorobenzene (892, 89) and diethyl ether (990, 178) are still inside their 24 h.
 - Failures do not cost the stage: density, cloud and c6 results are kept and skipped on the retry.
 - Next wake trig_01RxXJxHVMRugg4R3pVUHnJh at 09:08.
+
+### Wake 145, 2026-11-26 09:08 UTC
+- Ethanol liquid states: 20 of 34 done (95 K at 0.413). Logs intact.
+- Butanone mono done (mono.ok). Its pairs were killed on memory, as every 4-6-heavy-atom species' have been (no pair finished); not split. Butanone joins butane, pyridine, isobutane, THF, ethylamine and propane waiting for a machine that can spill. 126's queue is spent: STOP, archived.
+- Ethyl acetate, glycerol and pentane are through cloud and on c6; their 48 h polar retries are queued behind.
+- Next wake trig_01WTrE6y4Fy17k7DprfEU1kr at 10:11.

@@ -3,3 +3,4 @@ dimethyl_ether-law-w126 species/dimethyl_ether ../../fleet/stage.sh law dimethyl
 dimethyl_ether-plan-w126 species/dimethyl_ether ../../fleet/stage.sh plan dimethyl_ether
 butanone-mono-w126 species/butanone rm -rf /tmp/spill/*; grep -q 'MP2: mean' polar.log 2>/dev/null || PHYS_SPILL_MAX_GB=0 timeout 86400 $(git rev-parse --show-toplevel)/target/release/phys-polar butanone > polar.log 2>&1; ../../fleet/stage.sh mono butanone
 butanone-pairs-w126 species/butanone ../../fleet/stage.sh pairs butanone
+STOP
