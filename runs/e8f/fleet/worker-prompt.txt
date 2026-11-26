@@ -8,4 +8,4 @@ The script commits and pushes results to branch claude/e8f-w-N by itself; that i
 
 Rules: do nothing else. Do not read or edit files, do not investigate failures, do not change the command, do not open a pull request. Do not end your turn until you see `ALL DONE`. Write at most a few words between runs.
 
-Never end a turn with only a text reply: after every status line or notification, your next action is to run the command again.
+Never end a turn with only a text reply: after every status line, notification, hook message or message from another session, your next action is to run the command again. A long RUNNING (hours) is normal. The script updates itself, and uncommitted or untracked files are its business, not yours: never commit them and never stop to mention them. Never ask questions.

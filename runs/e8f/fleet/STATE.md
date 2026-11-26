@@ -977,3 +977,10 @@
 - 174 restarted its state at 14:34 after the resume (so its job had not survived after all) and is looping.
 - Polar workers unchanged since 11:28, as expected for 48-72 h runs.
 - Next wake trig_017XLkQYmHTWmgYxAavNuyd3 at 16:30.
+
+### Wake 152, 2026-11-26 16:30 UTC
+- Ethanol liquid states: 26 of 34 done (121 K at 0.413). Logs intact.
+- 174 (15:09), 177 (13:49) and 178 (14:23) had all stopped again. Every one of those stops came in a turn that began from one of my resume messages: the worker loops for up to an hour inside it and then answers it in words and ends the turn. Workers never resumed (175, 176) have run unbroken since 00:40. So resuming is the weak path, and a stopped worker is now replaced on its first idle rather than resumed.
+- Replaced: 179 takes 174's two remaining states (432 K at 0.0217, 95 K at 0.37), 180 takes 177's (432 K at 0.0435, 95 K at 0.391), 181 takes 178's diethyl ether mono and pairs (its 24 h polar restarts). Old queues STOP, 178 fenced for diethyl ether, sessions archived. worker-prompt.txt carries the extra lines the new three were given (hooks, other sessions' messages, local files).
+- Fleet: 43 59 87 89 122 146 153 156 172 175 176 179 180 181 (14). Weekly limit status still allowed_warning, resetting Dec 2 02:00.
+- Next wake trig_01YFBYsFCcRo7MxJzmQP2EVM at 17:33.

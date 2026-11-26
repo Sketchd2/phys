@@ -90,3 +90,5 @@
 - 2026-11-26 11:20: worker.sh hides fleet/log from git status via .git/info/exclude. The session stop hook asking about those untracked logs is what set workers talking and ending their turns.
 
 - 2026-11-26 13:30: 174 and 177 resumed on a second idle instead of replaced, because the idle came from the orchestrator's own worker.sh change (since fixed with skip-worktree), not from the sessions.
+
+- 2026-11-26 16:35: a stopped worker is replaced on its first idle, not resumed. Every idle today came inside a turn opened by a resume message; workers started from their own prompt and never messaged have not stopped.
