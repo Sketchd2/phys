@@ -1,2 +1,8 @@
 # ethanol at 432 K, 64 molecules, 0.226 g/cm3, cut-off 16 bohr, law law.txt
 # ps  U_per_molecule_kcal  pressure_bar  T_translation  T_rotation
+2.491 -0.7077 298.6 410.6 467.5
+2.591 -0.6134 315.2 391.3 422.6
+2.691 -0.6559 226.3 370.5 462.3
+2.790 -0.6716 191.3 392.6 492.7
+2.890 -0.6758 200.6 416.4 488.6
+2.990 -0.6016 320.8 428.1 447.4
