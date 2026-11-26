@@ -1002,3 +1002,10 @@
 ### Wake 156, 2026-11-26 20:44 UTC
 - Ethanol liquid states: 30 of 34 done (95 K at 0.37 on 176). The last waiting state, 95 K at 0.391, moved from 180 to 176. Running: 432 K at 0.0087 (175), 0.0217 (179), 0.0435 (180), 95 K at 0.391 (176). Boil at 31: next state done.
 - Next wake trig_01XyZ7yiMf8cheVhxctX2faF at 21:47.
+
+### Wake 157, 2026-11-26 21:48 UTC
+- ETHANOL BOILS AT 147.8 K (32 of 34 states, every done log checked to its snapshot line; experiment 351.4 K). boil.log: isotherm 432 K over 9 states, F_ex/NkT(432 K, 0.435) = +0.7088 +- 0.0396 (degree 5); isochore 0.435 g/cm3 over 12 states; ln p against 1/T crosses one atmosphere at 147.8 K. The law's reference liquid density is 0.435 g/cm3 against ethanol's 0.789, which is where to look first; recorded, not corrected (engine and law are the owner's).
+- The last two states (432 K at 0.0087 on 175, 0.0217 on 179) run on; boil is re-run HERE when they finish, and 175 and 179 are retired then.
+- 176 and 180 had empty queues: STOP, archived. Fleet: 43 59 87 89 122 146 153 156 172 175 179 181 (12).
+- Results so far: ammonia 577.2 K, acetonitrile 414.9 K, ethane 316.5 K, ethanol 147.8 K; HOLE (no liquid): methane, methanol, H2O2, water, ethylene, hydrazine, formic acid, dichloromethane, methylamine, acetaldehyde, chloroform, dimethyl ether, acetic acid.
+- Next wake trig_01GHRFZzvdiuqm4oGe6D6BvN at 22:51.
