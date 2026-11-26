@@ -919,3 +919,8 @@
 - 173 (diethyl ether mono) went idle a second time at 04:52, so it was replaced: queue 173 STOP and fenced, archived; 178 created with the same two jobs (mono, then pairs).
 - Why workers go idle: 173's transcript shows the worker writing a status sentence ("still RUNNING ... continuing the loop") and ending its turn (end_turn), usually in a turn opened by a task notification, instead of running worker.sh again. The calculation itself was not failing. worker-prompt.txt now says never to end a turn on a text reply; 178 got that line.
 - Next wake trig_01SzQTGr269QTHFSfnBrq562 at 05:57.
+
+### Wake 142, 2026-11-26 05:57 UTC
+- The merge had undone seven finished ethanol states (108, 121, 186 and 95 K at 0.435; 432 K at 0.278, 0.331, 0.383): their "done" stayed but liquid.log came back mid-run. Cause: every worker branch carries stale in-progress copies of other workers' states, with a "done" from its source branch, and merge.sh took them in numeric order. Restored each from the worker that owns it; merge.sh now takes a liquid state only from the worker whose queue runs it. Re-merged: 16 of 34 done, every done log ends on its snapshot line.
+- Ammonia, acetonitrile and ethane were boiled with every log tail checked, so they were not affected.
+- All 16 workers running; no new done or failed jobs outside ethanol. Next wake trig_01GNupVe6ydMoesU7D4WxkkB at 07:00.

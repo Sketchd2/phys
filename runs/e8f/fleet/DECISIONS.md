@@ -82,3 +82,5 @@
 2026-11-26 01:45 Isobutane and THF pairs were killed as whole runs, each at a 102.6-102.8 GB table, the size of butane's. Butane failed at every split on the fleet (parts, then 23 of 23 single pairs), and only ran with the table spilled to disk on the owner's machine (6.6 h, 10.8 GB peak). So these are not split into parts or single pairs: that would spend fleet time on jobs known to be killed. They wait, with butane and pyridine, for a machine with room to spill (the owner's call: their machine or rented ones). Their workers (131, 148) are archived.
 
 - 2026-11-26 04:57: worker idles traced to Haiku workers ending a turn on a text reply after a notification, not to job failure. Added one line to worker-prompt.txt forbidding that; existing workers keep their prompts until replaced.
+
+- 2026-11-26 06:05: merge.sh takes files under liquid/s-T-RHO/ only from the worker whose queue holds that state's liquid-state.sh line. Stale copies on other branches had replaced seven finished ethanol logs.
