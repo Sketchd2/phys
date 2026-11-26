@@ -942,3 +942,8 @@
 - Butanone mono done (mono.ok). Its pairs were killed on memory, as every 4-6-heavy-atom species' have been (no pair finished); not split. Butanone joins butane, pyridine, isobutane, THF, ethylamine and propane waiting for a machine that can spill. 126's queue is spent: STOP, archived.
 - Ethyl acetate, glycerol and pentane are through cloud and on c6; their 48 h polar retries are queued behind.
 - Next wake trig_01WTrE6y4Fy17k7DprfEU1kr at 10:11.
+
+### Wake 146, 2026-11-26 10:11 UTC
+- Ethanol liquid states: 21 of 34 done (108 K at 0.391). Logs intact.
+- Ethyl acetate and glycerol through c6 and into the 40-minute polar retry; pentane through cloud. 43, 59, 87 and 153 are inside their 48-72 h polar retries (nothing to push). Chlorobenzene (89) is about 27 h into a 24 h limit; precedent is that the timeout lands hours late, so no action yet.
+- Next wake trig_01PMtSryv64FXCVK8phmRR5o at 11:14.
