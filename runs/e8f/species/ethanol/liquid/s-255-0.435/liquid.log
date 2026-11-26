@@ -10,3 +10,7 @@ ethanol at 255 K: 64 molecules, 0.435 g/cm3, box 42.35 bohr (22.41 A), cut-off 1
   17% after 2308 s: U/N -1.85 kcal/mol, P 442 bar
   25% after 2423 s: U/N -1.78 kcal/mol, P 271 bar
   33% after 2534 s: U/N -1.82 kcal/mol, P 368 bar
+  42% after 2649 s: U/N -1.89 kcal/mol, P 370 bar
+  50% after 2765 s: U/N -1.85 kcal/mol, P 581 bar
+  58% after 2883 s: U/N -1.91 kcal/mol, P 356 bar
+  67% after 2994 s: U/N -1.74 kcal/mol, P 263 bar
