@@ -4,3 +4,9 @@ ethanol at 138 K: 64 molecules, 0.413 g/cm3, box 43.09 bohr (22.80 A), cut-off 1
   start: U/N -0.31 kcal/mol
   easing: U/N -0.89 kcal/mol, T 132/143 K, P -251 bar
   settling: U/N -1.80 kcal/mol, T 143/143 K, P -127 bar
+  warming: U/N -2.77 kcal/mol, T 142/142 K, P 26 bar
+  0% after 2073 s: U/N -2.77 kcal/mol, P 24 bar
+  8% after 2183 s: U/N -2.89 kcal/mol, P -98 bar
+  17% after 2300 s: U/N -2.92 kcal/mol, P -216 bar
+  25% after 2417 s: U/N -2.78 kcal/mol, P -174 bar
+  33% after 2538 s: U/N -2.86 kcal/mol, P -64 bar
