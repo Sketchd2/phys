@@ -27,6 +27,9 @@ git checkout -q -B $BR 2>/dev/null
 # the session's stop hook sees untracked job logs, asks the worker to commit them, and the worker
 # answers in words and ends its turn, which kills its job (174 and 177, 2026-11-26): keep them out of sight
 grep -qx 'runs/e8f/fleet/log/' .git/info/exclude 2>/dev/null || echo 'runs/e8f/fleet/log/' >> .git/info/exclude
+# the same for this script, which every call overwrites with the main branch's copy: a change to it
+# showed as a local edit, the hook asked about it, and 174 stopped to say it had not written it
+git update-index --skip-worktree runs/e8f/fleet/worker.sh 2>/dev/null
 # Haiku workers ended their turns while a job ran ("continuing the loop" and then stopping): say it every call
 echo "Reminder: call bash runs/e8f/fleet/worker.sh $W again straight away; do not end your turn until the last line is ALL DONE."
 PUSHED=""
