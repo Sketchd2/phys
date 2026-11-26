@@ -953,3 +953,9 @@
 - Ethyl acetate (146) and glycerol (122) monos failed "no polarisability" as expected; their 48 h retries are the next lines of their queues.
 - 174 (idle 10:13) and 177 (idle 09:34) ended their turns with a text reply, so their liquid states stopped. 174's transcript shows the trigger: the session stop hook reported untracked fleet/log/*.log files, the worker committed them by hand and answered in words. worker.sh now adds runs/e8f/fleet/log/ to .git/info/exclude on every call (every worker fetches worker.sh), so the hook has nothing to report. Both resumed (first idle each since their last resume); their states restart from the lattice.
 - Next wake trig_01MXDQxW2oJTJU2iFeTGf7gk at 12:18.
+
+### Wake 148, 2026-11-26 12:18 UTC
+- Ethanol liquid states: 22 of 34 done, 3 running (432 K at 0.0217, 0.0087, 0.0435 on 174, 175, 177), 9 waiting. 176 ran out of states (IDLE), so the three 138 K states waiting at the ends of 174, 175 and 177 moved to 176. Merge ownership follows the queue line.
+- Pentane mono failed "no polarisability" as expected; its 48 h retry is next on 156.
+- Every worker pushed around 11:27, when worker.sh's new exclude line reached them. 174 and 177 are looping again after the resume.
+- Next wake trig_01TWPt1zqSiHiCKJkTzSDzg3 at 13:21.
