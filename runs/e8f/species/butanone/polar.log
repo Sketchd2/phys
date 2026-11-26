@@ -1,1 +1,4 @@
 butanone: 882 functions, field step 0.002, 5 frozen cores
+  19 fields in 78747 s (dipole width scale 1)
+  Hartree-Fock: mean 51.4753 bohr^3, diagonal 43.4171 53.5828 57.4259, off-diagonal -1.5e0 -9.8e-1 -9.8e-1
+  MP2: mean 54.5583 bohr^3, diagonal 45.0088 56.8850 61.7812, off-diagonal -1.6e0 -1.1e0 -1.9e0
