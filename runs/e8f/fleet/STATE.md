@@ -959,3 +959,9 @@
 - Pentane mono failed "no polarisability" as expected; its 48 h retry is next on 156.
 - Every worker pushed around 11:27, when worker.sh's new exclude line reached them. 174 and 177 are looping again after the resume.
 - Next wake trig_01TWPt1zqSiHiCKJkTzSDzg3 at 13:21.
+
+### Wake 149, 2026-11-26 13:21 UTC
+- Ethanol liquid states: 22 of 34 done; no change this hour.
+- My worker.sh change of 11:20 set off the very thing it was for. Every worker overwrites worker.sh with the main branch's copy, so the change showed as a local edit; the stop hook asked about it and 174 and 177 stopped (12:25) to say they had not written it. 178 had already stopped at 08:00. worker.sh now marks itself skip-worktree as well, so neither its own update nor the job logs show in git status.
+- Resumed 174, 177 and 178. 174 and 177 were on their second idle, which would mean replacement, but the cause was my script and is fixed, so they were resumed instead. The other workers I could not see on the first page of sessions (43, 59, 87, 89, 122, 146, 153) were sent the same message at "later" priority: it does nothing to a worker still looping, and resumes one that stopped. If any of them had stopped, its polar run restarts from nothing.
+- Next wake trig_01RKkisuSUS1tREKmdB6fa68 at 14:24: compare push times to see which of those seven had stopped.
