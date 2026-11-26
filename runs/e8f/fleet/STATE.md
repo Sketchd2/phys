@@ -994,3 +994,7 @@
 - Ethanol liquid states: 28 of 34 done (108 K at 0.37 on 176). 108 K at 0.413 moved from 175 to 176. Running: 432 K at 0.0087 (175), 0.0217 (179), 0.0435 (180), 108 K at 0.413 (176); waiting: 95 K at 0.37 (179), 0.391 (180). Boil at 31.
 - 179 and 180 pushing progress. Butanol grow at round 5, still GROWING.
 - Next wake trig_013xnF62ABHUB9EzJnhKbFeF at 19:40.
+
+### Wake 155, 2026-11-26 19:40 UTC
+- Ethanol liquid states: 29 of 34 done (108 K at 0.413 on 176). 95 K at 0.37 moved from 179 to 176. Running: 432 K at 0.0087 (175, settling, writes rarely; session looping), 0.0217 (179), 0.0435 (180), 95 K at 0.37 (176); waiting: 95 K at 0.391 (180). Boil at 31.
+- Next wake trig_011LGwxDU3WLLyv6uSc6xoTV at 20:43.

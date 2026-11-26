@@ -1,2 +1,1 @@
 ethanol-liq-432-0.0217-w179 species/ethanol ../../fleet/liquid-state.sh ethanol 432 0.0217 12
-ethanol-liq-95-0.37-w179 species/ethanol ../../fleet/liquid-state.sh ethanol 95 0.37 12
