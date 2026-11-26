@@ -924,3 +924,8 @@
 - The merge had undone seven finished ethanol states (108, 121, 186 and 95 K at 0.435; 432 K at 0.278, 0.331, 0.383): their "done" stayed but liquid.log came back mid-run. Cause: every worker branch carries stale in-progress copies of other workers' states, with a "done" from its source branch, and merge.sh took them in numeric order. Restored each from the worker that owns it; merge.sh now takes a liquid state only from the worker whose queue runs it. Re-merged: 16 of 34 done, every done log ends on its snapshot line.
 - Ammonia, acetonitrile and ethane were boiled with every log tail checked, so they were not affected.
 - All 16 workers running; no new done or failed jobs outside ethanol. Next wake trig_01GNupVe6ydMoesU7D4WxkkB at 07:00.
+
+### Wake 143, 2026-11-26 07:01 UTC
+- Ethanol liquid states: 18 of 34 done (432 K at 0.122 and 0.174 this wake), every done log ends on its snapshot line under the new merge fence. 174-177 running.
+- Monos: butanone, ethyl acetate, glycerol and pentane reached their density runs. Phenol (43), cyclopentane (59) and chlorobenzene (89) are in 24 h polarisability runs whose logs have not changed, so their branches have nothing to push; their sessions are looping and report RUNNING. 178 (diethyl ether mono) is looping and running.
+- Next wake trig_01DFLzhFWKiAHm3vRB9hQevN at 08:04.
