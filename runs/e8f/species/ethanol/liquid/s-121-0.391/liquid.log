@@ -11,3 +11,7 @@ ethanol at 121 K: 64 molecules, 0.391 g/cm3, box 43.88 bohr (23.22 A), cut-off 1
   25% after 2336 s: U/N -2.87 kcal/mol, P -190 bar
   33% after 2445 s: U/N -2.92 kcal/mol, P -255 bar
   42% after 2556 s: U/N -2.95 kcal/mol, P -191 bar
+  50% after 2672 s: U/N -3.00 kcal/mol, P -123 bar
+  58% after 2788 s: U/N -2.96 kcal/mol, P -214 bar
+  67% after 2903 s: U/N -3.07 kcal/mol, P -335 bar
+  75% after 3017 s: U/N -3.04 kcal/mol, P -216 bar
