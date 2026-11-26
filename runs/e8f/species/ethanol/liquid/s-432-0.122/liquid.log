@@ -10,3 +10,5 @@ ethanol at 432 K: 64 molecules, 0.122 g/cm3, box 64.70 bohr (34.24 A), cut-off 1
   17% after 4565 s: U/N -0.48 kcal/mol, P 75 bar
   25% after 4816 s: U/N -0.35 kcal/mol, P 140 bar
   33% after 5054 s: U/N -0.27 kcal/mol, P 99 bar
+  42% after 5291 s: U/N -0.33 kcal/mol, P 67 bar
+  50% after 5530 s: U/N -0.34 kcal/mol, P 180 bar
