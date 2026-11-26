@@ -6,3 +6,8 @@ ethanol at 121 K: 64 molecules, 0.391 g/cm3, box 43.88 bohr (23.22 A), cut-off 1
   settling: U/N -1.85 kcal/mol, T 103/116 K, P -204 bar
   warming: U/N -2.70 kcal/mol, T 109/110 K, P -367 bar
   0% after 2009 s: U/N -2.70 kcal/mol, P -367 bar
+  8% after 2119 s: U/N -2.78 kcal/mol, P -213 bar
+  17% after 2227 s: U/N -2.87 kcal/mol, P -304 bar
+  25% after 2336 s: U/N -2.87 kcal/mol, P -190 bar
+  33% after 2445 s: U/N -2.92 kcal/mol, P -255 bar
+  42% after 2556 s: U/N -2.95 kcal/mol, P -191 bar
