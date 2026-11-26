@@ -1,0 +1,20 @@
+butanone: dipole Hartree-Fock 1.3064 au (3.321 D), target 1.3064 au (3.321 D)
+  18202 potential points; the target's RMS 4.940e0, its mean -4.857e0 hartree/e
+  localised in 23 sweeps: 13 bond orbitals, 2 lone pairs (5 core orbitals frozen out of the localisation)
+  valence electrons 30, cores [4.0, 4.0, 4.0, 4.0, 6.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+  atom class 0: cloud 4.627 electrons, width 1.785 bohr
+  atom class 1: cloud 3.924 electrons, width 0.486 bohr
+  atom class 2: cloud 4.039 electrons, width 1.757 bohr
+  atom class 3: cloud 4.462 electrons, width 1.573 bohr
+  atom class 4: cloud 2.071 electrons, width 1.213 bohr
+  atom class 5: cloud 0.837 electrons, width 1.252 bohr
+  atom class 6: cloud 0.802 electrons, width 0.257 bohr
+  atom class 7: cloud 0.810 electrons, width 1.237 bohr
+  atom class 8: cloud 0.916 electrons, width 0.798 bohr
+  atom class 9: cloud 0.914 electrons, width 0.332 bohr
+  atom class 10: cloud 0.870 electrons, width 0.303 bohr
+  atom class 11: cloud 0.866 electrons, width 0.250 bohr
+  atom class 12: cloud 0.866 electrons, width 0.399 bohr
+  lone-pair cloud of class 4: 2 pair(s) on 1 atom(s), 3.995 electrons, width 1.415 bohr, 0.230 bohr from the nucleus (the orbitals' centre is 0.230)
+  potential RMS 5.899e-3 hartree/e (atom-centred point charges alone: 4.074e-3)
+  written to cloud-butanone.txt

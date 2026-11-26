@@ -3,3 +3,5 @@ hexane-mono-w87 species/hexane rm -rf /tmp/spill/*; grep -q "MP2: mean" polar.lo
 hexane-pairs-w87 species/hexane ../../fleet/stage.sh pairs hexane
 hexane-mono24-w87 species/hexane rm -rf /tmp/spill/*; grep -q 'MP2: mean' polar.log 2>/dev/null || PHYS_SPILL_MAX_GB=0 timeout 86400 $(git rev-parse --show-toplevel)/target/release/phys-polar hexane > polar.log 2>&1; ../../fleet/stage.sh mono hexane
 hexane-pairs24-w87 species/hexane ../../fleet/stage.sh pairs hexane
+hexane-mono-w8772 species/hexane rm -rf /tmp/spill/*; grep -q 'MP2: mean' polar.log 2>/dev/null || PHYS_SPILL_MAX_GB=0 timeout 259200 $(git rev-parse --show-toplevel)/target/release/phys-polar hexane > polar.log 2>&1; ../../fleet/stage.sh mono hexane
+hexane-pairs-w8772 species/hexane ../../fleet/stage.sh pairs hexane

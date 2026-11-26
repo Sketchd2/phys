@@ -1,3 +1,5 @@
 glycerol-grow-w122 species/glycerol ../../fleet/stage.sh grow glycerol
 glycerol-mono-w122 species/glycerol rm -rf /tmp/spill/*; grep -q 'MP2: mean' polar.log 2>/dev/null || PHYS_SPILL_MAX_GB=0 timeout 86400 $(git rev-parse --show-toplevel)/target/release/phys-polar glycerol > polar.log 2>&1; ../../fleet/stage.sh mono glycerol
 glycerol-pairs-w122 species/glycerol ../../fleet/stage.sh pairs glycerol
+glycerol-mono-w122c species/glycerol rm -rf /tmp/spill/*; grep -q 'MP2: mean' polar.log 2>/dev/null || PHYS_SPILL_MAX_GB=0 timeout 172800 $(git rev-parse --show-toplevel)/target/release/phys-polar glycerol > polar.log 2>&1; ../../fleet/stage.sh mono glycerol
+glycerol-pairs-w122c species/glycerol ../../fleet/stage.sh pairs glycerol

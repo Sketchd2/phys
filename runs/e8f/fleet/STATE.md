@@ -929,3 +929,10 @@
 - Ethanol liquid states: 18 of 34 done (432 K at 0.122 and 0.174 this wake), every done log ends on its snapshot line under the new merge fence. 174-177 running.
 - Monos: butanone, ethyl acetate, glycerol and pentane reached their density runs. Phenol (43), cyclopentane (59) and chlorobenzene (89) are in 24 h polarisability runs whose logs have not changed, so their branches have nothing to push; their sessions are looping and report RUNNING. 178 (diethyl ether mono) is looping and running.
 - Next wake trig_01DFLzhFWKiAHm3vRB9hQevN at 08:04.
+
+### Wake 144, 2026-11-26 08:05 UTC
+- Ethanol liquid states: 19 of 34 done (432 K at 0.0783). Logs intact.
+- Four monos failed "no polarisability": phenol (946 functions, 43), cyclopentane (970, 59), aniline (1001, 153), hexane (1272, 87). Each ran phys-polar the full 24 h with spilling off and printed nothing past its header; pairs failed after for want of mono. Butane's took 12.6 h at 884 functions, so about 20-23 h at 1000 and 54 h at 1272 is the expectation. Retries queued on the same workers: 48 h for phenol, cyclopentane and aniline, 72 h for hexane, pairs after each.
+- Pentane (1078, 156), ethyl acetate (988, 146) and glycerol (1008, 122) already ran out their 24 h the same way and are now on density and cloud; their mono will fail at the 40-minute polar retry, so 48 h retries are queued behind them now. Butanone passed (its tensor is in). Chlorobenzene (892, 89) and diethyl ether (990, 178) are still inside their 24 h.
+- Failures do not cost the stage: density, cloud and c6 results are kept and skipped on the retry.
+- Next wake trig_01RxXJxHVMRugg4R3pVUHnJh at 09:08.
