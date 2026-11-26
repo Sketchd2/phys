@@ -1014,3 +1014,9 @@
 - No new results. Ethanol's last two states (175, 179) still running. Butanol grow going. Polar runs unchanged.
 - Chlorobenzene (89) is far past its 24 h limit by the clock since Nov 25 06:45. A worker that went idle and was resumed restarts its job, and an identical polar.log header gives nothing to push, so its run may have restarted unseen (the 13:23 message). It fails or finishes on its own; no action.
 - Next wake trig_0178xVXgnn6v6BBo8gGpFQx2 at 23:55.
+
+### Wake 159, 2026-11-26 23:56 UTC
+- No new results (ethanol 32 of 34).
+- 179 had stopped at 20:34 without any message from me: its record shows a container restart (worker_epoch 2) and the turn after it ended in words. So idles also follow a restart, not only a resume; the rule stands (replace on the first idle). 182 takes its one state, 432 K at 0.0217; 179 STOP, archived.
+- Full session check: 43, 59, 87, 89, 122, 146, 153, 156, 181 all RUNNING and connected; 172 and 175 pushed within the hour.
+- Next wake trig_01JfzDfKgBVfo6gKWNGQRQkp at 00:59.
