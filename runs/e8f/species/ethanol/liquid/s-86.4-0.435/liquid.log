@@ -15,3 +15,14 @@ ethanol at 86.4 K: 64 molecules, 0.435 g/cm3, box 42.35 bohr (22.41 A), cut-off 
   58% after 2831 s: U/N -3.68 kcal/mol, P -276 bar
   67% after 2945 s: U/N -3.59 kcal/mol, P -322 bar
   75% after 3058 s: U/N -3.70 kcal/mol, P -188 bar
+  83% after 3176 s: U/N -3.78 kcal/mol, P -62 bar
+  92% after 3292 s: U/N -3.80 kcal/mol, P -374 bar
+  100% after 3409 s: U/N -3.78 kcal/mol, P -218 bar
+ethanol at 86.4 K (96 samples over 10 ps, block standard errors):
+  U/N -3.674 +- 0.041 kcal/mol; heat of vaporisation -U/N + RT = 3.845 kcal/mol
+  pressure -260 +- 7 bar at 0.435 g/cm3 (a liquid at the right density sits near 1 bar; positive says it wants to expand)
+  temperatures: translation 84.9 K, rotation 86.5 K (bath 86.4 K)
+  mean molecular dipole 1.353 D (permanent charges and induced dipoles); dielectric constant 1.9 (blocks 1.3 +- 0.1; slow to converge)
+  dispersion beyond the cut-off (C6 493.76): -64 bar and -0.163 kcal/mol a molecule, so pressure with it -324 bar, U/N -3.836
+  g(first atoms): first peak 0.49 at 3.35 A, first minimum 0.80 at 4.35 A, second peak 1.50 at 5.25 A, coordination to the minimum 1.22 (bulk-ethanol-86.4.gOO.txt)
+  snapshot in bulk-ethanol-86.4.snap
