@@ -3972,3 +3972,28 @@ round 3: 254 functions, E -233.43905765, 47578 s
   round 4 probe 52/54: 450/515 candidates, 54471 s into the round; about 18 min left in it
   round 4 probe 52/54: 500/515 candidates, 54472 s into the round; about 18 min left in it
   round 4 probe 52/54: 515/515 candidates, 54474 s into the round; about 18 min left in it
+  round 4 probe 53/54: 50/515 candidates, 55067 s into the round; about 10 min left in it
+  round 4 probe 53/54: 100/515 candidates, 55068 s into the round; about 10 min left in it
+  round 4 probe 53/54: 150/515 candidates, 55069 s into the round; about 10 min left in it
+  round 4 probe 53/54: 200/515 candidates, 55070 s into the round; about 10 min left in it
+  round 4 probe 53/54: 250/515 candidates, 55071 s into the round; about 10 min left in it
+  round 4 probe 53/54: 300/515 candidates, 55072 s into the round; about 10 min left in it
+  round 4 probe 53/54: 350/515 candidates, 55072 s into the round; about 10 min left in it
+  round 4 probe 53/54: 400/515 candidates, 55073 s into the round; about 10 min left in it
+  round 4 probe 53/54: 450/515 candidates, 55074 s into the round; about 10 min left in it
+  round 4 probe 53/54: 500/515 candidates, 55075 s into the round; about 10 min left in it
+  round 4 probe 53/54: 515/515 candidates, 55077 s into the round; about 10 min left in it
+  round 4 probe 54/54: 50/515 candidates, 55711 s into the round; under a minute left in it
+  round 4 probe 54/54: 100/515 candidates, 55711 s into the round; under a minute left in it
+  round 4 probe 54/54: 150/515 candidates, 55712 s into the round; under a minute left in it
+  round 4 probe 54/54: 200/515 candidates, 55713 s into the round; under a minute left in it
+  round 4 probe 54/54: 250/515 candidates, 55714 s into the round; under a minute left in it
+  round 4 probe 54/54: 300/515 candidates, 55715 s into the round; under a minute left in it
+  round 4 probe 54/54: 350/515 candidates, 55716 s into the round; under a minute left in it
+  round 4 probe 54/54: 400/515 candidates, 55717 s into the round; under a minute left in it
+  round 4 probe 54/54: 450/515 candidates, 55717 s into the round; under a minute left in it
+  round 4 probe 54/54: 500/515 candidates, 55719 s into the round; under a minute left in it
+  round 4 probe 54/54: 515/515 candidates, 55720 s into the round; under a minute left in it
+round 4: 286 functions, E -233.44541290, 103298 s
+  shape (A, deg): 1.53252 1.53078 1.52095 1.43912 1.10532 1.10180 1.10180 1.10461 1.10460 1.10317 1.10317 1.10827 1.10828 0.97241 111.174 111.112 111.120 107.848 107.849 107.575 112.530 109.468 109.462 109.588 109.555 106.029 113.538 110.013 110.048 108.327 108.329 106.309 107.609 110.239 110.245 110.525 110.524 107.714 108.415
+  added 3, predicted to move: -0.00103 -0.00123 -0.00089 -0.00012 -0.00468 +0.00086 +0.00086 -0.00003 -0.00003 +0.00072 +0.00072 -0.00028 -0.00028 +0.00024 +0.454 -0.058 -0.058 -0.146 -0.146 -0.101 -0.070 +0.003 +0.003 +0.003 +0.003 +0.096 -0.337 +0.038 +0.038 +0.152 +0.152 +0.048 +0.140 -0.134 -0.134 +0.023 +0.023 -0.006 -0.063; left 295.07
