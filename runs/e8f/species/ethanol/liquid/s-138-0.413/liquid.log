@@ -10,3 +10,7 @@ ethanol at 138 K: 64 molecules, 0.413 g/cm3, box 43.09 bohr (22.80 A), cut-off 1
   17% after 2300 s: U/N -2.92 kcal/mol, P -216 bar
   25% after 2417 s: U/N -2.78 kcal/mol, P -174 bar
   33% after 2538 s: U/N -2.86 kcal/mol, P -64 bar
+  42% after 2660 s: U/N -2.78 kcal/mol, P -166 bar
+  50% after 2781 s: U/N -2.89 kcal/mol, P -20 bar
+  58% after 2902 s: U/N -2.87 kcal/mol, P -203 bar
+  67% after 3020 s: U/N -3.07 kcal/mol, P -178 bar
