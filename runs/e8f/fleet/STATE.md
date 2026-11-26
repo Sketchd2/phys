@@ -998,3 +998,7 @@
 ### Wake 155, 2026-11-26 19:40 UTC
 - Ethanol liquid states: 29 of 34 done (108 K at 0.413 on 176). 95 K at 0.37 moved from 179 to 176. Running: 432 K at 0.0087 (175, settling, writes rarely; session looping), 0.0217 (179), 0.0435 (180), 95 K at 0.37 (176); waiting: 95 K at 0.391 (180). Boil at 31.
 - Next wake trig_011LGwxDU3WLLyv6uSc6xoTV at 20:43.
+
+### Wake 156, 2026-11-26 20:44 UTC
+- Ethanol liquid states: 30 of 34 done (95 K at 0.37 on 176). The last waiting state, 95 K at 0.391, moved from 180 to 176. Running: 432 K at 0.0087 (175), 0.0217 (179), 0.0435 (180), 95 K at 0.391 (176). Boil at 31: next state done.
+- Next wake trig_01XyZ7yiMf8cheVhxctX2faF at 21:47.
