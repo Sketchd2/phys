@@ -1,0 +1,28 @@
+induced dipoles on, polarisabilities by site type [11.235266666666668, 11.235266666666668, 11.235266666666668, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0] bohr^3
+ethanol at 432 K: 64 molecules, 0.435 g/cm3, box 42.35 bohr (22.41 A), cut-off 16.0 bohr
+  Ewald sum on: s' = 4.2 bohr, 4522 reciprocal vectors
+  start: U/N -0.31 kcal/mol
+  easing: U/N -0.64 kcal/mol, T 421/583 K, P 884 bar
+  settling: U/N -1.15 kcal/mol, T 486/441 K, P 944 bar
+  warming: U/N -1.32 kcal/mol, T 362/440 K, P 797 bar
+  0% after 2061 s: U/N -1.32 kcal/mol, P 795 bar
+  8% after 2171 s: U/N -1.62 kcal/mol, P 606 bar
+  17% after 2281 s: U/N -1.38 kcal/mol, P 763 bar
+  25% after 2394 s: U/N -1.15 kcal/mol, P 970 bar
+  33% after 2510 s: U/N -1.17 kcal/mol, P 950 bar
+  42% after 2623 s: U/N -1.28 kcal/mol, P 1074 bar
+  50% after 2730 s: U/N -1.11 kcal/mol, P 1064 bar
+  58% after 2839 s: U/N -1.44 kcal/mol, P 715 bar
+  67% after 2949 s: U/N -1.44 kcal/mol, P 883 bar
+  75% after 3060 s: U/N -1.09 kcal/mol, P 1222 bar
+  83% after 3170 s: U/N -1.28 kcal/mol, P 742 bar
+  92% after 3278 s: U/N -1.42 kcal/mol, P 637 bar
+  100% after 3386 s: U/N -1.32 kcal/mol, P 683 bar
+ethanol at 432 K (96 samples over 10 ps, block standard errors):
+  U/N -1.300 +- 0.024 kcal/mol; heat of vaporisation -U/N + RT = 2.159 kcal/mol
+  pressure 884 +- 30 bar at 0.435 g/cm3 (a liquid at the right density sits near 1 bar; positive says it wants to expand)
+  temperatures: translation 413.0 K, rotation 427.4 K (bath 432 K)
+  mean molecular dipole 1.205 D (permanent charges and induced dipoles); dielectric constant 1.7 (blocks 1.5 +- 0.1; slow to converge)
+  dispersion beyond the cut-off (C6 493.76): -64 bar and -0.163 kcal/mol a molecule, so pressure with it 820 bar, U/N -1.463
+  g(first atoms): first peak 0.32 at 3.35 A, first minimum 0.36 at 3.55 A, second peak 1.18 at 5.65 A, coordination to the minimum 0.10 (bulk-ethanol-432.gOO.txt)
+  snapshot in bulk-ethanol-432.snap

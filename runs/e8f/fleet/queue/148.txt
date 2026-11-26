@@ -1,3 +1,4 @@
 tetrahydrofuran-grow-w148 species/tetrahydrofuran ../../fleet/stage.sh grow tetrahydrofuran
 tetrahydrofuran-mono-w148 species/tetrahydrofuran rm -rf /tmp/spill/*; grep -q 'MP2: mean' polar.log 2>/dev/null || PHYS_SPILL_MAX_GB=0 timeout 86400 $(git rev-parse --show-toplevel)/target/release/phys-polar tetrahydrofuran > polar.log 2>&1; ../../fleet/stage.sh mono tetrahydrofuran
 tetrahydrofuran-pairs-w148 species/tetrahydrofuran ../../fleet/stage.sh pairs tetrahydrofuran
+STOP
