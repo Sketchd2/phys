@@ -971,3 +971,9 @@
 - 177 and 178 restarted their jobs at 13:31 after the resume. The seven polar workers (43, 59, 87, 89, 122, 146, 153) never stopped: none pushed a fresh "started", so their 48-72 h runs go on.
 - 174 resumed at 13:23 with its liquid state still RUNNING (the job outlived the idle; a quick resume loses nothing), then stopped again at 13:49 to say it would not commit the worker.sh edit. Resumed once more with that answered; one more idle and it is replaced.
 - Next wake trig_01WfxVe4uzCPwkpA5Xw3iXGE at 15:27.
+
+### Wake 151, 2026-11-26 15:28 UTC
+- Ethanol liquid states: 25 of 34 done (138 K at 0.413). 176 out of states again: 121 K at 0.413 and 0.391 and 108 K at 0.37 moved to it from 174, 175 and 177. Left: three 432 K low-density states running, three more waiting (95 K at 0.37 on 174, 108 K at 0.413 on 175, 95 K at 0.391 on 177), three on 176. Boil at 31.
+- 174 restarted its state at 14:34 after the resume (so its job had not survived after all) and is looping.
+- Polar workers unchanged since 11:28, as expected for 48-72 h runs.
+- Next wake trig_017XLkQYmHTWmgYxAavNuyd3 at 16:30.
