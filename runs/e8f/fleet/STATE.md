@@ -1009,3 +1009,8 @@
 - 176 and 180 had empty queues: STOP, archived. Fleet: 43 59 87 89 122 146 153 156 172 175 179 181 (12).
 - Results so far: ammonia 577.2 K, acetonitrile 414.9 K, ethane 316.5 K, ethanol 147.8 K; HOLE (no liquid): methane, methanol, H2O2, water, ethylene, hydrazine, formic acid, dichloromethane, methylamine, acetaldehyde, chloroform, dimethyl ether, acetic acid.
 - Next wake trig_01GHRFZzvdiuqm4oGe6D6BvN at 22:51.
+
+### Wake 158, 2026-11-26 22:52 UTC
+- No new results. Ethanol's last two states (175, 179) still running. Butanol grow going. Polar runs unchanged.
+- Chlorobenzene (89) is far past its 24 h limit by the clock since Nov 25 06:45. A worker that went idle and was resumed restarts its job, and an identical polar.log header gives nothing to push, so its run may have restarted unseen (the 13:23 message). It fails or finishes on its own; no action.
+- Next wake trig_0178xVXgnn6v6BBo8gGpFQx2 at 23:55.
