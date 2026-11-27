@@ -1096,3 +1096,7 @@
 ### Wake 176, 2026-11-27 18:14 UTC
 - No new results. Diethyl ether through cloud, on c6; its 48 h polar retry follows. Polar retries on 87, 89, 122, 146, 153, 156, 172 running.
 - Next wake trig_01TPF4NKQrBLnAzKz9teWggs at 19:17.
+
+### Wake 177, 2026-11-27 19:18 UTC
+- Diethyl ether mono failed "no polarisability" as expected (and its pairs after it); the 48 h retry queued last wake is now running on 181.
+- Next wake trig_011XWpGX2sj7UGji6YWizGGt at 20:20.
