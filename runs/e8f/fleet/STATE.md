@@ -1108,3 +1108,7 @@
 ### Wake 179, 2026-11-27 21:24 UTC
 - No new results. Full session check: 87, 89, 122, 146, 153, 156, 172, 181 all RUNNING.
 - Next wake trig_01FSY7nNoaSV8pZQbbUikbws at 22:27.
+
+### Wake 180, 2026-11-27 22:28 UTC
+- GLYCEROL MONO DONE: 48 h polar retry finished. Pairs started on 122 (22:03); 6 heavy atoms, expect a memory kill.
+- Next wake trig_014MJAauGjErii22d924Fixt at 23:30.

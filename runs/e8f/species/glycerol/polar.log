@@ -1,1 +1,6 @@
 glycerol: 1008 functions, field step 0.002, 6 frozen cores
+  19 fields in 128388 s (dipole width scale 1)
+  Hartree-Fock: mean 51.3414 bohr^3, diagonal 46.2748 52.8119 54.9376, off-diagonal -1.6e0 -1.4e-1 -5.2e0
+  MP2: mean 55.7931 bohr^3, diagonal 50.3489 57.1471 59.8833, off-diagonal -1.9e0 -3.3e-1 -5.5e0
+  atomic polarisabilities by class [5.105225474495108, 3.9922413716991247, 5.021918768914622, 7.6118370132212245, 5.365524706985449, 4.20897784608589, 4.151699861772711, 5.437612231783783, 3.744399719367178, 4.345889072340316, 6.003580620162346, 4.906322815952168, 3.515539163703684, 4.845529519575063] bohr^3 (classes [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]); the model's tensor: mean 55.7931, diagonal 50.3489 57.1471 59.8833; residual rms 3.27e-15
+  written to polar-glycerol.txt
