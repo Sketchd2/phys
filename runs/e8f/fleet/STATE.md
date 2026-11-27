@@ -1020,3 +1020,7 @@
 - 179 had stopped at 20:34 without any message from me: its record shows a container restart (worker_epoch 2) and the turn after it ended in words. So idles also follow a restart, not only a resume; the rule stands (replace on the first idle). 182 takes its one state, 432 K at 0.0217; 179 STOP, archived.
 - Full session check: 43, 59, 87, 89, 122, 146, 153, 156, 181 all RUNNING and connected; 172 and 175 pushed within the hour.
 - Next wake trig_01JfzDfKgBVfo6gKWNGQRQkp at 00:59.
+
+### Wake 160, 2026-11-27 01:00 UTC
+- No new results (ethanol 32 of 34). 182 started 432 K at 0.0217 at 00:08; 175 still on 0.0087. Butanol grow going; polar runs unchanged.
+- Next wake trig_01VcyyMemZRtGw1TsxxNXPjK at 02:03.
