@@ -1049,3 +1049,7 @@
 ### Wake 166, 2026-11-27 07:21 UTC
 - No new results (ethanol 32 of 34). Butanol grow checkpointed a new round; still GROWING.
 - Next wake trig_017TdRJR3wWi2feFtJnDMZcc at 08:24.
+
+### Wake 167, 2026-11-27 08:25 UTC
+- No new results (ethanol 32 of 34). Nothing to merge this hour.
+- Next wake trig_01DW3QwCd1BMHKZ8H98kFD12 at 09:27.
