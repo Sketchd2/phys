@@ -1087,3 +1087,8 @@
 - PHENOL MONO DONE: 48 h polar retry finished. Pairs started on 43 (16:05); 7 heavy atoms, expect a memory kill.
 - Cyclopentane pairs killed (138.5 GB table over the 40 GB spill cap, rebuilt, killed at 15:27): added to held.tsv, not split. 59's queue spent: STOP, archived. Fleet: 43 87 89 122 146 153 156 172 181 (9).
 - Next wake trig_01QxnL8vdWKZ8xrJW9HEPV1P at 17:09.
+
+### Wake 175, 2026-11-27 17:10 UTC
+- Phenol pairs killed on memory (16:44): held.tsv, not split. 43's queue spent: STOP, archived.
+- Diethyl ether (990 functions, 181) ran out its 24 h polar and is on density/cloud; 48 h retry and pairs queued behind on 181.
+- Fleet: 87 89 122 146 153 156 172 181 (8). Next wake trig_01GJ7DMaMRvddCKX8AQ5Pkec at 18:13.

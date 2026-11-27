@@ -21,3 +21,4 @@ phenol-mono-w43b species/phenol rm -rf /tmp/spill/*; grep -q 'MP2: mean' polar.l
 phenol-pairs-w43b species/phenol ../../fleet/stage.sh pairs phenol
 phenol-mono-w43c species/phenol rm -rf /tmp/spill/*; grep -q 'MP2: mean' polar.log 2>/dev/null || PHYS_SPILL_MAX_GB=0 timeout 172800 $(git rev-parse --show-toplevel)/target/release/phys-polar phenol > polar.log 2>&1; ../../fleet/stage.sh mono phenol
 phenol-pairs-w43c species/phenol ../../fleet/stage.sh pairs phenol
+STOP
