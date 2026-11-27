@@ -1064,3 +1064,8 @@
 - Next wake trig_01PXUykpzq5ngoY4ZgAGER84 at 11:33.
 - Owner asked for a status for work started and then stopped by choice (not an error), with the reason in the row. Added: fleet/held.tsv (species, stage, reason); status.py shows that stage as "stopped" (purple) with the reason in a new Note column and a "species stopped" tile, until the stage finishes. Filled with the 13 species whose pairs wait for a machine that can spill, and the four large grows dropped at the Nov 25 restart (octane, toluene, cyclohexane, heptane). Keep held.tsv current whenever a stage is stopped or resumed by choice.
 - Red (HOLE) rows now carry a note generated from law.ok: B2 at 300 K, fit rms, and the deepest pair by reference and by the law where law.ok gives it.
+
+### Wake 170, 2026-11-27 11:52 UTC (fired 11:33, read late while the owner's question was being answered)
+- No new results. Fleet unchanged (10 workers).
+- For the owner: runs/e8f/THEORY-law.md, a theory of why the laws fail, from the fleet's data and four B2 probes on scratch copies of the laws (nothing in species/ or law.py changed): holes come from three short-range faults (repulsion constant fitted too weak, undamped point polarisabilities, bare nuclei against compact clouds); fix by deriving each term from its own measured pair component and fitting nothing to totals.
+- Next wake trig_017qbHQrfGVQ3GLk2qQq8mAo at 12:55.
