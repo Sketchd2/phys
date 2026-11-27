@@ -1,0 +1,19 @@
+# species	stage	why the orchestrator stopped it (a non-error stop; shown as 'stopped' with this reason until the stage finishes)
+butane	pairs	1 of 24 pairs done, on the owner's PC (6.6 h with spill); 23 killed on memory. Waits for the owner: local PC or rented machine.
+propane	pairs	19 of 24 pairs done; the rest killed on memory. Waits for the owner: local PC or rented machine.
+ethylamine	pairs	22 of 24 pairs done; the rest killed on memory. Waits for the owner: local PC or rented machine.
+isobutane	pairs	Pair tables (~100 GB) are killed on memory; the fleet cannot spill. Waits for the owner: local PC or rented machine.
+tetrahydrofuran	pairs	Pair tables (~100 GB) are killed on memory; the fleet cannot spill. Waits for the owner: local PC or rented machine.
+butanone	pairs	Pair tables (~100 GB) are killed on memory; the fleet cannot spill. Waits for the owner: local PC or rented machine.
+pyridine	pairs	Pair tables (~100 GB) are killed on memory; the fleet cannot spill. Waits for the owner: local PC or rented machine.
+acetone	pairs	Pair tables (~100 GB) are killed on memory; the fleet cannot spill. Waits for the owner: local PC or rented machine.
+propanol	pairs	Pair tables (~100 GB) are killed on memory; the fleet cannot spill. Waits for the owner: local PC or rented machine.
+isopropanol	pairs	Pair tables (~100 GB) are killed on memory; the fleet cannot spill. Waits for the owner: local PC or rented machine.
+ethylene_glycol	pairs	Pair tables (~100 GB) are killed on memory; the fleet cannot spill. Waits for the owner: local PC or rented machine.
+carbon_tetrachloride	pairs	Pair tables (~100 GB) are killed on memory; the fleet cannot spill. Waits for the owner: local PC or rented machine.
+benzene	pairs	Pair tables (~100 GB) are killed on memory; the fleet cannot spill. Waits for the owner: local PC or rented machine.
+octane	grow	Dropped Nov 25 when the fleet restarted smaller after the weekly limit; its pairs would not fit the fleet anyway (bigger than butane's).
+toluene	grow	Dropped Nov 25 when the fleet restarted smaller after the weekly limit; its pairs would not fit the fleet anyway (bigger than butane's).
+cyclohexane	grow	Dropped Nov 25 when the fleet restarted smaller after the weekly limit; its pairs would not fit the fleet anyway (bigger than butane's).
+heptane	grow	Dropped Nov 25 when the fleet restarted smaller after the weekly limit; its pairs would not fit the fleet anyway (bigger than butane's).
+heptane	mono	Dropped Nov 25 when the fleet restarted smaller after the weekly limit; its pairs would not fit the fleet anyway (bigger than butane's).
