@@ -1045,3 +1045,7 @@
 ### Wake 165, 2026-11-27 06:19 UTC
 - No new results (ethanol 32 of 34). 89 shows no "started" for its 48 h retry, as expected when polar.log comes back as the header the branch already has.
 - Next wake trig_01Kzw87qWfwnZcjkdGqAN5hM at 07:21.
+
+### Wake 166, 2026-11-27 07:21 UTC
+- No new results (ethanol 32 of 34). Butanol grow checkpointed a new round; still GROWING.
+- Next wake trig_017TdRJR3wWi2feFtJnDMZcc at 08:24.
