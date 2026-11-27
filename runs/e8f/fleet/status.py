@@ -6,7 +6,7 @@ workers' branches as last fetched (run `git fetch origin 'refs/heads/claude/e8f-
 first). fleet/state.json, if the orchestrator keeps one, adds its own notes:
 {"children": 20, "window": "allowed, resets 14:30 UTC", "note": "..."}.
 The page is then published with the Artifact tool from the same path, so its link stays the same."""
-import os, json, subprocess, html, time, glob
+import os, json, subprocess, html, time, glob, re
 F = os.path.dirname(os.path.abspath(__file__)); E = os.path.dirname(F); ROOT = os.path.dirname(os.path.dirname(E))
 STAGES = ['grow', 'mono', 'pairs', 'full', 'law', 'plan']
 def sh(*a):
@@ -31,6 +31,15 @@ for name, heavy, spec in species:
     done = len(glob.glob(f'{d}/liquid/s-*/done')); totals['liquid'] += want > 0 and done >= want
     boil = open(f'{d}/boil.ok').read().strip() if os.path.exists(f'{d}/boil.ok') else ''; totals['boil'] += bool(boil)
     why = '; '.join(dict.fromkeys(held[(name, st)] for st in STAGES if (name, st) in held and cells[STAGES.index(st)] == 'held')); nheld += bool(why)
+    if 'hole' in cells:  # a law with no liquid: say why, from law.ok
+        t = open(f'{d}/law.ok').read(); bits = []
+        b2 = re.search(r'300 K: ([^;\n]+)', t)
+        if b2: bits.append(f'No liquid: B2(300 K) = {b2.group(1).strip()} cm3/mol, so the law has a short-range hole')
+        rms = re.search(r'weighted rms ([0-9.]+)', t)
+        if rms: bits.append(f'Fit rms {rms.group(1)} kcal/mol')
+        dp = re.search(r'deepest: reference ([-0-9.e+]+), law ([-0-9.e+]+)', t)
+        if dp: bits.append(f'deepest pair {dp.group(1)} by reference, {float(dp.group(2)):+.3f} by the law')
+        why = '; '.join(x for x in ['. '.join([bits[0], ', '.join(bits[1:])]) if len(bits) > 1 else ''.join(bits), why] if x)
     rows.append((name, heavy, cells, done, want, boil, why))
 workers = []
 for q in sorted(glob.glob(F + '/queue/*.txt'), key=lambda p: int(os.path.basename(p)[:-4])):
