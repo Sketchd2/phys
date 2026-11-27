@@ -280,7 +280,6 @@
   "56": "session_016vymdxUynmdNbzwwkgzP6Q",
   "57": "session_016vymdxYuSKF2nGy8ocCfeV",
   "58": "session_016vymdwZDWJandi7eEqmPcK",
-  "59": "session_016vymdwwxjJ1k7bccqjZqKJ",
   "60": "session_016vymdy3KE91JBWNc5JuPTF",
   "61": "session_016vymdxebEruMjF5zRtxtED",
   "62": "session_016vymdzEu1oBJRiX2M1AyJj",
@@ -732,5 +731,5 @@
   "148",
   "173"
  ],
- "merge_workers": "43 59 87 89 122 146 153 156 172 181"
+ "merge_workers": "43 87 89 122 146 153 156 172 181"
 }

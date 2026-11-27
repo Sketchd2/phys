@@ -1,1 +1,6 @@
 phenol: 946 functions, field step 0.002, 7 frozen cores
+  19 fields in 114290 s (dipole width scale 1)
+  Hartree-Fock: mean 73.9834 bohr^3, diagonal 56.5127 87.9154 77.5223, off-diagonal -5.3e0 -1.5e1 -5.8e0
+  MP2: mean 76.6845 bohr^3, diagonal 57.5919 91.9039 80.5575, off-diagonal -5.3e0 -1.6e1 -7.2e0
+  atomic polarisabilities by class [10.817194280239265, 9.329408719581403, 8.853481313499262, 9.266207981162971, 9.314473650815335, 10.308635057959972, 7.695444077228154, 5.344590410548471, 4.804823041148328, 7.226854435336524, 5.859135606761719, 6.288537895359498, 6.859400098230297] bohr^3 (classes [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]); the model's tensor: mean 77.4442, diagonal 61.0703 90.7602 80.5020; residual rms 1.79e0
+  written to polar-phenol.txt

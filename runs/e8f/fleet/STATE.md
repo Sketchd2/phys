@@ -1082,3 +1082,8 @@
 ### Wake 173, 2026-11-27 15:03 UTC
 - Butanol mono started on 172 (14:09). Cyclopentane pairs running on 59. No new results.
 - Next wake trig_01NyaNaF92rNTYgj2koVHrPK at 16:05.
+
+### Wake 174, 2026-11-27 16:06 UTC
+- PHENOL MONO DONE: 48 h polar retry finished. Pairs started on 43 (16:05); 7 heavy atoms, expect a memory kill.
+- Cyclopentane pairs killed (138.5 GB table over the 40 GB spill cap, rebuilt, killed at 15:27): added to held.tsv, not split. 59's queue spent: STOP, archived. Fleet: 43 87 89 122 146 153 156 172 181 (9).
+- Next wake trig_01QxnL8vdWKZ8xrJW9HEPV1P at 17:09.
