@@ -1041,3 +1041,7 @@
 - Chlorobenzene (892 functions, 89) mono failed "no polarisability" at 24 h, pairs after it; 48 h retry and pairs queued on 89, like the other seven.
 - Ethanol 32 of 34; butanol grow going.
 - Next wake trig_01BkTtmVLeGq2EcqJMuroZ8N at 06:18.
+
+### Wake 165, 2026-11-27 06:19 UTC
+- No new results (ethanol 32 of 34). 89 shows no "started" for its 48 h retry, as expected when polar.log comes back as the header the branch already has.
+- Next wake trig_01Kzw87qWfwnZcjkdGqAN5hM at 07:21.
