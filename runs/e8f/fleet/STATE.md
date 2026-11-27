@@ -1053,3 +1053,7 @@
 ### Wake 167, 2026-11-27 08:25 UTC
 - No new results (ethanol 32 of 34). Nothing to merge this hour.
 - Next wake trig_01DW3QwCd1BMHKZ8H98kFD12 at 09:27.
+
+### Wake 168, 2026-11-27 09:28 UTC
+- No new results (ethanol 32 of 34; 175 and 182 pushing). Nothing to merge.
+- Next wake trig_011LknL2wC2PCEunikNfENaL at 10:30.
