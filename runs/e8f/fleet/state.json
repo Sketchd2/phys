@@ -441,9 +441,6 @@
   "121": {
    "session": "session_016vymdyKEgVMGiNCnq7Y8fw"
   },
-  "122": {
-   "session": "session_016vymdxpsdF1ZciWxA7srLv"
-  },
   "123": {
    "session": "session_016vymdw4do2nahmXvA3pKm2"
   },
@@ -730,5 +727,5 @@
   "148",
   "173"
  ],
- "merge_workers": "87 89 122 146 153 156 172 181"
+ "merge_workers": "87 89 146 153 156 172 181"
 }

@@ -19,3 +19,4 @@ heptane	grow	Dropped Nov 25 when the fleet restarted smaller after the weekly li
 heptane	mono	Dropped Nov 25 when the fleet restarted smaller after the weekly limit; its pairs would not fit the fleet anyway (bigger than butane's).
 cyclopentane	pairs	Pair tables (138.5 GB) are killed on memory; the fleet cannot spill. Waits for the owner: local PC or rented machine.
 phenol	pairs	Pair tables are killed on memory (7 heavy atoms); the fleet cannot spill. Waits for the owner: local PC or rented machine.
+glycerol	pairs	Pair tables are killed on memory (6 heavy atoms); the fleet cannot spill. Waits for the owner: local PC or rented machine.

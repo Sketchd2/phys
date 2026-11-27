@@ -1112,3 +1112,7 @@
 ### Wake 180, 2026-11-27 22:28 UTC
 - GLYCEROL MONO DONE: 48 h polar retry finished. Pairs started on 122 (22:03); 6 heavy atoms, expect a memory kill.
 - Next wake trig_014MJAauGjErii22d924Fixt at 23:30.
+
+### Wake 181, 2026-11-27 23:31 UTC
+- Glycerol pairs killed on memory (22:40): held.tsv, not split. 122's queue spent: STOP, archived. Fleet: 87 89 146 153 156 172 181 (7).
+- Next wake trig_01NSupG739wJCJN6MUWRWSG5 at 00:34.
