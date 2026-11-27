@@ -1069,3 +1069,7 @@
 - No new results. Fleet unchanged (10 workers).
 - For the owner: runs/e8f/THEORY-law.md, a theory of why the laws fail, from the fleet's data and four B2 probes on scratch copies of the laws (nothing in species/ or law.py changed): holes come from three short-range faults (repulsion constant fitted too weak, undamped point polarisabilities, bare nuclei against compact clouds); fix by deriving each term from its own measured pair component and fitting nothing to totals.
 - Next wake trig_017qbHQrfGVQ3GLk2qQq8mAo at 12:55.
+
+### Wake 171, 2026-11-27 12:55 UTC
+- No new results, nothing to merge. 172 (butanol grow) has not pushed since 07:13 but is RUNNING and connected: a grow round takes hours.
+- Next wake trig_015FZ5H1rWXgrW1j7KKgfYTY at 13:58.
