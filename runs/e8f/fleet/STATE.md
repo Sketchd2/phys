@@ -1057,3 +1057,8 @@
 ### Wake 168, 2026-11-27 09:28 UTC
 - No new results (ethanol 32 of 34; 175 and 182 pushing). Nothing to merge.
 - Next wake trig_011LknL2wC2PCEunikNfENaL at 10:30.
+
+### Wake 169, 2026-11-27 10:31 UTC
+- Ethanol: all 34 liquid states done, every log checked. Boil re-run HERE: still 147.8 K; the isotherm fit uses the same 9 states (the two new low-density points at 0.0087 and 0.0217 do not enter it), so the result is unchanged. Ethanol is finished.
+- 175 and 182 retired (queues spent, STOP, archived). Fleet: 43 59 87 89 122 146 153 156 172 181 (10): eight polar retries (phenol, cyclopentane, hexane, chlorobenzene, glycerol, ethyl acetate, aniline, pentane), diethyl ether mono (181), butanol grow (172).
+- Next wake trig_01PXUykpzq5ngoY4ZgAGER84 at 11:33.
