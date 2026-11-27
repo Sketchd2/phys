@@ -1100,3 +1100,7 @@
 ### Wake 177, 2026-11-27 19:18 UTC
 - Diethyl ether mono failed "no polarisability" as expected (and its pairs after it); the 48 h retry queued last wake is now running on 181.
 - Next wake trig_011XWpGX2sj7UGji6YWizGGt at 20:20.
+
+### Wake 178, 2026-11-27 20:21 UTC
+- No new results, nothing to merge. Eight 48-72 h polar runs in progress.
+- Next wake trig_01PXtK5e2pBLuCtTr6wvgnsb at 21:23.
