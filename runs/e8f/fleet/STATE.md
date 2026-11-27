@@ -1073,3 +1073,8 @@
 ### Wake 171, 2026-11-27 12:55 UTC
 - No new results, nothing to merge. 172 (butanol grow) has not pushed since 07:13 but is RUNNING and connected: a grow round takes hours.
 - Next wake trig_015FZ5H1rWXgrW1j7KKgfYTY at 13:58.
+
+### Wake 172, 2026-11-27 13:59 UTC
+- CYCLOPENTANE MONO DONE: the 48 h polar retry finished (MP2 mean 60.43 bohr^3, ~29 h). Pairs started on 59 at 13:17; expect them to be killed on memory like every 5-heavy-atom species, and held.tsv then gets cyclopentane.
+- BUTANOL GROWN (stopped at the 48 h time limit, round 6, largest change 0.032 against 0.005; goes on with the basis it reached, as ORCHESTRATOR.md plans and as 15 species before it did). Mono (48 h polar limit) and pairs queued on 172.
+- Next wake trig_01B3a7TXct81TKJh2aYxpKsP at 15:02.

@@ -1,1 +1,6 @@
 cyclopentane: 970 functions, field step 0.002, 5 frozen cores
+  19 fields in 104225 s (dipole width scale 1)
+  Hartree-Fock: mean 57.7420 bohr^3, diagonal 52.8022 60.1617 60.2621, off-diagonal -4.1e-1 -6.1e-1 7.3e-3
+  MP2: mean 60.4340 bohr^3, diagonal 54.5670 63.3339 63.4013, off-diagonal -5.0e-1 -7.3e-1 -9.3e-3
+  atomic polarisabilities by class [6.409719433288269, 6.735950065111239, 7.801319413755743, 8.108188935324057, 7.549862491578729, 5.321568522963739, 3.14458656699383, 3.2165801886799876, 5.192964012374877, 4.442774603485542, 3.7406197737511806, 3.8780639312612757, 3.936965065562937, 4.717947935738125, 3.5835907223024335] bohr^3 (classes [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]); the model's tensor: mean 60.4340, diagonal 54.5670 63.3339 63.4013; residual rms 2.76e-15
+  written to polar-cyclopentane.txt
