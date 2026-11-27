@@ -1078,3 +1078,7 @@
 - CYCLOPENTANE MONO DONE: the 48 h polar retry finished (MP2 mean 60.43 bohr^3, ~29 h). Pairs started on 59 at 13:17; expect them to be killed on memory like every 5-heavy-atom species, and held.tsv then gets cyclopentane.
 - BUTANOL GROWN (stopped at the 48 h time limit, round 6, largest change 0.032 against 0.005; goes on with the basis it reached, as ORCHESTRATOR.md plans and as 15 species before it did). Mono (48 h polar limit) and pairs queued on 172.
 - Next wake trig_01B3a7TXct81TKJh2aYxpKsP at 15:02.
+
+### Wake 173, 2026-11-27 15:03 UTC
+- Butanol mono started on 172 (14:09). Cyclopentane pairs running on 59. No new results.
+- Next wake trig_01NyaNaF92rNTYgj2koVHrPK at 16:05.
