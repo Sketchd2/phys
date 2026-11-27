@@ -1,1 +1,13 @@
 diethyl_ether: dipole Hartree-Fock 0.5088 au (1.293 D), target 0.5088 au (1.293 D)
+  20755 potential points; the target's RMS 5.136e0, its mean -5.045e0 hartree/e
+  localised in 24 sweeps: 12 bond orbitals, 4 lone pairs (5 core orbitals frozen out of the localisation)
+  valence electrons 32, cores [4.0, 4.0, 6.0, 1.0, 1.0, 1.0]
+  atom class 0: cloud 5.024 electrons, width 0.454 bohr
+  atom class 1: cloud 2.218 electrons, width 0.347 bohr
+  atom class 2: cloud 0.000 electrons, width 0.462 bohr
+  atom class 3: cloud 0.914 electrons, width 1.643 bohr
+  atom class 4: cloud 0.705 electrons, width 0.436 bohr
+  atom class 5: cloud 1.228 electrons, width 1.432 bohr
+  lone-pair cloud of class 2: 4 pair(s) on 1 atom(s), 7.957 electrons, width 1.863 bohr, 0.172 bohr from the nucleus (the orbitals' centre is 0.172)
+  potential RMS 1.229e-2 hartree/e (atom-centred point charges alone: 5.262e-3)
+  written to cloud-diethyl_ether.txt
