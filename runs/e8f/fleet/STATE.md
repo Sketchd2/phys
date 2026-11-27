@@ -1036,3 +1036,8 @@
 ### Wake 163, 2026-11-27 04:11 UTC
 - No new results (ethanol 32 of 34). Butanol grow going; polar runs unchanged.
 - Next wake trig_017HvZcB2BvoENjekCoDvXDP at 05:14.
+
+### Wake 164, 2026-11-27 05:15 UTC
+- Chlorobenzene (892 functions, 89) mono failed "no polarisability" at 24 h, pairs after it; 48 h retry and pairs queued on 89, like the other seven.
+- Ethanol 32 of 34; butanol grow going.
+- Next wake trig_01BkTtmVLeGq2EcqJMuroZ8N at 06:18.

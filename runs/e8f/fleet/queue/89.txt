@@ -3,3 +3,5 @@ chlorobenzene-mono-w89 species/chlorobenzene rm -rf /tmp/spill/*; grep -q "MP2: 
 chlorobenzene-pairs-w89 species/chlorobenzene ../../fleet/stage.sh pairs chlorobenzene
 chlorobenzene-mono-w89b species/chlorobenzene rm -rf /tmp/spill/*; grep -q 'MP2: mean' polar.log 2>/dev/null || PHYS_SPILL_MAX_GB=0 timeout 86400 $(git rev-parse --show-toplevel)/target/release/phys-polar chlorobenzene > polar.log 2>&1; ../../fleet/stage.sh mono chlorobenzene
 chlorobenzene-pairs-w89b species/chlorobenzene ../../fleet/stage.sh pairs chlorobenzene
+chlorobenzene-mono-w89c species/chlorobenzene rm -rf /tmp/spill/*; grep -q 'MP2: mean' polar.log 2>/dev/null || PHYS_SPILL_MAX_GB=0 timeout 172800 $(git rev-parse --show-toplevel)/target/release/phys-polar chlorobenzene > polar.log 2>&1; ../../fleet/stage.sh mono chlorobenzene
+chlorobenzene-pairs-w89c species/chlorobenzene ../../fleet/stage.sh pairs chlorobenzene
