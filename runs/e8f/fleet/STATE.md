@@ -1116,3 +1116,7 @@
 ### Wake 181, 2026-11-27 23:31 UTC
 - Glycerol pairs killed on memory (22:40): held.tsv, not split. 122's queue spent: STOP, archived. Fleet: 87 89 146 153 156 172 181 (7).
 - Next wake trig_01NSupG739wJCJN6MUWRWSG5 at 00:34.
+
+### Wake 182, 2026-11-28 00:35 UTC
+- No new results, nothing to merge. Seven workers on polar runs (hexane 72 h; chlorobenzene, ethyl acetate, aniline, pentane, butanol, diethyl ether 48 h).
+- Next wake trig_01CR9VNncyJHMQe7xsBHSo1e at 01:38.
