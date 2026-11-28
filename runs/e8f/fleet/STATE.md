@@ -1146,3 +1146,7 @@ adding them comes before running it long again.
 - ANILINE MONO DONE (48 h polar finished, MP2 mean 83.18 bohr^3, 02:22). 153 stopped after it, as the pause intends; archived. Aniline pairs are next on resume (7 heavy atoms; expect a memory kill).
 - Ethyl acetate's 48 h polar finished (MP2 mean 60.14); its mono is finishing on 146, which then pauses.
 - Still running: hexane (87, 72 h), chlorobenzene (89), pentane (156), butanol (172), diethyl ether (181). Not all paused, so the 4-hour cycle continues: next wake trig_016BWYjjNo12FU2j4pGKBU4o at 09:48.
+
+### Wake 185 (4-hour pause cycle), 2026-11-28 09:49 UTC
+- No new results. 89 (chlorobenzene 48 h polar, ~23 h in) reported ALL DONE at 03:51 and 172 (butanol 48 h polar, ~15 h in) at 05:38: in each the machine had restarted and taken the job with it, so worker.sh found no running job and the PAUSE check ended the session instead of restarting the run. Both runs lost (no breakpoints); both archived. Their queues keep the unfinished mono and pairs lines for the resume.
+- Still running: hexane (87), ethyl acetate mono finishing (146), pentane (156), diethyl ether (181). Next wake trig_01UC5QD5W9UWSrsmrrUuGQzN at 13:50.
