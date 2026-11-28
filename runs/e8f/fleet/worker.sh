@@ -80,6 +80,9 @@ if [ -f $PID ] && [ -f $CUR ]; then
 fi
 # 3. the next job of this worker's queue (the queue is read fresh from the main branch)
 git fetch -q origin $MAIN 2>/dev/null; Q=$(git show FETCH_HEAD:runs/e8f/fleet/queue/$W.txt 2>/dev/null)
+# a pause (fleet/PAUSE on the main branch, e.g. before the weekly usage limit): a job already running
+# was seen through to its end above; no new one starts, and the session ends here
+git cat-file -e FETCH_HEAD:runs/e8f/fleet/PAUSE 2>/dev/null && { echo "ALL DONE"; exit 0; }
 while read -r J D CMD; do
   [ -z "$J" ] && continue
   [ "$J" = STOP ] && { echo "ALL DONE"; exit 0; }

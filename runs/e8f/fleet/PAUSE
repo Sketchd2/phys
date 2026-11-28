@@ -1,0 +1,3 @@
+Fleet paused 2026-11-28 by the owner, ahead of the weekly usage limit (resets 2026-12-02 02:00 UTC).
+While this file is on the main branch, worker.sh lets a running job finish and push, then reports ALL DONE
+instead of starting the next job. Delete it and start fresh workers on the unfinished queues to resume.

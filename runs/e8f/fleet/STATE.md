@@ -1124,3 +1124,8 @@
 ### Wake 183, 2026-11-28 01:39 UTC
 - No new results, nothing to merge.
 - Next wake trig_01Qaog9nYxN7VFZdpecHrf7n at 02:42.
+
+### 2026-11-28 01:4x UTC: PAUSE (owner)
+- The owner asked for every worker to pause at its next save point because the weekly limit is close. fleet/PAUSE added; worker.sh now checks it before starting a job: a running job is seen through to its end and pushed, then the worker reports ALL DONE and its session ends. Nothing new starts.
+- Running jobs and their save points (none of these runs checkpoints part-way; its end is its only save point): hexane 72 h polar (87), chlorobenzene 48 h polar (89), ethyl acetate (146), aniline (153), pentane (156), butanol (172), diethyl ether (181), all 48 h polar. If the limit lands first, they die and restart from nothing on resume, as on Nov 20.
+- Resume: delete fleet/PAUSE, create fresh workers for the unfinished queues (replace, not resume).
