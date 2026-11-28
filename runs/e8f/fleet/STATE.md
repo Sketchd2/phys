@@ -1,5 +1,16 @@
 # Fleet state (the orchestrator's own notes; newest first)
 
+## FIRST JOB WHEN THE FLEET RESUMES (owner, 2026-11-28): breakpoints for the polarisability runs
+Before any long job is restarted, make `phys-polar` (src/bin/polar.rs and what it calls) save its progress at
+breakpoints and resume from the last one, so a run cut off by a usage limit, an idle session or a timeout loses at most
+one breakpoint's work instead of the whole run (the 24 h runs of Nov 25-26 and every run cut off on Nov 20 were lost
+outright). The owner asked for this explicitly, so changing that code is authorised; it must not change what is
+computed: a run stopped and resumed must give the same result as one run straight through (test it on a small species,
+e.g. compare a resumed water or methane polarisability against an uninterrupted one). Then the fleet's polar jobs
+(queue lines with `phys-polar ... > polar.log`) must append rather than truncate their log and resume rather than start
+over. Standing rule (ORCHESTRATOR.md): every long computation the fleet runs should have breakpoints; where one does not,
+adding them comes before running it long again.
+
 ## (lifted 04:04 UTC 11-18: weekly limit reset; workers now report five_hour allowed) WEEKLY LIMIT WARNING (15:19 UTC 11-17): seven_day status allowed_warning, resets 2026-11-18 02:00 UTC. Hold at 38, add NO workers (replacements only) until it resets; if it hits, everything pauses until 02:00 and the backstop re-arms.
 
 ## WORKER COUNT: 37 from 19:05 UTC (blocks to 13:20 and 18:20 clean at 31, 35). Block ends 23:20 UTC. Every species is now started: add workers only to split real work (e.g. liquid states); if the limit hits: back to 31 and hold. The orchestrator's own context (409k) is the main cost: keep wakes minimal. Each wake: sample orchestrator + a few workers' cost (get_session) into usage.json; any worker rising >1 USD between wakes is looping: fix the cause. Full snapshot of every session once a block.

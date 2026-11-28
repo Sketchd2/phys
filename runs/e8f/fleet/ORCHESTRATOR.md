@@ -20,6 +20,15 @@ why; this file is what you do.
 - If something is genuinely broken and you cannot repair it from here, write what and why at
   the top of `fleet/STATE.md`, publish the status page, and keep everything else moving.
 
+## Breakpoints (owner, 2026-11-28)
+
+Every long computation the fleet runs should save its progress at breakpoints and resume from the last one, so
+that a usage limit, an idle session or a timeout costs at most one breakpoint's work. Grows already do this (they
+resume from grow-NAME.state); `phys-polar` did not, and its 24 to 48 h runs were lost whole more than once. Where a
+long job has no breakpoints, adding them comes before running it long again, and a resumed run must give the same
+result as an uninterrupted one. The owner has authorised changing the programs for this; it is not a change to what
+the engine computes.
+
 ## Every wake (you are woken hourly; a wake must finish in a few minutes)
 
 1. `git pull` your branch. Read `fleet/STATE.md` (your own notes from last time) first.

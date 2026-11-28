@@ -92,3 +92,5 @@
 - 2026-11-26 13:30: 174 and 177 resumed on a second idle instead of replaced, because the idle came from the orchestrator's own worker.sh change (since fixed with skip-worktree), not from the sessions.
 
 - 2026-11-26 16:35: a stopped worker is replaced on its first idle, not resumed. Every idle today came inside a turn opened by a resume message; workers started from their own prompt and never messaged have not stopped.
+
+- 2026-11-28 (owner): first job next week is breakpoints for phys-polar so long runs are not lost; and as a standing rule, every long fleet computation should have breakpoints, added before it is run long again. Recorded at the top of STATE.md and in ORCHESTRATOR.md.
