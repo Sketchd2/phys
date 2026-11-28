@@ -1,1 +1,4 @@
 ethyl_acetate: 988 functions, field step 0.002, 6 frozen cores
+  19 fields in 144296 s (dipole width scale 1)
+  Hartree-Fock: mean 55.7359 bohr^3, diagonal 48.1734 56.7339 62.3005, off-diagonal -1.8e0 -3.7e0 -5.2e0
+  MP2: mean 60.1394 bohr^3, diagonal 50.8273 60.9759 68.6150, off-diagonal -2.0e0 -4.8e0 -6.5e0

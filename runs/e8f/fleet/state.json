@@ -528,9 +528,6 @@
   "152": {
    "session": "session_016vymdx5Jzv447o4Yed1wmy"
   },
-  "153": {
-   "session": "session_016vymdzfuvfKF8ZdpTBFunE"
-  },
   "154": {
    "session": "session_016vymdvpP44dVzsRzCA8fsu"
   },
@@ -727,5 +724,5 @@
   "148",
   "173"
  ],
- "merge_workers": "87 89 146 153 156 172 181"
+ "merge_workers": "87 89 146 156 172 181"
 }

@@ -1141,3 +1141,8 @@ adding them comes before running it long again.
 - Running jobs and their save points (none of these runs checkpoints part-way; its end is its only save point): hexane 72 h polar (87), chlorobenzene 48 h polar (89), ethyl acetate (146), aniline (153), pentane (156), butanol (172), diethyl ether (181), all 48 h polar. If the limit lands first, they die and restart from nothing on resume, as on Nov 20.
 - Resume: delete fleet/PAUSE, create fresh workers for the unfinished queues (replace, not resume).
 - Owner's instruction on the orchestrator's own schedule: wake every 4 hours (not 62 minutes) until every worker has paused, then stop the wakes and the backstop. The pending wake trig_01Qaog9nYxN7VFZdpecHrf7n now fires at 05:45 with a pause-cycle prompt that does exactly that; it keeps the old name so the backstop (trig_01XwAwZMNGoJAgYidmcXY5CP) still sees a future wake. Resuming after Dec 2 02:00 UTC is the owner's call.
+
+### Wake 184 (4-hour pause cycle), 2026-11-28 05:46 UTC
+- ANILINE MONO DONE (48 h polar finished, MP2 mean 83.18 bohr^3, 02:22). 153 stopped after it, as the pause intends; archived. Aniline pairs are next on resume (7 heavy atoms; expect a memory kill).
+- Ethyl acetate's 48 h polar finished (MP2 mean 60.14); its mono is finishing on 146, which then pauses.
+- Still running: hexane (87, 72 h), chlorobenzene (89), pentane (156), butanol (172), diethyl ether (181). Not all paused, so the 4-hour cycle continues: next wake trig_016BWYjjNo12FU2j4pGKBU4o at 09:48.

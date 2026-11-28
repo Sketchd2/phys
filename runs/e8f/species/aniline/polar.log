@@ -1,1 +1,6 @@
 aniline: 1001 functions, field step 0.002, 7 frozen cores
+  19 fields in 152006 s (dipole width scale 1)
+  Hartree-Fock: mean 79.7681 bohr^3, diagonal 77.8093 74.3391 87.1560, off-diagonal -1.3e1 -9.2e0 -1.9e1
+  MP2: mean 83.1791 bohr^3, diagonal 80.0260 77.8619 91.6495, off-diagonal -1.4e1 -9.8e0 -2.1e1
+  atomic polarisabilities by class [12.887374740605411, 10.711869268208279, 9.515665852580184, 10.56904762039612, 10.771350438621798, 4.316599764461107, 4.023788109506185, 9.94431117816436, 6.016906139654334] bohr^3 (classes [0, 1, 2, 3, 2, 1, 4, 5, 6, 7, 6, 5, 8, 8]); the model's tensor: mean 84.0346, diagonal 81.1289 78.4375 92.5373; residual rms 2.08e0
+  written to polar-aniline.txt
