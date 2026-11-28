@@ -1,7 +1,7 @@
 {
  "children": 37,
  "window": "allowed; resets 14:20 UTC",
- "note": "Limit hit 07:39 UTC (owner). Count cut to 31: 66, 67, 70, 71 stopped. All others resumed after the 08:10 reset.",
+ "note": "Fleet paused 2026-11-28 (owner) ahead of the weekly limit; resumes when the owner asks.",
  "wakes": [
   {
    "t": "2026-11-15T15:20Z",
@@ -336,9 +336,6 @@
   "86": {
    "session": "session_016vymdwAMLhqs3dvhy44gMV"
   },
-  "87": {
-   "session": "session_016vyme1PtYDkgVgQ95LEFJw"
-  },
   "88": {
    "session": "session_016vyme1LyAW947thoAZGiXg"
   },
@@ -504,9 +501,6 @@
   "145": {
    "session": "session_016vyme1LNhVshSWdY3JHd7P"
   },
-  "146": {
-   "session": "session_016vymdykq51sxcfYoAsYRHT"
-  },
   "147": {
    "session": "session_016vymdyPGXEXRq4BA9SFYzA"
   },
@@ -530,9 +524,6 @@
   },
   "155": {
    "session": "session_016vymdzrCYo4fw2HRhFo1Kf"
-  },
-  "156": {
-   "session": "session_016vymdwev4nzoFKhvfbXaDY"
   },
   "157": {
    "session": "session_016vymdycprGDDPo7bjaxDgh"
@@ -578,9 +569,6 @@
   },
   "171": {
    "session": "session_016vyme1Pm6rk681Sj1sNa7a"
-  },
-  "181": {
-   "session": "session_016vymdxvxjvh3tDb7bV8iPy"
   }
  },
  "ceiling": "31-35 workers + orchestrator for 4.5 h exhausted a five-hour window (limit hit 07:39 UTC)",
@@ -718,5 +706,5 @@
   "148",
   "173"
  ],
- "merge_workers": "87 146 156 181"
+ "merge_workers": ""
 }

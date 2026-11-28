@@ -1150,3 +1150,8 @@ adding them comes before running it long again.
 ### Wake 185 (4-hour pause cycle), 2026-11-28 09:49 UTC
 - No new results. 89 (chlorobenzene 48 h polar, ~23 h in) reported ALL DONE at 03:51 and 172 (butanol 48 h polar, ~15 h in) at 05:38: in each the machine had restarted and taken the job with it, so worker.sh found no running job and the PAUSE check ended the session instead of restarting the run. Both runs lost (no breakpoints); both archived. Their queues keep the unfinished mono and pairs lines for the resume.
 - Still running: hexane (87), ethyl acetate mono finishing (146), pentane (156), diethyl ether (181). Next wake trig_01UC5QD5W9UWSrsmrrUuGQzN at 13:50.
+
+### 2026-11-28 13:28 UTC: FLEET FULLY PAUSED
+- The owner reported the last four sessions ALL DONE. Final merge: ETHYL ACETATE MONO DONE (mono.ok, polar MP2 mean 60.14). Pentane's 48 h retry failed "no polarisability" after ~24 h (most likely killed by a machine restart, then the 40-minute retry). Hexane (87, 72 h) and diethyl ether (181) ended with their runs unfinished. All four archived; no worker remains (merge_workers empty).
+- Wakes stopped by the owner's instruction: backstop trig_01XwAwZMNGoJAgYidmcXY5CP disabled, pending wake trig_01UC5QD5W9UWSrsmrrUuGQzN disabled, nothing scheduled.
+- TO RESUME (only when the owner asks): first the breakpoints job at the top of this file; then delete fleet/PAUSE; fresh workers for the unfinished queues (polar: hexane, chlorobenzene, pentane, butanol, diethyl ether; pairs for aniline and ethyl acetate, both likely memory kills); re-enable the backstop and restart the 62-minute wakes.
